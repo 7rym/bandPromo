@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-04-30
 
+### Added
+- **2026-04-30 — Google Drive Git protection script**
+  - Added `scripts/protect-google-drive-git.ps1` to relocate `.git` outside the Google Drive-synced worktree.
+  - The script also removes `desktop.ini` files from both the worktree and the relocated Git metadata directory.
+  - This closes the gap that `.gitignore` cannot cover: Google Drive writing directly into `.git/refs`, `.git/logs`, and `.git/objects`.
+
 ### Documentation
 - **2026-04-30 — Updated AGENTS.md with desktop.ini guidance**
   - Expanded documentation on desktop.ini files (Windows + Google Drive artifacts).

@@ -15,6 +15,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Runtime files are required and should fail loudly with actionable messages when missing.
 - Keep local-only files out of git (for example web-config.json, data files, .env, icons, manifests).
 - **desktop.ini files:** Windows + Google Drive creates these metadata files in every folder locally. They are **not** tracked by git (see `.gitignore`) and will be recreated on every local sync. Never try to add them to git; they cause corruption in `.git/refs/` and should always be ignored. If you accidentally commit one, remove it immediately.
+- This repository lives inside Google Drive, so `.gitignore` alone is not enough. Run `powershell -ExecutionPolicy Bypass -File scripts/protect-google-drive-git.ps1` once per clone to move `.git` outside the synced folder. That is the durable fix; `.gitignore` only protects the working tree.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
 - Keep repository-authored text in English only.
 - Exception: content inside `biblioteca/templates/` and runtime user data (for example `data/`) may contain any language.
@@ -58,7 +59,8 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Assuming ripgrep is available on every Windows environment.
 - Introducing non-UTF-8 encoded files that later cause garbled output in tools/logs.
 - Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
-- **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored (.gitignore covers this). If a bad ref appears (`fatal: bad object refs/*/desktop.ini`), remove the corrupted desktop.ini files from `.git/refs/` directories locally and on remote.
+- **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
+- **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
 
 ## When in Doubt
 
