@@ -82,7 +82,7 @@ function generate_standard_meta_tags() {
     global $config;
     
     // Handle keywords - can be string or array
-    $keywords = $config['content']['keywords'] ?? 'website';
+    $keywords = $config['social']['keywords'] ?? 'website';
     if (is_array($keywords)) {
         $keywords = implode(', ', $keywords);
     }

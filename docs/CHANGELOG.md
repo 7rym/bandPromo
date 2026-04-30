@@ -11,12 +11,41 @@ All notable changes to this project will be documented in this file.
   - This closes the gap that `.gitignore` cannot cover: Google Drive writing directly into `.git/refs`, `.git/logs`, and `.git/objects`.
 
 ### Documentation
+- **2026-04-30 — Media tier strategy added to planning docs**
+  - Updated `ROADMAP.md` to define the `original` / `master` / `delivery` media model as part of the product direction.
+  - Updated `TODO.md` so v0.7 exit work now explicitly covers weak-source scenarios, master-building rules, and real delivery-target definitions.
+  - Clarified that FEATURES/README should only advertise this workflow once the admin/build implementation is genuinely ready.
+
+- **2026-04-30 — `METADATA.md` renamed to `MEDIA-HANDLING.md`**
+  - Reframed the document from a narrow metadata contract into a broader media-handling policy.
+  - Added the `original` / `master` / `delivery` tier model, realistic intake scenarios, and clearer language around what bandPromo can improve.
+  - Updated internal documentation links in `README.md`, `TODO.md`, and `.github/copilot-instructions.md`.
+
+- **2026-04-30 — Media handling policy expanded with intake matrix**
+  - Added a concrete intake policy matrix to `MEDIA-HANDLING.md` covering accepted scenarios, autofixes, publish blockers, master targets, and delivery targets.
+  - Defined a four-level validation severity model: hard blockers, publish blockers, warnings, and autofixable issues.
+  - Reframed `optimal` as explicit delivery targets tied to actual UI and listening contexts.
+
 - **2026-04-30 — Updated AGENTS.md with desktop.ini guidance**
   - Expanded documentation on desktop.ini files (Windows + Google Drive artifacts).
   - Noted that they corrupt `.git/refs/` if accidentally committed and require cleanup if they appear in remote refs.
   - Added desktop.ini issues to Common Pitfalls section.
 
 ### Changed
+- **2026-04-30 — `content` merged into `social`; dead `build` branch removed**
+  - Moved `keywords` and `categories` into the `social` branch so sharing, SEO, and manifest-facing fields live together.
+  - Updated the Sharing tab and save endpoint so these fields are editable in the same branch-scoped UI as the other social metadata.
+  - Removed the unused `build` branch from the current config, template config, and config-loader defaults because `speedtest_threshold_mbps` was no longer read anywhere.
+
+- **2026-04-30 — Admin: branch-scoped Config -> Basics editor**
+  - Changed `Config -> Basics` to edit only the `site` branch in `web-config.json`, matching the branch-scoped `Theme` and `Sharing` pattern.
+  - Kept the existing raw-config save path under the hood so basics changes still use the normal validation and build-required flow.
+
+- **2026-04-30 — Admin: dedicated Config -> Theme tab**
+  - Added a new `Config -> Theme` sub-tab that edits only the `media` branch in `web-config.json`.
+  - Introduced a smaller presentation-focused editor for logo, cover, and background paths instead of exposing the whole config in that tab.
+  - Reused the existing raw-config save endpoint so theme changes still trigger the normal build-required flow.
+
 - **2026-04-30 — Admin: new Content primary tab**
   - Added a dedicated "📄 Content" primary tab between Files and Config in the admin panel.
   - Moved Playlist, Gallery, and Bio management out of Config into Content sub-tabs (`?tab=content&cntab=playlist|gallery|bio`).

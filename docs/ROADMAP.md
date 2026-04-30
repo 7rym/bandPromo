@@ -1,6 +1,6 @@
 # bandPromo Roadmap
 
-Current version: v0.7 build 198
+Current version: v0.7 build 209
 
 This roadmap exists to keep bandPromo focused on stability, trustworthiness, and a clear progression from a private single-release platform to a reusable self-hosted artist platform.
 
@@ -45,6 +45,7 @@ Core features are part of every bandPromo install:
 
 - authentication and session foundation
 - media player with lyrics support
+- enhanced playlists with short informational summaries of the track contents
 - playback and behavior logging
 - analytics foundation
 - admin shell and content editing
@@ -57,6 +58,7 @@ Core features are part of every bandPromo install:
 - static page ("bio") editing with WYSIWYG editor
 - playlist editing
 - gallery editing
+- ChromeCasting to supported devices
 
 
 Modular features can be enabled or omitted per install:
@@ -114,6 +116,32 @@ Before v1.0, the platform should move toward:
 - branding and content changes that do not require manual code edits
 - setup workflows that a non-developer operator can realistically follow
 
+## Media intake and publishing strategy
+
+bandPromo should help non-technical artists move from weak source material to a professional publish-ready package without requiring external tagging or packaging tools.
+
+The platform should treat audio fidelity and media packaging as separate concerns:
+
+- audio quality remains the responsibility of the artist or producer
+- metadata quality, artwork packaging, lyrics embedding, file naming, and delivery optimization are product responsibilities bandPromo can actively improve
+
+bandPromo should adopt three explicit media tiers:
+
+- `original`: the exact user upload, preserved untouched for trust, recovery, and future regeneration
+- `master`: a bandPromo-authored canonical release asset with corrected metadata, embedded artwork/lyrics where applicable, and standardized naming/structure
+- `delivery`: publish-ready derivatives generated from the master tier for actual playback and display contexts
+
+Practical implications:
+
+- WAV and FLAC should be accepted as preferred source formats
+- WAV uploads may be converted into tagged FLAC masters when the operator completes metadata/artwork inputs
+- lossy sources may be improved in packaging and metadata, but must not be misrepresented as higher-fidelity audio
+- images should be delivered according to real UI needs, not merely preserved at oversized source dimensions
+- build validation should distinguish hard blockers, publish blockers, warnings, and autofixable issues
+- the admin UI should guide non-technical operators through fixing weak source packages rather than rejecting them upfront
+
+This strategy is part of the v0.7 exit work because it defines what "usable by non-technical operators" actually means in practice.
+
 ## v0.7 exit criteria
 
 v0.7 is complete when bandPromo can honestly be described as:
@@ -148,12 +176,14 @@ Recent hardening completed (Apr 2026):
 - a fresh install can be cloned into a new web folder
 - a new operator can configure branding and media without code surgery
 - the build pipeline can generate a functioning private release site from configuration and media
+- the practical source-media policy is documented: accepted inputs, `original`/`master`/`delivery` tiers, and what the platform can repair for weak source packages
 
 ### 4. Beta operator gate
 
 - help text and admin structure are understandable for non-technical testers
 - cache-busting and static asset refresh problems are handled
 - common setup and operation steps are documented well enough for trial use
+- weak source material can be uploaded, diagnosed, and repaired through understandable admin guidance instead of expert-only metadata tooling
 
 ### 5. User Friendliness gate
 
@@ -161,6 +191,7 @@ Recent hardening completed (Apr 2026):
 - WYSIWYG editor for static pages (bio, etc.)
 - Playlist editing
 - Gallery editing
+- Suitable and optimized designs for various display scenarios (vertical/horizontal, mobile/tablet, desktop/TV)
 
 These features must be working and accessible before this gate is considered passed
 
@@ -191,6 +222,12 @@ Not yet required in v0.8:
 - chatrooms
 - heavy automation
 - many third-party integrations
+
+Documentation rule for this strategy:
+
+- ROADMAP defines the product direction and tier model first
+- TODO tracks the concrete implementation slices required to make it real
+- FEATURES and README should only advertise this workflow once the admin/build path actually supports it at a trustworthy level
 
 ## v0.8 testing plan
 

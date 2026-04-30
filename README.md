@@ -29,7 +29,7 @@ Current version: `v0.7`
 
 - [Features](docs/FEATURES.md) — Current features overview
 - [Roadmap](docs/ROADMAP.md) — Long-term goals and milestones
-- [Metadata](docs/METADATA.md) — Audio metadata requirements
+- [Media Handling](docs/MEDIA-HANDLING.md) — Source media policy, metadata, masters, and delivery strategy
 - [Operator Responsibility](docs/OPERATOR-RESPONSIBILITY.md) — Operator boundaries
 - [Support](docs/SUPPORT.md) — Support and maintenance
 - [Trademarks](docs/TRADEMARKS.md) — Naming and branding
@@ -37,10 +37,10 @@ Current version: `v0.7`
 ---
 
 **Tips:**
-- Source/demo audio must be well-tagged for reliable builds ([METADATA.md](METADATA.md)).
+- Source/demo audio does not have to be perfect, but reliable builds still depend on enough usable media information ([docs/MEDIA-HANDLING.md](docs/MEDIA-HANDLING.md)).
 - Local runtime files (`web-config.json`, `.env`, media, data, logs) are not tracked by git and should never be committed.
 - Use tracked templates for first-time setup: `biblioteca/templates/web-config.template.json`, `biblioteca/templates/bio.template.html`, `biblioteca/templates/gallery.template.json`, and `.env.example`.
-- For details on features, configuration, metadata, security, and roadmap: see the markdown files above.
+- For details on features, configuration, media handling, security, and roadmap: see the markdown files above.
 
 ## License
 

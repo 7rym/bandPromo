@@ -41,12 +41,27 @@ foreach ($siteFields as $field) {
 }
 
 // Merge social fields
-$socialFields = ['twitter', 'facebook', 'instagram', 'share_image'];
+$socialFields = ['twitter', 'facebook', 'instagram', 'share_image', 'keywords'];
 foreach ($socialFields as $field) {
     if (isset($patch['social'][$field])) {
         $cfg['social'][$field] = (string) $patch['social'][$field];
     }
 }
+
+if (isset($patch['social']['categories'])) {
+    if (is_array($patch['social']['categories'])) {
+        $cfg['social']['categories'] = array_values(array_filter(array_map('strval', $patch['social']['categories']), static function ($value) {
+            return trim($value) !== '';
+        }));
+    } else {
+        $parts = array_map('trim', explode(',', (string) $patch['social']['categories']));
+        $cfg['social']['categories'] = array_values(array_filter($parts, static function ($value) {
+            return $value !== '';
+        }));
+    }
+}
+
+unset($cfg['content'], $cfg['build']);
 
 $json = json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 if ($json === false) {

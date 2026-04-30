@@ -52,31 +52,25 @@ if (!isset($config['social'])) {
     $config['social'] = array();
 }
 
+if (isset($config['content']) && is_array($config['content'])) {
+    if (!isset($config['social']['categories']) && isset($config['content']['categories'])) {
+        $config['social']['categories'] = $config['content']['categories'];
+    }
+    if (!isset($config['social']['keywords']) && isset($config['content']['keywords'])) {
+        $config['social']['keywords'] = $config['content']['keywords'];
+    }
+}
+
 $config['social'] = array_merge(array(
     'twitter' => '@YourHandle',
     'facebook' => 'YourFacebook',
     'instagram' => 'YourInstagram',
+    'categories' => array('entertainment'),
+    'keywords' => 'website',
     'share_image' => '/media/special/bandPromo_share.png',
     'share_image_width' => 1200,
     'share_image_height' => 630
 ), $config['social']);
-
-if (!isset($config['content'])) {
-    $config['content'] = array();
-}
-
-$config['content'] = array_merge(array(
-    'categories' => array('entertainment'),
-    'keywords' => 'website'
-), $config['content']);
-
-if (!isset($config['build'])) {
-    $config['build'] = array();
-}
-
-$config['build'] = array_merge(array(
-    'speedtest_threshold_mbps' => 20
-), $config['build']);
 
 if (!isset($config['admins'])) {
     $config['admins'] = [];

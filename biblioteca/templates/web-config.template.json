@@ -13,6 +13,8 @@
     "instagram": "YourInstagram",
     "tiktok": "YourTiktok",
     "youtube": "YourYoutube",
+    "categories": ["music", "entertainment"],
+    "keywords": "music, artist, portfolio",
     "share_image": "/media/special/bandPromo_share.png",
     "share_image_width": 1200,
     "share_image_height": 630
@@ -24,12 +26,5 @@
     "welcome_audio": "/media/special/bandPromo_welcome.flac",
     "loggedin_audio": "/media/special/bandPromo_loggedin.flac",
     "logo": "/media/special/bandPromo_logo.png"
-  },
-  "content": {
-    "categories": ["music", "entertainment"],
-    "keywords": "music, artist, portfolio"
-  },
-  "build": {
-    "speedtest_threshold_mbps": 20
   }
 }

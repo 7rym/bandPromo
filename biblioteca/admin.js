@@ -757,42 +757,108 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            // ── Basics: config editor ─────────────────────────────────────────
-            const cfgEditor  = document.getElementById('cfgEditor');
-            const cfgSaveBtn = document.getElementById('cfgSaveBtn');
-            const cfgStatus  = document.getElementById('cfgStatus');
-            if (cfgSaveBtn) {
-                cfgSaveBtn.addEventListener('click', async () => {
-                    cfgStatus.textContent = 'Saving…';
-                    cfgStatus.style.color = '#aaa';
+            // ── Basics: site branch editor ──────────────────────────────────
+            const cfgBasicsEditor = document.getElementById('cfgBasicsEditor');
+            const cfgBasicsFullSource = document.getElementById('cfgBasicsFullSource');
+            const cfgBasicsSaveBtn = document.getElementById('cfgBasicsSaveBtn');
+            const cfgBasicsStatus = document.getElementById('cfgBasicsStatus');
+            if (cfgBasicsSaveBtn) {
+                cfgBasicsSaveBtn.addEventListener('click', async () => {
+                    cfgBasicsStatus.textContent = 'Saving…';
+                    cfgBasicsStatus.style.color = '#aaa';
+
+                    let fullConfig;
+                    let basicsConfig;
                     try {
-                        JSON.parse(cfgEditor.value); // validate JSON first
+                        fullConfig = JSON.parse(cfgBasicsFullSource.value || '{}');
+                        basicsConfig = JSON.parse(cfgBasicsEditor.value || '{}');
+                        if (!basicsConfig || Array.isArray(basicsConfig) || typeof basicsConfig !== 'object') {
+                            throw new Error('Basics must be a JSON object');
+                        }
                     } catch (e) {
-                        cfgStatus.textContent = '❌ Invalid JSON: ' + e.message;
-                        cfgStatus.style.color = '#f55';
+                        cfgBasicsStatus.textContent = '❌ Invalid JSON: ' + e.message;
+                        cfgBasicsStatus.style.color = '#f55';
                         return;
                     }
+
+                    fullConfig.site = basicsConfig;
+
                     try {
+                        const payload = JSON.stringify(fullConfig, null, 4);
                         const resp = await fetch('/biblioteca/save-config-raw.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: cfgEditor.value,
+                            body: payload,
                         });
                         const data = await resp.json();
                         if (data.ok) {
-                            cfgStatus.textContent = '✅ Saved';
-                            cfgStatus.style.color = 'var(--success, #4ade80)';
+                            cfgBasicsFullSource.value = payload;
+                            cfgBasicsStatus.textContent = '✅ Saved';
+                            cfgBasicsStatus.style.color = 'var(--success, #4ade80)';
                             const reasons = (data.build_required_state && data.build_required_state.reasons) || ['web_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
                             setBuildRequiredNudge(data.build_required === true, reasons, action);
                             refreshBuildHint();
                         } else {
-                            cfgStatus.textContent = '❌ ' + (data.error || 'Unknown error');
-                            cfgStatus.style.color = '#f55';
+                            cfgBasicsStatus.textContent = '❌ ' + (data.error || 'Unknown error');
+                            cfgBasicsStatus.style.color = '#f55';
                         }
                     } catch (e) {
-                        cfgStatus.textContent = '❌ Network error: ' + e.message;
-                        cfgStatus.style.color = '#f55';
+                        cfgBasicsStatus.textContent = '❌ Network error: ' + e.message;
+                        cfgBasicsStatus.style.color = '#f55';
+                    }
+                });
+            }
+
+            // ── Theme: media branch editor ──────────────────────────────────
+            const cfgThemeEditor = document.getElementById('cfgThemeEditor');
+            const cfgThemeFullSource = document.getElementById('cfgThemeFullSource');
+            const cfgThemeSaveBtn = document.getElementById('cfgThemeSaveBtn');
+            const cfgThemeStatus = document.getElementById('cfgThemeStatus');
+            if (cfgThemeSaveBtn) {
+                cfgThemeSaveBtn.addEventListener('click', async () => {
+                    cfgThemeStatus.textContent = 'Saving…';
+                    cfgThemeStatus.style.color = '#aaa';
+
+                    let fullConfig;
+                    let themeConfig;
+                    try {
+                        fullConfig = JSON.parse(cfgThemeFullSource.value || '{}');
+                        themeConfig = JSON.parse(cfgThemeEditor.value || '{}');
+                        if (!themeConfig || Array.isArray(themeConfig) || typeof themeConfig !== 'object') {
+                            throw new Error('Theme must be a JSON object');
+                        }
+                    } catch (e) {
+                        cfgThemeStatus.textContent = '❌ Invalid JSON: ' + e.message;
+                        cfgThemeStatus.style.color = '#f55';
+                        return;
+                    }
+
+                    fullConfig.media = themeConfig;
+
+                    try {
+                        const payload = JSON.stringify(fullConfig, null, 4);
+                        const resp = await fetch('/biblioteca/save-config-raw.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: payload,
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            cfgThemeFullSource.value = payload;
+                            cfgThemeStatus.textContent = '✅ Saved';
+                            cfgThemeStatus.style.color = 'var(--success, #4ade80)';
+                            const reasons = (data.build_required_state && data.build_required_state.reasons) || ['web_config_changed'];
+                            const action = (data.build_required_state && data.build_required_state.action) || 'full';
+                            setBuildRequiredNudge(data.build_required === true, reasons, action);
+                            refreshBuildHint();
+                        } else {
+                            cfgThemeStatus.textContent = '❌ ' + (data.error || 'Unknown error');
+                            cfgThemeStatus.style.color = '#f55';
+                        }
+                    } catch (e) {
+                        cfgThemeStatus.textContent = '❌ Network error';
+                        cfgThemeStatus.style.color = '#f55';
                     }
                 });
             }
@@ -1136,6 +1202,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     facebook:    document.getElementById('soc_facebook'),
                     instagram:   document.getElementById('soc_instagram'),
                     share_image: document.getElementById('soc_share_image'),
+                    keywords:    document.getElementById('soc_keywords'),
+                    categories:  document.getElementById('soc_categories'),
                 };
                 if (!fields.site_name) return; // not on sharing tab
 
@@ -1171,7 +1239,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     site:   { name: fields.site_name.value, description: fields.site_desc.value, url: fields.site_url.value },
-                                    social: { twitter: fields.twitter.value, facebook: fields.facebook.value, instagram: fields.instagram.value, share_image: fields.share_image.value },
+                                    social: {
+                                        twitter: fields.twitter.value,
+                                        facebook: fields.facebook.value,
+                                        instagram: fields.instagram.value,
+                                        share_image: fields.share_image.value,
+                                        keywords: fields.keywords.value,
+                                        categories: fields.categories.value,
+                                    },
                                 }),
                             });
                             const data = await resp.json();

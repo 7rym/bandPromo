@@ -216,7 +216,7 @@ if (!in_array($contentTab, ['playlist', 'gallery', 'bio'])) {
 
 // Config sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
-if (!in_array($configTab, ['basics', 'sharing'])) {
+if (!in_array($configTab, ['basics', 'theme', 'sharing'])) {
     $configTab = 'basics';
 }
 
@@ -852,6 +852,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <?php
                 $cfgTabs = [
                     'basics'  => ['⚙️', 'Basics'],
+                    'theme'   => ['🎨', 'Theme'],
                     'sharing' => ['🔗', 'Sharing'],
                 ];
                 foreach ($cfgTabs as $ct => [$emoji, $label]):
@@ -866,9 +867,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-config">
                 <?php if ($configTab === 'basics'): ?>
-                    The main site configuration in JSON format. <strong>Save validates the JSON</strong> — a missing comma or bracket will be caught before anything is written. Most changes need a <a href="?tab=build">Build</a> to take effect. If sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
+                    Basics now edits the <code>site</code> branch from <code>web-config.json</code>. Use it for the site name, URL, description, language, and author without touching the other config branches. <strong>Save validates only this branch</strong>, then writes it back into the full config. If sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
+                <?php elseif ($configTab === 'theme'): ?>
+                    Theme controls the media presentation branch from <code>web-config.json</code>. Use it for paths such as the logo, release cover, and background media. <strong>Save validates only this branch</strong>, then writes it back into the full config. Most changes need a <a href="?tab=build">Build</a> to take effect.
                 <?php elseif ($configTab === 'sharing'): ?>
-                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms. The preview cards below update live as you type. Make sure the <strong>share image path</strong> points to an existing file in the System panel.
+                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Make sure the <strong>share image path</strong> points to an existing file in the System panel.
                 <?php endif; ?>
             </div>
 
@@ -908,16 +911,38 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 file_put_contents($cfgCurrentPath, json_encode($cfgRepaired, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                 header('Location: ?tab=config&ctab=basics'); exit;
             }
+            $cfgFull = json_decode(file_get_contents(__DIR__ . '/web-config.json') ?: '{}', true) ?? [];
+            $cfgSite = $cfgFull['site'] ?? [];
             ?>
             <div class="card">
-                <h3>⚙️ Site Configuration</h3>
+                <h3>⚙️ Site Basics</h3>
                 <p class="card-note">
-                    Edit <code>web-config.json</code> directly. Changes take effect after the next build (for manifest/player) or immediately (for sharing metadata).
+                    Edit only the <code>site</code> branch from <code>web-config.json</code>. This keeps the everyday site basics separate from theme media paths and social sharing settings.
                 </p>
-                <textarea id="cfgEditor" class="code-editor" spellcheck="false" style="height:480px"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/web-config.json') ?: '{}'); ?></textarea>
+                <textarea id="cfgBasicsEditor" class="code-editor" spellcheck="false" style="height:320px"><?php echo htmlspecialchars(json_encode($cfgSite, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
+                <textarea id="cfgBasicsFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
                 <div class="card-actions">
-                    <button id="cfgSaveBtn" class="btn btn-primary">💾 Save config</button>
-                    <span id="cfgStatus" class="status-text"></span>
+                    <button id="cfgBasicsSaveBtn" class="btn btn-primary">💾 Save basics</button>
+                    <span id="cfgBasicsStatus" class="status-text"></span>
+                </div>
+            </div>
+
+            <!-- ── THEME ───────────────────────────────────────────────────── -->
+            <?php elseif ($configTab === 'theme'): ?>
+            <?php
+            $cfgFull = json_decode(file_get_contents(__DIR__ . '/web-config.json') ?: '{}', true) ?? [];
+            $cfgTheme = $cfgFull['media'] ?? [];
+            ?>
+            <div class="card">
+                <h3>🎨 Theme / Media Presentation</h3>
+                <p class="card-note">
+                    Edit only the <code>media</code> branch from <code>web-config.json</code>. This is the quick place for paths such as logo, cover, welcome audio, and background media without touching the rest of the config.
+                </p>
+                <textarea id="cfgThemeEditor" class="code-editor" spellcheck="false" style="height:320px"><?php echo htmlspecialchars(json_encode($cfgTheme, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
+                <textarea id="cfgThemeFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
+                <div class="card-actions">
+                    <button id="cfgThemeSaveBtn" class="btn btn-primary">💾 Save theme</button>
+                    <span id="cfgThemeStatus" class="status-text"></span>
                 </div>
             </div>
 
@@ -932,6 +957,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             $twitter   = $cfg['social']['twitter']     ?? '';
             $facebook  = $cfg['social']['facebook']    ?? '';
             $instagram = $cfg['social']['instagram']   ?? '';
+            $keywords  = $cfg['social']['keywords']    ?? '';
+            $categoriesRaw = $cfg['social']['categories'] ?? ['entertainment'];
+            $categories = is_array($categoriesRaw) ? implode(', ', $categoriesRaw) : (string) $categoriesRaw;
             $ogDomain  = parse_url($ogUrl, PHP_URL_HOST) ?: $ogUrl;
             ?>
 
@@ -966,6 +994,14 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <div class="form-group social-form-full">
                         <label for="soc_share_image">Share image path</label>
                         <input type="text" id="soc_share_image" value="<?php echo htmlspecialchars($ogImage); ?>">
+                    </div>
+                    <div class="form-group social-form-full">
+                        <label for="soc_keywords">Keywords <span class="hint">(SEO meta keywords)</span></label>
+                        <input type="text" id="soc_keywords" value="<?php echo htmlspecialchars($keywords); ?>" placeholder="music, artist, portfolio">
+                    </div>
+                    <div class="form-group social-form-full">
+                        <label for="soc_categories">Categories <span class="hint">(manifest categories, comma separated)</span></label>
+                        <input type="text" id="soc_categories" value="<?php echo htmlspecialchars($categories); ?>" placeholder="music, entertainment">
                     </div>
                 </div>
                 <div class="card-actions">

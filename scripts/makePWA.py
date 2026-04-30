@@ -33,7 +33,7 @@ def generate_manifest():
 
     site     = config.get('site', {})
     branding = config.get('branding', {})
-    content  = config.get('content', {})
+    social   = config.get('social', {})
 
     manifest = {
         "name":             site.get('name', 'My Site'),
@@ -45,7 +45,7 @@ def generate_manifest():
         "start_url":        "/",
         "scope":            "/",
         "orientation":      "portrait-primary",
-        "categories":       content.get('categories', ['entertainment']),
+        "categories":       social.get('categories', ['entertainment']),
         "prefer_related_applications": False,
         "icons": [
             {"src": "/media/icons/favicon-16x16.png",            "sizes": "16x16",   "type": "image/png", "purpose": "any"},

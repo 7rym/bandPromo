@@ -2,7 +2,7 @@
 
 Purpose: keep a short, practical list of what must be finished before moving from `v0.7` to `v0.8 beta`.
 
-Reference: See [METADATA.md](METADATA.md) for the current audio metadata contract, operator guidance, and requirements for reliable builds. If you encounter build or playback issues, check that your source files meet the requirements described there.
+Reference: See [MEDIA-HANDLING.md](MEDIA-HANDLING.md) for the current media policy, operator guidance, and source-media handling rules. If you encounter build or playback issues, check that your source files meet the current requirements described there.
 
 Rules for this file:
 
@@ -32,6 +32,8 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [x] Remove silent runtime fallbacks for required content/config files and fail with actionable errors.
 - [x] Move quiz out of core player flow while preserving quiz assets as module-ready files.
 - [x] Fix localhost admin UX issue where "Open site" could resolve to `127.0.0.1`.
+- [ ] Define clear issue severity in media validation: hard blockers vs publish blockers vs warnings vs autofixable issues.
+- [ ] Present media validation in operator language focused on fixes, not raw tag terminology.
 
 ### Trust
 
@@ -45,16 +47,12 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Test a fresh setup path from clone to working private release site.
 - [ ] Confirm README/setup docs still match the current actual workflow.
 - [x] Add a real `LICENSE` file to the repo to match the chosen licensing direction for v0.7/v0.8.
-- [ ] Define the practical source-media policy: current support, WAV intake plan, and original-tier serving rules.
+- [ ] Define the practical source-media policy: accepted source formats, weak-source scenarios, and what the platform repairs vs only warns about.
+- [ ] Formalize the three media tiers: `original` (untouched upload), `master` (bandPromo-authored canonical package), and `delivery` (publish-ready derivatives).
+- [ ] Define the master-tier rules for audio packaging: metadata, artwork, lyrics, naming, and downloadable corrected masters.
+- [ ] Define the delivery-tier rules for images and audio based on actual UI/device needs rather than raw source size.
 - [x] Decide how build-time metadata validation should warn operators about missing or weak tags: `play/playlist-validation.json`, build-log output, and admin build-log summary.
 - [ ] Implement tag editing tools in the admin UI after warnings are visible.
-
-### Beta operator readiness
-
-- [ ] Review admin help text and identify remaining confusing areas for non-technical operators.
-- [ ] Confirm cache-busting and generated-artifact handling are stable.
-- [ ] Prepare a short tester checklist for the first closed beta.
-- [ ] Define the first metadata editing tools needed in the file manager: title, artist, album, track number, lyrics, and cover handling.
 
 ### User Friendliness
 
@@ -73,7 +71,7 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Replace Config -> Basics raw JSON with guided form editing for `site` basics.
 - [ ] Keep raw JSON editor as an advanced/admin-only view, separate from day-to-day basics editing.
 - [x] Keep social editing in Sharing only (single source of truth for `social`).
-- [ ] Add a dedicated Config sub-tab for theme/media presentation settings (rename from low-level `media` wording to user-facing `theme`).
+- [x] Add a dedicated Config sub-tab for theme/media presentation settings (rename from low-level `media` wording to user-facing `theme`).
 - [x] Audit `web-config` branches (`content`, `build`, `quizzes`) and move non-core branches out of base config where appropriate.
 - [ ] Implement user-friendly tools for editing missing or invalid metatags in media files
 - [x] Implement playlist editing
@@ -85,14 +83,26 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
 
 
-## Media handling (deferred from v0.7 gallery work)
+### Media handling (deferred from v0.7 gallery work)
 
+- [ ] Map realistic intake scenarios: perfect FLAC, WAV export with no tags, partial metadata, lossy-only source, filename-driven metadata, missing cover art, mixed-quality release sets.
+- [ ] Preserve user uploads as immutable originals while generating corrected masters and delivery derivatives separately.
+- [ ] Decide when WAV should be converted into a tagged FLAC master and how lossy sources should be handled without false "quality upgrade" claims.
+- [ ] Redefine "optimal" media output into explicit delivery targets (thumbnail, mobile, lightbox/desktop, stream/download tiers).
 - [ ] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
 - [ ] Video transcoding: convert uploaded .mov/.webm to .mp4 on upload for broad browser compatibility
 - [ ] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
 - [ ] Orphan detection: identify files in media/img/, media/photo/, media/video/ that are not referenced by any active gallery entry or playlist track, and expose in admin
 - [ ] Media deletion: add a safe delete action in the file manager that checks for active references before removing a file
 - [ ] Video poster attribute: once thumbnail generation exists, write `poster` field into gallery.json entries and use it in gallery.js
+
+### Beta operator readiness
+
+- [ ] Review admin help text and identify remaining confusing areas for non-technical operators.
+- [ ] Confirm cache-busting and generated-artifact handling are stable.
+- [ ] Prepare a short tester checklist for the first closed beta.
+- [ ] Define the first metadata editing tools needed in the file manager: title, artist, album, track number, lyrics, and cover handling.
+- [ ] Define the first master-building tools needed in admin: metadata repair, artwork embedding, lyrics embedding, filename cleanup, and export/download of corrected masters.
 
 ## Next after v0.7
 
