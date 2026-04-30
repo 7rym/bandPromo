@@ -1,0 +1,434 @@
+"""
+optimizeMedia — Web-Optimized Media Generator
+Converts source (HQ) content into bandwidth-efficient web variants:
+- FLAC → MP3 320kbps with full ID3 tags
+- Covers → JPEG (optimized quality) for bandwidth savings
+- Photos → JPEG (optimized quality) for bandwidth savings
+
+Reads from play/playlist.json to know which tracks and covers exist.
+Social/OG share image is defined in web-config.json (social.share_image).
+"""
+
+import os
+import json
+import subprocess
+import sys
+from pathlib import Path
+from mutagen.flac import FLAC
+from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBP, TKEY, TPE4, USLT, TXXX
+
+import io
+
+# Force UTF-8 output - compatible with Python 3.6+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+else:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+
+# Find the root directory (scripts/..)
+SCRIPT_DIR   = Path(__file__).parent
+ROOT_DIR     = SCRIPT_DIR.parent
+AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
+AUDIO_OPT_DIR  = ROOT_DIR / 'media' / 'audio' / 'optimal'
+IMG_ORIG_DIR   = ROOT_DIR / 'media' / 'img'   / 'original'
+IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
+PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
+PHOTO_OPT_DIR  = ROOT_DIR / 'media' / 'photo' / 'optimal'
+PLAY_CONFIG  = ROOT_DIR / 'play' / 'playlist.json'
+MEDIA_DIR    = ROOT_DIR / 'media'
+
+try:
+    from PIL import Image
+except ImportError:
+    print("❌ Error: Pillow (PIL) is required for image conversion")
+    print("   Install with: pip install Pillow")
+    sys.exit(1)
+
+
+def load_orig_config():
+    """Load play/playlist.json to get metadata about songs and covers."""
+    if not PLAY_CONFIG.exists():
+        print(f"❌ Error: {PLAY_CONFIG} not found")
+        print("   Run makePlaylists.py first to generate play/playlist.json")
+        sys.exit(1)
+
+    try:
+        with open(str(PLAY_CONFIG), 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"❌ Error reading play/playlist.json: {e}")
+        sys.exit(1)
+
+
+def convert_cover_to_jpeg(source_path, dest_path, quality=75):
+    """
+    Convert cover image to JPEG with medium quality.
+    JPEG quality 75 provides good balance between size and appearance.
+    """
+    try:
+        # Handle case where source doesn't exist (e.g., default_cover.png)
+        if not os.path.exists(source_path):
+            print(f"    ⚠️  Source cover not found: {source_path}")
+            return None
+        
+        img = Image.open(source_path)
+        
+        # Convert RGBA/other modes to RGB for JPEG
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Create white background
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Save as JPEG
+        img.save(dest_path, 'JPEG', quality=quality, optimize=True)
+        
+        # Calculate compression ratio for info
+        source_size = os.path.getsize(source_path)
+        dest_size = os.path.getsize(dest_path)
+        ratio = (1 - dest_size / source_size) * 100 if source_size > 0 else 0
+        
+        print(f"    ✓ Converted cover: {source_path} → {os.path.basename(dest_path)} ({ratio:.0f}% smaller)")
+        return os.path.basename(dest_path)
+    except Exception as e:
+        print(f"    ❌ Error converting cover: {e}")
+        return None
+
+
+def check_ffmpeg():
+    """Check if ffmpeg is accessible (env var FFMPEG_PATH takes priority)."""
+    ffmpeg = os.environ.get('FFMPEG_PATH', 'ffmpeg')
+    try:
+        subprocess.run([ffmpeg, '-version'],
+                      stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def get_ffmpeg_path():
+    """Return the ffmpeg executable path from env or default."""
+    return os.environ.get('FFMPEG_PATH', 'ffmpeg')
+
+
+def get_flac_tags(flac_path):
+    """Extract tags from FLAC file."""
+    tags = {}
+    try:
+        audio = FLAC(flac_path)
+        
+        if audio.get('title'):
+            tags['title'] = audio['title'][0]
+        if audio.get('artist'):
+            tags['artist'] = audio['artist'][0]
+        if audio.get('album'):
+            tags['album'] = audio['album'][0]
+        if audio.get('date'):
+            tags['date'] = audio['date'][0]
+        if audio.get('year'):
+            tags['year'] = audio['year'][0]
+        if audio.get('tracknumber'):
+            tags['tracknumber'] = audio['tracknumber'][0]
+        if audio.get('genre'):
+            tags['genre'] = audio['genre'][0]
+        if audio.get('albumartist'):
+            tags['albumartist'] = audio['albumartist'][0]
+        if audio.get('comment'):
+            tags['comment'] = audio['comment'][0]
+        if audio.get('bpm'):
+            tags['bpm'] = audio['bpm'][0]
+        
+        # Key - use initialkey
+        if audio.get('initialkey'):
+            tags['key'] = audio['initialkey'][0]
+        
+        # Mix artist - lowercase
+        if audio.get('mixartist'):
+            tags['mixartist'] = audio['mixartist'][0]
+        
+        # Lyrics - handle as list and join properly
+        if audio.get('unsyncedlyrics'):
+            lyrics_data = audio['unsyncedlyrics']
+            if isinstance(lyrics_data, list):
+                lyrics_text = '\n'.join(lyrics_data)
+            else:
+                lyrics_text = str(lyrics_data)
+            # Remove everything before || in the first line if present
+            lines = lyrics_text.split('\n')
+            if lines and '||' in lines[0]:
+                lines[0] = lines[0].split('||', 1)[1]
+            tags['lyrics'] = '\n'.join(lines)
+        elif audio.get('lyrics'):
+            lyrics_data = audio['lyrics']
+            if isinstance(lyrics_data, list):
+                lyrics_text = '\n'.join(lyrics_data)
+            else:
+                lyrics_text = str(lyrics_data)
+            # Remove everything before || in the first line if present
+            lines = lyrics_text.split('\n')
+            if lines and '||' in lines[0]:
+                lines[0] = lines[0].split('||', 1)[1]
+            tags['lyrics'] = '\n'.join(lines)
+        
+        # Try to extract cover art (first picture)
+        if audio.pictures:
+            tags['picture'] = audio.pictures[0]
+    except Exception as e:
+        print(f"  Warning: Could not read FLAC tags: {e}")
+    
+    return tags
+
+
+def set_id3_tags(mp3_path, tags):
+    """Apply tags to MP3 file using ID3."""
+    try:
+        # Remove existing tags
+        try:
+            id3 = ID3(mp3_path)
+            id3.delete()
+        except:
+            pass
+        
+        # Create new ID3 tag
+        id3 = ID3()
+        
+        if 'title' in tags:
+            id3.add(TIT2(encoding=3, text=[tags['title']]))
+        if 'artist' in tags:
+            id3.add(TPE1(encoding=3, text=[tags['artist']]))
+        if 'album' in tags:
+            id3.add(TALB(encoding=3, text=[tags['album']]))
+        if 'date' in tags:
+            id3.add(TDRC(encoding=3, text=[tags['date']]))
+        if 'year' in tags:
+            id3.add(TDRC(encoding=3, text=[tags['year']]))
+        if 'tracknumber' in tags:
+            id3.add(TRCK(encoding=3, text=[tags['tracknumber']]))
+        if 'genre' in tags:
+            id3.add(TCON(encoding=3, text=[tags['genre']]))
+        if 'albumartist' in tags:
+            id3.add(TPE2(encoding=3, text=[tags['albumartist']]))
+        if 'comment' in tags:
+            id3.add(COMM(encoding=3, lang='eng', desc='', text=[tags['comment']]))
+        if 'bpm' in tags:
+            id3.add(TBP(encoding=3, text=[tags['bpm']]))
+        if 'key' in tags:
+            id3.add(TKEY(encoding=3, text=[tags['key']]))
+        if 'mixartist' in tags:
+            # Use TPE4 (Interpreted by) for Mix Artist
+            id3.add(TPE4(encoding=3, text=[tags['mixartist']]))
+        if 'lyrics' in tags:
+            # Ensure lyrics is a clean string without encoding artifacts
+            lyrics_text = tags['lyrics']
+            if isinstance(lyrics_text, list):
+                lyrics_text = '\n'.join(str(line) for line in lyrics_text)
+            id3.add(USLT(encoding=3, lang='eng', desc='', text=lyrics_text))
+        
+        # Add cover art if available
+        if 'picture' in tags:
+            picture = tags['picture']
+            id3.add(APIC(encoding=3, 
+                        mime=picture.mime,
+                        type=3,  # Cover front
+                        desc='',
+                        data=picture.data))
+        
+        id3.save(mp3_path, v2_version=4)
+    except Exception as e:
+        print(f"  Warning: Could not set ID3 tags: {e}")
+
+
+def convert_flac_to_mp3(flac_path, mp3_path):
+    """Convert FLAC file to MP3 using ffmpeg."""
+    ffmpeg = get_ffmpeg_path()
+    try:
+        cmd = [
+            ffmpeg,
+            '-i', str(flac_path),
+            '-b:a', '320k',          # CBR 320kbps
+            '-y',                    # Overwrite output file
+            str(mp3_path)
+        ]
+        subprocess.run(cmd,
+                      stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL,
+                      check=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"  Error: FFmpeg conversion failed: {e}")
+        return False
+    except Exception as e:
+        print(f"  Error: {e}")
+        return False
+
+
+def main():
+    """Main media optimization function."""
+    # Verify source directories exist
+    if not AUDIO_ORIG_DIR.exists():
+        print(f"❌ Error: Audio original directory not found at {AUDIO_ORIG_DIR}")
+        sys.exit(1)
+
+    # Create output directories if they don't exist
+    AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
+    IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
+    PHOTO_OPT_DIR.mkdir(parents=True, exist_ok=True)
+
+    print(f"📁 Audio original: {AUDIO_ORIG_DIR}")
+    print(f"📁 Audio (optimized): {AUDIO_OPT_DIR}")
+    print(f"📁 Image original: {IMG_ORIG_DIR}")
+    print(f"📁 Image (optimized): {IMG_OPT_DIR}")
+    print(f"📁 Photo original: {PHOTO_ORIG_DIR}")
+    print(f"📁 Photo (optimized): {PHOTO_OPT_DIR}")
+
+    # Check ffmpeg
+    if not check_ffmpeg():
+        ffmpeg_name = os.environ.get('FFMPEG_PATH', 'ffmpeg')
+        print(f"\n❌ Error: ffmpeg not found ({ffmpeg_name})")
+        print("   Run build.py to auto-install ffmpeg, or install manually.")
+        sys.exit(1)
+
+    # Load play/playlist.json
+    print("\n📖 Loading play/playlist.json...")
+    orig_config = load_orig_config()
+    if not orig_config:
+        print("❌ play/playlist.json is empty")
+        sys.exit(1)
+    print(f"✓ Found {len(orig_config)} tracks")
+    print("=" * 70)
+
+    print("\n🖼️  Processing track cover images...")
+
+    # Process each track
+    converted = 0
+    failed    = 0
+
+    for entry in orig_config:
+        filename = entry.get('file')
+        if not filename:
+            continue
+
+        flac_path    = AUDIO_ORIG_DIR / filename
+        mp3_filename = Path(filename).stem + '.mp3'
+        mp3_path     = AUDIO_OPT_DIR / mp3_filename
+
+        print(f"\n🎵 Processing: {filename}")
+
+        # ── Audio conversion ───────────────────────────────────────────────────
+        print("  → Reading FLAC tags...")
+        tags = get_flac_tags(str(flac_path))
+
+        print(f"  → Converting to MP3 (320kbps)...")
+        if convert_flac_to_mp3(str(flac_path), str(mp3_path)):
+            print("  → Applying ID3 tags...")
+            set_id3_tags(str(mp3_path), tags)
+        else:
+            print(f"  ❌ Failed to convert audio")
+            failed += 1
+            continue
+
+        # ── Cover conversion ───────────────────────────────────────────────────
+        orig_cover = entry.get('cover')
+        if orig_cover:
+            orig_cover_path = IMG_ORIG_DIR / orig_cover
+            lq_cover_path = IMG_OPT_DIR / (Path(orig_cover).stem + '.jpg')
+            print(f"  → Processing cover: {orig_cover}")
+            convert_cover_to_jpeg(str(orig_cover_path), str(lq_cover_path), quality=75)
+        else:
+            print("  → No cover assigned for this track")
+
+        converted += 1
+
+    # ── Photos ──────────────────────────────────────────────────────────────────────
+    print("\n📷 Processing photos...")
+    photo_exts = {'.png', '.jpg', '.jpeg', '.webp'}
+    photo_count = 0
+    if PHOTO_ORIG_DIR.exists():
+        for src in sorted(PHOTO_ORIG_DIR.iterdir()):
+            if src.is_file() and src.suffix.lower() in photo_exts:
+                dest = PHOTO_OPT_DIR / (src.stem + '.jpg')
+                print(f"  Processing: {src.name} → {dest.name}")
+                convert_cover_to_jpeg(str(src), str(dest), quality=80)
+                photo_count += 1
+        if photo_count == 0:
+            print("  ✓ No photos found in original/")
+    else:
+        print(f"  ⚠️  Photo original directory not found: {PHOTO_ORIG_DIR}")
+
+    # ── User illustrations (img/original/ → img/optimal/) ────────────────────────
+    # These are user-supplied images for use in Bio HTML and other custom content.
+    print("\n🖼️  Processing user illustrations (img/original/)...")
+    IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
+    img_illus_count = 0
+    # Skip cover art filenames that belong to tracks (already handled above)
+    track_covers = {entry.get('cover') for entry in orig_config if entry.get('cover')}
+    if IMG_ORIG_DIR.exists():
+        for src in sorted(IMG_ORIG_DIR.iterdir()):
+            if src.is_file() and src.suffix.lower() in photo_exts and src.name not in track_covers:
+                dest = IMG_OPT_DIR / (src.stem + '.jpg')
+                print(f"  Processing: {src.name} → {dest.name}")
+                convert_cover_to_jpeg(str(src), str(dest), quality=80)
+                img_illus_count += 1
+        if img_illus_count == 0:
+            print("  ✓ No user illustrations found in img/original/")
+    else:
+        print(f"  ⚠️  img/original/ directory not found: {IMG_ORIG_DIR}")
+
+    # ── Cleanup old files in optimized dirs ──────────────────────────────────────────
+    print("\n🧹 Cleaning up optimized directories...")
+
+    # Allowed optimized audio files
+    allowed_audio = {e.get('file', '').replace('.flac', '.mp3').replace('.FLAC', '.mp3')
+                     for e in orig_config if e.get('file')}
+    removed = 0
+    for item in AUDIO_OPT_DIR.iterdir():
+        if item.is_file() and item.name not in allowed_audio:
+            try:
+                item.unlink()
+                print(f"  🗑️  Removed audio: {item.name}")
+                removed += 1
+            except Exception as e:
+                print(f"  ⚠️  Could not remove {item.name}: {e}")
+
+    # Keep all jpg/jpeg in IMG_OPT_DIR (they're all valid covers)
+
+    # Clean up photos whose originals no longer exist
+    if PHOTO_ORIG_DIR.exists():
+        allowed_photos = {src.stem + '.jpg'
+                          for src in PHOTO_ORIG_DIR.iterdir()
+                          if src.is_file() and src.suffix.lower() in photo_exts}
+        for item in PHOTO_OPT_DIR.iterdir():
+            if item.is_file() and item.name not in allowed_photos:
+                try:
+                    item.unlink()
+                    print(f"  🗑️  Removed photo: {item.name}")
+                    removed += 1
+                except Exception as e:
+                    print(f"  ⚠️  Could not remove {item.name}: {e}")
+
+    if removed == 0:
+        print("  ✓ Optimized directories are clean")
+
+    # Summary
+    print("\n" + "=" * 70)
+    print(f"✅ Optimization complete!")
+    print(f"   Converted tracks : {converted}")
+    print(f"   Failed           : {failed}")
+    print(f"   Photos optimized       : {photo_count}")
+    print(f"   Illustrations optimized: {img_illus_count}")
+    print(f"   Cleaned up files       : {removed}")
+    print(f"   Audio output     : {AUDIO_OPT_DIR}")
+    print(f"   Image output     : {IMG_OPT_DIR}")
+    print(f"   Photo output     : {PHOTO_OPT_DIR}")
+
+    if (MEDIA_DIR / 'share.jpg').exists():
+        print(f"\n   ⚠️  Legacy media/share.jpg found — safe to delete (now handled by makeSocial.py)")
+
+
+if __name__ == '__main__':
+    main()

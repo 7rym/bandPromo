@@ -1,0 +1,2 @@
+# Disable directory listing for all media subdirectories
+Options -Indexes

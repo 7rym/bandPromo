@@ -1,0 +1,117 @@
+# bandPromo TODO
+
+Purpose: keep a short, practical list of what must be finished before moving from `v0.7` to `v0.8 beta`.
+
+Reference: See [METADATA.md](METADATA.md) for the current audio metadata contract, operator guidance, and requirements for reliable builds. If you encounter build or playback issues, check that your source files meet the requirements described there.
+
+Rules for this file:
+
+- Keep it tied to the roadmap, not random future ideas.
+- Prefer short actionable items over long explanations.
+- Move completed items to the bottom or remove them when no longer useful.
+- Use this as the first checkpoint when resuming work after a break.
+
+## Current milestone
+
+Current target: finish `v0.7` cleanly before opening `v0.8 beta`.
+
+Reference: see `ROADMAP.md` for the full milestone and release structure.
+
+## v0.7 exit gates
+
+
+### Stability
+
+- [x] Verify player behavior on desktop and mobile after recent logging changes.
+- [x] Review remaining known issues in admin, build, auth, and player flow.
+- [x] Confirm media upload -> build -> playback works end to end after recent cleanup.
+- [x] Surface metadata validation warnings in the admin UI build log after builds finish.
+- [ ] Improve metadata warning prominence outside the raw build log, especially for non-technical operators.
+- [x] Ensure that local user-specific files (e.g. configuration, uploaded media, personal data) are never overwritten by the repo during git pull, and are never committed back into the repository.
+- [x] Enforce strict setup seeding for required runtime files (`web-config.json`, `data/gallery.json`, `data/bio.html`, `data/faq.html`) from tracked templates.
+- [x] Remove silent runtime fallbacks for required content/config files and fail with actionable errors.
+- [x] Move quiz out of core player flow while preserving quiz assets as module-ready files.
+- [x] Fix localhost admin UX issue where "Open site" could resolve to `127.0.0.1`.
+
+### Trust
+
+- [ ] Review raw logs after the normalized `track_exited` change and confirm events match real behavior.
+- [ ] Verify analytics views still interpret old and new log formats correctly.
+- [ ] Decide final policy for `session_end`, inactivity tracking, and future `session_timeout` / `inactive_start` events.
+- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults.
+
+### Reusability
+
+- [ ] Test a fresh setup path from clone to working private release site.
+- [ ] Confirm README/setup docs still match the current actual workflow.
+- [x] Add a real `LICENSE` file to the repo to match the chosen licensing direction for v0.7/v0.8.
+- [ ] Define the practical source-media policy: current support, WAV intake plan, and original-tier serving rules.
+- [x] Decide how build-time metadata validation should warn operators about missing or weak tags: `play/playlist-validation.json`, build-log output, and admin build-log summary.
+- [ ] Implement tag editing tools in the admin UI after warnings are visible.
+
+### Beta operator readiness
+
+- [ ] Review admin help text and identify remaining confusing areas for non-technical operators.
+- [ ] Confirm cache-busting and generated-artifact handling are stable.
+- [ ] Prepare a short tester checklist for the first closed beta.
+- [ ] Define the first metadata editing tools needed in the file manager: title, artist, album, track number, lyrics, and cover handling.
+
+### User Friendliness
+
+- [x] Update CSS breakpoints for modern screen segments. Flow design for vertical views, grid for wide screens.
+- [x] Test view at 360–430px (mobile) with vertical layout and --card-size: 260px
+- [x] Test view at 431–767px (large mobile/small tablet) with vertical layout and --card-size: 400px
+- [x] Test view at 768–1365px (tablet/small laptop) with grid and --card-size: 430px
+- [x] Test view at >=1366px (desktop) with grid and --card-size: 600px
+- [ ] Ensure all these features are working and accessible before closing v0.7
+- [ ] Test and improve landscape orientation on mobile (360–430px wide, ~360–430px tall): layout likely needs a horizontal/grid split similar to tablet view rather than the current vertical stack
+- [ ] Test landscape on large mobile/small tablet (431–767px wide in landscape): confirm grid layout triggers correctly or add a dedicated landscape breakpoint
+- [ ] Consider using `orientation: landscape` media queries to switch mobile views to a two-column layout when height is constrained
+
+### Admin UX Restructure Proposal (planned)
+
+- [ ] Replace Config -> Basics raw JSON with guided form editing for `site` basics.
+- [ ] Keep raw JSON editor as an advanced/admin-only view, separate from day-to-day basics editing.
+- [x] Keep social editing in Sharing only (single source of truth for `social`).
+- [ ] Add a dedicated Config sub-tab for theme/media presentation settings (rename from low-level `media` wording to user-facing `theme`).
+- [x] Audit `web-config` branches (`content`, `build`, `quizzes`) and move non-core branches out of base config where appropriate.
+- [ ] Implement user-friendly tools for editing missing or invalid metatags in media files
+- [x] Implement playlist editing
+- [x] Implement gallery editing
+- [x] Replace Playlist placeholder with real drag-and-drop track ordering UI.
+- [x] Persist manual playlist order in `play/playlist.json` from admin edits.
+- [x] Update build generation so existing manual playlist order is preserved and new tracks are appended at the end.
+- [ ] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
+- [ ] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
+
+
+## Media handling (deferred from v0.7 gallery work)
+
+- [ ] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
+- [ ] Video transcoding: convert uploaded .mov/.webm to .mp4 on upload for broad browser compatibility
+- [ ] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
+- [ ] Orphan detection: identify files in media/img/, media/photo/, media/video/ that are not referenced by any active gallery entry or playlist track, and expose in admin
+- [ ] Media deletion: add a safe delete action in the file manager that checks for active references before removing a file
+- [ ] Video poster attribute: once thumbnail generation exists, write `poster` field into gallery.json entries and use it in gallery.js
+
+## Next after v0.7
+
+- [ ] Define the `v0.8` multi-release data model.
+- [ ] Define anonymous vs registered access levels.
+- [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
+- [ ] Design the first theme/config structure.
+
+## Notes
+
+- `ROADMAP.md` is the long-term direction.
+- `TODO.md` is the short-term working list.
+- If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.
+
+## PWA offline audio caching and offline logging
+
+- [ ] Implement service worker audio caching for offline playback
+- [ ] Ensure PHP audio endpoint supports robust range requests and full downloads
+- [ ] Add cache management for audio (eviction, update handling)
+- [ ] Implement offline logging (store logs locally when offline, sync when online)
+- [ ] Add fallback for all core services to work offline where possible
+

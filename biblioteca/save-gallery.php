@@ -1,0 +1,56 @@
+<?php
+/**
+ * Save runtime gallery content (data/gallery.json).
+ * Accepts a JSON array via POST body. Admin-only.
+ */
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+session_write_close(); // release lock before file I/O
+
+header('Content-Type: application/json; charset=utf-8');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'POST required']);
+    exit;
+}
+
+$body = file_get_contents('php://input');
+if ($body === false) {
+    echo json_encode(['error' => 'Could not read request body']);
+    exit;
+}
+
+// Validate JSON and ensure it's an array
+$decoded = json_decode($body, true);
+if ($decoded === null) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid JSON: ' . json_last_error_msg()]);
+    exit;
+}
+if (!is_array($decoded)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'gallery.json must be a JSON array']);
+    exit;
+}
+
+$gallery_file = dirname(__DIR__) . '/data/gallery.json';
+
+// Ensure data dir exists
+if (!is_dir(dirname($gallery_file))) {
+    mkdir(dirname($gallery_file), 0750, true);
+}
+
+$pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if (file_put_contents($gallery_file, $pretty) === false) {
+    echo json_encode(['error' => 'Could not write data/gallery.json — check file permissions']);
+    exit;
+}
+
+echo json_encode(['ok' => true, 'count' => count($decoded)]);

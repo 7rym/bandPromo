@@ -1,0 +1,44 @@
+# Security: Protect sensitive data files
+
+# Allow large file uploads (FLAC files can be 100MB+)
+<IfModule mod_php.c>
+    php_value upload_max_filesize 300M
+    php_value post_max_size 310M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 300M
+    php_value post_max_size 310M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+
+# Redirect direct web-config.json access through secure API
+<FilesMatch "^web-config\.json$">
+    RewriteEngine On
+    RewriteRule ^web-config\.json$ /biblioteca/get-config.php [QSA,L]
+</FilesMatch>
+
+# Redirect direct highscores.json access through secure API
+<FilesMatch "^data/highscores\.json$">
+    RewriteEngine On
+    RewriteRule ^data/highscores\.json$ /biblioteca/get-highscores.php [QSA,L]
+</FilesMatch>
+
+# Redirect quizbase files through secure quiz API
+<FilesMatch "^biblioteca/quizbase-.*\.json$">
+    RewriteEngine On
+    RewriteRule ^biblioteca/quizbase-(.*)\.json$ /biblioteca/quiz.php?type=$1 [QSA,L]
+</FilesMatch>
+
+# Add security headers to all JSON responses
+<FilesMatch "\.json$">
+    <IfModule mod_headers.c>
+        Header set X-Content-Type-Options "nosniff"
+        Header set Cache-Control "private, no-store, max-age=0"
+    </IfModule>
+</FilesMatch>
+

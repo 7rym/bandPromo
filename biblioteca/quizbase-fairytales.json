@@ -1,0 +1,587 @@
+[
+  {
+    "correct": 2,
+    "question": "Who wrote \"The Little Mermaid\"?",
+    "options": ["Brothers Grimm", "Hans Christian Andersen", "Asbjørnsen & Moe"]
+  },
+  {
+    "correct": 2,
+    "question": "Who collected \"Cinderella\"?",
+    "options": ["Brothers Grimm", "Charles Perrault", "Hans Christian Andersen"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a girl visiting her grandmother?",
+    "options": ["Snow White", "Sleeping Beauty", "Little Red Riding Hood"]
+  },
+  {
+    "correct": 2,
+    "question": "What turns into a carriage in Cinderella?",
+    "options": ["Apple", "Pumpkin", "Stone"]
+  },
+  {
+    "correct": 1,
+    "question": "Who wrote \"The Ugly Duckling\"?",
+    "options": ["Hans Christian Andersen", "Brothers Grimm", "Asbjørnsen & Moe"]
+  },
+  {
+    "correct": 3,
+    "question": "What is Snow White poisoned with?",
+    "options": ["Cake", "Wine", "Apple"]
+  },
+  {
+    "correct": 2,
+    "question": "Which fairy tale features a glass slipper?",
+    "options": ["Rapunzel", "Cinderella", "Thumbelina"]
+  },
+  {
+    "correct": 1,
+    "question": "Who lets down her hair from a tower?",
+    "options": ["Rapunzel", "Elsa", "Gerda"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a really cold royalty?",
+    "options": ["The Little Match Girl", "Sleeping Beauty", "The Snow Queen"]
+  },
+  {
+    "correct": 2,
+    "question": "Which country is Hans Christian Andersen from?",
+    "options": ["Germany", "Denmark", "Norway"]
+  },
+  {
+    "correct": 1,
+    "question": "Who collected Norwegian folktales?",
+    "options": ["Asbjørnsen & Moe", "Brothers Grimm", "Charles Perrault"]
+  },
+  {
+    "correct": 3,
+    "question": "What creature lives under bridges in Norwegian tales?",
+    "options": ["Dragon", "Elf", "Troll"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a very tiny girl?",
+    "options": ["Rapunzel", "Thumbelina", "Gerda"]
+  },
+  {
+    "correct": 1,
+    "question": "Who are the German fairy tale collectors?",
+    "options": ["Brothers Grimm", "Andersen Brothers", "Moe Brothers"]
+  },
+  {
+    "correct": 3,
+    "question": "What does the Ugly Duckling become?",
+    "options": ["A Duck", "A Goose", "A Swan"]
+  },
+  {
+    "correct": 2,
+    "question": "Who wakes Sleeping Beauty?",
+    "options": ["A Knight", "A Prince", "A King"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a spinning wheel curse?",
+    "options": ["Sleeping Beauty", "Rapunzel", "Cinderella"]
+  },
+  {
+    "correct": 3,
+    "question": "What animals help Cinderella?",
+    "options": ["Dogs", "Horses", "Birds"]
+  },
+  {
+    "correct": 2,
+    "question": "Who is Gerda searching for in The Snow Queen?",
+    "options": ["Prince", "Kay", "Hans"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale includes a magic mirror asking \"Who is the fairest\"?",
+    "options": ["Snow White", "Rapunzel", "Beauty and the Beast"]
+  },
+  {
+    "correct": 2,
+    "question": "What does the Little Mermaid give up for legs?",
+    "options": ["Hair", "Voice", "Memory"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features three animals crossing a bridge?",
+    "options": ["Three Little Pigs", "Goldilocks", "Three Billy Goats Gruff"]
+  },
+  {
+    "correct": 1,
+    "question": "Who lives in a candy house?",
+    "options": ["A witch", "A troll", "A giant"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale has a princess locked in a tower with long hair?",
+    "options": ["Snow White", "Sleeping Beauty", "Rapunzel"]
+  },
+  {
+    "correct": 2,
+    "question": "What disguise does the wolf use in Little Red Riding Hood?",
+    "options": ["Hunter", "Grandmother", "King"]
+  },
+  {
+    "correct": 1,
+    "question": "Who wrote \"The Snow Queen\"?",
+    "options": ["Hans Christian Andersen", "Grimm", "Perrault"]
+  },
+  {
+    "correct": 3,
+    "question": "What object does Rumpelstiltskin spin?",
+    "options": ["Wool", "Cotton into silver", "Straw into gold"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features an amphibian royalty?",
+    "options": ["The Snow Queen", "The Frog King", "Rapunzel"]
+  },
+  {
+    "correct": 1,
+    "question": "What breaks the spell in The Frog King?",
+    "options": ["A kiss or act of kindness", "A sword", "A potion"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a boy who grows a thing up into the sky?",
+    "options": ["Hansel and Gretel", "Pinocchio", "Jack and the Beanstalk"]
+  },
+  {
+    "correct": 2,
+    "question": "Who wrote \"The Princess and the Pea\"?",
+    "options": ["Grimm", "Hans Christian Andersen", "Moe"]
+  },
+  {
+    "correct": 1,
+    "question": "What test proves a princess to be genuine?",
+    "options": ["A pea under mattresses", "A crown", "A ring"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a mirror that speaks?",
+    "options": ["Rapunzel", "Cinderella", "Snow White"]
+  },
+  {
+    "correct": 2,
+    "question": "What is the setting of many Grimm tales?",
+    "options": ["Desert", "Forest", "Ocean"]
+  },
+  {
+    "correct": 1,
+    "question": "What are Hansel and Gretel?",
+    "options": ["Siblings", "Friends", "Strangers"]
+  },
+  {
+    "correct": 3,
+    "question": "What does the witch want to do with Hansel?",
+    "options": ["Teach him", "Ignore him", "Eat him"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a magical item shoes making someone dance?",
+    "options": ["Cinderella", "The Red Shoes", "Rapunzel"]
+  },
+  {
+    "correct": 1,
+    "question": "Who wrote \"The Red Shoes\"?",
+    "options": ["Hans Christian Andersen", "Grimm", "Perrault"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a talking feline?",
+    "options": ["The Frog King", "Snow Queen", "Puss in Boots"]
+  },
+  {
+    "correct": 2,
+    "question": "Who originally wrote \"Puss in Boots\"?",
+    "options": ["Grimm", "Charles Perrault", "Andersen"]
+  },
+  {
+    "correct": 1,
+    "question": "What does Puss in Boots help his master become?",
+    "options": ["A nobleman", "A farmer", "A king"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a magical item that produces food?",
+    "options": ["Snow White", "Rapunzel", "The Wishing-Table"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a girl freezing to death in winter?",
+    "options": ["Thumbelina", "The Little Match Girl", "Cinderella"]
+  },
+  {
+    "correct": 1,
+    "question": "Who wrote \"The Little Match Girl\"?",
+    "options": ["Hans Christian Andersen", "Grimm", "Moe"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a magical aviary?",
+    "options": ["Rapunzel", "Snow Queen", "The Golden Goose"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a miller's daughter guessing a name?",
+    "options": ["Cinderella", "Rumpelstiltskin", "Rapunzel"]
+  },
+  {
+    "correct": 1,
+    "question": "What happens if the girl guesses the name Rumpelstiltskin correctly?",
+    "options": ["She keeps her child", "She becomes queen", "She disappears"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a prince turned into a monster?",
+    "options": ["Snow White", "Sleeping Beauty", "Beauty and the Beast"]
+  },
+  {
+    "correct": 2,
+    "question": "What breaks the curse in Beauty and the Beast?",
+    "options": ["Magic spell", "Love", "Time"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a house made of gingerbread?",
+    "options": ["Hansel and Gretel", "Cinderella", "Rapunzel"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes seven small miners?",
+    "options": ["Rapunzel", "Sleeping Beauty", "Snow White"]
+  },
+  {
+    "correct": 2,
+    "question": "What do the dwarfs do for a living?",
+    "options": ["Farm", "Mine", "Fish"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a prince searching with a shoe?",
+    "options": ["Cinderella", "Rapunzel", "Snow Queen"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale involves a magical spinning of straw?",
+    "options": ["Sleeping Beauty", "Cinderella", "Rumpelstiltskin"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale includes a cursed spindle?",
+    "options": ["Rapunzel", "Sleeping Beauty", "Snow White"]
+  },
+  {
+    "correct": 1,
+    "question": "Who wrote \"Thumbelina\"?",
+    "options": ["Hans Christian Andersen", "Grimm", "Perrault"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a mole wanting to marry a girl?",
+    "options": ["Snow Queen", "Rapunzel", "Thumbelina"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a magical mirror shard?",
+    "options": ["Cinderella", "The Snow Queen", "Rapunzel"]
+  },
+  {
+    "correct": 1,
+    "question": "What is Kay affected by in The Snow Queen?",
+    "options": ["Mirror shards", "Magic ring", "Spell book"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a faithful metal man?",
+    "options": ["Ugly Duckling", "Little Mermaid", "The Steadfast Tin Soldier"]
+  },
+  {
+    "correct": 2,
+    "question": "Who wrote \"The Steadfast Tin Soldier\"?",
+    "options": ["Grimm", "Hans Christian Andersen", "Moe"]
+  },
+  {
+    "correct": 1,
+    "question": "What is special about the famous tin soldier?",
+    "options": ["He has one leg", "He can talk", "He is golden"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a very tired princess?",
+    "options": ["Snow White", "Rapunzel", "Sleeping Beauty"]
+  },
+  {
+    "correct": 2,
+    "question": "How long does the sleeping beauty sleep?",
+    "options": ["10 years", "100 years", "1 year"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a magical test involving legumes?",
+    "options": ["The Princess and the Pea", "Rapunzel", "Cinderella"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a girl with magical tears?",
+    "options": ["Snow White", "Thumbelina", "The Snow Queen"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale includes a cursed rose?",
+    "options": ["Rapunzel", "Beauty and the Beast", "Cinderella"]
+  },
+  {
+    "correct": 1,
+    "question": "Who wrote \"The Emperor's New Clothes\"?",
+    "options": ["Hans Christian Andersen", "Grimm", "Perrault"]
+  },
+  {
+    "correct": 3,
+    "question": "What is the emperor actually wearing?",
+    "options": ["Gold clothes", "Magic clothes", "Nothing"]
+  },
+  {
+    "correct": 2,
+    "question": "Who tells the truth in the story of the Emperor's New Clothes?",
+    "options": ["A Minister", "A Child", "A Tailor"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a boy made of wood?",
+    "options": ["Pinocchio", "Hansel and Gretel", "Jack and the Beanstalk"]
+  },
+  {
+    "correct": 2,
+    "question": "What happens when Pinocchio lies?",
+    "options": ["He shrinks", "His nose grows", "He turns blue"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a giant who says \"Fee-fi-fo-fum\"?",
+    "options": ["Rapunzel", "Cinderella", "Jack and the Beanstalk"]
+  },
+  {
+    "correct": 2,
+    "question": "What does Jack trade for the beans?",
+    "options": ["A sword", "A cow", "A ring"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a magical harp?",
+    "options": ["Jack and the Beanstalk", "Snow White", "Rapunzel"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a girl locked in a tower by a witch?",
+    "options": ["Snow White", "Sleeping Beauty", "Rapunzel"]
+  },
+  {
+    "correct": 2,
+    "question": "What does Rapunzel use to help the prince?",
+    "options": ["A rope", "Her hair", "A ladder"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a boy swallowed by a whale?",
+    "options": ["Pinocchio", "Hansel and Gretel", "Thumbelina"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a magical bird that lays golden eggs?",
+    "options": ["Cinderella", "Rapunzel", "Jack and the Beanstalk"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale includes a girl with golden hair sleeping in a castle?",
+    "options": ["Rapunzel", "Sleeping Beauty", "Snow White"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale includes a talking wolf?",
+    "options": ["Little Red Riding Hood", "Cinderella", "Rapunzel"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a gingerbread house?",
+    "options": ["Snow White", "Rapunzel", "Hansel and Gretel"]
+  },
+  {
+    "correct": 2,
+    "question": "What do Hansel and Gretel use to find their way back?",
+    "options": ["Sticks", "Breadcrumbs", "Coins"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale includes a poisoned apple?",
+    "options": ["Snow White", "Cinderella", "Rapunzel"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features dwarfs living in a cottage?",
+    "options": ["Sleeping Beauty", "Rapunzel", "Snow White"]
+  },
+  {
+    "correct": 2,
+    "question": "How many dwarfs are there? (According to the most popular version of Snow White)",
+    "options": ["5", "7", "9"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features magical items that force dancing?",
+    "options": ["The Red Shoes", "Cinderella", "Snow White"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a cursed spindle?",
+    "options": ["Rapunzel", "Cinderella", "Sleeping Beauty"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale includes a golden-haired prince?",
+    "options": ["Snow White", "Rapunzel", "Thumbelina"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features lentils?",
+    "options": ["The Princess and the Pea", "Rapunzel", "Cinderella"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a talking mirror?",
+    "options": ["Cinderella", "Rapunzel", "Snow White"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a cursed beast?",
+    "options": ["Rapunzel", "Beauty and the Beast", "Snow White"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features magical transformation at midnight?",
+    "options": ["Cinderella", "Rapunzel", "Snow White"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a golden spinning wheel?",
+    "options": ["Snow White", "Rapunzel", "Rumpelstiltskin"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale includes a transformed amphibian?",
+    "options": ["Snow White", "The Frog King", "Rapunzel"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale features a magical avian?",
+    "options": ["The Golden Goose", "Rapunzel", "Cinderella"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale includes a magical rose?",
+    "options": ["Snow White", "Rapunzel", "Beauty and the Beast"]
+  },
+  {
+    "correct": 2,
+    "question": "Which tale features a girl sent out on the streets by her father?",
+    "options": ["Thumbelina", "The Little Match Girl", "Cinderella"]
+  },
+  {
+    "correct": 1,
+    "question": "Which tale includes invisible apparel?",
+    "options": ["The Emperor's New Clothes", "Rapunzel", "Snow White"]
+  },
+  {
+    "correct": 3,
+    "question": "Which tale features a boy climbing to meet a giant?",
+    "options": ["Hansel and Gretel", "Pinocchio", "Jack and the Beanstalk"]
+  },
+  {
+    "correct": 2,
+    "question": "In \"Bluebeard\", what is forbidden for the wife to open?",
+    "options": ["A chest", "A locked room", "A tower"]
+  },
+  {
+    "correct": 3,
+    "question": "What reveals the wife's disobedience in \"Bluebeard\"?",
+    "options": ["A broken key", "A scream", "A blood-stained key"]
+  },
+  {
+    "correct": 1,
+    "question": "In \"The Pied Piper\", what does the piper use to lure the rats?",
+    "options": ["A pipe", "A drum", "A bell"]
+  },
+  {
+    "correct": 2,
+    "question": "Why does the Pied Piper take the children away?",
+    "options": ["He is cursed", "He is not paid", "He is angry"]
+  },
+  {
+    "correct": 3,
+    "question": "Which Grimm tale features a maiden given to the devil for a bargain?",
+    "options": ["Rapunzel", "Snow White", "The Handless Maiden"]
+  },
+  {
+    "correct": 1,
+    "question": "Why are the maiden's hands cut off?",
+    "options": ["Her father made a pact with the devil", "She was cursed", "She stole food"]
+  },
+  {
+    "correct": 2,
+    "question": "In \"The Handless Maiden\", who eventually helps her?",
+    "options": ["A witch", "A king", "A hunter"]
+  },
+  {
+    "correct": 3,
+    "question": "In \"The Boy Who Knew No ____\", what is the boy seeking?",
+    "options": ["Pain", "Love", "Fear"]
+  },
+  {
+    "correct": 2,
+    "question": "How does the boy finally learn fear?",
+    "options": ["Facing ghosts", "Cold fish thrown on him", "A curse"]
+  },
+  {
+    "correct": 3,
+    "question": "In \"Bluebeard\", what happens to previous wives?",
+    "options": ["They escape", "They leave", "They are locked in a room to die"]
+  },
+  {
+    "correct": 2,
+    "question": "In \"The Pied Piper\", which town is affected by the rat infestation?",
+    "options": ["Bremen", "Hamelin", "Cologne"]
+  },
+  {
+    "correct": 3,
+    "question": "What do the townspeople refuse to give the Piper?",
+    "options": ["Food", "Gold", "Payment"]
+  },
+  {
+    "correct": 1,
+    "question": "What do the rats represent symbolically in \"The Pied Piper\"?",
+    "options": ["Plague and corruption", "Wealth", "Royalty"]
+  },
+  {
+    "correct": 2,
+    "question": "In \"The Handless Maiden\", what protects her from the devil?",
+    "options": ["Magic ring", "Her purity", "A sword"]
+  },
+  {
+    "correct": 3,
+    "question": "Where does the Handless Maiden find refuge?",
+    "options": ["Castle", "Village", "In a pear orchard"]
+  },
+  {
+    "correct": 2,
+    "question": "What is the central theme of \"Bluebeard\"?",
+    "options": ["Greed", "Curiosity and trust", "Bravery"]
+  },
+  {
+    "correct": 3,
+    "question": "What is the central moral of \"The Pied Piper\"?",
+    "options": ["Be brave", "Trust magic", "Keep your promises"]
+  }
+]

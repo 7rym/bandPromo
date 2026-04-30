@@ -1,0 +1,37 @@
+name: "Template integrity"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required template files and JSON syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            "biblioteca/templates/web-config.template.json"
+            "biblioteca/templates/gallery.template.json"
+            "biblioteca/templates/bio.template.html"
+          )
+
+          for f in "${required[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "Missing required template: $f"
+              exit 1
+            fi
+          done
+
+          python -m json.tool biblioteca/templates/web-config.template.json >/dev/null
+          python -m json.tool biblioteca/templates/gallery.template.json >/dev/null
+
+          echo "Template integrity checks passed."

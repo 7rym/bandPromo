@@ -1,0 +1,58 @@
+# Workflow: Auto-bump VERSION file on push to main
+#
+# This workflow increments the build number in the VERSION file on every push to main.
+# It also commits and pushes the change back to the repository.
+#
+# Agent instructions: All agents working in this repository should ensure the VERSION file is incremented for every push to main. This is enforced by this workflow.
+#
+# If you make changes that should not increment the version, update this workflow accordingly.
+
+name: "Auto-bump VERSION on push"
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Bump VERSION file
+        run: |
+          version_file="VERSION"
+          if [ ! -f "$version_file" ]; then
+            echo "VERSION file not found!" && exit 1
+          fi
+          current=$(cat $version_file)
+          # Extract version and build number
+          version=$(echo "$current" | grep -oE 'v[0-9]+\.[0-9]+')
+          build=$(echo "$current" | grep -oE 'build [0-9]+' | grep -oE '[0-9]+')
+          if [ -z "$version" ] || [ -z "$build" ]; then
+            echo "VERSION file format invalid!" && exit 1
+          fi
+          new_build=$((build + 1))
+          echo "$version build $new_build" > $version_file
+          echo "Bumped version to $version build $new_build"
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git diff --cached --quiet || git commit -m "ci: bump VERSION file [skip ci]"
+          git push
