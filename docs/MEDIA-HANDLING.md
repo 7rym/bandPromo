@@ -31,6 +31,502 @@ bandPromo should use three explicit media tiers:
 - `master`: a bandPromo-authored canonical asset with corrected packaging and metadata
 - `delivery`: publish-ready derivatives generated from the master tier for actual playback and display contexts
 
+bandPromo should also distinguish media by role and scope, not only by file type or storage folder.
+
+This distinction becomes mandatory once the platform supports multiple releases.
+
+## Media roles and scopes
+
+The platform should stop using `cover` as a loose catch-all term. A file type such as PNG or JPG is not enough to describe how an asset behaves in the platform.
+
+The important distinction is:
+
+- file type: audio, image, video, text
+- media role: what the asset is for
+- scope: whether the asset belongs to the install, a release, a track, or a page/module
+
+### Install scope
+
+Assets that belong to the whole install or active theme:
+
+- logo
+- favicon/app icons
+- poster / share image
+- background image/video
+- welcome audio / logged-in audio
+
+These should be treated as install-wide shell assets, not as release packaging.
+
+Within that install-wide shell layer, the distinction should be:
+
+- `brand assets`: logo, favicon/app icons, poster / share image
+- `theme assets`: background image/video, welcome audio, logged-in audio
+
+### Release scope
+
+Assets that belong to one release / playlist / album context:
+
+- primary release cover
+- release-level gallery media when a gallery is scoped to that release
+- release-level packaging metadata
+
+The `release cover` should be a first-class concept, not merely an inferred image role.
+
+### Track scope
+
+Assets that belong to one track:
+
+- optional track cover override
+- track-specific lyrics, metadata, and packaging state
+
+Track cover should be distinct from release cover. A release may use one shared cover while some tracks optionally override it.
+
+### Page or module scope
+
+Assets that belong to content pages or future modules:
+
+- bio/page illustrations
+- module-specific promotional graphics
+- future merch/event/community visuals
+
+These should not be treated as release covers unless the operator explicitly assigns them that role.
+
+### Gallery scope
+
+Gallery media should be a separate role family:
+
+- gallery photos
+- gallery videos
+
+Gallery media is for browsing and presentation, not for release packaging by default.
+
+### Role model summary
+
+The intended product concepts are:
+
+- `brand assets`: install-wide or release-level identity assets such as logo and poster / share image
+- `theme assets`: presentation assets such as backgrounds and shell audio
+- `release cover`: one primary cover for the release/playlist/album context
+- `track cover`: optional per-track artwork
+- `gallery media`: photos and videos for gallery presentation
+- `page illustrations`: images for static pages and future modules
+
+Storage folders do not have to match these roles one-to-one immediately, but the admin UI, validation rules, and build logic should move toward this role model.
+
+### Current exposed model vs prepared internal model
+
+Before bandPromo exposes true multi-release administration, operators should still experience the product as one branded site.
+
+That means the current admin/UI model should remain:
+
+- one visible site identity
+- one visible set of shell/theme choices
+- no release-scope terminology exposed unless multi-release is a real product feature
+
+Under the hood, the code and docs should still prepare the future structure so later multi-release support is additive rather than a rewrite.
+
+The practical distinction is:
+
+- exposed now: one branded site
+- prepared internally: separate `brand`, `theme`, and `social` concerns
+- exposed later: install defaults plus optional release overrides
+
+So when the internal schema uses names such as `install.brand.*` or `release.brand.*`, that should be understood as preparation for future scope-aware inheritance, not as a signal that current admins must think in terms of releases already.
+
+## Inheritance model
+
+Once bandPromo supports multiple releases, the platform should prefer inheritance over duplication.
+
+The target model is:
+
+- install defaults
+- release overrides
+- track-specific exceptions only where needed
+
+This keeps a multi-release install manageable even when one label or artist presents many releases with distinct visual identities.
+
+### Install defaults
+
+Install defaults define the shared baseline for the whole site.
+
+For identity assets, the install-level baseline should be mandatory so the site shell always has a usable fallback even when a release does not define its own branding yet.
+
+Examples:
+
+- base theme tokens and typography
+- platform shell layout defaults
+- default logo / favicon / app icons
+- default poster / share image
+- default share behavior
+- default fallback theme assets
+
+These values should be reusable across all releases unless a release explicitly overrides them.
+
+### Release overrides
+
+Each release should be able to override the install defaults where the release has its own identity.
+
+Typical release overrides:
+
+- release cover
+- release gallery
+- release palette or token overrides
+- release background media
+- release logo variant
+- release poster / share image
+- release-specific descriptive metadata
+
+The important rule is that a release should override only what it needs. It should not require a fully separate theme definition when install defaults are already sufficient.
+
+### Track-specific exceptions
+
+Track-level overrides should exist, but remain intentionally narrow.
+
+Typical track exceptions:
+
+- track cover override
+- track lyrics and packaging state
+- track-specific metadata refinements
+
+Track-level overrides should not replace release-level configuration unless a real per-track difference exists.
+
+### Inheritance rules
+
+The intended resolution order is:
+
+1. track-level override when explicitly defined
+2. release-level override when explicitly defined
+3. install-level default otherwise
+
+This should apply to both assets and presentation-related settings.
+
+### Why inheritance matters
+
+Without inheritance, a label presenting many releases would have to duplicate the same theme and asset definitions repeatedly.
+
+With inheritance:
+
+- one install can define the shared shell once
+- each release can override only the pieces that give it its own identity
+- tracks can remain lightweight unless they need true exceptions
+
+This is the maintainable path for labels, micro-labels, and artists with large catalogs.
+
+## Current config transition map
+
+bandPromo's current `web-config.json` is still a single-release shape, so several fields mix install-wide concerns and release-specific concerns.
+
+Before the multi-release model lands, the project should treat the current fields as a transition surface and map them deliberately into install scope, release scope, or track scope.
+
+### Install-level fields
+
+These fields belong to the install shell and should normally stay install-wide:
+
+- `site.url`
+- `site.language`
+- `site.author`
+- `social.twitter`
+- `social.facebook`
+- `social.instagram`
+- `social.tiktok`
+- `social.youtube`
+- `media.logo`
+- `media.welcome_audio`
+- `media.loggedin_audio`
+
+These define the site host, base language, operator identity, install-wide social accounts, and shell-level theme assets.
+
+### Release-default fields
+
+These fields should resolve at release scope, with install defaults allowed where reuse makes sense:
+
+- `social.share_image`
+- `social.share_image_width`
+- `social.share_image_height`
+- `social.categories`
+- `social.keywords`
+- `media.background_image`
+- `media.background_video`
+
+In practice, a label may want one global default poster/share image or one default background treatment, but each release must be able to override them cleanly.
+
+### Mixed fields that should be split
+
+Some current fields are too overloaded for the future model and should be split into clearer concepts:
+
+- `site.name`
+	- current meaning: the visible identity of the whole site and the current release at the same time
+	- target direction: separate `install title` / shell name from `release title`
+- `site.short_name`
+	- current meaning: manifest shorthand and release shorthand mixed together
+	- target direction: keep an install-level app short name, with an optional release-specific short label only where needed
+- `site.description`
+	- current meaning: site description, release summary, and social summary blurred together
+	- target direction: separate install description from release description
+- `media.cover`
+	- current meaning: a loosely inferred cover path used as the primary visible artwork
+	- target direction: replace with an explicit `release cover` concept at release scope
+
+This split is important because a multi-release install cannot keep treating one field as both the site shell identity and the active release identity.
+
+### Track-level exceptions
+
+The current config does not yet expose track-level theme fields, but the intended exception layer is narrow:
+
+- optional `track cover` override
+- track-specific metadata refinements
+- track-specific lyrics or packaging state where needed
+
+Track scope should remain metadata- and artwork-focused. It should not become a second full theme system.
+
+### Resolution contract for the current field surface
+
+Until the data model is split more explicitly, the target behavior should be interpreted as:
+
+1. install-only fields always resolve from install scope
+2. release-default fields resolve from release scope first, then fall back to install defaults
+3. `media.cover` should be treated as a transition field whose long-term meaning is `release cover`
+4. track-level cover should be a separate field, never another meaning hidden behind `media.cover`
+
+### Immediate schema implications
+
+The current planning direction implies these concrete future changes:
+
+- keep install shell fields separate from release identity fields
+- rename or replace `media.cover` with an explicit release-level field
+- allow release-level overrides for poster/share image and background media
+- keep welcome/login audio and logo as install-theme assets unless a later product need proves otherwise
+- keep track-level overrides intentionally narrow so the operator does not manage a full theme per track
+
+## Target schema naming direction
+
+The future multi-release schema should stop treating `site`, `social`, and `media` as one flat surface for all concerns.
+
+The preferred direction is to separate:
+
+- install shell defaults
+- release identity and release presentation
+- track exceptions
+
+### Proposed install-level blocks
+
+Install-wide fields should move into blocks whose names describe the shell, not the current release.
+
+Suggested direction:
+
+- `install.site`
+	- canonical site URL
+	- default language
+	- operator/author identity
+- `install.brand`
+	- mandatory shell logo
+	- favicon/app icons
+	- mandatory default poster/share image
+- `install.theme`
+	- welcome audio
+	- logged-in audio
+	- install-level fallback background assets
+- `install.social`
+	- install-wide social handles
+	- default share behavior when a release does not override it
+
+The goal is that install-level fields describe the site shell that exists even when no single release is currently being highlighted.
+
+### Proposed release-level blocks
+
+Release-specific fields should move into blocks that describe one release as a product entity.
+
+Suggested direction:
+
+- `release.identity`
+	- release title
+	- optional short label
+	- release description
+- `release.brand`
+	- optional release logo variant
+	- optional release poster/share image
+- `release.theme`
+	- release cover
+	- release background image/video
+- `release.social`
+	- release-specific keywords/categories where needed
+- `release.gallery`
+	- release-scoped gallery/media presentation configuration
+
+In practical product terms, the future rule should be:
+
+- every install must provide a site-level logo and a site-level poster/share image
+- every release may override the site logo and poster with its own release-specific identity assets
+- current single-release admins should still see only the simple current model until multi-release presentation is a real product feature
+
+This is the level where the current `site.name`, `site.short_name`, `site.description`, `media.cover`, and most visible share-preview identity should ultimately land.
+
+### Proposed track-level block
+
+Track-level customization should stay intentionally small.
+
+Suggested direction:
+
+- `track.presentation`
+	- track cover override
+	- other rare presentation exceptions only when truly needed
+
+Track metadata, lyrics, and packaging data may still live alongside playlist/track records, but the theme-facing exception surface should remain narrow.
+
+### Compatibility bridge from current names
+
+The current single-release config can be translated into the future model like this:
+
+- `site.url` -> `install.site.url`
+- `site.language` -> `install.site.language`
+- `site.author` -> `install.site.author`
+- `site.name` -> `release.identity.title`
+- `site.short_name` -> `release.identity.short_label` or install-level app short name, depending on actual usage
+- `site.description` -> `release.identity.description` by default, with a separate install description added later
+- `social.twitter|facebook|instagram|tiktok|youtube` -> `install.social.*`
+- `social.share_image*` -> `release.brand.poster*` with mandatory `install.brand.poster*` defaults available
+- `social.keywords|categories` -> `release.social.*` by default, with install-level fallbacks allowed
+- `media.logo` -> `install.brand.logo`, with future `release.brand.logo` override support
+- `media.welcome_audio` -> `install.theme.welcome_audio`
+- `media.loggedin_audio` -> `install.theme.loggedin_audio`
+- `media.background_image|background_video` -> `release.theme.*` with install fallback support
+- `media.cover` -> `release.theme.cover`
+
+### Naming rules
+
+To keep the model stable, the schema should follow these rules:
+
+- use `install` only for true shell-wide defaults
+- use `release` only for release-specific identity and presentation
+- keep track presentation overrides in a dedicated narrow block, not mixed back into release or install fields
+- avoid another generic `media` bucket once roles are explicit
+- prefer field names that describe product meaning (`release.theme.cover`) over storage location or file type
+
+## Migration and compatibility contract
+
+bandPromo cannot switch from the current `site` / `social` / `media` structure to the future scoped schema in one step.
+
+The runtime currently reads literal dotted keys such as `site.name`, `site.description`, `social.share_image`, and `media.cover` directly through `get_config()`.
+
+That means the migration path must include a compatibility layer, not only a new schema.
+
+### Migration goals
+
+The migration should guarantee all of the following:
+
+- existing installs keep working with current `web-config.json` files
+- the runtime can begin reading future scoped fields without breaking old templates or admin flows
+- admin save paths can migrate gradually instead of requiring one large schema flip
+- install defaults and release overrides can coexist during the transition
+
+### Recommended migration phases
+
+#### Phase 1: compatibility reads
+
+Introduce support for reading future scoped keys while still accepting current keys.
+
+Examples:
+
+- `release.identity.title` with fallback to `site.name`
+- `release.identity.description` with fallback to `site.description`
+- `release.theme.cover` with fallback to `media.cover`
+- `install.brand.logo` with fallback to `install.theme.logo` and `media.logo`
+- `release.brand.poster` with fallback to `release.social.share_image` and the current single-release poster/share image field
+
+During this transition, the important product rule remains:
+
+- current admins edit one branded site
+- `brand` naming is internal cleanup and future-proofing
+- release-specific brand editing should not become an operator concept until multi-release exists
+
+At this phase, writes may still target the current structure, but reads become scope-aware.
+
+#### Phase 2: dual-write admin saves
+
+Once reads support both formats, admin save endpoints may begin writing both:
+
+- the new scoped field
+- the current legacy field needed by older runtime consumers
+
+This phase prevents partial upgrades from breaking pages that still read only the old names.
+
+#### Phase 3: schema-first admin UI
+
+After the runtime and save endpoints support the scoped schema, admin labels and editors should present the new model directly:
+
+- install shell
+- release identity
+- release theme
+- release sharing
+- track exceptions only where relevant
+
+Legacy field names should become implementation details, not operator-facing language.
+
+#### Phase 4: legacy cleanup
+
+Only after read paths, writes, and seeded templates are fully migrated should the legacy aliases be removed.
+
+This is the point where `site.name`, `site.description`, `media.cover`, and similar transitional fields can stop being first-class runtime keys.
+
+### Compatibility rules for runtime resolution
+
+During the migration window, config resolution should prefer the new scoped field first and then fall back to the legacy field.
+
+The intended priority is:
+
+1. scoped field in the future schema
+2. legacy single-release field
+3. hardcoded default or seeded template default
+
+This lets new installs adopt the better structure without breaking old installs.
+
+### Compatibility rules for writes
+
+During the dual-write phase, the system should follow these rules:
+
+- if the admin edits a scoped release field, also update the corresponding legacy single-release field when one still exists
+- if the admin edits a true install-shell field, do not silently copy it into release-specific fields
+- if a field has no clean legacy equivalent, keep it scoped-only and document that it is unavailable to old templates
+
+The goal is to duplicate only transitional fields, not to keep two competing schemas forever.
+
+### First migration targets
+
+The safest first migration targets are the fields that already have clear meaning today:
+
+- `media.cover` -> `release.theme.cover`
+- `media.logo` -> `install.theme.logo`
+- `media.welcome_audio` -> `install.theme.welcome_audio`
+- `media.loggedin_audio` -> `install.theme.loggedin_audio`
+- `social.share_image` -> `release.social.share_image`
+- `site.name` -> `release.identity.title`
+- `site.description` -> `release.identity.description`
+
+These fields are already used concretely in the current runtime and will give the migration effort the highest leverage.
+
+### Fields that need special care
+
+Some current fields should not be moved mechanically without a product decision:
+
+- `site.short_name`
+	- may represent install-level app naming, release shorthand, or both
+- `social.keywords`
+	- may need both install-level defaults and release-level overrides
+- `social.categories`
+	- may need the same install-default plus release-override pattern
+- `media.background_image` and `media.background_video`
+	- should support release overrides, but may also serve as install-level fallbacks
+
+These fields need an explicit migration rule before code starts dual-writing them.
+
+### Template and setup implications
+
+The seeded config template should lag behind the runtime migration only briefly.
+
+Once compatibility reads exist, the setup/template path should be updated to generate the future scoped schema so new installs start clean.
+
+Old installs should rely on compatibility reads until their config is rewritten or re-saved through admin tooling.
+
 ### Original tier
 
 The original tier exists for trust, recovery, and future regeneration.
@@ -249,6 +745,75 @@ The current pipeline is split into two main metadata paths:
 
 That means the platform does not yet use one single universal metadata format internally.
 
+## Why this matters for multi-release support
+
+The current folder-first model is survivable for a single artist / single release install, but it becomes ambiguous once one install can hold multiple releases.
+
+Without explicit roles and scopes, the platform cannot cleanly answer:
+
+- which cover belongs to which release
+- whether a track inherits the release cover or overrides it
+- which images are gallery-only and should never be treated as release art
+- which assets are install-wide theme assets versus release-scoped assets
+
+This is why media-role cleanup is not merely terminology work. It is preparation for the multi-release platform model.
+
+## Target build orchestration model
+
+The current codebase already keeps the main build functions in separate scripts. That should remain the direction.
+
+The orchestration layer should treat these as concrete task units instead of collapsing most changes into a broad `full build` label.
+
+### Task units
+
+The intended task units are:
+
+- `playlist-scan`: read source audio, infer ordering, refresh `play/playlist.json`, and update `play/playlist-validation.json`
+- `audio-delivery`: generate or refresh publish-ready audio derivatives from the approved source/master path
+- `image-delivery`: generate or refresh publish-ready covers, photos, and illustration derivatives
+- `social-assets`: regenerate social/share image derivatives
+- `manifest`: rewrite `site.webmanifest`
+
+### Automation rule
+
+bandPromo should prefer this operator model:
+
+- run cheap tasks automatically and silently where possible
+- queue or expose only tasks that are materially heavy or slow
+- avoid generic `build required` nudges when the system can finish the necessary light work immediately
+
+In practice, the heavy work is mostly media transcoding and image recompression. Playlist scanning, metadata validation, share-image generation, and manifest writing are comparatively light.
+
+### Action matrix
+
+This matrix defines the preferred future behavior.
+
+| Admin action | Task units | Default behavior | Operator message |
+| --- | --- | --- | --- |
+| Upload audio source | `playlist-scan`, `audio-delivery`, sometimes `image-delivery` if cover extraction changes files | Run `playlist-scan` automatically; queue `audio-delivery` as heavy work | Show pending delivery generation only if derivatives are not ready yet |
+| Upload photo | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit build warning |
+| Upload illustration | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit build warning |
+| Upload theme/share/logo/background asset | `image-delivery` and/or `social-assets` depending on usage | Run automatically | No generic build warning; surface only direct file/validation errors |
+| Edit site basics text | `manifest` when manifest-facing fields changed | Run automatically | No build warning |
+| Edit social/share text fields | `social-assets`, `manifest` when affected | Run automatically | No build warning unless a referenced asset is missing |
+| Change theme media paths | `social-assets` and/or `image-delivery` when relevant references changed | Run automatically when only references change; queue only if a heavy derivative task is genuinely needed | Prefer a targeted status message over a generic build badge |
+| Reorder playlist | none for delivery generation; save order only | Save immediately | No build warning |
+| Edit gallery entries or order | none for delivery generation in the common case | Save immediately | No build warning |
+| Edit bio/pages | none | Save immediately | No build warning |
+| Edit metadata in future tag editor | `playlist-scan`, sometimes `audio-delivery` if delivery tags/embed data must be rewritten | Run scan automatically; queue delivery rewrite only when necessary | Explain exactly what is being regenerated |
+
+### Naming guidance for admin UI
+
+The current Files sub-panel labeled `System` should move toward `Theme` if it remains the home for install-specific branding and presentation assets.
+
+Reasoning:
+
+- `System` sounds internal and implementation-oriented
+- these files are operator-owned and install-specific
+- assets such as logo, poster/share image, and background media are better understood as theme/design inputs than as system internals
+
+If the panel later grows to include truly technical install assets, the naming can be revisited. In the current product shape, `Theme` is the more accurate operator-facing label.
+
 ## Current metadata contract
 
 The playlist generator is implemented in [scripts/makePlaylists.py](scripts/makePlaylists.py).
@@ -372,3 +937,71 @@ The next practical improvements should be:
 - preserve originals while generating corrected masters and delivery derivatives separately
 - redefine `optimal` into explicit delivery targets for player, mobile, cover, and lightbox contexts
 - implement the intake policy matrix above as the working contract for build, admin repair tools, and future exported masters
+
+## Offline playback and delivery architecture
+
+Offline playback should not be treated as a standalone service-worker feature.
+
+It depends on the delivery architecture for audio.
+
+### Current tension
+
+The current PHP audio endpoint is useful for one immediate concern:
+
+- gate audio bytes behind the authenticated session
+
+But that same design works against two future goals:
+
+- scalable concurrent playback
+- offline-capable PWA audio caching
+
+If every playback request must stream through PHP, the browser and service worker do not get a clean cacheable media path.
+
+### Planning implication
+
+The offline-audio task should be interpreted as a sequence:
+
+1. separate authorization from byte delivery
+2. move audio delivery to a cacheable/static or server-assisted protected path
+3. let the service worker cache that delivery path for offline playback
+4. treat offline logging as a separate queue/sync concern
+
+### Target direction
+
+The preferred long-term architecture is:
+
+- PHP decides whether the user may access the track
+- the actual audio bytes are served by the web server or another cache-friendly protected delivery mechanism
+- the player uses stable delivery URLs that a service worker can cache for offline replay
+- logging and session analytics are synced separately and must not depend on the stream endpoint staying online
+
+### Why this matters
+
+Without this change, the product risks solving the wrong problem in the wrong order:
+
+- adding cache logic around PHP-streamed audio is harder than necessary
+- scaling playback consumes PHP workers that should be reserved for application logic
+- the PWA cannot become truly offline-friendly while playback still depends on a live PHP stream endpoint
+
+So the correct framing is:
+
+- offline playback is an audio-delivery architecture task first
+- service-worker caching is the implementation layer that comes after that architectural change
+
+### PWA audit implication
+
+The service worker should be treated as a maintained part of the playback architecture, not as a background utility that can drift unattended.
+
+That means the project should explicitly audit:
+
+- which requests are cached and which are deliberately excluded
+- how installed clients receive updated player, shell, and config assets
+- where stale cache behavior could make the installed app worse than the normal browser experience
+- whether offline behavior on phones actually improves the listening experience or only adds complexity
+
+Installed PWA behavior should be evaluated against a simple product standard:
+
+- faster or more reliable startup
+- predictable updates
+- clear offline behavior
+- offline listening that is genuinely useful, not nominally present

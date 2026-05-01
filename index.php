@@ -79,13 +79,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     echo generate_standard_meta_tags();
     ?>
-    <title><?php echo get_config('site.name'); ?> - Login</title>
+    <title><?php echo get_config('release.identity.title'); ?> - Login</title>
     
     <!-- Open Graph Meta Tags -->
-    <?php echo generate_og_tags(get_config('site.name') . ' - Login', 'Access ' . get_config('site.name')); ?>
+    <?php echo generate_og_tags(get_config('release.identity.title') . ' - Login', 'Access ' . get_config('release.identity.title')); ?>
     
     <!-- Twitter Card Meta Tags -->
-    <?php echo generate_twitter_tags(get_config('site.name') . ' - Login', 'Access ' . get_config('site.name')); ?>
+    <?php echo generate_twitter_tags(get_config('release.identity.title') . ' - Login', 'Access ' . get_config('release.identity.title')); ?>
     
     <!-- Favicon & Icons -->
     <!-- favicon.ico is auto-discovered in root, no link needed -->
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="apple-touch-icon" href="/media/icons/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(get_config('site.name')); ?>">
+    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(get_config('release.identity.title')); ?>">
     
     <!-- Manifest & Theme -->
     <link rel="manifest" href="/site.webmanifest">
@@ -125,41 +125,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- Global config for JavaScript -->
     <script>
+        <?php
+        $backgroundVideo = get_config_nonempty('release.theme.background_video', null);
+        $backgroundImage = get_config_nonempty('release.theme.background_image', null);
+        $welcomeAudio = get_config_nonempty('install.theme.welcome_audio', null);
+        $loggedinAudio = get_config_nonempty('install.theme.loggedin_audio', null);
+        ?>
         window.appConfig = {
-            name: <?php echo json_encode(get_config('site.name')); ?>,
-            description: <?php echo json_encode(get_config('site.description')); ?>,
+            name: <?php echo json_encode(get_config('release.identity.title')); ?>,
+            description: <?php echo json_encode(get_config('release.identity.description')); ?>,
             media: <?php echo json_encode([
-                'background_video' => get_config('media.background_video', '/media/special/bandPromo_background.mp4'),
-                'background_image' => get_config('media.background_image', '/media/special/bandPromo_background.png'),
-                'cover'            => get_config('media.cover',            '/media/special/bandPromo_cover.png'),
-                'welcome_audio'    => get_config('media.welcome_audio',    '/media/special/bandPromo_welcome.flac'),
-                'loggedin_audio'   => get_config('media.loggedin_audio',   '/media/special/bandPromo_loggedin.flac'),
-                'logo'             => get_config('media.logo',             '/media/special/bandPromo_logo.png'),
+                'background_video' => $backgroundVideo,
+                'background_image' => $backgroundImage,
+                'cover'            => get_config('release.theme.cover',            '/media/special/bandPromo_cover.png'),
+                'welcome_audio'    => $welcomeAudio,
+                'loggedin_audio'   => $loggedinAudio,
+                'logo'             => get_config('release.brand.logo',             '/media/special/bandPromo_logo.png'),
             ]); ?>,
             social: {
-                share_image: <?php echo json_encode(get_config('social.share_image', '/media/special/bandPromo_share.png')); ?>
+                share_image: <?php echo json_encode(get_config('release.brand.poster', '/media/special/bandPromo_share.png')); ?>
             }
         };
     </script>
 
-    <video id="bg-video" autoplay muted loop>
-        <source src="<?php echo htmlspecialchars(get_config('media.background_video', '/media/special/bandPromo_background.mp4')); ?>" type="video/mp4">
+    <video id="bg-video" autoplay muted loop<?php echo $backgroundVideo ? '' : ' style="display:none"'; ?>>
+        <?php if ($backgroundVideo): ?>
+        <source src="<?php echo htmlspecialchars($backgroundVideo); ?>" type="video/mp4">
+        <?php endif; ?>
     </video>
     <audio id="enter-audio">
+        <?php if ($welcomeAudio): ?>
         <?php
-        $welcome_src = get_config('media.welcome_audio', '/media/special/bandPromo_welcome.flac');
-        $welcome_ext = strtolower(pathinfo($welcome_src, PATHINFO_EXTENSION));
+        $welcome_ext = strtolower(pathinfo($welcomeAudio, PATHINFO_EXTENSION));
         $welcome_mime = ($welcome_ext === 'flac') ? 'audio/flac' : (($welcome_ext === 'ogg') ? 'audio/ogg' : 'audio/mpeg');
         ?>
-        <source src="<?php echo htmlspecialchars($welcome_src); ?>" type="<?php echo $welcome_mime; ?>">
+        <source src="<?php echo htmlspecialchars($welcomeAudio); ?>" type="<?php echo $welcome_mime; ?>">
+        <?php endif; ?>
     </audio>
     <audio id="letsgo-audio">
+        <?php if ($loggedinAudio): ?>
         <?php
-        $loggedin_src = get_config('media.loggedin_audio', '/media/special/bandPromo_loggedin.flac');
-        $loggedin_ext = strtolower(pathinfo($loggedin_src, PATHINFO_EXTENSION));
+        $loggedin_ext = strtolower(pathinfo($loggedinAudio, PATHINFO_EXTENSION));
         $loggedin_mime = ($loggedin_ext === 'flac') ? 'audio/flac' : (($loggedin_ext === 'ogg') ? 'audio/ogg' : 'audio/mpeg');
         ?>
-        <source src="<?php echo htmlspecialchars($loggedin_src); ?>" type="<?php echo $loggedin_mime; ?>">
+        <source src="<?php echo htmlspecialchars($loggedinAudio); ?>" type="<?php echo $loggedin_mime; ?>">
+        <?php endif; ?>
     </audio>
     
     <?php if ($authenticated): ?>
@@ -167,13 +177,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div style="text-align: center; color: white;">
                 <h1 style="font-size: 32px; margin-bottom: 10px;">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
                 <p style="font-size: 18px; margin-bottom: 20px;">Loading album...</p>
-                <img src="<?php echo htmlspecialchars(get_config('media.cover', '/media/special/bandPromo_cover.png')); ?>" alt="<?php echo htmlspecialchars(get_config('site.name', 'bandPromo')); ?>" style="width: 100%; max-width: 600px; height: auto;">
+                <img src="<?php echo htmlspecialchars(get_config('release.theme.cover', '/media/special/bandPromo_cover.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" style="width: 100%; max-width: 600px; height: auto;">
             </div>
         </div>
         <script>
             // For authenticated users: play letsgo.mp3 and redirect
             window.addEventListener('load', function() {
                 const letsgoAudio = document.getElementById('letsgo-audio');
+                const hasLetsgoSource = !!letsgoAudio?.querySelector('source')?.getAttribute('src');
                 let redirected = false;
                 
                 function performRedirect() {
@@ -181,6 +192,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         redirected = true;
                         window.location.href = '<?php echo htmlspecialchars($redirect_url); ?>';
                     }
+                }
+
+                if (!hasLetsgoSource) {
+                    performRedirect();
+                    return;
                 }
                 
                 letsgoAudio.play().catch(function(error) {
@@ -199,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php else: ?>
         <div class="login-container">
             <div class="logo">
-                <img src="<?php echo htmlspecialchars(get_config('media.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('site.name', 'bandPromo')); ?> Logo">
+                <img src="<?php echo htmlspecialchars(get_config('release.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
             </div>
             <p id="aboutThis"><a href="#" onclick="openInfoLightbox(event)">
                 <span class="about-line active">What is this?</span>
@@ -274,7 +290,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.addEventListener('click', function playEnterAudioOnce() {
                 if (!audioPlayed) {
                     const enterAudio = document.getElementById('enter-audio');
-                    if (enterAudio) {
+                    const hasEnterSource = !!enterAudio?.querySelector('source')?.getAttribute('src');
+                    if (enterAudio && hasEnterSource) {
                         enterAudio.currentTime = 0;
                         enterAudio.play().catch(function(error) {
                             console.log('Audio playback error:', error);

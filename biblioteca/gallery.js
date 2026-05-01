@@ -2,37 +2,18 @@
 async function loadVisualsGallery() {
     const gallery = document.getElementById('visualsGallery');
     if (!gallery) return;
-    
-    try {
-        gallery.innerHTML = '<div class="gallery-loading">Loading gallery...</div>';
-        
-        const response = await fetch('/biblioteca/gallery.php');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.error) {
-            gallery.innerHTML = `<div class="gallery-error">${data.error}</div>`;
-            return;
-        }
-        
-        if (!data.images || data.images.length === 0) {
+
+    function renderGallery(items) {
+        if (!Array.isArray(items) || items.length === 0) {
             gallery.innerHTML = '<div class="gallery-empty">No images available</div>';
             return;
         }
-        
-        // Register items with the shared lightbox
-        if (window._lb) window._lb.setItems(data.images);
 
-        // Render gallery items
-        gallery.innerHTML = data.images.map((item, idx) => {
+        if (window._lb) window._lb.setItems(items);
+
+        gallery.innerHTML = items.map((item, idx) => {
             const isVideo = item.type === 'video';
-            const clickHandler = isVideo
-                ? `openLightboxAt(${idx})`
-                : `openLightboxAt(${idx})`;
+            const clickHandler = `openLightboxAt(${idx})`;
 
             if (isVideo) {
                 return `
@@ -48,6 +29,30 @@ async function loadVisualsGallery() {
                     <img src="${item.src}" alt="${item.alt}" loading="lazy">
                 </div>`;
         }).join('');
+    }
+    
+    try {
+        gallery.innerHTML = '<div class="gallery-loading">Loading gallery...</div>';
+
+        if (Array.isArray(window.INITIAL_GALLERY_ITEMS)) {
+            renderGallery(window.INITIAL_GALLERY_ITEMS);
+            return;
+        }
+        
+        const response = await fetch('/biblioteca/gallery.php');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            gallery.innerHTML = `<div class="gallery-error">${data.error}</div>`;
+            return;
+        }
+        
+        renderGallery(data.images);
         
     } catch (error) {
         gallery.innerHTML = '<div class="gallery-error">Failed to load gallery</div>';

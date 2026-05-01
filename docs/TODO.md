@@ -51,6 +51,15 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Formalize the three media tiers: `original` (untouched upload), `master` (bandPromo-authored canonical package), and `delivery` (publish-ready derivatives).
 - [ ] Define the master-tier rules for audio packaging: metadata, artwork, lyrics, naming, and downloadable corrected masters.
 - [ ] Define the delivery-tier rules for images and audio based on actual UI/device needs rather than raw source size.
+- [ ] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split.
+- [ ] Define which edits actually require playlist regeneration, audio delivery regeneration, image delivery regeneration, social asset generation, and manifest generation.
+- [x] Rename Files -> `System` to Files -> `Theme` if that panel remains the home for install-specific branding/design assets.
+- [x] Define the explicit media-role model for install-wide theme assets, release covers, track covers, gallery media, and page illustrations.
+- [x] Define the inheritance contract for install defaults, release overrides, and track-level exceptions.
+- [ ] Split the current mixed `site` identity fields into explicit install-shell fields vs release identity fields.
+- [x] Define target schema names for install shell, release identity/presentation, and track exception fields.
+- [x] Lock the future identity-asset rule: mandatory site-level logo/poster fallbacks, optional release-level logo/poster overrides, without exposing multi-release concepts in the current admin UI.
+- [x] Define the migration and compatibility rules from current `site` / `social` / `media` fields into the future scoped schema.
 - [x] Decide how build-time metadata validation should warn operators about missing or weak tags: `play/playlist-validation.json`, build-log output, and admin build-log summary.
 - [ ] Implement tag editing tools in the admin UI after warnings are visible.
 
@@ -89,6 +98,10 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Preserve user uploads as immutable originals while generating corrected masters and delivery derivatives separately.
 - [ ] Decide when WAV should be converted into a tagged FLAC master and how lossy sources should be handled without false "quality upgrade" claims.
 - [ ] Redefine "optimal" media output into explicit delivery targets (thumbnail, mobile, lightbox/desktop, stream/download tiers).
+- [ ] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
+- [ ] Split the current optimizer into source-aware tasks; MP3 sources must not be treated as if they always need the FLAC-to-MP3 path.
+- [x] Separate release cover and track cover into explicit product concepts instead of treating `cover` as a loose inferred role.
+- [ ] Separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location.
 - [ ] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
 - [ ] Video transcoding: convert uploaded .mov/.webm to .mp4 on upload for broad browser compatibility
 - [ ] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
@@ -110,18 +123,27 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Define anonymous vs registered access levels.
 - [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
 - [ ] Design the first theme/config structure.
+- [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
+- [ ] Replace the single-release `web-config` field names with explicit install, release, and track scopes in the future schema.
+- [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
+- [x] Implement dual-write admin saves for transitional fields during the schema migration window.
 
 ## Notes
 
 - `ROADMAP.md` is the long-term direction.
 - `TODO.md` is the short-term working list.
+- Current operator model: one branded site. Prepared internal model: separate `brand`, `theme`, and `social` concerns, with install defaults and future release overrides kept internal until multi-release is real.
 - If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.
 
 ## PWA offline audio caching and offline logging
 
-- [ ] Implement service worker audio caching for offline playback
-- [ ] Ensure PHP audio endpoint supports robust range requests and full downloads
+- [ ] Replace PHP-streamed audio delivery with an architecture that can support both scalable playback and offline-capable cached audio delivery
+- [ ] Define the protected-audio delivery model for production: PHP authorization plus web-server/static delivery handoff, signed URLs, or equivalent protected media strategy
+- [ ] Audit `service-worker.js` end to end: current exclusions, cache strategy, stale-asset risks, update behavior, and which legacy workarounds should be removed
+- [ ] Implement service worker audio caching for offline playback only after the audio delivery path is cacheable and no longer depends on PHP byte streaming
 - [ ] Add cache management for audio (eviction, update handling)
+- [ ] Audit cache-busting and update propagation for installed PWAs so phones do not get stuck on stale player, config, gallery, or shell assets
 - [ ] Implement offline logging (store logs locally when offline, sync when online)
-- [ ] Add fallback for all core services to work offline where possible
+- [ ] Define which core services can work offline, which should degrade gracefully, and which still require online authorization/runtime support
+- [ ] Define the installed-phone success criteria: what must feel better in the PWA than in the browser, especially offline listening, startup behavior, update reliability, and media availability
 

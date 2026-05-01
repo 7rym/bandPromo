@@ -254,6 +254,9 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         closeUserModal();
         closeUserDetail();
+        if (typeof closeMediaPickerModal === 'function') {
+            closeMediaPickerModal();
+        }
     }
 });
 
@@ -303,6 +306,105 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let currentBuildReasons = [];
             let modalTarget = null;
             let modalFiles  = [];
+            let mediaPickerState = null;
+
+            const mediaTypeLabels = {
+                audio: 'Audio',
+                video: 'Video',
+                illustrations: 'Illustrations',
+                photos: 'Photos',
+                special: 'Theme Assets',
+            };
+            const mediaPathMap = {
+                audio: '/media/audio/original',
+                video: '/media/video/original',
+                illustrations: '/media/img/original',
+                photos: '/media/photo/original',
+                special: '/media/special',
+            };
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function extIcon(name) {
+                const ext = String(name).split('.').pop().toLowerCase();
+                if (['mp3', 'flac', 'ogg', 'wav', 'aac'].includes(ext)) return '🎵';
+                if (['mp4', 'mov', 'webm'].includes(ext)) return '🎬';
+                if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)) return '🖼️';
+                return '📄';
+            }
+
+            function isImage(name) {
+                return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(String(name).split('.').pop().toLowerCase());
+            }
+
+            function isVideo(name) {
+                return ['mp4', 'mov', 'webm'].includes(String(name).split('.').pop().toLowerCase());
+            }
+
+            function isPreviewable(name) {
+                return isImage(name) || isVideo(name);
+            }
+
+            function getMediaBasePath(type) {
+                return mediaPathMap[type] || '';
+            }
+
+            function buildMediaPath(type, filename) {
+                return `${getMediaBasePath(type)}/${filename}`;
+            }
+
+            function buildMediaUrl(type, filename) {
+                return `${getMediaBasePath(type)}/${encodeURIComponent(filename)}`;
+            }
+
+            function inferMediaTargetFromPath(path, allowedTargets) {
+                const targets = Array.isArray(allowedTargets) ? allowedTargets : [];
+                const match = targets.find((target) => String(path || '').startsWith(getMediaBasePath(target) + '/'));
+                return match || targets[0] || 'special';
+            }
+
+            function updatePickerFieldLabel(fieldId) {
+                const input = document.getElementById(fieldId);
+                const label = document.getElementById(fieldId + '_label');
+                if (!input || !label) return;
+
+                const emptyLabel = input.dataset.emptyLabel || 'No file selected';
+                const rawValue = String(input.value || '').trim();
+                const fileName = rawValue ? rawValue.split('/').pop() : '';
+                label.textContent = fileName || emptyLabel;
+                label.classList.toggle('empty', !fileName);
+            }
+
+            function setPickerFieldValue(fieldId, value) {
+                const input = document.getElementById(fieldId);
+                if (!input) return;
+                input.value = value;
+                updatePickerFieldLabel(fieldId);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            async function fetchMediaFiles(type) {
+                const resp = await fetch('/biblioteca/list-media.php?target=' + encodeURIComponent(type));
+                const data = await resp.json();
+                if (!resp.ok || data.error) {
+                    throw new Error(data.error || ('Request failed: ' + resp.status));
+                }
+                return data.files || [];
+            }
+
+            function setAdminPreviewItems(files, type) {
+                window._adminPreviewItems = files
+                    .filter((file) => isPreviewable(file.name))
+                    .map((file) => ({ src: buildMediaPath(type, file.name), name: file.name }));
+                window._adminPreviewIdx = -1;
+            }
 
             if (buildTabLink) {
                 buildTabLink.addEventListener('click', (event) => {
@@ -425,41 +527,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const countEl = document.getElementById(type + '-count');
                 if (!listEl) return;
                 try {
-                    const resp = await fetch('/biblioteca/list-media.php?target=' + type);
-                    const data = await resp.json();
-                    if (data.error) {
-                        listEl.innerHTML = `<span class="text-error">Error: ${data.error}</span>`;
-                        return;
-                    }
-                    const files = data.files || [];
+                    const files = await fetchMediaFiles(type);
                     if (countEl) countEl.textContent = '(' + files.length + ')';
                     if (!files.length) {
                         listEl.innerHTML = '<span class="text-muted">No files yet.</span>';
                         return;
                     }
-                    const extIcon = (name) => {
-                        const e = name.split('.').pop().toLowerCase();
-                        if (['mp3','flac','ogg','wav','aac'].includes(e)) return '🎵';
-                        return '📄';
-                    };
-                    const isImage = (name) => ['jpg','jpeg','png','webp','gif'].includes(name.split('.').pop().toLowerCase());
-                    const isVideo = (name) => ['mp4','mov','webm'].includes(name.split('.').pop().toLowerCase());
-                    const isPreviewable = (name) => isImage(name) || isVideo(name);
-                    const mediaPathMap = {
-                        audio: '/media/audio/original',
-                        video: '/media/video/original',
-                        illustrations: '/media/img/original',
-                        photos: '/media/photo/original',
-                        special: '/media/special',
-                    };
-                    const basePath = mediaPathMap[type] || '';
-                    window._adminPreviewItems = files
-                        .filter(f => isPreviewable(f.name))
-                        .map(f => ({ src: `${basePath}/${f.name}`, name: f.name }));
-                    window._adminPreviewIdx = -1;
+                    const basePath = getMediaBasePath(type);
+                    setAdminPreviewItems(files, type);
                     listEl.innerHTML = files.map(f => {
                         const safeName = f.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                        const url = `${basePath}/${encodeURIComponent(f.name)}`;
+                        const url = buildMediaUrl(type, f.name);
                         let thumb;
                         if (isImage(f.name)) {
                             thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
@@ -496,11 +574,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const modalList   = document.getElementById('modalFileList');
             const modalBtn    = document.getElementById('modalUploadBtn');
             const modalStatus = document.getElementById('modalUploadStatus');
+            const mediaPickerModal = document.getElementById('mediaPickerModal');
+            const mediaPickerTitle = document.getElementById('mediaPickerTitle');
+            const mediaPickerTabs = document.getElementById('mediaPickerTabs');
+            const mediaPickerList = document.getElementById('mediaPickerList');
+            const mediaPickerStatus = document.getElementById('mediaPickerStatus');
+            const mediaPickerUploadBtn = document.getElementById('mediaPickerUploadBtn');
             let filesTabDragDepth = 0;
 
             window.openUploadModal = function(type) {
                 modalTarget = type;
-                const labels = { audio: 'Add Audio', video: 'Add Video', illustrations: 'Add Illustrations', photos: 'Add Photos', special: 'Add Special Media' };
+                const labels = { audio: 'Add Audio', video: 'Add Video', illustrations: 'Add Illustrations', photos: 'Add Photos', special: 'Add Theme Assets' };
                 if (modalTitle)  modalTitle.textContent = labels[type] || 'Add Files';
                 if (modalInput)  modalInput.accept = (mediaCfg[type] || {}).accept || '*';
                 modalFiles = [];
@@ -515,6 +599,151 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 modalTarget = null;
                 modalFiles  = [];
             };
+
+            function renderMediaPickerTabs() {
+                if (!mediaPickerTabs || !mediaPickerState) return;
+                mediaPickerTabs.innerHTML = mediaPickerState.targets.map((target) => {
+                    const active = target === mediaPickerState.activeTarget ? ' active' : '';
+                    const label = mediaTypeLabels[target] || target;
+                    return `<button type="button" class="tab-link${active}" data-picker-target="${target}">${label}</button>`;
+                }).join('');
+            }
+
+            async function renderMediaPickerList(target) {
+                if (!mediaPickerList || !mediaPickerState) return;
+                mediaPickerState.activeTarget = target;
+                renderMediaPickerTabs();
+                mediaPickerStatus.textContent = 'Loading…';
+                mediaPickerStatus.style.color = '#aaa';
+                mediaPickerList.innerHTML = '<span class="text-muted">Loading…</span>';
+
+                try {
+                    const files = await fetchMediaFiles(target);
+                    setAdminPreviewItems(files, target);
+
+                    if (!files.length) {
+                        mediaPickerList.innerHTML = '<span class="text-muted">No files in this media group yet.</span>';
+                        mediaPickerStatus.textContent = 'No files found. Upload one to use it here.';
+                        return;
+                    }
+
+                    mediaPickerStatus.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}.`;
+                    mediaPickerList.innerHTML = files.map((file) => {
+                        const encodedName = encodeURIComponent(file.name);
+                        const safeName = escapeHtml(file.name);
+                        const url = buildMediaUrl(target, file.name);
+                        let thumb;
+
+                        if (isImage(file.name)) {
+                            thumb = `<img class="media-file-thumb media-picker-preview" src="${url}" alt="" loading="lazy" data-picker-target="${target}" data-filename="${encodedName}">`;
+                        } else if (isVideo(file.name)) {
+                            thumb = `<video class="media-file-thumb media-picker-preview" src="${url}" preload="metadata" muted data-picker-target="${target}" data-filename="${encodedName}"></video>`;
+                        } else {
+                            thumb = `<span class="media-file-icon">${extIcon(file.name)}</span>`;
+                        }
+
+                        const preview = isPreviewable(file.name)
+                            ? `<button type="button" class="icon-btn media-picker-preview" data-picker-target="${target}" data-filename="${encodedName}">👁️</button>`
+                            : '';
+
+                        return `<div class="media-file-row media-picker-row">
+                            ${thumb}
+                            <span class="media-file-name">${safeName}</span>
+                            <span class="media-file-size">${fmtSize(file.size)}</span>
+                            ${preview}
+                            <button type="button" class="icon-btn media-picker-select" data-picker-target="${target}" data-filename="${encodedName}">Use this</button>
+                        </div>`;
+                    }).join('');
+                    mediaPickerStatus.style.color = '#aaa';
+                } catch (error) {
+                    mediaPickerList.innerHTML = `<span class="text-error">${escapeHtml(error.message)}</span>`;
+                    mediaPickerStatus.textContent = 'Failed to load files.';
+                    mediaPickerStatus.style.color = '#f55';
+                }
+            }
+
+            window.openMediaPicker = function(fieldId, title, targets) {
+                const input = document.getElementById(fieldId);
+                if (!input || !mediaPickerModal) return;
+
+                const allowedTargets = String(targets || '')
+                    .split(',')
+                    .map((value) => value.trim())
+                    .filter(Boolean);
+
+                mediaPickerState = {
+                    fieldId,
+                    title: title || 'Choose file',
+                    targets: allowedTargets.length ? allowedTargets : ['special'],
+                    activeTarget: inferMediaTargetFromPath(input.value, allowedTargets),
+                };
+
+                mediaPickerTitle.textContent = mediaPickerState.title;
+                mediaPickerModal.style.display = 'flex';
+                renderMediaPickerTabs();
+                renderMediaPickerList(mediaPickerState.activeTarget);
+            };
+
+            window.closeMediaPickerModal = function() {
+                if (mediaPickerModal) mediaPickerModal.style.display = 'none';
+                if (mediaPickerTabs) mediaPickerTabs.innerHTML = '';
+                if (mediaPickerList) mediaPickerList.innerHTML = '<span class="text-muted">Choose a media type to browse files.</span>';
+                if (mediaPickerStatus) mediaPickerStatus.textContent = '';
+                mediaPickerState = null;
+            };
+
+            document.querySelectorAll('.media-picker-open').forEach((button) => {
+                button.addEventListener('click', () => {
+                    openMediaPicker(button.dataset.field, button.dataset.title, button.dataset.targets || 'special');
+                });
+            });
+
+            document.querySelectorAll('.media-picker-clear').forEach((button) => {
+                button.addEventListener('click', () => {
+                    setPickerFieldValue(button.dataset.field, '');
+                });
+            });
+
+            if (mediaPickerTabs) {
+                mediaPickerTabs.addEventListener('click', (event) => {
+                    const tab = event.target.closest('[data-picker-target]');
+                    if (!tab || !mediaPickerState) return;
+                    renderMediaPickerList(tab.dataset.pickerTarget);
+                });
+            }
+
+            if (mediaPickerList) {
+                mediaPickerList.addEventListener('click', (event) => {
+                    const selectBtn = event.target.closest('.media-picker-select');
+                    if (selectBtn && mediaPickerState) {
+                        const target = selectBtn.dataset.pickerTarget;
+                        const filename = decodeURIComponent(selectBtn.dataset.filename || '');
+                        setPickerFieldValue(mediaPickerState.fieldId, buildMediaPath(target, filename));
+                        closeMediaPickerModal();
+                        return;
+                    }
+
+                    const previewTrigger = event.target.closest('.media-picker-preview');
+                    if (previewTrigger) {
+                        const target = previewTrigger.dataset.pickerTarget;
+                        const filename = decodeURIComponent(previewTrigger.dataset.filename || '');
+                        openAdminPreview(buildMediaPath(target, filename), filename);
+                    }
+                });
+            }
+
+            if (mediaPickerUploadBtn) {
+                mediaPickerUploadBtn.addEventListener('click', () => {
+                    if (!mediaPickerState) return;
+                    const target = mediaPickerState.activeTarget || mediaPickerState.targets[0] || 'special';
+                    closeMediaPickerModal();
+                    openUploadModal(target);
+                });
+            }
+
+            document.querySelectorAll('input[type="hidden"][data-empty-label]').forEach((input) => {
+                updatePickerFieldLabel(input.id);
+            });
 
             function updateModalList(files) {
                 modalFiles = Array.from(files);
@@ -742,6 +971,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     } else {
                         modalStatus.innerHTML += `<br><span style="color:#f55">❌ ${failed} failed, ✅ ${done} ok</span>`;
+                        if (done > 0) {
+                            await loadMediaList(modalTarget);
+                        }
                         if (latestBuildState) {
                             setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none');
                         } else if (done > 0) {
@@ -757,8 +989,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            // ── Basics: site branch editor ──────────────────────────────────
-            const cfgBasicsEditor = document.getElementById('cfgBasicsEditor');
+            function parseAdminConfigSource(sourceField) {
+                try {
+                    const parsed = JSON.parse((sourceField && sourceField.value) || '{}');
+                    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+                } catch (error) {
+                    throw new Error('Stored config could not be read');
+                }
+            }
+
+            function assignConfigFields(target, fields) {
+                const next = target && typeof target === 'object' && !Array.isArray(target)
+                    ? { ...target }
+                    : {};
+
+                Object.entries(fields).forEach(([key, value]) => {
+                    next[key] = value;
+                });
+
+                return next;
+            }
+
+            // ── Basics: site branch form ────────────────────────────────────
             const cfgBasicsFullSource = document.getElementById('cfgBasicsFullSource');
             const cfgBasicsSaveBtn = document.getElementById('cfgBasicsSaveBtn');
             const cfgBasicsStatus = document.getElementById('cfgBasicsStatus');
@@ -768,24 +1020,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     cfgBasicsStatus.style.color = '#aaa';
 
                     let fullConfig;
-                    let basicsConfig;
                     try {
-                        fullConfig = JSON.parse(cfgBasicsFullSource.value || '{}');
-                        basicsConfig = JSON.parse(cfgBasicsEditor.value || '{}');
-                        if (!basicsConfig || Array.isArray(basicsConfig) || typeof basicsConfig !== 'object') {
-                            throw new Error('Basics must be a JSON object');
-                        }
+                        fullConfig = parseAdminConfigSource(cfgBasicsFullSource);
                     } catch (e) {
-                        cfgBasicsStatus.textContent = '❌ Invalid JSON: ' + e.message;
+                        cfgBasicsStatus.textContent = '❌ ' + e.message;
                         cfgBasicsStatus.style.color = '#f55';
                         return;
                     }
 
-                    fullConfig.site = basicsConfig;
+                    fullConfig.site = assignConfigFields(fullConfig.site, {
+                        name: (document.getElementById('cfg_site_name')?.value || '').trim(),
+                        short_name: (document.getElementById('cfg_site_short_name')?.value || '').trim(),
+                        description: (document.getElementById('cfg_site_description')?.value || '').trim(),
+                        url: (document.getElementById('cfg_site_url')?.value || '').trim(),
+                        language: (document.getElementById('cfg_site_language')?.value || '').trim(),
+                        author: (document.getElementById('cfg_site_author')?.value || '').trim(),
+                    });
 
                     try {
                         const payload = JSON.stringify(fullConfig, null, 4);
-                        const resp = await fetch('/biblioteca/save-config-raw.php', {
+                        const resp = await fetch('/biblioteca/save-config-raw.php?branch=site', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: payload,
@@ -793,9 +1047,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const data = await resp.json();
                         if (data.ok) {
                             cfgBasicsFullSource.value = payload;
-                            cfgBasicsStatus.textContent = '✅ Saved';
+                            cfgBasicsStatus.textContent = Array.isArray(data.auto_tasks) && data.auto_tasks.includes('manifest') ? '✅ Saved and manifest updated' : '✅ Saved';
                             cfgBasicsStatus.style.color = 'var(--success, #4ade80)';
-                            const reasons = (data.build_required_state && data.build_required_state.reasons) || ['web_config_changed'];
+                            const reasons = (data.build_required_state && data.build_required_state.reasons) || ['site_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
                             setBuildRequiredNudge(data.build_required === true, reasons, action);
                             refreshBuildHint();
@@ -810,8 +1064,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            // ── Theme: media branch editor ──────────────────────────────────
-            const cfgThemeEditor = document.getElementById('cfgThemeEditor');
+            // ── Theme: media branch form ────────────────────────────────────
             const cfgThemeFullSource = document.getElementById('cfgThemeFullSource');
             const cfgThemeSaveBtn = document.getElementById('cfgThemeSaveBtn');
             const cfgThemeStatus = document.getElementById('cfgThemeStatus');
@@ -821,24 +1074,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     cfgThemeStatus.style.color = '#aaa';
 
                     let fullConfig;
-                    let themeConfig;
                     try {
-                        fullConfig = JSON.parse(cfgThemeFullSource.value || '{}');
-                        themeConfig = JSON.parse(cfgThemeEditor.value || '{}');
-                        if (!themeConfig || Array.isArray(themeConfig) || typeof themeConfig !== 'object') {
-                            throw new Error('Theme must be a JSON object');
-                        }
+                        fullConfig = parseAdminConfigSource(cfgThemeFullSource);
                     } catch (e) {
-                        cfgThemeStatus.textContent = '❌ Invalid JSON: ' + e.message;
+                        cfgThemeStatus.textContent = '❌ ' + e.message;
                         cfgThemeStatus.style.color = '#f55';
                         return;
                     }
 
-                    fullConfig.media = themeConfig;
+                    fullConfig.media = assignConfigFields(fullConfig.media, {
+                        logo: (document.getElementById('cfg_theme_logo')?.value || '').trim(),
+                        cover: (document.getElementById('cfg_theme_cover')?.value || '').trim(),
+                        background_image: (document.getElementById('cfg_theme_background_image')?.value || '').trim(),
+                        background_video: (document.getElementById('cfg_theme_background_video')?.value || '').trim(),
+                        welcome_audio: (document.getElementById('cfg_theme_welcome_audio')?.value || '').trim(),
+                        loggedin_audio: (document.getElementById('cfg_theme_loggedin_audio')?.value || '').trim(),
+                    });
 
                     try {
                         const payload = JSON.stringify(fullConfig, null, 4);
-                        const resp = await fetch('/biblioteca/save-config-raw.php', {
+                        const resp = await fetch('/biblioteca/save-config-raw.php?branch=media', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: payload,
@@ -846,9 +1101,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const data = await resp.json();
                         if (data.ok) {
                             cfgThemeFullSource.value = payload;
-                            cfgThemeStatus.textContent = '✅ Saved';
+                            cfgThemeStatus.textContent = Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                ? '✅ Saved and playlist refreshed'
+                                : '✅ Saved';
                             cfgThemeStatus.style.color = 'var(--success, #4ade80)';
-                            const reasons = (data.build_required_state && data.build_required_state.reasons) || ['web_config_changed'];
+                            const reasons = (data.build_required_state && data.build_required_state.reasons) || ['theme_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
                             setBuildRequiredNudge(data.build_required === true, reasons, action);
                             refreshBuildHint();
@@ -857,7 +1114,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             cfgThemeStatus.style.color = '#f55';
                         }
                     } catch (e) {
-                        cfgThemeStatus.textContent = '❌ Network error';
+                        cfgThemeStatus.textContent = '❌ Network error: ' + e.message;
                         cfgThemeStatus.style.color = '#f55';
                     }
                 });
@@ -867,20 +1124,156 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const bioEditor  = document.getElementById('bioEditor');
             const bioSaveBtn = document.getElementById('bioSaveBtn');
             const bioStatus  = document.getElementById('bioStatus');
+            let bioRichTextEditor = null;
+
+            function flattenBioImageList(items) {
+                const flat = [];
+                (items || []).forEach((item) => {
+                    if (Array.isArray(item.menu)) {
+                        item.menu.forEach((child) => {
+                            flat.push({
+                                title: `${item.title}: ${child.title}`,
+                                alt: child.title,
+                                value: child.value,
+                            });
+                        });
+                        return;
+                    }
+
+                    if (item && item.value) {
+                        flat.push({ title: item.title, alt: item.title, value: item.value });
+                    }
+                });
+                return flat;
+            }
+
+            async function fetchBioImageList() {
+                const resp = await fetch('/biblioteca/list-page-images.php');
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    throw new Error(data.error || 'Could not load content images');
+                }
+
+                return Array.isArray(data.images) ? data.images : [];
+            }
+
+            function openBioImageDialog(editor, callback, items) {
+                if (!editor || !items.length) {
+                    throw new Error('No optimized content images available yet');
+                }
+
+                editor.windowManager.open({
+                    title: 'Choose content image',
+                    body: {
+                        type: 'panel',
+                        items: [
+                            {
+                                type: 'selectbox',
+                                name: 'src',
+                                label: 'Optimized image',
+                                items: items.map((item) => ({ text: item.title, value: item.value })),
+                            },
+                        ],
+                    },
+                    initialData: { src: items[0].value },
+                    buttons: [
+                        { type: 'cancel', text: 'Cancel' },
+                        { type: 'submit', text: 'Use image', primary: true },
+                    ],
+                    onSubmit(api) {
+                        const data = api.getData();
+                        const selected = items.find((item) => item.value === data.src) || items[0];
+                        callback(selected.value, { alt: selected.alt || selected.title });
+                        api.close();
+                    },
+                });
+            }
+
+            async function initBioRichTextEditor() {
+                if (!bioEditor || typeof tinymce === 'undefined') return null;
+                if (bioRichTextEditor) return bioRichTextEditor;
+
+                const imageList = await fetchBioImageList();
+                const flatImageList = flattenBioImageList(imageList);
+
+                await tinymce.init({
+                    target: bioEditor,
+                    license_key: 'gpl',
+                    base_url: '/vendor/tinymce/js/tinymce',
+                    suffix: '.min',
+                    menubar: false,
+                    branding: false,
+                    promotion: false,
+                    min_height: 520,
+                    plugins: 'autolink code image link lists autoresize',
+                    toolbar: 'undo redo | blocks | bold italic | bullist numlist blockquote | link image | code',
+                    block_unsupported_drop: true,
+                    automatic_uploads: false,
+                    image_uploadtab: false,
+                    paste_data_images: false,
+                    convert_urls: false,
+                    image_list: imageList,
+                    file_picker_types: 'image',
+                    images_file_types: 'jpg,jpeg,png,webp',
+                    valid_elements: 'p,br,strong/b,em/i,h2,h3,h4,blockquote,ul,ol,li,a[href|target|rel],img[src|alt|title],hr',
+                    link_target_list: [
+                        { title: 'Same tab', value: '' },
+                        { title: 'New tab', value: '_blank' },
+                    ],
+                    file_picker_callback(callback, value, meta) {
+                        if (meta.filetype !== 'image') return;
+                        openBioImageDialog(bioRichTextEditor, callback, flatImageList);
+                    },
+                    setup(editor) {
+                        editor.on('init', () => {
+                            bioRichTextEditor = editor;
+                        });
+                    },
+                });
+
+                bioRichTextEditor = tinymce.get('bioEditor');
+                return bioRichTextEditor;
+            }
+
+            if (bioEditor && typeof tinymce !== 'undefined') {
+                initBioRichTextEditor().catch((error) => {
+                    bioStatus.textContent = `Source editor fallback: ${error.message}`;
+                    bioStatus.style.color = '#f55';
+                });
+            }
+
             if (bioSaveBtn) {
                 bioSaveBtn.addEventListener('click', async () => {
                     bioStatus.textContent = 'Saving…';
                     bioStatus.style.color = '#aaa';
+                    bioSaveBtn.disabled = true;
                     try {
+                        const activeBioEditor = typeof tinymce !== 'undefined' ? tinymce.get('bioEditor') : null;
+                        const bioContent = activeBioEditor
+                            ? activeBioEditor.getContent({ format: 'html' })
+                            : bioEditor.value;
+
                         const resp = await fetch('/biblioteca/save-bio.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-                            body: bioEditor.value,
+                            body: bioContent,
                         });
                         const data = await resp.json();
                         if (data.ok) {
-                            bioStatus.textContent = '✅ Saved';
-                            bioStatus.style.color = 'var(--success, #4ade80)';
+                            if (data.sanitized) {
+                                bioStatus.textContent = '⚠️ Saved with safety cleanup';
+                                bioStatus.style.color = '#fbbf24';
+                            } else {
+                                bioStatus.textContent = '✅ Saved';
+                                bioStatus.style.color = 'var(--success, #4ade80)';
+                            }
+
+                            if (activeBioEditor && typeof data.html === 'string') {
+                                activeBioEditor.setContent(data.html, { format: 'html' });
+                            } else if (typeof data.html === 'string') {
+                                bioEditor.value = data.html;
+                            }
                         } else {
                             bioStatus.textContent = '❌ ' + (data.error || 'Unknown error');
                             bioStatus.style.color = '#f55';
@@ -888,6 +1281,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     } catch (e) {
                         bioStatus.textContent = '❌ Network error: ' + e.message;
                         bioStatus.style.color = '#f55';
+                    } finally {
+                        bioSaveBtn.disabled = false;
                     }
                 });
             }
@@ -1251,9 +1646,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             });
                             const data = await resp.json();
                             if (data.ok) {
-                                status.textContent = '✅ Saved';
+                                status.textContent = Array.isArray(data.auto_tasks) ? '✅ Saved and share assets updated' : '✅ Saved';
                                 status.style.color = 'var(--success, #4ade80)';
-                                const reasons = (data.build_required_state && data.build_required_state.reasons) || ['web_config_changed'];
+                                const reasons = (data.build_required_state && data.build_required_state.reasons) || ['social_config_changed'];
                                 const action = (data.build_required_state && data.build_required_state.action) || 'full';
                                 setBuildRequiredNudge(data.build_required === true, reasons, action);
                                 refreshBuildHint();

@@ -178,6 +178,7 @@ label {
 
 input[type="text"],
 input[type="password"],
+textarea,
 select {
     width: 100%;
     padding: 7px 10px;
@@ -191,6 +192,7 @@ select {
 
 input[type="text"]:focus,
 input[type="password"]:focus,
+textarea:focus,
 select:focus {
     outline: none;
     border-color: var(--accent);
@@ -1191,13 +1193,88 @@ canvas { max-width: 100%; height: auto; }
     gap: 0 20px;
 }
 
+.config-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 20px;
+    margin-top: 14px;
+}
+
 .social-form-full {
     grid-column: 1 / -1;
+}
+
+.config-form-full {
+    grid-column: 1 / -1;
+}
+
+.config-form-textarea {
+    resize: vertical;
+    min-height: 104px;
+}
+
+.field-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+}
+
+.asset-picker-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--bg);
+}
+
+.asset-picker-value {
+    color: var(--text);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-picker-value.empty {
+    color: var(--muted);
+}
+
+.asset-picker-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.media-picker-tabs {
+    margin-top: 16px;
+}
+
+.media-picker-list {
+    margin-top: 14px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.media-picker-row .icon-btn:last-child {
+    white-space: nowrap;
 }
 
 @media (max-width: 600px) {
     .social-form-grid { grid-template-columns: 1fr; }
     .social-form-full { grid-column: 1; }
+    .config-form-grid { grid-template-columns: 1fr; }
+    .config-form-full { grid-column: 1; }
+    .asset-picker-control {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .asset-picker-actions {
+        justify-content: flex-end;
+    }
 }
 
 /* ===== Gallery admin grid ===== */

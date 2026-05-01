@@ -9,6 +9,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/template-bootstrap.php';
 
 // If user already exists, try to authenticate with provided credentials
@@ -103,6 +104,7 @@ function setup_deep_merge(array $base, array $overlay): array {
 }
 
 $cfg = setup_deep_merge($base, $existing);
+bandpromo_sync_scoped_config_fields($cfg, ['site', 'social', 'media']);
 
 file_put_contents($configPath, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 

@@ -79,7 +79,7 @@ Theme support should arrive before v1.0 so the platform does not hard-code one v
 Initial theme support should focus on:
 
 - design tokens and CSS variables
-- brand assets: logo, favicon, share image
+- brand assets: mandatory site logo/poster plus optional release-specific logo/poster overrides
 - typography choices
 - layout variants
 - module templates inheriting from the active theme
@@ -139,6 +139,26 @@ Practical implications:
 - images should be delivered according to real UI needs, not merely preserved at oversized source dimensions
 - build validation should distinguish hard blockers, publish blockers, warnings, and autofixable issues
 - the admin UI should guide non-technical operators through fixing weak source packages rather than rejecting them upfront
+
+Build-pipeline implications:
+
+- the current `full` vs `optimize` split is too coarse for the intended `original` / `master` / `delivery` model
+- build-required tracking should evolve from broad action labels into task-level requirements such as playlist scan, metadata validation, audio delivery generation, image delivery generation, social asset generation, and manifest generation
+- admin-facing build language should describe concrete outputs instead of the vague word `media`
+- source-aware processing must stop assuming every supported audio input follows the same FLAC-first path
+- offline-capable playback and scalable playback should share the same future direction: PHP should authorize access, but long-lived audio byte delivery should move away from PHP streaming toward a cache-friendly protected delivery path
+- the PWA/service-worker layer should be audited as product infrastructure, not treated as a one-time install checkbox; update behavior, cache-busting, stale-shell risk, and offline value on phones are part of the core user experience
+
+Platform-model implications:
+
+- media roles must be explicit before multi-release support lands: `theme asset`, `release cover`, `track cover`, `gallery media`, and `page illustration`
+- media scope must be explicit before multi-release support lands: install-wide, release-scoped, track-scoped, and page/module-scoped assets cannot keep sharing one blurred `cover` concept
+- admin UI and build logic should evolve toward role-based behavior even if the storage layout changes more gradually
+- theme and asset inheritance must be explicit before multi-release support lands: install defaults, release overrides, and track-specific exceptions should replace one-off duplicated theme definitions
+- install-level identity assets must remain mandatory even after release overrides exist: the site shell needs a required fallback logo and poster/share image, while each release can optionally override both
+- the current single-release `web-config` shape must be split deliberately: install shell fields stay install-wide, release identity fields move to release scope, and track overrides remain narrow exceptions rather than a second theme layer
+- the future schema should use explicit scoped blocks such as `install.site`, `install.theme`, `install.social`, `release.identity`, `release.theme`, `release.social`, and a narrow track-presentation exception layer
+- the migration must be staged: compatibility reads first, then dual-write saves, then schema-first admin UI, and only then legacy cleanup
 
 This strategy is part of the v0.7 exit work because it defines what "usable by non-technical operators" actually means in practice.
 

@@ -46,6 +46,10 @@ function bandpromo_reason_action(string $reason): string {
         'media_audio_upload' => 'full',
         'media_cover_upload' => 'full',
         'web_config_changed' => 'full',
+        'theme_config_changed' => 'full',
+        'theme_cover_changed' => 'optimize',
+        'site_config_changed' => 'full',
+        'social_config_changed' => 'full',
         'media_image_upload' => 'optimize',
     ];
     return $map[$reason] ?? 'none';

@@ -34,19 +34,30 @@ if (!is_array($siteCfg)) {
     exit;
 }
 
+require_once '../biblioteca/config-loader.php';
+
 $origin = bandpromo_current_origin();
 $baseUrl = $origin . '/play/';
 
 // Default meta tags
-$ogTitle       = $siteCfg['site']['name']          ?? 'Twisted Chronicles';
-$ogDescription = $siteCfg['site']['description']   ?? 'A private music experience';
-$ogImage       = $origin . ($siteCfg['social']['share_image'] ?? '/media/special/bandPromo_share.png');
-$ogImageWidth  = $siteCfg['social']['share_image_width']  ?? 1200;
-$ogImageHeight = $siteCfg['social']['share_image_height'] ?? 630;
+$ogTitle       = get_config('release.identity.title', 'Twisted Chronicles');
+$ogDescription = get_config('release.identity.description', 'A private music experience');
+$ogImage       = $origin . get_config('release.brand.poster', '/media/special/bandPromo_share.png');
+$ogImageWidth  = get_config('release.brand.poster_width', 1200);
+$ogImageHeight = get_config('release.brand.poster_height', 630);
 $ogUrl         = $baseUrl;
 
 $json   = file_get_contents($configFile);
 $config = json_decode($json, true) ?: [];
+
+$galleryItems = [];
+$galleryFile = dirname(__DIR__) . '/data/gallery.json';
+if (file_exists($galleryFile)) {
+    $galleryData = json_decode(file_get_contents($galleryFile) ?: '[]', true);
+    if (is_array($galleryData)) {
+        $galleryItems = $galleryData;
+    }
+}
 
 $appVersion = 'dev';
 $versionFile = dirname(__DIR__) . '/VERSION';
@@ -160,7 +171,7 @@ if (isset($_GET['t'])) {
 
     <div id="content-container">
         <div class="content-logo">
-            <img src="<?php echo htmlspecialchars(get_config('media.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
+            <img src="<?php echo htmlspecialchars(get_config('release.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
         </div>
         <div class="content-toggle">
             <button class="active" onclick="toggleView('lyrics')">Lyrics</button>
@@ -201,6 +212,8 @@ if (isset($_GET['t'])) {
         window.CONFIG_URL       = '/play/playlist.json';
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';
+        window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
+        window.INITIAL_GALLERY_ITEMS = <?php echo json_encode($galleryItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         <?php
         require_once '../biblioteca/csrf.php';
         $csrf_token = generate_csrf_token();

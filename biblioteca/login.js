@@ -173,9 +173,9 @@ function autoSelectQuality(recommendation) {
 
 function showBgImage() {
     const video = document.getElementById('bg-video');
-    const bgImage = window.appConfig?.media?.background_image ?? '/media/special/bandPromo_background.png';
+    const bgImage = window.appConfig?.media?.background_image || '';
     if (video) video.style.display = 'none';
-    document.body.style.backgroundImage = `url('${bgImage}')`;
+    document.body.style.backgroundImage = bgImage ? `url('${bgImage}')` : 'none';
 }
 
 function updateBackground() {
@@ -188,11 +188,24 @@ function updateBackground() {
     // Show image only if connection is slow (< 5 Mbps - 🐌)
     const connectionData = JSON.parse(sessionStorage.getItem('connection_speed') || '{}');
     const speed = connectionData.speed || 0;
+    const bgVideoSource = video.querySelector('source');
+    const hasVideoSource = !!bgVideoSource?.getAttribute('src');
+    const hasImageSource = !!(window.appConfig?.media?.background_image);
 
     if (speed < 5) {
         // Slow connection: show image
         showBgImage();
     } else {
+        if (!hasVideoSource) {
+            if (hasImageSource) {
+                showBgImage();
+            } else {
+                video.style.display = 'none';
+                document.body.style.backgroundImage = 'none';
+            }
+            return;
+        }
+
         // Fast connection (≥5 Mbps): try video, fall back to image if it fails
         video.style.display = 'block';
         document.body.style.backgroundImage = 'none';
@@ -200,8 +213,7 @@ function updateBackground() {
         // If video errors (missing file etc.) fall back to image
         video.addEventListener('error', showBgImage, { once: true });
         // Also catch the case where the <source> fires error before video
-        const source = video.querySelector('source');
-        if (source) source.addEventListener('error', () => { video.load(); showBgImage(); }, { once: true });
+        if (bgVideoSource) bgVideoSource.addEventListener('error', () => { video.load(); showBgImage(); }, { once: true });
     }
 }
 

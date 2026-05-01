@@ -49,6 +49,30 @@ $audio_exts = ['flac', 'mp3'];
 $image_exts = ['png', 'jpg', 'jpeg', 'webp'];
 $video_exts = ['mp4', 'webm', 'mov'];
 
+function resolve_upload_destination(string $root_dir, string $target_hint, string $ext, string $safe_name): ?string {
+    if ($target_hint === 'special') {
+        return $root_dir . '/media/special/' . $safe_name;
+    }
+
+    if (in_array($ext, ['flac', 'mp3'], true)) {
+        return $root_dir . '/media/audio/original/' . $safe_name;
+    }
+
+    if (in_array($ext, ['mp4', 'webm', 'mov'], true)) {
+        return $root_dir . '/media/video/original/' . $safe_name;
+    }
+
+    if ($target_hint === 'photos') {
+        return $root_dir . '/media/photo/original/' . $safe_name;
+    }
+
+    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
+        return $root_dir . '/media/img/original/' . $safe_name;
+    }
+
+    return null;
+}
+
 function image_matches_audio_basename(string $filename): bool {
     $root_dir = dirname(dirname(__FILE__));
     $audio_orig_dir = $root_dir . '/media/audio/original';
@@ -84,6 +108,10 @@ function image_matches_audio_basename(string $filename): bool {
 }
 
 function build_reason_for_upload(string $target_hint, string $ext, string $filename): string {
+    if ($target_hint === 'special') {
+        return '';
+    }
+
     if (in_array($ext, ['flac', 'mp3'], true)) {
         return 'media_audio_upload';
     }
@@ -142,16 +170,11 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     }
 
     // All chunks received — assemble
-    if (in_array($ext, $audio_exts)) {
-        $dest = $audio_orig_dir . '/' . $safeName;
-    } elseif (in_array($ext, $video_exts)) {
-        $dest = $video_dir . '/' . $safeName;
-    } elseif ($target_hint === 'special') {
-        $dest = $special_dir . '/' . $safeName;
-    } elseif ($target_hint === 'photos') {
-        $dest = $photo_dir . '/' . $safeName;
-    } else {
-        $dest = $img_orig_dir . '/' . $safeName;
+    $dest = resolve_upload_destination($root_dir, (string) $target_hint, $ext, $safeName);
+    if ($dest === null) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => "Unsupported file type: .$ext"]);
+        exit;
     }
 
     $out = fopen($dest, 'wb');
@@ -239,18 +262,8 @@ foreach ($files as $file) {
     $safe_name = preg_replace('/[^a-zA-Z0-9.\-_]/', '_', basename($original));
     $ext       = strtolower(pathinfo($safe_name, PATHINFO_EXTENSION));
 
-    if (in_array($ext, $audio_exts)) {
-        $dest = $audio_orig_dir . '/' . $safe_name;
-    } elseif (in_array($ext, $video_exts)) {
-        $dest = $video_dir . '/' . $safe_name;
-    } elseif ($target_hint === 'special') {
-        $dest = $special_dir . '/' . $safe_name;
-    } elseif (in_array($ext, $image_exts)) {
-        // Route to photo dir if uploaded from Photos panel
-        $dest = ($target_hint === 'photos')
-            ? $photo_dir . '/' . $safe_name
-            : $img_orig_dir . '/' . $safe_name;
-    } else {
+    $dest = resolve_upload_destination($root_dir, (string) $target_hint, $ext, $safe_name);
+    if ($dest === null) {
         $results[] = ['name' => $original, 'ok' => false, 'error' => "Unsupported file type: .$ext"];
         $errors++;
         continue;

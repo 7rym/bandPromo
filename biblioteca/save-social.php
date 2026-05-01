@@ -11,6 +11,7 @@ session_write_close(); // release lock before file I/O
 
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/build-required.php';
+require_once __DIR__ . '/light-build-tasks.php';
 
 header('Content-Type: application/json');
 
@@ -63,6 +64,8 @@ if (isset($patch['social']['categories'])) {
 
 unset($cfg['content'], $cfg['build']);
 
+bandpromo_sync_scoped_config_fields($cfg, ['site', 'social']);
+
 $json = json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 if ($json === false) {
     http_response_code(500);
@@ -76,9 +79,24 @@ if (file_put_contents($cfgPath, $json) === false) {
     exit;
 }
 
-$state = bandpromo_mark_build_required('web_config_changed');
+$socialTask = bandpromo_run_light_task('scripts/makeSocial.py');
+$manifestTask = bandpromo_run_light_task('scripts/makePWA.py');
+
+if ($socialTask['ok'] && $manifestTask['ok']) {
+    echo json_encode([
+        'ok' => true,
+        'build_required' => false,
+        'build_required_state' => bandpromo_get_build_required_state(),
+        'auto_tasks' => ['social-assets', 'manifest'],
+    ]);
+    exit;
+}
+
+$state = bandpromo_mark_build_required('social_config_changed');
 echo json_encode([
     'ok' => true,
     'build_required' => true,
     'build_required_state' => $state,
+    'warning' => 'Saved, but automatic social/manifest refresh failed.',
+    'task_output' => trim(($socialTask['output'] ?? '') . "\n" . ($manifestTask['output'] ?? '')),
 ]);

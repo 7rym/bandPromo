@@ -16,6 +16,8 @@ session_write_close(); // release lock before file I/O
 
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/build-required.php';
+require_once __DIR__ . '/config-loader.php';
+require_once __DIR__ . '/light-build-tasks.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -36,16 +38,110 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
+$decoded_array = json_decode($body, true);
+if (!is_array($decoded_array)) {
+    echo json_encode(['error' => 'Invalid JSON payload']);
+    exit;
+}
+
 $config_file = dirname(__DIR__) . '/web-config.json';
+$branch = isset($_GET['branch']) ? strtolower(trim((string) $_GET['branch'])) : '';
+$existing_config = [];
+if (file_exists($config_file)) {
+    $loaded = json_decode(file_get_contents($config_file) ?: '{}', true);
+    if (is_array($loaded)) {
+        $existing_config = $loaded;
+    }
+}
 
 // Write pretty-printed JSON
-$pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$syncRoots = [];
+if ($branch === 'site') {
+    $syncRoots = ['site'];
+} elseif ($branch === 'media') {
+    $syncRoots = ['media'];
+}
+if (!empty($syncRoots)) {
+    bandpromo_sync_scoped_config_fields($decoded_array, $syncRoots);
+}
+
+$pretty = json_encode($decoded_array, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if (file_put_contents($config_file, $pretty) === false) {
     echo json_encode(['error' => 'Could not write web-config.json — check file permissions']);
     exit;
 }
 
-$state = bandpromo_mark_build_required('web_config_changed');
+if ($branch === 'site') {
+    $task = bandpromo_run_light_task('scripts/makePWA.py');
+    if ($task['ok']) {
+        echo json_encode([
+            'ok' => true,
+            'build_required' => false,
+            'build_required_state' => bandpromo_get_build_required_state(),
+            'auto_tasks' => ['manifest'],
+        ]);
+        exit;
+    }
+
+    $state = bandpromo_mark_build_required('site_config_changed');
+    echo json_encode([
+        'ok' => true,
+        'build_required' => true,
+        'build_required_state' => $state,
+        'warning' => 'Saved, but automatic manifest refresh failed.',
+        'task_output' => $task['output'],
+    ]);
+    exit;
+}
+
+if ($branch === 'media') {
+    $existing_media = isset($existing_config['media']) && is_array($existing_config['media'])
+        ? $existing_config['media']
+        : [];
+    $new_config = json_decode($pretty, true);
+    $new_media = isset($new_config['media']) && is_array($new_config['media'])
+        ? $new_config['media']
+        : [];
+
+    $existing_cover = trim((string) ($existing_media['cover'] ?? ''));
+    $new_cover = trim((string) ($new_media['cover'] ?? ''));
+
+    if ($existing_cover !== $new_cover) {
+        $task = bandpromo_run_light_task('scripts/makePlaylists.py');
+        if ($task['ok']) {
+            $state = bandpromo_mark_build_required('theme_cover_changed');
+            echo json_encode([
+                'ok' => true,
+                'build_required' => true,
+                'build_required_state' => $state,
+                'auto_tasks' => ['playlist-scan'],
+                'warning' => 'Saved and refreshed playlist metadata. Run image optimization to refresh delivery covers.',
+            ]);
+            exit;
+        }
+
+        $state = bandpromo_mark_build_required('theme_config_changed');
+        echo json_encode([
+            'ok' => true,
+            'build_required' => true,
+            'build_required_state' => $state,
+            'warning' => 'Saved, but automatic playlist refresh failed after the cover change.',
+            'task_output' => $task['output'],
+        ]);
+        exit;
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'build_required' => false,
+        'build_required_state' => bandpromo_get_build_required_state(),
+        'auto_tasks' => [],
+    ]);
+    exit;
+}
+
+$reason = $branch === 'media' ? 'theme_config_changed' : 'web_config_changed';
+$state = bandpromo_mark_build_required($reason);
 echo json_encode([
     'ok' => true,
     'build_required' => true,

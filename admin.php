@@ -6,6 +6,7 @@ bandpromo_enforce_https();
 session_start();
 
 require_once 'biblioteca/auth.php';
+require_once 'biblioteca/config-loader.php';
 
 // Redirect to setup wizard if setup hasn't been completed
 if (!bandpromo_is_setup_complete()) {
@@ -15,9 +16,8 @@ if (!bandpromo_is_setup_complete()) {
 require_once 'biblioteca/analytics.php';
 
 $appVersion = trim(@file_get_contents(__DIR__ . '/VERSION') ?: 'dev');
-$_siteCfg  = json_decode(@file_get_contents(__DIR__ . '/web-config.json') ?: '{}', true);
-$siteName  = $_siteCfg['site']['name'] ?? 'Admin';
-$siteUrl   = rtrim($_siteCfg['site']['url'] ?? '', '/');
+$siteName  = get_config('release.identity.title', 'Admin');
+$siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
 if ($requestHostNoPort === 'localhost') {
@@ -26,7 +26,6 @@ if ($requestHostNoPort === 'localhost') {
         $siteUrl = 'http://' . $requestHost;
     }
 }
-unset($_siteCfg);
 
 // Ensure public media directories have world-readable permissions (0755) so the
 // HTTP server can serve static files.  This is a cheap no-op after the first run.
@@ -238,6 +237,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <?php if ($tab === 'content' && $contentTab === 'bio'): ?>
+    <script src="/vendor/tinymce/js/tinymce/tinymce.min.js"></script>
+    <?php endif; ?>
     <script src="biblioteca/lightbox.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/lightbox.js'); ?>"></script>
 </head>
 <body>
@@ -577,7 +579,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     'photos'        => ['📷', 'Photo'],
                     'video'         => ['🎬', 'Video'],
                     'illustrations' => ['🖼️', 'Illustrations'],
-                    'special'       => ['✨', 'System'],
+                    'special'       => ['✨', 'Theme'],
                 ];
                 foreach ($filePanels as $fp => [$emoji, $label]):
                     $active = $fp === $filesPanel ? 'active' : '';
@@ -604,7 +606,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     Drop artwork and illustrations here (PNG, JPG, JPEG).
                     <br><strong>After upload:</strong> run <strong>Optimize Media</strong>.
                 <?php elseif ($filesPanel === 'special'): ?>
-                    This is for system assets (share image, icons, and similar files).
+                    This is for theme assets such as share images, icons, logos, and similar install-specific design files.
                     <br><strong>After upload:</strong> usually no build needed.
                 <?php endif; ?>
                 <br><small>Tip: you can drag files straight into this page to open the upload window automatically.</small>
@@ -823,8 +825,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="card">
                 <h3>📝 Band Bio</h3>
                 <p class="card-note">
-                    Edit the HTML content of the band bio.
-                    Use standard HTML tags. Changes apply immediately.
+                    Edit the band bio with rich text tools or source view.
+                    Only safe formatting and optimized local content images are kept when you save.
                 </p>
                 <textarea id="bioEditor" class="code-editor" spellcheck="false" style="height:520px"><?php
                 $bio_file = __DIR__ . '/data/bio.html';
@@ -835,6 +837,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     echo htmlspecialchars(file_get_contents($bio_file) ?: '');
                 }
                 ?></textarea>
+                <p class="field-note">
+                    Inserted content images are limited to optimized files from your local media library.
+                </p>
                 <div class="card-actions">
                     <button id="bioSaveBtn" class="btn btn-primary">💾 Save bio</button>
                     <span id="bioStatus" class="status-text"></span>
@@ -867,11 +872,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-config">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics now edits the <code>site</code> branch from <code>web-config.json</code>. Use it for the site name, URL, description, language, and author without touching the other config branches. <strong>Save validates only this branch</strong>, then writes it back into the full config. If sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
+                    Basics is the place for your public site title, URL, description, language, and author details. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
                 <?php elseif ($configTab === 'theme'): ?>
-                    Theme controls the media presentation branch from <code>web-config.json</code>. Use it for paths such as the logo, release cover, and background media. <strong>Save validates only this branch</strong>, then writes it back into the full config. Most changes need a <a href="?tab=build">Build</a> to take effect.
+                    Theme is the place for visible presentation assets such as the logo, primary cover image, welcome audio, and background media. <strong>Save validates only the theme fields</strong>, then writes them back into the full config. Most path-only changes apply immediately; changing the primary cover image may still queue follow-up image optimization.
                 <?php elseif ($configTab === 'sharing'): ?>
-                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Make sure the <strong>share image path</strong> points to an existing file in the System panel.
+                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Make sure the <strong>share image path</strong> points to an existing file in the Theme panel.
                 <?php endif; ?>
             </div>
 
@@ -891,8 +896,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php if (!empty($missingSections)): ?>
             <div style="background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.35);color:#f87171;
                         border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:13px;">
-                ⚠️ <strong>Incomplete config:</strong> missing sections:
-                <code><?= htmlspecialchars(implode(', ', $missingSections)) ?></code>.
+                ⚠️ <strong>Incomplete config:</strong> one or more internal config sections are missing.
                 <a href="?tab=config&amp;ctab=basics&amp;repair=1" style="color:#f87171;text-decoration:underline;">Repair now</a>
             </div>
             <?php endif; ?>
@@ -908,18 +912,44 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     return $base;
                 }
                 $cfgRepaired = admin_deep_merge($cfgExample, $cfgCurrent);
+                bandpromo_sync_scoped_config_fields($cfgRepaired, ['site', 'social', 'media']);
                 file_put_contents($cfgCurrentPath, json_encode($cfgRepaired, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                 header('Location: ?tab=config&ctab=basics'); exit;
             }
-            $cfgFull = json_decode(file_get_contents(__DIR__ . '/web-config.json') ?: '{}', true) ?? [];
+            $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSite = $cfgFull['site'] ?? [];
             ?>
             <div class="card">
                 <h3>⚙️ Site Basics</h3>
                 <p class="card-note">
-                    Edit only the <code>site</code> branch from <code>web-config.json</code>. This keeps the everyday site basics separate from theme media paths and social sharing settings.
+                    Edit the everyday public site details here without touching theme media paths or sharing settings.
                 </p>
-                <textarea id="cfgBasicsEditor" class="code-editor" spellcheck="false" style="height:320px"><?php echo htmlspecialchars(json_encode($cfgSite, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
+                <div class="config-form-grid">
+                    <div class="form-group">
+                        <label for="cfg_site_name">Site title</label>
+                        <input type="text" id="cfg_site_name" value="<?php echo htmlspecialchars((string) ($cfgSite['name'] ?? '')); ?>" placeholder="Your release or site title">
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_site_short_name">Short label</label>
+                        <input type="text" id="cfg_site_short_name" value="<?php echo htmlspecialchars((string) ($cfgSite['short_name'] ?? '')); ?>" placeholder="Short name for app labels and compact views">
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_site_description">Description</label>
+                        <textarea id="cfg_site_description" class="config-form-textarea" rows="4" placeholder="A short public description used in previews and meta tags"><?php echo htmlspecialchars((string) ($cfgSite['description'] ?? '')); ?></textarea>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_site_url">Site URL</label>
+                        <input type="text" id="cfg_site_url" value="<?php echo htmlspecialchars((string) ($cfgSite['url'] ?? '')); ?>" placeholder="https://example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_site_language">Language code</label>
+                        <input type="text" id="cfg_site_language" value="<?php echo htmlspecialchars((string) ($cfgSite['language'] ?? '')); ?>" placeholder="en">
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_site_author">Author / owner</label>
+                        <input type="text" id="cfg_site_author" value="<?php echo htmlspecialchars((string) ($cfgSite['author'] ?? '')); ?>" placeholder="Artist, band, label, or project owner">
+                    </div>
+                </div>
                 <textarea id="cfgBasicsFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
                 <div class="card-actions">
                     <button id="cfgBasicsSaveBtn" class="btn btn-primary">💾 Save basics</button>
@@ -930,15 +960,98 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- ── THEME ───────────────────────────────────────────────────── -->
             <?php elseif ($configTab === 'theme'): ?>
             <?php
-            $cfgFull = json_decode(file_get_contents(__DIR__ . '/web-config.json') ?: '{}', true) ?? [];
+            $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgTheme = $cfgFull['media'] ?? [];
+            $themeLogoPath = (string) ($cfgTheme['logo'] ?? '');
+            $themeCoverPath = (string) ($cfgTheme['cover'] ?? '');
+            $themeBackgroundImagePath = (string) ($cfgTheme['background_image'] ?? '');
+            $themeBackgroundVideoPath = (string) ($cfgTheme['background_video'] ?? '');
+            $themeWelcomeAudioPath = (string) ($cfgTheme['welcome_audio'] ?? '');
+            $themeLoggedinAudioPath = (string) ($cfgTheme['loggedin_audio'] ?? '');
+            $themeLogoLabel = $themeLogoPath !== '' ? basename(str_replace('\\', '/', $themeLogoPath)) : 'No logo selected';
+            $themeCoverLabel = $themeCoverPath !== '' ? basename(str_replace('\\', '/', $themeCoverPath)) : 'No cover selected';
+            $themeBackgroundImageLabel = $themeBackgroundImagePath !== '' ? basename(str_replace('\\', '/', $themeBackgroundImagePath)) : 'No background image selected';
+            $themeBackgroundVideoLabel = $themeBackgroundVideoPath !== '' ? basename(str_replace('\\', '/', $themeBackgroundVideoPath)) : 'No background video selected';
+            $themeWelcomeAudioLabel = $themeWelcomeAudioPath !== '' ? basename(str_replace('\\', '/', $themeWelcomeAudioPath)) : 'No welcome audio selected';
+            $themeLoggedinAudioLabel = $themeLoggedinAudioPath !== '' ? basename(str_replace('\\', '/', $themeLoggedinAudioPath)) : 'No logged-in audio selected';
             ?>
             <div class="card">
                 <h3>🎨 Theme / Media Presentation</h3>
                 <p class="card-note">
-                    Edit only the <code>media</code> branch from <code>web-config.json</code>. This is the quick place for paths such as logo, cover, welcome audio, and background media without touching the rest of the config.
+                    Choose the visible presentation assets here, such as logo, primary cover image, welcome audio, and background media, without touching internal file paths. Most reference changes apply immediately; the primary cover image is the main field that can still require follow-up delivery refresh.
                 </p>
-                <textarea id="cfgThemeEditor" class="code-editor" spellcheck="false" style="height:320px"><?php echo htmlspecialchars(json_encode($cfgTheme, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
+                <div class="config-form-grid">
+                    <div class="form-group config-form-full">
+                        <label for="cfg_theme_logo_picker">Logo</label>
+                        <input type="hidden" id="cfg_theme_logo" value="<?php echo htmlspecialchars($themeLogoPath); ?>" data-empty-label="No logo selected">
+                        <div class="asset-picker-control" id="cfg_theme_logo_picker">
+                            <span id="cfg_theme_logo_label" class="asset-picker-value<?php echo $themeLogoPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeLogoLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_logo" data-title="Choose logo" data-targets="special">Choose file</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Pick from uploaded theme assets. The internal storage path stays hidden.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_theme_cover_picker">Primary cover</label>
+                        <input type="hidden" id="cfg_theme_cover" value="<?php echo htmlspecialchars($themeCoverPath); ?>" data-empty-label="No cover selected">
+                        <div class="asset-picker-control" id="cfg_theme_cover_picker">
+                            <span id="cfg_theme_cover_label" class="asset-picker-value<?php echo $themeCoverPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeCoverLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_cover" data-title="Choose primary cover" data-targets="special,illustrations,photos">Choose file</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Changing the primary cover can trigger a follow-up image refresh for delivery assets.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_theme_background_image_picker">Background image</label>
+                        <input type="hidden" id="cfg_theme_background_image" value="<?php echo htmlspecialchars($themeBackgroundImagePath); ?>" data-empty-label="No background image selected">
+                        <div class="asset-picker-control" id="cfg_theme_background_image_picker">
+                            <span id="cfg_theme_background_image_label" class="asset-picker-value<?php echo $themeBackgroundImagePath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeBackgroundImageLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_background_image" data-title="Choose background image" data-targets="special,illustrations,photos">Choose file</button>
+                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_background_image">Clear</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Pick a still background from your uploaded theme, illustration, or photo assets, or clear it to run with no background image.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_theme_background_video_picker">Background video</label>
+                        <input type="hidden" id="cfg_theme_background_video" value="<?php echo htmlspecialchars($themeBackgroundVideoPath); ?>" data-empty-label="No background video selected">
+                        <div class="asset-picker-control" id="cfg_theme_background_video_picker">
+                            <span id="cfg_theme_background_video_label" class="asset-picker-value<?php echo $themeBackgroundVideoPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeBackgroundVideoLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_background_video" data-title="Choose background video" data-targets="special,video">Choose file</button>
+                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_background_video">Clear</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Pick a motion background from theme assets or uploaded videos, or clear it to disable background video entirely.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_theme_welcome_audio_picker">Welcome audio</label>
+                        <input type="hidden" id="cfg_theme_welcome_audio" value="<?php echo htmlspecialchars($themeWelcomeAudioPath); ?>" data-empty-label="No welcome audio selected">
+                        <div class="asset-picker-control" id="cfg_theme_welcome_audio_picker">
+                            <span id="cfg_theme_welcome_audio_label" class="asset-picker-value<?php echo $themeWelcomeAudioPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeWelcomeAudioLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_welcome_audio" data-title="Choose welcome audio" data-targets="special,audio">Choose file</button>
+                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_welcome_audio">Clear</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Use a short intro sound from theme assets or your uploaded audio library, or clear it to disable the intro sound.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_theme_loggedin_audio_picker">Logged-in audio</label>
+                        <input type="hidden" id="cfg_theme_loggedin_audio" value="<?php echo htmlspecialchars($themeLoggedinAudioPath); ?>" data-empty-label="No logged-in audio selected">
+                        <div class="asset-picker-control" id="cfg_theme_loggedin_audio_picker">
+                            <span id="cfg_theme_loggedin_audio_label" class="asset-picker-value<?php echo $themeLoggedinAudioPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeLoggedinAudioLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_loggedin_audio" data-title="Choose logged-in audio" data-targets="special,audio">Choose file</button>
+                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_loggedin_audio">Clear</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Choose the sound or loop used once visitors are inside the site, or clear it to skip that sound entirely.</div>
+                    </div>
+                </div>
                 <textarea id="cfgThemeFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
                 <div class="card-actions">
                     <button id="cfgThemeSaveBtn" class="btn btn-primary">💾 Save theme</button>
@@ -949,18 +1062,19 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- ── SHARING ─────────────────────────────────────────────────── -->
             <?php elseif ($configTab === 'sharing'): ?>
             <?php
-            $cfg = json_decode(file_get_contents(__DIR__ . '/web-config.json') ?: '{}', true) ?? [];
-            $ogTitle   = $cfg['site']['name']          ?? 'bandPromo';
-            $ogDesc    = $cfg['site']['description']   ?? '';
-            $ogImage   = $cfg['social']['share_image'] ?? '/media/special/bandPromo_share.png';
-            $ogUrl     = $cfg['site']['url']           ?? ('https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
-            $twitter   = $cfg['social']['twitter']     ?? '';
-            $facebook  = $cfg['social']['facebook']    ?? '';
-            $instagram = $cfg['social']['instagram']   ?? '';
-            $keywords  = $cfg['social']['keywords']    ?? '';
-            $categoriesRaw = $cfg['social']['categories'] ?? ['entertainment'];
+            require_once __DIR__ . '/biblioteca/config-loader.php';
+            $ogTitle   = get_config('release.identity.title', 'bandPromo');
+            $ogDesc    = get_config('release.identity.description', '');
+            $ogImage   = get_config('release.brand.poster', '/media/special/bandPromo_share.png');
+            $ogUrl     = get_config('install.site.url', 'https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+            $twitter   = get_config('install.social.twitter', '');
+            $facebook  = get_config('install.social.facebook', '');
+            $instagram = get_config('install.social.instagram', '');
+            $keywords  = get_config('release.social.keywords', '');
+            $categoriesRaw = get_config('release.social.categories', ['entertainment']);
             $categories = is_array($categoriesRaw) ? implode(', ', $categoriesRaw) : (string) $categoriesRaw;
             $ogDomain  = parse_url($ogUrl, PHP_URL_HOST) ?: $ogUrl;
+            $ogImageLabel = $ogImage !== '' ? basename(str_replace('\\', '/', $ogImage)) : 'No share image selected';
             ?>
 
             <!-- ── Social metadata form ───────────────────────────────────── -->
@@ -992,8 +1106,15 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         <input type="text" id="soc_instagram" value="<?php echo htmlspecialchars($instagram); ?>">
                     </div>
                     <div class="form-group social-form-full">
-                        <label for="soc_share_image">Share image path</label>
-                        <input type="text" id="soc_share_image" value="<?php echo htmlspecialchars($ogImage); ?>">
+                        <label for="soc_share_image_picker">Share image</label>
+                        <input type="hidden" id="soc_share_image" value="<?php echo htmlspecialchars($ogImage); ?>" data-empty-label="No share image selected">
+                        <div class="asset-picker-control" id="soc_share_image_picker">
+                            <span id="soc_share_image_label" class="asset-picker-value<?php echo $ogImage === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($ogImageLabel); ?></span>
+                            <div class="asset-picker-actions">
+                                <button type="button" class="icon-btn media-picker-open" data-field="soc_share_image" data-title="Choose share image" data-targets="special,illustrations,photos">Choose file</button>
+                            </div>
+                        </div>
+                        <div class="field-note">Pick the image used when people share your page. The storage path stays internal.</div>
                     </div>
                     <div class="form-group social-form-full">
                         <label for="soc_keywords">Keywords <span class="hint">(SEO meta keywords)</span></label>
@@ -1044,6 +1165,20 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
 
             <?php endif; ?>
+
+            <div id="mediaPickerModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeMediaPickerModal()">
+                <div class="modal-box modal-wide">
+                    <button class="modal-close" onclick="closeMediaPickerModal()">✕</button>
+                    <h3 id="mediaPickerTitle">Choose file</h3>
+                    <p class="card-note" id="mediaPickerHint">Pick an uploaded file. The internal storage path stays hidden from operators.</p>
+                    <div id="mediaPickerTabs" class="tabs sub-tabs media-picker-tabs"></div>
+                    <div id="mediaPickerList" class="media-file-list media-picker-list"><span class="text-muted">Choose a media type to browse files.</span></div>
+                    <div class="modal-actions">
+                        <button type="button" id="mediaPickerUploadBtn" class="icon-btn">Upload new file</button>
+                        <span id="mediaPickerStatus" class="status-text"></span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ===================== BUILD TAB ===================== -->

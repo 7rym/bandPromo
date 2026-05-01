@@ -12,6 +12,7 @@
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/build-required.php';
+require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/template-bootstrap.php';
 
 if (empty($_SESSION['authenticated'])) {
@@ -96,6 +97,8 @@ if (isset($body['branding']) && is_array($body['branding'])) {
         }
     }
 }
+
+bandpromo_sync_scoped_config_fields($config, ['site', 'social', 'media']);
 
 // Write back
 $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

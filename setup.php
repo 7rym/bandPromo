@@ -61,6 +61,8 @@ if (!file_exists($highscoresFile)) {
 $setupErrors = array_merge($setupErrors, bandpromo_ensure_runtime_files_seeded());
 // ─────────────────────────────────────────────────────────────────────────────
 
+require_once __DIR__ . '/biblioteca/config-loader.php';
+
 $hasSetupErrors = !empty($setupErrors);
 
 // Read current config defaults for pre-filling fields
@@ -81,11 +83,11 @@ function hostnameToTitle($host) {
 $derivedName = hostnameToTitle($hostNoPort);
 $derivedUrl  = 'https://' . $hostNoPort;
 
-$siteName        = htmlspecialchars($config['site']['name']        ?? $derivedName);
-$siteShortName   = htmlspecialchars($config['site']['short_name']  ?? $derivedName);
-$siteDescription = htmlspecialchars($config['site']['description'] ?? '');
-$siteUrl         = htmlspecialchars($config['site']['url']         ?? $derivedUrl);
-$siteAuthor      = htmlspecialchars($config['site']['author']      ?? '');
+$siteName        = htmlspecialchars((string) bandpromo_config_get_value($config, 'release.identity.title', $derivedName));
+$siteShortName   = htmlspecialchars((string) bandpromo_config_get_value($config, 'release.identity.short_label', $derivedName));
+$siteDescription = htmlspecialchars((string) bandpromo_config_get_value($config, 'release.identity.description', ''));
+$siteUrl         = htmlspecialchars((string) bandpromo_config_get_value($config, 'install.site.url', $derivedUrl));
+$siteAuthor      = htmlspecialchars((string) bandpromo_config_get_value($config, 'install.site.author', ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">

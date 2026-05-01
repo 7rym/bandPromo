@@ -5,12 +5,80 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Added
+- **2026-05-01 — Dev server start/stop scripts and session workflow**
+  - Added `scripts/start-dev-server.ps1` and `scripts/stop-dev-server.ps1` so the local PHP dev server uses a single repo-local start/stop path.
+  - Added a workspace `Stop bandPromo webserver` task alongside the existing auto-start task.
+  - Added a workspace `Restart bandPromo webserver` task for a clean stop/start cycle on port 8000.
+  - Disabled terminal persistent sessions in the workspace so the dev-server terminal is not restored across VS Code restarts.
+
 - **2026-04-30 — Google Drive Git protection script**
   - Added `scripts/protect-google-drive-git.ps1` to relocate `.git` outside the Google Drive-synced worktree.
   - The script also removes `desktop.ini` files from both the worktree and the relocated Git metadata directory.
   - This closes the gap that `.gitignore` cannot cover: Google Drive writing directly into `.git/refs`, `.git/logs`, and `.git/objects`.
 
 ### Documentation
+- **2026-05-02 — Third-party notices inventory added**
+  - Added `docs/THIRD-PARTY-NOTICES.md` to document the currently verified third-party libraries, build tools, hosted scripts, and external service endpoints used by bandPromo.
+  - Updated `README.md` to link the new notices document from the main documentation and license sections.
+  - Recorded current verified components including Pillow, Mutagen, Chart.js, FFmpeg, the Ko-fi widget, and the Cloudflare speed-test endpoint, while keeping future editor/sanitizer candidates out of the live inventory until actually adopted.
+
+- **2026-05-02 — Current single-brand model vs future scoped model clarified**
+  - Updated `MEDIA-HANDLING.md` to distinguish the current exposed operator model (`one branded site`) from the future internal scoped model (`brand`, `theme`, `social`, then install/release inheritance later).
+  - Moved logo/poster planning language under clearer `brand` terminology so the docs no longer blur identity assets together with theme or social concerns.
+  - Updated `TODO.md` to record that the future identity-asset rule is now locked while keeping multi-release concepts out of the current admin UI.
+
+- **2026-05-02 — Future identity wording normalized to poster/share image**
+  - Updated `MEDIA-HANDLING.md` so future release-identity planning now consistently refers to the social poster asset as `poster / share image` instead of only `share image`.
+  - Kept this wording change internal to planning/docs so the current admin UI can stay simple and single-release for operators.
+
+- **2026-05-02 — Future identity asset rules clarified for multi-release planning**
+  - Updated `MEDIA-HANDLING.md` so the future model now treats the site-level logo and poster/share image as mandatory fallback identity assets.
+  - Clarified that releases may override both logo and poster/share image in the future multi-release model, while current admins should still see only the simple single-release mental model.
+  - Updated `ROADMAP.md` and `TODO.md` so the planning work now reflects mandatory install fallbacks plus optional release-specific identity overrides.
+
+- **2026-05-01 — PWA/service-worker audit added to planning work**
+  - Updated `TODO.md` so offline/PWA work now explicitly includes a service-worker audit, cache-busting review, and installed-phone success criteria.
+  - Expanded `MEDIA-HANDLING.md` to state that the service worker is part of the playback architecture and must be audited for stale-cache risk, update behavior, and real user value.
+  - Updated `ROADMAP.md` so the installed PWA experience is now treated as core product infrastructure rather than a one-time install feature.
+
+- **2026-05-01 — Offline audio planning reframed as delivery architecture work**
+  - Updated `TODO.md` so offline playback is no longer framed as a pure caching task; it now starts with replacing PHP-streamed audio delivery with a cacheable protected delivery model.
+  - Expanded `MEDIA-HANDLING.md` with an explicit offline-playback architecture section covering the current PHP-streaming tension, the required sequencing, and the preferred long-term model.
+  - Updated `ROADMAP.md` so scalable playback and offline-capable playback now point to the same architectural direction: PHP authorization with non-PHP byte delivery.
+
+- **2026-05-01 — Scoped config migration contract added to planning docs**
+  - Expanded `MEDIA-HANDLING.md` with a staged migration plan from the current `site` / `social` / `media` fields to the future scoped schema.
+  - Documented compatibility-read priority, dual-write transition rules, and the first safe migration targets for runtime and admin work.
+  - Updated `TODO.md` and `ROADMAP.md` so the next implementation steps now explicitly call for compatibility reads before any schema-first UI or legacy cleanup.
+
+- **2026-05-01 — Future schema naming direction added to planning docs**
+  - Expanded `MEDIA-HANDLING.md` with proposed scoped schema blocks for install shell defaults, release identity/presentation, and track presentation exceptions.
+  - Added a compatibility bridge from today's `site`/`social`/`media` field names into the future scoped schema.
+  - Updated `TODO.md` and `ROADMAP.md` so the next planning step now includes migration rules from the current single-release config into the future multi-release schema.
+
+- **2026-05-01 — Current config field-scope map added to planning docs**
+  - Expanded `MEDIA-HANDLING.md` with a concrete transition map from today's `site`, `social`, and `media` fields into install-level defaults, release-level overrides, and track-level exceptions.
+  - Updated `TODO.md` to mark the role/inheritance/field-scope planning decisions as documented and to add follow-up tasks for splitting mixed install-vs-release identity fields in the future schema.
+  - Updated `ROADMAP.md` to state explicitly that the single-release `web-config` shape must be split deliberately before multi-release support lands.
+
+- **2026-05-01 — Theme inheritance model added to planning docs**
+  - Expanded `MEDIA-HANDLING.md` with an explicit inheritance model: install defaults, release overrides, and track-specific exceptions.
+  - Updated `ROADMAP.md` and `TODO.md` so multi-release planning now treats inheritance rules as part of the platform architecture, not an implementation detail.
+
+- **2026-05-01 — Media role and scope model added to planning docs**
+  - Expanded `MEDIA-HANDLING.md` with an explicit media-role model covering theme assets, release covers, track covers, gallery media, and page illustrations.
+  - Added scope language for install-wide, release-scoped, track-scoped, and page/module-scoped assets to support the future multi-release model.
+  - Updated `ROADMAP.md` and `TODO.md` so multi-release planning now treats media-role clarity as platform groundwork rather than incidental terminology cleanup.
+
+- **2026-05-01 — Build action matrix added to media-handling docs**
+  - Added a concrete task-level orchestration model to `MEDIA-HANDLING.md` covering playlist scan, audio delivery, image delivery, social assets, and manifest generation.
+  - Added an admin action matrix describing which tasks should auto-run, which should queue as heavy work, and when the operator should not be bothered with a build message.
+  - Added a planning note in `TODO.md` to rename Files -> `System` to Files -> `Theme` if that panel continues to represent install-specific branding assets.
+
+- **2026-05-01 — Build-pipeline refactor work added to planning docs**
+  - Updated `ROADMAP.md` to state that the current `full` vs `optimize` split is too coarse for the `original` / `master` / `delivery` media strategy.
+  - Updated `TODO.md` with concrete planning tasks for task-level build requirements, source-aware optimization, and clearer admin build wording.
+
 - **2026-04-30 — Media tier strategy added to planning docs**
   - Updated `ROADMAP.md` to define the `original` / `master` / `delivery` media model as part of the product direction.
   - Updated `TODO.md` so v0.7 exit work now explicitly covers weak-source scenarios, master-building rules, and real delivery-target definitions.
@@ -53,6 +121,84 @@ All notable changes to this project will be documented in this file.
   - Content tab uses its own URL parameter `cntab` to avoid collision with Config's `ctab`.
 
 ### Fixed
+- **2026-05-02 — Bio editor now uses local rich text editing with server-side sanitization**
+  - Added a self-hosted TinyMCE Community 8.5.0 integration for `admin.php` and `biblioteca/admin.js` so the Bio editor now offers rich text tools with a source-mode fallback instead of only raw HTML editing.
+  - Added `biblioteca/list-page-images.php` so page content images can be selected from optimized local illustrations and photos rather than from original uploads.
+  - Updated `biblioteca/save-bio.php` to sanitize saved HTML with HTML Purifier 4.19.0 and additional local URL rules, so unsafe markup and disallowed external image sources are stripped before `data/bio.html` is written.
+  - Updated `docs/THIRD-PARTY-NOTICES.md` so TinyMCE Community and HTML Purifier are now listed as active vendored dependencies with their versions, licenses, and integration roles.
+
+- **2026-05-02 — Internal runtime reads now use clearer brand-asset aliases**
+  - Added compatibility read aliases in `biblioteca/config-loader.php` for install/release logo and poster assets so future schema work can refer to brand identity assets more clearly without breaking current config files.
+  - Updated shared runtime consumers such as `share-tools.php`, `index.php`, `play/index.php`, and the Sharing admin bootstrap in `admin.php` to read logo/poster assets through the new brand aliases while keeping current behavior unchanged.
+
+- **2026-05-02 — Optional theme assets can now be cleared intentionally in admin**
+  - Added explicit `Clear` actions for background image, background video, welcome audio, and logged-in audio in `admin.php`.
+  - Updated `biblioteca/admin.js` so clearing those picker-backed fields blanks the stored value safely instead of requiring manual workarounds.
+
+- **2026-05-02 — Optional login-page media can now be intentionally disabled**
+  - Added a non-empty config getter in `biblioteca/config-loader.php` so optional media fields can treat blank strings as "disabled" instead of as real asset URLs.
+  - Updated `index.php` so empty background video/image and welcome/logged-in audio settings no longer emit empty media sources, the public login page no longer tries to play a missing welcome sound, and authenticated redirects no longer wait on a missing logged-in sound.
+  - Updated `biblioteca/login.js` so the public page now handles "no background selected" cleanly by clearing the background instead of trying to render `url('')`.
+
+- **2026-05-02 — Theme and sharing asset selection now use media pickers instead of raw paths**
+  - Replaced the Theme and Sharing asset path inputs in `admin.php` with operator-facing selectors that show the chosen file name while keeping the internal media path hidden.
+  - Added a reusable media picker modal in `biblioteca/admin.js` that reuses the existing uploaded media library by type, supports previewing files, and can jump straight into the upload flow when the needed file is not there yet.
+  - Added picker styling in `biblioteca/admin.css` so asset selection stays consistent with the rest of the admin UI.
+
+- **2026-05-02 — Basics and Theme config are now operator-facing forms instead of raw JSON editors**
+  - Replaced the raw JSON textareas in `admin.php` for Config -> Basics and Config -> Theme with labeled form fields for the supported site and media settings.
+  - Updated `biblioteca/admin.js` so those forms merge only the supported fields back into the full runtime config before saving, preserving unknown config keys instead of dropping them.
+  - Added matching form layout and textarea styling in `biblioteca/admin.css` so the new admin UI stays consistent with the existing Sharing form.
+
+- **2026-05-02 — Raw runtime config loading centralized for admin config editors**
+  - Added `bandpromo_load_runtime_config_raw()` to `biblioteca/config-loader.php` so pages that need the exact stored config payload can load it through one shared helper instead of open-coding JSON reads.
+  - Updated the Config -> Basics and Config -> Theme editors in `admin.php` to use that helper, removing the last ad-hoc `web-config.json` decodes from the live admin page while preserving current editor/save behavior.
+
+- **2026-05-02 — Remaining page-level legacy config reads moved onto scoped getters**
+  - Updated `play/index.php` so default OG/share metadata now resolves through the shared scoped config getters instead of reading `site` and `social` fields directly from decoded JSON.
+  - Updated `admin.php` so the page-level site title and configured site URL now use compatibility-aware scoped getters instead of direct legacy `web-config.json` reads.
+
+- **2026-05-01 — Local dev gallery no longer waits on PHP audio streaming**
+  - Updated `play/index.php` to preload gallery items into the authenticated player page and expose a local-dev flag for the frontend.
+  - Updated `biblioteca/gallery.js` to render from the preloaded gallery data first, avoiding an extra PHP gallery request when the Gallery tab opens on localhost.
+  - Updated `biblioteca/player.js` so localhost playback uses direct static audio URLs instead of the PHP streaming endpoint, reducing single-thread dev-server contention while music is playing.
+
+- **2026-05-01 — Admin copy kept the scoped migration internal**
+  - Updated Config help text and card notes in `admin.php` to describe Basics and Theme in operator language instead of exposing raw branch names.
+  - Changed the repair warning so missing internal config sections no longer surface scoped-schema names like `install` or `release` to admins.
+  - Updated the Sharing tab preview seed values in `admin.php` to read through compatibility-aware scoped getters while keeping the UI itself single-release and non-technical.
+
+- **2026-05-01 — Fresh config seeding now includes scoped schema values**
+  - Expanded `biblioteca/templates/web-config.template.json` so fresh installs seed both the legacy branches and the new scoped `install.*` / `release.*` blocks.
+  - Updated `biblioteca/setup-init.php` and the Admin config repair path in `admin.php` to sync legacy values into the scoped fields after template merges, preventing template placeholder drift in migrated configs.
+  - Updated the older setup save endpoint in `biblioteca/save-config.php` to keep scoped fields synchronized across the seeded config, not only the edited `site` branch.
+
+- **2026-05-01 — Setup/bootstrap paths now honor scoped config migration**
+  - Updated `setup.php` to prefill setup values through the shared scoped-config resolver instead of reading only the legacy `site` branch.
+  - Updated `biblioteca/setup-state.php` so setup-complete detection accepts the scoped release-title field during the migration window.
+  - Updated the older `biblioteca/save-config.php` endpoint to mirror legacy site writes into the future scoped schema using the shared sync helper.
+
+- **2026-05-01 — Dual-write config saves and first scoped runtime reads**
+  - Updated `biblioteca/save-config-raw.php` and `biblioteca/save-social.php` so branch-scoped admin saves now mirror the first safe transitional fields into the future scoped config structure while preserving the current legacy fields.
+  - Added shared scoped-field sync helpers in `biblioteca/config-loader.php` so the save endpoints use one mapping for legacy-to-scoped normalization.
+  - Switched selected runtime consumers in `index.php` and `play/index.php` to read the scoped keys directly for release identity, release theme assets, install theme assets, and the release share image.
+
+- **2026-05-01 — Scoped config compatibility reads in runtime helpers**
+  - Added alias-aware config resolution in `biblioteca/config-loader.php` so future scoped keys such as `release.theme.cover` and `install.theme.logo` can fall back to the current single-release `web-config.json` fields.
+  - Updated `biblioteca/share-tools.php` to read title, description, share image, author, and social fields through compatibility-aware `get_config()` calls instead of raw legacy branch access.
+  - Verified that scoped keys resolve correctly against the current legacy config without changing the on-disk schema yet.
+
+- **2026-05-01 — Theme panel rename and light config follow-up tasks**
+  - Renamed the Files -> `System` panel to Files -> `Theme` in the admin UI to better reflect install-specific branding/design assets.
+  - Updated site basics saves to refresh `site.webmanifest` immediately instead of always escalating straight to a rebuild prompt.
+  - Updated sharing saves to refresh social/share assets and the manifest immediately when the light tasks succeed.
+  - Updated theme saves so ordinary media-path changes no longer trigger a build prompt by default; changing the configured release cover now refreshes playlist metadata first and only leaves image optimization pending.
+
+- **2026-05-01 — Admin upload refresh and System target routing**
+  - Fixed `biblioteca/upload-media.php` so uploads from the Files -> System panel stay in `media/special` even when the file extension is audio or video.
+  - Prevented System uploads from incorrectly flagging audio-build work just because the uploaded file happened to be `.mp3` or `.flac`.
+  - Fixed `biblioteca/admin.js` so the visible file list refreshes after partial-success upload batches instead of only after all-success batches.
+
 - **2026-04-30 — CSS fixes for small screens (≤430px)**
   - Added `display: flex; flex-direction: column; align-items: center` to `#mediaplayer` in the `max-width: 430px` breakpoint so player content centers correctly on small phones.
   - Hidden `.reflection` at `max-width: 430px` to reduce visual clutter on small screens.

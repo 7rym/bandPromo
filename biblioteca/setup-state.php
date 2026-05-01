@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/https.php';
+require_once __DIR__ . '/config-loader.php';
 
 function bandpromo_is_setup_complete(): bool
 {
@@ -22,7 +23,7 @@ function bandpromo_is_setup_complete(): bool
 
     $configRaw = @file_get_contents($configPath);
     $config = json_decode($configRaw ?: '{}', true);
-    if (!is_array($config) || empty($config['site']['name'])) {
+    if (!is_array($config) || trim((string) bandpromo_config_get_value($config, 'release.identity.title', '')) === '') {
         return false;
     }
 

@@ -30,6 +30,7 @@ Current version: `v0.7`
 - [Features](docs/FEATURES.md) — Current features overview
 - [Roadmap](docs/ROADMAP.md) — Long-term goals and milestones
 - [Media Handling](docs/MEDIA-HANDLING.md) — Source media policy, metadata, masters, and delivery strategy
+- [Third-Party Notices](docs/THIRD-PARTY-NOTICES.md) — Third-party libraries, tools, hosted services, and license notes
 - [Operator Responsibility](docs/OPERATOR-RESPONSIBILITY.md) — Operator boundaries
 - [Support](docs/SUPPORT.md) — Support and maintenance
 - [Trademarks](docs/TRADEMARKS.md) — Naming and branding
@@ -47,3 +48,4 @@ Current version: `v0.7`
 bandPromo is licensed under the GNU Affero General Public License v3 (AGPLv3). 
 See the LICENSE file for details. 
 Operator and deployment responsibilities are described in docs/OPERATOR-RESPONSIBILITY.md.
+Third-party tools and services used by the project are documented in docs/THIRD-PARTY-NOTICES.md.

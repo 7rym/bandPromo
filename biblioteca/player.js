@@ -9,6 +9,11 @@ let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defa
 function buildAudioUrl(filename) {
     // For optimal, swap .flac → .mp3 (optimized audio is always MP3)
     const f = PATH_VARIANT === 'optimal' ? filename.replace(/\.flac$/i, '.mp3') : filename;
+
+    if (window.BANDPROMO_LOCAL_DEV === true && window.MEDIA_AUDIO_BASE != null) {
+        return `${window.MEDIA_AUDIO_BASE}/${PATH_VARIANT}/${encodeURIComponent(f)}`;
+    }
+
     const params = new URLSearchParams({
         variant: PATH_VARIANT,
         file: f,
