@@ -40,7 +40,7 @@ Current version: `v0.7`
 **Tips:**
 - Source/demo audio does not have to be perfect, but reliable builds still depend on enough usable media information ([docs/MEDIA-HANDLING.md](docs/MEDIA-HANDLING.md)).
 - Local runtime files (`web-config.json`, `.env`, media, data, logs) are not tracked by git and should never be committed.
-- Use tracked templates for first-time setup: `biblioteca/templates/web-config.template.json`, `biblioteca/templates/bio.template.html`, `biblioteca/templates/gallery.template.json`, and `.env.example`.
+- Use tracked templates for first-time setup: `biblioteca/templates/web-config.template.json`, `biblioteca/templates/gallery.template.json`, `biblioteca/templates/bio.template.html`, `biblioteca/templates/faq.template.html`, and `.env.example`.
 - For details on features, configuration, media handling, security, and roadmap: see the markdown files above.
 
 ## License

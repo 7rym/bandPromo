@@ -7,6 +7,7 @@
  * Also writes data/playlist-order.json so future builds preserve the order.
  * Admin-only.
  */
+require_once __DIR__ . '/admin-audit.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -102,6 +103,12 @@ foreach ($by_file as $track) {
 $pretty = json_encode($reordered, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if (file_put_contents($playlist_file, $pretty) === false) {
     http_response_code(500);
+    bandpromo_admin_audit_log('playlist_reordered', [
+        'target_type' => 'playlist',
+        'target_id' => 'play/playlist.json',
+        'status' => 'error',
+        'data' => ['error' => 'playlist write failed'],
+    ]);
     echo json_encode(['error' => 'Could not write play/playlist.json — check file permissions']);
     exit;
 }
@@ -115,8 +122,21 @@ $final_order = array_column($reordered, 'file');
 $order_pretty = json_encode($final_order, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if (file_put_contents($order_file, $order_pretty) === false) {
     // Non-fatal: playlist.json was already saved; just warn
+    bandpromo_admin_audit_log('playlist_reordered', [
+        'target_type' => 'playlist',
+        'target_id' => 'play/playlist.json',
+        'status' => 'warning',
+        'data' => ['count' => count($reordered), 'warning' => 'playlist-order write failed'],
+    ]);
     echo json_encode(['ok' => true, 'count' => count($reordered), 'warning' => 'Could not write data/playlist-order.json']);
     exit;
 }
+
+bandpromo_admin_audit_log('playlist_reordered', [
+    'target_type' => 'playlist',
+    'target_id' => 'play/playlist.json',
+    'status' => 'ok',
+    'data' => ['count' => count($reordered)],
+]);
 
 echo json_encode(['ok' => true, 'count' => count($reordered)]);

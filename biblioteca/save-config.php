@@ -12,6 +12,7 @@
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/build-required.php';
+require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/template-bootstrap.php';
 
@@ -109,6 +110,12 @@ if (file_put_contents(CONFIG_FILE, $json) === false) {
 }
 
 $state = bandpromo_mark_build_required('web_config_changed');
+bandpromo_admin_audit_log('config_saved', [
+    'target_type' => 'config',
+    'target_id' => 'web-config.json:legacy',
+    'status' => 'warning',
+    'data' => ['build_required' => true, 'reasons' => $state['reasons'] ?? []],
+]);
 echo json_encode([
     'ok' => true,
     'build_required' => true,

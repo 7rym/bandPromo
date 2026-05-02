@@ -1,6 +1,6 @@
 <?php
 /**
- * Save bio.php content.
+ * Save editable page content.
  * Accepts raw HTML/text via POST body. Admin-only.
  */
 
@@ -15,13 +15,31 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
-session_write_close(); // release lock before file I/O
+session_write_close();
 
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'POST required']);
+    exit;
+}
+
+$editablePages = [
+    'bio' => dirname(__DIR__) . '/data/bio.html',
+    'faq' => dirname(__DIR__) . '/data/faq.html',
+];
+
+$pageKey = isset($_GET['page']) ? strtolower(trim((string) $_GET['page'])) : 'bio';
+if (!array_key_exists($pageKey, $editablePages)) {
+    http_response_code(400);
+    bandpromo_admin_audit_log('page_saved', [
+        'target_type' => 'page',
+        'target_id' => $pageKey,
+        'status' => 'error',
+        'data' => ['error' => 'Unknown page'],
+    ]);
+    echo json_encode(['error' => 'Unknown page']);
     exit;
 }
 
@@ -140,34 +158,32 @@ function bandpromo_sanitize_page_html(string $html): string
     return bandpromo_postprocess_page_html($purifier->purify($html));
 }
 
-$bio_file = dirname(__DIR__) . '/data/bio.html';
+$pageFile = $editablePages[$pageKey];
 $sanitized = bandpromo_sanitize_page_html($body);
 
-// Ensure data dir exists
-if (!is_dir(dirname($bio_file))) {
-    mkdir(dirname($bio_file), 0750, true);
+if (!is_dir(dirname($pageFile))) {
+    mkdir(dirname($pageFile), 0750, true);
 }
 
-if (file_put_contents($bio_file, $sanitized) === false) {
+if (file_put_contents($pageFile, $sanitized) === false) {
     bandpromo_admin_audit_log('page_saved', [
         'target_type' => 'page',
-        'target_id' => 'bio',
+        'target_id' => $pageKey,
         'status' => 'error',
         'data' => ['error' => 'Write failed'],
     ]);
-    echo json_encode(['error' => 'Could not write data/bio.html — check file permissions']);
+    echo json_encode(['error' => 'Could not write data/' . $pageKey . '.html — check file permissions']);
     exit;
 }
 
 bandpromo_admin_audit_log('page_saved', [
     'target_type' => 'page',
-    'target_id' => 'bio',
+    'target_id' => $pageKey,
     'status' => 'ok',
     'data' => [
         'sanitized' => trim($body) !== trim($sanitized),
         'input_bytes' => strlen($body),
         'saved_bytes' => strlen($sanitized),
-        'endpoint' => 'save-bio.php',
     ],
 ]);
 
@@ -175,4 +191,5 @@ echo json_encode([
     'ok' => true,
     'sanitized' => trim($body) !== trim($sanitized),
     'html' => $sanitized,
+    'page' => $pageKey,
 ]);

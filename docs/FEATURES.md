@@ -12,8 +12,10 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 ### Admin Dashboard
 - User-friendly admin panel for managing users, files, and site content
 - Built-in analytics for playback and user behavior
-- WYSIWYG editing for static pages (bio, etc.)
+- Pages editor for public text pages such as Bio and FAQ, with rich text tools and safe server-side sanitization
 - Playlist and gallery management
+- Separate admin audit trail for management actions
+- Built-in documentation browser with operator/developer doc separation
 
 ### Media Player
 - High-quality audio playback with seek/next/previous navigation

@@ -6,6 +6,7 @@ bandpromo_enforce_https();
 session_start();
 
 require_once 'biblioteca/auth.php';
+require_once 'biblioteca/admin-audit.php';
 require_once 'biblioteca/config-loader.php';
 
 // Redirect to setup wizard if setup hasn't been completed
@@ -14,6 +15,7 @@ if (!bandpromo_is_setup_complete()) {
     exit;
 }
 require_once 'biblioteca/analytics.php';
+require_once 'biblioteca/admin-helpers.php';
 
 $appVersion = trim(@file_get_contents(__DIR__ . '/VERSION') ?: 'dev');
 $siteName  = get_config('release.identity.title', 'Admin');
@@ -39,6 +41,12 @@ unset($_d, $_p);
 
 // Handle logout
 if (isset($_GET['logout']) && $_GET['logout'] === '1') {
+    if (!empty($_SESSION['authenticated'])) {
+        bandpromo_admin_audit_log('admin_logout', [
+            'status' => 'ok',
+            'data' => ['from' => 'admin_panel'],
+        ]);
+    }
     session_destroy();
     header('Location: /admin.php');
     exit;
@@ -51,25 +59,71 @@ $login_error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$authenticated) {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
+    $auditActor = trim((string) $username) !== '' ? trim((string) $username) : 'anonymous';
     
     if (empty($username) || empty($password)) {
         $login_error = 'Please enter both username and password.';
+        bandpromo_admin_audit_log('admin_login_failed', [
+            'actor' => $auditActor,
+            'target_type' => 'auth',
+            'target_id' => 'admin_login',
+            'status' => 'error',
+            'data' => [
+                'reason' => 'missing_credentials',
+                'username' => trim((string) $username),
+            ],
+        ]);
     } else {
         try {
             if (authenticate($username, $password)) {
                 if (!isAdminUser($username)) {
                     $login_error = 'Access denied. Admin privileges required.';
+                    bandpromo_admin_audit_log('admin_login_failed', [
+                        'actor' => $auditActor,
+                        'target_type' => 'auth',
+                        'target_id' => 'admin_login',
+                        'status' => 'denied',
+                        'data' => [
+                            'reason' => 'not_admin',
+                            'username' => trim((string) $username),
+                        ],
+                    ]);
                 } else {
                     $_SESSION['authenticated'] = true;
                     $_SESSION['username'] = htmlspecialchars($username);
+                    bandpromo_admin_audit_log('admin_login', [
+                        'status' => 'ok',
+                        'data' => ['from' => 'admin_login_form'],
+                    ]);
                     header('Location: /admin.php');
                     exit;
                 }
             } else {
                 $login_error = 'Invalid username or password.';
+                bandpromo_admin_audit_log('admin_login_failed', [
+                    'actor' => $auditActor,
+                    'target_type' => 'auth',
+                    'target_id' => 'admin_login',
+                    'status' => 'error',
+                    'data' => [
+                        'reason' => 'invalid_credentials',
+                        'username' => trim((string) $username),
+                    ],
+                ]);
             }
         } catch (Exception $e) {
             $login_error = 'Login error: ' . $e->getMessage();
+            bandpromo_admin_audit_log('admin_login_failed', [
+                'actor' => $auditActor,
+                'target_type' => 'auth',
+                'target_id' => 'admin_login',
+                'status' => 'error',
+                'data' => [
+                    'reason' => 'exception',
+                    'username' => trim((string) $username),
+                    'error' => $e->getMessage(),
+                ],
+            ]);
         }
     }
 }
@@ -128,8 +182,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 setUser($newUsername, $newPassword);
+                bandpromo_admin_audit_log('user_added', [
+                    'target_type' => 'user',
+                    'target_id' => $newUsername,
+                    'status' => 'ok',
+                    'data' => ['role' => 'user'],
+                ]);
                 $message = "User '$newUsername' added successfully.";
             } catch (Exception $e) {
+                bandpromo_admin_audit_log('user_added', [
+                    'target_type' => 'user',
+                    'target_id' => $newUsername,
+                    'status' => 'error',
+                    'data' => ['error' => $e->getMessage()],
+                ]);
                 $error = $e->getMessage();
             }
         }
@@ -143,8 +209,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 changePassword($editUsername, $editPassword);
+                bandpromo_admin_audit_log('password_changed', [
+                    'target_type' => 'user',
+                    'target_id' => $editUsername,
+                    'status' => 'ok',
+                ]);
                 $message = "Password for '$editUsername' changed successfully.";
             } catch (Exception $e) {
+                bandpromo_admin_audit_log('password_changed', [
+                    'target_type' => 'user',
+                    'target_id' => $editUsername,
+                    'status' => 'error',
+                    'data' => ['error' => $e->getMessage()],
+                ]);
                 $error = $e->getMessage();
             }
         }
@@ -159,8 +236,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 deleteUser($delUsername);
+                bandpromo_admin_audit_log('user_deleted', [
+                    'target_type' => 'user',
+                    'target_id' => $delUsername,
+                    'status' => 'ok',
+                ]);
                 $message = "User '$delUsername' deleted successfully.";
             } catch (Exception $e) {
+                bandpromo_admin_audit_log('user_deleted', [
+                    'target_type' => 'user',
+                    'target_id' => $delUsername,
+                    'status' => 'error',
+                    'data' => ['error' => $e->getMessage()],
+                ]);
                 $error = $e->getMessage();
             }
         }
@@ -169,15 +257,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($action === 'set_role') {
         $roleUsername = trim($_POST['role_username'] ?? '');
         $newRole      = $_POST['new_role'] ?? '';
-        if (!in_array($newRole, ['admin', 'user'])) {
+        if (!in_array($newRole, ['admin', 'developer', 'user'])) {
             $error = 'Invalid role.';
-        } elseif ($roleUsername === $_SESSION['username'] && $newRole !== 'admin') {
-            $error = 'You cannot remove your own admin role.';
+        } elseif ($roleUsername === $_SESSION['username'] && $newRole === 'user') {
+            $error = 'You cannot remove your own admin-panel access.';
         } else {
             try {
                 setUserRole($roleUsername, $newRole);
+                bandpromo_admin_audit_log('user_role_changed', [
+                    'target_type' => 'user',
+                    'target_id' => $roleUsername,
+                    'status' => 'ok',
+                    'data' => ['new_role' => $newRole],
+                ]);
                 $message = "Role for '$roleUsername' set to '$newRole'.";
             } catch (Exception $e) {
+                bandpromo_admin_audit_log('user_role_changed', [
+                    'target_type' => 'user',
+                    'target_id' => $roleUsername,
+                    'status' => 'error',
+                    'data' => ['new_role' => $newRole, 'error' => $e->getMessage()],
+                ]);
                 $error = $e->getMessage();
             }
         }
@@ -185,13 +285,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = getAllUsers();
-
-// Load helper functions
-require_once 'biblioteca/admin-helpers.php';
+$currentUserRole = getUserRole($_SESSION['username'] ?? '');
 
 // Primary tab
 $tab = $_GET['tab'] ?? 'analytics';
-if (!in_array($tab, ['analytics', 'users', 'files', 'content', 'config', 'build'])) {
+if (!in_array($tab, ['analytics', 'audit', 'users', 'files', 'content', 'config', 'build', 'docs'])) {
     $tab = 'analytics';
 }
 
@@ -207,11 +305,37 @@ if (!in_array($analyticsTab, ['dashboard', 'tracks', 'user-activities', 'listeni
     $analyticsTab = 'dashboard';
 }
 
+$editablePages = [
+    'bio' => [
+        'emoji' => '📝',
+        'label' => 'Bio',
+        'title' => 'Band Bio',
+        'file' => __DIR__ . '/data/bio.html',
+        'description' => 'The band bio shown on your site.',
+    ],
+    'faq' => [
+        'emoji' => '❓',
+        'label' => 'FAQ',
+        'title' => 'FAQ / Info',
+        'file' => __DIR__ . '/data/faq.html',
+        'description' => 'The FAQ and info content shown in the site lightbox.',
+    ],
+];
+
 // Content sub-tab
 $contentTab = $_GET['cntab'] ?? 'playlist';
-if (!in_array($contentTab, ['playlist', 'gallery', 'bio'])) {
+if ($contentTab === 'bio') {
+    $contentTab = 'pages';
+}
+if (!in_array($contentTab, ['playlist', 'gallery', 'pages'])) {
     $contentTab = 'playlist';
 }
+
+$contentPage = $_GET['page'] ?? 'bio';
+if (!array_key_exists($contentPage, $editablePages)) {
+    $contentPage = 'bio';
+}
+$activeContentPage = $editablePages[$contentPage];
 
 // Config sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
@@ -222,6 +346,26 @@ if (!in_array($configTab, ['basics', 'theme', 'sharing'])) {
 // Date range
 $dateStart = $_GET['date_start'] ?? date('Y-m-d', strtotime('-30 days'));
 $dateEnd   = $_GET['date_end']   ?? date('Y-m-d');
+
+$auditActionFilter = trim((string) ($_GET['audit_action'] ?? ''));
+$auditUserFilter = trim((string) ($_GET['audit_user'] ?? ''));
+
+$auditEntries = ['entries' => [], 'total' => 0];
+$auditActions = [];
+$auditActors = [];
+$documentationScope = 'operator';
+$documentationCatalog = [];
+$documentationView = null;
+if ($tab === 'audit') {
+    $auditEntries = bandpromo_admin_audit_read_entries($dateStart, $dateEnd, $auditActionFilter, $auditUserFilter, 200, 0);
+    $auditActions = bandpromo_admin_audit_get_action_types($dateStart, $dateEnd);
+    $auditActors = bandpromo_admin_audit_get_actors($dateStart, $dateEnd);
+}
+if ($tab === 'docs') {
+    $documentationScope = bandpromo_docs_role_scope($currentUserRole, (string) ($_GET['doc_scope'] ?? ''));
+    $documentationCatalog = bandpromo_docs_catalog($documentationScope);
+    $documentationView = bandpromo_docs_render_selected((string) ($_GET['doc'] ?? ''), $documentationScope);
+}
 
 // Initialize analytics engine
 $analytics = new PlaybackAnalytics();
@@ -237,7 +381,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <?php if ($tab === 'content' && $contentTab === 'bio'): ?>
+    <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="/vendor/tinymce/js/tinymce/tinymce.min.js"></script>
     <?php endif; ?>
     <script src="biblioteca/lightbox.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/lightbox.js'); ?>"></script>
@@ -248,6 +392,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <p class="app-version">using bandPromo <?php echo htmlspecialchars($appVersion); ?></p>
         <div id="buildRequiredBadge" class="build-required-badge" style="display:none;"></div>
         <div class="user-badge">Logged in as: <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>
+            <?php if ($currentUserRole !== ''): ?>
+                <span class="role-badge <?php echo $currentUserRole === 'developer' ? 'role-developer' : ($currentUserRole === 'admin' ? 'role-admin' : 'role-user'); ?>"><?php echo htmlspecialchars(ucfirst($currentUserRole)); ?></span>
+            <?php endif; ?>
             &nbsp;·&nbsp;<a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
             &nbsp;·&nbsp;<a href="/admin.php?logout=1">Logout</a>
         </div>
@@ -262,11 +409,101 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <!-- Primary Tab Navigation -->
         <div class="tabs primary-tabs">
             <?php renderTabLink('analytics', $tab, '📊', 'Analytics'); ?>
+            <?php renderTabLink('audit',     $tab, '🛡️', 'Audit'); ?>
             <?php renderTabLink('users',     $tab, '👥', 'Users'); ?>
             <?php renderTabLink('files',     $tab, '📁', 'Files'); ?>
             <?php renderTabLink('content',   $tab, '📄', 'Content'); ?>
             <?php renderTabLink('config',    $tab, '⚙️', 'Config'); ?>
             <?php renderTabLink('build',     $tab, '🔨', 'Build'); ?>
+            <?php renderTabLink('docs',      $tab, '📚', 'Documentation'); ?>
+        </div>
+
+        <!-- ===================== AUDIT TAB ===================== -->
+        <div class="tab-content <?php echo $tab === 'audit' ? 'active' : ''; ?>">
+            <div class="tabs sub-tabs">
+                <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
+            </div>
+            <div class="admin-help-box collapsed" id="help-audit">
+                Separate admin audit trail for management actions only. Use this to trace who changed users, content, config, files, and builds, without mixing those records into listener activity analytics.
+            </div>
+
+            <form method="GET" class="filter-bar">
+                <input type="hidden" name="tab" value="audit">
+                <label>Start</label>
+                <input type="date" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>">
+                <label>End</label>
+                <input type="date" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>">
+                <label>Action</label>
+                <select name="audit_action" onchange="this.form.submit()">
+                    <option value="">All actions</option>
+                    <?php foreach ($auditActions as $auditAction): ?>
+                    <option value="<?php echo htmlspecialchars($auditAction); ?>" <?php echo $auditActionFilter === $auditAction ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($auditAction); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <label>User</label>
+                <select name="audit_user" onchange="this.form.submit()">
+                    <option value="">All admins</option>
+                    <?php foreach ($auditActors as $auditActor): ?>
+                    <option value="<?php echo htmlspecialchars($auditActor); ?>" <?php echo $auditUserFilter === $auditActor ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($auditActor); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <span class="text-muted">
+                    <?php echo $auditEntries['total'] > 200 ? 'Showing 200 of ' . number_format($auditEntries['total']) : number_format($auditEntries['total']); ?> records
+                </span>
+            </form>
+
+            <?php if (empty($auditEntries['entries'])): ?>
+                <p class="empty-msg">No admin audit records found for the selected filters.</p>
+            <?php else: ?>
+            <div class="table-scroll">
+                <table style="font-size:13px;">
+                    <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Status</th><th>Detail</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($auditEntries['entries'] as $entry): ?>
+                        <tr>
+                            <td class="text-muted nowrap"><?php echo htmlspecialchars($entry['timestamp'] ?? ''); ?></td>
+                            <td><strong><?php echo htmlspecialchars($entry['actor'] ?? ''); ?></strong></td>
+                            <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['action'] ?? ''); ?></span></td>
+                            <td>
+                                <?php
+                                    $targetType = trim((string) ($entry['target_type'] ?? ''));
+                                    $targetId = trim((string) ($entry['target_id'] ?? ''));
+                                    echo htmlspecialchars($targetType !== '' ? $targetType : '—');
+                                    if ($targetId !== '') {
+                                        echo '<span style="color:#999;font-size:11px;"> · ' . htmlspecialchars($targetId) . '</span>';
+                                    }
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                    $status = trim((string) ($entry['status'] ?? ''));
+                                    $statusKey = strtolower($status);
+                                    $statusClass = 'status-neutral';
+                                    if (in_array($statusKey, ['ok', 'success'], true)) {
+                                        $statusClass = 'status-ok';
+                                    } elseif (in_array($statusKey, ['error', 'failed', 'failure'], true)) {
+                                        $statusClass = 'status-error';
+                                    } elseif (in_array($statusKey, ['denied', 'warning'], true)) {
+                                        $statusClass = 'status-warning';
+                                    }
+                                ?>
+                                <span class="badge audit-status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status !== '' ? $status : '—'); ?></span>
+                            </td>
+                            <td class="text-muted">
+                                <?php
+                                    echo htmlspecialchars(bandpromo_admin_audit_format_detail($entry));
+                                ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- ===================== ANALYTICS TAB ===================== -->
@@ -518,7 +755,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <button class="help-toggle-btn collapsed" id="helpBtn-users" onclick="toggleHelp('users')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-users">
-                Admin accounts only — these are the people who can log into this panel. <strong>Adding a user</strong> gives them full admin access immediately. <strong>Deleting a user</strong> is permanent and cannot be undone — they will be logged out on their next request.
+                <strong>Admin</strong> users handle day-to-day operation. <strong>Developer</strong> users can access the same panel but also see developer-only documentation. <strong>User</strong> accounts cannot open this admin panel.
             </div>
 
             <div class="users-toolbar">
@@ -542,21 +779,21 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         <span class="user-name" onclick="openUserDetail('<?php echo htmlspecialchars($uname, ENT_QUOTES); ?>')" title="View details">
                             <?php echo htmlspecialchars($uname); ?>
                             <?php if ($uname === $_SESSION['username']): ?><strong class="you-badge">(You)</strong><?php endif; ?>
-                            <span class="role-badge <?php echo $urole === 'admin' ? 'role-admin' : 'role-user'; ?>">
-                                <?php echo $urole === 'admin' ? '🛡️ Admin' : '👤 User'; ?>
+                            <span class="role-badge <?php echo $urole === 'developer' ? 'role-developer' : ($urole === 'admin' ? 'role-admin' : 'role-user'); ?>">
+                                <?php echo $urole === 'developer' ? '💻 Developer' : ($urole === 'admin' ? '🛡️ Admin' : '👤 User'); ?>
                             </span>
                         </span>
                         <span class="user-actions">
-                            <?php if ($uname !== $_SESSION['username']): ?>
                             <form method="POST" style="display:inline">
                                 <input type="hidden" name="action" value="set_role">
                                 <input type="hidden" name="role_username" value="<?php echo htmlspecialchars($uname); ?>">
-                                <input type="hidden" name="new_role" value="<?php echo $urole === 'admin' ? 'user' : 'admin'; ?>">
-                                <button type="submit" class="icon-btn" title="Toggle role">
-                                    <?php echo $urole === 'admin' ? '⬇️' : '⬆️'; ?>
-                                </button>
+                                <select name="new_role" class="user-role-select" aria-label="Role for <?php echo htmlspecialchars($uname); ?>">
+                                    <option value="admin" <?php echo $urole === 'admin' ? 'selected' : ''; ?>>Admin</option>
+                                    <option value="developer" <?php echo $urole === 'developer' ? 'selected' : ''; ?>>Developer</option>
+                                    <option value="user" <?php echo $urole === 'user' ? 'selected' : ''; ?> <?php echo $uname === $_SESSION['username'] ? 'disabled' : ''; ?>>User</option>
+                                </select>
+                                <button type="submit" class="icon-btn" title="Apply role">💾</button>
                             </form>
-                            <?php endif; ?>
                             <button class="icon-btn" title="Change password" onclick="openUserModal('<?php echo htmlspecialchars($uname, ENT_QUOTES); ?>')">🔑</button>
                             <?php if ($uname !== $_SESSION['username']): ?>
                             <button class="icon-btn danger" title="Delete user" onclick="deleteUser('<?php echo htmlspecialchars($uname, ENT_QUOTES); ?>')">🗑️</button>
@@ -695,11 +932,14 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 $cntTabs = [
                     'playlist' => ['🎵', 'Playlist'],
                     'gallery'  => ['🖼️', 'Gallery'],
-                    'bio'      => ['📝', 'Bio'],
+                    'pages'    => ['📝', 'Pages'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
                     $active = $ct === $contentTab ? 'active' : '';
                     $url = '?tab=content&cntab=' . urlencode($ct);
+                    if ($ct === 'pages') {
+                        $url .= '&page=' . urlencode($contentPage);
+                    }
                 ?>
                 <a href="<?php echo $url; ?>" class="tab-link <?php echo $active; ?>">
                     <?php echo htmlspecialchars($emoji . ' ' . $label); ?>
@@ -712,8 +952,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     Your playlist is built automatically from your audio files and their ID3 tags (title, artist, album). Upload audio via the <a href="?tab=files&fpanel=audio">Files → Audio</a> tab, then run a <a href="?tab=build">Build</a> to regenerate the playlist.
                 <?php elseif ($contentTab === 'gallery'): ?>
                     A JSON list of images shown in the site's gallery section. Each item needs a <code>src</code> path, <code>name</code>, and <code>alt</code> text. The preview below updates as you type — fix any red errors before saving.
-                <?php elseif ($contentTab === 'bio'): ?>
-                    The band bio displayed on your site. Standard HTML is supported — use <code>&lt;p&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;a&gt;</code> and similar tags. Changes are applied immediately after saving — no build required.
+                <?php elseif ($contentTab === 'pages'): ?>
+                    Edit your public text pages with rich text tools or source view. Only safe formatting and optimized local content images are kept when you save, and changes apply immediately without a build.
                 <?php endif; ?>
             </div>
 
@@ -820,29 +1060,42 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <?php endif; ?>
 
-            <!-- ── BIO ─────────────────────────────────────────────────────── -->
-            <?php elseif ($contentTab === 'bio'): ?>
+            <!-- ── PAGES ───────────────────────────────────────────────────── -->
+            <?php elseif ($contentTab === 'pages'): ?>
             <div class="card">
-                <h3>📝 Band Bio</h3>
+                <div class="tabs sub-tabs" style="margin-bottom:18px;">
+                    <?php foreach ($editablePages as $pageKey => $pageSpec): ?>
+                    <?php
+                        $pageUrl = '?tab=content&cntab=pages&page=' . urlencode($pageKey);
+                        $pageActive = $pageKey === $contentPage ? 'active' : '';
+                    ?>
+                    <a href="<?php echo $pageUrl; ?>" class="tab-link <?php echo $pageActive; ?>">
+                        <?php echo htmlspecialchars($pageSpec['emoji'] . ' ' . $pageSpec['label']); ?>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <h3><?php echo htmlspecialchars($activeContentPage['emoji'] . ' ' . $activeContentPage['title']); ?></h3>
                 <p class="card-note">
-                    Edit the band bio with rich text tools or source view.
+                    <?php echo htmlspecialchars($activeContentPage['description']); ?> Edit it with rich text tools or source view.
                     Only safe formatting and optimized local content images are kept when you save.
                 </p>
-                <textarea id="bioEditor" class="code-editor" spellcheck="false" style="height:520px"><?php
-                $bio_file = __DIR__ . '/data/bio.html';
-                if (!file_exists($bio_file)) {
+                <textarea id="pageEditor" class="code-editor" spellcheck="false" style="height:520px"
+                          data-page-key="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
+                          data-page-label="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>"><?php
+                $pageFile = $activeContentPage['file'];
+                if (!file_exists($pageFile)) {
                     http_response_code(500);
-                    echo htmlspecialchars('Missing required runtime file: data/bio.html. Run setup to seed templates.');
+                    echo htmlspecialchars('Missing required runtime file: data/' . $contentPage . '.html. Run setup to seed templates.');
                 } else {
-                    echo htmlspecialchars(file_get_contents($bio_file) ?: '');
+                    echo htmlspecialchars(file_get_contents($pageFile) ?: '');
                 }
                 ?></textarea>
                 <p class="field-note">
                     Inserted content images are limited to optimized files from your local media library.
                 </p>
                 <div class="card-actions">
-                    <button id="bioSaveBtn" class="btn btn-primary">💾 Save bio</button>
-                    <span id="bioStatus" class="status-text"></span>
+                    <button id="pageSaveBtn" class="btn btn-primary">💾 Save <?php echo htmlspecialchars(strtolower($activeContentPage['label'])); ?></button>
+                    <span id="pageStatus" class="status-text"></span>
                 </div>
             </div>
 
@@ -1203,6 +1456,55 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     </div>
                 </div>
                 <pre id="buildLog" class="build-log">No build output yet.</pre>
+            </div>
+        </div>
+
+        <!-- ===================== DOCUMENTATION TAB ===================== -->
+        <div id="tab-docs" class="tab-content <?php echo $tab === 'docs' ? 'active' : ''; ?>">
+            <div class="tabs sub-tabs">
+                <button class="help-toggle-btn collapsed" id="helpBtn-docs" onclick="toggleHelp('docs')" title="Show/hide help">ⓘ</button>
+            </div>
+            <div class="admin-help-box collapsed" id="help-docs">
+                Operators see operator-safe documentation only. Developers can switch between operator docs, developer docs, and a combined view when they need both perspectives.
+            </div>
+
+            <?php if ($currentUserRole === 'developer'): ?>
+            <div class="docs-scope-switch">
+                <a href="?tab=docs&doc_scope=developer" class="docs-scope-link <?php echo $documentationScope === 'developer' ? 'active' : ''; ?>">Developer Docs</a>
+                <a href="?tab=docs&doc_scope=operator" class="docs-scope-link <?php echo $documentationScope === 'operator' ? 'active' : ''; ?>">Operator Docs</a>
+                <a href="?tab=docs&doc_scope=all" class="docs-scope-link <?php echo $documentationScope === 'all' ? 'active' : ''; ?>">All Docs</a>
+            </div>
+            <?php else: ?>
+            <div class="docs-scope-note">Showing operator-safe documentation for this role.</div>
+            <?php endif; ?>
+
+            <div class="docs-browser">
+                <aside class="docs-nav-panel">
+                    <div class="docs-nav-panel-head">
+                        <h3>Available Documentation</h3>
+                        <span class="docs-nav-count"><?php echo number_format(count($documentationCatalog)); ?> files</span>
+                    </div>
+                    <div class="docs-nav-list">
+                        <?php foreach ($documentationCatalog as $docEntry): ?>
+                        <a href="<?php echo htmlspecialchars(bandpromo_docs_url($docEntry['path'], $documentationScope)); ?>" class="docs-nav-link <?php echo (($documentationView['entry']['path'] ?? 'README.md') === $docEntry['path']) ? 'active' : ''; ?>">
+                            <span class="docs-nav-title"><?php echo htmlspecialchars($docEntry['title']); ?></span>
+                            <span class="docs-nav-path"><?php echo htmlspecialchars($docEntry['path']); ?></span>
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
+                </aside>
+
+                <section class="docs-content-panel">
+                    <div class="docs-content-head">
+                        <div>
+                            <h3><?php echo htmlspecialchars($documentationView['entry']['title'] ?? 'Documentation'); ?></h3>
+                            <div class="docs-content-path"><?php echo htmlspecialchars($documentationView['entry']['path'] ?? 'README.md'); ?></div>
+                        </div>
+                    </div>
+                    <div class="docs-markdown">
+                        <?php echo $documentationView['html'] ?? '<p class="empty-msg">No documentation available.</p>'; ?>
+                    </div>
+                </section>
             </div>
         </div>
 

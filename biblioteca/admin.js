@@ -188,9 +188,10 @@ function openUserModal(username) {
         action.value            = 'edit_user';
         uname.value             = username;
         uname.readOnly          = true;
-        uname.style.background  = '#f8f9fa';
+        uname.classList.add('is-readonly-field');
         editUname.value         = username;
         passLabel.textContent   = 'New Password';
+        passInput.name          = 'edit_password';
         passInput.value         = '';
     } else {
         // Add mode
@@ -198,9 +199,10 @@ function openUserModal(username) {
         action.value            = 'add_user';
         uname.value             = '';
         uname.readOnly          = false;
-        uname.style.background  = '';
+        uname.classList.remove('is-readonly-field');
         editUname.value         = '';
         passLabel.textContent   = 'Password';
+        passInput.name          = 'new_password';
         passInput.value         = '';
     }
 
@@ -1120,13 +1122,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            // ── Bio editor ────────────────────────────────────────────────────
-            const bioEditor  = document.getElementById('bioEditor');
-            const bioSaveBtn = document.getElementById('bioSaveBtn');
-            const bioStatus  = document.getElementById('bioStatus');
-            let bioRichTextEditor = null;
+            // ── Pages editor ──────────────────────────────────────────────────
+            const pageEditor  = document.getElementById('pageEditor');
+            const pageSaveBtn = document.getElementById('pageSaveBtn');
+            const pageStatus  = document.getElementById('pageStatus');
+            let pageRichTextEditor = null;
 
-            function flattenBioImageList(items) {
+            function flattenPageImageList(items) {
                 const flat = [];
                 (items || []).forEach((item) => {
                     if (Array.isArray(item.menu)) {
@@ -1147,7 +1149,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return flat;
             }
 
-            async function fetchBioImageList() {
+            async function fetchPageImageList() {
                 const resp = await fetch('/biblioteca/list-page-images.php');
                 const data = await resp.json();
 
@@ -1158,7 +1160,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return Array.isArray(data.images) ? data.images : [];
             }
 
-            function openBioImageDialog(editor, callback, items) {
+            function openPageImageDialog(editor, callback, items) {
                 if (!editor || !items.length) {
                     throw new Error('No optimized content images available yet');
                 }
@@ -1190,15 +1192,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            async function initBioRichTextEditor() {
-                if (!bioEditor || typeof tinymce === 'undefined') return null;
-                if (bioRichTextEditor) return bioRichTextEditor;
+            async function initPageRichTextEditor() {
+                if (!pageEditor || typeof tinymce === 'undefined') return null;
+                if (pageRichTextEditor) return pageRichTextEditor;
 
-                const imageList = await fetchBioImageList();
-                const flatImageList = flattenBioImageList(imageList);
+                const imageList = await fetchPageImageList();
+                const flatImageList = flattenPageImageList(imageList);
 
                 await tinymce.init({
-                    target: bioEditor,
+                    target: pageEditor,
                     license_key: 'gpl',
                     base_url: '/vendor/tinymce/js/tinymce',
                     suffix: '.min',
@@ -1223,71 +1225,73 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     ],
                     file_picker_callback(callback, value, meta) {
                         if (meta.filetype !== 'image') return;
-                        openBioImageDialog(bioRichTextEditor, callback, flatImageList);
+                        openPageImageDialog(pageRichTextEditor, callback, flatImageList);
                     },
                     setup(editor) {
                         editor.on('init', () => {
-                            bioRichTextEditor = editor;
+                            pageRichTextEditor = editor;
                         });
                     },
                 });
 
-                bioRichTextEditor = tinymce.get('bioEditor');
-                return bioRichTextEditor;
+                pageRichTextEditor = tinymce.get('pageEditor');
+                return pageRichTextEditor;
             }
 
-            if (bioEditor && typeof tinymce !== 'undefined') {
-                initBioRichTextEditor().catch((error) => {
-                    bioStatus.textContent = `Source editor fallback: ${error.message}`;
-                    bioStatus.style.color = '#f55';
+            if (pageEditor && typeof tinymce !== 'undefined') {
+                initPageRichTextEditor().catch((error) => {
+                    pageStatus.textContent = `Source editor fallback: ${error.message}`;
+                    pageStatus.style.color = '#f55';
                 });
             }
 
-            if (bioSaveBtn) {
-                bioSaveBtn.addEventListener('click', async () => {
-                    bioStatus.textContent = 'Saving…';
-                    bioStatus.style.color = '#aaa';
-                    bioSaveBtn.disabled = true;
-                    try {
-                        const activeBioEditor = typeof tinymce !== 'undefined' ? tinymce.get('bioEditor') : null;
-                        const bioContent = activeBioEditor
-                            ? activeBioEditor.getContent({ format: 'html' })
-                            : bioEditor.value;
+            if (pageSaveBtn) {
+                pageSaveBtn.addEventListener('click', async () => {
+                    const pageKey = pageEditor?.dataset.pageKey || 'bio';
+                    const pageLabel = pageEditor?.dataset.pageLabel || 'Page';
 
-                        const resp = await fetch('/biblioteca/save-bio.php', {
+                    pageStatus.textContent = 'Saving…';
+                    pageStatus.style.color = '#aaa';
+                    pageSaveBtn.disabled = true;
+                    try {
+                        const activePageEditor = typeof tinymce !== 'undefined' ? tinymce.get('pageEditor') : null;
+                        const pageContent = activePageEditor
+                            ? activePageEditor.getContent({ format: 'html' })
+                            : pageEditor.value;
+
+                        const resp = await fetch(`/biblioteca/save-page.php?page=${encodeURIComponent(pageKey)}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-                            body: bioContent,
+                            body: pageContent,
                         });
                         const data = await resp.json();
                         if (data.ok) {
                             if (data.sanitized) {
-                                bioStatus.textContent = '⚠️ Saved with safety cleanup';
-                                bioStatus.style.color = '#fbbf24';
+                                pageStatus.textContent = `${pageLabel} saved with safety cleanup`;
+                                pageStatus.style.color = '#fbbf24';
                             } else {
-                                bioStatus.textContent = '✅ Saved';
-                                bioStatus.style.color = 'var(--success, #4ade80)';
+                                pageStatus.textContent = `${pageLabel} saved`;
+                                pageStatus.style.color = 'var(--success, #4ade80)';
                             }
 
-                            if (activeBioEditor && typeof data.html === 'string') {
-                                activeBioEditor.setContent(data.html, { format: 'html' });
+                            if (activePageEditor && typeof data.html === 'string') {
+                                activePageEditor.setContent(data.html, { format: 'html' });
                             } else if (typeof data.html === 'string') {
-                                bioEditor.value = data.html;
+                                pageEditor.value = data.html;
                             }
                         } else {
-                            bioStatus.textContent = '❌ ' + (data.error || 'Unknown error');
-                            bioStatus.style.color = '#f55';
+                            pageStatus.textContent = '❌ ' + (data.error || 'Unknown error');
+                            pageStatus.style.color = '#f55';
                         }
                     } catch (e) {
-                        bioStatus.textContent = '❌ Network error: ' + e.message;
-                        bioStatus.style.color = '#f55';
+                        pageStatus.textContent = '❌ Network error: ' + e.message;
+                        pageStatus.style.color = '#f55';
                     } finally {
-                        bioSaveBtn.disabled = false;
+                        pageSaveBtn.disabled = false;
                     }
                 });
             }
 
-            // ── Gallery editor ────────────────────────────────────────────────
             (function () {
                 const editorEl    = document.getElementById('galleryEditor');
                 const availableEl = document.getElementById('galleryAvailableList');

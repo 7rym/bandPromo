@@ -10,6 +10,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 session_write_close(); // release lock before file I/O
 
 require_once __DIR__ . '/config-loader.php';
+require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/light-build-tasks.php';
 
@@ -83,6 +84,15 @@ $socialTask = bandpromo_run_light_task('scripts/makeSocial.py');
 $manifestTask = bandpromo_run_light_task('scripts/makePWA.py');
 
 if ($socialTask['ok'] && $manifestTask['ok']) {
+    bandpromo_admin_audit_log('social_config_saved', [
+        'target_type' => 'config',
+        'target_id' => 'web-config.json:social',
+        'status' => 'ok',
+        'data' => [
+            'build_required' => false,
+            'auto_tasks' => ['social-assets', 'manifest'],
+        ],
+    ]);
     echo json_encode([
         'ok' => true,
         'build_required' => false,
@@ -93,6 +103,16 @@ if ($socialTask['ok'] && $manifestTask['ok']) {
 }
 
 $state = bandpromo_mark_build_required('social_config_changed');
+bandpromo_admin_audit_log('social_config_saved', [
+    'target_type' => 'config',
+    'target_id' => 'web-config.json:social',
+    'status' => 'warning',
+    'data' => [
+        'build_required' => true,
+        'reasons' => $state['reasons'] ?? [],
+        'warning' => 'automatic social/manifest refresh failed',
+    ],
+]);
 echo json_encode([
     'ok' => true,
     'build_required' => true,

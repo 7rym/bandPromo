@@ -55,7 +55,7 @@ Core features are part of every bandPromo install:
 - operator-owned configuration and deployment model
 - explicit responsibility boundaries for content, privacy, and integrations
 - editing of metatags in media files (with user-friendly tools for missing/invalid tags)
-- static page ("bio") editing with WYSIWYG editor
+- static page editing for core site content
 - playlist editing
 - gallery editing
 - ChromeCasting to supported devices
@@ -208,7 +208,7 @@ Recent hardening completed (Apr 2026):
 ### 5. User Friendliness gate
 
 - User-friendly tools for editing missing or invalid metatags in media files
-- WYSIWYG editor for static pages (bio, etc.)
+- Usable operator-facing editing for static pages (bio, FAQ, etc.)
 - Playlist editing
 - Gallery editing
 - Suitable and optimized designs for various display scenarios (vertical/horizontal, mobile/tablet, desktop/TV)
@@ -233,8 +233,100 @@ Suggested scope:
 - public/private access model
 - basic module registry or config-based enable/disable model
 - theme tokens and theme selection model
+- structured static-page content model: block JSON source with rendered HTML delivery
+- page-editor replacement plan aligned with the structured content model instead of legacy raw HTML authoring
 - initial roadmap for registered user features
 - actual LICENSE file added to the repo
+
+### v0.8 static page content model
+
+The current HTML-based page storage is a legacy bridge, not the long-term platform model.
+
+For v0.8, static pages should move to a structured content contract:
+
+- canonical source: JSON block documents stored per page
+- delivery format: server-rendered safe HTML for the public site
+- migration stance: legacy HTML may remain as a temporary compatibility/read path, but not as the long-term authoring format
+
+Initial schema direction:
+
+- page identity fields such as `id`, `title`, `updated_at`, and schema `version`
+- ordered `blocks` array as the main content body
+- narrow first-party block set only: heading, paragraph, list, quote, image, divider, and simple callout/note if needed
+- no arbitrary inline CSS, no freeform width/height controls, and no operator-facing raw HTML as the primary workflow
+
+Image/layout direction:
+
+- images should use semantic presentation presets rather than pixel sizing
+- first presets should be things like `inline`, `feature`, `wide`, `banner`, `float-left`, and `float-right`
+- image data should carry explicit `src`, `alt`, optional `caption`, and preset/layout intent
+- renderer/theme CSS should decide actual responsive behavior from those presets
+
+Renderer and editor direction:
+
+- schema comes first; editor choice must follow the schema rather than define it
+- block editors such as Editor.js are a better fit than document-style rich-text editors because bandPromo needs structured presentation, not Word-like formatting freedom
+- public/runtime rendering should stay HTML-first even if authoring becomes JSON-first
+
+Migration direction:
+
+- existing `bio.html` and `faq.html` content should be importable into the first block schema where practical
+- runtime should support a migration window where legacy HTML can still be read until JSON-backed pages are fully adopted
+- generated/cached HTML artifacts are acceptable as a delivery optimization, but JSON should remain the source of truth once the migration is complete
+
+Illustrative first document shape:
+
+```json
+{
+    "version": 1,
+    "id": "bio",
+    "title": "Band Bio",
+    "updated_at": "2026-05-02T12:00:00Z",
+    "blocks": [
+        {
+            "type": "heading",
+            "level": 2,
+            "text": "About the Band"
+        },
+        {
+            "type": "paragraph",
+            "text": "bandPromo should treat page content as structured presentation, not as freeform HTML with inline layout hacks."
+        },
+        {
+            "type": "image",
+            "src": "/media/photo/optimal/band-portrait.webp",
+            "alt": "Band portrait",
+            "caption": "Current lineup promo photo",
+            "preset": "feature"
+        },
+        {
+            "type": "quote",
+            "text": "Built for artists who need a strong release page without a full CMS.",
+            "attribution": "bandPromo direction"
+        },
+        {
+            "type": "list",
+            "style": "unordered",
+            "items": [
+                "Private release delivery",
+                "Playlist editing",
+                "Gallery editing",
+                "Operator-friendly presentation"
+            ]
+        },
+        {
+            "type": "divider"
+        },
+        {
+            "type": "callout",
+            "tone": "note",
+            "text": "Themes and renderer CSS decide how presets like `feature` or `wide` actually behave on mobile and desktop."
+        }
+    ]
+}
+```
+
+This example is intentionally narrow. If the first real page schema cannot represent most `bio` and `faq` content cleanly without escaping back into raw HTML, the schema is not ready yet.
 
 Not yet required in v0.8:
 

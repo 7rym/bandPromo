@@ -3,12 +3,21 @@
  * Authentication Library
  * Handles user authentication against terces file
  * File format: username:md5hash:role
- * role = 'admin' | 'user' (optional; missing role defaults to 'user')
- * Migration: if NO entry has role='admin', all authenticated users may access admin (backwards-compat mode)
+ * role = 'admin' | 'developer' | 'user' (optional; missing role defaults to 'user')
+ * Migration: if NO entry has role='admin' or role='developer', all authenticated users may access admin (backwards-compat mode)
  */
 
 // Path to terces file (outside web root for security)
 define('TERCES_FILE', __DIR__ . '/../data/terces');
+
+function _normalize_terces_role(string $role): string {
+    $role = strtolower(trim($role));
+    return in_array($role, ['admin', 'developer', 'user'], true) ? $role : 'user';
+}
+
+function _admin_capable_roles(): array {
+    return ['admin', 'developer'];
+}
 
 /**
  * Parse a single terces line into [username, hash, role]
@@ -18,8 +27,25 @@ function _parse_terces_line(string $line): array {
     return [
         'username' => $parts[0] ?? '',
         'hash'     => $parts[1] ?? '',
-        'role'     => $parts[2] ?? 'user',
+        'role'     => _normalize_terces_role($parts[2] ?? 'user'),
     ];
+}
+
+function getUserRole($username) {
+    $username = trim((string) $username);
+    if ($username === '' || !file_exists(TERCES_FILE)) return 'user';
+
+    $lines = file(TERCES_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!$lines) return 'user';
+
+    foreach ($lines as $line) {
+        $u = _parse_terces_line($line);
+        if ($u['username'] === $username) {
+            return $u['role'];
+        }
+    }
+
+    return 'user';
 }
 
 /**
@@ -43,8 +69,8 @@ function authenticate($username, $password) {
 }
 
 /**
- * Returns true if the username is designated as admin.
- * Migration mode: if no user has role=admin yet, everyone who authenticated counts as admin
+ * Returns true if the username may access the admin panel.
+ * Migration mode: if no user has role=admin or role=developer yet, everyone who authenticated counts as admin
  * (so no one gets locked out after upgrading).
  */
 function isAdminUser($username) {
@@ -55,13 +81,17 @@ function isAdminUser($username) {
     $admins = [];
     foreach ($lines as $line) {
         $u = _parse_terces_line($line);
-        if ($u['role'] === 'admin') $admins[] = $u['username'];
+        if (in_array($u['role'], _admin_capable_roles(), true)) $admins[] = $u['username'];
     }
 
-    // Migration mode: no admins defined yet → all authenticated users are treated as admin
+    // Migration mode: no privileged roles defined yet → all authenticated users are treated as admin
     if (empty($admins)) return true;
 
     return in_array(trim($username), $admins, true);
+}
+
+function isDeveloperUser($username) {
+    return getUserRole($username) === 'developer';
 }
 
 /**
@@ -118,7 +148,7 @@ function setUser($username, $password, $role = null) {
  * Set role for an existing user
  */
 function setUserRole($username, $role) {
-    if (!in_array($role, ['admin', 'user'], true)) return false;
+    if (!in_array($role, ['admin', 'developer', 'user'], true)) return false;
     if (!file_exists(TERCES_FILE)) return false;
 
     $username = trim($username);

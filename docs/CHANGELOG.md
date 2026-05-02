@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Added
+- **2026-05-02 — Documentation tab now separates operator docs from developer docs**
+  - Added a first-class `developer` user role so documentation visibility can follow an actual role instead of a hardcoded file list shown to everyone.
+  - Documentation tab now defaults operators to operator-safe docs only, while developers get a developer-docs view with the ability to switch between developer, operator, and combined documentation scopes.
+  - Moved developer-only docs such as `AGENTS.md`, `TODO.md`, `ROADMAP.md`, and `SECURITY-AUDIT.md` out of the default operator documentation surface.
+
+- **2026-05-02 — Admin Documentation tab added for tracked project docs**
+  - Added a new primary `Documentation` tab in the admin panel with a two-panel browser: available docs on the left and rendered content on the right.
+  - `README.md` now opens by default, and tracked markdown files from `docs/` can be opened directly from the admin UI.
+  - Added safe markdown rendering for the current documentation set, including headings, lists, checklists, code blocks, and internal links between docs.
+
+- **2026-05-02 — Audit status badges added for quicker scanning**
+  - Styled the Audit tab status column with semantic badges so successful, failed, denied, and neutral admin events can be scanned visually without reading the whole row.
+
+- **2026-05-02 — Admin audit trail now captures failed login attempts and build outcomes**
+  - Added explicit `admin_login_failed` audit records for missing credentials, invalid credentials, and rejected non-admin login attempts.
+  - Added one-time build completion/failure audit records keyed to each build run so long-running jobs now leave a clear finished or failed trace, not just a start event.
+  - Improved the Audit tab detail column so common admin actions render as readable summaries instead of raw JSON blobs.
+
+- **2026-05-02 — Dedicated admin audit log added for multi-admin tracing**
+  - Added `biblioteca/admin-audit.php` so management actions are logged separately from listener/playback activity under a dedicated admin-audit log path.
+  - Added a new `Audit` admin tab in `admin.php` with date, action, and actor filters for browsing recent management events.
+  - Wired the current admin mutation surface into the separate audit log, including login/logout, user management, page/gallery/playlist/config saves, media upload/delete actions, and build starts.
+
+- **2026-05-02 — Admin Pages editor now exposes Bio and FAQ through one shared tool**
+  - Replaced the Content -> `Bio` admin tab with a `Pages` editor that now exposes both `data/bio.html` and `data/faq.html` through one allowlisted editing surface.
+  - Updated `admin.php` and `biblioteca/admin.js` so both pages use the same rich-text/source editor workflow, local optimized-image picker, and per-page save handling.
+  - Added `biblioteca/save-page.php` so editable HTML documents now save through a shared sanitized endpoint instead of a Bio-only path.
+
+### Fixed
+- **2026-05-02 — Admin JS parse error no longer breaks Users modals after Pages editor changes**
+  - Repaired a corrupted handoff between the shared Pages editor logic and the Gallery editor block in `biblioteca/admin.js`.
+  - This removes the frontend syntax error that prevented later admin helpers such as `openUserModal()` from being defined at runtime.
+  - Verified on localhost that the Users tab loads and the `Add User` modal opens again.
+
+- **2026-05-02 — Change-password modal now saves the edited password correctly**
+  - Fixed `biblioteca/admin.js` so the user modal posts `edit_password` in password-change mode instead of always posting `new_password`.
+  - Removed the hardcoded white readonly username field style in the change-password modal and replaced it with the normal admin dark-theme readonly styling.
+  - This restores end-to-end password changes for existing users through the admin UI.
+
 - **2026-05-01 — Dev server start/stop scripts and session workflow**
   - Added `scripts/start-dev-server.ps1` and `scripts/stop-dev-server.ps1` so the local PHP dev server uses a single repo-local start/stop path.
   - Added a workspace `Stop bandPromo webserver` task alongside the existing auto-start task.
@@ -17,6 +56,36 @@ All notable changes to this project will be documented in this file.
   - This closes the gap that `.gitignore` cannot cover: Google Drive writing directly into `.git/refs`, `.git/logs`, and `.git/objects`.
 
 ### Documentation
+- **2026-05-02 — README, features, and notices refreshed for current admin docs/pages state**
+  - Updated `README.md` to include `faq.template.html` in the tracked first-time setup templates.
+  - Updated `docs/FEATURES.md` so the feature list reflects the current Pages editor, audit trail, and documentation browser instead of the older Bio-only WYSIWYG wording.
+  - Updated `docs/THIRD-PARTY-NOTICES.md` so TinyMCE and HTML Purifier descriptions match the current Pages editor and `save-page.php` sanitization path.
+
+- **2026-05-02 — Example v0.8 page document added to roadmap planning**
+  - Added an illustrative first JSON page document to `ROADMAP.md` so the static-page redesign is anchored to a concrete schema shape rather than only prose.
+  - Included representative block types such as heading, paragraph, image, quote, list, divider, and callout, plus semantic image presets.
+  - Documented the rule that the first real schema must be able to carry typical `bio` and `faq` content without falling back to raw HTML authoring.
+
+- **2026-05-02 — v0.8 static page schema direction documented**
+  - Expanded `ROADMAP.md` with a concrete `v0.8` static-page content model: JSON block documents as the source of truth, rendered HTML for delivery, semantic image presets, and a legacy HTML migration window.
+  - Replaced the broad page-model placeholders in `TODO.md` with actionable planning tasks for schema shape, image presentation presets, renderer rules, migration, and editor replacement.
+  - Kept this explicitly in post-`v0.7` planning so the platform can finish `v0.7` before taking on the page-model redesign.
+
+- **2026-05-02 — Structured page-content redesign moved into v0.8 planning**
+  - Updated `ROADMAP.md` so core/v0.7 language no longer locks static pages to a long-term WYSIWYG HTML model; the current requirement is usable operator-facing page editing.
+  - Added explicit `v0.8` planning scope for structured static-page content: block JSON as the authoring source with rendered HTML delivery.
+  - Updated `TODO.md` so the page-editor replacement and JSON page model are tracked as post-`v0.7` planning work instead of pressure on the `v0.7` finish line.
+
+- **2026-05-02 — TODO post-v0.7 planning structure clarified**
+  - Renamed the stale Admin UX heading in `TODO.md` from a planned proposal to a follow-up section, reflecting that most of that work has already shipped.
+  - Replaced `Next after v0.7` with a clearer `Post-v0.7 planning` block and nested the PWA/offline items under it so they no longer read like hidden `v0.7` exit gates.
+  - Used the cleanup pass to keep the TODO aligned with recent admin and documentation work rather than leaving completed wording behind.
+
+- **2026-05-02 — TODO clarified around Admin UX forms vs media-handling metadata work**
+  - Updated `TODO.md` so the Admin UX section now reflects the current shipped direction: operator-facing forms for supported config instead of a planned raw JSON return path.
+  - Clarified that future scoped config structure remains internal and should not be surfaced to operators as raw JSON editing work.
+  - Reworded the open metatag item so it is clearly the admin/editor surface for broader media-handling work, rather than a separate policy track.
+
 - **2026-05-02 — Third-party notices inventory added**
   - Added `docs/THIRD-PARTY-NOTICES.md` to document the currently verified third-party libraries, build tools, hosted scripts, and external service endpoints used by bandPromo.
   - Updated `README.md` to link the new notices document from the main documentation and license sections.

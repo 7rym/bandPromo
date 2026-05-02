@@ -16,6 +16,7 @@ session_write_close(); // release lock before file I/O
 
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/build-required.php';
+require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/light-build-tasks.php';
 
@@ -67,6 +68,12 @@ if (!empty($syncRoots)) {
 
 $pretty = json_encode($decoded_array, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if (file_put_contents($config_file, $pretty) === false) {
+    bandpromo_admin_audit_log('config_saved', [
+        'target_type' => 'config',
+        'target_id' => 'web-config.json:' . ($branch !== '' ? $branch : 'full'),
+        'status' => 'error',
+        'data' => ['error' => 'write failed'],
+    ]);
     echo json_encode(['error' => 'Could not write web-config.json — check file permissions']);
     exit;
 }
@@ -74,6 +81,12 @@ if (file_put_contents($config_file, $pretty) === false) {
 if ($branch === 'site') {
     $task = bandpromo_run_light_task('scripts/makePWA.py');
     if ($task['ok']) {
+        bandpromo_admin_audit_log('config_saved', [
+            'target_type' => 'config',
+            'target_id' => 'web-config.json:site',
+            'status' => 'ok',
+            'data' => ['build_required' => false, 'auto_tasks' => ['manifest']],
+        ]);
         echo json_encode([
             'ok' => true,
             'build_required' => false,
@@ -84,6 +97,12 @@ if ($branch === 'site') {
     }
 
     $state = bandpromo_mark_build_required('site_config_changed');
+    bandpromo_admin_audit_log('config_saved', [
+        'target_type' => 'config',
+        'target_id' => 'web-config.json:site',
+        'status' => 'warning',
+        'data' => ['build_required' => true, 'reasons' => $state['reasons'] ?? [], 'warning' => 'automatic manifest refresh failed'],
+    ]);
     echo json_encode([
         'ok' => true,
         'build_required' => true,
@@ -110,6 +129,17 @@ if ($branch === 'media') {
         $task = bandpromo_run_light_task('scripts/makePlaylists.py');
         if ($task['ok']) {
             $state = bandpromo_mark_build_required('theme_cover_changed');
+            bandpromo_admin_audit_log('config_saved', [
+                'target_type' => 'config',
+                'target_id' => 'web-config.json:media',
+                'status' => 'warning',
+                'data' => [
+                    'build_required' => true,
+                    'reasons' => $state['reasons'] ?? [],
+                    'auto_tasks' => ['playlist-scan'],
+                    'warning' => 'image optimization still required',
+                ],
+            ]);
             echo json_encode([
                 'ok' => true,
                 'build_required' => true,
@@ -121,6 +151,12 @@ if ($branch === 'media') {
         }
 
         $state = bandpromo_mark_build_required('theme_config_changed');
+        bandpromo_admin_audit_log('config_saved', [
+            'target_type' => 'config',
+            'target_id' => 'web-config.json:media',
+            'status' => 'warning',
+            'data' => ['build_required' => true, 'reasons' => $state['reasons'] ?? [], 'warning' => 'automatic playlist refresh failed after cover change'],
+        ]);
         echo json_encode([
             'ok' => true,
             'build_required' => true,
@@ -131,6 +167,12 @@ if ($branch === 'media') {
         exit;
     }
 
+    bandpromo_admin_audit_log('config_saved', [
+        'target_type' => 'config',
+        'target_id' => 'web-config.json:media',
+        'status' => 'ok',
+        'data' => ['build_required' => false],
+    ]);
     echo json_encode([
         'ok' => true,
         'build_required' => false,
@@ -142,6 +184,12 @@ if ($branch === 'media') {
 
 $reason = $branch === 'media' ? 'theme_config_changed' : 'web_config_changed';
 $state = bandpromo_mark_build_required($reason);
+bandpromo_admin_audit_log('config_saved', [
+    'target_type' => 'config',
+    'target_id' => 'web-config.json:' . ($branch !== '' ? $branch : 'full'),
+    'status' => 'warning',
+    'data' => ['build_required' => true, 'reasons' => $state['reasons'] ?? []],
+]);
 echo json_encode([
     'ok' => true,
     'build_required' => true,

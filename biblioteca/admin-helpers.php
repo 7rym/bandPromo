@@ -237,3 +237,434 @@ function endSection() {
     </div>
     <?php
 }
+
+function bandpromo_docs_root_dir(): string {
+    return dirname(__DIR__);
+}
+
+function bandpromo_docs_preferred_order(): array {
+    return [
+        'README.md',
+        'docs/FEATURES.md',
+        'docs/OPERATOR-RESPONSIBILITY.md',
+        'docs/SUPPORT.md',
+        'docs/MEDIA-HANDLING.md',
+        'docs/CHANGELOG.md',
+        'docs/THIRD-PARTY-NOTICES.md',
+        'docs/TRADEMARKS.md',
+        'docs/ROADMAP.md',
+        'docs/TODO.md',
+        'docs/SECURITY-AUDIT.md',
+        'docs/README_LICENSE_NOTICE.md',
+        'docs/AGENTS.md',
+    ];
+}
+
+function bandpromo_docs_audience_map(): array {
+    return [
+        'README.md' => 'shared',
+        'docs/FEATURES.md' => 'operator',
+        'docs/OPERATOR-RESPONSIBILITY.md' => 'operator',
+        'docs/SUPPORT.md' => 'operator',
+        'docs/MEDIA-HANDLING.md' => 'operator',
+        'docs/CHANGELOG.md' => 'shared',
+        'docs/THIRD-PARTY-NOTICES.md' => 'shared',
+        'docs/TRADEMARKS.md' => 'operator',
+        'docs/ROADMAP.md' => 'developer',
+        'docs/TODO.md' => 'developer',
+        'docs/SECURITY-AUDIT.md' => 'developer',
+        'docs/README_LICENSE_NOTICE.md' => 'developer',
+        'docs/AGENTS.md' => 'developer',
+    ];
+}
+
+function bandpromo_docs_role_scope(string $role, string $requestedScope = ''): string {
+    $role = strtolower(trim($role));
+    $requestedScope = strtolower(trim($requestedScope));
+
+    if ($role === 'developer') {
+        return in_array($requestedScope, ['developer', 'operator', 'all'], true) ? $requestedScope : 'developer';
+    }
+
+    return 'operator';
+}
+
+function bandpromo_docs_entry_allowed_for_scope(array $entry, string $scope): bool {
+    $audience = $entry['audience'] ?? 'operator';
+
+    if ($scope === 'all') {
+        return true;
+    }
+
+    if ($scope === 'developer') {
+        return in_array($audience, ['developer', 'shared'], true);
+    }
+
+    return in_array($audience, ['operator', 'shared'], true);
+}
+
+function bandpromo_docs_extract_title(string $markdown, string $fallback): string {
+    if (preg_match('/^#\s+(.+)$/m', $markdown, $matches)) {
+        return trim((string) $matches[1]);
+    }
+
+    return $fallback;
+}
+
+function bandpromo_docs_all_entries(): array {
+    static $catalog = null;
+    if (is_array($catalog)) {
+        return $catalog;
+    }
+
+    $root = bandpromo_docs_root_dir();
+    $relativePaths = ['README.md'];
+    foreach (glob($root . '/docs/*.md') ?: [] as $filePath) {
+        $relativePaths[] = 'docs/' . basename($filePath);
+    }
+
+    $relativePaths = array_values(array_unique($relativePaths));
+    $entries = [];
+    $audienceMap = bandpromo_docs_audience_map();
+
+    foreach ($relativePaths as $relativePath) {
+        $absolutePath = $root . '/' . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        if (!is_file($absolutePath)) {
+            continue;
+        }
+
+        $markdown = file_get_contents($absolutePath);
+        if ($markdown === false) {
+            continue;
+        }
+
+        $fallback = preg_replace('/\.md$/i', '', basename($relativePath)) ?: $relativePath;
+        $entries[] = [
+            'path' => str_replace('\\', '/', $relativePath),
+            'absolute_path' => $absolutePath,
+            'title' => bandpromo_docs_extract_title($markdown, $fallback),
+            'audience' => $audienceMap[str_replace('\\', '/', $relativePath)] ?? 'operator',
+        ];
+    }
+
+    $preferredOrder = bandpromo_docs_preferred_order();
+    usort($entries, static function (array $left, array $right) use ($preferredOrder): int {
+        $leftOrder = array_search($left['path'], $preferredOrder, true);
+        $rightOrder = array_search($right['path'], $preferredOrder, true);
+
+        if ($leftOrder !== false || $rightOrder !== false) {
+            if ($leftOrder === false) {
+                return 1;
+            }
+            if ($rightOrder === false) {
+                return -1;
+            }
+            if ($leftOrder !== $rightOrder) {
+                return $leftOrder <=> $rightOrder;
+            }
+        }
+
+        $titleCompare = strnatcasecmp($left['title'], $right['title']);
+        if ($titleCompare !== 0) {
+            return $titleCompare;
+        }
+
+        return strnatcasecmp($left['path'], $right['path']);
+    });
+
+    $catalog = $entries;
+    return $catalog;
+}
+
+function bandpromo_docs_catalog(string $scope = 'operator'): array {
+    return array_values(array_filter(
+        bandpromo_docs_all_entries(),
+        static fn(array $entry): bool => bandpromo_docs_entry_allowed_for_scope($entry, $scope)
+    ));
+}
+
+function bandpromo_docs_normalize_relative_path(string $path): string {
+    $path = str_replace('\\', '/', trim($path));
+    $path = preg_replace('/#.*$/', '', $path);
+    $path = preg_replace('/\?.*$/', '', $path);
+    $path = ltrim($path, '/');
+
+    if ($path === '') {
+        return '';
+    }
+
+    $segments = preg_split('~/+~', $path) ?: [];
+    $normalized = [];
+    foreach ($segments as $segment) {
+        if ($segment === '' || $segment === '.') {
+            continue;
+        }
+        if ($segment === '..') {
+            array_pop($normalized);
+            continue;
+        }
+        $normalized[] = $segment;
+    }
+
+    return implode('/', $normalized);
+}
+
+function bandpromo_docs_normalize_path(string $requestedPath, string $scope = 'operator'): string {
+    $requestedPath = bandpromo_docs_normalize_relative_path($requestedPath);
+    $allowedPaths = array_column(bandpromo_docs_catalog($scope), 'path');
+
+    if ($requestedPath !== '' && in_array($requestedPath, $allowedPaths, true)) {
+        return $requestedPath;
+    }
+
+    return in_array('README.md', $allowedPaths, true) ? 'README.md' : ($allowedPaths[0] ?? 'README.md');
+}
+
+function bandpromo_docs_get_entry(string $requestedPath, string $scope = 'operator'): ?array {
+    $selectedPath = bandpromo_docs_normalize_path($requestedPath, $scope);
+    foreach (bandpromo_docs_catalog($scope) as $entry) {
+        if ($entry['path'] === $selectedPath) {
+            return $entry;
+        }
+    }
+    return null;
+}
+
+function bandpromo_docs_url(string $docPath, string $scope = ''): string {
+    $url = '?tab=docs&doc=' . rawurlencode($docPath);
+    if ($scope !== '') {
+        $url .= '&doc_scope=' . rawurlencode($scope);
+    }
+    return $url;
+}
+
+function bandpromo_docs_resolve_markdown_target(string $href, string $currentDocPath, string $scope): string {
+    if ($href === '' || preg_match('~^(https?:)?//|^mailto:|^#~i', $href)) {
+        return '';
+    }
+
+    $href = bandpromo_docs_normalize_relative_path($href);
+    if ($href === '') {
+        return '';
+    }
+
+    if (!str_ends_with(strtolower($href), '.md')) {
+        return '';
+    }
+
+    if (!str_contains($href, '/')) {
+        $currentDir = dirname($currentDocPath);
+        $href = $currentDir === '.' ? $href : $currentDir . '/' . $href;
+    }
+
+    $resolvedPath = bandpromo_docs_normalize_path($href, 'all');
+    foreach (bandpromo_docs_all_entries() as $entry) {
+        if ($entry['path'] === $resolvedPath && bandpromo_docs_entry_allowed_for_scope($entry, $scope)) {
+            return $resolvedPath;
+        }
+    }
+
+    return '';
+}
+
+function bandpromo_docs_render_link(string $label, string $href, string $currentDocPath, string $scope): string {
+    $internalTarget = bandpromo_docs_resolve_markdown_target($href, $currentDocPath, $scope);
+    if ($internalTarget !== '') {
+        return '<a class="docs-inline-link" href="' . htmlspecialchars(bandpromo_docs_url($internalTarget, $scope), ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</a>';
+    }
+
+    if (preg_match('~^(https?:)?//|^mailto:~i', $href)) {
+        return '<a class="docs-inline-link" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</a>';
+    }
+
+    return htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
+}
+
+function bandpromo_docs_render_inline(string $text, string $currentDocPath, string $scope): string {
+    $placeholders = [];
+
+    $text = preg_replace_callback('/`([^`]+)`/', static function (array $matches) use (&$placeholders): string {
+        $token = 'DOCINLINECODE' . count($placeholders);
+        $placeholders[] = [
+            'token' => $token,
+            'html' => '<code>' . htmlspecialchars($matches[1], ENT_QUOTES, 'UTF-8') . '</code>',
+        ];
+        return $token;
+    }, $text);
+
+    $text = preg_replace_callback('/\[([^\]]+)\]\(([^)]+)\)/', static function (array $matches) use (&$placeholders, $currentDocPath, $scope): string {
+        $token = 'DOCINLINELINK' . count($placeholders);
+        $placeholders[] = [
+            'token' => $token,
+            'html' => bandpromo_docs_render_link($matches[1], trim((string) $matches[2]), $currentDocPath, $scope),
+        ];
+        return $token;
+    }, $text);
+
+    $escaped = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    $escaped = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $escaped);
+    $escaped = preg_replace('/\*([^*]+)\*/', '<em>$1</em>', $escaped);
+
+    foreach ($placeholders as $placeholder) {
+        $escaped = str_replace($placeholder['token'], $placeholder['html'], $escaped);
+    }
+
+    return $escaped;
+}
+
+function bandpromo_docs_render_markdown(string $markdown, string $currentDocPath, string $scope): string {
+    $lines = preg_split('/\r\n|\r|\n/', $markdown) ?: [];
+    $html = [];
+    $paragraphLines = [];
+    $listItems = [];
+    $listType = '';
+    $quoteLines = [];
+    $codeLines = [];
+    $inCodeBlock = false;
+
+    $flushParagraph = static function () use (&$html, &$paragraphLines, $currentDocPath, $scope): void {
+        if (empty($paragraphLines)) {
+            return;
+        }
+        $html[] = '<p>' . bandpromo_docs_render_inline(trim(implode(' ', $paragraphLines)), $currentDocPath, $scope) . '</p>';
+        $paragraphLines = [];
+    };
+
+    $flushList = static function () use (&$html, &$listItems, &$listType): void {
+        if (empty($listItems) || $listType === '') {
+            $listItems = [];
+            $listType = '';
+            return;
+        }
+        $html[] = '<' . $listType . ' class="docs-list">' . implode('', $listItems) . '</' . $listType . '>';
+        $listItems = [];
+        $listType = '';
+    };
+
+    $flushQuote = static function () use (&$html, &$quoteLines, $currentDocPath, $scope): void {
+        if (empty($quoteLines)) {
+            return;
+        }
+        $html[] = '<blockquote>' . bandpromo_docs_render_inline(trim(implode(' ', $quoteLines)), $currentDocPath, $scope) . '</blockquote>';
+        $quoteLines = [];
+    };
+
+    $flushCode = static function () use (&$html, &$codeLines): void {
+        if (empty($codeLines)) {
+            return;
+        }
+        $html[] = '<pre class="docs-code-block"><code>' . htmlspecialchars(implode("\n", $codeLines), ENT_QUOTES, 'UTF-8') . '</code></pre>';
+        $codeLines = [];
+    };
+
+    foreach ($lines as $line) {
+        if ($inCodeBlock) {
+            if (preg_match('/^```/', $line) === 1) {
+                $flushCode();
+                $inCodeBlock = false;
+            } else {
+                $codeLines[] = $line;
+            }
+            continue;
+        }
+
+        if (preg_match('/^```/', $line) === 1) {
+            $flushParagraph();
+            $flushList();
+            $flushQuote();
+            $inCodeBlock = true;
+            continue;
+        }
+
+        if (trim($line) === '') {
+            $flushParagraph();
+            $flushList();
+            $flushQuote();
+            continue;
+        }
+
+        if (preg_match('/^\s{0,3}(#{1,6})\s+(.+)$/', $line, $matches) === 1) {
+            $flushParagraph();
+            $flushList();
+            $flushQuote();
+            $level = strlen($matches[1]);
+            $html[] = '<h' . $level . '>' . bandpromo_docs_render_inline(trim((string) $matches[2]), $currentDocPath, $scope) . '</h' . $level . '>';
+            continue;
+        }
+
+        if (preg_match('/^\s{0,3}([-*]){3,}\s*$/', $line) === 1) {
+            $flushParagraph();
+            $flushList();
+            $flushQuote();
+            $html[] = '<hr>';
+            continue;
+        }
+
+        if (preg_match('/^\s*>\s?(.*)$/', $line, $matches) === 1) {
+            $flushParagraph();
+            $flushList();
+            $quoteLines[] = trim((string) $matches[1]);
+            continue;
+        }
+
+        if (preg_match('/^\s*([-*]|\d+\.)\s+(.+)$/', $line, $matches) === 1) {
+            $flushParagraph();
+            $flushQuote();
+            $nextListType = preg_match('/^\d+\.$/', $matches[1]) === 1 ? 'ol' : 'ul';
+            if ($listType !== '' && $listType !== $nextListType) {
+                $flushList();
+            }
+            $listType = $nextListType;
+
+            $itemText = trim((string) $matches[2]);
+            if (preg_match('/^\[(x| )\]\s+(.+)$/i', $itemText, $taskMatches) === 1) {
+                $checked = strtolower((string) $taskMatches[1]) === 'x';
+                $listItems[] = '<li class="docs-task-item"><span class="docs-task-check ' . ($checked ? 'checked' : 'unchecked') . '">' . ($checked ? '&#10003;' : '&#9633;') . '</span><span>' . bandpromo_docs_render_inline(trim((string) $taskMatches[2]), $currentDocPath, $scope) . '</span></li>';
+            } else {
+                $listItems[] = '<li>' . bandpromo_docs_render_inline($itemText, $currentDocPath, $scope) . '</li>';
+            }
+            continue;
+        }
+
+        $flushList();
+        $flushQuote();
+        $paragraphLines[] = trim($line);
+    }
+
+    if ($inCodeBlock) {
+        $flushCode();
+    }
+
+    $flushParagraph();
+    $flushList();
+    $flushQuote();
+
+    return implode("\n", $html);
+}
+
+function bandpromo_docs_render_selected(string $requestedPath, string $scope): array {
+    $entry = bandpromo_docs_get_entry($requestedPath, $scope);
+    if (!$entry) {
+        return [
+            'entry' => [
+                'path' => bandpromo_docs_normalize_path('', $scope),
+                'absolute_path' => bandpromo_docs_root_dir() . '/README.md',
+                'title' => 'Documentation',
+            ],
+            'html' => '<p class="empty-msg">Documentation file not found.</p>',
+        ];
+    }
+
+    $markdown = file_get_contents($entry['absolute_path']);
+    if ($markdown === false) {
+        return [
+            'entry' => $entry,
+            'html' => '<p class="empty-msg">Unable to read this document.</p>',
+        ];
+    }
+
+    return [
+        'entry' => $entry,
+        'html' => bandpromo_docs_render_markdown($markdown, $entry['path'], $scope),
+    ];
+}

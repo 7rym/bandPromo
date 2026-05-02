@@ -18,6 +18,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 }
 
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/admin-audit.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $log_dir   = $root_dir . '/log';
@@ -41,8 +42,13 @@ if (!in_array($mode, ['full', 'optimize'], true)) {
 
 $log_file  = $log_dir  . ($mode === 'optimize' ? '/optimize.log' : '/build.log');
 $lock_file = $log_dir  . ($mode === 'optimize' ? '/optimize.lock' : '/build.lock');
+$meta_file = $log_dir  . ($mode === 'optimize' ? '/optimize.meta.json' : '/build.meta.json');
 $script    = $root_dir . ($mode === 'optimize' ? '/scripts/optimizeMedia.py' : '/scripts/build.py');
 $is_windows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
+$build_run_id = function_exists('random_bytes') ? bin2hex(random_bytes(8)) : uniqid('build_', true);
+$build_actor = trim((string) ($_SESSION['username'] ?? 'unknown'));
+$build_ip = bandpromo_admin_audit_client_ip();
+$build_user_agent = bandpromo_admin_audit_user_agent();
 $debug = [
     'mode' => $mode,
     'os' => PHP_OS_FAMILY,
@@ -142,8 +148,17 @@ if (!is_dir($log_dir)) {
     mkdir($log_dir, 0750, true);
 }
 file_put_contents($log_file, '');
+file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Mode: " . $mode . "\n", FILE_APPEND);
+file_put_contents($meta_file, json_encode([
+    'run_id' => $build_run_id,
+    'mode' => $mode,
+    'actor' => $build_actor,
+    'ip' => $build_ip,
+    'user_agent' => $build_user_agent,
+    'started_at' => time(),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
 // Find python interpreter
 $python = resolve_python_interpreter();
@@ -151,6 +166,7 @@ $debug['python'] = $python;
 
 if ($python === '' || !file_exists($script)) {
     file_put_contents($log_file, "FAILED Could not resolve build runtime or script path.\n", FILE_APPEND);
+    @unlink($meta_file);
     echo json_encode(['error' => 'Could not resolve build runtime', 'debug' => $debug]);
     exit;
 }
@@ -202,13 +218,30 @@ if ($is_windows) {
 
 if (!$started) {
     @unlink($lock_file);
+    @unlink($meta_file);
     file_put_contents($log_file, "FAILED Could not start build process (launcher failed).\n", FILE_APPEND);
     if (!empty($debug['launch_output_tail'])) {
         file_put_contents($log_file, "DEBUG Launcher output:\n" . $debug['launch_output_tail'] . "\n", FILE_APPEND);
     }
+    bandpromo_admin_audit_log('build_started', [
+        'target_type' => 'build',
+        'target_id' => $mode,
+        'status' => 'error',
+        'data' => ['error' => 'Could not start build process'],
+    ]);
     echo json_encode(['error' => 'Could not start build process', 'debug' => $debug]);
     exit;
 }
+
+bandpromo_admin_audit_log('build_started', [
+    'actor' => $build_actor,
+    'ip' => $build_ip,
+    'user_agent' => $build_user_agent,
+    'target_type' => 'build',
+    'target_id' => $mode,
+    'status' => 'ok',
+    'data' => ['mode' => $mode, 'run_id' => $build_run_id],
+]);
 
 echo json_encode(['ok' => true, 'message' => ($mode === 'optimize' ? 'Optimizer started' : 'Build started'), 'mode' => $mode, 'debug' => $debug]);
 exit;

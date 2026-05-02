@@ -59,18 +59,18 @@ Planned future dependencies should not be listed here until they are actually ad
 - Homepage: <https://www.tiny.cloud/>
 - Source: <https://github.com/tinymce/tinymce>
 - License: GPL-2.0-or-later
-- Notes: self-hosted community build; chosen because it fits the current server-rendered PHP admin model and supports a practical source-mode fallback
+- Notes: self-hosted community build; currently powers the Pages editor for Bio/FAQ in the server-rendered PHP admin and supports a practical source-mode fallback
 
 ### HTML Purifier
 
 - Purpose: server-side sanitization of admin-managed HTML content before storage and rendering
-- Used by: `biblioteca/save-bio.php`
+- Used by: `biblioteca/save-bio.php`, `biblioteca/save-page.php`
 - Version: 4.19.0
 - Vendored path: `vendor/htmlpurifier`
 - Homepage: <http://htmlpurifier.org/>
 - Source: <https://github.com/ezyang/htmlpurifier>
 - License: LGPL-2.1-or-later
-- Notes: used as the actual security boundary for rich text content; editor-side filtering is treated only as convenience, not trust
+- Notes: used as the actual security boundary for stored page HTML; editor-side filtering is treated only as convenience, not trust
 
 ## External build tools
 

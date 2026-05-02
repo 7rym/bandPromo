@@ -75,21 +75,23 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Test landscape on large mobile/small tablet (431–767px wide in landscape): confirm grid layout triggers correctly or add a dedicated landscape breakpoint
 - [ ] Consider using `orientation: landscape` media queries to switch mobile views to a two-column layout when height is constrained
 
-### Admin UX Restructure Proposal (planned)
+### Admin UX follow-up
 
-- [ ] Replace Config -> Basics raw JSON with guided form editing for `site` basics.
-- [ ] Keep raw JSON editor as an advanced/admin-only view, separate from day-to-day basics editing.
+- [x] Replace Config -> Basics raw JSON with guided form editing for `site` basics.
+- [x] Keep the future scoped config model internal and continue exposing supported settings through operator-facing forms instead of raw JSON.
 - [x] Keep social editing in Sharing only (single source of truth for `social`).
 - [x] Add a dedicated Config sub-tab for theme/media presentation settings (rename from low-level `media` wording to user-facing `theme`).
 - [x] Audit `web-config` branches (`content`, `build`, `quizzes`) and move non-core branches out of base config where appropriate.
-- [ ] Implement user-friendly tools for editing missing or invalid metatags in media files
+- [ ] Implement operator-facing tools for fixing missing or invalid media metatags.
 - [x] Implement playlist editing
 - [x] Implement gallery editing
 - [x] Replace Playlist placeholder with real drag-and-drop track ordering UI.
 - [x] Persist manual playlist order in `play/playlist.json` from admin edits.
 - [x] Update build generation so existing manual playlist order is preserved and new tracks are appended at the end.
-- [ ] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
-- [ ] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
+- [x] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
+- [x] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
+
+Admin UX note: metadata repair belongs to media handling and operator readiness for policy/behavior, while this section tracks the operator-facing editor flows.
 
 
 ### Media handling (deferred from v0.7 gallery work)
@@ -117,25 +119,25 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Define the first metadata editing tools needed in the file manager: title, artist, album, track number, lyrics, and cover handling.
 - [ ] Define the first master-building tools needed in admin: metadata repair, artwork embedding, lyrics embedding, filename cleanup, and export/download of corrected masters.
 
-## Next after v0.7
+## Post-v0.7 planning
+
+### Immediate next after v0.7
 
 - [ ] Define the `v0.8` multi-release data model.
 - [ ] Define anonymous vs registered access levels.
 - [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
 - [ ] Design the first theme/config structure.
+- [ ] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and a narrow first-party block set.
+- [ ] Lock the first page-image presentation model for v0.8: semantic responsive presets instead of pixel sizing.
+- [ ] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
+- [ ] Define the migration path from `data/bio.html` and `data/faq.html` into JSON-backed pages, including the compatibility window.
+- [ ] Plan the page-editor replacement for v0.8 around the locked schema and block-based editing flow rather than raw HTML authoring.
 - [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
 - [ ] Replace the single-release `web-config` field names with explicit install, release, and track scopes in the future schema.
 - [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
 - [x] Implement dual-write admin saves for transitional fields during the schema migration window.
 
-## Notes
-
-- `ROADMAP.md` is the long-term direction.
-- `TODO.md` is the short-term working list.
-- Current operator model: one branded site. Prepared internal model: separate `brand`, `theme`, and `social` concerns, with install defaults and future release overrides kept internal until multi-release is real.
-- If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.
-
-## PWA offline audio caching and offline logging
+### PWA offline audio caching and offline logging
 
 - [ ] Replace PHP-streamed audio delivery with an architecture that can support both scalable playback and offline-capable cached audio delivery
 - [ ] Define the protected-audio delivery model for production: PHP authorization plus web-server/static delivery handoff, signed URLs, or equivalent protected media strategy
@@ -146,4 +148,11 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 - [ ] Implement offline logging (store logs locally when offline, sync when online)
 - [ ] Define which core services can work offline, which should degrade gracefully, and which still require online authorization/runtime support
 - [ ] Define the installed-phone success criteria: what must feel better in the PWA than in the browser, especially offline listening, startup behavior, update reliability, and media availability
+
+## Notes
+
+- `ROADMAP.md` is the long-term direction.
+- `TODO.md` is the short-term working list.
+- Current operator model: one branded site. Prepared internal model: separate `brand`, `theme`, and `social` concerns, with install defaults and future release overrides kept internal until multi-release is real.
+- If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.
 

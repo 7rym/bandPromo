@@ -20,6 +20,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 }
 
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -208,6 +209,17 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     }
 
     echo json_encode($response);
+
+    bandpromo_admin_audit_log('media_uploaded', [
+        'target_type' => 'media',
+        'target_id' => ($target_hint !== '' ? $target_hint : $ext) . '/' . $safeName,
+        'status' => 'ok',
+        'data' => [
+            'mode' => 'chunked',
+            'build_required' => $response['build_required'] ?? false,
+            'reasons' => $reason !== '' ? [$reason] : [],
+        ],
+    ]);
     exit;
 }
 
@@ -292,6 +304,28 @@ if ($uploaded > 0 && !empty($upload_reasons)) {
     $response['build_required_state'] = $state;
 } else {
     $response['build_required'] = false;
+}
+
+if ($uploaded > 0 || $errors > 0) {
+    $savedNames = [];
+    foreach ($results as $result) {
+        if (!empty($result['ok']) && !empty($result['saved_as'])) {
+            $savedNames[] = (string) $result['saved_as'];
+        }
+    }
+
+    bandpromo_admin_audit_log('media_uploaded', [
+        'target_type' => 'media',
+        'target_id' => $target_hint !== '' ? (string) $target_hint : 'mixed',
+        'status' => $errors === 0 ? 'ok' : ($uploaded > 0 ? 'warning' : 'error'),
+        'data' => [
+            'uploaded' => $uploaded,
+            'errors' => $errors,
+            'saved_files' => array_slice($savedNames, 0, 20),
+            'build_required' => $response['build_required'] ?? false,
+            'reasons' => $upload_reasons,
+        ],
+    ]);
 }
 
 echo json_encode($response);

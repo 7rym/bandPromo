@@ -4,6 +4,7 @@
  * POST body: { target: "audio|cover|photos|video", filename: "..." }
  * Admin-only.
  */
+require_once __DIR__ . '/admin-audit.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -59,8 +60,20 @@ if (!file_exists($path)) {
 }
 
 if (!unlink($path)) {
+    bandpromo_admin_audit_log('media_deleted', [
+        'target_type' => 'media',
+        'target_id' => $target . '/' . $safe,
+        'status' => 'error',
+        'data' => ['error' => 'unlink failed'],
+    ]);
     echo json_encode(['error' => 'Could not delete file — check permissions']);
     exit;
 }
+
+bandpromo_admin_audit_log('media_deleted', [
+    'target_type' => 'media',
+    'target_id' => $target . '/' . $safe,
+    'status' => 'ok',
+]);
 
 echo json_encode(['ok' => true]);
