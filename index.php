@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cover'            => get_config('release.theme.cover',            '/media/special/bandPromo_cover.png'),
                 'welcome_audio'    => $welcomeAudio,
                 'loggedin_audio'   => $loggedinAudio,
-                'logo'             => get_config('release.brand.logo',             '/media/special/bandPromo_logo.png'),
+                'logo'             => get_config('install.brand.logo',             '/media/special/bandPromo_logo.png'),
             ]); ?>,
             social: {
                 share_image: <?php echo json_encode(get_config('release.brand.poster', '/media/special/bandPromo_share.png')); ?>
@@ -215,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php else: ?>
         <div class="login-container">
             <div class="logo">
-                <img src="<?php echo htmlspecialchars(get_config('release.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
+                <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
             </div>
             <p id="aboutThis"><a href="#" onclick="openInfoLightbox(event)">
                 <span class="about-line active">What is this?</span>

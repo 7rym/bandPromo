@@ -17,7 +17,7 @@ if (!file_exists($configFile)) {
     header('Location: /');
     exit;
 }
-$config = [];
+$playlistConfig = [];
 
 // Load site config for OG defaults
 $siteCfgFile = dirname(__DIR__) . '/web-config.json';
@@ -47,8 +47,8 @@ $ogImageWidth  = get_config('release.brand.poster_width', 1200);
 $ogImageHeight = get_config('release.brand.poster_height', 630);
 $ogUrl         = $baseUrl;
 
-$json   = file_get_contents($configFile);
-$config = json_decode($json, true) ?: [];
+$json = file_get_contents($configFile);
+$playlistConfig = json_decode($json, true) ?: [];
 
 $galleryItems = [];
 $galleryFile = dirname(__DIR__) . '/data/gallery.json';
@@ -71,9 +71,9 @@ if (file_exists($versionFile)) {
 if (isset($_GET['t'])) {
     $track = intval($_GET['t']);
     $index = max(0, $track - 1);
-    if ($index >= count($config)) $index = 0;
+    if ($index >= count($playlistConfig)) $index = 0;
 
-    $song = $config[$index];
+    $song = $playlistConfig[$index];
 
     $ogTitle = htmlspecialchars(preg_replace('/\s+/', ' ', $song['title']), ENT_QUOTES, 'UTF-8');
     $ogDescription = htmlspecialchars($song['artist'], ENT_QUOTES, 'UTF-8');
@@ -171,7 +171,7 @@ if (isset($_GET['t'])) {
 
     <div id="content-container">
         <div class="content-logo">
-            <img src="<?php echo htmlspecialchars(get_config('release.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
+            <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
         </div>
         <div class="content-toggle">
             <button class="active" onclick="toggleView('lyrics')">Lyrics</button>

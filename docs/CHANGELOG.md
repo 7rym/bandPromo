@@ -34,6 +34,16 @@ All notable changes to this project will be documented in this file.
   - Added `biblioteca/save-page.php` so editable HTML documents now save through a shared sanitized endpoint instead of a Bio-only path.
 
 ### Fixed
+- **2026-05-02 — Player logo now reads the runtime theme config instead of falling back to defaults**
+  - Fixed `play/index.php` so playlist JSON no longer overwrites the global runtime config array loaded by `config-loader.php`.
+  - This restores `get_config(...)` reads later in the player page, including the visible `content-logo`, so the player now follows the configured install logo instead of silently falling back to `bandPromo_logo.png`.
+  - The login page was already reading the correct logo; the bug was isolated to the authenticated player page variable collision.
+
+- **2026-05-02 — Public player and login now use the current install logo reliably**
+  - Updated `play/index.php` and `index.php` so the visible shell/logo uses `install.brand.logo` instead of the release-brand alias.
+  - This avoids migrated installs showing a stale release-level logo override after the operator updates the current theme/logo in admin.
+  - Kept release-level brand fields available for future scoped planning, while the current single-site shell now follows the install-level logo consistently.
+
 - **2026-05-02 — Admin JS parse error no longer breaks Users modals after Pages editor changes**
   - Repaired a corrupted handoff between the shared Pages editor logic and the Gallery editor block in `biblioteca/admin.js`.
   - This removes the frontend syntax error that prevented later admin helpers such as `openUserModal()` from being defined at runtime.
