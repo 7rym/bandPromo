@@ -1,7 +1,5 @@
 # bandPromo Roadmap
 
-Current version: v0.7 build 209
-
 This roadmap exists to keep bandPromo focused on stability, trustworthiness, and a clear progression from a private single-release platform to a reusable self-hosted artist platform.
 
 ## Product direction
@@ -48,7 +46,7 @@ Core features are part of every bandPromo install:
 - enhanced playlists with short informational summaries of the track contents
 - playback and behavior logging
 - analytics foundation
-- admin shell and content editing
+- admin UI for easy management and access to tools
 - build pipeline
 - media handling
 - release/content model
@@ -214,20 +212,21 @@ Trust-gate scope note for `v0.7`:
 ### 3. Reusability gate
 
 - a fresh install can be cloned into a new web folder
-- a new operator can configure branding and media without code surgery
-- the build pipeline can generate a functioning private release site from configuration and media
-- the practical source-media policy is documented: accepted inputs, `original`/`master`/`delivery` tiers, and what the platform can repair for weak source packages
+- setup docs and first-run flow are clear enough that a new install can be verified quickly
+- repeated deployments do not overwrite local runtime/operator-managed files
+- a new operator can configure branding, theme defaults, and install personalization without code surgery
+- install-vs-release identity boundaries are clear enough that the same platform can be reused for different branded deployments
 
 ### 4. Beta operator gate
 
 - help text and admin structure are understandable for non-technical testers
-- cache-busting and static asset refresh problems are handled
+- caching and update propagation are efficient and trustworthy: clients should reuse cached assets aggressively where safe, without getting stuck on stale shell/player/config artifacts
 - common setup and operation steps are documented well enough for trial use
 - weak source material can be uploaded, diagnosed, and repaired through understandable admin guidance instead of expert-only metadata tooling
+- operator-facing media repair/editing tools follow the locked media-handling policy instead of exposing raw tagging concepts first
 
 ### 5. User Friendliness gate
 
-- User-friendly tools for editing missing or invalid metatags in media files
 - Usable operator-facing editing for static pages (bio, FAQ, etc.)
 - Playlist editing
 - Gallery editing

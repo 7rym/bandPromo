@@ -11,6 +11,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 ## Key Conventions
 
 - Treat documentation as source-of-truth. If code and docs disagree, update docs in the same change.
+- When updating planning docs or TODO lists, order work from policy/cases/definitions first and implementation second. Keep sections conceptually coherent; do not let headings become mixed bags of unrelated tasks.
 - At the start of every session, check the active environment context first: OS, current shell, workspace root, available tasks, and language runtimes relevant to the task.
 - Choose commands and tooling that match the active session environment. On Windows + PowerShell sessions, prefer PowerShell-native commands and repo tasks/scripts; do not probe Bash/Linux command variants first unless the environment explicitly provides them or the task requires them.
 - Do not add runtime fallbacks that silently use example/template files in production paths.

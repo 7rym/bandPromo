@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Documentation
+- **2026-05-03 — Roadmap no longer tracks transient build numbers**
+  - Removed the `Current version: v0.7 build ...` header from `docs/ROADMAP.md` so the roadmap stays focused on product direction and milestones rather than repository build count.
+
+- **2026-05-03 — Roadmap/TODO cache language and gate taxonomy were aligned**
+  - Updated `docs/TODO.md` so the completion-rule guidance now matches the current practice of keeping completed policy items in place when they clarify ordering and dependencies.
+  - Replaced the old `cache-busting` wording in TODO/ROADMAP with the actual product goal: aggressive safe caching, low needless re-downloads, reliable update propagation, and offline-capable mobile behavior.
+  - Updated `docs/ROADMAP.md` so media repair/editing tools are framed under beta-operator/media-handling readiness rather than under the User Friendliness gate.
+
+- **2026-05-03 — TODO planning order is now explicitly policy-first**
+  - Updated `docs/TODO.md` to require definition work, real-world cases, and scope boundaries before implementation tasks.
+  - Updated `docs/AGENTS.md` so future planning/doc cleanups keep sections grouped by meaning instead of turning into mixed bags of decision work and coding work.
+
+- **2026-05-03 — Media handling TODO was reordered into policy-first work**
+  - Updated `docs/TODO.md` so the Media handling section now separates policy already locked in docs, policy still to define, and implementation follow-up.
+  - Marked the media-policy items already documented in `docs/MEDIA-HANDLING.md` as complete instead of leaving them as open thought work.
+  - Moved the stray `web-config` branch audit item back to Admin UX, where it reflects config/editor structure rather than media policy.
+
+- **2026-05-03 — Media handling section was broadened beyond the old gallery-deferred framing**
+  - Updated `docs/TODO.md` to rename `Media handling (deferred from v0.7 gallery work)` to `Media handling`, since the section now covers the full source-media, packaging, validation, repair, and file-management model.
+  - Moved the first file-manager metadata-tool and master-building-tool definition items out of `Beta operator readiness` and into `Media handling`, where they match the actual work.
+
+- **2026-05-03 — TODO gate headers now include scope guidance**
+  - Updated `docs/TODO.md` with short scope notes under each gate/section header so future tasks can be filed by meaning instead of implementation history.
+  - Added explicit classification guidance for Stability, Trust, Reusability, User Friendliness, Admin UX, Media handling, and Beta operator readiness.
+
+- **2026-05-03 — Checked TODO items were also reclassified to match gate intent**
+  - Updated `docs/TODO.md` so completed items are grouped by meaning, not by the section they happened to be implemented under.
+  - Moved metadata-warning visibility into Media handling, localhost setup verification into Reusability, and rewrote the quiz-removal item so it reflects Stability rather than module planning.
+  - Narrowed the checked asset-scope item in Reusability to install/release/track personalization concerns instead of broader media-role wording.
+
+- **2026-05-03 — Reusability gate was narrowed to deployment reuse and personalization**
+  - Updated `docs/TODO.md` so Reusability now focuses on reusable deployment/setup, first-run verification, and install-level theming/personalization concerns.
+  - Moved source-media policy, tier definitions, build regeneration rules, and metadata-validation behavior out of Reusability and into Media handling.
+  - Updated `docs/ROADMAP.md` so the Reusability gate is defined around reusable installs and branded deployments rather than operator media-repair policy.
+
+- **2026-05-03 — Admin UX dependency on media-handling policy is now explicit in TODO**
+  - Updated `docs/TODO.md` so the remaining metatag-repair Admin UX task is clearly marked as dependent on the media-handling validation policy being locked first.
+
+- **2026-05-03 — Media validation TODO items moved from Stability to Media handling**
+  - Updated `docs/TODO.md` so metadata warning prominence, validation severity policy, and operator-facing validation language are tracked under Media handling instead of Stability.
+  - This keeps Stability focused on delivery/runtime sturdiness while Media handling covers how administrators diagnose and repair weak source packages.
+
 - **2026-05-03 — VERSION bumping is now local-first instead of a post-push bot commit**
   - Added `scripts/bump_version.py` so the tracked build number can be incremented locally before pushing to `main`.
   - Updated `.github/workflows/version-bump.yml` to validate the `VERSION` file on push instead of creating a second remote-only commit.
