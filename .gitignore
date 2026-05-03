@@ -24,6 +24,10 @@ Desktop.ini
 *.swo
 *~
 
+# Local scanner/quarantine artifacts
+_avg_/
+**/_avg_/
+
 # Build & Dependencies
 __pycache__/
 *.pyc
@@ -87,6 +91,7 @@ media/icons/*
 !media/audio/original/
 !media/photo/original/
 !media/video/original/
+media/special/*
 !media/**/bandPromo_*
 # Special media dir itself must be tracked for the above rule to work
 !media/special/

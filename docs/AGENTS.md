@@ -11,6 +11,8 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 ## Key Conventions
 
 - Treat documentation as source-of-truth. If code and docs disagree, update docs in the same change.
+- At the start of every session, check the active environment context first: OS, current shell, workspace root, available tasks, and language runtimes relevant to the task.
+- Choose commands and tooling that match the active session environment. On Windows + PowerShell sessions, prefer PowerShell-native commands and repo tasks/scripts; do not probe Bash/Linux command variants first unless the environment explicitly provides them or the task requires them.
 - Do not add runtime fallbacks that silently use example/template files in production paths.
 - Runtime files are required and should fail loudly with actionable messages when missing.
 - Keep local-only files out of git (for example web-config.json, data files, .env, icons, manifests).
@@ -56,6 +58,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Accidentally tracking local files from `data/`, root config, or generated assets.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to pull after push, leaving local VERSION behind remote.
+- Reaching for Bash/Linux commands in a Windows PowerShell session before checking the active environment and available repo tasks.
 - Assuming ripgrep is available on every Windows environment.
 - Introducing non-UTF-8 encoded files that later cause garbled output in tools/logs.
 - Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
@@ -69,6 +72,6 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Ask for confirmation before destructive or wide-reaching repository operations.
 
 
-_Last updated: 2026-04-30_
+_Last updated: 2026-05-03_
 
 - **Python requirements:** `Pillow`, `mutagen`, `ffmpeg` (see [README.md](README.md))

@@ -191,6 +191,26 @@ Recent hardening completed (Apr 2026):
 - session logging is separated from playback logging well enough to avoid false conclusions
 - admin analytics match observed user behavior closely enough to be useful
 
+Current v0.7 playback/session analytics policy:
+
+- `play_start` starts a user play session when playback actually begins while no analytics session is active. It counts toward session totals, but it is still a session-boundary signal rather than proof of meaningful listening on its own.
+- `track_started` counts as a play attempt for track-level totals. It does not by itself contribute listening time, completion, skip, or quality-time metrics.
+- `track_resumed` is informational only for raw logs and future analysis. Current core analytics should not count it as a new play, session, or completed listen.
+- `track_exited` is the canonical playback progress event. It should carry the most reliable progress snapshot for natural endings, next/previous clicks, and playlist-driven interruptions.
+- `session_end` is the canonical session-boundary event. It always closes the current session summary, even when no track is active.
+- `session_end` may also carry active-track progress when the page closes during playback. When it includes a track snapshot with at least 5% completion, analytics may use that progress for listening-time and completion metrics.
+- Null-payload `session_end` entries are session-boundary records only. They must not increase plays, listening time, skip counts, or completion analysis.
+- Meaningful listening time currently comes only from progress-bearing `track_exited` and active-track `session_end` entries with at least 5% completion. The analytics layer must not infer listening time from idle gaps or from `track_started` alone.
+- Skip/completion analysis should treat `track_exited` as authoritative for exit reasons. `session_end` progress may inform completion totals, but it is not an explicit skip reason.
+- Current inactivity rule: if no music is playing for 15 minutes, the current analytics session should be ended without logging the user out.
+- A resumed listen after that 15-minute no-playback window should start a new analytics session with a fresh `play_start` event.
+- `inactive_start` and `session_timeout` are still future event names. In `v0.7`, the inactivity split is implemented by logging `session_end` at the 15-minute no-playback boundary rather than by introducing additional lifecycle events.
+
+Trust-gate scope note for `v0.7`:
+
+- Public/share metadata fallback cleanup is not a `v0.7` Trust blocker while bandPromo remains a closed authenticated system.
+- That work moves into the anonymous/public-access release track, where OG/share metadata correctness becomes user-facing outside authenticated playback.
+
 ### 3. Reusability gate
 
 - a fresh install can be cloned into a new web folder

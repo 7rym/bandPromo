@@ -50,6 +50,12 @@ let hasStartedCurrentTrack = false;
 let lastPlayLogAt = 0;
 let isUserSeeking = false;
 let lastSeekFinishedAt = 0;
+const ANALYTICS_INACTIVITY_TIMEOUT_MS = Number.isFinite(window.BANDPROMO_ANALYTICS_INACTIVITY_TIMEOUT_MS)
+    ? window.BANDPROMO_ANALYTICS_INACTIVITY_TIMEOUT_MS
+    : 15 * 60 * 1000;
+let analyticsSessionActive = false;
+let analyticsInactivityTimerId = null;
+let pendingPlayActionSource = null;
 
 // Debug Logout Function
 function debugLogout() {
@@ -109,6 +115,36 @@ function logTrackExit(exitReason, actionSource = null) {
         exitReason: exitReason,
         actionSource: actionSource
     }));
+}
+
+function clearAnalyticsInactivityTimer() {
+    if (analyticsInactivityTimerId !== null) {
+        window.clearTimeout(analyticsInactivityTimerId);
+        analyticsInactivityTimerId = null;
+    }
+}
+
+function ensureAnalyticsSession(actionSource = 'player') {
+    clearAnalyticsInactivityTimer();
+
+    if (analyticsSessionActive || playList.length === 0) {
+        return;
+    }
+
+    analyticsSessionActive = true;
+    logActivity('play_start', getCurrentTrackSnapshot({ actionSource }));
+}
+
+function scheduleAnalyticsSessionEnd() {
+    if (!analyticsSessionActive) {
+        return;
+    }
+
+    clearAnalyticsInactivityTimer();
+    analyticsInactivityTimerId = window.setTimeout(() => {
+        analyticsInactivityTimerId = null;
+        logSessionEnd({ actionSource: 'inactivity_timeout' });
+    }, ANALYTICS_INACTIVITY_TIMEOUT_MS);
 }
 
 // Get track number from URL parameter
@@ -219,6 +255,10 @@ drawVisualizer();
 audioPlayer.onplay = () => playBtn.innerText = "Pause";
 audioPlayer.onpause = () => playBtn.innerText = "Play";
 
+audioPlayer.addEventListener('pause', () => {
+    scheduleAnalyticsSessionEnd();
+});
+
 // guard using expected duration from config
 function checkExpected() {
     // Avoid auto-next checks while scrubbing and immediately after seek settles.
@@ -267,6 +307,10 @@ audioPlayer.addEventListener('error', e => {
 audioPlayer.addEventListener('play', () => {
     // Remove pulse guide when music actually starts (any source)
     removePulseGuide();
+
+    const actionSource = pendingPlayActionSource || 'player';
+    pendingPlayActionSource = null;
+    ensureAnalyticsSession(actionSource);
 
     // Some browsers fire repeated play events around seek/buffer transitions.
     // Debounce to prevent noisy duplicate track_resumed logs.
@@ -416,6 +460,7 @@ function triggerSongChange(direction) {
     setTimeout(() => {
         currentIndex = newIndex;
         setAudioSrc(playList[currentIndex].file);
+        pendingPlayActionSource = pendingPlayActionSource || (direction === 'next' ? 'auto_next' : 'auto_prev');
         
         // Update playlist highlight: remove 'current' from all items, add to new one
         const playlistItems = document.querySelectorAll('.playlist-item');
@@ -438,22 +483,22 @@ function triggerSongChange(direction) {
 function nextSong() {
     if (isChangingSong) return;
     logTrackExit('next_click', 'button');
+    pendingPlayActionSource = 'button';
     triggerSongChange('next');
 }
 
 function prevSong() {
     if (isChangingSong) return;
     logTrackExit('prev_click', 'button');
+    pendingPlayActionSource = 'button';
     triggerSongChange('prev');
 }
 
 function togglePlay() {
     if (playList.length === 0) return;
     if (audioPlayer.paused) {
+        pendingPlayActionSource = 'button';
         audioPlayer.play().catch(e => console.error(e));
-        logActivity('play_start', {
-            ...getCurrentTrackSnapshot({ actionSource: 'button' })
-        });
     } else {
         audioPlayer.pause();
         logActivity('play_pause', {
@@ -561,6 +606,7 @@ function playTrackFromPlaylist(index) {
         currentIndex = index;
         updateVisuals(currentIndex);
         setAudioSrc(playList[currentIndex].file);
+        pendingPlayActionSource = 'playlist';
         audioPlayer.play().catch(e => {
             // Autoplay error silently
         });
@@ -654,31 +700,50 @@ function determineQuality() {
     loadConfig();
 })();
 
-// Log session_end once when the page is actually being unloaded.
+// Log session_end when the page unloads or when analytics inactivity ends the current session.
 // Only include track progress if audio is actively playing at shutdown.
-let sessionEndLogged = false;
-
-function logSessionEnd() {
-    if (sessionEndLogged || playList.length === 0) return;
-    sessionEndLogged = true;
+function buildSessionEndData(actionSource, includeTrackProgress) {
+    if (!includeTrackProgress) {
+        return { actionSource };
+    }
 
     const isActivelyPlaying = !audioPlayer.paused && !audioPlayer.ended && audioPlayer.currentTime > 0;
-    const duration = isActivelyPlaying ? (audioPlayer.duration || playList[currentIndex]?.duration || null) : null;
-    const currentTime = isActivelyPlaying ? audioPlayer.currentTime : null;
+    if (!isActivelyPlaying) {
+        return { actionSource };
+    }
+
+    return getCurrentTrackSnapshot({ actionSource });
+}
+
+function logSessionEnd({ actionSource = 'pagehide', useBeacon = false } = {}) {
+    if (!analyticsSessionActive || playList.length === 0) return;
+
+    analyticsSessionActive = false;
+    clearAnalyticsInactivityTimer();
+
+    const trackData = buildSessionEndData(actionSource, true);
+
+    if (!useBeacon) {
+        logActivity('session_end', trackData);
+        return;
+    }
+
     const payload = JSON.stringify({
         activity: 'session_end',
         data: {
-            track_title: isActivelyPlaying ? (playList[currentIndex]?.title || null) : null,
-            track_artist: isActivelyPlaying ? (playList[currentIndex]?.artist || null) : null,
-            track_index: isActivelyPlaying ? currentIndex : null,
-            current_time: currentTime,
-            duration: duration,
+            track_title: trackData.title || null,
+            track_artist: trackData.artist || null,
+            track_index: trackData.index ?? null,
+            current_time: trackData.currentTime || null,
+            duration: trackData.duration || null,
             quality: PATH_VARIANT || 'unknown',
-            completion_rate: isActivelyPlaying && duration ? Math.round((currentTime / duration) * 100) : null
+            completion_rate: trackData.completionRate || null,
+            action_source: trackData.actionSource || null,
+            exit_reason: null
         }
     });
     navigator.sendBeacon('/biblioteca/log.php?action=log', new Blob([payload], { type: 'application/json' }));
 }
 
-window.addEventListener('beforeunload', logSessionEnd);
-window.addEventListener('pagehide', logSessionEnd);
+window.addEventListener('beforeunload', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
+window.addEventListener('pagehide', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));

@@ -23,6 +23,28 @@ class PlaybackAnalytics {
             || in_array($entry['activity'], ['track_ended', 'track_change_next', 'track_change_prev', 'track_interrupted'], true);
     }
 
+    private function isTrackProgressEvent($entry) {
+        if ($this->isTrackExitEvent($entry)) {
+            return true;
+        }
+
+        return $entry['activity'] === 'session_end'
+            && !empty($entry['data']['track_title'])
+            && !empty($entry['data']['current_time']);
+    }
+
+    private function getMeaningfulListeningSeconds($entry) {
+        if (!$this->isTrackProgressEvent($entry)) {
+            return 0;
+        }
+
+        if ((int)($entry['data']['completion_rate'] ?? 0) < 5) {
+            return 0;
+        }
+
+        return (int)($entry['data']['current_time'] ?? 0);
+    }
+
     private function getTrackExitReason($entry) {
         if ($entry['activity'] === 'track_exited') {
             return $entry['data']['exit_reason'] ?? null;
@@ -36,6 +58,22 @@ class PlaybackAnalytics {
             default => null,
         };
     }
+
+    /**
+     * @param array<string,int> $counters
+     */
+    private function incrementCounter(array &$counters, string $key): void {
+        $counters[$key] = (int)($counters[$key] ?? 0) + 1;
+    }
+
+    /**
+     * @param array<string,array{original:int,lq:int}> $byDevice
+     */
+    private function ensureQualityDeviceBucket(array &$byDevice, string $device): void {
+        if (!isset($byDevice[$device])) {
+            $byDevice[$device] = ['original' => 0, 'lq' => 0];
+        }
+    }
     
     /**
      * Get listening time for a user (in seconds)
@@ -45,11 +83,7 @@ class PlaybackAnalytics {
         $listeningTime = 0;
         
         foreach ($entries as $entry) {
-            if ($this->isTrackExitEvent($entry)) {
-                if ((int)($entry['data']['completion_rate'] ?? 0) >= 5) {
-                    $listeningTime += (int)($entry['data']['current_time'] ?? 0);
-                }
-            }
+            $listeningTime += $this->getMeaningfulListeningSeconds($entry);
         }
         
         return $listeningTime;
@@ -89,19 +123,15 @@ class PlaybackAnalytics {
             }
             
             // Accumulate actual listening time from end events (>= 5% completion to exclude accidental taps)
-            if ($this->isTrackExitEvent($entry)) {
-                if ((int)($entry['data']['completion_rate'] ?? 0) >= 5) {
-                    $users[$username]['listening_time'] += (int)($entry['data']['current_time'] ?? 0);
-                }
-            }
+            $users[$username]['listening_time'] += $this->getMeaningfulListeningSeconds($entry);
             
             // Track devices
             if (!empty($entry['user_agent'])) {
                 $device = $this->getDeviceType($entry['user_agent']);
-                if (!isset($users[$username]['devices'][$device])) {
-                    $users[$username]['devices'][$device] = 0;
-                }
-                $users[$username]['devices'][$device]++;
+                /** @var array<string,int> $deviceCounts */
+                $deviceCounts = $users[$username]['devices'];
+                $this->incrementCounter($deviceCounts, $device);
+                $users[$username]['devices'] = $deviceCounts;
             }
         }
         
@@ -122,7 +152,7 @@ class PlaybackAnalytics {
         
         
         foreach ($entries as $entry) {
-            if ($this->isTrackExitEvent($entry) && isset($entry['data']['track_title'])) {
+            if ($this->isTrackProgressEvent($entry) && isset($entry['data']['track_title'])) {
                 // Ignore accidental plays under 5% completion
                 if ((int)($entry['data']['completion_rate'] ?? 0) < 5) continue;
                 
@@ -230,28 +260,38 @@ class PlaybackAnalytics {
             }
             
             // Listening time
-            if ($entry['activity'] === 'track_started' && isset($entry['data']['duration'])) {
+            if ($entry['activity'] === 'track_started' && isset($entry['data']['track_title'])) {
                 $stats['total_plays']++;
-                $stats['total_listening_time'] += (int)$entry['data']['duration'];
             }
+
+            $stats['total_listening_time'] += $this->getMeaningfulListeningSeconds($entry);
             
             // Device tracking
             if (!empty($entry['user_agent'])) {
                 $device = $this->getDeviceType($entry['user_agent']);
-                $stats['device_breakdown'][$device] = ($stats['device_breakdown'][$device] ?? 0) + 1;
+                /** @var array<string,int> $deviceBreakdown */
+                $deviceBreakdown = $stats['device_breakdown'];
+                $this->incrementCounter($deviceBreakdown, $device);
+                $stats['device_breakdown'] = $deviceBreakdown;
             }
 
             // Quality distribution: use real data.quality when available
             $logged = strtoupper(trim($entry['data']['quality'] ?? ''));
             $quality = ($logged === 'ORIGINAL' || $logged === 'HQ' || $logged === 'LQ' || $logged === 'OPTIMAL') ? (($logged === 'LQ' || $logged === 'OPTIMAL') ? 'LQ' : 'ORIGINAL') : $this->inferQuality($entry['user_agent'] ?? '');
-            $stats['quality_estimate'][$quality] = ($stats['quality_estimate'][$quality] ?? 0) + 1;
+            /** @var array<string,int> $qualityEstimate */
+            $qualityEstimate = $stats['quality_estimate'];
+            $this->incrementCounter($qualityEstimate, $quality);
+            $stats['quality_estimate'] = $qualityEstimate;
             
             // Time distribution
             $hour = (int)date('H', strtotime($entry['timestamp']));
             $stats['hourly_distribution'][$hour] = ($stats['hourly_distribution'][$hour] ?? 0) + 1;
             
             $day = date('Y-m-d', strtotime($entry['timestamp']));
-            $stats['daily_distribution'][$day] = ($stats['daily_distribution'][$day] ?? 0) + 1;
+            /** @var array<string,int> $dailyDistribution */
+            $dailyDistribution = $stats['daily_distribution'];
+            $this->incrementCounter($dailyDistribution, $day);
+            $stats['daily_distribution'] = $dailyDistribution;
         }
         
         // Convert unique users to count
@@ -296,9 +336,10 @@ class PlaybackAnalytics {
             
             if ($entry['activity'] === 'track_started') {
                 $trends[$date]['plays']++;
-                $trends[$date]['listening_time'] += (int)($entry['data']['duration'] ?? 0);
                 $trends[$date]['unique_users'][$entry['username']] = true;
             }
+
+            $trends[$date]['listening_time'] += $this->getMeaningfulListeningSeconds($entry);
         }
         
         foreach ($trends as &$day) {
@@ -345,6 +386,13 @@ class PlaybackAnalytics {
                         'duration' => $duration
                     ];
                 }
+
+                $currentSession['total_time'] += $this->getMeaningfulListeningSeconds($entry);
+
+                if ($entry['activity'] === 'session_end') {
+                    $sessions[] = $currentSession;
+                    $currentSession = null;
+                }
             }
         }
         
@@ -374,9 +422,10 @@ class PlaybackAnalytics {
 
         foreach ($entries as $entry) {
             $device = $this->getDeviceType($entry['user_agent'] ?? '');
-            if (!isset($stats['by_device'][$device])) {
-                $stats['by_device'][$device] = ['original' => 0, 'lq' => 0];
-            }
+            /** @var array<string,array{original:int,lq:int}> $byDevice */
+            $byDevice = $stats['by_device'];
+            $this->ensureQualityDeviceBucket($byDevice, $device);
+            $stats['by_device'] = $byDevice;
 
             // Prefer real quality field; fall back to user-agent inference for legacy entries
             $logged = strtoupper(trim($entry['data']['quality'] ?? ''));
@@ -393,15 +442,15 @@ class PlaybackAnalytics {
 
             $key = strtolower($quality);
             $stats[$key]++;
-            $stats['by_device'][$device][$key]++;
+            /** @var array<string,array{original:int,lq:int}> $byDevice */
+            $byDevice = $stats['by_device'];
+            $this->ensureQualityDeviceBucket($byDevice, $device);
+            $byDevice[$device][$key] = (int)($byDevice[$device][$key] ?? 0) + 1;
+            $stats['by_device'] = $byDevice;
 
             // Accumulate actual listening time from end-events (>= 5% completion)
-            if ($this->isTrackExitEvent($entry)) {
-                if ((int)($entry['data']['completion_rate'] ?? 0) >= 5) {
-                    $listenKey = $key . '_listening_time';
-                    $stats[$listenKey] += (int)($entry['data']['current_time'] ?? 0);
-                }
-            }
+            $listenKey = $key . '_listening_time';
+            $stats[$listenKey] += $this->getMeaningfulListeningSeconds($entry);
         }
 
         return $stats;
@@ -416,7 +465,7 @@ class PlaybackAnalytics {
         
         foreach ($entries as $entry) {
             // Count track_ended, track_change_next, and track_interrupted as play attempts
-            if ($this->isTrackExitEvent($entry) && isset($entry['data']['track_title'])) {
+            if ($this->isTrackProgressEvent($entry) && isset($entry['data']['track_title'])) {
                 $completionRate = (int)($entry['data']['completion_rate'] ?? 0);
                 // Ignore accidental taps (< 5% completion)
                 if ($completionRate < 5) continue;
@@ -673,5 +722,19 @@ class PlaybackAnalytics {
      */
     public static function formatHours($seconds) {
         return round((int)$seconds / 3600, 1);
+    }
+
+    /**
+     * Format seconds for stat cards using a human-useful unit.
+     * Returns [value, unit].
+     */
+    public static function formatTimeStat($seconds) {
+        $seconds = (int)$seconds;
+
+        if ($seconds >= 3600) {
+            return [self::formatHours($seconds), 'hours'];
+        }
+
+        return [self::formatSeconds($seconds), 'm:ss'];
     }
 }

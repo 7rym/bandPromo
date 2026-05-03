@@ -525,9 +525,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
             <?php if ($analyticsTab === 'dashboard'): ?>
             <?php renderFilterBar('analytics', $dateStart, $dateEnd); ?>
+            <?php [$dashboardListeningValue, $dashboardListeningUnit] = PlaybackAnalytics::formatTimeStat($platformStats['total_listening_time']); ?>
             <div class="stats-grid">
                 <?php renderStatCard('Total Plays',    number_format($platformStats['total_plays'])); ?>
-                <?php renderStatCard('Listening Time', PlaybackAnalytics::formatHours($platformStats['total_listening_time']), 'hours'); ?>
+                <?php renderStatCard('Listening Time', $dashboardListeningValue, $dashboardListeningUnit); ?>
                 <?php renderStatCard('Active Users',   number_format((int)$platformStats['unique_users'])); ?>
                 <?php renderStatCard('Play Sessions',  number_format($platformStats['total_sessions'])); ?>
             </div>
@@ -646,6 +647,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php
                 $total   = $qualityStats['real_data_entries'] + $qualityStats['inferred_entries'];
                 $realPct = $total > 0 ? round($qualityStats['real_data_entries'] / $total * 100) : 0;
+                [$originalListenValue, $originalListenUnit] = PlaybackAnalytics::formatTimeStat($qualityStats['original_listening_time']);
+                [$optimizedListenValue, $optimizedListenUnit] = PlaybackAnalytics::formatTimeStat($qualityStats['lq_listening_time']);
             ?>
             <p class="hint">
                 Quality sourced from player logs (direct).
@@ -659,8 +662,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="stats-grid">
                 <?php renderStatCard('Original', number_format($qualityStats['original'])); ?>
                 <?php renderStatCard('Optimized', number_format($qualityStats['lq'])); ?>
-                <?php renderStatCard('Original Listen Time', PlaybackAnalytics::formatHours($qualityStats['original_listening_time']), 'hours'); ?>
-                <?php renderStatCard('Optimized Listen Time', PlaybackAnalytics::formatHours($qualityStats['lq_listening_time']), 'hours'); ?>
+                <?php renderStatCard('Original Listen Time', $originalListenValue, $originalListenUnit); ?>
+                <?php renderStatCard('Optimized Listen Time', $optimizedListenValue, $optimizedListenUnit); ?>
             </div>
             <div class="section">
                 <h2>Quality Breakdown by Device</h2>

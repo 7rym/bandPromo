@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-04-30
 
+### Documentation
+- **2026-05-03 — Agent guidance now requires session environment preflight**
+  - Updated `docs/AGENTS.md` to require an environment check at the start of each session, covering OS, shell, workspace context, available tasks, and relevant runtimes.
+  - Added explicit guidance to prefer PowerShell-native commands and repo tasks in Windows sessions instead of probing Bash/Linux commands first.
+
+- **2026-05-03 — Trust policy now defines how playback and session events should be interpreted**
+  - Added a canonical v0.7 playback/session analytics policy to `docs/ROADMAP.md`, covering `play_start`, `track_started`, `track_resumed`, `track_exited`, and `session_end` semantics.
+  - Locked the current rule that only progress-bearing `track_exited` and active-track `session_end` entries contribute listening-time/completion metrics, while null `session_end` records remain session-boundary only.
+  - Documented that `inactive_start` and `session_timeout` remain future events until explicit idle-detection rules are implemented.
+
+- **2026-05-03 — Share-metadata fallback cleanup moved out of the v0.7 Trust gate**
+  - Updated `docs/TODO.md` so hardcoded player/share fallback metadata is no longer tracked as a current Trust blocker.
+  - Updated `docs/ROADMAP.md` to treat that cleanup as part of the later anonymous/public-access release track, where share metadata becomes externally user-facing.
+
+### Fixed
+- **2026-05-03 — Local uploads and scanner artifact folders are ignored correctly**
+  - Updated `.gitignore` so arbitrary user-uploaded files under `media/special/` stay local by default, while bundled `bandPromo_*` placeholder assets remain tracked.
+  - Added ignore rules for `_avg_` antivirus/scanner artifact folders so they cannot appear as accidental repo changes.
+
+- **2026-05-03 — Analytics parser now understands current `session_end` and `track_exited` behavior**
+  - Updated `biblioteca/analytics.php` so listening-time metrics use actual progress events instead of the old `track_started.duration` assumption, which no longer matches recent logs.
+  - Session summaries now close on `session_end`, preventing long idle gaps from being merged into the previous play session.
+  - Dashboard/trend/completion stats now count meaningful `session_end` track progress alongside normalized `track_exited` events.
+
+- **2026-05-03 — Analytics sessions now split after 15 minutes without playback**
+  - Updated `biblioteca/player.js` so analytics sessions follow actual playback starts, not just the play button, which also fixes missed session starts from playlist taps or resumed playback after interruptions.
+  - Added a 15-minute no-playback timer that logs `session_end` for analytics only, without logging the user out.
+  - A later resume now opens a fresh analytics session with a new `play_start`, matching the documented Trust policy.
+  - Added a dev-only browser override for the inactivity threshold so the real timeout path can be exercised in seconds during local verification without changing the production default.
+
+- **2026-05-03 — Short analytics windows no longer render as `0 hours` in admin**
+  - Updated the Analytics dashboard and Quality stat cards so short listening totals render as `m:ss` instead of rounding down to `0 hours`.
+  - This keeps quick trust-verification windows readable while still switching to hour-based display for longer totals.
+
 ### Added
 - **2026-05-02 — Documentation tab now separates operator docs from developer docs**
   - Added a first-class `developer` user role so documentation visibility can follow an actual role instead of a hardcoded file list shown to everyone.

@@ -37,10 +37,9 @@ Reference: see `ROADMAP.md` for the full milestone and release structure.
 
 ### Trust
 
-- [ ] Review raw logs after the normalized `track_exited` change and confirm events match real behavior.
-- [ ] Verify analytics views still interpret old and new log formats correctly.
-- [ ] Decide final policy for `session_end`, inactivity tracking, and future `session_timeout` / `inactive_start` events.
-- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults.
+- [x] Review raw logs after the normalized `track_exited` change and confirm events match real behavior.
+- [x] Verify analytics views still interpret old and new log formats correctly.
+- [x] Decide final policy for `session_end`, inactivity tracking, and future `session_timeout` / `inactive_start` events.
 
 ### Reusability
 
@@ -125,6 +124,7 @@ Admin UX note: metadata repair belongs to media handling and operator readiness 
 
 - [ ] Define the `v0.8` multi-release data model.
 - [ ] Define anonymous vs registered access levels.
+- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access is introduced.
 - [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
 - [ ] Design the first theme/config structure.
 - [ ] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and a narrow first-party block set.
