@@ -25,8 +25,9 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 ### VERSION + push/pull workflow
 
-- VERSION is auto-bumped by GitHub Actions on push to main.
-- After each push, wait for Actions to finish, then pull once so local matches remote VERSION.
+- Bump `VERSION` locally before pushing to `main` with `python scripts/bump_version.py`.
+- Commit the VERSION change together with the work being pushed so local and remote stay aligned.
+- CI validates the VERSION format on push, but it does not create a follow-up bot commit anymore.
 - Do not batch unrelated manual VERSION edits into feature commits unless explicitly requested.
 
 ## Build/Test Commands
@@ -57,7 +58,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 - Accidentally tracking local files from `data/`, root config, or generated assets.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
-- Forgetting to pull after push, leaving local VERSION behind remote.
+- Forgetting to bump `VERSION` before pushing changes to `main`.
 - Reaching for Bash/Linux commands in a Windows PowerShell session before checking the active environment and available repo tasks.
 - Assuming ripgrep is available on every Windows environment.
 - Introducing non-UTF-8 encoded files that later cause garbled output in tools/logs.

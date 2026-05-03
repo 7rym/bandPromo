@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Documentation
+- **2026-05-03 — VERSION bumping is now local-first instead of a post-push bot commit**
+  - Added `scripts/bump_version.py` so the tracked build number can be incremented locally before pushing to `main`.
+  - Updated `.github/workflows/version-bump.yml` to validate the `VERSION` file on push instead of creating a second remote-only commit.
+  - Updated `README.md` and `docs/AGENTS.md` to document the new local-first versioning workflow.
+
 - **2026-05-03 — Agent guidance now requires session environment preflight**
   - Updated `docs/AGENTS.md` to require an environment check at the start of each session, covering OS, shell, workspace context, available tasks, and relevant runtimes.
   - Added explicit guidance to prefer PowerShell-native commands and repo tasks in Windows sessions instead of probing Bash/Linux commands first.
