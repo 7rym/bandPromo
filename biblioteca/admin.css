@@ -1499,6 +1499,17 @@ canvas { max-width: 100%; height: auto; }
     margin-top: 14px;
 }
 
+.card-grid.two-up {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.card-grid.two-up .card {
+    margin-bottom: 0;
+}
+
 .social-form-full {
     grid-column: 1 / -1;
 }
@@ -1567,6 +1578,7 @@ canvas { max-width: 100%; height: auto; }
     .social-form-full { grid-column: 1; }
     .config-form-grid { grid-template-columns: 1fr; }
     .config-form-full { grid-column: 1; }
+    .card-grid.two-up { grid-template-columns: 1fr; }
     .asset-picker-control {
         flex-direction: column;
         align-items: stretch;

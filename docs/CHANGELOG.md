@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Added
+- **2026-05-09 — Admin panel now includes an operator-facing welcome page**
+  - Added a new Welcome tab to `admin.php` with operator-focused overview copy about the platform's purpose, strategic value, and safety boundaries.
+  - Made the Welcome tab the default admin landing page so operators arrive in the product vision before drilling into analytics or configuration tasks.
+
 - **2026-05-09 — Support settings are now config-driven instead of Ko-fi-hardcoded**
   - Added a new `support` config branch plus a `Config -> Support` admin form for operator-owned support links and the optional Ko-fi floating widget.
   - Replaced the hardcoded Ko-fi widget in `play/index.php` with config-driven rendering so the player now uses saved support settings instead of embedded values.

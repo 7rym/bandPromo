@@ -288,9 +288,9 @@ $users = getAllUsers();
 $currentUserRole = getUserRole($_SESSION['username'] ?? '');
 
 // Primary tab
-$tab = $_GET['tab'] ?? 'analytics';
-if (!in_array($tab, ['analytics', 'audit', 'users', 'files', 'content', 'config', 'build', 'docs'])) {
-    $tab = 'analytics';
+$tab = $_GET['tab'] ?? 'welcome';
+if (!in_array($tab, ['welcome', 'analytics', 'audit', 'users', 'files', 'content', 'config', 'build', 'docs'])) {
+    $tab = 'welcome';
 }
 
 // Files sub-tab
@@ -408,6 +408,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
         <!-- Primary Tab Navigation -->
         <div class="tabs primary-tabs">
+            <?php renderTabLink('welcome',   $tab, '🌍', 'Welcome'); ?>
             <?php renderTabLink('analytics', $tab, '📊', 'Analytics'); ?>
             <?php renderTabLink('audit',     $tab, '🛡️', 'Audit'); ?>
             <?php renderTabLink('users',     $tab, '👥', 'Users'); ?>
@@ -416,6 +417,60 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php renderTabLink('config',    $tab, '⚙️', 'Config'); ?>
             <?php renderTabLink('build',     $tab, '🔨', 'Build'); ?>
             <?php renderTabLink('docs',      $tab, '📚', 'Documentation'); ?>
+        </div>
+
+        <!-- ===================== WELCOME TAB ===================== -->
+        <div class="tab-content <?php echo $tab === 'welcome' ? 'active' : ''; ?>">
+            <div class="tabs sub-tabs">
+                <button class="help-toggle-btn collapsed" id="helpBtn-welcome" onclick="toggleHelp('welcome')" title="Show/hide help">ⓘ</button>
+            </div>
+            <div class="admin-help-box collapsed" id="help-welcome">
+                Welcome is the operator-facing overview. Use it to remember the bigger purpose of the platform: you are not just filling out forms, you are building a durable home base for music, audience connection, and long-term operator control.
+            </div>
+
+            <div class="card">
+                <h2>🌍 Welcome to bandPromo</h2>
+                <p class="card-note">
+                    bandPromo is built for operators who want more than another profile on someone else's platform. It gives you a professional, self-hosted home base where your presentation, your audience relationship, and your support paths stay under your control.
+                </p>
+            </div>
+
+            <div class="card-grid two-up">
+                <div class="card">
+                    <h3>What You Are Building</h3>
+                    <p>
+                        You are building a place where music, identity, story, private access, release context, and supporter pathways can live together. Instead of scattering your audience across services that each control one piece of the relationship, bandPromo helps you bring those pieces back into one operator-owned experience.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>Why It Matters</h3>
+                    <p>
+                        Smaller artists and operators often lose both attention and control on larger platforms. bandPromo exists to push in the opposite direction: clearer presentation, closer fan connection, better reuse of your own work, and more freedom to decide how public, private, promotional, or supporter-focused each experience should be.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>How It Can Create Value</h3>
+                    <p>
+                        The platform helps you turn a site into a working music operation: release pages, private listening, supporter links, premium or registered access paths, promotion workflows, and future service layers that can support better campaigns, better operator tooling, and stronger direct audience relationships.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>Why Operators Can Trust It</h3>
+                    <p>
+                        bandPromo is designed to stay out of the riskiest roles by default. It does not aim to become your payment processor, rights authority, or legal decision-maker. Support flows stay operator-owned, and responsibilities for rights, payouts, compliance, and external provider terms stay with the operator. That keeps the platform safer, clearer, and easier to grow responsibly.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>You Are Part of a Bigger Shift</h3>
+                <p>
+                    bandPromo is not trying to copy the largest platforms. It is part of a larger movement toward artist-owned presence, direct audience connection, reusable promotion tools, and healthier operator control. Every install that is run well helps prove that music sites can be more independent, more durable, and more human-centered than the platform-first model.
+                </p>
+            </div>
         </div>
 
         <!-- ===================== AUDIT TAB ===================== -->
