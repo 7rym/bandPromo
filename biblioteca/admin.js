@@ -1591,6 +1591,59 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             })();
 
+            // ── Support: link/widget branch form ────────────────────────────
+            (function () {
+                const cfgSupportFullSource = document.getElementById('cfgSupportFullSource');
+                const cfgSupportSaveBtn = document.getElementById('cfgSupportSaveBtn');
+                const cfgSupportStatus = document.getElementById('cfgSupportStatus');
+                if (!cfgSupportSaveBtn) return;
+
+                cfgSupportSaveBtn.addEventListener('click', async () => {
+                    cfgSupportStatus.textContent = 'Saving…';
+                    cfgSupportStatus.style.color = '#aaa';
+
+                    let fullConfig;
+                    try {
+                        fullConfig = parseAdminConfigSource(cfgSupportFullSource);
+                    } catch (e) {
+                        cfgSupportStatus.textContent = '❌ ' + e.message;
+                        cfgSupportStatus.style.color = '#f55';
+                        return;
+                    }
+
+                    fullConfig.support = assignConfigFields(fullConfig.support, {
+                        enabled: !!document.getElementById('cfg_support_enabled')?.checked,
+                        mode: (document.getElementById('cfg_support_mode')?.value || 'link').trim(),
+                        label: (document.getElementById('cfg_support_label')?.value || '').trim(),
+                        url: (document.getElementById('cfg_support_url')?.value || '').trim(),
+                        kofi_page_id: (document.getElementById('cfg_support_kofi_page_id')?.value || '').trim(),
+                        button_background_color: (document.getElementById('cfg_support_button_background_color')?.value || '').trim(),
+                        button_text_color: (document.getElementById('cfg_support_button_text_color')?.value || '').trim(),
+                    });
+
+                    try {
+                        const payload = JSON.stringify(fullConfig, null, 4);
+                        const resp = await fetch('/biblioteca/save-config-raw.php?branch=support', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: payload,
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            cfgSupportFullSource.value = payload;
+                            cfgSupportStatus.textContent = '✅ Saved';
+                            cfgSupportStatus.style.color = 'var(--success, #4ade80)';
+                        } else {
+                            cfgSupportStatus.textContent = '❌ ' + (data.error || 'Unknown error');
+                            cfgSupportStatus.style.color = '#f55';
+                        }
+                    } catch (e) {
+                        cfgSupportStatus.textContent = '❌ Network error: ' + e.message;
+                        cfgSupportStatus.style.color = '#f55';
+                    }
+                });
+            })();
+
             // ── Social form ───────────────────────────────────────────────────
             (function () {
                 const fields = {

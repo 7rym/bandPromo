@@ -633,6 +633,8 @@ bandPromo should not become the payment flow by default.
 
 The safest model is for payments, donations, purchases, subscriptions, and tips to go directly through services controlled by the operator. bandPromo may provide buttons, embeds, links, metadata, or integration points, but should avoid holding funds, splitting revenue, storing payout details, or becoming a payment intermediary unless a future version intentionally accepts the legal and operational burden of doing so.
 
+If future support, membership, or premium-access features need provider-side verification or synchronization, bandPromo should treat that as an operator-owned integration layer for services such as Ko-fi, Patreon, Stripe, PayPal, Vipps, or similar APIs. That layer should stay provider-agnostic where practical, remain optional per installation, and be designed after the anonymous vs registered vs premium access model is defined clearly enough to know what bandPromo is actually enforcing.
+
 bandPromo should not become a central discovery catalog.
 
 A central catalog would change the project’s role. It could create moderation, ranking, takedown, spam, copyright, and platform-governance obligations. If discovery features are ever considered, they should be treated as a separate strategic decision with a much higher risk profile.

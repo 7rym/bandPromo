@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-04-30
 
+### Added
+- **2026-05-09 — Support settings are now config-driven instead of Ko-fi-hardcoded**
+  - Added a new `support` config branch plus a `Config -> Support` admin form for operator-owned support links and the optional Ko-fi floating widget.
+  - Replaced the hardcoded Ko-fi widget in `play/index.php` with config-driven rendering so the player now uses saved support settings instead of embedded values.
+  - Added support defaults to the config loader and template, while keeping new installs disabled by default and preserving the current demo behavior through `web-config.json`.
+
 ### Documentation
+- **2026-05-09 — Future support-provider API work was recorded in planning docs**
+  - Updated `docs/ROADMAP.md` to state that any later Ko-fi/Patreon/Stripe/PayPal/Vipps-style API use should sit behind an optional, operator-owned integration layer rather than turning bandPromo into the payment flow.
+  - Updated `docs/TODO.md` so the anonymous/registered/premium access discussion explicitly includes deciding whether later provider APIs need a reusable integration layer.
+
 - **2026-05-04 — Operator responsibility document was written instead of remaining a placeholder**
   - Replaced the stub content in `docs/OPERATOR-RESPONSIBILITY.md` with a real operator-boundary document.
   - Clarified responsibility split for content rights, hosting, security, privacy, integrations, media publication decisions, moderation, and support boundaries.

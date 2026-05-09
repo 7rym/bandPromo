@@ -67,7 +67,6 @@ Scope: end-user and operator usability at the interaction level. Put items here 
 - [x] Test view at 431–767px (large mobile/small tablet) with vertical layout and --card-size: 400px
 - [x] Test view at 768–1365px (tablet/small laptop) with grid and --card-size: 430px
 - [x] Test view at >=1366px (desktop) with grid and --card-size: 600px
-- [ ] Ensure all these features are working and accessible before closing v0.7
 - [ ] Test and improve landscape orientation on mobile (360–430px wide, ~360–430px tall): layout likely needs a horizontal/grid split similar to tablet view rather than the current vertical stack
 - [ ] Test landscape on large mobile/small tablet (431–767px wide in landscape): confirm grid layout triggers correctly or add a dedicated landscape breakpoint
 - [ ] Consider using `orientation: landscape` media queries to switch mobile views to a two-column layout when height is constrained
@@ -147,6 +146,7 @@ Scope: first real tester/operator experience. Put items here when they concern h
 
 - [ ] Define the `v0.8` multi-release data model.
 - [ ] Define anonymous vs registered access levels.
+- [ ] Define how support/payment providers fit the future access model: keep v0.7 support links/widgets config-driven, then decide later whether Ko-fi/Patreon/Stripe/PayPal/Vipps-style APIs need a reusable provider integration layer for registered or premium access rules.
 - [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access is introduced.
 - [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
 - [ ] Design the first theme/config structure.

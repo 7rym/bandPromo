@@ -19,6 +19,15 @@
     "share_image_width": 1200,
     "share_image_height": 630
   },
+  "support": {
+    "enabled": false,
+    "mode": "link",
+    "label": "Support",
+    "url": "",
+    "kofi_page_id": "",
+    "button_background_color": "#323842",
+    "button_text_color": "#ffffff"
+  },
   "media": {
     "background_video": "/media/special/bandPromo_background.mp4",
     "background_image": "/media/special/bandPromo_background.png",

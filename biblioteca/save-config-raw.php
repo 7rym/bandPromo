@@ -182,6 +182,22 @@ if ($branch === 'media') {
     exit;
 }
 
+if ($branch === 'support') {
+    bandpromo_admin_audit_log('config_saved', [
+        'target_type' => 'config',
+        'target_id' => 'web-config.json:support',
+        'status' => 'ok',
+        'data' => ['build_required' => false],
+    ]);
+    echo json_encode([
+        'ok' => true,
+        'build_required' => false,
+        'build_required_state' => bandpromo_get_build_required_state(),
+        'auto_tasks' => [],
+    ]);
+    exit;
+}
+
 $reason = $branch === 'media' ? 'theme_config_changed' : 'web_config_changed';
 $state = bandpromo_mark_build_required($reason);
 bandpromo_admin_audit_log('config_saved', [

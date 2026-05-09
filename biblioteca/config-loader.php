@@ -72,6 +72,20 @@ $config['social'] = array_merge(array(
     'share_image_height' => 630
 ), $config['social']);
 
+if (!isset($config['support'])) {
+    $config['support'] = array();
+}
+
+$config['support'] = array_merge(array(
+    'enabled' => false,
+    'mode' => 'link',
+    'label' => 'Support',
+    'url' => '',
+    'kofi_page_id' => '',
+    'button_background_color' => '#323842',
+    'button_text_color' => '#ffffff'
+), $config['support']);
+
 if (!isset($config['admins'])) {
     $config['admins'] = [];
 }

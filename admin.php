@@ -339,7 +339,7 @@ $activeContentPage = $editablePages[$contentPage];
 
 // Config sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
-if (!in_array($configTab, ['basics', 'theme', 'sharing'])) {
+if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'])) {
     $configTab = 'basics';
 }
 
@@ -1114,6 +1114,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 $cfgTabs = [
                     'basics'  => ['⚙️', 'Basics'],
                     'theme'   => ['🎨', 'Theme'],
+                    'support' => ['💛', 'Support'],
                     'sharing' => ['🔗', 'Sharing'],
                 ];
                 foreach ($cfgTabs as $ct => [$emoji, $label]):
@@ -1131,6 +1132,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     Basics is the place for your public site title, URL, description, language, and author details. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
                 <?php elseif ($configTab === 'theme'): ?>
                     Theme is the place for visible presentation assets such as the logo, primary cover image, welcome audio, and background media. <strong>Save validates only the theme fields</strong>, then writes them back into the full config. Most path-only changes apply immediately; changing the primary cover image may still queue follow-up image optimization.
+                <?php elseif ($configTab === 'support'): ?>
+                    Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
                     Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Make sure the <strong>share image path</strong> points to an existing file in the Theme panel.
                 <?php endif; ?>
@@ -1312,6 +1315,71 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <div class="card-actions">
                     <button id="cfgThemeSaveBtn" class="btn btn-primary">💾 Save theme</button>
                     <span id="cfgThemeStatus" class="status-text"></span>
+                </div>
+            </div>
+
+            <!-- ── SUPPORT ─────────────────────────────────────────────────── -->
+            <?php elseif ($configTab === 'support'): ?>
+            <?php
+            $cfgFull = bandpromo_load_runtime_config_raw();
+            $cfgSupport = $cfgFull['support'] ?? [];
+            $supportEnabled = !empty($cfgSupport['enabled']);
+            $supportMode = (string) ($cfgSupport['mode'] ?? 'link');
+            $supportLabel = (string) ($cfgSupport['label'] ?? 'Support');
+            $supportUrl = (string) ($cfgSupport['url'] ?? '');
+            $supportKofiPageId = (string) ($cfgSupport['kofi_page_id'] ?? '');
+            $supportButtonBackground = (string) ($cfgSupport['button_background_color'] ?? '#323842');
+            $supportButtonTextColor = (string) ($cfgSupport['button_text_color'] ?? '#ffffff');
+            ?>
+            <div class="card">
+                <h3>💛 Support Links and Widgets</h3>
+                <p class="card-note">
+                    Choose how, or whether, visitors are invited to support you from the player page. This does not make bandPromo the payment flow. It only controls the public call-to-action that points people to your operator-owned support destination.
+                </p>
+                <div class="config-form-grid">
+                    <div class="form-group config-form-full">
+                        <label for="cfg_support_enabled" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                            <input type="checkbox" id="cfg_support_enabled" <?php echo $supportEnabled ? 'checked' : ''; ?>>
+                            <span>Show a public support call-to-action on the player page</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_support_mode">Display mode</label>
+                        <select id="cfg_support_mode">
+                            <option value="link" <?php echo $supportMode === 'link' ? 'selected' : ''; ?>>Link button</option>
+                            <option value="floating_widget" <?php echo $supportMode === 'floating_widget' ? 'selected' : ''; ?>>Ko-fi floating widget</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_support_label">Button text</label>
+                        <input type="text" id="cfg_support_label" value="<?php echo htmlspecialchars($supportLabel); ?>" placeholder="Support">
+                        <div class="field-note">Write the short public message visitors should see, such as Support, Tip Jar, Back This Release, or Join on Ko-fi.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_support_url">Direct support URL</label>
+                        <input type="text" id="cfg_support_url" value="<?php echo htmlspecialchars($supportUrl); ?>" placeholder="https://example.com/support-or-membership">
+                        <div class="field-note">Use this for the exact destination you control, such as a Ko-fi page, Patreon page, Stripe payment link, merch page, or membership landing page. In Link button mode, this is the safest and clearest setup. Leave it empty only if you want bandPromo to build a Ko-fi URL from the handle below.</div>
+                    </div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_support_kofi_page_id">Ko-fi page ID / handle</label>
+                        <input type="text" id="cfg_support_kofi_page_id" value="<?php echo htmlspecialchars($supportKofiPageId); ?>" placeholder="yourhandle">
+                        <div class="field-note">Only needed for Ko-fi-specific behavior. The floating widget uses this handle directly, and Link button mode can use it as a fallback when you do not enter a full direct URL.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_support_button_background_color">Button background color</label>
+                        <input type="text" id="cfg_support_button_background_color" value="<?php echo htmlspecialchars($supportButtonBackground); ?>" placeholder="#323842">
+                        <div class="field-note">Choose a color that stands out without looking unrelated to the rest of your site.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cfg_support_button_text_color">Button text color</label>
+                        <input type="text" id="cfg_support_button_text_color" value="<?php echo htmlspecialchars($supportButtonTextColor); ?>" placeholder="#ffffff">
+                        <div class="field-note">Make sure the text stays readable against the button background.</div>
+                    </div>
+                </div>
+                <textarea id="cfgSupportFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
+                <div class="card-actions">
+                    <button id="cfgSupportSaveBtn" class="btn btn-primary">💾 Save support settings</button>
+                    <span id="cfgSupportStatus" class="status-text"></span>
                 </div>
             </div>
 

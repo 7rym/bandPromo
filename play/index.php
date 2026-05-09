@@ -36,6 +36,23 @@ if (!is_array($siteCfg)) {
 
 require_once '../biblioteca/config-loader.php';
 
+function bandpromo_support_parse_kofi_page_id(string $value): string {
+    $trimmed = trim($value);
+    if ($trimmed === '') {
+        return '';
+    }
+
+    if (preg_match('#^https?://#i', $trimmed)) {
+        $path = (string) parse_url($trimmed, PHP_URL_PATH);
+        $segments = array_values(array_filter(explode('/', trim($path, '/')), static function ($segment) {
+            return $segment !== '';
+        }));
+        return isset($segments[0]) ? preg_replace('/[^a-zA-Z0-9_-]/', '', $segments[0]) : '';
+    }
+
+    return preg_replace('/[^a-zA-Z0-9_-]/', '', $trimmed);
+}
+
 $origin = bandpromo_current_origin();
 $baseUrl = $origin . '/play/';
 
@@ -86,6 +103,27 @@ if (isset($_GET['t'])) {
     }
 
     $ogUrl = $baseUrl . '?t=' . intval($track);
+}
+
+$supportEnabled = (bool) get_config('support.enabled', false);
+$supportMode = (string) get_config('support.mode', 'link');
+$supportLabel = trim((string) get_config('support.label', 'Support'));
+if ($supportLabel === '') {
+    $supportLabel = 'Support';
+}
+$supportUrl = trim((string) get_config('support.url', ''));
+$supportKofiPageId = bandpromo_support_parse_kofi_page_id((string) get_config('support.kofi_page_id', ''));
+$supportButtonBackgroundColor = trim((string) get_config('support.button_background_color', '#323842'));
+if ($supportButtonBackgroundColor === '') {
+    $supportButtonBackgroundColor = '#323842';
+}
+$supportButtonTextColor = trim((string) get_config('support.button_text_color', '#ffffff'));
+if ($supportButtonTextColor === '') {
+    $supportButtonTextColor = '#ffffff';
+}
+
+if ($supportUrl === '' && $supportKofiPageId !== '') {
+    $supportUrl = 'https://ko-fi.com/' . rawurlencode($supportKofiPageId);
 }
 ?>
 <!DOCTYPE html>
@@ -224,15 +262,26 @@ if (isset($_GET['t'])) {
     <script src="../biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="../biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="../biblioteca/gallery.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
-    <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+    <?php if ($supportEnabled && $supportMode === 'floating_widget' && $supportKofiPageId !== ''): ?>
+    <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
     <script>
-        kofiWidgetOverlay.draw('7ryms', {
+        kofiWidgetOverlay.draw(<?php echo json_encode($supportKofiPageId); ?>, {
             'type': 'floating-chat',
-            'floating-chat.donateButton.text': 'Support Us',
-            'floating-chat.donateButton.background-color': '#323842',
-            'floating-chat.donateButton.text-color': '#fff'
+            'floating-chat.donateButton.text': <?php echo json_encode($supportLabel); ?>,
+            'floating-chat.donateButton.background-color': <?php echo json_encode($supportButtonBackgroundColor); ?>,
+            'floating-chat.donateButton.text-color': <?php echo json_encode($supportButtonTextColor); ?>
         });
     </script>
+    <?php elseif ($supportEnabled && $supportMode === 'link' && $supportUrl !== ''): ?>
+    <a
+        href="<?php echo htmlspecialchars($supportUrl, ENT_QUOTES, 'UTF-8'); ?>"
+        target="_blank"
+        rel="noopener noreferrer"
+        style="position:fixed;left:10px;bottom:50px;z-index:10000;display:inline-flex;align-items:center;gap:8px;padding:14px 18px;border-radius:999px;background:<?php echo htmlspecialchars($supportButtonBackgroundColor, ENT_QUOTES, 'UTF-8'); ?>;color:<?php echo htmlspecialchars($supportButtonTextColor, ENT_QUOTES, 'UTF-8'); ?>;text-decoration:none;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.35);"
+    >
+        <?php echo htmlspecialchars($supportLabel, ENT_QUOTES, 'UTF-8'); ?>
+    </a>
+    <?php endif; ?>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js?v=<?php echo rawurlencode($appVersion); ?>', {
