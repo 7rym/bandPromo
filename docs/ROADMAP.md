@@ -647,7 +647,7 @@ bandPromo should not make legal, copyright, privacy, or tax decisions for operat
 
 It may provide warnings, documentation, checklists, and configuration prompts, but the operator remains responsible for rights clearance, privacy notices, retention choices, payment tools, tax obligations, consumer-law obligations, and local compliance.
 
-bandPromo should not classify music as less valuable based on production method.
+bandPromo should not classify music as more or less valuable based on production method.
 
 AI-assisted, AI-generated, sample-based, synth-based, recorded, programmed, live, remixed, or hybrid production methods should not be treated as inherently superior or inferior by the software. The relevant operational questions are whether the operator has the rights to publish the material, whether the presentation is honest, whether the artist identity is misleading, whether third-party rights are violated, and whether the audience interaction is real.
 
