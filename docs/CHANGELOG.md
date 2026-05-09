@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Documentation
+- **2026-05-04 — Operator responsibility document was written instead of remaining a placeholder**
+  - Replaced the stub content in `docs/OPERATOR-RESPONSIBILITY.md` with a real operator-boundary document.
+  - Clarified responsibility split for content rights, hosting, security, privacy, integrations, media publication decisions, moderation, and support boundaries.
+
 - **2026-05-03 — Roadmap no longer tracks transient build numbers**
   - Removed the `Current version: v0.7 build ...` header from `docs/ROADMAP.md` so the roadmap stays focused on product direction and milestones rather than repository build count.
 

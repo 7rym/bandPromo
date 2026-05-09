@@ -45,10 +45,10 @@ Core features are part of every bandPromo install:
 - media player with lyrics support
 - enhanced playlists with short informational summaries of the track contents
 - playback and behavior logging
-- analytics foundation
 - admin UI for easy management and access to tools
 - build pipeline
 - media handling
+- analytics foundation
 - release/content model
 - operator-owned configuration and deployment model
 - explicit responsibility boundaries for content, privacy, and integrations
@@ -57,6 +57,8 @@ Core features are part of every bandPromo install:
 - playlist editing
 - gallery editing
 - ChromeCasting to supported devices
+- PWA installs
+- Basic tools for sharing to social media platforms
 
 
 Modular features can be enabled or omitted per install:
@@ -69,6 +71,9 @@ Modular features can be enabled or omitted per install:
 - analytics integrations such as Google Analytics
 - community/chat features
 - future automation and publishing integrations
+- timed releases
+- semi-automatic marketing tools
+- eksternal AI content creation helpers though API (Text, Images, Video, SoMe content design)
 
 ## Theme strategy
 
@@ -245,6 +250,9 @@ Primary goals:
 - formalize core vs modules
 - add theme architecture
 - settle licensing direction
+- rewrite the audio delivery to be scalable and less resource intensive serverside
+- a solid PWA solution with strong offline support
+- ChromeCast support
 
 Suggested scope:
 
@@ -359,6 +367,21 @@ Documentation rule for this strategy:
 - ROADMAP defines the product direction and tier model first
 - TODO tracks the concrete implementation slices required to make it real
 - FEATURES and README should only advertise this workflow once the admin/build path actually supports it at a trustworthy level
+
+### PWA Roadmap
+
+- Service worker audio caching for offline playback
+- Robust range/download support in PHP endpoint
+- Offline logging and sync mechanism
+- Offline fallback for core services
+
+- Responsive design must work for all common screen sizes:
+    - 360–430px: Mobile (vertical)
+    - 431–767px: Large mobile/small tablet
+    - 768–1365px: Tablet/small laptop
+    - 1366px and up: Desktop
+- Layout and --card-size automatically adapt for each segment.
+
 
 ## v0.8 testing plan
 
@@ -481,6 +504,7 @@ Examples:
 - approval workflow for generated content
 
 These belong after the core platform is stable and its content model is mature.
+See the discussion in the last part of this document
 
 ## Testing and feedback process
 
@@ -523,16 +547,303 @@ Before calling v1.0 releaseable:
 - the platform clearly offers more than a single private album page
 - installation and operator handoff are documented well enough for real trial use
 
-### PWA Roadmap
 
-- Service worker audio caching for offline playback
-- Robust range/download support in PHP endpoint
-- Offline logging and sync mechanism
-- Offline fallback for core services
+## v2+ Direction: Semi-Autonomous Promotion, Direct Fan Relationships, and Platform Independence
 
-- Responsive design must work for all common screen sizes:
-    - 360–430px: Mobile (vertical)
-    - 431–767px: Large mobile/small tablet
-    - 768–1365px: Tablet/small laptop
-    - 1366px and up: Desktop
-- Layout and --card-size automatically adapt for each segment.
+### Background and intent
+
+bandPromo started as a self-hosted way for artists to present music better than simply sending files through cloud storage links, download folders, or generic sharing services. The original need was not to build another streaming platform, but to give the artist control over presentation, context, access, identity, and listener experience.
+
+The project has since grown into a broader idea: small artists, independent musicians, micro-labels, and experimental creators need a credible way to publish, preview, promote, and monetize their work outside large platform ecosystems. Many of these artists receive little practical benefit from the discovery advantages of major streaming platforms. Their work is technically available, but effectively buried beneath large catalogs, algorithmic preference structures, playlist gatekeeping, advertising budgets, major-label leverage, and high-volume content strategies.
+
+bandPromo should therefore remain focused on artist-owned presence rather than platform dependency. The purpose is not to replace Spotify, Apple Music, YouTube, Bandcamp, SoundCloud, or social media. The purpose is to give artists a home base that they control: their own installation, their own domain, their own release presentation, their own fan contact surface, and their own route to direct support, sales, downloads, mailing lists, private listening, press access, and campaign material.
+
+For v2 and beyond, this can be expanded into semi-autonomous promotion: tools that help the operator prepare, publish, test, schedule, and distribute promotional material while keeping the artist or site operator in control of final decisions.
+
+### Core principle
+
+bandPromo must not become a centralized music platform.
+
+The safest and most strategically consistent model is self-hosted software where each artist or operator runs their own installation and remains responsible for the site they publish. The project provides tools, structure, documentation, and workflows. The operator remains responsible for rights, content, privacy, integrations, payments, communication, compliance, moderation, hosting, backups, and public-facing decisions.
+
+This separation is already central to the project documentation. bandPromo is described as self-hosted publishing software that provides tools for running a music site, but does not take over responsibilities that belong to the site operator. The operator is responsible for the actual installation they run, including content, rights, privacy, hosting, third-party integrations, and real-world consequences of what they publish.
+
+v2+ development should preserve this distinction. Every new promotional feature should be evaluated against the question:
+
+Does this feature help the operator promote their own work from their own installation, or does it move bandPromo toward becoming a centralized platform, intermediary, publisher, payment processor, or moderation authority?
+
+If a feature increases central responsibility, it should either be avoided, made optional and locally operated, or documented with clear boundaries.
+
+### Strategic scenario
+
+The music market is moving toward more platform control, not less. Large streaming services are likely to continue presenting themselves as neutral distribution systems while increasingly controlling visibility, classification, monetization, anti-fraud enforcement, metadata rules, recommendation systems, and eligibility for payment.
+
+AI-generated and AI-assisted music has intensified this trend. Public debate often presents the issue as if the production method itself is the problem: whether music is “real,” “human,” “authentic,” or “worthy” of royalties. This framing is misleading. Production method alone is a weak criterion for artistic value or payment eligibility.
+
+The more concrete problems are different:
+
+- false streams
+- bot activity
+- impersonation
+- misleading artist identity
+- unclear rights
+- platform spam
+- manipulated discovery systems
+- opaque royalty withholding
+- lack of transparency in payment redistribution
+- excessive dependency on centralized platforms
+
+Fraud is a real problem, but it is not specific to AI music. Fraud is unlawful or illegitimate regardless of whether the content was made by a human, an AI system, a band, a producer, a session musician, a DJ, a sample library, a synthesizer, or a drum machine. Treating fraud as an argument against a production method is a category error. It shifts attention away from platform infrastructure, enforcement, payment transparency, and business-model weaknesses.
+
+bandPromo should be built around the opposite premise: if a listener voluntarily chooses music, supports the artist, joins a mailing list, buys a release, requests access, shares a private preview, or engages with the artist directly, that relationship has value. The artist should not have to depend entirely on opaque platform metrics to prove that value exists.
+
+### Why semi-autonomous promotion matters
+
+Small artists usually lack the resources that make platform participation effective. They may be able to upload music to streaming services, but they often cannot compete for visibility. Their real opportunity is direct connection: a controlled landing page, a strong presentation, a private listening experience, a press-ready release page, a direct support link, and a reusable promotional workflow.
+
+Semi-autonomous promotion should help with the repetitive and technical parts of this work without replacing the artist’s judgment.
+
+Possible v2+ goals include:
+
+- preparing release pages from structured metadata
+- generating draft promotional copy for different audiences
+- creating press-kit style summaries
+- producing share text for social platforms
+- preparing email/newsletter drafts
+- generating private listening links or access-controlled campaigns
+- creating QR/share assets for posters, gigs, and physical promotion
+- suggesting missing metadata, weak descriptions, or unclear presentation
+- helping operators produce consistent release announcements
+- assisting with campaign timing and checklist workflows
+- summarizing analytics in plain language for the operator
+- identifying which tracks, pages, or campaigns receive meaningful engagement
+- helping the artist understand direct audience behavior without depending on platform dashboards
+
+These features should be assistant-like, not fully autonomous. The operator should remain responsible for publishing, sending, claiming, targeting, and approving promotional material. bandPromo can draft, suggest, package, organize, validate, and schedule locally, but should not silently act as the artist in public channels without explicit operator approval.
+
+### Product boundaries for v2+
+
+The following boundaries should guide future design.
+
+bandPromo should remain an artist-site toolkit, not a streaming service.
+
+bandPromo should not position itself as a replacement for large platforms. It should be a controlled home base that can coexist with them. Artists may still link to Spotify, Apple Music, YouTube, Bandcamp, SoundCloud, Ko-fi, Patreon, Vipps, Stripe, PayPal, merch stores, ticketing pages, or other tools. bandPromo should help the artist own the presentation and relationship around those links.
+
+bandPromo should not become the payment flow by default.
+
+The safest model is for payments, donations, purchases, subscriptions, and tips to go directly through services controlled by the operator. bandPromo may provide buttons, embeds, links, metadata, or integration points, but should avoid holding funds, splitting revenue, storing payout details, or becoming a payment intermediary unless a future version intentionally accepts the legal and operational burden of doing so.
+
+bandPromo should not become a central discovery catalog.
+
+A central catalog would change the project’s role. It could create moderation, ranking, takedown, spam, copyright, and platform-governance obligations. If discovery features are ever considered, they should be treated as a separate strategic decision with a much higher risk profile.
+
+bandPromo should avoid central user accounts across installations.
+
+A shared identity system would create privacy, security, and governance responsibilities. Local accounts per installation are safer and more consistent with self-hosting.
+
+bandPromo should not make legal, copyright, privacy, or tax decisions for operators.
+
+It may provide warnings, documentation, checklists, and configuration prompts, but the operator remains responsible for rights clearance, privacy notices, retention choices, payment tools, tax obligations, consumer-law obligations, and local compliance.
+
+bandPromo should not classify music as less valuable based on production method.
+
+AI-assisted, AI-generated, sample-based, synth-based, recorded, programmed, live, remixed, or hybrid production methods should not be treated as inherently superior or inferior by the software. The relevant operational questions are whether the operator has the rights to publish the material, whether the presentation is honest, whether the artist identity is misleading, whether third-party rights are violated, and whether the audience interaction is real.
+
+### AI and disclosure position
+
+bandPromo should not shame or devalue music because AI tools were used. However, it may support honest disclosure when the operator wants or needs it.
+
+A practical distinction should be made between:
+
+- AI as a production tool
+- AI-assisted writing, arrangement, mixing, mastering, artwork, or metadata
+- fully AI-generated music
+- artist-inspired style references
+- impersonation or misleading identity
+- unauthorized voice cloning
+- unclear third-party rights
+- fraudulent or deceptive presentation
+
+The software should not assume that AI involvement is a problem. It should help the operator describe the work accurately where relevant. If disclosure fields are added, they should be neutral and operator-controlled, not warning labels designed to reduce perceived value.
+
+Possible future metadata fields could include:
+
+- production notes
+- tools used
+- credits
+- human contributors
+- AI-assisted elements
+- rights notes
+- source material notes
+- voice/likeness confirmation
+- public disclosure text
+
+These should support transparency, not moral judgment.
+
+### Risk analysis
+
+#### 1. Role creep
+
+The largest strategic risk is that bandPromo gradually moves from self-hosted software into platform behavior. Features such as central hosting, central analytics, shared accounts, centralized discovery, payment processing, moderation services, or hosted fan databases would change the responsibility profile.
+
+Mitigation:
+
+- keep installations independent by default
+- avoid central services unless clearly separated
+- document operator responsibility
+- make integrations operator-owned
+- avoid holding money or content centrally
+- avoid global ranking or catalog features unless intentionally designed as a separate product
+
+#### 2. Rights and content risk
+
+Operators may upload music, lyrics, artwork, videos, logos, photos, samples, remixes, AI-generated assets, or promotional material they do not have rights to use. bandPromo cannot verify ownership or licensing.
+
+Mitigation:
+
+- require operators to accept responsibility during setup
+- include clear rights reminders in upload and publish flows
+- provide optional metadata fields for credits and rights notes
+- avoid claims that bandPromo clears, verifies, licenses, or approves material
+- keep takedown responsibility local to the operator unless a future hosted service exists
+
+#### 3. Privacy and analytics risk
+
+v2+ promotional tools may increase the amount of audience data collected. Playback logs, admin logs, mailing lists, access links, campaign tracking, referrers, and fan interactions can all become personal data depending on configuration and jurisdiction.
+
+Mitigation:
+
+- data collection should be minimal by default
+- analytics should be local to the installation where possible
+- retention settings should be configurable
+- privacy documentation templates may be provided, but not presented as legal advice
+- operators should be reminded that they are responsible for their own privacy obligations
+- avoid central telemetry unless explicitly opt-in and documented
+
+#### 4. Payment and tax risk
+
+Direct monetization is attractive, but it is also one of the fastest ways to increase legal and operational complexity. If bandPromo handles money directly, the project may take on payment, refund, tax, consumer-law, fraud, chargeback, accounting, and possibly KYC/AML-related issues.
+
+Mitigation:
+
+- prefer external payment links and operator-owned accounts
+- do not store card details or payout information
+- do not split or redistribute money
+- make it clear that the operator is responsible for payment provider terms, tax reporting, refunds, and customer obligations
+- treat any future native payment layer as a major separate milestone, not a small feature
+
+#### 5. Support burden
+
+A self-hosted tool with PHP, Python, media processing, ffmpeg, metadata handling, image generation, hosting requirements, HTTPS, admin access, and build steps can create significant support expectations. Free software can still create heavy emotional and practical support load if boundaries are unclear.
+
+Mitigation:
+
+- keep support boundaries explicit
+- document common installation patterns
+- separate user docs, operator docs, and developer docs
+- provide diagnostics where possible
+- avoid promising timelines, compatibility, or individual deployment help
+- make errors understandable so operators can resolve issues locally
+
+#### 6. Security risk
+
+A bandPromo installation may include admin login, file uploads, media handling, generated public pages, private links, analytics, logs, and third-party integrations. Misconfiguration or vulnerabilities could harm operators, visitors, or the project’s reputation.
+
+Mitigation:
+
+- keep secure defaults
+- enforce HTTPS except for localhost
+- use CSRF protection and secure password hashing
+- minimize writable directories
+- document file permissions
+- provide update guidance
+- avoid unnecessary server-side complexity
+- treat private listening links and access control as security-sensitive features
+
+#### 7. Reputational risk
+
+Because bandPromo supports independent publishing and may be used by artists who work with AI, some people may mischaracterize the project as an AI-spam tool or anti-platform project. That would weaken its real position.
+
+Mitigation:
+
+- describe bandPromo as an artist-owned presentation and promotion toolkit
+- avoid language that sounds like evasion or circumvention
+- emphasize direct fan relationships, controlled presentation, private listening, and independent release infrastructure
+- distinguish lawful AI-assisted creativity from fraud, impersonation, and spam
+- keep quality-focused workflows and clear operator responsibility
+
+#### 8. Over-automation risk
+
+Semi-autonomous promotion can easily become spam if it pushes content outward without enough human control. The goal should not be to automate artists into becoming promotional bots.
+
+Mitigation:
+
+- keep operator approval in the loop
+- generate drafts rather than auto-posting by default
+- provide campaign checklists instead of uncontrolled automation
+- rate-limit or discourage repetitive outreach
+- help artists improve message quality rather than maximize volume
+- avoid manipulative growth-hacking language in the product
+
+### Design philosophy for v2+
+
+The software should help artists do the work that platforms usually make invisible: presentation, packaging, access, metadata, fan communication, release context, private previews, and direct support.
+
+It should not try to solve every part of the music economy. It should not promise discovery. It should not pretend that self-hosting automatically creates an audience. It should make the artist’s own audience relationship more usable, more professional, and less dependent on centralized platforms.
+
+The core value is control:
+
+- control over domain
+- control over release presentation
+- control over context
+- control over access
+- control over audience relationship
+- control over support links
+- control over private listening
+- control over analytics
+- control over how the artist explains the work
+
+This is especially important for smaller artists because they often do not benefit meaningfully from platform-scale discovery. If they are already doing the work of finding their own listeners, bandPromo should help them capture more value from that work.
+
+### Long-term product direction
+
+A mature v2+ version of bandPromo could become a self-hosted promotional operating system for independent artists.
+
+Possible long-term modules:
+
+- release landing pages
+- private listening rooms
+- press/EPK pages
+- fan access links
+- mailing list integration
+- campaign checklists
+- social/share copy drafting
+- QR and shortlink generation
+- direct support/payment link management
+- local analytics summaries
+- tour/gig promotion pages
+- media kit downloads
+- release archive
+- lyric and artwork presentation
+- controlled preview campaigns
+- AI-assisted metadata and copy suggestions
+- optional disclosure/credit metadata
+- operator-facing rights and privacy reminders
+- exportable static builds for low-cost hosting
+- import/export tools to avoid lock-in
+
+The project should continue to prioritize independence, portability, and operator control. Artists should be able to move their site, back up their content, change integrations, replace payment providers, export data, and retain their domain identity.
+
+### Summary position
+
+bandPromo exists because small artists need more than a file link and less than a centralized platform.
+
+The project should give artists a professional, self-hosted way to present music, manage private listening, communicate with fans, and connect support or payment options without surrendering their identity and audience relationship to large platforms.
+
+v2+ semi-autonomous promotion should support that goal by helping operators prepare and manage promotional work, not by taking control away from them. The operator remains responsible for what they publish, how they present it, which rights they rely on, which integrations they enable, and how they communicate with their audience.
+
+The central principle should remain:
+
+bandPromo provides the toolset.  
+The operator controls the installation.  
+The audience chooses what they value.
