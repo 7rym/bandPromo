@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Fixed
+- **2026-05-11 — Login assets now use VERSION-based cache busting**
+  - Updated `index.php` to load `biblioteca/login.css` and `biblioteca/login.js` with the tracked app version in the query string so production browsers pick up responsive login changes immediately instead of serving stale cached assets.
+
 - **2026-05-11 — Login page now fits small screens in landscape**
   - Updated `biblioteca/login.css` with a compact low-height landscape layout so the login form stays usable on phones in horizontal mode by reducing logo size and vertical spacing, top-aligning the page, and allowing scroll when needed.
   - Tightened the landscape behavior further with a true two-column flow: logo and the rotating “about” link on the left, form on the right, with equal-width columns and an extra-short viewport rule so the logo no longer consumes most of the vertical space on devices like iPhone 12 Pro landscape.

@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="theme-color" content="#121212">
 
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="./biblioteca/login.css">
+    <link rel="stylesheet" href="./biblioteca/login.css?v=<?php echo rawurlencode($appVersion); ?>">
 
 </head>
 <body>
@@ -325,6 +325,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         </script>
         
-    <script src="./biblioteca/login.js"></script>
+    <script src="./biblioteca/login.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
 </body>
 </html>
