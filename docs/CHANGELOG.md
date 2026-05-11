@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-04-30
 
+### Fixed
+- **2026-05-11 — VERSION validation workflow now fetches the commit range it compares**
+  - Updated `.github/workflows/version-bump.yml` so `actions/checkout` fetches full history before comparing `${{ github.event.before }}` with `${{ github.sha }}`.
+  - This prevents false CI failures on pushes where `VERSION` was bumped correctly but the default shallow checkout did not contain the `before` commit object.
+
 ### Added
 - **2026-05-09 — Admin panel now includes an operator-facing welcome page**
   - Added a new Welcome tab to `admin.php` with operator-focused overview copy about the platform's purpose, strategic value, and safety boundaries.
