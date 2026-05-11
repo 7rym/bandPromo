@@ -264,10 +264,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <button type="button" id="retest-speed-btn" style="background: none; border: none; color: #aaa; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0;">Re-test connection</button>
                     </div>
                     <div class="quality-options">
-                        <button type="button" class="quality-btn active" data-quality="high">Maximum Quality<br>(Broadband)</button>
-                        <button type="button" class="quality-btn" data-quality="low">Mobile Friendly</button>
+                        <button type="button" class="quality-btn" data-quality="high">Maximum Quality<br>(Broadband)</button>
+                        <button type="button" class="quality-btn active" data-quality="low">Optimized<br>(Mobile Friendly)</button>
                     </div>
-                    <input type="hidden" id="quality-hidden" name="quality" value="high" required>
+                    <input type="hidden" id="quality-hidden" name="quality" value="low" required>
                 </div>
                 
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>" required>

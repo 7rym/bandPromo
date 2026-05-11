@@ -17,6 +17,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function isStandaloneDisplayMode() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        navigator.standalone === true;
+}
+
+function isMobileWideMode() {
+    return window.matchMedia('(orientation: landscape)').matches &&
+        window.innerWidth <= 1024 &&
+        (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches);
+}
+
+function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+async function requestDocumentFullscreen() {
+    const element = document.documentElement;
+    const requestFullscreen = element.requestFullscreen || element.webkitRequestFullscreen;
+    if (!requestFullscreen) {
+        return;
+    }
+
+    try {
+        await requestFullscreen.call(element);
+    } catch (error) {
+        // Ignore blocked fullscreen requests; user interaction may be required.
+    }
+}
+
+async function exitDocumentFullscreen() {
+    const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!exitFullscreen) {
+        return;
+    }
+
+    try {
+        await exitFullscreen.call(document);
+    } catch (error) {
+        // Ignore exit failures.
+    }
+}
+
+let wideModeFullscreenOwned = false;
+
+async function syncWideModeFullscreen() {
+    if (isStandaloneDisplayMode()) {
+        return;
+    }
+
+    if (isMobileWideMode()) {
+        if (!getFullscreenElement()) {
+            await requestDocumentFullscreen();
+            wideModeFullscreenOwned = !!getFullscreenElement();
+        }
+        return;
+    }
+
+    if (wideModeFullscreenOwned && getFullscreenElement()) {
+        await exitDocumentFullscreen();
+    }
+    wideModeFullscreenOwned = false;
+}
+
 // Test Download Speed and Auto-Select Quality
 async function testConnectionSpeed(forceRefresh = true) {
     const resultDiv = document.getElementById('speed-test-result');
@@ -30,8 +95,7 @@ async function testConnectionSpeed(forceRefresh = true) {
             const cached = sessionStorage.getItem('connection_speed');
             if (cached) {
                 const data = JSON.parse(cached);
-                resultDiv.innerHTML = `📊 ${data.speed.toFixed(2)} Mbps - Recommended: <strong>${data.recommended.toUpperCase()}</strong>`;
-                autoSelectQuality(data.recommended);
+                resultDiv.innerHTML = `📊 ${data.speed.toFixed(2)} Mbps - Max quality available: <strong>HIGH</strong>`;
                 return;
             }
         } else {
@@ -104,13 +168,12 @@ async function testConnectionSpeed(forceRefresh = true) {
         }
         
         if (measurements.length === 0) {
-            resultDiv.innerHTML = '⚠️ Speed test failed, defaulting to OPTIMAL quality';
-            console.warn('Speed test failed for all endpoints. Using safe default quality.');
+            resultDiv.innerHTML = '⚠️ Speed test failed, optimized mode remains selected';
+            console.warn('Speed test failed for all endpoints. Keeping optimized quality selected.');
             sessionStorage.setItem('connection_speed', JSON.stringify({
                 speed: 0,
                 recommended: 'high'
             }));
-            autoSelectQuality('high');
             return;
         }
         
@@ -137,17 +200,13 @@ async function testConnectionSpeed(forceRefresh = true) {
         // 🐌 <5 Mbps | 🟡 5-10 Mbps | ⚡ 10-20 Mbps | 🚀 ≥20 Mbps
         const speedDisplay = avgSpeedMbps.toFixed(2);
         const indicator = avgSpeedMbps >= 20 ? '🚀' : avgSpeedMbps >= 10 ? '⚡' : avgSpeedMbps >= 5 ? '🟡' : '🐌';
-        resultDiv.innerHTML = `${indicator} ${speedDisplay} Mbps - Recommended: <strong>${recommended.toUpperCase()}</strong>`;
-        
-        // Auto-select quality
-        autoSelectQuality(recommended);
+        resultDiv.innerHTML = `${indicator} ${speedDisplay} Mbps - Max quality available: <strong>HIGH</strong>`;
         
     } catch (error) {
         console.error('❌ Speed test error:', error);
         if (resultDiv) {
-            resultDiv.innerHTML = '⚠️ Speed test error, defaulting to OPTIMAL quality';
+            resultDiv.innerHTML = '⚠️ Speed test error, optimized mode remains selected';
         }
-        autoSelectQuality('high');
     }
 }
 
@@ -221,6 +280,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const buttons = document.querySelectorAll('.quality-btn');
     const qualityInput = document.getElementById('quality-hidden');
 
+    autoSelectQuality(qualityInput?.value || 'low');
+
     const retestBtn = document.getElementById('retest-speed-btn');
     if (retestBtn) {
         retestBtn.addEventListener('click', function() {
@@ -243,6 +304,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     updateBackground();
+
+    ['click', 'touchend', 'pointerup'].forEach((eventName) => {
+        document.addEventListener(eventName, syncWideModeFullscreen, { passive: true });
+    });
+
+    window.addEventListener('resize', syncWideModeFullscreen);
+    window.addEventListener('orientationchange', syncWideModeFullscreen);
+    document.addEventListener('fullscreenchange', () => {
+        wideModeFullscreenOwned = isMobileWideMode() && !!getFullscreenElement();
+    });
+
+    syncWideModeFullscreen();
 });
 
 // Info Lightbox functions
@@ -297,10 +370,7 @@ window.addEventListener('load', function() {
     // Check if app is already installed
     function isAppInstalled() {
         // Check if running in PWA mode (fullscreen or standalone display)
-        return window.matchMedia('(display-mode: standalone)').matches ||
-               window.matchMedia('(display-mode: window-controls-overlay)').matches ||
-               window.matchMedia('(display-mode: fullscreen)').matches ||
-               navigator.standalone === true;
+        return isStandaloneDisplayMode();
     }
     
     // Check if dismissal was remembered

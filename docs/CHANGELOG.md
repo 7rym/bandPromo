@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Fixed
+- **2026-05-11 — Login defaults to optimized mode and can enter fullscreen in mobile wide mode**
+  - Updated `index.php` and `biblioteca/login.js` so the login screen defaults to optimized quality, relabels the optimized option to `Optimized (Mobile Friendly)`, and changes the speed-test status text to `Max quality available: HIGH` instead of auto-recommending and auto-selecting high quality.
+  - Added a best-effort mobile landscape fullscreen hook in `biblioteca/login.js` so the login page attempts to enter fullscreen when the device is in wide mobile mode and exits that fullscreen state again when leaving it.
+
 - **2026-05-11 — Login assets now use VERSION-based cache busting**
   - Updated `index.php` to load `biblioteca/login.css` and `biblioteca/login.js` with the tracked app version in the query string so production browsers pick up responsive login changes immediately instead of serving stale cached assets.
 
