@@ -54,6 +54,71 @@ let analyticsSessionActive = false;
 let analyticsInactivityTimerId = null;
 let pendingPlayActionSource = null;
 
+function isStandaloneDisplayMode() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        navigator.standalone === true;
+}
+
+function isMobileWideMode() {
+    return window.matchMedia('(orientation: landscape)').matches &&
+        window.innerWidth <= 1024 &&
+        (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches);
+}
+
+function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+async function requestDocumentFullscreen() {
+    const element = document.documentElement;
+    const requestFullscreen = element.requestFullscreen || element.webkitRequestFullscreen;
+    if (!requestFullscreen) {
+        return;
+    }
+
+    try {
+        await requestFullscreen.call(element);
+    } catch (error) {
+        // Ignore blocked fullscreen requests; user interaction may be required.
+    }
+}
+
+async function exitDocumentFullscreen() {
+    const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!exitFullscreen) {
+        return;
+    }
+
+    try {
+        await exitFullscreen.call(document);
+    } catch (error) {
+        // Ignore exit failures.
+    }
+}
+
+let wideModeFullscreenOwned = false;
+
+async function syncWideModeFullscreen() {
+    if (isStandaloneDisplayMode()) {
+        return;
+    }
+
+    if (isMobileWideMode()) {
+        if (!getFullscreenElement()) {
+            await requestDocumentFullscreen();
+            wideModeFullscreenOwned = !!getFullscreenElement();
+        }
+        return;
+    }
+
+    if (wideModeFullscreenOwned && getFullscreenElement()) {
+        await exitDocumentFullscreen();
+    }
+    wideModeFullscreenOwned = false;
+}
+
 // Debug Logout Function
 function debugLogout() {
     if (confirm('Logout and reset session? (Debug)')) {
@@ -696,6 +761,18 @@ function removePulseGuide() {
 
 document.addEventListener('DOMContentLoaded', function() {
     bindBioLightbox();
+
+    ['click', 'touchend', 'pointerup'].forEach((eventName) => {
+        document.addEventListener(eventName, syncWideModeFullscreen, { passive: true });
+    });
+
+    window.addEventListener('resize', syncWideModeFullscreen);
+    window.addEventListener('orientationchange', syncWideModeFullscreen);
+    document.addEventListener('fullscreenchange', () => {
+        wideModeFullscreenOwned = isMobileWideMode() && !!getFullscreenElement();
+    });
+
+    syncWideModeFullscreen();
 
     // Add pulse guide to play button after initial load
     setTimeout(() => {

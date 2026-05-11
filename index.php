@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(get_config('release.identity.title')); ?>">
     
     <!-- Manifest & Theme -->
-    <link rel="manifest" href="/site.webmanifest">
+    <link rel="manifest" href="/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
     <meta name="theme-color" content="#121212">
 
     <!-- Stylesheet -->

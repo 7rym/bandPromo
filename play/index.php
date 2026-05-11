@@ -163,7 +163,7 @@ if ($supportEnabled && $supportUrl !== '') {
     <meta name="apple-mobile-web-app-title" content="<?php echo $ogTitle; ?>">
 
     <!-- Manifest & Theme -->
-    <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest">
+    <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
     <meta name="theme-color" content="#121212">
     <link rel="stylesheet" href="../biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
 </head>
