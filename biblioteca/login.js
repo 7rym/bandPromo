@@ -95,7 +95,7 @@ async function testConnectionSpeed(forceRefresh = true) {
             const cached = sessionStorage.getItem('connection_speed');
             if (cached) {
                 const data = JSON.parse(cached);
-                resultDiv.innerHTML = `📊 ${data.speed.toFixed(2)} Mbps - Max quality available: <strong>HIGH</strong>`;
+                resultDiv.textContent = `📊 ${data.speed.toFixed(2)} Mbps - Max quality available`;
                 return;
             }
         } else {
@@ -200,7 +200,7 @@ async function testConnectionSpeed(forceRefresh = true) {
         // 🐌 <5 Mbps | 🟡 5-10 Mbps | ⚡ 10-20 Mbps | 🚀 ≥20 Mbps
         const speedDisplay = avgSpeedMbps.toFixed(2);
         const indicator = avgSpeedMbps >= 20 ? '🚀' : avgSpeedMbps >= 10 ? '⚡' : avgSpeedMbps >= 5 ? '🟡' : '🐌';
-        resultDiv.innerHTML = `${indicator} ${speedDisplay} Mbps - Max quality available: <strong>HIGH</strong>`;
+        resultDiv.textContent = `${indicator} ${speedDisplay} Mbps - Max quality available`;
         
     } catch (error) {
         console.error('❌ Speed test error:', error);
