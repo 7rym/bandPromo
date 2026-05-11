@@ -3,15 +3,33 @@ async function loadVisualsGallery() {
     const gallery = document.getElementById('visualsGallery');
     if (!gallery) return;
 
+    function normalizeGalleryItem(item) {
+        if (!item || item.type === 'video' || !item.src) {
+            return item;
+        }
+
+        const normalizedSrc = String(item.src)
+            .replace(/\\/g, '/')
+            .replace('/original/', '/optimal/')
+            .replace(/\.(png|jpe?g|webp)$/i, '.jpg');
+
+        return {
+            ...item,
+            src: normalizedSrc,
+        };
+    }
+
     function renderGallery(items) {
-        if (!Array.isArray(items) || items.length === 0) {
+        const normalizedItems = Array.isArray(items) ? items.map(normalizeGalleryItem) : [];
+
+        if (normalizedItems.length === 0) {
             gallery.innerHTML = '<div class="gallery-empty">No images available</div>';
             return;
         }
 
-        if (window._lb) window._lb.setItems(items);
+        if (window._lb) window._lb.setItems(normalizedItems);
 
-        gallery.innerHTML = items.map((item, idx) => {
+        gallery.innerHTML = normalizedItems.map((item, idx) => {
             const isVideo = item.type === 'video';
             const clickHandler = `openLightboxAt(${idx})`;
 

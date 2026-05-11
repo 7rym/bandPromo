@@ -53,6 +53,10 @@ function bandpromo_support_parse_kofi_page_id(string $value): string {
     return preg_replace('/[^a-zA-Z0-9_-]/', '', $trimmed);
 }
 
+function bandpromo_preferred_audio_variant(?string $quality): string {
+    return strtolower(trim((string) $quality)) === 'high' ? 'original' : 'optimal';
+}
+
 $origin = bandpromo_current_origin();
 $baseUrl = $origin . '/play/';
 
@@ -121,6 +125,8 @@ $supportButtonTextColor = trim((string) get_config('support.button_text_color', 
 if ($supportButtonTextColor === '') {
     $supportButtonTextColor = '#ffffff';
 }
+
+$preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
 
 if ($supportUrl === '' && $supportKofiPageId !== '') {
     $supportUrl = 'https://ko-fi.com/' . rawurlencode($supportKofiPageId);
@@ -250,6 +256,7 @@ if ($supportUrl === '' && $supportKofiPageId !== '') {
         window.CONFIG_URL       = '/play/playlist.json';
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';
+        window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
         window.INITIAL_GALLERY_ITEMS = <?php echo json_encode($galleryItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         <?php

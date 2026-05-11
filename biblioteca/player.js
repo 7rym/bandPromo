@@ -3,6 +3,7 @@
 let playList = []; // Will be loaded from playlist.json
 let currentIndex = 0;
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
+const IMAGE_PATH_VARIANT = 'optimal';
 
 // Path helpers — use window.MEDIA_AUDIO_BASE / window.MEDIA_IMG_BASE when set
 // (new /play/ structure), otherwise fall back to old sibling-folder relative paths.
@@ -24,11 +25,11 @@ function buildAudioUrl(filename) {
 function buildCoverUrl(rawCoverPath) {
     if (!rawCoverPath) return '';
     const filename = rawCoverPath.split('\\').pop().split('/').pop();
-    const name = PATH_VARIANT === 'optimal' ? filename.replace(/\.(png|PNG)$/, '.jpg') : filename;
+    const name = filename.replace(/\.(png|jpe?g|webp)$/i, '.jpg');
     if (window.MEDIA_IMG_BASE != null) {
-        return `${window.MEDIA_IMG_BASE}/${PATH_VARIANT}/${name}`;
+        return `${window.MEDIA_IMG_BASE}/${IMAGE_PATH_VARIANT}/${name}`;
     }
-    return `../${PATH_VARIANT}/${name}`;
+    return `../${IMAGE_PATH_VARIANT}/${name}`;
 }
 
 const audioPlayer = document.getElementById('audioPlayer');
@@ -680,6 +681,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Set quality based on login speed test result (cached in sessionStorage)
 function determineQuality() {
+    if (window.BANDPROMO_PREFERRED_AUDIO_VARIANT === 'original' || window.BANDPROMO_PREFERRED_AUDIO_VARIANT === 'optimal') {
+        PATH_VARIANT = window.BANDPROMO_PREFERRED_AUDIO_VARIANT;
+        return;
+    }
+
     // Check if speed test was run on login page
     const cached = sessionStorage.getItem('connection_speed');
     if (cached) {

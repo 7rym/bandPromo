@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Fixed
+- **2026-05-11 — Player now honors the selected audio quality and serves optimized images in the public player**
+  - Updated `play/index.php` and `biblioteca/player.js` so the player uses the quality choice saved at login instead of ignoring it and re-deciding solely from the cached speed-test result.
+  - Updated `biblioteca/player.js` and `biblioteca/gallery.js` so regular player-facing cover and gallery images are loaded from optimized delivery paths instead of original PNG-heavy sources.
+
 - **2026-05-11 — VERSION workflow actions were updated for the Node 24 runner transition**
   - Updated `.github/workflows/version-bump.yml` from `actions/checkout@v4` to `actions/checkout@v6` and from `actions/setup-python@v5` to `actions/setup-python@v6`.
   - This removes the current deprecation warning about Node 20-based actions and keeps the VERSION validation workflow aligned with GitHub's upcoming Node 24 default.
