@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Fixed
+- **2026-05-11 — VERSION workflow actions were updated for the Node 24 runner transition**
+  - Updated `.github/workflows/version-bump.yml` from `actions/checkout@v4` to `actions/checkout@v6` and from `actions/setup-python@v5` to `actions/setup-python@v6`.
+  - This removes the current deprecation warning about Node 20-based actions and keeps the VERSION validation workflow aligned with GitHub's upcoming Node 24 default.
+
 - **2026-05-11 — VERSION validation workflow now fetches the commit range it compares**
   - Updated `.github/workflows/version-bump.yml` so `actions/checkout` fetches full history before comparing `${{ github.event.before }}` with `${{ github.sha }}`.
   - The workflow now also uses an explicit `if git diff --quiet ...; then ... fi` check so a valid `VERSION` change no longer leaks `git diff` exit code `1` into the job result.
