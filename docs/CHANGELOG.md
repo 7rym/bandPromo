@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Fixed
+- **2026-05-11 — Login page now fits small screens in landscape**
+  - Updated `biblioteca/login.css` with a compact low-height landscape layout so the login form stays usable on phones in horizontal mode by reducing logo size and vertical spacing, top-aligning the page, and allowing scroll when needed.
+  - Tightened the landscape behavior further with a true two-column flow: logo and the rotating “about” link on the left, form on the right, with equal-width columns and an extra-short viewport rule so the logo no longer consumes most of the vertical space on devices like iPhone 12 Pro landscape.
+  - Expanded the left column to let the logo use the available vertical space more fully while centering the full form block vertically in the right column for short landscape phone layouts.
+  - Fixed the remaining weak effect in landscape by giving the login grid real viewport height, so the larger logo and vertically centered form now have space to take effect instead of collapsing back to content height.
+  - Restructured the login markup into explicit left and right columns so the rotating “about” box stays directly under the logo instead of drifting below the full layout when the landscape form column grows taller.
+  - Scaled the working landscape layout up for Galaxy S8-class screens by widening the two-column container, enlarging the logo/about block, and increasing form control sizing so the page uses more of the available horizontal and vertical screen estate.
+  - Removed the remaining `login-container` inner padding in the short landscape rules so the Galaxy S8-class layout can use the full available width and height without extra inset space.
+
+- **2026-05-11 — Demo support control now uses the compact link button**
+  - Updated `play/index.php` to force the player-facing support control onto the link-button path whenever support is enabled and a support URL is available, bypassing the larger Ko-fi floating widget for the current demo phase.
+
+- **2026-05-11 — Player audio seeking now works again in local demo/testing**
+  - Updated `biblioteca/player.js` so playback always uses `biblioteca/audio.php` instead of the local direct `/media/audio/...` path that broke seeking during localhost demos.
+  - Kept the optimized-image delivery changes in place while routing audio back through the range-aware PHP endpoint until the larger audio-delivery rewrite is done.
+
 - **2026-05-11 — Player now honors the selected audio quality and serves optimized images in the public player**
   - Updated `play/index.php` and `biblioteca/player.js` so the player uses the quality choice saved at login instead of ignoring it and re-deciding solely from the cached speed-test result.
   - Updated `biblioteca/player.js` and `biblioteca/gallery.js` so regular player-facing cover and gallery images are loaded from optimized delivery paths instead of original PNG-heavy sources.

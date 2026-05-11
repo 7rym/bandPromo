@@ -24,6 +24,11 @@ body {
     text-align: center;
 }
 
+.login-side-column,
+.login-form-column {
+    width: 100%;
+}
+
 .logo {
     text-align: center;
     margin-bottom: 30px;
@@ -210,6 +215,162 @@ body.video-loaded {
     .quality-btn {
         padding: 10px 12px;
         font-size: 13px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    body {
+        align-items: center;
+        padding: 4px 0;
+        overflow-y: auto;
+        background-attachment: scroll;
+    }
+
+    .login-container {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: stretch;
+        column-gap: 18px;
+        width: min(940px, calc(100vw - 8px));
+        min-height: calc(100dvh - 8px);
+        padding: 0;
+        margin: 0 auto;
+    }
+
+    .login-side-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        min-height: 0;
+    }
+
+    .logo img {
+        width: min(100%, 380px);
+        max-height: calc(100dvh - 88px);
+    }
+
+    #aboutThis {
+        margin-bottom: 0;
+        width: 100%;
+    }
+
+    .login-form-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 100%;
+    }
+
+    .login-form-column form {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 100%;
+    }
+
+    .form-group,
+    .quality-group,
+    .error-message {
+        margin-bottom: 10px;
+    }
+
+    label {
+        margin-bottom: 4px;
+        font-size: 14px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    button,
+    .quality-btn {
+        padding: 10px 12px;
+        font-size: 15px;
+    }
+
+    #speed-test-result {
+        min-height: 18px !important;
+        margin-bottom: 3px !important;
+        font-size: 12px !important;
+    }
+
+    .quality-options {
+        gap: 10px;
+    }
+
+    #retest-speed-btn {
+        font-size: 11px !important;
+        margin-bottom: 6px;
+    }
+
+    .login-container p a {
+        padding: 10px 14px;
+        font-size: 14px;
+        text-align: center;
+        width: min(100%, 280px);
+    }
+}
+
+@media (orientation: landscape) and (max-height: 430px) {
+    body {
+        padding: 3px 0;
+    }
+
+    .login-container {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: 14px;
+        width: min(900px, calc(100vw - 6px));
+        min-height: calc(100dvh - 6px);
+        padding: 0;
+    }
+
+    .login-side-column {
+        gap: 12px;
+    }
+
+    .logo img {
+        width: min(100%, 320px);
+        max-height: calc(100dvh - 74px);
+    }
+
+    label {
+        font-size: 13px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    button,
+    .quality-btn {
+        padding: 9px 11px;
+        font-size: 14px;
+    }
+
+    .login-container p a {
+        width: min(100%, 260px);
+    }
+
+    .form-group,
+    .quality-group,
+    .error-message {
+        margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    button,
+    .quality-btn {
+        padding: 7px 9px;
+        font-size: 12px;
+    }
+
+    .quality-btn {
+        line-height: 1.2;
+    }
+
+    #speed-test-result {
+        min-height: 14px !important;
+        font-size: 10px !important;
     }
 }
 

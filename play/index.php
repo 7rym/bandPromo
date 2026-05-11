@@ -131,6 +131,10 @@ $preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] 
 if ($supportUrl === '' && $supportKofiPageId !== '') {
     $supportUrl = 'https://ko-fi.com/' . rawurlencode($supportKofiPageId);
 }
+
+if ($supportEnabled && $supportUrl !== '') {
+    $supportMode = 'link';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -284,7 +288,8 @@ if ($supportUrl === '' && $supportKofiPageId !== '') {
         href="<?php echo htmlspecialchars($supportUrl, ENT_QUOTES, 'UTF-8'); ?>"
         target="_blank"
         rel="noopener noreferrer"
-        style="position:fixed;left:10px;bottom:50px;z-index:10000;display:inline-flex;align-items:center;gap:8px;padding:14px 18px;border-radius:999px;background:<?php echo htmlspecialchars($supportButtonBackgroundColor, ENT_QUOTES, 'UTF-8'); ?>;color:<?php echo htmlspecialchars($supportButtonTextColor, ENT_QUOTES, 'UTF-8'); ?>;text-decoration:none;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.35);"
+        class="support-link-button"
+        style="--support-button-background: <?php echo htmlspecialchars($supportButtonBackgroundColor, ENT_QUOTES, 'UTF-8'); ?>; --support-button-text: <?php echo htmlspecialchars($supportButtonTextColor, ENT_QUOTES, 'UTF-8'); ?>;"
     >
         <?php echo htmlspecialchars($supportLabel, ENT_QUOTES, 'UTF-8'); ?>
     </a>

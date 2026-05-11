@@ -11,10 +11,6 @@ function buildAudioUrl(filename) {
     // For optimal, swap .flac → .mp3 (optimized audio is always MP3)
     const f = PATH_VARIANT === 'optimal' ? filename.replace(/\.flac$/i, '.mp3') : filename;
 
-    if (window.BANDPROMO_LOCAL_DEV === true && window.MEDIA_AUDIO_BASE != null) {
-        return `${window.MEDIA_AUDIO_BASE}/${PATH_VARIANT}/${encodeURIComponent(f)}`;
-    }
-
     const params = new URLSearchParams({
         variant: PATH_VARIANT,
         file: f,
@@ -657,6 +653,32 @@ function openAlbumCoverLightbox() {
     openLightbox(buildCoverUrl(playList[currentIndex].cover), 'Album Cover');
 }
 
+function bindBioLightbox() {
+    const bioBox = document.getElementById('bioBox');
+    if (!bioBox || bioBox.dataset.lightboxBound === 'true') {
+        return;
+    }
+
+    bioBox.dataset.lightboxBound = 'true';
+    bioBox.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLImageElement)) {
+            return;
+        }
+
+        const src = target.getAttribute('src');
+        if (!src) {
+            return;
+        }
+
+        openLightbox(src, target.getAttribute('alt') || 'Bio image');
+    });
+
+    bioBox.querySelectorAll('img').forEach((img) => {
+        img.style.cursor = 'pointer';
+    });
+}
+
 
 
 // Add click listener to cover image to open lightbox
@@ -673,6 +695,8 @@ function removePulseGuide() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    bindBioLightbox();
+
     // Add pulse guide to play button after initial load
     setTimeout(() => {
         playBtn.classList.add('pulse-guide');

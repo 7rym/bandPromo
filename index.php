@@ -214,64 +214,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </script>
     <?php else: ?>
         <div class="login-container">
-            <div class="logo">
-                <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
-            </div>
-            <p id="aboutThis"><a href="#" onclick="openInfoLightbox(event)">
-                <span class="about-line active">What is this?</span>
-                <span class="about-line">Is it dangerous?</span>
-                <span class="about-line">Is it fun?</span>
-                <span class="about-line">Tell me more...</span>
-            </a></p>
-            <p><br></p>            
-            <?php if ($error): ?>
-                <div id="error-message" class="error-message"><?php echo htmlspecialchars($error); ?></div>
-            <?php endif; ?>
-            
-            <form method="POST" action="">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input 
-                    type="text" 
-                    id="username" 
-                    name="username" 
-                    placeholder="Enter your username"
-                    autocomplete="username"
-                    required
-                    autofocus
-                >
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input 
-                    type="password" 
-                    id="password" 
-                    name="password" 
-                    placeholder="Enter your password"
-                    autocomplete="current-password"
-                    required
-                >
-            </div>
-            
-            <div class="quality-group">
-                <div id="speed-test-result" style="text-align: center; font-size: 12px; color: #fff; margin-bottom: 4px; min-height: 20px;">
-                    Testing connection speed...
+            <div class="login-side-column">
+                <div class="logo">
+                    <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
                 </div>
-                <div style="text-align: center; margin-bottom: 10px;">
-                    <button type="button" id="retest-speed-btn" style="background: none; border: none; color: #aaa; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0;">Re-test connection</button>
-                </div>
-                <div class="quality-options">
-                    <button type="button" class="quality-btn active" data-quality="high">Maximum Quality<br>(Broadband)</button>
-                    <button type="button" class="quality-btn" data-quality="low">Mobile Friendly</button>
-                </div>
-                <input type="hidden" id="quality-hidden" name="quality" value="high" required>
+                <p id="aboutThis"><a href="#" onclick="openInfoLightbox(event)">
+                    <span class="about-line active">What is this?</span>
+                    <span class="about-line">Is it dangerous?</span>
+                    <span class="about-line">Is it fun?</span>
+                    <span class="about-line">Tell me more...</span>
+                </a></p>
             </div>
-            
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>" required>
-            
-            <button type="submit">Login</button>
-            </form>
+            <div class="login-form-column">
+                <?php if ($error): ?>
+                    <div id="error-message" class="error-message"><?php echo htmlspecialchars($error); ?></div>
+                <?php endif; ?>
+                
+                <form method="POST" action="">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Enter your username"
+                        autocomplete="username"
+                        required
+                        autofocus
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+                
+                <div class="quality-group">
+                    <div id="speed-test-result" style="text-align: center; font-size: 12px; color: #fff; margin-bottom: 4px; min-height: 20px;">
+                        Testing connection speed...
+                    </div>
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <button type="button" id="retest-speed-btn" style="background: none; border: none; color: #aaa; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0;">Re-test connection</button>
+                    </div>
+                    <div class="quality-options">
+                        <button type="button" class="quality-btn active" data-quality="high">Maximum Quality<br>(Broadband)</button>
+                        <button type="button" class="quality-btn" data-quality="low">Mobile Friendly</button>
+                    </div>
+                    <input type="hidden" id="quality-hidden" name="quality" value="high" required>
+                </div>
+                
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>" required>
+                
+                <button type="submit">Login</button>
+                </form>
+            </div>
         </div>
         <?php
         // Load and display info lightbox from configuration
