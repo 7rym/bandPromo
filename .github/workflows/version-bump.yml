@@ -44,7 +44,8 @@ jobs:
           PY
 
           if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- VERSION && {
-              echo "VERSION must be bumped locally before pushing to main." && exit 1;
-            }
+            if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- VERSION; then
+              echo "VERSION must be bumped locally before pushing to main."
+              exit 1
+            fi
           fi

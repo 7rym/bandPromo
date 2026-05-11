@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **2026-05-11 — VERSION validation workflow now fetches the commit range it compares**
   - Updated `.github/workflows/version-bump.yml` so `actions/checkout` fetches full history before comparing `${{ github.event.before }}` with `${{ github.sha }}`.
-  - This prevents false CI failures on pushes where `VERSION` was bumped correctly but the default shallow checkout did not contain the `before` commit object.
+  - The workflow now also uses an explicit `if git diff --quiet ...; then ... fi` check so a valid `VERSION` change no longer leaks `git diff` exit code `1` into the job result.
+  - This prevents false CI failures on pushes where `VERSION` was bumped correctly but the default shallow checkout did not contain the `before` commit object or the diff check returned the expected "files changed" status.
 
 ### Added
 - **2026-05-09 — Admin panel now includes an operator-facing welcome page**
