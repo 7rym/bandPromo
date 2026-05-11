@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **2026-05-11 — Player page now attempts fullscreen in mobile wide mode and PWA orientation is no longer portrait-locked**
   - Updated `biblioteca/player.js` so the `/play/` screen, not just the login page, makes a best-effort fullscreen request when a mobile device enters wide landscape mode.
-  - Updated `site.webmanifest`, `index.php`, and `play/index.php` so the PWA is no longer locked to `portrait-primary`, and the manifest URL now carries the tracked app version to help production clients pick up orientation changes.
+  - Updated `scripts/makePWA.py`, `index.php`, and `play/index.php` so generated manifests are no longer locked to `portrait-primary`, and the manifest URL now carries the tracked app version to help production clients pick up orientation changes.
 
 - **2026-05-11 — Login speed-test label no longer appends a stray `HIGH` suffix**
   - Updated `biblioteca/login.js` so the informational login speed-test text now ends at `Max quality available` instead of rendering a leftover `: HIGH` artifact from the previous copy change.

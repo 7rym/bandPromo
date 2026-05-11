@@ -44,7 +44,7 @@ def generate_manifest():
         "display":          "standalone",
         "start_url":        "/",
         "scope":            "/",
-        "orientation":      "portrait-primary",
+        "orientation":      "any",
         "categories":       social.get('categories', ['entertainment']),
         "prefer_related_applications": False,
         "icons": [
