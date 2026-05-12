@@ -230,6 +230,12 @@ function autoSelectQuality(recommendation) {
     updateBackground();
 }
 
+function persistSelectedQuality(quality) {
+    if (quality === 'high' || quality === 'low') {
+        sessionStorage.setItem('bandpromo_selected_quality', quality);
+    }
+}
+
 function showBgImage() {
     const video = document.getElementById('bg-video');
     const bgImage = window.appConfig?.media?.background_image || '';
@@ -279,8 +285,10 @@ function updateBackground() {
 document.addEventListener('DOMContentLoaded', function() {
     const buttons = document.querySelectorAll('.quality-btn');
     const qualityInput = document.getElementById('quality-hidden');
+    const loginForm = document.querySelector('.login-form-column form');
 
     autoSelectQuality(qualityInput?.value || 'low');
+    persistSelectedQuality(qualityInput?.value || 'low');
 
     const retestBtn = document.getElementById('retest-speed-btn');
     if (retestBtn) {
@@ -299,9 +307,16 @@ document.addEventListener('DOMContentLoaded', function() {
             buttons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
             qualityInput.value = quality;
+            persistSelectedQuality(quality);
             updateBackground();
         });
     });
+
+    if (loginForm && qualityInput) {
+        loginForm.addEventListener('submit', () => {
+            persistSelectedQuality(qualityInput.value);
+        });
+    }
     
     updateBackground();
 

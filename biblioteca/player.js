@@ -787,6 +787,16 @@ function determineQuality() {
         return;
     }
 
+    const explicitQuality = sessionStorage.getItem('bandpromo_selected_quality');
+    if (explicitQuality === 'high') {
+        PATH_VARIANT = 'original';
+        return;
+    }
+    if (explicitQuality === 'low') {
+        PATH_VARIANT = 'optimal';
+        return;
+    }
+
     // Check if speed test was run on login page
     const cached = sessionStorage.getItem('connection_speed');
     if (cached) {

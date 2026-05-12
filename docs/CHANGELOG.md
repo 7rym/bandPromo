@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-04-30
 
 ### Fixed
+- **2026-05-12 — Player now also honors the explicit login quality choice from session storage**
+  - Updated `biblioteca/login.js` to persist the user’s chosen login quality in `sessionStorage`.
+  - Updated `biblioteca/player.js` to prefer that explicit stored choice before falling back to server-injected preference or cached speed-test heuristics, so selecting optimized more reliably results in optimized playback.
+
 - **2026-05-11 — Player page now attempts fullscreen in mobile wide mode and PWA orientation is no longer portrait-locked**
   - Updated `biblioteca/player.js` so the `/play/` screen, not just the login page, makes a best-effort fullscreen request when a mobile device enters wide landscape mode.
   - Updated `scripts/makePWA.py`, `index.php`, and `play/index.php` so generated manifests are no longer locked to `portrait-primary`, and the manifest URL now carries the tracked app version to help production clients pick up orientation changes.
