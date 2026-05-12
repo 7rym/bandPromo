@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-12 23:55 - Player quality precedence now honors the explicit browser-side selection before the server session fallback, preventing stale session quality from forcing original/FLAC playback after choosing Optimized on the login screen.
+
 ## [Unreleased] - 2026-04-30
 
 ### Fixed

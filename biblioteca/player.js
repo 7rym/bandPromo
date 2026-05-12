@@ -782,11 +782,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Set quality based on login speed test result (cached in sessionStorage)
 function determineQuality() {
-    if (window.BANDPROMO_PREFERRED_AUDIO_VARIANT === 'original' || window.BANDPROMO_PREFERRED_AUDIO_VARIANT === 'optimal') {
-        PATH_VARIANT = window.BANDPROMO_PREFERRED_AUDIO_VARIANT;
-        return;
-    }
-
     const explicitQuality = sessionStorage.getItem('bandpromo_selected_quality');
     if (explicitQuality === 'high') {
         PATH_VARIANT = 'original';
@@ -794,6 +789,11 @@ function determineQuality() {
     }
     if (explicitQuality === 'low') {
         PATH_VARIANT = 'optimal';
+        return;
+    }
+
+    if (window.BANDPROMO_PREFERRED_AUDIO_VARIANT === 'original' || window.BANDPROMO_PREFERRED_AUDIO_VARIANT === 'optimal') {
+        PATH_VARIANT = window.BANDPROMO_PREFERRED_AUDIO_VARIANT;
         return;
     }
 
