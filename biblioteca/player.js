@@ -28,6 +28,39 @@ function buildCoverUrl(rawCoverPath) {
     return `../${IMAGE_PATH_VARIANT}/${name}`;
 }
 
+function hasDisplayableLyrics(song) {
+    const lyrics = typeof song?.lyrics === 'string' ? song.lyrics.trim() : '';
+    return lyrics !== '' && !lyrics.startsWith('No lyrics found.');
+}
+
+function getPreferredPrimaryView(song) {
+    return hasDisplayableLyrics(song) ? 'lyrics' : 'playlist';
+}
+
+function syncLyricsTab(song) {
+    const buttons = document.querySelectorAll('.content-toggle button');
+    const lyricsButton = buttons[0];
+    if (!lyricsButton) {
+        return;
+    }
+
+    const hasLyrics = hasDisplayableLyrics(song);
+    lyricsButton.hidden = !hasLyrics;
+    lyricsButton.disabled = !hasLyrics;
+    lyricsButton.setAttribute('aria-hidden', hasLyrics ? 'false' : 'true');
+    if (hasLyrics) {
+        lyricsButton.removeAttribute('tabindex');
+        lyricsButton.removeAttribute('title');
+    } else {
+        lyricsButton.setAttribute('tabindex', '-1');
+        lyricsButton.setAttribute('title', 'Lyrics are unavailable for this track');
+    }
+
+    if (!hasLyrics && lyricsBox.classList.contains('active')) {
+        toggleView(getPreferredPrimaryView(song));
+    }
+}
+
 const audioPlayer = document.getElementById('audioPlayer');
 const coverImage = document.getElementById('coverImage');
 const reflectionImage = document.getElementById('reflectionImage');
@@ -778,10 +811,11 @@ function updateVisuals(index) {
     // Main info
     songTitle.innerText = song.title;
     artistName.innerText = song.artist;
-    lyricsBox.innerText = song.lyrics;
+    lyricsBox.innerText = hasDisplayableLyrics(song) ? song.lyrics : '';
     lyricsBox.scrollTop = 0; // Reset scroll position to top
     coverImage.src = coverPath;
     reflectionImage.src = coverPath;
+    syncLyricsTab(song);
 
     // Scroll page to top
     window.scrollTo(0, 0);
@@ -909,6 +943,10 @@ function toggleView(view) {
         gallery: buttons[3]
     };
 
+    if (view === 'lyrics' && !hasDisplayableLyrics(playList[currentIndex])) {
+        view = getPreferredPrimaryView(playList[currentIndex]);
+    }
+
     // Remove active class from all boxes and buttons
     lyricsBox.classList.remove('active');
     playlistBox.classList.remove('active');
@@ -1003,7 +1041,7 @@ function playTrackFromPlaylist(index) {
     renderPlaylist();
 
     // flip back to lyrics view so user sees the cover/info
-    toggleView('lyrics');
+    toggleView(getPreferredPrimaryView(playList[currentIndex]));
 
     // scroll the whole page to top so the cover is visible
     window.scrollTo({ top: 0, behavior: 'smooth' });

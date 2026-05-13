@@ -662,6 +662,10 @@ button.pulse-guide {
     box-shadow: 0 0 10px var(--primary-color);
 }
 
+.content-toggle button[hidden] {
+    display: none;
+}
+
 .lyrics-box {
     padding: 8px 4px 64px 4px;
     overflow-y: scroll;

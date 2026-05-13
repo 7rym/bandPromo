@@ -71,7 +71,7 @@ def build_metadata_warnings(filename, info):
         warnings.append('missing_album_tag')
     if track == 999:
         warnings.append('missing_track_number')
-    if lyrics.startswith('No lyrics found.'):
+    if not lyrics.strip():
         warnings.append('missing_lyrics')
     if not cover:
         warnings.append('missing_cover_art')
@@ -175,7 +175,7 @@ def get_lyrics(filename):
         except Exception as e:
             return f"Error reading text file: {str(e)}"
     
-    return "No lyrics found.\n(Add lyrics to the ID3 tag or a .txt file with the same name.)"
+    return ""
 
 def get_description(filename):
     """
@@ -497,7 +497,7 @@ def parse_audio_file(filename):
         'artist': 'Unknown Artist',
         'album': 'Unknown Album',
         'duration': 0,
-        'lyrics': 'No lyrics found.\n(Add lyrics to the ID3 tag or a .txt file with the same name.)',
+        'lyrics': '',
         'description': '',
         'track': 999,
         'cover': None,
