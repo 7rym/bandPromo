@@ -331,6 +331,10 @@ async function buildDebugRows() {
     const explicitQuality = sessionStorage.getItem('bandpromo_selected_quality') || 'n/a';
     const serviceWorkerController = navigator.serviceWorker?.controller?.scriptURL || 'none';
     const currentSource = audioPlayer.currentSrc || audioPlayer.src || 'n/a';
+    const visualViewportSummary = window.visualViewport
+        ? `${Math.round(window.visualViewport.width)} x ${Math.round(window.visualViewport.height)} @ ${window.visualViewport.scale.toFixed(2)}`
+        : 'n/a';
+    const screenOrientation = screen.orientation?.type || (window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait');
 
     return [
         ['Version build', debugInfo.version || 'n/a'],
@@ -351,6 +355,11 @@ async function buildDebugRows() {
         ['Session resource requests', String(transfer.requestCount)],
         ['Connection test', getDebugConnectionSummary()],
         ['Storage estimate', storageEstimate],
+        ['Viewport', `${window.innerWidth} x ${window.innerHeight}`],
+        ['Visual viewport', visualViewportSummary],
+        ['Screen size', `${screen.width} x ${screen.height}`],
+        ['Screen orientation', screenOrientation],
+        ['Device pixel ratio', String(window.devicePixelRatio || 1)],
         ['App cache buckets', cacheInfo.appCacheNames.length ? cacheInfo.appCacheNames.join(', ') : 'none'],
         ['CacheStorage entries', String(cacheInfo.totalCaches)],
         ['Last cache clear', getLastCacheClearSummary()],
