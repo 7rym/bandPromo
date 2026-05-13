@@ -126,7 +126,20 @@ if ($supportButtonTextColor === '') {
     $supportButtonTextColor = '#ffffff';
 }
 
+$currentUsername = trim((string) ($_SESSION['username'] ?? ''));
+$currentUserRole = current_user_role();
+$showAdminButton = can_access_admin_panel();
+$showDebugTools = is_developer();
 $preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
+$debugInfo = [
+    'username' => $currentUsername,
+    'role' => $currentUserRole,
+    'version' => $appVersion,
+    'sessionQuality' => (string) ($_SESSION['quality'] ?? ''),
+    'preferredAudioVariant' => $preferredAudioVariant,
+    'origin' => $origin,
+    'path' => $_SERVER['REQUEST_URI'] ?? '/play/',
+];
 
 if ($supportUrl === '' && $supportKofiPageId !== '') {
     $supportUrl = 'https://ko-fi.com/' . rawurlencode($supportKofiPageId);
@@ -170,9 +183,11 @@ if ($supportEnabled && $supportUrl !== '') {
 <body>
     <?php
     require_once '../biblioteca/config-loader.php';
-    if (is_admin()):
+    if ($showDebugTools):
     ?>
-    <div id="debug-home-btn" onclick="debugLogout()" title="Logout & Reset (Debug)">🏠</div>
+    <button type="button" id="debug-panel-btn" title="Developer debug panel" aria-label="Open developer debug panel">🐛</button>
+    <?php endif; ?>
+    <?php if ($showAdminButton): ?>
     <a id="admin-btn" href="/admin.php" title="Admin panel">⚙️</a>
     <?php endif; ?>
 
@@ -255,6 +270,28 @@ if ($supportEnabled && $supportUrl !== '') {
         </div>
     </div>
 
+    <?php if ($showDebugTools): ?>
+    <div class="debug-modal" id="debugModal" aria-hidden="true">
+        <div class="debug-modal-panel" id="debugModalContent" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
+            <div class="debug-modal-header">
+                <div>
+                    <h2 id="debugModalTitle">Developer Debug</h2>
+                    <p class="debug-modal-subtitle">Live client and session diagnostics for external mobile and PWA testing.</p>
+                </div>
+                <button type="button" class="debug-modal-close" id="debugModalClose" aria-label="Close debug panel">&times;</button>
+            </div>
+            <div class="debug-modal-actions">
+                <button type="button" id="debugLogoutBtn">Logout</button>
+                <button type="button" id="debugClearCacheBtn">Clear App Cache</button>
+            </div>
+            <div class="debug-modal-note">Data usage is approximate browser-side transfer for this session, not authoritative billing-grade usage.</div>
+            <div class="debug-data-grid" id="debugDataBody">
+                <div class="debug-data-empty">Loading debug data...</div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Tell player.js where media lives in the new structure -->
     <script>
         window.CONFIG_URL       = '/play/playlist.json';
@@ -263,6 +300,7 @@ if ($supportEnabled && $supportUrl !== '') {
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
         window.INITIAL_GALLERY_ITEMS = <?php echo json_encode($galleryItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+        window.BANDPROMO_DEBUG_INFO = <?php echo json_encode($debugInfo, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         <?php
         require_once '../biblioteca/csrf.php';
         $csrf_token = generate_csrf_token();

@@ -259,12 +259,39 @@ if (!function_exists('get_config_nonempty')) {
 }
 
 /**
- * Check if the currently logged-in user is an admin.
- * Delegates to auth.php which reads roles from the terces file.
+ * Get the currently logged-in user's role.
  */
-function is_admin(): bool {
-    $username = $_SESSION['username'] ?? '';
-    if (empty($username)) return false;
+function current_user_role(): string {
+    $username = trim((string) ($_SESSION['username'] ?? ''));
+    if ($username === '') return 'user';
+    require_once __DIR__ . '/auth.php';
+    return getUserRole($username);
+}
+
+/**
+ * Check if the currently logged-in user may access the admin panel.
+ */
+function can_access_admin_panel(): bool {
+    $username = trim((string) ($_SESSION['username'] ?? ''));
+    if ($username === '') return false;
     require_once __DIR__ . '/auth.php';
     return isAdminUser($username);
+}
+
+/**
+ * Check if the currently logged-in user is a developer.
+ */
+function is_developer(): bool {
+    $username = trim((string) ($_SESSION['username'] ?? ''));
+    if ($username === '') return false;
+    require_once __DIR__ . '/auth.php';
+    return isDeveloperUser($username);
+}
+
+/**
+ * Check if the currently logged-in user is an admin.
+ * Backwards-compatible alias for privileged admin-panel access.
+ */
+function is_admin(): bool {
+    return can_access_admin_panel();
 }

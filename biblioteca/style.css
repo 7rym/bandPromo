@@ -204,14 +204,14 @@ Breakpoints:
     }
 }
 
-/* Debug Home Button */
-#debug-home-btn {
+/* Developer / Admin Utility Buttons */
+#debug-panel-btn {
     position: fixed;
     top: 15px;
     left: 15px;
     width: 30px;
     height: 30px;
-    font-size: 28px;
+    font-size: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -221,6 +221,9 @@ Breakpoints:
     transition: all 0.3s ease;
     z-index: 500;
     backdrop-filter: blur(5px);
+    border: 1px solid rgba(0, 210, 255, 0.25);
+    color: var(--primary-color);
+    padding: 0;
 }
 
 #admin-btn {
@@ -242,7 +245,7 @@ Breakpoints:
 }
 
 @media (hover: hover) {
-    #debug-home-btn:hover {
+    #debug-panel-btn:hover {
         background: rgba(0, 210, 255, 0.3);
         border-color: var(--primary-color);
         box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
@@ -255,9 +258,117 @@ Breakpoints:
     }
 }
 
-#debug-home-btn:active,
+#debug-panel-btn:active,
 #admin-btn:active {
     transform: scale(0.95);
+}
+
+body.debug-modal-open {
+    overflow: hidden;
+}
+
+.debug-modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.82);
+    z-index: 1300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.debug-modal.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.debug-modal-panel {
+    width: min(92vw, 640px);
+    max-height: min(88vh, 760px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(0, 210, 255, 0.28);
+    background: linear-gradient(180deg, rgba(14, 24, 32, 0.98) 0%, rgba(8, 13, 18, 0.96) 100%);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(0, 210, 255, 0.12);
+    backdrop-filter: blur(16px);
+}
+
+.debug-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.debug-modal-header h2 {
+    margin: 0;
+}
+
+.debug-modal-subtitle {
+    margin: 6px 0 0;
+    color: #9fb4bf;
+    font-size: 0.92rem;
+    line-height: 1.4;
+}
+
+.debug-modal-close {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.debug-modal-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.debug-modal-note {
+    font-size: 0.82rem;
+    color: #89a2af;
+}
+
+.debug-data-grid {
+    display: grid;
+    grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+    gap: 10px 14px;
+    overflow: auto;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.debug-data-label {
+    color: #8ec8d7;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.debug-data-value {
+    color: #e6f5fa;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.debug-data-empty {
+    grid-column: 1 / -1;
+    color: #a6bcc6;
 }
 
 /* 3D Scene Container */
@@ -1067,16 +1178,40 @@ audio {
         padding-top: 2px;
     }
 
-    #debug-home-btn,
+    #debug-panel-btn,
     #admin-btn {
         top: 10px;
         width: 28px;
         height: 28px;
     }
 
+    #debug-panel-btn {
+        left: 10px;
+        font-size: 20px;
+    }
+
     #admin-btn {
         left: 48px;
         font-size: 20px;
+    }
+
+    .debug-modal {
+        padding: 10px;
+    }
+
+    .debug-modal-panel {
+        width: 100%;
+        max-height: 90vh;
+        padding: 14px;
+        border-radius: 14px;
+    }
+
+    .debug-data-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .debug-data-label {
+        margin-top: 6px;
     }
 
     .scene {

@@ -41,6 +41,13 @@ const playBtn = document.getElementById('playBtn');
 const loadingMsg = document.getElementById('loading-msg');
 const lightbox = document.getElementById('lightbox');
 const lightboxImage = document.getElementById('lightboxImage');
+const debugPanelButton = document.getElementById('debug-panel-btn');
+const debugModal = document.getElementById('debugModal');
+const debugModalContent = document.getElementById('debugModalContent');
+const debugModalCloseButton = document.getElementById('debugModalClose');
+const debugLogoutButton = document.getElementById('debugLogoutBtn');
+const debugClearCacheButton = document.getElementById('debugClearCacheBtn');
+const debugDataBody = document.getElementById('debugDataBody');
 
 // Playback state used to keep seek behavior and logging stable.
 let hasStartedCurrentTrack = false;
@@ -53,6 +60,7 @@ const ANALYTICS_INACTIVITY_TIMEOUT_MS = Number.isFinite(window.BANDPROMO_ANALYTI
 let analyticsSessionActive = false;
 let analyticsInactivityTimerId = null;
 let pendingPlayActionSource = null;
+let debugRefreshIntervalId = null;
 
 function isStandaloneDisplayMode() {
     return window.matchMedia('(display-mode: standalone)').matches ||
@@ -119,10 +127,325 @@ async function syncWideModeFullscreen() {
     wideModeFullscreenOwned = false;
 }
 
-// Debug Logout Function
-function debugLogout() {
-    if (confirm('Logout and reset session? (Debug)')) {
-        window.location.href = '/?logout=1';
+function formatDebugValue(value) {
+    if (value === null || value === undefined || value === '') {
+        return 'n/a';
+    }
+    return String(value);
+}
+
+function getLastCacheClearSummary() {
+    const raw = sessionStorage.getItem('bandpromo_debug_last_cache_clear');
+    if (!raw) {
+        return 'n/a';
+    }
+
+    try {
+        const data = JSON.parse(raw);
+        const removedCaches = Number.isFinite(Number(data.removedCaches)) ? Number(data.removedCaches) : 0;
+        const removedKeys = Array.isArray(data.removedKeys) ? data.removedKeys.join(', ') : 'none';
+        const stamp = typeof data.at === 'string' && data.at !== '' ? data.at : 'unknown time';
+        return `${stamp} | caches: ${removedCaches} | keys: ${removedKeys || 'none'}`;
+    } catch (error) {
+        return 'n/a';
+    }
+}
+
+function formatBytes(bytes) {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) {
+        return '0 B';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = value;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+    }
+
+    const precision = size >= 100 || unitIndex === 0 ? 0 : 1;
+    return `${size.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+function formatTime(seconds) {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value < 0) {
+        return '0:00';
+    }
+
+    const totalSeconds = Math.floor(value);
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function getDisplayModeLabel() {
+    if (window.matchMedia('(display-mode: fullscreen)').matches) return 'fullscreen';
+    if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
+    if (window.matchMedia('(display-mode: window-controls-overlay)').matches) return 'window-controls-overlay';
+    if (navigator.standalone === true) return 'standalone-ios';
+    return 'browser-tab';
+}
+
+function getDebugConnectionSummary() {
+    const cached = sessionStorage.getItem('connection_speed');
+    if (!cached) {
+        return 'n/a';
+    }
+
+    try {
+        const data = JSON.parse(cached);
+        const speed = Number(data.speed);
+        if (!Number.isFinite(speed)) {
+            return 'n/a';
+        }
+        const recommended = data.recommended === 'high' ? 'high' : 'low';
+        return `${speed.toFixed(2)} Mbps (${recommended})`;
+    } catch (error) {
+        return 'n/a';
+    }
+}
+
+function getApproximateTransferStats() {
+    const entries = performance.getEntriesByType('resource');
+    let sessionTransferBytes = 0;
+    let audioTransferBytes = 0;
+    let requestCount = 0;
+
+    entries.forEach((entry) => {
+        if (!entry || typeof entry.name !== 'string') {
+            return;
+        }
+
+        let entryUrl;
+        try {
+            entryUrl = new URL(entry.name, window.location.href);
+        } catch (error) {
+            return;
+        }
+
+        if (entryUrl.origin !== window.location.origin) {
+            return;
+        }
+
+        requestCount += 1;
+        const transferSize = entry.transferSize || entry.encodedBodySize || entry.decodedBodySize || 0;
+        sessionTransferBytes += transferSize;
+
+        if (entryUrl.pathname === '/biblioteca/audio.php' || entryUrl.pathname.startsWith('/media/audio/')) {
+            audioTransferBytes += transferSize;
+        }
+    });
+
+    return {
+        sessionTransferBytes,
+        audioTransferBytes,
+        requestCount,
+    };
+}
+
+function getAppCachePrefix() {
+    const hostKey = window.location.hostname.replace(/\./g, '.').split('.')[0];
+    return `${hostKey}-app-`;
+}
+
+async function getDebugCacheInfo() {
+    if (!('caches' in window)) {
+        return {
+            appCacheNames: [],
+            totalCaches: 0,
+        };
+    }
+
+    try {
+        const cacheNames = await caches.keys();
+        const prefix = getAppCachePrefix();
+        return {
+            appCacheNames: cacheNames.filter((name) => name.startsWith(prefix)),
+            totalCaches: cacheNames.length,
+        };
+    } catch (error) {
+        return {
+            appCacheNames: [],
+            totalCaches: 0,
+        };
+    }
+}
+
+async function getStorageEstimateSummary() {
+    if (!navigator.storage || typeof navigator.storage.estimate !== 'function') {
+        return 'n/a';
+    }
+
+    try {
+        const estimate = await navigator.storage.estimate();
+        const used = formatBytes(estimate.usage || 0);
+        const quota = formatBytes(estimate.quota || 0);
+        return `${used} / ${quota}`;
+    } catch (error) {
+        return 'n/a';
+    }
+}
+
+async function buildDebugRows() {
+    const debugInfo = window.BANDPROMO_DEBUG_INFO || {};
+    const transfer = getApproximateTransferStats();
+    const cacheInfo = await getDebugCacheInfo();
+    const storageEstimate = await getStorageEstimateSummary();
+    const currentTrack = playList[currentIndex] || null;
+    const explicitQuality = sessionStorage.getItem('bandpromo_selected_quality') || 'n/a';
+    const serviceWorkerController = navigator.serviceWorker?.controller?.scriptURL || 'none';
+    const currentSource = audioPlayer.currentSrc || audioPlayer.src || 'n/a';
+
+    return [
+        ['Version build', debugInfo.version || 'n/a'],
+        ['User', debugInfo.username || 'n/a'],
+        ['Role', debugInfo.role || 'n/a'],
+        ['Session quality', debugInfo.sessionQuality || 'n/a'],
+        ['Explicit selected quality', explicitQuality],
+        ['Resolved audio variant', PATH_VARIANT],
+        ['Server preferred variant', debugInfo.preferredAudioVariant || 'n/a'],
+        ['Display mode', getDisplayModeLabel()],
+        ['Current track', currentTrack ? `${currentIndex + 1}. ${currentTrack.title || 'Untitled'}` : 'n/a'],
+        ['Current artist', currentTrack?.artist || 'n/a'],
+        ['Playback state', audioPlayer.paused ? 'paused' : 'playing'],
+        ['Playback position', `${formatTime(audioPlayer.currentTime)} / ${formatTime(audioPlayer.duration)}`],
+        ['Requested source', currentSource],
+        ['Approx session transfer', formatBytes(transfer.sessionTransferBytes)],
+        ['Approx audio transfer', formatBytes(transfer.audioTransferBytes)],
+        ['Session resource requests', String(transfer.requestCount)],
+        ['Connection test', getDebugConnectionSummary()],
+        ['Storage estimate', storageEstimate],
+        ['App cache buckets', cacheInfo.appCacheNames.length ? cacheInfo.appCacheNames.join(', ') : 'none'],
+        ['CacheStorage entries', String(cacheInfo.totalCaches)],
+        ['Last cache clear', getLastCacheClearSummary()],
+        ['Service worker controller', serviceWorkerController],
+        ['Online status', navigator.onLine ? 'online' : 'offline'],
+        ['Page path', debugInfo.path || window.location.pathname],
+        ['Origin', debugInfo.origin || window.location.origin],
+        ['User agent', navigator.userAgent],
+    ];
+}
+
+function renderDebugRows(rows) {
+    if (!debugDataBody) {
+        return;
+    }
+
+    debugDataBody.replaceChildren();
+
+    rows.forEach(([label, value]) => {
+        const labelNode = document.createElement('div');
+        labelNode.className = 'debug-data-label';
+        labelNode.textContent = formatDebugValue(label);
+
+        const valueNode = document.createElement('div');
+        valueNode.className = 'debug-data-value';
+        valueNode.textContent = formatDebugValue(value);
+
+        debugDataBody.append(labelNode, valueNode);
+    });
+}
+
+async function refreshDebugInfo() {
+    if (!debugDataBody) {
+        return;
+    }
+
+    const rows = await buildDebugRows();
+    renderDebugRows(rows);
+}
+
+function stopDebugRefreshLoop() {
+    if (debugRefreshIntervalId !== null) {
+        window.clearInterval(debugRefreshIntervalId);
+        debugRefreshIntervalId = null;
+    }
+}
+
+function startDebugRefreshLoop() {
+    stopDebugRefreshLoop();
+    debugRefreshIntervalId = window.setInterval(() => {
+        refreshDebugInfo().catch(() => {});
+    }, 1000);
+}
+
+function openDebugModal() {
+    if (!debugModal) {
+        return;
+    }
+
+    debugModal.classList.add('active');
+    debugModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('debug-modal-open');
+    refreshDebugInfo().catch(() => {});
+    startDebugRefreshLoop();
+}
+
+function closeDebugModal() {
+    if (!debugModal) {
+        return;
+    }
+
+    debugModal.classList.remove('active');
+    debugModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('debug-modal-open');
+    stopDebugRefreshLoop();
+}
+
+function logoutFromDebugPanel() {
+    window.location.href = '/?logout=1';
+}
+
+async function clearAppCache() {
+    if (!confirm('Clear app cache and reload this page fresh?')) {
+        return;
+    }
+
+    if (debugClearCacheButton) {
+        debugClearCacheButton.disabled = true;
+    }
+
+    try {
+        let removedCacheCount = 0;
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            const prefix = getAppCachePrefix();
+            const appCacheNames = cacheNames.filter((name) => name.startsWith(prefix));
+            removedCacheCount = appCacheNames.length;
+            await Promise.all(appCacheNames.map((name) => caches.delete(name)));
+        }
+
+        const removedKeys = ['connection_speed', 'bandpromo_selected_quality', 'csrf_token', 'pwa-banner-dismissed'];
+        sessionStorage.removeItem('connection_speed');
+        sessionStorage.removeItem('bandpromo_selected_quality');
+        sessionStorage.removeItem('csrf_token');
+        sessionStorage.removeItem('pwa-banner-dismissed');
+        sessionStorage.setItem('bandpromo_debug_last_cache_clear', JSON.stringify({
+            at: new Date().toLocaleString(),
+            removedCaches: removedCacheCount,
+            removedKeys,
+        }));
+
+        if (navigator.serviceWorker && typeof navigator.serviceWorker.getRegistrations === 'function') {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.update().catch(() => {})));
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+            }
+        }
+
+        const refreshUrl = new URL(window.location.href);
+        refreshUrl.searchParams.set('debug_refresh', Date.now().toString());
+        window.location.href = refreshUrl.toString();
+    } catch (error) {
+        alert(`Unable to clear cache: ${error.message || error}`);
+        if (debugClearCacheButton) {
+            debugClearCacheButton.disabled = false;
+        }
+        refreshDebugInfo().catch(() => {});
     }
 }
 
@@ -761,6 +1084,38 @@ function removePulseGuide() {
 
 document.addEventListener('DOMContentLoaded', function() {
     bindBioLightbox();
+
+    if (debugPanelButton) {
+        debugPanelButton.addEventListener('click', openDebugModal);
+    }
+
+    if (debugModalCloseButton) {
+        debugModalCloseButton.addEventListener('click', closeDebugModal);
+    }
+
+    if (debugLogoutButton) {
+        debugLogoutButton.addEventListener('click', logoutFromDebugPanel);
+    }
+
+    if (debugClearCacheButton) {
+        debugClearCacheButton.addEventListener('click', () => {
+            clearAppCache().catch(() => {});
+        });
+    }
+
+    if (debugModal) {
+        debugModal.addEventListener('click', (event) => {
+            if (event.target === debugModal) {
+                closeDebugModal();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && debugModal?.classList.contains('active')) {
+            closeDebugModal();
+        }
+    });
 
     ['click', 'touchend', 'pointerup'].forEach((eventName) => {
         document.addEventListener(eventName, syncWideModeFullscreen, { passive: true });
