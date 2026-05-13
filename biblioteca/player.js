@@ -94,6 +94,7 @@ let analyticsSessionActive = false;
 let analyticsInactivityTimerId = null;
 let pendingPlayActionSource = null;
 let debugRefreshIntervalId = null;
+let manifestDebugCache = null;
 
 function isStandaloneDisplayMode() {
     return window.matchMedia('(display-mode: standalone)').matches ||
@@ -322,11 +323,51 @@ async function getStorageEstimateSummary() {
     }
 }
 
+async function getLiveManifestSummary() {
+    const now = Date.now();
+    if (manifestDebugCache && (now - manifestDebugCache.fetchedAt) < 15000) {
+        return manifestDebugCache.summary;
+    }
+
+    try {
+        const manifestUrl = new URL('/site.webmanifest', window.location.origin);
+        manifestUrl.searchParams.set('debug_manifest', String(now));
+        const response = await fetch(manifestUrl.toString(), { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const manifest = await response.json();
+        const summary = {
+            orientation: manifest.orientation || 'missing',
+            display: manifest.display || 'missing',
+            startUrl: manifest.start_url || 'missing',
+        };
+        manifestDebugCache = {
+            fetchedAt: now,
+            summary,
+        };
+        return summary;
+    } catch (error) {
+        const summary = {
+            orientation: `error: ${error.message || error}`,
+            display: 'n/a',
+            startUrl: 'n/a',
+        };
+        manifestDebugCache = {
+            fetchedAt: now,
+            summary,
+        };
+        return summary;
+    }
+}
+
 async function buildDebugRows() {
     const debugInfo = window.BANDPROMO_DEBUG_INFO || {};
     const transfer = getApproximateTransferStats();
     const cacheInfo = await getDebugCacheInfo();
     const storageEstimate = await getStorageEstimateSummary();
+    const manifestSummary = await getLiveManifestSummary();
     const currentTrack = playList[currentIndex] || null;
     const explicitQuality = sessionStorage.getItem('bandpromo_selected_quality') || 'n/a';
     const serviceWorkerController = navigator.serviceWorker?.controller?.scriptURL || 'none';
@@ -346,6 +387,9 @@ async function buildDebugRows() {
         ['Screen size', `${screen.width} x ${screen.height}`],
         ['Screen orientation', screenOrientation],
         ['Device pixel ratio', String(window.devicePixelRatio || 1)],
+        ['Live manifest orientation', manifestSummary.orientation],
+        ['Live manifest display', manifestSummary.display],
+        ['Live manifest start_url', manifestSummary.startUrl],
         ['Session quality', debugInfo.sessionQuality || 'n/a'],
         ['Explicit selected quality', explicitQuality],
         ['Resolved audio variant', PATH_VARIANT],
