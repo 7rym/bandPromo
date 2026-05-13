@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-13 01:35 - The compact player landscape layout now activates for coarse-pointer/mobile landscape screens up to 1024px wide instead of requiring a max-height of 500px, so standalone PWAs can switch layouts in landscape.
+
 2026-05-13 01:20 - The developer debug modal now reports viewport, visual viewport, screen size, orientation, and device pixel ratio so standalone/PWA landscape layout thresholds can be verified on remote devices, and the screen/display metrics are grouped together in the debug output.
 
 2026-05-13 01:05 - Tracks without lyrics now generate blank lyric fields instead of helper text, the build still flags missing lyrics in validation, and the player cleanly hides the Lyrics tab and falls back to Playlist for tracks that have no displayable lyrics.

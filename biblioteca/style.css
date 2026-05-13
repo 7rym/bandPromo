@@ -1359,7 +1359,7 @@ audio {
     }
 }
 
-@media (orientation: landscape) and (max-width: 1024px) and (max-height: 500px) {
+@media (orientation: landscape) and (max-width: 1024px) and (pointer: coarse) {
     :root { --card-size: min(50vh, 210px); }
 
     body {
