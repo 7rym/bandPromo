@@ -21,6 +21,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - High-quality audio playback with seek/next/previous navigation
 - Full lyrics display and enhanced playlist browsing
 - Responsive design for mobile, tablet, and desktop
+- Compact two-column landscape layout for installed/mobile PWA playback, including safer top-edge spacing in standalone mode
 - Artwork and lightbox support
 
 ### Build & Delivery

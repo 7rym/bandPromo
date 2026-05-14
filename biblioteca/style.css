@@ -1372,7 +1372,7 @@ audio {
         max-width: none;
         min-height: 100vh;
         overflow: hidden;
-        padding: 4px 8px 8px;
+        padding: max(0px, env(safe-area-inset-top)) 8px 6px;
         box-sizing: border-box;
     }
 
@@ -1387,15 +1387,20 @@ audio {
         grid-column: 1;
         align-items: center;
         justify-content: flex-start;
-        padding-top: 8px;
+        padding-top: 2px;
     }
 
     #content-container {
         grid-column: 2;
-        height: calc(100vh - 12px);
+        height: calc(100vh - 6px);
         display: flex;
         flex-direction: column;
         overflow: hidden;
+    }
+
+    #debug-panel-btn,
+    #admin-btn {
+        top: max(4px, env(safe-area-inset-top));
     }
 
     .scene {
@@ -1447,7 +1452,7 @@ audio {
     }
 
     .content-logo {
-        padding-top: 2px;
+        padding-top: 0;
     }
 
     .content-logo-img {

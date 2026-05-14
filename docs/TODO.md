@@ -67,9 +67,9 @@ Scope: end-user and operator usability at the interaction level. Put items here 
 - [x] Test view at 431–767px (large mobile/small tablet) with vertical layout and --card-size: 400px
 - [x] Test view at 768–1365px (tablet/small laptop) with grid and --card-size: 430px
 - [x] Test view at >=1366px (desktop) with grid and --card-size: 600px
-- [ ] Test and improve landscape orientation on mobile (360–430px wide, ~360–430px tall): layout likely needs a horizontal/grid split similar to tablet view rather than the current vertical stack
-- [ ] Test landscape on large mobile/small tablet (431–767px wide in landscape): confirm grid layout triggers correctly or add a dedicated landscape breakpoint
-- [ ] Consider using `orientation: landscape` media queries to switch mobile views to a two-column layout when height is constrained
+- [x] Test and improve landscape orientation on mobile (360–430px wide, ~360–430px tall): player now switches to a compact two-column landscape layout for coarse-pointer/mobile screens and uses tighter safe-area-aware spacing in standalone mode.
+- [x] Test landscape on large mobile/small tablet (431–767px wide in landscape): compact landscape layout now triggers from a mobile/coarse-pointer landscape rule rather than the old low-height-only threshold.
+- [x] Consider using `orientation: landscape` media queries to switch mobile views to a two-column layout when height is constrained
 
 ### Admin UX follow-up
 
