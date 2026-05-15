@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ else:
 
 SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent
+AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 IMG_ORIG_DIR = ROOT_DIR / 'media' / 'img' / 'original'
 
@@ -50,8 +52,15 @@ def normalize_filename(value):
 
 def master_path_for(filename):
     path = AUDIO_MASTER_DIR / filename
-    if not path.exists() or not path.is_file():
+    if path.exists() and path.is_file():
+        return path
+
+    original_path = AUDIO_ORIG_DIR / filename
+    if not original_path.exists() or not original_path.is_file():
         respond({'ok': False, 'error': 'Audio master file not found'}, 1)
+
+    AUDIO_MASTER_DIR.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(str(original_path), str(path))
     return path
 
 

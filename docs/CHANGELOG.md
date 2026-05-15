@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-15 22:31 - Older installs no longer fail in Files -> Audio when opening track details before any master copies exist: `scripts/audioMasterMetadata.py` now auto-seeds a missing FLAC/MP3 master from the preserved original on first inspect/update, so existing libraries can use the metadata editor without a separate migration step.
+
 2026-05-15 22:18 - Fixed the live Content -> Playlist preview endpoint on Linux hosts: `scripts/playlistPreview.py` no longer re-wraps `sys.stdout` before importing `makePlaylists.py`, avoiding the closed-stream failure that caused `get-playlist-preview.php` to return 500 after login on deployed servers.
 
 2026-05-15 05:58 - Updated the repository agent instructions so an unqualified "checkpoint" request now means a publishable checkpoint by default: agents should summarize the milestone state, validate the touched work, bump `VERSION`, commit, push, and verify sync unless the user explicitly asks for a status-only checkpoint.
