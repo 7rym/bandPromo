@@ -1,12 +1,6 @@
-import io
 import json
 import sys
 from pathlib import Path
-
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
-else:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 import makePlaylists
 

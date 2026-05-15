@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-15 22:18 - Fixed the live Content -> Playlist preview endpoint on Linux hosts: `scripts/playlistPreview.py` no longer re-wraps `sys.stdout` before importing `makePlaylists.py`, avoiding the closed-stream failure that caused `get-playlist-preview.php` to return 500 after login on deployed servers.
+
 2026-05-15 05:58 - Updated the repository agent instructions so an unqualified "checkpoint" request now means a publishable checkpoint by default: agents should summarize the milestone state, validate the touched work, bump `VERSION`, commit, push, and verify sync unless the user explicitly asks for a status-only checkpoint.
 
 2026-05-15 05:43 - Fixed a small admin layout regression in the shared media-panel header so the new Content -> Playlist title stays left-aligned while its Demo action remains on the right.
