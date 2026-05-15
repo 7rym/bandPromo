@@ -15,6 +15,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 }
 
 require_once __DIR__ . '/media-library-state.php';
+require_once __DIR__ . '/audio-master-helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -40,39 +41,17 @@ $dir = $dirs[$target];
 $files = [];
 
 function bandpromo_audio_master_info(string $root, string $filename): array {
-    $master_dir = $root . '/media/audio/master';
-    $stem = pathinfo($filename, PATHINFO_FILENAME);
-    $source_ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
-    $preferred_exts = $source_ext === 'wav' ? ['flac', 'mp3', 'wav'] : [$source_ext, 'flac', 'mp3', 'wav'];
-    $candidates = [];
-    foreach ($preferred_exts as $ext) {
-        $candidate = $stem . '.' . $ext;
-        if (!in_array($candidate, $candidates, true)) {
-            $candidates[] = $candidate;
-        }
+    $master = bandpromo_find_audio_master($root, $filename);
+    if ($master['exists']) {
+        return $master;
     }
 
-    foreach ($candidates as $candidate) {
-        $path = $master_dir . '/' . $candidate;
-        if (!is_file($path)) {
-            continue;
-        }
-
-        $format = strtolower((string) pathinfo($candidate, PATHINFO_EXTENSION));
-        return [
-            'exists' => true,
-            'filename' => $candidate,
-            'format' => $format,
-            'editable' => in_array($format, ['flac', 'mp3'], true),
-        ];
+    $prepared = bandpromo_prepare_audio_master_from_original($root, $filename);
+    if (!empty($prepared['prepared'])) {
+        return bandpromo_find_audio_master($root, $filename);
     }
 
-    return [
-        'exists' => false,
-        'filename' => '',
-        'format' => '',
-        'editable' => false,
-    ];
+    return $master;
 }
 
 if (is_dir($dir)) {

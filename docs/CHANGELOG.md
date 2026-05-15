@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-15 23:43 - Older libraries now backfill missing audio masters automatically when Files -> Audio inspects them: shared audio-master helper logic was extracted so the media listing can silently seed missing FLAC/MP3 copies, convert legacy WAV originals into FLAC masters on first encounter, and clear most `Master pending` badges without asking operators to run a separate migration step.
+
 2026-05-15 23:12 - Fixed player playback for WAV-backed playlist entries in optimized mode: `biblioteca/player.js` now maps supported source audio endings `.flac` and `.wav` to the generated `.mp3` delivery file when building `variant=optimal` playback URLs, so tracks like the Salsa upload no longer request a missing WAV file from `media/audio/optimal/`.
 
 2026-05-15 23:28 - Theme/special audio now follows the same WAV-to-FLAC policy as track intake: special-target WAV uploads are auto-converted into `/media/special/*.flac` instead of remaining WAV files, special audio uploads no longer incorrectly seed `media/audio/master/`, `index.php` now serves WAV theme audio with the correct MIME type when legacy files still exist, and a new `scripts/backfillWavAudioToFlac.py` action can promote existing special WAV files and legacy WAV masters to FLAC while updating matching config references.
