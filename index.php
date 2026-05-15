@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if ($welcomeAudio): ?>
         <?php
         $welcome_ext = strtolower(pathinfo($welcomeAudio, PATHINFO_EXTENSION));
-        $welcome_mime = ($welcome_ext === 'flac') ? 'audio/flac' : (($welcome_ext === 'ogg') ? 'audio/ogg' : 'audio/mpeg');
+        $welcome_mime = ($welcome_ext === 'flac') ? 'audio/flac' : (($welcome_ext === 'ogg') ? 'audio/ogg' : (($welcome_ext === 'wav') ? 'audio/wav' : 'audio/mpeg'));
         ?>
         <source src="<?php echo htmlspecialchars($welcomeAudio); ?>" type="<?php echo $welcome_mime; ?>">
         <?php endif; ?>
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if ($loggedinAudio): ?>
         <?php
         $loggedin_ext = strtolower(pathinfo($loggedinAudio, PATHINFO_EXTENSION));
-        $loggedin_mime = ($loggedin_ext === 'flac') ? 'audio/flac' : (($loggedin_ext === 'ogg') ? 'audio/ogg' : 'audio/mpeg');
+        $loggedin_mime = ($loggedin_ext === 'flac') ? 'audio/flac' : (($loggedin_ext === 'ogg') ? 'audio/ogg' : (($loggedin_ext === 'wav') ? 'audio/wav' : 'audio/mpeg'));
         ?>
         <source src="<?php echo htmlspecialchars($loggedinAudio); ?>" type="<?php echo $loggedin_mime; ?>">
         <?php endif; ?>

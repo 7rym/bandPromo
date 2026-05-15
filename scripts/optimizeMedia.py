@@ -1,7 +1,7 @@
 """
 optimizeMedia — Web-Optimized Media Generator
 Converts source (HQ) content into bandwidth-efficient web variants:
-- FLAC → MP3 320kbps with full ID3 tags
+- Audio originals → MP3 320kbps with full ID3 tags when readable
 - Covers → JPEG (optimized quality) for bandwidth savings
 - Photos → JPEG (optimized quality) for bandwidth savings
 
@@ -14,6 +14,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from mutagen import File
 from mutagen.flac import FLAC
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBP, TKEY, TPE4, USLT, TXXX
 
@@ -59,6 +60,11 @@ def load_orig_config():
     except Exception as e:
         print(f"❌ Error reading play/playlist.json: {e}")
         sys.exit(1)
+
+
+def optimized_audio_name(source_name):
+    """Map any supported source-audio filename to its optimized MP3 filename."""
+    return Path(source_name).stem + '.mp3'
 
 
 def convert_cover_to_jpeg(source_path, dest_path, quality=75):
@@ -118,17 +124,35 @@ def get_ffmpeg_path():
 
 
 def resolve_audio_working_path(filename):
-    master_path = AUDIO_MASTER_DIR / filename
-    if master_path.exists() and master_path.is_file():
-        return master_path, 'master'
+    stem = Path(filename).stem
+    source_suffix = Path(filename).suffix.lower()
+    preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']
+    seen = set()
+    for suffix in preferred_suffixes:
+        candidate = AUDIO_MASTER_DIR / f'{stem}{suffix}'
+        key = str(candidate).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if candidate.exists() and candidate.is_file():
+            return candidate, 'master'
+
     return AUDIO_ORIG_DIR / filename, 'original'
 
 
-def get_flac_tags(flac_path):
-    """Extract tags from FLAC file."""
+def get_audio_tags(source_path):
+    """Extract tags from supported source audio files for MP3 delivery output."""
     tags = {}
     try:
-        audio = FLAC(flac_path)
+        source_path = str(source_path)
+        source_suffix = Path(source_path).suffix.lower()
+
+        if source_suffix == '.flac':
+            audio = FLAC(source_path)
+        else:
+            audio = File(source_path)
+            if audio is None:
+                return tags
         
         if audio.get('title'):
             tags['title'] = audio['title'][0]
@@ -184,10 +208,10 @@ def get_flac_tags(flac_path):
             tags['lyrics'] = '\n'.join(lines)
         
         # Try to extract cover art (first picture)
-        if audio.pictures:
+        if getattr(audio, 'pictures', None):
             tags['picture'] = audio.pictures[0]
     except Exception as e:
-        print(f"  Warning: Could not read FLAC tags: {e}")
+        print(f"  Warning: Could not read source audio tags: {e}")
     
     return tags
 
@@ -251,13 +275,13 @@ def set_id3_tags(mp3_path, tags):
         print(f"  Warning: Could not set ID3 tags: {e}")
 
 
-def convert_flac_to_mp3(flac_path, mp3_path):
-    """Convert FLAC file to MP3 using ffmpeg."""
+def convert_audio_to_mp3(source_path, mp3_path):
+    """Convert a supported source audio file to MP3 using ffmpeg."""
     ffmpeg = get_ffmpeg_path()
     try:
         cmd = [
             ffmpeg,
-            '-i', str(flac_path),
+            '-i', str(source_path),
             '-b:a', '320k',          # CBR 320kbps
             '-y',                    # Overwrite output file
             str(mp3_path)
@@ -323,7 +347,7 @@ def main():
         if not filename:
             continue
 
-        flac_path, source_tier = resolve_audio_working_path(filename)
+        source_path, source_tier = resolve_audio_working_path(filename)
         mp3_filename = Path(filename).stem + '.mp3'
         mp3_path     = AUDIO_OPT_DIR / mp3_filename
 
@@ -331,11 +355,11 @@ def main():
         print(f"  → Source tier: {source_tier}")
 
         # ── Audio conversion ───────────────────────────────────────────────────
-        print("  → Reading FLAC tags...")
-        tags = get_flac_tags(str(flac_path))
+        print("  → Reading source audio tags...")
+        tags = get_audio_tags(str(source_path))
 
         print(f"  → Converting to MP3 (320kbps)...")
-        if convert_flac_to_mp3(str(flac_path), str(mp3_path)):
+        if convert_audio_to_mp3(str(source_path), str(mp3_path)):
             print("  → Applying ID3 tags...")
             set_id3_tags(str(mp3_path), tags)
         else:
@@ -394,7 +418,7 @@ def main():
     print("\n🧹 Cleaning up optimized directories...")
 
     # Allowed optimized audio files
-    allowed_audio = {e.get('file', '').replace('.flac', '.mp3').replace('.FLAC', '.mp3')
+    allowed_audio = {optimized_audio_name(e.get('file', ''))
                      for e in orig_config if e.get('file')}
     removed = 0
     for item in AUDIO_OPT_DIR.iterdir():

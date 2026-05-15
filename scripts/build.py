@@ -44,7 +44,7 @@ ROOT_DIR   = SCRIPT_DIR.parent
 
 REQUIREMENTS = SCRIPT_DIR / 'requirements.txt'
 FFMPEG_BIN   = SCRIPT_DIR / 'bin' / ('ffmpeg.exe' if platform.system() == 'Windows' else 'ffmpeg')
-SUPPORTED_AUDIO_EXTENSIONS = ('.flac', '.mp3')
+SUPPORTED_AUDIO_EXTENSIONS = ('.flac', '.mp3', '.wav')
 KNOWN_AUDIO_EXTENSIONS = SUPPORTED_AUDIO_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg', '.wma')
 
 RUNTIME_TEMPLATE_MAP = (
@@ -347,7 +347,7 @@ def main():
         print(f"\n❌ No supported source audio found in {audio_orig}")
         if unsupported_audio:
             print("   Unsupported audio files present: " + ', '.join(sorted(unsupported_audio)))
-            print("   Current supported source formats: FLAC and MP3")
+            print("   Current supported source formats: FLAC, MP3, and WAV")
         print("   Upload your source files via Admin → Files first.")
         sys.stdout.flush()
         sys.exit(1)

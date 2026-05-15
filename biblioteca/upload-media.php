@@ -48,16 +48,147 @@ if (!is_dir($audio_master_dir)) mkdir($audio_master_dir, 0755, true);
 // tmp dir stays private — not served over the web
 if (!is_dir($tmp_dir)) mkdir($tmp_dir, 0750, true);
 
-$audio_exts = ['flac', 'mp3'];
+$audio_exts = ['flac', 'mp3', 'wav'];
 $image_exts = ['png', 'jpg', 'jpeg', 'webp'];
 $video_exts = ['mp4', 'webm', 'mov'];
+
+function bandpromo_first_command_path(string $raw): string {
+    $lines = preg_split('/\r\n|\r|\n/', trim($raw));
+    return trim((string) ($lines[0] ?? ''));
+}
+
+function bandpromo_resolve_ffmpeg_binary(string $root_dir): string {
+    $local = $root_dir . '/scripts/bin/' . (DIRECTORY_SEPARATOR === '\\' ? 'ffmpeg.exe' : 'ffmpeg');
+    if (is_file($local)) {
+        return $local;
+    }
+
+    $env = trim((string) getenv('FFMPEG_PATH'));
+    if ($env !== '' && is_file($env)) {
+        return $env;
+    }
+
+    foreach (['ffmpeg'] as $candidate) {
+        $test = shell_exec("where $candidate 2>nul") ?? shell_exec("which $candidate 2>/dev/null");
+        if (!$test) {
+            continue;
+        }
+        $resolved = bandpromo_first_command_path($test);
+        if ($resolved !== '') {
+            return $resolved;
+        }
+    }
+
+    return '';
+}
+
+function bandpromo_convert_wav_to_flac(string $root_dir, string $source_path, string $flac_path, string $failure_label = 'Could not prepare WAV-to-FLAC conversion'): array {
+    $ffmpeg = bandpromo_resolve_ffmpeg_binary($root_dir);
+    if ($ffmpeg === '') {
+        return ['ok' => false, 'warning' => 'ffmpeg is required to convert WAV to FLAC'];
+    }
+
+    $descriptors = [
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $command = [
+        $ffmpeg,
+        '-y',
+        '-i',
+        $source_path,
+        '-map_metadata',
+        '0',
+        '-vn',
+        '-c:a',
+        'flac',
+        $flac_path,
+    ];
+
+    $process = proc_open($command, $descriptors, $pipes, $root_dir);
+    if (!is_resource($process)) {
+        return ['ok' => false, 'warning' => $failure_label];
+    }
+
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+
+    $exit_code = proc_close($process);
+    if ($exit_code !== 0 || !is_file($flac_path)) {
+        if (is_file($flac_path)) {
+            @unlink($flac_path);
+        }
+        $output = trim((string) $stdout . "\n" . (string) $stderr);
+        return [
+            'ok' => false,
+            'warning' => $output !== ''
+                ? $failure_label . ': ' . preg_replace('/\s+/', ' ', $output)
+                : $failure_label,
+        ];
+    }
+
+    return ['ok' => true, 'warning' => ''];
+}
+
+function bandpromo_remove_stale_audio_masters(string $master_dir, string $safe_name, string $keep_filename): void {
+    $stem = pathinfo($safe_name, PATHINFO_FILENAME);
+    foreach (['flac', 'mp3', 'wav'] as $ext) {
+        $candidate = $stem . '.' . $ext;
+        if ($candidate === $keep_filename) {
+            continue;
+        }
+        $candidate_path = $master_dir . '/' . $candidate;
+        if (is_file($candidate_path)) {
+            @unlink($candidate_path);
+        }
+    }
+}
+
+function bandpromo_finalize_uploaded_file(string $root_dir, string $target_hint, string $ext, string $safe_name, string $dest): array {
+    if ($target_hint !== 'special' || $ext !== 'wav') {
+        return [
+            'ok' => true,
+            'saved_as' => $safe_name,
+            'saved_path' => $dest,
+            'saved_ext' => $ext,
+            'warning' => '',
+        ];
+    }
+
+    $flac_name = pathinfo($safe_name, PATHINFO_FILENAME) . '.flac';
+    $flac_path = dirname($dest) . '/' . $flac_name;
+    $conversion = bandpromo_convert_wav_to_flac($root_dir, $dest, $flac_path, 'Could not convert special WAV upload to FLAC');
+    if (!$conversion['ok']) {
+        @unlink($dest);
+        return [
+            'ok' => false,
+            'saved_as' => $safe_name,
+            'saved_path' => $dest,
+            'saved_ext' => $ext,
+            'warning' => $conversion['warning'],
+        ];
+    }
+
+    @unlink($dest);
+
+    return [
+        'ok' => true,
+        'saved_as' => $flac_name,
+        'saved_path' => $flac_path,
+        'saved_ext' => 'flac',
+        'warning' => '',
+    ];
+}
 
 function resolve_upload_destination(string $root_dir, string $target_hint, string $ext, string $safe_name): ?string {
     if ($target_hint === 'special') {
         return $root_dir . '/media/special/' . $safe_name;
     }
 
-    if (in_array($ext, ['flac', 'mp3'], true)) {
+    if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
         return $root_dir . '/media/audio/original/' . $safe_name;
     }
 
@@ -98,7 +229,7 @@ function image_matches_audio_basename(string $filename): bool {
             continue;
         }
         $audio_ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
-        if (!in_array($audio_ext, ['flac', 'mp3'], true)) {
+        if (!in_array($audio_ext, ['flac', 'mp3', 'wav'], true)) {
             continue;
         }
         $audio_stem = strtolower(pathinfo($entry, PATHINFO_FILENAME));
@@ -115,7 +246,7 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
         return '';
     }
 
-    if (in_array($ext, ['flac', 'mp3'], true)) {
+    if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
         return 'media_audio_upload';
     }
 
@@ -132,7 +263,7 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
 }
 
 function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $safe_name, string $source_path): array {
-    if (!in_array($ext, ['flac', 'mp3'], true)) {
+    if (!in_array($ext, ['flac', 'mp3', 'wav'], true)) {
         return ['attempted' => false, 'prepared' => false, 'warning' => ''];
     }
 
@@ -141,12 +272,41 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
         return ['attempted' => true, 'prepared' => false, 'warning' => 'Could not create audio master directory'];
     }
 
-    $master_path = $master_dir . '/' . $safe_name;
-    if (!copy($source_path, $master_path)) {
-        return ['attempted' => true, 'prepared' => false, 'warning' => 'Could not prepare audio master copy'];
+    $master_filename = $ext === 'wav'
+        ? pathinfo($safe_name, PATHINFO_FILENAME) . '.flac'
+        : $safe_name;
+    $master_format = strtolower((string) pathinfo($master_filename, PATHINFO_EXTENSION));
+    $master_path = $master_dir . '/' . $master_filename;
+    bandpromo_remove_stale_audio_masters($master_dir, $safe_name, $master_filename);
+
+    if ($ext === 'wav') {
+        $conversion = bandpromo_convert_wav_to_flac($root_dir, $source_path, $master_path, 'Could not prepare WAV master');
+        if (!$conversion['ok']) {
+            return [
+                'attempted' => true,
+                'prepared' => false,
+                'warning' => $conversion['warning'],
+                'master_filename' => $master_filename,
+                'master_format' => $master_format,
+            ];
+        }
+    } elseif (!copy($source_path, $master_path)) {
+        return [
+            'attempted' => true,
+            'prepared' => false,
+            'warning' => 'Could not prepare audio master copy',
+            'master_filename' => $master_filename,
+            'master_format' => $master_format,
+        ];
     }
 
-    return ['attempted' => true, 'prepared' => true, 'warning' => ''];
+    return [
+        'attempted' => true,
+        'prepared' => true,
+        'warning' => '',
+        'master_filename' => $master_filename,
+        'master_format' => $master_format,
+    ];
 }
 
 // ─── Chunked upload mode ──────────────────────────────────────────────────────
@@ -213,16 +373,34 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     }
     fclose($out);
 
-    $reason = build_reason_for_upload((string) $target_hint, $ext, $safeName);
-    $master = bandpromo_prepare_audio_master($root_dir, $ext, $safeName, $dest);
+    $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safeName, $dest);
+    if (empty($finalized['ok'])) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $finalized['warning'] ?: 'Could not finalize upload']);
+        exit;
+    }
+
+    $savedName = (string) ($finalized['saved_as'] ?? $safeName);
+    $savedPath = (string) ($finalized['saved_path'] ?? $dest);
+    $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
+    $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
+    $master = $target_hint === 'special'
+        ? ['attempted' => false, 'prepared' => false, 'warning' => '']
+        : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
     $response = [
         'ok' => true,
         'status' => 'complete',
-        'saved_as' => $safeName,
+        'saved_as' => $savedName,
     ];
 
     if (!empty($master['attempted'])) {
         $response['master_prepared'] = !empty($master['prepared']);
+        if (!empty($master['master_filename'])) {
+            $response['master_filename'] = $master['master_filename'];
+        }
+        if (!empty($master['master_format'])) {
+            $response['master_format'] = $master['master_format'];
+        }
         if (!empty($master['warning'])) {
             $response['master_warning'] = $master['warning'];
         }
@@ -240,7 +418,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
 
     bandpromo_admin_audit_log('media_uploaded', [
         'target_type' => 'media',
-        'target_id' => ($target_hint !== '' ? $target_hint : $ext) . '/' . $safeName,
+        'target_id' => ($target_hint !== '' ? $target_hint : $savedExt) . '/' . $savedName,
         'status' => 'ok',
         'data' => [
             'mode' => 'chunked',
@@ -314,10 +492,28 @@ foreach ($files as $file) {
     }
 
     if (move_uploaded_file($file['tmp_name'], $dest)) {
-        $master = bandpromo_prepare_audio_master($root_dir, $ext, $safe_name, $dest);
-        $result = ['name' => $original, 'ok' => true, 'saved_as' => $safe_name];
+        $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safe_name, $dest);
+        if (empty($finalized['ok'])) {
+            $results[] = ['name' => $original, 'ok' => false, 'error' => $finalized['warning'] ?: 'Could not finalize upload'];
+            $errors++;
+            continue;
+        }
+
+        $saved_name = (string) ($finalized['saved_as'] ?? $safe_name);
+        $saved_path = (string) ($finalized['saved_path'] ?? $dest);
+        $saved_ext = (string) ($finalized['saved_ext'] ?? $ext);
+        $master = $target_hint === 'special'
+            ? ['attempted' => false, 'prepared' => false, 'warning' => '']
+            : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
+        $result = ['name' => $original, 'ok' => true, 'saved_as' => $saved_name];
         if (!empty($master['attempted'])) {
             $result['master_prepared'] = !empty($master['prepared']);
+            if (!empty($master['master_filename'])) {
+                $result['master_filename'] = $master['master_filename'];
+            }
+            if (!empty($master['master_format'])) {
+                $result['master_format'] = $master['master_format'];
+            }
             if (!empty($master['prepared'])) {
                 $masterPreparedCount++;
             }
@@ -328,7 +524,7 @@ foreach ($files as $file) {
         }
         $results[]  = $result;
         $uploaded++;
-        $reason = build_reason_for_upload((string) $target_hint, $ext, $safe_name);
+        $reason = build_reason_for_upload((string) $target_hint, $saved_ext, $saved_name);
         if ($reason !== '' && !in_array($reason, $upload_reasons, true)) {
             $upload_reasons[] = $reason;
         }

@@ -892,7 +892,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-files">
                 <?php if ($filesPanel === 'audio'): ?>
-                    Drop your songs here (FLAC or MP3). Keep your original quality files; the system creates the web-ready versions for you.
+                    Drop your songs here (FLAC, MP3, or WAV). Keep your original quality files; the system creates the web-ready versions for you.
                     <br><strong>Working copy:</strong> bandPromo also prepares a separate audio master copy after upload so future repair tools can work without touching the preserved original.
                     <br><strong>After upload:</strong> run <strong>Full Build</strong>.
                 <?php elseif ($filesPanel === 'photos'): ?>

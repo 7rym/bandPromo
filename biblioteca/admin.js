@@ -292,7 +292,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             // ── Media sub-panels ──────────────────────────────────────────────
             const mediaCfg = {
-                audio:          { accept: '.flac,.mp3',                    target: 'audio'         },
+                audio:          { accept: '.flac,.mp3,.wav',               target: 'audio'         },
                 video:          { accept: '.mp4,.webm,.mov',               target: 'video'         },
                 illustrations:  { accept: '.png,.jpg,.jpeg',               target: 'illustrations' },
                 photos:         { accept: '.png,.jpg,.jpeg,.webp',         target: 'photos'        },
@@ -354,6 +354,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function isPreviewable(name) {
                 return isImage(name) || isVideo(name);
+            }
+
+            function hasEditableAudioMaster(name) {
+                const ext = String(name).split('.').pop().toLowerCase();
+                return ['flac', 'mp3'].includes(ext);
+            }
+
+            function formatAudioMasterBadges(file) {
+                const originalFormat = String(file.original_format || String(file.name).split('.').pop() || '').toUpperCase();
+                const master = file.audio_master || {};
+                const badges = [
+                    `<span class="badge audit-status-badge status-neutral media-file-badge">Original ${originalFormat || 'FILE'}</span>`
+                ];
+
+                if (master.exists) {
+                    const masterFormat = String(master.format || '').toUpperCase();
+                    const masterStatus = master.editable ? 'ok' : 'neutral';
+                    badges.push(`<span class="badge audit-status-badge status-${masterStatus} media-file-badge">Master ${masterFormat || 'READY'}</span>`);
+                } else {
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge">Master pending</span>');
+                }
+
+                return badges.join(' ');
             }
 
             function getMediaBasePath(type) {
@@ -596,12 +619,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const preview = isPreviewable(f.name)
                             ? `<button class="icon-btn" title="Preview" onclick="openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
                             : '';
-                        const details = type === 'audio'
+                        const details = type === 'audio' && f.audio_master && f.audio_master.editable
                             ? `<button class="icon-btn" title="Track details" onclick="openAudioMasterModal('${safeName}')">✎</button>`
                             : '';
+                        const nameCell = type === 'audio'
+                            ? `<span class="media-file-name-wrap"><span class="media-file-name">${f.name}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
+                            : `<span class="media-file-name">${f.name}</span>`;
                         return `<div class="media-file-row">
                             ${thumb}
-                            <span class="media-file-name">${f.name}</span>
+                            ${nameCell}
                             <span class="media-file-size">${fmtSize(f.size)}</span>
                             ${preview}
                             ${details}

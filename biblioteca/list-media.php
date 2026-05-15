@@ -39,6 +39,42 @@ $includeHidden = isset($_GET['include_hidden']) && $_GET['include_hidden'] === '
 $dir = $dirs[$target];
 $files = [];
 
+function bandpromo_audio_master_info(string $root, string $filename): array {
+    $master_dir = $root . '/media/audio/master';
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    $source_ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+    $preferred_exts = $source_ext === 'wav' ? ['flac', 'mp3', 'wav'] : [$source_ext, 'flac', 'mp3', 'wav'];
+    $candidates = [];
+    foreach ($preferred_exts as $ext) {
+        $candidate = $stem . '.' . $ext;
+        if (!in_array($candidate, $candidates, true)) {
+            $candidates[] = $candidate;
+        }
+    }
+
+    foreach ($candidates as $candidate) {
+        $path = $master_dir . '/' . $candidate;
+        if (!is_file($path)) {
+            continue;
+        }
+
+        $format = strtolower((string) pathinfo($candidate, PATHINFO_EXTENSION));
+        return [
+            'exists' => true,
+            'filename' => $candidate,
+            'format' => $format,
+            'editable' => in_array($format, ['flac', 'mp3'], true),
+        ];
+    }
+
+    return [
+        'exists' => false,
+        'filename' => '',
+        'format' => '',
+        'editable' => false,
+    ];
+}
+
 if (is_dir($dir)) {
     $allFiles = [];
     foreach (new DirectoryIterator($dir) as $f) {
@@ -53,6 +89,8 @@ if (is_dir($dir)) {
             'modified' => $f->getMTime(),
             'origin'   => bandpromo_media_origin($filename),
             'hidden'   => bandpromo_media_is_hidden_for_install($target, $filename),
+            'original_format' => strtolower((string) pathinfo($filename, PATHINFO_EXTENSION)),
+            'audio_master' => $target === 'audio' ? bandpromo_audio_master_info($root, $filename) : null,
         ];
     }
 

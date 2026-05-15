@@ -55,6 +55,19 @@ if ($safe === '' || $safe === '.' || $safe === '..') {
 
 $path = $dirs[$target] . '/' . $safe;
 
+function bandpromo_audio_master_paths(string $root, string $filename): array {
+    $master_dir = $root . '/media/audio/master';
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    foreach (['flac', 'mp3', 'wav'] as $ext) {
+        $path = $master_dir . '/' . $stem . '.' . $ext;
+        if (is_file($path)) {
+            $paths[] = $path;
+        }
+    }
+
+    return $paths ?? [];
+}
+
 if (!file_exists($path)) {
     echo json_encode(['error' => 'File not found']);
     exit;
@@ -98,12 +111,32 @@ if (!unlink($path)) {
     exit;
 }
 
+$master_deleted = false;
+$master_warning = '';
+if ($target === 'audio') {
+    foreach (bandpromo_audio_master_paths($root, $safe) as $master_path) {
+        if (@unlink($master_path)) {
+            $master_deleted = true;
+        } else {
+            $master_warning = 'Audio original was deleted, but one or more matching master files could not be removed';
+        }
+    }
+}
+
 bandpromo_media_set_hidden_for_install($target, $safe, false);
 
 bandpromo_admin_audit_log('media_deleted', [
     'target_type' => 'media',
     'target_id' => $target . '/' . $safe,
     'status' => 'ok',
+    'data' => [
+        'master_deleted' => $master_deleted,
+        'master_warning' => $master_warning,
+    ],
 ]);
 
-echo json_encode(['ok' => true]);
+echo json_encode([
+    'ok' => true,
+    'master_deleted' => $master_deleted,
+    'master_warning' => $master_warning,
+]);

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-15 23:12 - Fixed player playback for WAV-backed playlist entries in optimized mode: `biblioteca/player.js` now maps supported source audio endings `.flac` and `.wav` to the generated `.mp3` delivery file when building `variant=optimal` playback URLs, so tracks like the Salsa upload no longer request a missing WAV file from `media/audio/optimal/`.
+
+2026-05-15 23:28 - Theme/special audio now follows the same WAV-to-FLAC policy as track intake: special-target WAV uploads are auto-converted into `/media/special/*.flac` instead of remaining WAV files, special audio uploads no longer incorrectly seed `media/audio/master/`, `index.php` now serves WAV theme audio with the correct MIME type when legacy files still exist, and a new `scripts/backfillWavAudioToFlac.py` action can promote existing special WAV files and legacy WAV masters to FLAC while updating matching config references.
+
+2026-05-15 23:07 - WAV intake now promotes to a canonical FLAC master on upload instead of copying WAV into the master tier: the upload handler converts WAV originals into `media/audio/master/*.flac`, the build/optimizer/audio-detail tools resolve same-stem masters by preference so WAV originals transparently work against FLAC masters, Files -> Audio now shows original/master format badges per row, and deleting an audio original also removes its matching master artifact.
+
+2026-05-15 22:33 - Fixed WAV delivery cleanup in `scripts/optimizeMedia.py`: optimized audio cleanup now derives the kept `.mp3` filenames from any supported source-audio entry in `play/playlist.json`, so successful WAV-to-MP3 conversions are no longer deleted at the end of optimization.
+
+2026-05-15 22:47 - WAV is now accepted as a first-class audio source original: the Files -> Audio uploader accepts WAV files, playlist/build validation now treats WAV as supported instead of known-but-skipped, audio optimization converts supported source audio to delivery MP3 from either originals or masters, and the audio details editor button stays limited to formats with editable masters (currently FLAC and MP3).
+
 2026-05-15 22:31 - Older installs no longer fail in Files -> Audio when opening track details before any master copies exist: `scripts/audioMasterMetadata.py` now auto-seeds a missing FLAC/MP3 master from the preserved original on first inspect/update, so existing libraries can use the metadata editor without a separate migration step.
 
 2026-05-15 22:18 - Fixed the live Content -> Playlist preview endpoint on Linux hosts: `scripts/playlistPreview.py` no longer re-wraps `sys.stdout` before importing `makePlaylists.py`, avoiding the closed-stream failure that caused `get-playlist-preview.php` to return 500 after login on deployed servers.

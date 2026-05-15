@@ -8,8 +8,8 @@ const IMAGE_PATH_VARIANT = 'optimal';
 // Path helpers — use window.MEDIA_AUDIO_BASE / window.MEDIA_IMG_BASE when set
 // (new /play/ structure), otherwise fall back to old sibling-folder relative paths.
 function buildAudioUrl(filename) {
-    // For optimal, swap .flac → .mp3 (optimized audio is always MP3)
-    const f = PATH_VARIANT === 'optimal' ? filename.replace(/\.flac$/i, '.mp3') : filename;
+    // For optimal, supported source-audio formats resolve to generated MP3 delivery.
+    const f = PATH_VARIANT === 'optimal' ? filename.replace(/\.(flac|wav)$/i, '.mp3') : filename;
 
     const params = new URLSearchParams({
         variant: PATH_VARIANT,

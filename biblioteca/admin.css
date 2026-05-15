@@ -1403,6 +1403,29 @@ canvas { max-width: 100%; height: auto; }
     flex: 1;
 }
 
+.media-file-name-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.media-file-name-wrap .media-file-name {
+    flex: initial;
+}
+
+.media-file-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.media-file-badge {
+    min-width: 0;
+}
+
 .media-file-size {
     color: var(--muted);
     white-space: nowrap;

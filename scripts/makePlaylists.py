@@ -13,7 +13,7 @@ from pathlib import Path
 from mutagen import File
 
 # Supported audio file extensions
-SUPPORTED_EXTENSIONS = ('.flac', '.mp3')
+SUPPORTED_EXTENSIONS = ('.flac', '.mp3', '.wav')
 KNOWN_AUDIO_EXTENSIONS = SUPPORTED_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg', '.wma')
 
 # Find the root directory (scripts/..)
@@ -76,9 +76,19 @@ def has_visible_user_audio_uploads(hidden_keys):
 
 
 def resolve_audio_working_path(filename):
-    master_path = AUDIO_MASTER_DIR / filename
-    if master_path.exists() and master_path.is_file():
-        return master_path
+    stem = Path(filename).stem
+    source_suffix = Path(filename).suffix.lower()
+    preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']
+    seen = set()
+    for suffix in preferred_suffixes:
+        candidate = AUDIO_MASTER_DIR / f'{stem}{suffix}'
+        key = str(candidate).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if candidate.exists() and candidate.is_file():
+            return candidate
+
     return AUDIO_ORIG_DIR / filename
 
 

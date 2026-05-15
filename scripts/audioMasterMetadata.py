@@ -45,15 +45,26 @@ def normalize_filename(value):
     filename = str(value or '').strip()
     if filename == '' or '/' in filename or '\\' in filename:
         respond({'ok': False, 'error': 'Invalid filename'}, 1)
-    if Path(filename).suffix.lower() not in {'.flac', '.mp3'}:
-        respond({'ok': False, 'error': 'Only FLAC and MP3 masters are editable right now'}, 1)
+    if Path(filename).suffix.lower() not in {'.flac', '.mp3', '.wav'}:
+        respond({'ok': False, 'error': 'Unsupported audio filename'}, 1)
     return filename
 
 
 def master_path_for(filename):
+    stem = Path(filename).stem
+    source_suffix = Path(filename).suffix.lower()
+    preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']
+    seen = set()
+    for suffix in preferred_suffixes:
+        candidate = AUDIO_MASTER_DIR / f'{stem}{suffix}'
+        key = str(candidate).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if candidate.exists() and candidate.is_file():
+            return candidate
+
     path = AUDIO_MASTER_DIR / filename
-    if path.exists() and path.is_file():
-        return path
 
     original_path = AUDIO_ORIG_DIR / filename
     if not original_path.exists() or not original_path.is_file():
