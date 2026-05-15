@@ -1568,6 +1568,14 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 Use <strong>Optimize Media</strong> after photo/illustration updates when you only need refreshed optimized images. Use <strong>Full Build</strong> after audio uploads, cover changes tied to tracks, or web-config edits. Jobs continue in the background while this log updates.
             </div>
 
+            <div id="buildValidationCard" class="card build-validation-card" style="display:none">
+                <div class="build-validation-head">
+                    <h3>🩺 Validation Summary</h3>
+                    <span id="buildValidationOverall" class="badge audit-status-badge status-neutral">No validation data</span>
+                </div>
+                <div id="buildValidationSummary" class="build-validation-summary"></div>
+            </div>
+
             <div id="build-log-card" class="card">
                 <div class="build-log-head">
                     <h3>📋 Build Log</h3>

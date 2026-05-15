@@ -137,7 +137,7 @@ bandPromo should adopt three explicit media tiers:
 Practical implications:
 
 - WAV and FLAC should be accepted as preferred source formats
-- WAV uploads may be converted into tagged FLAC masters when the operator completes metadata/artwork inputs
+- WAV uploads should be promoted into FLAC masters during normal intake where possible, and older supported originals should be able to backfill missing masters automatically when admin tools first inspect them
 - lossy sources may be improved in packaging and metadata, but must not be misrepresented as higher-fidelity audio
 - images should be delivered according to real UI needs, not merely preserved at oversized source dimensions
 - build validation should distinguish hard blockers, publish blockers, warnings, and autofixable issues

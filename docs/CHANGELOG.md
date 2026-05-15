@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-16 00:12 - Build now shows an operator-facing validation summary outside the raw log: the admin Build tab renders a dedicated validation card using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels, grouping unsupported files and per-track metadata fixes into plain-language actions while keeping the raw build log available underneath.
+
+2026-05-15 23:58 - Updated planning docs after the automatic audio-master backfill checkpoint: `docs/TODO.md` now records the legacy master backfill work as complete, and `docs/ROADMAP.md` now reflects the current policy that supported originals should create or backfill masters automatically during normal admin inspection instead of waiting for a separate operator-driven repair step.
+
 2026-05-15 23:43 - Older libraries now backfill missing audio masters automatically when Files -> Audio inspects them: shared audio-master helper logic was extracted so the media listing can silently seed missing FLAC/MP3 copies, convert legacy WAV originals into FLAC masters on first encounter, and clear most `Master pending` badges without asking operators to run a separate migration step.
 
 2026-05-15 23:12 - Fixed player playback for WAV-backed playlist entries in optimized mode: `biblioteca/player.js` now maps supported source audio endings `.flac` and `.wav` to the generated `.mp3` delivery file when building `variant=optimal` playback URLs, so tracks like the Salsa upload no longer request a missing WAV file from `media/audio/optimal/`.

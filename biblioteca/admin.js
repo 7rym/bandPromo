@@ -2058,8 +2058,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const optimizeSpinner = document.getElementById('optimizeSpinner');
             const buildLog     = document.getElementById('buildLog');
             const buildStatus  = document.getElementById('buildStatus');
+            const buildValidationCard = document.getElementById('buildValidationCard');
+            const buildValidationSummary = document.getElementById('buildValidationSummary');
+            const buildValidationOverall = document.getElementById('buildValidationOverall');
             let pollTimer      = null;
             let currentRunMode = 'full';
+
+            const validationSeverityConfig = {
+                'cannot-build': { label: 'Cannot build', statusClass: 'status-error', rank: 4 },
+                'fix-before-publish': { label: 'Fix before publish', statusClass: 'status-warning', rank: 3 },
+                'recommended-fix': { label: 'Recommended fix', statusClass: 'status-neutral', rank: 2 },
+                'can-be-repaired-automatically': { label: 'Can be repaired automatically', statusClass: 'status-ok', rank: 1 },
+            };
 
             function runRecommendedAction() {
                 if (pollTimer) return;
@@ -2095,6 +2105,191 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function scrollLog() {
                 if (buildLog) buildLog.scrollTop = buildLog.scrollHeight;
+            }
+
+            function setBuildValidationVisibility(visible) {
+                if (!buildValidationCard) return;
+                buildValidationCard.style.display = visible ? '' : 'none';
+            }
+
+            function humanizeValidationCode(code) {
+                return String(code || '')
+                    .replace(/[_\-]+/g, ' ')
+                    .trim()
+                    .replace(/\b\w/g, char => char.toUpperCase());
+            }
+
+            function classifyValidationWarning(code, track, context) {
+                const totalTracks = Number(context.totalTracks || 0);
+                const coverSource = String((track && track.coverSource) || '').toLowerCase();
+                const hasApprovedFallbackCover = !!(track && track.cover && ['configured', 'embedded', 'sidecar'].includes(coverSource));
+
+                switch (String(code || '').toLowerCase()) {
+                    case 'missing_title_tag':
+                        return { severity: 'fix-before-publish', action: 'Add a track title' };
+                    case 'missing_artist_tag':
+                        return { severity: 'fix-before-publish', action: 'Add the artist name' };
+                    case 'missing_album_tag':
+                        return { severity: 'recommended-fix', action: 'Add the release or album name' };
+                    case 'missing_track_number':
+                        return {
+                            severity: totalTracks > 1 ? 'fix-before-publish' : 'recommended-fix',
+                            action: 'Confirm the track order',
+                        };
+                    case 'missing_lyrics':
+                        return { severity: 'recommended-fix', action: 'Add lyrics if lyric display is expected' };
+                    case 'missing_cover_art':
+                        return hasApprovedFallbackCover
+                            ? { severity: 'can-be-repaired-automatically', action: 'Embed the approved cover into the corrected master' }
+                            : { severity: 'fix-before-publish', action: 'Add cover art or confirm the approved fallback cover' };
+                    default:
+                        return {
+                            severity: 'recommended-fix',
+                            action: humanizeValidationCode(code),
+                        };
+                }
+            }
+
+            function buildValidationSummaryModel(validation) {
+                if (!validation || typeof validation !== 'object') {
+                    return null;
+                }
+
+                const tracks = Array.isArray(validation.tracks) ? validation.tracks : [];
+                const summary = validation.summary || {};
+                const unsupported = Array.isArray(validation.unsupportedSourceFiles) ? validation.unsupportedSourceFiles : [];
+                const items = [];
+                const counts = {
+                    'cannot-build': 0,
+                    'fix-before-publish': 0,
+                    'recommended-fix': 0,
+                    'can-be-repaired-automatically': 0,
+                };
+
+                unsupported.forEach(file => {
+                    counts['cannot-build'] += 1;
+                    items.push({
+                        title: 'Unsupported source file',
+                        file: String(file || ''),
+                        primary: {
+                            severity: 'cannot-build',
+                            action: `Replace or convert unsupported source file ${String(file || '').trim()}`,
+                        },
+                        extras: [],
+                    });
+                });
+
+                tracks.forEach(track => {
+                    const warnings = Array.isArray(track.warnings) ? track.warnings : [];
+                    if (!warnings.length) {
+                        return;
+                    }
+
+                    const classified = warnings.map(code => classifyValidationWarning(code, track, {
+                        totalTracks: summary.totalTracks ?? tracks.length,
+                    }));
+
+                    classified.forEach(issue => {
+                        counts[issue.severity] = (counts[issue.severity] || 0) + 1;
+                    });
+
+                    classified.sort((left, right) => {
+                        return (validationSeverityConfig[right.severity]?.rank || 0) - (validationSeverityConfig[left.severity]?.rank || 0);
+                    });
+
+                    items.push({
+                        title: String(track.title || track.file || 'Untitled track'),
+                        file: String(track.file || ''),
+                        primary: classified[0],
+                        extras: classified.slice(1),
+                    });
+                });
+
+                const overallSeverity = Object.keys(validationSeverityConfig)
+                    .sort((left, right) => validationSeverityConfig[right].rank - validationSeverityConfig[left].rank)
+                    .find(key => counts[key] > 0) || 'can-be-repaired-automatically';
+
+                return {
+                    totalTracks: Number(summary.totalTracks ?? tracks.length),
+                    tracksWithWarnings: Number(summary.tracksWithWarnings ?? items.length),
+                    tracksWithoutWarnings: Number(summary.tracksWithoutWarnings ?? Math.max(0, tracks.length - items.length)),
+                    items,
+                    counts,
+                    overallSeverity,
+                };
+            }
+
+            function renderBuildValidationSummary(validation) {
+                if (!buildValidationSummary || !buildValidationOverall) {
+                    return;
+                }
+
+                const model = buildValidationSummaryModel(validation);
+                if (!model) {
+                    setBuildValidationVisibility(false);
+                    buildValidationSummary.innerHTML = '';
+                    buildValidationOverall.textContent = 'No validation data';
+                    buildValidationOverall.className = 'badge audit-status-badge status-neutral';
+                    return;
+                }
+
+                setBuildValidationVisibility(true);
+
+                const overallConfig = model.items.length
+                    ? validationSeverityConfig[model.overallSeverity]
+                    : { label: 'No validation issues', statusClass: 'status-ok' };
+                buildValidationOverall.textContent = overallConfig.label;
+                buildValidationOverall.className = `badge audit-status-badge ${overallConfig.statusClass}`;
+
+                const metrics = [
+                    `<span class="build-validation-metric">${model.totalTracks} tracks checked</span>`,
+                    `<span class="build-validation-metric">${model.tracksWithWarnings} tracks need attention</span>`,
+                    `<span class="build-validation-metric">${model.tracksWithoutWarnings} tracks clear</span>`,
+                ];
+
+                Object.entries(validationSeverityConfig).forEach(([key, config]) => {
+                    if (model.counts[key] > 0) {
+                        metrics.push(`<span class="build-validation-metric">${escapeHtml(config.label)}: ${model.counts[key]}</span>`);
+                    }
+                });
+
+                if (!model.items.length) {
+                    buildValidationSummary.innerHTML = `
+                        <div class="build-validation-metrics">${metrics.join('')}</div>
+                        <p class="build-validation-empty">No current metadata validation issues were found in the checked tracks.</p>
+                    `;
+                    return;
+                }
+
+                const listHtml = model.items.map(item => {
+                    const primaryConfig = validationSeverityConfig[item.primary.severity] || validationSeverityConfig['recommended-fix'];
+                    const actions = [item.primary, ...item.extras].map(issue => {
+                        const config = validationSeverityConfig[issue.severity] || validationSeverityConfig['recommended-fix'];
+                        return `<li><strong>${escapeHtml(config.label)}:</strong> ${escapeHtml(issue.action)}</li>`;
+                    }).join('');
+
+                    const fileLine = item.file && item.file !== item.title
+                        ? `<div class="build-validation-item-file">${escapeHtml(item.file)}</div>`
+                        : '';
+
+                    return `
+                        <article class="build-validation-item">
+                            <div class="build-validation-item-head">
+                                <div>
+                                    <div class="build-validation-item-title">${escapeHtml(item.title)}</div>
+                                    ${fileLine}
+                                </div>
+                                <span class="badge audit-status-badge ${primaryConfig.statusClass}">${escapeHtml(primaryConfig.label)}</span>
+                            </div>
+                            <ul class="build-validation-item-actions">${actions}</ul>
+                        </article>
+                    `;
+                }).join('');
+
+                buildValidationSummary.innerHTML = `
+                    <div class="build-validation-metrics">${metrics.join('')}</div>
+                    <div class="build-validation-list">${listHtml}</div>
+                `;
             }
 
             function stopPolling(success) {
@@ -2170,6 +2365,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         buildLog.textContent = output;
                         scrollLog();
+                    }
+
+                    if (data.is_running) {
+                        setBuildValidationVisibility(false);
+                    } else {
+                        renderBuildValidationSummary(data.metadata_validation);
                     }
 
                     if (data.build_required_state) {
