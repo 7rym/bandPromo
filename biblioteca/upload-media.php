@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $root_dir      = dirname(dirname(__FILE__));
 $audio_orig_dir = $root_dir . '/media/audio/original';
+$audio_master_dir = $root_dir . '/media/audio/master';
 $img_orig_dir   = $root_dir . '/media/img/original';
 $photo_dir    = $root_dir . '/media/photo/original';
 $video_dir    = $root_dir . '/media/video/original';
@@ -43,6 +44,7 @@ $target_hint  = $_POST['target'] ?? '';
 foreach ([$audio_orig_dir, $img_orig_dir, $photo_dir, $video_dir, $special_dir] as $dir) {
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 }
+if (!is_dir($audio_master_dir)) mkdir($audio_master_dir, 0755, true);
 // tmp dir stays private — not served over the web
 if (!is_dir($tmp_dir)) mkdir($tmp_dir, 0750, true);
 
@@ -129,6 +131,24 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
     return '';
 }
 
+function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $safe_name, string $source_path): array {
+    if (!in_array($ext, ['flac', 'mp3'], true)) {
+        return ['attempted' => false, 'prepared' => false, 'warning' => ''];
+    }
+
+    $master_dir = $root_dir . '/media/audio/master';
+    if (!is_dir($master_dir) && !mkdir($master_dir, 0755, true) && !is_dir($master_dir)) {
+        return ['attempted' => true, 'prepared' => false, 'warning' => 'Could not create audio master directory'];
+    }
+
+    $master_path = $master_dir . '/' . $safe_name;
+    if (!copy($source_path, $master_path)) {
+        return ['attempted' => true, 'prepared' => false, 'warning' => 'Could not prepare audio master copy'];
+    }
+
+    return ['attempted' => true, 'prepared' => true, 'warning' => ''];
+}
+
 // ─── Chunked upload mode ──────────────────────────────────────────────────────
 if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $chunkIndex  = (int)$_POST['chunk_index'];
@@ -194,11 +214,19 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     fclose($out);
 
     $reason = build_reason_for_upload((string) $target_hint, $ext, $safeName);
+    $master = bandpromo_prepare_audio_master($root_dir, $ext, $safeName, $dest);
     $response = [
         'ok' => true,
         'status' => 'complete',
         'saved_as' => $safeName,
     ];
+
+    if (!empty($master['attempted'])) {
+        $response['master_prepared'] = !empty($master['prepared']);
+        if (!empty($master['warning'])) {
+            $response['master_warning'] = $master['warning'];
+        }
+    }
 
     if ($reason !== '') {
         $state = bandpromo_mark_build_required($reason);
@@ -218,6 +246,8 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             'mode' => 'chunked',
             'build_required' => $response['build_required'] ?? false,
             'reasons' => $reason !== '' ? [$reason] : [],
+            'master_prepared' => $response['master_prepared'] ?? false,
+            'master_warning' => $response['master_warning'] ?? '',
         ],
     ]);
     exit;
@@ -262,6 +292,8 @@ if (is_array($_FILES['files']['name'])) {
 $results  = [];
 $uploaded = 0;
 $errors   = 0;
+$masterPreparedCount = 0;
+$masterWarnings = [];
 $upload_reasons = [];
 
 foreach ($files as $file) {
@@ -282,7 +314,19 @@ foreach ($files as $file) {
     }
 
     if (move_uploaded_file($file['tmp_name'], $dest)) {
-        $results[]  = ['name' => $original, 'ok' => true, 'saved_as' => $safe_name];
+        $master = bandpromo_prepare_audio_master($root_dir, $ext, $safe_name, $dest);
+        $result = ['name' => $original, 'ok' => true, 'saved_as' => $safe_name];
+        if (!empty($master['attempted'])) {
+            $result['master_prepared'] = !empty($master['prepared']);
+            if (!empty($master['prepared'])) {
+                $masterPreparedCount++;
+            }
+            if (!empty($master['warning'])) {
+                $result['master_warning'] = $master['warning'];
+                $masterWarnings[] = $safe_name . ': ' . $master['warning'];
+            }
+        }
+        $results[]  = $result;
         $uploaded++;
         $reason = build_reason_for_upload((string) $target_hint, $ext, $safe_name);
         if ($reason !== '' && !in_array($reason, $upload_reasons, true)) {
@@ -295,6 +339,12 @@ foreach ($files as $file) {
 }
 
 $response = ['ok' => $errors === 0, 'uploaded' => $uploaded, 'errors' => $errors, 'files' => $results];
+if ($masterPreparedCount > 0) {
+    $response['master_prepared_count'] = $masterPreparedCount;
+}
+if (!empty($masterWarnings)) {
+    $response['master_warnings'] = $masterWarnings;
+}
 if ($uploaded > 0 && !empty($upload_reasons)) {
     $state = null;
     foreach ($upload_reasons as $reason) {
@@ -324,6 +374,8 @@ if ($uploaded > 0 || $errors > 0) {
             'saved_files' => array_slice($savedNames, 0, 20),
             'build_required' => $response['build_required'] ?? false,
             'reasons' => $upload_reasons,
+            'master_prepared_count' => $masterPreparedCount,
+            'master_warnings' => $masterWarnings,
         ],
     ]);
 }

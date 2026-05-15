@@ -29,6 +29,7 @@ else:
 SCRIPT_DIR   = Path(__file__).parent
 ROOT_DIR     = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
+AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 AUDIO_OPT_DIR  = ROOT_DIR / 'media' / 'audio' / 'optimal'
 IMG_ORIG_DIR   = ROOT_DIR / 'media' / 'img'   / 'original'
 IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
@@ -114,6 +115,13 @@ def check_ffmpeg():
 def get_ffmpeg_path():
     """Return the ffmpeg executable path from env or default."""
     return os.environ.get('FFMPEG_PATH', 'ffmpeg')
+
+
+def resolve_audio_working_path(filename):
+    master_path = AUDIO_MASTER_DIR / filename
+    if master_path.exists() and master_path.is_file():
+        return master_path, 'master'
+    return AUDIO_ORIG_DIR / filename, 'original'
 
 
 def get_flac_tags(flac_path):
@@ -280,6 +288,8 @@ def main():
     PHOTO_OPT_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"📁 Audio original: {AUDIO_ORIG_DIR}")
+    if AUDIO_MASTER_DIR.exists():
+        print(f"📁 Audio master: {AUDIO_MASTER_DIR}")
     print(f"📁 Audio (optimized): {AUDIO_OPT_DIR}")
     print(f"📁 Image original: {IMG_ORIG_DIR}")
     print(f"📁 Image (optimized): {IMG_OPT_DIR}")
@@ -313,11 +323,12 @@ def main():
         if not filename:
             continue
 
-        flac_path    = AUDIO_ORIG_DIR / filename
+        flac_path, source_tier = resolve_audio_working_path(filename)
         mp3_filename = Path(filename).stem + '.mp3'
         mp3_path     = AUDIO_OPT_DIR / mp3_filename
 
         print(f"\n🎵 Processing: {filename}")
+        print(f"  → Source tier: {source_tier}")
 
         # ── Audio conversion ───────────────────────────────────────────────────
         print("  → Reading FLAC tags...")

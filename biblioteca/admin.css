@@ -922,6 +922,43 @@ canvas { max-width: 100%; height: auto; }
 
 .modal-box.modal-wide { max-width: 760px; }
 
+.audio-master-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.audio-master-stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.audio-master-stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.audio-master-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.audio-master-status-error {
+    color: var(--error);
+}
+
+.audio-master-status-success {
+    color: #9ad29a;
+}
+
 .modal-close {
     position: absolute;
     top: 14px;
@@ -1442,9 +1479,15 @@ canvas { max-width: 100%; height: auto; }
 .media-panel-header {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-bottom: 12px;
     gap: 10px;
+}
+
+.media-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .media-count {
@@ -1452,6 +1495,36 @@ canvas { max-width: 100%; height: auto; }
     color: var(--muted);
     font-weight: 400;
     margin-right: auto;
+}
+
+.bundled-demo-toggle {
+    min-width: 88px;
+    color: var(--muted);
+    border-color: var(--border2);
+    background: var(--surface);
+}
+
+.bundled-demo-toggle:hover {
+    color: var(--text);
+    border-color: #8a919b;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.bundled-demo-toggle.active {
+    color: #fff;
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.bundled-demo-toggle.active:hover {
+    border-color: var(--accent-h);
+    background: var(--accent-h);
+}
+
+@media (max-width: 720px) {
+    .audio-master-form-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ===== Utility ===== */
@@ -1665,6 +1738,10 @@ canvas { max-width: 100%; height: auto; }
 .playlist-editor-row.drag-over {
     border-color: var(--accent);
     background: rgba(102, 126, 234, 0.1);
+}
+
+.playlist-editor-row-demo {
+    border-style: dashed;
 }
 
 .playlist-drag-handle {

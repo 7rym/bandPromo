@@ -44,6 +44,7 @@ function bandpromo_get_build_required_state(): array {
 function bandpromo_reason_action(string $reason): string {
     $map = [
         'media_audio_upload' => 'full',
+        'media_audio_master_changed' => 'full',
         'media_cover_upload' => 'full',
         'web_config_changed' => 'full',
         'theme_config_changed' => 'full',

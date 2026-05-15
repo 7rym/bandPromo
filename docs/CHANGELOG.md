@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-15 05:58 - Updated the repository agent instructions so an unqualified "checkpoint" request now means a publishable checkpoint by default: agents should summarize the milestone state, validate the touched work, bump `VERSION`, commit, push, and verify sync unless the user explicitly asks for a status-only checkpoint.
+
+2026-05-15 05:43 - Fixed a small admin layout regression in the shared media-panel header so the new Content -> Playlist title stays left-aligned while its Demo action remains on the right.
+
+2026-05-15 05:34 - Content -> Playlist now uses a live source-audio preview instead of relying only on the last built `play/playlist.json`: the admin playlist editor reloads current source tracks through a lightweight preview endpoint, includes a Demo toggle in the Content tab, and saves the full preview order into `data/playlist-order.json` so bundled demo tracks return to the editor immediately when user uploads are removed without forcing an immediate public playlist rewrite.
+
+2026-05-15 05:11 - Bundled demo audio suppression is now consistent across Files browsing, playlist generation, and the admin playlist editor: once real user-uploaded audio exists, `bandPromo_*` placeholder tracks are treated as effectively hidden for the install even if they were not manually hidden one by one, so demo tracks stop leaking into playlist toggles and regenerated playlists.
+
+2026-05-15 05:00 - Files panel media counts now show both item count and aggregate size, so headers read summaries like `(2 files, 129.9 MB total)` instead of only a bare count.
+
+2026-05-15 04:53 - Audio master metadata editing now includes lyrics: the Python metadata helper exposes and writes lyrics for FLAC (`lyrics` / `unsyncedlyrics`) and MP3 (`USLT`) master files, the save endpoint accepts the field, and the admin track details modal now shows a dedicated lyrics textarea.
+
+2026-05-15 04:43 - Fixed the new audio master details modal rendering bug in the admin UI: the overlay was moved out of the Files tab subtree into the shared modal area, so it no longer inherits `display:none` from inactive tab containers and now opens visibly after the metadata request succeeds.
+
+2026-05-15 04:34 - Fixed admin route access for unauthenticated browser sessions: `admin.php` now delays loading the auth-enforcing helper until after the login form branch, so the admin panel once again shows its login page instead of returning a raw `Unauthorized` 403 before sign-in.
+
+2026-05-15 04:27 - Fixed the audio master metadata endpoint regression that caused `get-audio-master-detail.php` to fail with a 500 error: the JSON task helper in `biblioteca/light-build-tasks.php` now opens child stdin with the correct pipe mode, so PHP can pass metadata payloads into the Python helper instead of failing with a bad file descriptor.
+
+2026-05-15 04:18 - Files -> Audio now includes editable audio master metadata: a new track details modal loads metadata from `media/audio/master/`, lets operators update common text tags on FLAC/MP3 master files without touching originals, marks the install as needing a full rebuild after save, and records the change in admin audit logs.
+
+2026-05-15 03:39 - The bundled demo visibility control in Files was compacted into a header action button: the old full-width toggle card was removed, each Files panel now shows a shared `Demo` button to the left of `+ Add files`, and the button stays grey when inactive while still controlling the same cross-panel bundled-demo state.
+
+2026-05-15 03:25 - The build pipeline now begins treating audio masters as the canonical working surface when present: `scripts/makePlaylists.py` and `scripts/optimizeMedia.py` prefer files in `media/audio/master/` over `media/audio/original/` for playlist metadata scans and audio delivery generation, while still falling back to originals for tracks that have not been promoted yet.
+
+2026-05-15 03:10 - Hidden bundled demo audio is now excluded from playlist generation and from the admin playlist editor view: `scripts/makePlaylists.py` skips bundled `bandPromo_*` source tracks hidden for the current install and records them in validation output, while `admin.php` filters already-generated playlist rows the same way so placeholder tracks stop resurfacing in Content -> Playlist before the next rebuild.
+
+2026-05-15 02:55 - Moved the Files tab `+ Add files` actions out of the sub-tab row and into each media panel header, relocated the bundled-demo toggle into a shared admin-level control above the tab content, and switched the Gallery available-media loader to use the shared filtered media helper so the toggle now affects content-side media browsing as well as Files and pickers.
+
+2026-05-15 02:45 - Supported audio uploads now seed a local `media/audio/master/` working copy immediately after landing in `media/audio/original/`, so the platform begins the eager-master intake path without changing current player/build reads yet, and the Files -> Audio help/upload feedback now mentions the prepared master copy.
+
+2026-05-15 02:20 - Added an explicit "Show bundled demo assets" toggle to both the Files tab and the shared media picker so admins can reveal hidden `bandPromo_*` placeholder files for troubleshooting without making bundled demo media the default browsing experience again.
+
+2026-05-15 02:05 - Media browsing now distinguishes bundled `bandPromo_*` demo assets from user uploads in runtime state, suppresses bundled placeholders by default once a media group contains real user files, and turns delete on bundled demo files into a local hide-for-this-install action so tracked placeholders do not feel like they "come back" after later pulls.
+
+2026-05-15 01:35 - Expanded the media-handling docs to lock two operator-model rules: masters should be created or queued as early as possible after upload so admin work can happen against the canonical master instead of the preserved original, and bundled repo placeholder assets must be distinguishable from user uploads and hidden by default in normal media browsing through a runtime visibility/origin flag rather than by treating git-tracked demo files as ordinary user content.
+
+2026-05-15 01:05 - Expanded the media-handling docs to distinguish the logical `original` / `master` / `delivery` model from the current on-disk `original` / `optimal` folders, locking that today's `optimal` paths are legacy delivery outputs rather than the future master tier and that broader intake-format support should follow, not precede, that storage/build contract.
+
+2026-05-15 00:35 - Locked the media-handling docs to use operator-facing validation labels (`Cannot build`, `Fix before publish`, `Recommended fix`, `Can be repaired automatically`) and mapped the current playlist warning codes to those fix-first messages, with `docs/TODO.md` updated so the remaining work is the admin summary implementation rather than more terminology definition.
+
 2026-05-14 00:20 - Tightened the compact mobile landscape player spacing so standalone/PWA mode wastes less room at the top edge, using safe-area-aware top padding instead of the earlier extra inset.
 
 2026-05-14 00:05 - The developer debug modal now fetches and reports the live manifest orientation/display/start_url so remote tests can distinguish installed PWA state from the server-served manifest.

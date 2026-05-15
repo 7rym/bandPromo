@@ -552,6 +552,21 @@ Important constraint:
 
 - lossy source audio may be repackaged and better tagged, but it must not be misrepresented as higher-fidelity audio
 
+Preferred operator model:
+
+- when a newly uploaded source format has a defined master path, bandPromo should create or queue the master immediately after upload
+- after that point, operator-facing repair/editing tools should work against the master representation, not against the preserved original upload
+- delivery generation should read from the current approved master, not directly from the original, except where the original temporarily satisfies the master contract
+
+This keeps the operator workflow simple:
+
+- upload source once
+- let bandPromo prepare the canonical working copy
+- edit/fix the canonical package
+- publish delivery outputs from that canonical package
+
+The original remains available for trust, recovery, replacement, and future regeneration, but it should usually disappear from day-to-day operator work once the master is ready.
+
 ### Delivery tier
 
 The delivery tier is for publishing, not archival purity.
@@ -563,6 +578,190 @@ Examples:
 - image sizes based on actual cover/card/lightbox dimensions
 - audio delivery profiles based on practical listening contexts
 - JPEG/WebP for non-transparent artwork where that is the real best-fit delivery format
+
+## Logical tiers vs physical storage
+
+The product model and the current folder names are not the same thing.
+
+This distinction must stay explicit while bandPromo transitions away from the old `optimal` naming.
+
+### Current reality
+
+Today the repository effectively has:
+
+- `original` folders that hold uploaded source material
+- `optimal` folders that hold generated web-facing outputs
+
+That current `optimal` layer should be treated as a legacy generated-output bucket, not as the future `master` tier.
+
+Reason:
+
+- the current optimizer mainly creates web-serving outputs such as MP3 delivery files and compressed JPEG/WebP-style image outputs
+- those files are generated for playback/display efficiency, not as the canonical packaging source for future regeneration
+
+So the current mapping is:
+
+- current `original` folder -> `original` tier
+- current `optimal` folder -> temporary legacy `delivery` bucket
+
+It is not:
+
+- current `optimal` folder -> `master` tier
+
+### Cross-media rule
+
+The logical tier model should be the same across media types:
+
+- `original`
+- `master`
+- `delivery`
+
+But the delivery outputs under that model should remain media-specific.
+
+bandPromo should unify the operator mental model, not force audio, image, and video into identical packaging fields or identical derivative names.
+
+### Target storage direction
+
+The long-term filesystem/build direction should move from:
+
+- `media/<type>/original/`
+- `media/<type>/optimal/`
+
+to something conceptually closer to:
+
+- `media/<type>/original/`
+- `media/<type>/master/`
+- `media/<type>/delivery/<variant>/`
+
+Where `<type>` may include `audio`, `img`, `photo`, `video`, and later other explicit media-role families.
+
+The important rule is not the exact folder spelling yet. The important rule is that `master` and `delivery` must become separate product concepts in both code and storage.
+
+### Delivery naming guidance by media type
+
+The future delivery variants should be named by user context, not by vague quality words such as `optimal`.
+
+Examples:
+
+- audio delivery variants: `standard-stream`, `mobile-stream`, `lossless-download` when genuinely supported
+- image delivery variants: `thumb`, `card`, `lightbox`, `share`
+- video delivery variants: `poster`, `standard-stream`, `mobile-stream`
+
+This keeps the system honest about what each generated asset is for.
+
+### Master-tier guidance by media type
+
+The master tier is still one concept, but the master contract differs by media type.
+
+Audio master:
+
+- corrected canonical packaging
+- embedded artwork/lyrics where supported
+- normalized naming and release metadata
+- may be FLAC generated from WAV, but must not misrepresent lossy sources as lossless
+
+Image master:
+
+- corrected canonical source for future delivery generation
+- may normalize filename, orientation, metadata, or embedded descriptive fields
+- should preserve alpha/transparency and source capabilities when that matters for future outputs
+
+Video master:
+
+- corrected canonical source for future poster/transcode generation
+- may include normalized naming, poster association, and packaging metadata
+- should not be prematurely flattened into one streaming format if the canonical edited source should remain richer
+
+### Important implementation constraint
+
+`master` does not have to mean that every uploaded file is copied immediately into a new second file.
+
+The requirement is conceptual first:
+
+- the system must know which asset is the canonical regeneration source
+- delivery files must be generated from that canonical source when possible
+- originals must remain preserved untouched
+
+In practice, some already-good uploads may temporarily satisfy both the `original` and `master` contract until a repair/export action creates a distinct master artifact.
+
+Preferred build sequencing:
+
+- on upload: validate intake, preserve original, and create or queue the master as early as the format policy allows
+- after master creation: treat the master as the normal admin-facing working asset
+- in background: generate or refresh delivery variants as required for playback, cards, lightboxes, sharing, and downloads
+
+This should feel "magic" to the operator while still keeping the underlying source-preservation guarantees intact.
+
+### Migration rule for current code
+
+Until the folder migration is implemented, the codebase should follow these rules:
+
+- keep treating `media/*/original/` as the immutable source-upload area
+- treat `media/*/optimal/` as legacy delivery output, not as a canonical master area
+- do not rename current `optimal` folders to `master` without also splitting delivery variants out properly
+- do not introduce new intake formats unless the intended `master` and `delivery` behavior for those formats is defined first
+
+This sequencing matters because broadening upload acceptance without a locked canonical-output model would only spread ambiguity through the build pipeline.
+
+## Bundled placeholder asset policy
+
+bandPromo currently ships with bundled placeholder/demo assets for empty installs.
+
+Those assets are useful for setup, screenshots, and first-run verification, but they should not behave like operator-owned media once a real install is underway.
+
+### Problem to avoid
+
+If a bundled placeholder file is tracked by the repository and the operator deletes it locally, it can reappear on a later pull.
+
+That is technically correct from git's point of view, but it feels broken and annoying from the operator's point of view if the admin UI treated that file as normal user content.
+
+### Required product rule
+
+Bundled placeholder assets must carry a machine-readable origin/status distinction separate from normal user uploads.
+
+The first practical contract should be:
+
+- `bundled-placeholder`: repository-authored seed/demo media
+- `user-upload`: operator-provided runtime media
+- later, when needed: `generated-master` and `generated-delivery`
+
+The current `bandPromo_*` naming convention may be used as a temporary implementation hint, but filename prefixes alone should not be the long-term product contract.
+
+### Admin visibility rule
+
+Bundled placeholder/demo assets should be hidden by default in normal operator-facing media pickers and file lists.
+
+They may be shown only when one of these is true:
+
+- the install is still in an explicit empty/demo/setup state
+- the operator enables a dedicated `show bundled demo assets` toggle
+- a developer/admin troubleshooting view intentionally asks to include them
+
+This means an operator who replaces demo assets with real media should not keep seeing the old bundled files return as if they were ordinary active content.
+
+### Deletion rule
+
+Deleting a bundled placeholder from the operator-facing view does not need to mean "remove it from git forever."
+
+Instead, the product should support a local hidden/disabled state for bundled placeholders so that:
+
+- they no longer appear in normal admin media browsing
+- they are not offered in ordinary media pickers
+- a future git pull does not make them feel resurrected inside the UI
+
+In other words, the operator-facing action is closer to `hide bundled demo asset from this install` than to `delete canonical repository file`.
+
+### Recommended first implementation shape
+
+The first implementation does not need a complex asset database.
+
+A small runtime manifest or flag file is enough if it can record per-asset visibility/origin state such as:
+
+- bundled placeholder or not
+- hidden in this install or not
+- active/currently referenced or not
+
+That gives the media browser and media picker enough information to suppress bundled demo files by default without breaking the repository's tracked setup assets.
 
 ## What bandPromo should improve
 
@@ -918,6 +1117,53 @@ Playlist generation writes `play/playlist-validation.json` with:
 
 The admin build log reads this file through `biblioteca/get-build-log.php` and appends a human-readable metadata validation summary when a build is no longer running.
 
+## Operator-facing validation language
+
+The admin UI should not expose raw warning-code names such as `missing_title_tag` as the primary operator message.
+
+The first operator-facing layer should be fix-oriented and use short status labels that answer two questions immediately:
+
+- can this release be published yet
+- what should the operator do next
+
+The preferred labels are:
+
+- `Cannot build`: the source file or referenced asset is unusable and bandPromo cannot produce the required output
+- `Fix before publish`: the release can remain in draft/admin use, but the missing information should be corrected before the operator presents it as finished
+- `Recommended fix`: the release can still be published, but the package is weaker or less complete than intended
+- `Can be repaired automatically`: bandPromo can safely normalize or embed the missing information once the required source input is available
+
+These labels are the operator-facing translation layer for the underlying severity model:
+
+- `Cannot build` -> hard blocker
+- `Fix before publish` -> publish blocker
+- `Recommended fix` -> warning
+- `Can be repaired automatically` -> autofixable issue
+
+The admin summary should lead with the fix-oriented label and plain-language action, with raw tag terminology treated as secondary detail.
+
+Examples:
+
+- `Fix before publish: add a track title for Track01.flac`
+- `Recommended fix: add lyrics for Midnight City if lyric display is expected`
+- `Cannot build: replace or convert unsupported source file demo.wav`
+- `Can be repaired automatically: embed the approved cover into the corrected master`
+
+### Current warning-code mapping guidance
+
+The current `playlist-validation.json` warning codes should be interpreted in operator language like this until richer validation objects exist:
+
+| Current warning code | Preferred operator message | Default operator label | Notes |
+| --- | --- | --- | --- |
+| `missing_title_tag` | Add a track title | `Fix before publish` | If title can be inferred safely, bandPromo may prefill a suggestion rather than block immediately |
+| `missing_artist_tag` | Add the artist name | `Fix before publish` | May downgrade when an approved install/release default is intentionally used |
+| `missing_album_tag` | Add the release/album name | `Recommended fix` | Should not block simple single-release playback on its own |
+| `missing_track_number` | Confirm the track order | `Fix before publish` for multi-track releases; otherwise `Recommended fix` | Severity depends on whether ordering is already reliable from filename/order context |
+| `missing_lyrics` | Add lyrics if lyric display is part of the release | `Recommended fix` | Missing lyrics should not block audio publication by themselves |
+| `missing_cover_art` | Add cover art or confirm the approved fallback cover | `Fix before publish` when no approved fallback exists; otherwise `Recommended fix` | Distinguish missing track art from a valid release-cover fallback |
+
+If multiple issues affect one track, the admin summary should show the highest-severity label first and list the remaining recommended fixes underneath it.
+
 ## Current limitations
 
 - The admin UI does not yet provide metadata repair or master-building tools.
@@ -931,7 +1177,7 @@ The admin build log reads this file through `biblioteca/get-build-log.php` and a
 The next practical improvements should be:
 
 - make media validation warnings more prominent in the admin UI
-- classify issues as hard blockers, publish blockers, warnings, or autofixable issues
+- implement the operator-facing validation summary using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels
 - add tools for editing core tags and packaging fields in admin
 - define a proper WAV intake path that can produce a corrected FLAC master
 - preserve originals while generating corrected masters and delivery derivatives separately

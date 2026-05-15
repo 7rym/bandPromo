@@ -112,3 +112,73 @@ function bandpromo_run_light_task(string $script_relative_path): array {
         'exit_code' => $exit_code,
     ];
 }
+
+function bandpromo_run_light_json_task(string $script_relative_path, array $payload): array {
+    $root_dir = dirname(__DIR__);
+    $python = bandpromo_resolve_python_interpreter();
+    $script = $root_dir . '/' . ltrim($script_relative_path, '/');
+
+    if ($python === '') {
+        return [
+            'ok' => false,
+            'error' => 'Could not resolve Python runtime',
+            'output' => '',
+            'exit_code' => null,
+            'data' => null,
+        ];
+    }
+
+    if (!file_exists($script)) {
+        return [
+            'ok' => false,
+            'error' => 'Script not found: ' . $script_relative_path,
+            'output' => '',
+            'exit_code' => null,
+            'data' => null,
+        ];
+    }
+
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $env = $_ENV;
+    $env['BUILD_ROOT'] = $root_dir;
+    $env['PYTHONIOENCODING'] = 'utf-8:replace';
+
+    $process = proc_open([$python, '-u', $script], $descriptors, $pipes, $root_dir, $env);
+    if (!is_resource($process)) {
+        return [
+            'ok' => false,
+            'error' => 'Could not start task process',
+            'output' => '',
+            'exit_code' => null,
+            'data' => null,
+        ];
+    }
+
+    fwrite($pipes[0], json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    fclose($pipes[0]);
+
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+
+    $exit_code = proc_close($process);
+    $output = trim((string) $stdout . (string) $stderr);
+    $decoded = null;
+    if ($stdout !== false && trim($stdout) !== '') {
+        $decoded = json_decode(trim($stdout), true);
+    }
+
+    return [
+        'ok' => $exit_code === 0,
+        'error' => $exit_code === 0 ? null : ('Task failed: ' . $script_relative_path),
+        'output' => $output,
+        'exit_code' => $exit_code,
+        'data' => is_array($decoded) ? $decoded : null,
+    ];
+}

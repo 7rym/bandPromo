@@ -20,9 +20,11 @@ KNOWN_AUDIO_EXTENSIONS = SUPPORTED_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a'
 SCRIPT_DIR    = Path(__file__).parent
 ROOT_DIR      = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR  = ROOT_DIR / 'media' / 'audio' / 'original'
+AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'
 OUTPUT_FILE   = ROOT_DIR / 'play' / 'playlist.json'
 VALIDATION_FILE = ROOT_DIR / 'play' / 'playlist-validation.json'
+MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 CONFIG_COVER_BASENAME = 'configured_release_cover'
 
@@ -33,15 +35,69 @@ def normalize_title_fallback(filename):
     return cleaned or stem or filename
 
 
-def collect_audio_source_files():
+def is_bundled_placeholder(filename):
+    return str(filename).startswith('bandPromo_')
+
+
+def load_hidden_media_keys():
+    if not MEDIA_LIBRARY_STATE_FILE.exists():
+        return set()
+
+    try:
+        with open(str(MEDIA_LIBRARY_STATE_FILE), 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+    except Exception as e:
+        print(f"Warning: Could not read media-library-state.json: {e}")
+        return set()
+
+    hidden = payload.get('hidden') if isinstance(payload, dict) else None
+    if not isinstance(hidden, dict):
+        return set()
+
+    return {str(key) for key, value in hidden.items() if value}
+
+
+def has_visible_user_audio_uploads(hidden_keys):
+    if not AUDIO_ORIG_DIR.exists():
+        return False
+
+    for entry in AUDIO_ORIG_DIR.iterdir():
+        if not entry.is_file():
+            continue
+        if entry.name.lower() == 'desktop.ini':
+            continue
+        if is_bundled_placeholder(entry.name):
+            continue
+        if f'audio/{entry.name}' in hidden_keys:
+            continue
+        return True
+
+    return False
+
+
+def resolve_audio_working_path(filename):
+    master_path = AUDIO_MASTER_DIR / filename
+    if master_path.exists() and master_path.is_file():
+        return master_path
+    return AUDIO_ORIG_DIR / filename
+
+
+def collect_audio_source_files(include_bundled=False):
     supported = []
     unsupported = []
+    hidden_bundled = []
+    hidden_keys = load_hidden_media_keys()
+    suppress_bundled = has_visible_user_audio_uploads(hidden_keys) and not include_bundled
 
     if not AUDIO_ORIG_DIR.exists():
-        return supported, unsupported
+        return supported, unsupported, hidden_bundled
 
     for entry in sorted(AUDIO_ORIG_DIR.iterdir(), key=lambda item: item.name.lower()):
         if not entry.is_file():
+            continue
+
+        if is_bundled_placeholder(entry.name) and not include_bundled and (f'audio/{entry.name}' in hidden_keys or suppress_bundled):
+            hidden_bundled.append(entry)
             continue
 
         suffix = entry.suffix.lower()
@@ -50,7 +106,7 @@ def collect_audio_source_files():
         elif suffix in KNOWN_AUDIO_EXTENSIONS:
             unsupported.append(entry)
 
-    return supported, unsupported
+    return supported, unsupported, hidden_bundled
 
 
 def build_metadata_warnings(filename, info):
@@ -646,7 +702,7 @@ def generate_playlist():
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     # Collect supported source files and flag known-but-unsupported ones.
-    files, unsupported_files = collect_audio_source_files()
+    files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
     
     # Sort by track number, then filename as tiebreaker (default order)
     files.sort(key=lambda f: (get_track_number(str(f)), f.name))
@@ -672,17 +728,22 @@ def generate_playlist():
             print(f"❌ No supported source audio found in {AUDIO_ORIG_DIR}")
             print(f"   Unsupported audio files present: {unsupported_names}")
             print("   Current supported source formats: FLAC and MP3")
+        elif hidden_bundled_files:
+            print(f"No playable source audio remains after hiding bundled demo tracks in {AUDIO_ORIG_DIR}")
         else:
             print(f"No .flac or .mp3 files found in {AUDIO_ORIG_DIR}")
         return
 
     print(f"Found {len(files)} files. Generating playlist...")
+    if hidden_bundled_files:
+        print(f"ℹ️  Hidden bundled demo tracks skipped: {', '.join(file.name for file in hidden_bundled_files)}")
     if unsupported_files:
         print(f"⚠️  Skipping unsupported audio source files: {', '.join(file.name for file in unsupported_files)}")
 
     for filepath in files:
         filename = filepath.name
-        info = parse_audio_file(str(filepath))
+        working_path = resolve_audio_working_path(filename)
+        info = parse_audio_file(str(working_path))
         metadata_warnings = build_metadata_warnings(filename, info)
         
         # Ensure cover is just the filename, not full path
@@ -708,6 +769,7 @@ def generate_playlist():
             'title': info['title'],
             'cover': cover_file,
             'coverSource': info.get('cover_source', 'missing'),
+            'sourceTier': 'master' if working_path.parent == AUDIO_MASTER_DIR else 'original',
             'warnings': metadata_warnings,
         })
 
@@ -737,6 +799,7 @@ def generate_playlist():
     validation_report = {
         'supportedExtensions': list(SUPPORTED_EXTENSIONS),
         'unsupportedSourceFiles': [file.name for file in unsupported_files],
+        'hiddenBundledSourceFiles': [file.name for file in hidden_bundled_files],
         'summary': {
             'totalTracks': len(validation_entries),
             'tracksWithWarnings': metadata_warning_count,

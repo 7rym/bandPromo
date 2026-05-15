@@ -118,7 +118,7 @@ $data_dir = $root . '/data';
 if (!is_dir($data_dir)) {
     mkdir($data_dir, 0750, true);
 }
-$final_order = array_column($reordered, 'file');
+$final_order = array_values(array_filter($order, static fn($entry) => is_string($entry) && $entry !== ''));
 $order_pretty = json_encode($final_order, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if (file_put_contents($order_file, $order_pretty) === false) {
     // Non-fatal: playlist.json was already saved; just warn
@@ -128,7 +128,7 @@ if (file_put_contents($order_file, $order_pretty) === false) {
         'status' => 'warning',
         'data' => ['count' => count($reordered), 'warning' => 'playlist-order write failed'],
     ]);
-    echo json_encode(['ok' => true, 'count' => count($reordered), 'warning' => 'Could not write data/playlist-order.json']);
+    echo json_encode(['ok' => true, 'count' => count($final_order), 'warning' => 'Could not write data/playlist-order.json']);
     exit;
 }
 

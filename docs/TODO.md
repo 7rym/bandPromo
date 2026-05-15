@@ -106,21 +106,26 @@ Policy already locked in docs:
 - [x] Decide how build-time metadata validation should warn operators about missing or weak tags: `play/playlist-validation.json`, build-log output, and admin build-log summary.
 - [x] Decide when WAV should be converted into a tagged FLAC master and how lossy sources should be handled without false "quality upgrade" claims.
 - [x] Define the master-tier rules for audio packaging: metadata, artwork, lyrics, naming, and downloadable corrected masters.
+- [x] Lock the preferred operator workflow: preserve originals untouched, create or queue masters immediately after upload where supported, then treat masters as the normal admin-facing working assets while delivery variants regenerate in the background.
 - [x] Redefine "optimal" media output into explicit delivery targets (thumbnail, mobile, lightbox/desktop, stream/download tiers).
 - [x] Define the delivery-tier rules for images and audio based on actual UI/device needs rather than raw source size.
+- [x] Lock the transition rule that current `optimal` folders represent legacy delivery outputs, not the future `master` tier, and that intake-format expansion must follow the `original` / `master` / `delivery` model rather than precede it.
+- [x] Lock the bundled-placeholder policy: repo demo assets must be distinguishable from user uploads and hidden by default in normal operator media browsing.
 - [x] Define which edits actually require playlist regeneration, audio delivery regeneration, image delivery regeneration, social asset generation, and manifest generation.
 - [x] Separate release cover and track cover into explicit product concepts instead of treating `cover` as a loose inferred role.
 
 Policy still to define before implementation:
 
-- [ ] Present media validation in operator language focused on fixes, not raw tag terminology.
+- [x] Lock operator-facing media validation language focused on fixes, not raw tag terminology.
 - [ ] Define the first metadata editing tools needed in the file manager: title, artist, album, track number, lyrics, and cover handling.
 - [ ] Define the first master-building tools needed in admin: metadata repair, artwork embedding, lyrics embedding, filename cleanup, and export/download of corrected masters.
 
 Implementation follow-up after policy:
 
 - [x] Surface metadata validation warnings in the admin UI build log after builds finish.
-- [ ] Improve metadata warning prominence outside the raw build log, especially for non-technical operators.
+- [ ] Implement the operator-facing validation summary outside the raw build log, using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels.
+- [x] Add placeholder-origin and hidden-state support to media listing/picker flows so bundled demo assets are suppressed by default once a real install has user media in that group, and bundled delete actions hide them locally instead of pretending git-tracked demo files were truly removed.
+- [x] Start the eager-master intake path for supported audio uploads by preserving originals in `media/audio/original/` and seeding a local working copy in `media/audio/master/` without changing current playback or delivery reads yet.
 - [ ] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
 - [ ] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split.
 - [ ] Split the current optimizer into source-aware tasks; MP3 sources must not be treated as if they always need the FLAC-to-MP3 path.

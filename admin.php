@@ -8,6 +8,8 @@ session_start();
 require_once 'biblioteca/auth.php';
 require_once 'biblioteca/admin-audit.php';
 require_once 'biblioteca/config-loader.php';
+require_once 'biblioteca/csrf.php';
+require_once 'biblioteca/media-library-state.php';
 
 // Redirect to setup wizard if setup hasn't been completed
 if (!bandpromo_is_setup_complete()) {
@@ -15,9 +17,9 @@ if (!bandpromo_is_setup_complete()) {
     exit;
 }
 require_once 'biblioteca/analytics.php';
-require_once 'biblioteca/admin-helpers.php';
 
 $appVersion = trim(@file_get_contents(__DIR__ . '/VERSION') ?: 'dev');
+$adminCsrfToken = get_csrf_token();
 $siteName  = get_config('release.identity.title', 'Admin');
 $siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -166,6 +168,8 @@ if (!$authenticated) {
     <?php
     exit;
 }
+
+require_once 'biblioteca/admin-helpers.php';
 
 $message = '';
 $error = '';
@@ -884,12 +888,12 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <?php echo htmlspecialchars($emoji . ' ' . $label); ?>
                 </a>
                 <?php endforeach; ?>
-                <a href="#" class="tab-link btn btn-primary" style="margin-left:auto" onclick="event.preventDefault();openUploadModal('<?php echo htmlspecialchars($filesPanel); ?>')">+ Add files</a>
                 <button class="help-toggle-btn collapsed" id="helpBtn-files" onclick="toggleHelp('files')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-files">
                 <?php if ($filesPanel === 'audio'): ?>
                     Drop your songs here (FLAC or MP3). Keep your original quality files; the system creates the web-ready versions for you.
+                    <br><strong>Working copy:</strong> bandPromo also prepares a separate audio master copy after upload so future repair tools can work without touching the preserved original.
                     <br><strong>After upload:</strong> run <strong>Full Build</strong>.
                 <?php elseif ($filesPanel === 'photos'): ?>
                     Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images.
@@ -912,6 +916,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-audio" <?php echo $filesPanel !== 'audio' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <span id="audio-count" class="media-count"></span>
+                    <div class="media-panel-actions">
+                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                        <button type="button" class="btn btn-primary" onclick="openUploadModal('audio')">+ Add files</button>
+                    </div>
                 </div>
                 <div id="filelist-audio" class="media-file-list"><span class="text-muted">Loading…</span></div>
             </div>
@@ -920,6 +928,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-video" <?php echo $filesPanel !== 'video' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <span id="video-count" class="media-count"></span>
+                    <div class="media-panel-actions">
+                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                    <button type="button" class="btn btn-primary" onclick="openUploadModal('video')">+ Add files</button>
+                    </div>
                 </div>
                 <div id="filelist-video" class="media-file-list"><span class="text-muted">Loading…</span></div>
             </div>
@@ -928,6 +940,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-illustrations" <?php echo $filesPanel !== 'illustrations' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <span id="illustrations-count" class="media-count"></span>
+                    <div class="media-panel-actions">
+                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                    <button type="button" class="btn btn-primary" onclick="openUploadModal('illustrations')">+ Add files</button>
+                    </div>
                 </div>
                 <div id="filelist-illustrations" class="media-file-list"><span class="text-muted">Loading…</span></div>
             </div>
@@ -936,6 +952,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-photos" <?php echo $filesPanel !== 'photos' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <span id="photos-count" class="media-count"></span>
+                    <div class="media-panel-actions">
+                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                    <button type="button" class="btn btn-primary" onclick="openUploadModal('photos')">+ Add files</button>
+                    </div>
                 </div>
                 <div id="filelist-photos" class="media-file-list"><span class="text-muted">Loading…</span></div>
             </div>
@@ -944,6 +964,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-special" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <span id="special-count" class="media-count"></span>
+                    <div class="media-panel-actions">
+                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                    <button type="button" class="btn btn-primary" onclick="openUploadModal('special')">+ Add files</button>
+                    </div>
                 </div>
                 <div id="filelist-special" class="media-file-list"><span class="text-muted">Loading…</span></div>
             </div>
@@ -1017,51 +1041,23 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
             <!-- ── PLAYLIST ─────────────────────────────────────────────── -->
             <?php if ($contentTab === 'playlist'): ?>
-            <?php
-                $pl_file = __DIR__ . '/play/playlist.json';
-                $pl_error = null;
-                $pl_tracks = [];
-                if (!file_exists($pl_file)) {
-                    $pl_error = 'No playlist found. Run a build first to generate it from your audio files.';
-                } else {
-                    $pl_raw = file_get_contents($pl_file);
-                    $pl_tracks = json_decode($pl_raw ?: '[]', true);
-                    if (!is_array($pl_tracks)) {
-                        $pl_error = 'play/playlist.json could not be parsed.';
-                        $pl_tracks = [];
-                    }
-                }
-            ?>
             <div class="card">
-                <h3>🎵 Playlist Order</h3>
+                <div class="media-panel-header">
+                    <h3 style="margin:0;">🎵 Playlist Order</h3>
+                    <div class="media-panel-actions">
+                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                    </div>
+                </div>
                 <p class="card-note">
-                    Drag tracks to reorder them. Changes take effect immediately — no build required.
-                    The new order is also saved so future builds will preserve it.
+                    Drag tracks to reorder them. This editor previews the current source audio set, even before the next full build.
+                    Saving still preserves the order for future builds, while the currently published playlist stays on its last built state until you rebuild.
                 </p>
-                <?php if ($pl_error): ?>
-                    <p class="hint" style="color:#f87171;"><?php echo htmlspecialchars($pl_error); ?></p>
-                <?php else: ?>
-                <ol class="playlist-editor" id="playlistEditor">
-                    <?php foreach ($pl_tracks as $i => $track): ?>
-                    <li class="playlist-editor-row" draggable="true" data-file="<?php echo htmlspecialchars($track['file'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-                        <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
-                        <span class="playlist-track-num"><?php echo $i + 1; ?></span>
-                        <span class="playlist-track-info">
-                            <strong><?php echo htmlspecialchars($track['title'] ?? $track['file'] ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>
-                            <span class="playlist-track-meta"><?php echo htmlspecialchars($track['artist'] ?? '', ENT_QUOTES, 'UTF-8'); ?><?php if (!empty($track['album'])): ?> &mdash; <?php echo htmlspecialchars($track['album'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></span>
-                        </span>
-                        <span class="playlist-track-duration"><?php
-                            $dur = (int)($track['duration'] ?? 0);
-                            echo $dur > 0 ? sprintf('%d:%02d', intdiv($dur, 60), $dur % 60) : '';
-                        ?></span>
-                    </li>
-                    <?php endforeach; ?>
-                </ol>
+                <p id="playlistPreviewHint" class="hint">Loading current source tracks…</p>
+                <ol class="playlist-editor" id="playlistEditor"></ol>
                 <div class="card-actions">
                     <button id="playlistSaveBtn" class="btn btn-primary">💾 Save order</button>
                     <span id="playlistStatus" class="status-text"></span>
                 </div>
-                <?php endif; ?>
             </div>
 
             <!-- ── GALLERY ────────────────────────────────────────────────── -->
@@ -1674,6 +1670,75 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         </div>
     </div>
 
+    <div id="audioMasterModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAudioMasterModal()">
+        <div class="modal-box modal-wide">
+            <button class="modal-close" onclick="closeAudioMasterModal()">✕</button>
+            <h3 id="audioMasterTitle">Track details</h3>
+            <p class="card-note" id="audioMasterSubtitle">Edit the working metadata stored in the audio master. Originals stay untouched.</p>
+
+            <div class="audio-master-summary" id="audioMasterSummary">
+                <div class="audio-master-stat">
+                    <span class="audio-master-stat-label">Format</span>
+                    <strong id="audioMasterFormat">—</strong>
+                </div>
+                <div class="audio-master-stat">
+                    <span class="audio-master-stat-label">Duration</span>
+                    <strong id="audioMasterDuration">—</strong>
+                </div>
+                <div class="audio-master-stat">
+                    <span class="audio-master-stat-label">Bitrate</span>
+                    <strong id="audioMasterBitrate">—</strong>
+                </div>
+                <div class="audio-master-stat">
+                    <span class="audio-master-stat-label">Cover</span>
+                    <strong id="audioMasterCover">—</strong>
+                </div>
+            </div>
+
+            <form id="audioMasterForm">
+                <div class="audio-master-form-grid">
+                    <div class="form-group">
+                        <label for="audioMasterFieldTitle">Title</label>
+                        <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldArtist">Artist</label>
+                        <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldAlbum">Album</label>
+                        <input type="text" id="audioMasterFieldAlbum" name="album" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldDate">Year / Date</label>
+                        <input type="text" id="audioMasterFieldDate" name="date" autocomplete="off" placeholder="2026 or 2026-05-15">
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldTracknumber">Track no.</label>
+                        <input type="text" id="audioMasterFieldTracknumber" name="tracknumber" autocomplete="off" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldGenre">Genre</label>
+                        <input type="text" id="audioMasterFieldGenre" name="genre" autocomplete="off">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="audioMasterFieldComment">Comment / Description</label>
+                    <textarea id="audioMasterFieldComment" name="comment" rows="5"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="audioMasterFieldLyrics">Lyrics</label>
+                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="10"></textarea>
+                </div>
+            </form>
+
+            <div class="modal-actions">
+                <button type="button" id="audioMasterSaveBtn" class="btn btn-primary">Save metadata</button>
+                <span id="audioMasterStatus" class="status-text"></span>
+            </div>
+        </div>
+    </div>
+
     <div id="adminToastHost" class="admin-toast-host" aria-live="polite" aria-atomic="true"></div>
 
     <script>
@@ -1681,6 +1746,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         const adminDateStart = <?php echo json_encode($dateStart); ?>;
         const adminDateEnd   = <?php echo json_encode($dateEnd); ?>;
         const adminActivePanel = <?php echo json_encode($filesPanel); ?>;
+        const adminCsrfToken = <?php echo json_encode($adminCsrfToken); ?>;
     </script>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 

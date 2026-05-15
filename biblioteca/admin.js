@@ -303,12 +303,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const buildRequiredBadge = document.getElementById('buildRequiredBadge');
             const recommendedBuildBtn = document.getElementById('recommendedBuildBtn');
             const toastHost = document.getElementById('adminToastHost');
+            const adminCsrf = typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
             let currentBuildRequired = false;
             let currentBuildAction = 'none';
             let currentBuildReasons = [];
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
+            let showBundledDemoAssets = false;
 
             const mediaTypeLabels = {
                 audio: 'Audio',
@@ -392,8 +394,36 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 input.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
-            async function fetchMediaFiles(type) {
-                const resp = await fetch('/biblioteca/list-media.php?target=' + encodeURIComponent(type));
+            function mediaListUrl(type, options = {}) {
+                const params = new URLSearchParams();
+                params.set('target', type);
+
+                const includeBundled = options.includeBundled === true;
+                const includeHidden = options.includeHidden === true;
+                if (includeBundled) {
+                    params.set('include_bundled', '1');
+                }
+                if (includeHidden) {
+                    params.set('include_hidden', '1');
+                }
+
+                return '/biblioteca/list-media.php?' + params.toString();
+            }
+
+            function syncBundledToggleUi() {
+                const toggleButtons = document.querySelectorAll('[data-bundled-toggle]');
+                toggleButtons.forEach((button) => {
+                    button.classList.toggle('active', showBundledDemoAssets);
+                    button.setAttribute('aria-pressed', showBundledDemoAssets ? 'true' : 'false');
+                    button.textContent = showBundledDemoAssets ? '◉ Demo' : '◌ Demo';
+                    button.title = showBundledDemoAssets ? 'Hide bundled demo assets' : 'Show bundled demo assets';
+                });
+            }
+
+            async function fetchMediaFiles(type, options = {}) {
+                const includeBundled = options.includeBundled === true || showBundledDemoAssets === true;
+                const includeHidden = options.includeHidden === true || showBundledDemoAssets === true;
+                const resp = await fetch(mediaListUrl(type, { includeBundled, includeHidden }));
                 const data = await resp.json();
                 if (!resp.ok || data.error) {
                     throw new Error(data.error || ('Request failed: ' + resp.status));
@@ -506,6 +536,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return bytes + ' B';
             }
 
+            function formatMediaCountSummary(files) {
+                const items = Array.isArray(files) ? files : [];
+                const count = items.length;
+                const totalBytes = items.reduce((sum, file) => sum + Math.max(0, Number(file && file.size) || 0), 0);
+                const noun = count === 1 ? 'file' : 'files';
+                return `(${count} ${noun}, ${fmtSize(totalBytes)} total)`;
+            }
+
+            function formatDuration(seconds) {
+                const total = Math.max(0, Number(seconds) || 0);
+                const mins = Math.floor(total / 60);
+                const secs = total % 60;
+                return `${mins}:${String(secs).padStart(2, '0')}`;
+            }
+
             function showAdminToast(message, type = 'success') {
                 if (!toastHost) return;
 
@@ -530,7 +575,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!listEl) return;
                 try {
                     const files = await fetchMediaFiles(type);
-                    if (countEl) countEl.textContent = '(' + files.length + ')';
+                    if (countEl) countEl.textContent = formatMediaCountSummary(files);
                     if (!files.length) {
                         listEl.innerHTML = '<span class="text-muted">No files yet.</span>';
                         return;
@@ -551,11 +596,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const preview = isPreviewable(f.name)
                             ? `<button class="icon-btn" title="Preview" onclick="openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
                             : '';
+                        const details = type === 'audio'
+                            ? `<button class="icon-btn" title="Track details" onclick="openAudioMasterModal('${safeName}')">✎</button>`
+                            : '';
                         return `<div class="media-file-row">
                             ${thumb}
                             <span class="media-file-name">${f.name}</span>
                             <span class="media-file-size">${fmtSize(f.size)}</span>
                             ${preview}
+                            ${details}
                             <button class="icon-btn danger" title="Delete" onclick="openDeleteModal('${type}', '${safeName}')">🗑️</button>
                         </div>`;
                     }).join('');
@@ -566,6 +615,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             // Load active panel
             loadMediaList(activeMediaPanel);
+
+            const showBundledAssetsToggleButtons = document.querySelectorAll('[data-bundled-toggle]');
+
+            function setShowBundledDemoAssets(nextValue) {
+                showBundledDemoAssets = nextValue === true;
+                syncBundledToggleUi();
+
+                if (activeMediaPanel) {
+                    loadMediaList(activeMediaPanel);
+                }
+                if (mediaPickerState) {
+                    renderMediaPickerList(mediaPickerState.activeTarget);
+                }
+            }
+
+            showBundledAssetsToggleButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    setShowBundledDemoAssets(!showBundledDemoAssets);
+                });
+            });
+
+            syncBundledToggleUi();
 
             // Upload modal
             const modal       = document.getElementById('mediaUploadModal');
@@ -682,6 +753,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 mediaPickerTitle.textContent = mediaPickerState.title;
                 mediaPickerModal.style.display = 'flex';
+                syncBundledToggleUi();
                 renderMediaPickerTabs();
                 renderMediaPickerList(mediaPickerState.activeTarget);
             };
@@ -821,8 +893,100 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const deleteNameEl     = document.getElementById('mediaDeleteName');
             const deleteConfirmBtn = document.getElementById('mediaDeleteConfirmBtn');
             const deleteStatusEl   = document.getElementById('mediaDeleteStatus');
+            const audioMasterModal = document.getElementById('audioMasterModal');
+            const audioMasterTitle = document.getElementById('audioMasterTitle');
+            const audioMasterStatus = document.getElementById('audioMasterStatus');
+            const audioMasterFormat = document.getElementById('audioMasterFormat');
+            const audioMasterDuration = document.getElementById('audioMasterDuration');
+            const audioMasterBitrate = document.getElementById('audioMasterBitrate');
+            const audioMasterCover = document.getElementById('audioMasterCover');
+            const audioMasterSaveBtn = document.getElementById('audioMasterSaveBtn');
+            const audioMasterForm = document.getElementById('audioMasterForm');
             let deleteTarget = null;
             let deleteFile   = null;
+            let activeAudioMasterFile = null;
+
+            const audioMasterFields = {
+                title: document.getElementById('audioMasterFieldTitle'),
+                artist: document.getElementById('audioMasterFieldArtist'),
+                album: document.getElementById('audioMasterFieldAlbum'),
+                date: document.getElementById('audioMasterFieldDate'),
+                tracknumber: document.getElementById('audioMasterFieldTracknumber'),
+                genre: document.getElementById('audioMasterFieldGenre'),
+                comment: document.getElementById('audioMasterFieldComment'),
+                lyrics: document.getElementById('audioMasterFieldLyrics'),
+            };
+
+            function setAudioMasterStatus(message, type = '') {
+                if (!audioMasterStatus) return;
+                audioMasterStatus.textContent = message || '';
+                audioMasterStatus.classList.remove('audio-master-status-error', 'audio-master-status-success');
+                if (type === 'error') {
+                    audioMasterStatus.classList.add('audio-master-status-error');
+                } else if (type === 'success') {
+                    audioMasterStatus.classList.add('audio-master-status-success');
+                }
+            }
+
+            function setAudioMasterSummary(detail) {
+                if (audioMasterFormat) audioMasterFormat.textContent = String(detail.format || '—').toUpperCase();
+                if (audioMasterDuration) audioMasterDuration.textContent = detail.duration_seconds ? formatDuration(detail.duration_seconds) : '—';
+                if (audioMasterBitrate) audioMasterBitrate.textContent = detail.bitrate_kbps ? `${detail.bitrate_kbps} kbps` : '—';
+                if (audioMasterCover) {
+                    if (detail.sidecar_cover) {
+                        audioMasterCover.textContent = `Sidecar: ${detail.sidecar_cover}`;
+                    } else if (detail.embedded_cover_present) {
+                        audioMasterCover.textContent = 'Embedded artwork';
+                    } else {
+                        audioMasterCover.textContent = 'No track-specific cover';
+                    }
+                }
+            }
+
+            function setAudioMasterFormValues(detail) {
+                Object.entries(audioMasterFields).forEach(([key, input]) => {
+                    if (!input) return;
+                    input.value = detail && typeof detail[key] === 'string' ? detail[key] : '';
+                });
+            }
+
+            async function loadAudioMasterDetails(filename) {
+                if (!filename) return;
+                setAudioMasterStatus('Loading…');
+                if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = true;
+                try {
+                    const resp = await fetch(`/biblioteca/get-audio-master-detail.php?filename=${encodeURIComponent(filename)}`);
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) {
+                        throw new Error(data.error || 'Could not load track details');
+                    }
+                    if (audioMasterTitle) audioMasterTitle.textContent = `Track details · ${filename}`;
+                    setAudioMasterSummary(data);
+                    setAudioMasterFormValues(data);
+                    setAudioMasterStatus('Editing the canonical master copy. Run Full Build after saving.', 'success');
+                    if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = false;
+                } catch (error) {
+                    setAudioMasterSummary({});
+                    setAudioMasterFormValues({});
+                    setAudioMasterStatus(error.message || 'Could not load track details', 'error');
+                }
+            }
+
+            window.openAudioMasterModal = function(filename) {
+                activeAudioMasterFile = filename;
+                if (audioMasterModal) audioMasterModal.style.display = 'flex';
+                setAudioMasterSummary({});
+                setAudioMasterFormValues({});
+                loadAudioMasterDetails(filename);
+            };
+
+            window.closeAudioMasterModal = function() {
+                if (audioMasterModal) audioMasterModal.style.display = 'none';
+                activeAudioMasterFile = null;
+                if (audioMasterForm) audioMasterForm.reset();
+                setAudioMasterSummary({});
+                setAudioMasterStatus('');
+            };
 
             // ── Admin media preview — powered by biblioteca/lightbox.js ──────────
             const _adminLb = new Lightbox({
@@ -880,6 +1044,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (data.ok) {
                             closeDeleteModal();
                             await loadMediaList(activeMediaPanel);
+                            showAdminToast(data.message || 'File removed.', data.action === 'hidden' ? 'success' : 'success');
                         } else {
                             deleteStatusEl.innerHTML = `<span class="text-error">❌ ${data.error || 'Failed'}</span>`;
                             deleteConfirmBtn.disabled = false;
@@ -887,6 +1052,54 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     } catch(e) {
                         deleteStatusEl.innerHTML = `<span class="text-error">❌ Network error</span>`;
                         deleteConfirmBtn.disabled = false;
+                    }
+                });
+            }
+
+            if (audioMasterSaveBtn) {
+                audioMasterSaveBtn.addEventListener('click', async () => {
+                    if (!activeAudioMasterFile) return;
+
+                    const fields = {};
+                    Object.entries(audioMasterFields).forEach(([key, input]) => {
+                        fields[key] = input ? String(input.value || '').trim() : '';
+                    });
+
+                    audioMasterSaveBtn.disabled = true;
+                    setAudioMasterStatus('Saving…');
+
+                    try {
+                        const resp = await fetch('/biblioteca/save-audio-master-detail.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                filename: activeAudioMasterFile,
+                                fields,
+                                csrf_token: adminCsrf,
+                            }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || data.error) {
+                            throw new Error(data.error || 'Could not save metadata');
+                        }
+
+                        const detail = data.detail || {};
+                        setAudioMasterSummary(detail);
+                        setAudioMasterFormValues(detail);
+                        setAudioMasterStatus('Master metadata saved. Full Build is now required.', 'success');
+                        if (data.build_required_state) {
+                            setBuildRequiredNudge(
+                                data.build_required === true,
+                                data.build_required_state.reasons || [],
+                                data.build_required_state.action || 'none'
+                            );
+                        }
+                        await loadMediaList('audio');
+                        showAdminToast('Audio master metadata updated. Full Build is now required.');
+                    } catch (error) {
+                        setAudioMasterStatus(error.message || 'Could not save metadata', 'error');
+                    } finally {
+                        audioMasterSaveBtn.disabled = false;
                     }
                 });
             }
@@ -937,6 +1150,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     modalBtn.disabled = true;
                     let done = 0, failed = 0;
                     let latestBuildState = null;
+                    let masterPreparedCount = 0;
+                    const masterWarnings = [];
                     for (let fi = 0; fi < modalFiles.length; fi++) {
                         const file = modalFiles[fi];
                         modalStatus.textContent = `⏳ Uploading ${file.name} (${fi + 1}/${modalFiles.length})…`;
@@ -947,6 +1162,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             });
                             if (uploadData && uploadData.build_required_state) {
                                 latestBuildState = uploadData.build_required_state;
+                            }
+                            if (uploadData && uploadData.master_prepared) {
+                                masterPreparedCount += 1;
+                            }
+                            if (uploadData && uploadData.master_warning) {
+                                masterWarnings.push(`${file.name}: ${uploadData.master_warning}`);
                             }
                             done++;
                         } catch(e) {
@@ -967,9 +1188,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         if (latestBuildState && latestBuildState.required) {
                             const next = latestBuildState.action === 'optimize' ? 'Next: run Optimize Media.' : 'Next: run Full Build.';
-                            showAdminToast(`Upload complete. ${next}`, 'success');
+                            const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
+                            showAdminToast(`Upload complete.${masterNote} ${next}`, 'success');
                         } else {
-                            showAdminToast('Upload complete. No build step needed.', 'success');
+                            const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
+                            showAdminToast(`Upload complete.${masterNote} No build step needed.`, 'success');
+                        }
+                        if (masterWarnings.length) {
+                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${escapeHtml(masterWarnings.join(' | '))}</span>`;
                         }
                     } else {
                         modalStatus.innerHTML += `<br><span style="color:#f55">❌ ${failed} failed, ✅ ${done} ok</span>`;
@@ -983,7 +1209,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         if (done > 0) {
-                            showAdminToast(`Uploaded ${done} file(s), ${failed} failed.`, 'warning');
+                            const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
+                            showAdminToast(`Uploaded ${done} file(s), ${failed} failed.${masterNote}`, 'warning');
+                        }
+                        if (masterWarnings.length) {
+                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${escapeHtml(masterWarnings.join(' | '))}</span>`;
                         }
                     }
                     refreshBuildHint();
@@ -1474,19 +1704,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 // ── fetch available media and initialise ─────────────────────
                 (async function init() {
                     try {
-                        const [photosResp, videoResp] = await Promise.all([
-                            fetch('/biblioteca/list-media.php?target=photos'),
-                            fetch('/biblioteca/list-media.php?target=video'),
+                        const [photoFiles, videoFiles] = await Promise.all([
+                            fetchMediaFiles('photos'),
+                            fetchMediaFiles('video'),
                         ]);
-                        const photosData = await photosResp.json();
-                        const videoData  = await videoResp.json();
                         allFiles = [
-                            ...(photosData.files || []).map(f => ({
+                            ...(photoFiles || []).map(f => ({
                                 src: '/media/photo/original/' + f.name,
                                 name: prettifyName(f.name),
                                 type: 'image',
                             })),
-                            ...(videoData.files || []).map(f => ({
+                            ...(videoFiles || []).map(f => ({
                                 src: '/media/video/original/' + f.name,
                                 name: prettifyName(f.name),
                                 type: 'video',
@@ -1505,9 +1733,77 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const list       = document.getElementById('playlistEditor');
                 const saveBtn    = document.getElementById('playlistSaveBtn');
                 const statusEl   = document.getElementById('playlistStatus');
+                const hintEl     = document.getElementById('playlistPreviewHint');
                 if (!list || !saveBtn) return;
 
                 let dragSrc = null;
+
+                function formatPlaylistDuration(seconds) {
+                    const duration = Math.max(0, Number(seconds) || 0);
+                    if (!duration) return '';
+                    return `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`;
+                }
+
+                function renderPlaylistRows(tracks) {
+                    const rows = Array.isArray(tracks) ? tracks : [];
+                    if (!rows.length) {
+                        list.innerHTML = '';
+                        if (hintEl) {
+                            hintEl.textContent = 'No current source tracks found. Upload audio or enable Demo to inspect bundled tracks.';
+                        }
+                        return;
+                    }
+
+                    list.innerHTML = rows.map((track, index) => {
+                        const title = escapeHtml(track.title || track.file || 'Untitled');
+                        const artist = escapeHtml(track.artist || '');
+                        const album = escapeHtml(track.album || '');
+                        const meta = album ? `${artist} — ${album}` : artist;
+                        const duration = formatPlaylistDuration(track.duration);
+                        const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo' : '';
+                        return `<li class="playlist-editor-row${demoClass}" draggable="true" data-file="${escapeHtml(track.file || '')}">
+                            <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
+                            <span class="playlist-track-num">${index + 1}</span>
+                            <span class="playlist-track-info">
+                                <strong>${title}</strong>
+                                <span class="playlist-track-meta">${meta}</span>
+                            </span>
+                            <span class="playlist-track-duration">${duration}</span>
+                        </li>`;
+                    }).join('');
+
+                    if (hintEl) {
+                        hintEl.textContent = showBundledDemoAssets
+                            ? 'Showing current source tracks with bundled demo audio revealed.'
+                            : 'Showing current source tracks with bundled demo audio suppressed when real uploads exist.';
+                    }
+                }
+
+                async function loadPlaylistPreview() {
+                    if (hintEl) {
+                        hintEl.textContent = 'Loading current source tracks…';
+                    }
+                    saveBtn.disabled = true;
+                    try {
+                        const params = new URLSearchParams();
+                        if (showBundledDemoAssets) {
+                            params.set('include_bundled', '1');
+                        }
+                        const query = params.toString();
+                        const resp = await fetch('/biblioteca/get-playlist-preview.php' + (query ? `?${query}` : ''));
+                        const data = await resp.json();
+                        if (!resp.ok || data.error) {
+                            throw new Error(data.error || 'Could not load playlist preview');
+                        }
+                        renderPlaylistRows(data.tracks || []);
+                        saveBtn.disabled = false;
+                    } catch (e) {
+                        list.innerHTML = '';
+                        if (hintEl) {
+                            hintEl.textContent = 'Could not load playlist preview: ' + e.message;
+                        }
+                    }
+                }
 
                 list.addEventListener('dragstart', (e) => {
                     dragSrc = e.target.closest('.playlist-editor-row');
@@ -1589,6 +1885,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         statusEl.style.color = '#f55';
                     }
                 });
+
+                loadPlaylistPreview();
+
+                const previousSetShowBundledDemoAssets = setShowBundledDemoAssets;
+                setShowBundledDemoAssets = function(nextValue) {
+                    previousSetShowBundledDemoAssets(nextValue);
+                    loadPlaylistPreview();
+                };
             })();
 
             // ── Support: link/widget branch form ────────────────────────────
