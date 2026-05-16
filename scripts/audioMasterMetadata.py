@@ -7,7 +7,7 @@ from pathlib import Path
 
 from mutagen import File
 from mutagen.flac import FLAC
-from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TCON, TDRC, TIT2, TPE1, TRCK, USLT
+from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, USLT
 
 
 if hasattr(sys.stdout, 'reconfigure'):
@@ -126,6 +126,8 @@ def inspect_flac(path, audio):
         'album': read_text_tag(audio, 'album', 'ALBUM'),
         'date': read_text_tag(audio, 'date', 'DATE', 'year', 'YEAR'),
         'tracknumber': read_track_value(read_text_tag(audio, 'tracknumber', 'TRACKNUMBER')),
+        'bpm': read_text_tag(audio, 'bpm', 'BPM', 'tempo', 'TEMPO'),
+        'initialkey': read_text_tag(audio, 'initialkey', 'INITIALKEY', 'key', 'KEY'),
         'genre': read_text_tag(audio, 'genre', 'GENRE'),
         'comment': read_text_tag(audio, 'description', 'DESCRIPTION', 'comment', 'COMMENT'),
         'lyrics': read_flac_lyrics(audio),
@@ -153,6 +155,8 @@ def inspect_mp3(path):
         'album': read_text_tag(tags, 'TALB'),
         'date': read_text_tag(tags, 'TDRC'),
         'tracknumber': read_track_value(read_text_tag(tags, 'TRCK')),
+        'bpm': read_text_tag(tags, 'TBPM'),
+        'initialkey': read_text_tag(tags, 'TKEY'),
         'genre': read_text_tag(tags, 'TCON'),
         'comment': comment_text,
         'lyrics': read_mp3_lyrics(tags),
@@ -176,12 +180,15 @@ def inspect_master(path):
     duration = getattr(audio.info, 'length', 0) or 0
     bitrate = getattr(audio.info, 'bitrate', 0) or 0
     sample_rate = getattr(audio.info, 'sample_rate', 0) or 0
+    bits_per_sample = getattr(audio.info, 'bits_per_sample', 0) or 0
     details.update({
         'ok': True,
         'filename': path.name,
         'duration_seconds': int(duration),
         'bitrate_kbps': int(round(bitrate / 1000)) if bitrate else 0,
         'sample_rate_hz': int(sample_rate) if sample_rate else 0,
+        'bit_depth': int(bits_per_sample) if bits_per_sample else 0,
+        'file_size_bytes': int(path.stat().st_size) if path.exists() else 0,
         'sidecar_cover': get_sidecar_cover(path.name),
     })
     return details
@@ -209,6 +216,8 @@ def update_flac(path, fields):
     album = normalize_field_text(fields, 'album')
     date = normalize_field_text(fields, 'date')
     tracknumber = normalize_field_text(fields, 'tracknumber')
+    bpm = normalize_field_text(fields, 'bpm')
+    initialkey = normalize_field_text(fields, 'initialkey')
     genre = normalize_field_text(fields, 'genre')
     comment = normalize_field_text(fields, 'comment')
     lyrics = normalize_field_text(fields, 'lyrics')
@@ -218,6 +227,8 @@ def update_flac(path, fields):
     set_field('album', album)
     set_field('date', date)
     set_field('tracknumber', tracknumber)
+    set_field('bpm', bpm)
+    set_field('initialkey', initialkey)
     set_field('genre', genre)
 
     if comment == '':
@@ -256,6 +267,8 @@ def update_mp3(path, fields):
     album = normalize_field_text(fields, 'album')
     date = normalize_field_text(fields, 'date')
     tracknumber = normalize_field_text(fields, 'tracknumber')
+    bpm = normalize_field_text(fields, 'bpm')
+    initialkey = normalize_field_text(fields, 'initialkey')
     genre = normalize_field_text(fields, 'genre')
     comment = normalize_field_text(fields, 'comment')
     lyrics = normalize_field_text(fields, 'lyrics')
@@ -265,6 +278,8 @@ def update_mp3(path, fields):
     set_id3_text_frame(tags, 'TALB', TALB, album)
     set_id3_text_frame(tags, 'TDRC', TDRC, date)
     set_id3_text_frame(tags, 'TRCK', TRCK, tracknumber)
+    set_id3_text_frame(tags, 'TBPM', TBPM, bpm)
+    set_id3_text_frame(tags, 'TKEY', TKEY, initialkey)
     set_id3_text_frame(tags, 'TCON', TCON, genre)
 
     tags.delall('COMM')

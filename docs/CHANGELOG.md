@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-16 17:12 - Checkpointed the audio-metadata workflow session as `v0.7 build 243`, syncing the media-handling doc's current-state reference with the required VERSION bump used for the push routine.
+
+2026-05-16 17:05 - Refreshed the session-affected docs for a checkpoint: `TODO.md`, `ROADMAP.md`, `MEDIA-HANDLING.md`, and `FEATURES.md` now reflect the shipped Files -> Audio metadata editor, automatic playlist/validation refresh after metadata edits, embedded track-number alignment rules, no-op save suppression, and the remaining gap that real metadata edits still collapse into the coarse build-required model.
+
+2026-05-16 16:48 - Fixed the no-op audio metadata save path: opening a track and saving it unchanged no longer triggers a fresh `Full Build` requirement, because the save endpoint now detects unchanged metadata/cover state and skips the master update plus build-required marking.
+
+2026-05-16 16:39 - Fixed automatic track-number handling during audio metadata saves: the save path now preserves any existing embedded track tag and, when that tag is blank, automatically writes the current playlist position instead of silently clearing the tag and leaving `missing_track_number` warnings behind.
+
+2026-05-16 16:32 - Audio metadata saves now trigger an automatic lightweight playlist scan immediately after the master update, so `play/playlist.json` and `play/playlist-validation.json` refresh without waiting for a manual Full Build; delivery publishing can still remain pending when those edits also require regenerated output files.
+
+2026-05-16 16:20 - Documented the deferred nondestructive media-naming direction across planning docs: TODO now tracks an operator-facing alias/display-name layer that preserves immutable original filenames as source identity, and the roadmap/media-handling docs now describe that future separation between trustable source anchors and human-facing names.
+
+2026-05-16 16:09 - Tightened the audio-file badges and tagging workflow: Files badges now distinguish between build-breaking missing data and softer improvements, the badge order now starts with Cover and includes Description, and the track editor now splits the stored title tag into separate operator-facing Title and Version fields while still saving a combined `Title [Version]` tag to the master file.
+
+2026-05-16 15:52 - Playlist reordering now also updates the embedded track number in each audio master where possible, so the saved operator order and the master metadata stay aligned instead of drifting apart until a later manual metadata edit.
+
+2026-05-16 15:40 - Polished the audio metadata editor and Files helper copy: the release-date picker icon is now styled for the dark admin theme and moved to the left side of the field, and the Files audio helper now explains the row colors more clearly as Good, Could be improved, or Missing required data that can block the build.
+
+2026-05-16 15:28 - Refined the Files audio experience for operators: the helper copy is now shorter, warmer, and focused on safe uploads plus better listener experiences; the audio header now tells operators they can click a track or drop new files to upload; and editable audio rows now open the track editor directly, so the separate edit icon is no longer needed.
+
+2026-05-16 13:31 - Updated the Files panel operator copy: the media-panel header now carries the direct upload instruction, and the Files helper text now explains the original-backup, master-packaging, and delivery-file flow in more operator-friendly language while clarifying what the panel shows and why accurate metadata tagging in the track editor matters before publishing.
+
+2026-05-16 13:24 - Fixed the media-picker preview lightbox in the admin UI: preview clicks inside the cover picker now open the shared admin lightbox again because the lightbox is initialized lazily after its DOM exists, instead of being constructed too early during page startup.
+
+2026-05-16 13:18 - Fixed the track-cover preview after save so the newly selected image stays visible immediately: the save response now carries the updated sidecar cover state and a cache-busted sidecar URL, preventing the modal from repainting with stale cover data or a browser-cached older image.
+
+2026-05-16 13:12 - Fixed the track-cover picker path validator so cover selections from Illustrations, Photos, and Theme Assets no longer fail with `Invalid cover path`; the backend now accepts the real media paths emitted by the picker such as `/media/img/original/...`, `/media/photo/original/...`, and `/media/special/...`.
+
+2026-05-16 13:05 - Simplified the track-cover chooser in the audio metadata editor: the verbose cover info panel was removed, the adjacent area now shows only compact static track info, and cover actions were moved onto the artwork itself as small corner icons for choose-cover and use-release-cover.
+
+2026-05-16 12:55 - Tightened the audio metadata editor for operators: required fields are now ordered as Release name, Release date, Genre, BPM, Key, Artist, and Title; Track # is no longer editable and is shown only as compact playlist information; the modal header now shows human-facing track details instead of source filenames; helper/status copy was simplified to avoid internal system terms; BPM and Key are constrained to 3 characters; and the compact stats row was condensed further for better use of space.
+
+2026-05-16 12:35 - Reworked the audio master metadata editor so operators see a denser, more actionable layout: Cover now shows the current build cover with a live preview plus a shared-image picker and release-cover fallback, static file info now includes duration/format/bitrate/sample rate/bit depth/filesize, the field order was compacted, `Release date` replaces the old year/date wording and uses an ISO date picker, Track # and BPM now enforce 3-digit input, track descriptions are capped at 300 characters, and the audio file-list badges now patch immediately from saved master metadata after a save instead of waiting for the last build-validation snapshot. The save endpoint also gained runtime-safe length checks for PHP installs without `mbstring`.
+
 2026-05-16 11:35 - Fixed stale-CSRF failures when saving audio master metadata from long-lived admin tabs: the admin UI now refreshes its CSRF token and retries once on the specific `Invalid CSRF token` response, backed by a small authenticated token endpoint so the normal Save Metadata button works again without requiring a page reload.
 
 2026-05-16 01:16 - The operator-facing validation flow now includes actions and file-level health badges: Build summary items link directly to metadata editing, playlist order, or Files as appropriate, Files -> Audio rows now show compact latest-build status badges for Artist, Title, Release, Lyrics, and Cover after the master badge, and admin deep links can focus the relevant playlist row or audio file/modal when opened from those actions.

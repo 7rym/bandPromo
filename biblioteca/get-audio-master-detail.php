@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/audio-master-detail-helpers.php';
 bandpromo_enforce_https();
 
 session_start();
@@ -36,5 +37,7 @@ if (!$result['ok'] || !is_array($data) || empty($data['ok'])) {
     echo json_encode(['error' => $message]);
     exit;
 }
+
+$data = bandpromo_audio_master_enrich_detail(dirname(__DIR__), $filename, $data);
 
 echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

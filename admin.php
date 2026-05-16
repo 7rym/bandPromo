@@ -892,9 +892,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-files">
                 <?php if ($filesPanel === 'audio'): ?>
-                    Drop your songs here (FLAC, MP3, or WAV). Keep your original quality files; the system creates the web-ready versions for you.
-                    <br><strong>Working copy:</strong> bandPromo also prepares a separate audio master copy after upload so future repair tools can work without touching the preserved original.
-                    <br><strong>After upload:</strong> run <strong>Full Build</strong>.
+                    <strong>Your files are safe here.</strong>😁
+                    <br>bandPromo always keeps the original file you add, so you can work without worrying about losing it.
+                    <br>At the same time, bandPromo prepares the versions needed to give visitors a smoother, better listening experience.
+                    <br><strong>This list shows what is ready and what still needs a little attention.</strong>
+                    <br>Green means good, amber means it could be improved, and red means required data is missing and the build can be blocked.
+                    <br>Better track details mean clearer pages, better playback information, and a more polished experience for everyone, so click a track whenever you want to improve it.
+                    <br>
                 <?php elseif ($filesPanel === 'photos'): ?>
                     Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images.
                     <br><strong>After upload:</strong> run <strong>Optimize Media</strong>.
@@ -908,14 +912,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     This is for theme assets such as share images, icons, logos, and similar install-specific design files.
                     <br><strong>After upload:</strong> usually no build needed.
                 <?php endif; ?>
-                <br><small>Tip: you can drag files straight into this page to open the upload window automatically.</small>
-                <br><small>⚠️ Deleting a file is immediate and permanent. There is no undo.</small>
+                <br><strong>⚠️ Deleting a file is immediate and permanent. There is no undo!</strong>
             </div>
 
             <!-- Audio -->
             <div class="media-panel card" id="panel-audio" <?php echo $filesPanel !== 'audio' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
-                    <span id="audio-count" class="media-count"></span>
+                    <div class="media-panel-summary">
+                        <span id="audio-count" class="media-count"></span>
+                        <span class="media-panel-intro">Click on a track to edit or drop new files here to upload.</span>
+                    </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                         <button type="button" class="btn btn-primary" onclick="openUploadModal('audio')">+ Add files</button>
@@ -927,7 +933,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- Video -->
             <div class="media-panel card" id="panel-video" <?php echo $filesPanel !== 'video' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
-                    <span id="video-count" class="media-count"></span>
+                    <div class="media-panel-summary">
+                        <span id="video-count" class="media-count"></span>
+                        <span class="media-panel-intro">Click on a video to edit or drop new files here to upload.</span>
+                    </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                     <button type="button" class="btn btn-primary" onclick="openUploadModal('video')">+ Add files</button>
@@ -939,7 +948,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- Illustrations -->
             <div class="media-panel card" id="panel-illustrations" <?php echo $filesPanel !== 'illustrations' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
-                    <span id="illustrations-count" class="media-count"></span>
+                    <div class="media-panel-summary">
+                        <span id="illustrations-count" class="media-count"></span>
+                        <span class="media-panel-intro">Click on an illustration to edit or drop new files here to upload.</span>
+                    </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                     <button type="button" class="btn btn-primary" onclick="openUploadModal('illustrations')">+ Add files</button>
@@ -951,7 +963,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- Photos -->
             <div class="media-panel card" id="panel-photos" <?php echo $filesPanel !== 'photos' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
-                    <span id="photos-count" class="media-count"></span>
+                    <div class="media-panel-summary">
+                        <span id="photos-count" class="media-count"></span>
+                        <span class="media-panel-intro">Click on a photo to edit or drop new files here to upload.</span>
+                    </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                     <button type="button" class="btn btn-primary" onclick="openUploadModal('photos')">+ Add files</button>
@@ -963,7 +978,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- Special -->
             <div class="media-panel card" id="panel-special" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
-                    <span id="special-count" class="media-count"></span>
+                    <div class="media-panel-summary">
+                        <span id="special-count" class="media-count"></span>
+                        <span class="media-panel-intro">Click on a theme file to edit or drop new files here to upload.</span>
+                    </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                     <button type="button" class="btn btn-primary" onclick="openUploadModal('special')">+ Add files</button>
@@ -1682,61 +1700,101 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <div class="modal-box modal-wide">
             <button class="modal-close" onclick="closeAudioMasterModal()">✕</button>
             <h3 id="audioMasterTitle">Track details</h3>
-            <p class="card-note" id="audioMasterSubtitle">Edit the working metadata stored in the audio master. Originals stay untouched.</p>
+            <p class="card-note" id="audioMasterSubtitle">Update the track details shown on the site.</p>
 
-            <div class="audio-master-summary" id="audioMasterSummary">
-                <div class="audio-master-stat">
-                    <span class="audio-master-stat-label">Format</span>
-                    <strong id="audioMasterFormat">—</strong>
+            <div class="audio-master-cover-layout">
+                <div class="audio-master-cover-preview-shell">
+                    <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
+                        <div class="audio-master-cover-overlay-actions">
+                            <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose cover">✎</button>
+                            <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use release cover" aria-label="Use release cover">↺</button>
+                        </div>
+                        <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
+                        <span id="audioMasterCoverPlaceholder">No cover available</span>
+                    </div>
                 </div>
-                <div class="audio-master-stat">
-                    <span class="audio-master-stat-label">Duration</span>
-                    <strong id="audioMasterDuration">—</strong>
-                </div>
-                <div class="audio-master-stat">
-                    <span class="audio-master-stat-label">Bitrate</span>
-                    <strong id="audioMasterBitrate">—</strong>
-                </div>
-                <div class="audio-master-stat">
-                    <span class="audio-master-stat-label">Cover</span>
-                    <strong id="audioMasterCover">—</strong>
+                <div class="audio-master-summary" id="audioMasterSummary">
+                    <div class="audio-master-stat audio-master-stat-compact">
+                        <span class="audio-master-stat-label">Track #</span>
+                        <strong id="audioMasterTracknumber">—</strong>
+                    </div>
+                    <div class="audio-master-stat">
+                        <span class="audio-master-stat-label">Duration</span>
+                        <strong id="audioMasterDuration">—</strong>
+                    </div>
+                    <div class="audio-master-stat">
+                        <span class="audio-master-stat-label">Format</span>
+                        <strong id="audioMasterFormat">—</strong>
+                    </div>
+                    <div class="audio-master-stat">
+                        <span class="audio-master-stat-label">Bitrate</span>
+                        <strong id="audioMasterBitrate">—</strong>
+                    </div>
+                    <div class="audio-master-stat">
+                        <span class="audio-master-stat-label">Sample rate</span>
+                        <strong id="audioMasterSampleRate">—</strong>
+                    </div>
+                    <div class="audio-master-stat">
+                        <span class="audio-master-stat-label">Bit depth</span>
+                        <strong id="audioMasterBitDepth">—</strong>
+                    </div>
+                    <div class="audio-master-stat">
+                        <span class="audio-master-stat-label">Filesize</span>
+                        <strong id="audioMasterFilesize">—</strong>
+                    </div>
                 </div>
             </div>
 
+            <input type="hidden" id="audioMasterFieldCoverPath" name="cover_path" data-empty-label="No new cover selected">
+
             <form id="audioMasterForm">
-                <div class="audio-master-form-grid">
+                <div class="audio-master-form-grid audio-master-form-grid-compact">
                     <div class="form-group">
-                        <label for="audioMasterFieldTitle">Title</label>
-                        <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off">
+                        <label for="audioMasterFieldAlbum">* Release name</label>
+                        <input type="text" id="audioMasterFieldAlbum" name="album" autocomplete="off" required>
                     </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldArtist">Artist</label>
-                        <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off">
-                    </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldAlbum">Album</label>
-                        <input type="text" id="audioMasterFieldAlbum" name="album" autocomplete="off">
-                    </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldDate">Year / Date</label>
-                        <input type="text" id="audioMasterFieldDate" name="date" autocomplete="off" placeholder="2026 or 2026-05-15">
-                    </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldTracknumber">Track no.</label>
-                        <input type="text" id="audioMasterFieldTracknumber" name="tracknumber" autocomplete="off" placeholder="1">
+                    <div class="form-group form-group-date">
+                        <label for="audioMasterFieldDate">* Release date</label>
+                        <div class="date-input-shell">
+                            <span class="date-input-icon" aria-hidden="true">📅</span>
+                            <input type="date" id="audioMasterFieldDate" name="date" autocomplete="off" required>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="audioMasterFieldGenre">Genre</label>
                         <input type="text" id="audioMasterFieldGenre" name="genre" autocomplete="off">
                     </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldBpm">BPM</label>
+                        <input type="text" id="audioMasterFieldBpm" name="bpm" autocomplete="off" inputmode="numeric" pattern="[0-9]{0,3}" maxlength="3" placeholder="128">
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldInitialkey">Key</label>
+                        <input type="text" id="audioMasterFieldInitialkey" name="initialkey" autocomplete="off" maxlength="3" placeholder="8A">
+                    </div>
+                </div>
+                <div class="audio-master-form-grid audio-master-form-grid-secondary">
+                    <div class="form-group">
+                        <label for="audioMasterFieldArtist">* Artist</label>
+                        <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldTitle">* Title</label>
+                        <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="audioMasterFieldVersion">Version</label>
+                        <input type="text" id="audioMasterFieldVersion" name="version" autocomplete="off" placeholder="Radio Edit">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="audioMasterFieldComment">Comment / Description</label>
-                    <textarea id="audioMasterFieldComment" name="comment" rows="5"></textarea>
+                    <label for="audioMasterFieldComment">Track description</label>
+                    <textarea id="audioMasterFieldComment" name="comment" rows="4" maxlength="300"></textarea>
+                    <div class="field-note audio-master-description-note"><span id="audioMasterDescriptionCount">0</span>/300 characters</div>
                 </div>
                 <div class="form-group">
                     <label for="audioMasterFieldLyrics">Lyrics</label>
-                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="10"></textarea>
+                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="8"></textarea>
                 </div>
             </form>
 

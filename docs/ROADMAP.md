@@ -149,6 +149,7 @@ Build-pipeline implications:
 - build-required tracking should evolve from broad action labels into task-level requirements such as playlist scan, metadata validation, audio delivery generation, image delivery generation, social asset generation, and manifest generation
 - admin-facing build language should describe concrete outputs instead of the vague word `media`
 - validation issues should become persistent operator tasks with direct actions to the correct editor surface instead of remaining buried in build logs or transient summaries
+- light admin repairs should prefer automatic light-task refresh and no-op suppression: unchanged saves should not create new pending work, and lightweight validation refresh should happen immediately when possible
 - publish-blocking and recommended-fix tasks should derive from current validation/build state and clear automatically when the underlying issue is fixed; manual acknowledgement should be reserved for informational notices, not used as the truth source for fixable blockers
 - the first remediation flow should prefer navigation to dedicated editors, while inline quick-edit stays limited to simple metadata fields such as title, artist, release/album name, and lyrics
 - source-aware processing must stop assuming every supported audio input follows the same FLAC-first path
@@ -160,6 +161,7 @@ Platform-model implications:
 - media roles must be explicit before multi-release support lands: `theme asset`, `release cover`, `track cover`, `gallery media`, and `page illustration`
 - media scope must be explicit before multi-release support lands: install-wide, release-scoped, track-scoped, and page/module-scoped assets cannot keep sharing one blurred `cover` concept
 - admin UI and build logic should evolve toward role-based behavior even if the storage layout changes more gradually
+- operator-facing naming should be decoupled from immutable source filenames: originals remain the trust/recovery anchor, while display names, aliases, and future master/delivery naming can evolve without losing asset identity
 - theme and asset inheritance must be explicit before multi-release support lands: install defaults, release overrides, and track-specific exceptions should replace one-off duplicated theme definitions
 - install-level identity assets must remain mandatory even after release overrides exist: the site shell needs a required fallback logo and poster/share image, while each release can optionally override both
 - the current single-release `web-config` shape must be split deliberately: install shell fields stay install-wide, release identity fields move to release scope, and track overrides remain narrow exceptions rather than a second theme layer

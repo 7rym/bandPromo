@@ -80,7 +80,7 @@ Scope: operator-facing editing and control surfaces. Put items here when the que
 - [x] Keep social editing in Sharing only (single source of truth for `social`).
 - [x] Add a dedicated Config sub-tab for theme/media presentation settings (rename from low-level `media` wording to user-facing `theme`).
 - [x] Audit `web-config` branches (`content`, `build`, `quizzes`) and move non-core branches out of base config where appropriate.
-- [ ] Implement operator-facing tools for fixing missing or invalid media metatags after the media-handling validation policy is locked.
+- [x] Implement the first operator-facing audio metadata repair tools in Files -> Audio so operators can fix common master fields without leaving admin.
 - [x] Implement playlist editing
 - [x] Implement gallery editing
 - [x] Replace Playlist placeholder with real drag-and-drop track ordering UI.
@@ -89,7 +89,7 @@ Scope: operator-facing editing and control surfaces. Put items here when the que
 - [x] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
 - [x] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
 
-Admin UX note: metadata repair belongs to media handling and operator readiness for policy/behavior, while this section tracks the operator-facing editor flows. The remaining metatag-repair UI task is intentionally downstream from the media-handling policy work above.
+Admin UX note: metadata repair belongs to media handling and operator readiness for policy/behavior, while this section tracks the operator-facing editor flows. The first audio-master repair surface now exists; the remaining repair work is about deeper task routing, persistent issue visibility, and broader packaging workflows.
 
 
 ### Media handling
@@ -125,6 +125,9 @@ Implementation follow-up after policy:
 - [x] Surface metadata validation warnings in the admin UI build log after builds finish.
 - [x] Implement the operator-facing validation summary outside the raw build log, using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels.
 - [x] Add actionable validation actions from the Build summary to the right editor surfaces (`Edit metadata`, `Open playlist order`, and Files/theme/media when cover work is needed).
+- [x] Refresh playlist and validation data automatically after audio metadata saves so file badges and warnings can update without waiting for a manual full build.
+- [x] Keep embedded master track numbers aligned with operator playlist order by syncing reordered tracks back into masters and autofilling blank track tags from playlist position during metadata saves.
+- [x] Suppress fresh build-required warnings for true no-op audio metadata saves while still preserving existing pending build state from earlier real changes.
 - [ ] Add a persistent operator task/notification panel for unresolved build and validation issues, driven by current system state and auto-resolved when the underlying issue is fixed instead of relying on manual checklist truth.
 - [ ] Add selective inline quick-edit for simple metadata fields (title, artist, release/album name, lyrics) only after the task/action model is in place; keep track order, cover work, and broader master-building in their dedicated editors.
 - [x] Surface compact latest-build metadata health badges in Files -> Audio for Artist, Title, Release, Lyrics, and Cover so operators can scan file completeness without opening each track.
@@ -132,8 +135,9 @@ Implementation follow-up after policy:
 - [x] Start the eager-master intake path for supported audio uploads by preserving originals in `media/audio/original/` and seeding a local working copy in `media/audio/master/` without changing current playback or delivery reads yet.
 - [x] Backfill missing audio masters for older libraries automatically when Files -> Audio inspects preserved originals, so legacy installs do not leave operators stuck with persistent `Master pending` rows for supported FLAC/MP3/WAV sources.
 - [ ] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
-- [ ] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split.
+- [ ] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split; real audio metadata changes still collapse into `full` even though unchanged saves are now ignored.
 - [ ] Split the current optimizer into source-aware tasks; MP3 sources must not be treated as if they always need the FLAC-to-MP3 path.
+- [ ] Add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity.
 - [ ] Separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location.
 - [ ] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
 - [ ] Video transcoding: convert uploaded .mov/.webm to .mp4 on upload for broad browser compatibility

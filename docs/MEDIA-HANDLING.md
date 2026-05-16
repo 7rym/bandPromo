@@ -4,7 +4,7 @@ This document describes how bandPromo should handle source media, canonical mast
 
 It replaces the older narrow metadata-only framing. Metadata is still a core concern, but it now sits inside a broader media-handling policy that covers intake scenarios, packaging, delivery targets, and what the platform can realistically improve for non-technical operators.
 
-Current state: `v0.7 build 209`
+Current state: `v0.7 build 243`
 
 ## Why this matters
 
@@ -983,6 +983,13 @@ bandPromo should prefer this operator model:
 
 In practice, the heavy work is mostly media transcoding and image recompression. Playlist scanning, metadata validation, share-image generation, and manifest writing are comparatively light.
 
+Current implementation note:
+
+- Files -> Audio metadata saves already run `playlist-scan` automatically after a real change so `play/playlist.json` and `play/playlist-validation.json` refresh immediately.
+- The save flow now preserves an existing embedded `tracknumber` or backfills it from the current playlist position when the master tag is blank.
+- A true no-op metadata save is treated as a no-op and does not create a fresh build-required reason.
+- Real metadata changes still fall back to the older coarse build-required model, so task-level follow-up remains incomplete.
+
 ### Action matrix
 
 This matrix defines the preferred future behavior.
@@ -999,7 +1006,7 @@ This matrix defines the preferred future behavior.
 | Reorder playlist | none for delivery generation; save order only | Save immediately | No build warning |
 | Edit gallery entries or order | none for delivery generation in the common case | Save immediately | No build warning |
 | Edit bio/pages | none | Save immediately | No build warning |
-| Edit metadata in future tag editor | `playlist-scan`, sometimes `audio-delivery` if delivery tags/embed data must be rewritten | Run scan automatically; queue delivery rewrite only when necessary | Explain exactly what is being regenerated |
+| Edit metadata in Files -> Audio | `playlist-scan`, sometimes `audio-delivery` if delivery tags/embed data must be rewritten | Run scan automatically; queue delivery rewrite only when necessary; suppress new pending work on true no-op saves | Explain exactly what changed and what is being regenerated |
 
 ### Naming guidance for admin UI
 
@@ -1012,6 +1019,18 @@ Reasoning:
 - assets such as logo, poster/share image, and background media are better understood as theme/design inputs than as system internals
 
 If the panel later grows to include truly technical install assets, the naming can be revisited. In the current product shape, `Theme` is the more accurate operator-facing label.
+
+### Nondestructive naming policy
+
+bandPromo should stop forcing operators to work directly with raw source filenames as the main visible identity for tracks and media.
+
+The intended future rule is:
+
+- the original uploaded filename remains preserved as the immutable source identity
+- operator-facing display names and aliases may change without losing that original source identity
+- future master and delivery naming may follow those operator-facing names, but only through an explicit runtime mapping layer rather than by forgetting the original source anchor
+
+This keeps recovery and trust simple while letting the UI move away from exposing filesystem-style names and file extensions in normal operator workflows.
 
 ## Current metadata contract
 
@@ -1166,17 +1185,18 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 ## Current limitations
 
-- The admin UI now shows an operator-facing validation summary, but it still does not turn those issues into direct actions or a persistent operator task list.
-- Metadata repair exists for audio masters, but the validation flow still needs better links into the correct repair surfaces and selective quick-edit for simple fields.
+- The admin UI now shows an operator-facing validation summary with direct actions into metadata editing and playlist order, but it still does not keep those issues visible in a persistent operator task list.
+- Metadata repair now covers the first audio-master editor pass, including common text fields, lyrics, cover selection, release date, and operator-facing title/version handling, but broader packaging workflows and selective inline quick-edit are still incomplete.
 - Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
+- Real audio metadata changes still flow through the older coarse build-required state, so the operator messaging is better for no-op saves than for task-specific follow-up after actual edits.
 - The current `optimal` label is too vague; delivery targets should be defined by actual usage context rather than implied quality alone.
 
 ## Recommended direction
 
 The next practical improvements should be:
 
-- add actionable links from validation issues to the right repair surfaces in admin
 - introduce a persistent operator task/notification surface for unresolved validation and build tasks, with automatic resolution when the underlying issue is fixed
+- break the coarse build-required model into concrete task states so real metadata edits do not look like generic full-build work when only lighter follow-up is pending
 - add selective quick-edit for simple metadata fields such as title, artist, release/album name, and lyrics without turning the Build tab into a second full editor
 - continue expanding dedicated metadata/master tools for packaging fields and corrected-master workflows
 - preserve originals while generating corrected masters and delivery derivatives separately

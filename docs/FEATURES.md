@@ -14,6 +14,8 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Built-in analytics for playback and user behavior
 - Pages editor for public text pages such as Bio and FAQ, with rich text tools and safe server-side sanitization
 - Playlist and gallery management
+- Audio-master editing in Files -> Audio for common track metadata, lyrics, release date, title/version handling, and track-cover selection
+- Operator-facing validation actions and file-level metadata health badges for faster repair workflows
 - Separate admin audit trail for management actions
 - Built-in documentation browser with operator/developer doc separation
 
@@ -26,6 +28,8 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ### Build & Delivery
 - Automated build pipeline for optimized audio and images
+- Automatic lightweight playlist/validation refresh after audio metadata edits
+- Original / master / delivery media workflow for safer repair and publish handling
 - Social sharing metadata and web manifest generation
 
 ### Security & Privacy

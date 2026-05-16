@@ -394,24 +394,34 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function formatAudioMetadataHealthBadges(file) {
                 const health = file.audio_metadata_health || {};
                 const fields = health.fields || {};
+                const source = String(health.source || 'latest_build_validation').toLowerCase();
                 const order = [
+                    ['cover', 'C'],
                     ['artist', 'A'],
                     ['title', 'T'],
                     ['release', 'R'],
+                    ['description', 'D'],
                     ['lyrics', 'L'],
-                    ['cover', 'C'],
                 ];
 
                 return order.map(([key, shortLabel]) => {
                     const field = fields[key] || {};
                     const label = String(field.label || key || '').trim();
                     const state = String(field.state || 'unknown').toLowerCase();
-                    const statusClass = state === 'present' ? 'status-ok' : state === 'missing' ? 'status-error' : 'status-neutral';
-                    const stateLabel = state === 'present'
-                        ? 'ready'
-                        : state === 'missing'
-                            ? 'missing in latest build check'
-                            : 'not checked in latest build';
+                    const statusClass = state === 'good'
+                        ? 'status-ok'
+                        : state === 'required'
+                            ? 'status-error'
+                            : state === 'improvable'
+                                ? 'status-warning'
+                                : 'status-neutral';
+                    const stateLabel = state === 'good'
+                        ? (source === 'audio_master_detail' ? 'ready in saved master metadata' : 'good in the latest build check')
+                        : state === 'required'
+                            ? (source === 'audio_master_detail' ? 'missing required data in saved master metadata' : 'missing required data in the latest build check')
+                            : state === 'improvable'
+                                ? (source === 'audio_master_detail' ? 'could be improved in saved master metadata' : 'could be improved in the latest build check')
+                                : (source === 'audio_master_detail' ? 'not checked in saved master metadata' : 'not checked in the latest build');
                     const title = `${label}: ${stateLabel}`;
                     return `<span class="badge audit-status-badge ${statusClass} media-file-badge media-file-field-badge" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${escapeHtml(shortLabel)}</span>`;
                 }).join(' ');
@@ -708,28 +718,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const url = buildMediaUrl(type, f.name);
                         let thumb;
                         if (isImage(f.name)) {
-                            thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
+                            thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
                         } else if (isVideo(f.name)) {
-                            thumb = `<video class="media-file-thumb" src="${url}" preload="metadata" muted onclick="openAdminPreview('${basePath}/${safeName}', '${safeName}')" title="Preview"></video>`;
+                            thumb = `<video class="media-file-thumb" src="${url}" preload="metadata" muted onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')" title="Preview"></video>`;
                         } else {
                             thumb = `<span class="media-file-icon">${extIcon(f.name)}</span>`;
                         }
                         const preview = isPreviewable(f.name)
-                            ? `<button class="icon-btn" title="Preview" onclick="openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
+                            ? `<button class="icon-btn" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
                             : '';
-                        const details = type === 'audio' && f.audio_master && f.audio_master.editable
-                            ? `<button class="icon-btn" title="Track details" onclick="openAudioMasterModal('${safeName}')">✎</button>`
-                            : '';
+                        const rowIsEditableAudio = type === 'audio' && f.audio_master && f.audio_master.editable;
                         const nameCell = type === 'audio'
                             ? `<span class="media-file-name-wrap"><span class="media-file-name">${f.name}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
                             : `<span class="media-file-name">${f.name}</span>`;
-                        return `<div class="media-file-row" data-file="${escapeHtml(f.name)}">
+                        const rowAttributes = rowIsEditableAudio
+                            ? `data-editable-audio="true" tabindex="0" role="button" title="Open track details" onclick="openAudioMasterModal('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openAudioMasterModal('${safeName}'); }"`
+                            : '';
+                        const rowClassName = rowIsEditableAudio ? 'media-file-row media-file-row-clickable' : 'media-file-row';
+                        return `<div class="${rowClassName}" data-file="${escapeHtml(f.name)}" ${rowAttributes}>
                             ${thumb}
                             ${nameCell}
                             <span class="media-file-size">${fmtSize(f.size)}</span>
                             ${preview}
-                            ${details}
-                            <button class="icon-btn danger" title="Delete" onclick="openDeleteModal('${type}', '${safeName}')">🗑️</button>
+                            <button class="icon-btn danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeName}')">🗑️</button>
                         </div>`;
                     }).join('');
                     maybeApplyMediaFocusFromQuery(type);
@@ -780,6 +791,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const mediaPickerStatus = document.getElementById('mediaPickerStatus');
             const mediaPickerUploadBtn = document.getElementById('mediaPickerUploadBtn');
             let filesTabDragDepth = 0;
+
+            if (mediaPickerModal && mediaPickerModal.parentElement !== document.body) {
+                document.body.appendChild(mediaPickerModal);
+            }
 
             window.openUploadModal = function(type) {
                 modalTarget = type;
@@ -1023,25 +1038,208 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioMasterTitle = document.getElementById('audioMasterTitle');
             const audioMasterStatus = document.getElementById('audioMasterStatus');
             const audioMasterFormat = document.getElementById('audioMasterFormat');
+            const audioMasterTracknumber = document.getElementById('audioMasterTracknumber');
             const audioMasterDuration = document.getElementById('audioMasterDuration');
             const audioMasterBitrate = document.getElementById('audioMasterBitrate');
-            const audioMasterCover = document.getElementById('audioMasterCover');
+            const audioMasterSampleRate = document.getElementById('audioMasterSampleRate');
+            const audioMasterBitDepth = document.getElementById('audioMasterBitDepth');
+            const audioMasterFilesize = document.getElementById('audioMasterFilesize');
             const audioMasterSaveBtn = document.getElementById('audioMasterSaveBtn');
+            const audioMasterCoverPreviewShell = document.getElementById('audioMasterCoverPreviewShell');
+            const audioMasterCoverPreview = document.getElementById('audioMasterCoverPreview');
+            const audioMasterCoverPlaceholder = document.getElementById('audioMasterCoverPlaceholder');
+            const audioMasterCoverPath = document.getElementById('audioMasterFieldCoverPath');
+            const audioMasterCoverClearBtn = document.getElementById('audioMasterCoverClearBtn');
+            const audioMasterDescriptionCount = document.getElementById('audioMasterDescriptionCount');
+            const audioMasterVersionField = document.getElementById('audioMasterFieldVersion');
             const audioMasterForm = document.getElementById('audioMasterForm');
             let deleteTarget = null;
             let deleteFile   = null;
             let activeAudioMasterFile = null;
+            let activeAudioMasterDetail = null;
+            let audioMasterCoverMode = 'preserve';
 
             const audioMasterFields = {
                 title: document.getElementById('audioMasterFieldTitle'),
                 artist: document.getElementById('audioMasterFieldArtist'),
                 album: document.getElementById('audioMasterFieldAlbum'),
                 date: document.getElementById('audioMasterFieldDate'),
-                tracknumber: document.getElementById('audioMasterFieldTracknumber'),
+                bpm: document.getElementById('audioMasterFieldBpm'),
+                initialkey: document.getElementById('audioMasterFieldInitialkey'),
                 genre: document.getElementById('audioMasterFieldGenre'),
                 comment: document.getElementById('audioMasterFieldComment'),
                 lyrics: document.getElementById('audioMasterFieldLyrics'),
             };
+
+            function audioMasterCoverPreviewUrl(detail) {
+                const selected = audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '';
+                if (selected) {
+                    return selected;
+                }
+                if (detail && detail.sidecar_cover_url) {
+                    return String(detail.sidecar_cover_url);
+                }
+                if (detail && detail.sidecar_cover) {
+                    return `/media/img/original/${encodeURIComponent(detail.sidecar_cover)}`;
+                }
+                return detail && detail.current_cover_url ? String(detail.current_cover_url) : '';
+            }
+
+            function setAudioMasterCoverMode(mode, options = {}) {
+                audioMasterCoverMode = mode === 'set' || mode === 'clear' ? mode : 'preserve';
+                if (audioMasterCoverPath) {
+                    audioMasterCoverPath.dataset.emptyLabel = audioMasterCoverMode === 'clear'
+                        ? 'Configured release cover will be used after save'
+                        : 'No new cover selected';
+                }
+            }
+
+            function normalizeAudioMasterDateValue(value) {
+                const normalized = String(value || '').trim();
+                return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : '';
+            }
+
+            function splitAudioTitleParts(value) {
+                const combined = String(value || '').trim();
+                if (!combined) {
+                    return { title: '', version: '' };
+                }
+                const match = combined.match(/^(.*?)(?:\s*\[([^\[\]]+)\])$/);
+                if (!match) {
+                    return { title: combined, version: '' };
+                }
+                const baseTitle = String(match[1] || '').trim();
+                const version = String(match[2] || '').trim();
+                if (!baseTitle || !version) {
+                    return { title: combined, version: '' };
+                }
+                return { title: baseTitle, version };
+            }
+
+            function combineAudioTitleParts(title, version) {
+                const normalizedTitle = String(title || '').trim();
+                const normalizedVersion = String(version || '').trim();
+                if (!normalizedVersion) {
+                    return normalizedTitle;
+                }
+                return `${normalizedTitle} [${normalizedVersion}]`;
+            }
+
+            function validateAudioMasterFields(fields) {
+                const requiredOrder = [
+                    ['album', 'Release name'],
+                    ['date', 'Release date'],
+                    ['artist', 'Artist'],
+                    ['title', 'Title'],
+                ];
+                const missing = requiredOrder.find(([key]) => String(fields[key] || '').trim() === '');
+                if (missing) {
+                    return `Please fill in ${missing[1]}.`;
+                }
+                if (String(fields.bpm || '').trim() !== '' && !/^\d{1,3}$/.test(String(fields.bpm || '').trim())) {
+                    return 'BPM must be 1 to 3 digits.';
+                }
+                if (String(fields.initialkey || '').trim().length > 3) {
+                    return 'Key must be 3 characters or fewer.';
+                }
+                return '';
+            }
+
+            function buildAudioMasterHeading(detail) {
+                const artist = String(detail && detail.artist || '').trim();
+                const title = String(detail && detail.title || '').trim();
+                const release = String(detail && detail.album || '').trim();
+
+                if (artist && title) {
+                    return `${artist} · ${title}`;
+                }
+                if (title) {
+                    return title;
+                }
+                if (release) {
+                    return `Track details · ${release}`;
+                }
+                return 'Track details';
+            }
+
+            function updateAudioMasterDescriptionCounter() {
+                if (!audioMasterDescriptionCount || !audioMasterFields.comment) return;
+                audioMasterDescriptionCount.textContent = String((audioMasterFields.comment.value || '').length);
+            }
+
+            function buildAudioMetadataHealthFromDetail(detail) {
+                const hasText = (value) => String(value || '').trim() !== '';
+                const hasCover = Boolean((detail && detail.sidecar_cover) || (detail && detail.embedded_cover_present) || (detail && detail.current_cover));
+                return {
+                    inspected: true,
+                    source: 'audio_master_detail',
+                    fields: {
+                        cover: { label: 'Cover', state: hasCover ? 'good' : 'required' },
+                        artist: { label: 'Artist', state: hasText(detail && detail.artist) ? 'good' : 'required' },
+                        title: { label: 'Title', state: hasText(detail && detail.title) ? 'good' : 'required' },
+                        release: { label: 'Release', state: hasText(detail && detail.album) ? 'good' : 'improvable' },
+                        description: { label: 'Description', state: hasText(detail && detail.comment) ? 'good' : 'improvable' },
+                        lyrics: { label: 'Lyrics', state: hasText(detail && detail.lyrics) ? 'good' : 'improvable' },
+                    },
+                };
+            }
+
+            function updateAudioFileRowMetadata(filename, detail) {
+                const list = document.getElementById('filelist-audio');
+                if (!list || !filename) return;
+                const row = Array.from(list.querySelectorAll('.media-file-row')).find((candidate) => String(candidate.dataset.file || '') === filename);
+                if (!row) return;
+                const meta = row.querySelector('.media-file-meta');
+                if (!meta) return;
+
+                meta.innerHTML = formatAudioMasterBadges({
+                    name: filename,
+                    original_format: String(filename).split('.').pop() || '',
+                    audio_master: {
+                        exists: true,
+                        editable: true,
+                        format: detail && detail.format ? detail.format : String(filename).split('.').pop() || '',
+                    },
+                    audio_metadata_health: buildAudioMetadataHealthFromDetail(detail || {}),
+                });
+            }
+
+            function syncAudioMasterCoverUi(detail) {
+                const data = detail || activeAudioMasterDetail || {};
+                const currentBuildCover = String(data.current_cover || '').trim();
+                const sidecarCover = String(data.sidecar_cover || '').trim();
+                const coverParts = [];
+
+                coverParts.push(currentBuildCover
+                    ? 'Current cover is ready'
+                    : 'No current cover yet');
+
+                if (sidecarCover) {
+                    coverParts.push('A track-specific image will override the release cover after save');
+                } else if (data.embedded_cover_present) {
+                    coverParts.push('Artwork is already embedded in the track');
+                } else {
+                    coverParts.push('The release cover is currently being used');
+                }
+
+                if (audioMasterCoverPreviewShell) {
+                    audioMasterCoverPreviewShell.title = coverParts.join(' · ');
+                }
+
+                const previewUrl = audioMasterCoverPreviewUrl(data);
+                if (audioMasterCoverPreview) {
+                    if (previewUrl) {
+                        audioMasterCoverPreview.src = previewUrl;
+                        audioMasterCoverPreview.style.display = 'block';
+                    } else {
+                        audioMasterCoverPreview.removeAttribute('src');
+                        audioMasterCoverPreview.style.display = 'none';
+                    }
+                }
+                if (audioMasterCoverPlaceholder) {
+                    audioMasterCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
+                }
+            }
 
             function setAudioMasterStatus(message, type = '') {
                 if (!audioMasterStatus) return;
@@ -1055,41 +1253,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function setAudioMasterSummary(detail) {
+                activeAudioMasterDetail = detail || {};
+                if (audioMasterTracknumber) {
+                    const tracknumber = String(detail.playlist_tracknumber || detail.suggested_tracknumber || '').trim();
+                    audioMasterTracknumber.textContent = tracknumber || '—';
+                }
                 if (audioMasterFormat) audioMasterFormat.textContent = String(detail.format || '—').toUpperCase();
                 if (audioMasterDuration) audioMasterDuration.textContent = detail.duration_seconds ? formatDuration(detail.duration_seconds) : '—';
                 if (audioMasterBitrate) audioMasterBitrate.textContent = detail.bitrate_kbps ? `${detail.bitrate_kbps} kbps` : '—';
-                if (audioMasterCover) {
-                    if (detail.sidecar_cover) {
-                        audioMasterCover.textContent = `Sidecar: ${detail.sidecar_cover}`;
-                    } else if (detail.embedded_cover_present) {
-                        audioMasterCover.textContent = 'Embedded artwork';
-                    } else {
-                        audioMasterCover.textContent = 'No track-specific cover';
-                    }
-                }
+                if (audioMasterSampleRate) audioMasterSampleRate.textContent = detail.sample_rate_hz ? `${detail.sample_rate_hz} Hz` : '—';
+                if (audioMasterBitDepth) audioMasterBitDepth.textContent = detail.bit_depth ? `${detail.bit_depth}-bit` : '—';
+                if (audioMasterFilesize) audioMasterFilesize.textContent = detail.file_size_bytes ? fmtSize(detail.file_size_bytes) : '—';
+                syncAudioMasterCoverUi(detail);
             }
 
             function setAudioMasterFormValues(detail) {
+                const titleParts = splitAudioTitleParts(detail && typeof detail.title === 'string' ? detail.title : '');
+                if (audioMasterFields.title) {
+                    audioMasterFields.title.value = titleParts.title;
+                }
+                if (audioMasterVersionField) {
+                    audioMasterVersionField.value = titleParts.version;
+                }
                 Object.entries(audioMasterFields).forEach(([key, input]) => {
-                    if (!input) return;
+                    if (!input || key === 'title') return;
+                    if (key === 'date') {
+                        input.value = normalizeAudioMasterDateValue(detail && typeof detail[key] === 'string' ? detail[key] : '');
+                        return;
+                    }
                     input.value = detail && typeof detail[key] === 'string' ? detail[key] : '';
                 });
+                updateAudioMasterDescriptionCounter();
             }
 
             async function loadAudioMasterDetails(filename) {
                 if (!filename) return;
                 setAudioMasterStatus('Loading…');
                 if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = true;
+                setAudioMasterCoverMode('preserve');
+                if (audioMasterCoverPath) {
+                    setPickerFieldValue('audioMasterFieldCoverPath', '');
+                }
                 try {
                     const resp = await fetch(`/biblioteca/get-audio-master-detail.php?filename=${encodeURIComponent(filename)}`);
                     const data = await resp.json();
                     if (!resp.ok || data.error) {
                         throw new Error(data.error || 'Could not load track details');
                     }
-                    if (audioMasterTitle) audioMasterTitle.textContent = `Track details · ${filename}`;
+                    if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(data);
                     setAudioMasterSummary(data);
                     setAudioMasterFormValues(data);
-                    setAudioMasterStatus('Editing the canonical master copy. Run Full Build after saving.', 'success');
+                    setAudioMasterStatus('Ready to edit.', 'success');
                     if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = false;
                 } catch (error) {
                     setAudioMasterSummary({});
@@ -1101,6 +1315,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.openAudioMasterModal = function(filename) {
                 activeAudioMasterFile = filename;
                 if (audioMasterModal) audioMasterModal.style.display = 'flex';
+                setAudioMasterCoverMode('preserve');
+                if (audioMasterCoverPath) {
+                    setPickerFieldValue('audioMasterFieldCoverPath', '');
+                }
                 setAudioMasterSummary({});
                 setAudioMasterFormValues({});
                 loadAudioMasterDetails(filename);
@@ -1109,36 +1327,91 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.closeAudioMasterModal = function() {
                 if (audioMasterModal) audioMasterModal.style.display = 'none';
                 activeAudioMasterFile = null;
+                activeAudioMasterDetail = null;
+                setAudioMasterCoverMode('preserve');
+                if (audioMasterCoverPath) {
+                    setPickerFieldValue('audioMasterFieldCoverPath', '');
+                }
                 if (audioMasterForm) audioMasterForm.reset();
                 setAudioMasterSummary({});
                 setAudioMasterStatus('');
             };
 
+            if (audioMasterCoverPath) {
+                audioMasterCoverPath.addEventListener('input', () => {
+                    if (audioMasterCoverMode !== 'clear') {
+                        setAudioMasterCoverMode(String(audioMasterCoverPath.value || '').trim() !== '' ? 'set' : 'preserve', { refreshLabel: false });
+                    }
+                    syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                });
+            }
+
+            if (audioMasterCoverClearBtn) {
+                audioMasterCoverClearBtn.addEventListener('click', () => {
+                    if (audioMasterCoverPath) {
+                        audioMasterCoverPath.value = '';
+                    }
+                    setAudioMasterCoverMode('clear');
+                    syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                });
+            }
+
+            if (audioMasterFields.comment) {
+                audioMasterFields.comment.addEventListener('input', updateAudioMasterDescriptionCounter);
+            }
+
             // ── Admin media preview — powered by biblioteca/lightbox.js ──────────
-            const _adminLb = new Lightbox({
-                overlayId:  'adminPreviewLightbox',
-                imgId:      'adminPreviewImg',
-                vidId:      'adminPreviewVid',
-                prevBtnId:  'adminPreviewPrev',
-                nextBtnId:  'adminPreviewNext',
-                captionId:  'adminPreviewCaption',
-                // No contentSelector: close fires when clicking the backdrop itself
-            });
+            let _adminLb = null;
+
+            function getAdminLightbox() {
+                if (_adminLb) {
+                    return _adminLb;
+                }
+
+                const overlay = document.getElementById('adminPreviewLightbox');
+                if (!overlay || typeof Lightbox !== 'function') {
+                    return null;
+                }
+
+                _adminLb = new Lightbox({
+                    overlayId:  'adminPreviewLightbox',
+                    imgId:      'adminPreviewImg',
+                    vidId:      'adminPreviewVid',
+                    prevBtnId:  'adminPreviewPrev',
+                    nextBtnId:  'adminPreviewNext',
+                    captionId:  'adminPreviewCaption',
+                    // No contentSelector: close fires when clicking the backdrop itself
+                });
+
+                return _adminLb;
+            }
 
             window.openAdminPreview = function(src, name) {
+                const lightbox = getAdminLightbox();
+                if (!lightbox) return;
+
                 const items = window._adminPreviewItems || [];
-                _adminLb.setItems(items);
+                lightbox.setItems(items);
                 const idx = items.findIndex(i => i.src === src);
                 if (idx >= 0) {
-                    _adminLb.openAt(idx);
+                    lightbox.openAt(idx);
                 } else {
                     const ext = name.split('.').pop().toLowerCase();
-                    _adminLb.open(src, name, ['mp4','mov','webm'].includes(ext) ? 'video' : 'image');
+                    lightbox.open(src, name, ['mp4','mov','webm'].includes(ext) ? 'video' : 'image');
                 }
             };
-            window.prevAdminPreview  = (e) => _adminLb.prev(e);
-            window.nextAdminPreview  = (e) => _adminLb.next(e);
-            window.closeAdminPreview = ()  => _adminLb.close();
+            window.prevAdminPreview  = (e) => {
+                const lightbox = getAdminLightbox();
+                if (lightbox) lightbox.prev(e);
+            };
+            window.nextAdminPreview  = (e) => {
+                const lightbox = getAdminLightbox();
+                if (lightbox) lightbox.next(e);
+            };
+            window.closeAdminPreview = ()  => {
+                const lightbox = getAdminLightbox();
+                if (lightbox) lightbox.close();
+            };
 
             window.openDeleteModal = function(type, filename) {
                 deleteTarget = type;
@@ -1190,6 +1463,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     Object.entries(audioMasterFields).forEach(([key, input]) => {
                         fields[key] = input ? String(input.value || '').trim() : '';
                     });
+                    fields.title = combineAudioTitleParts(fields.title, audioMasterVersionField ? audioMasterVersionField.value : '');
+
+                    const validationError = validateAudioMasterFields(fields);
+                    if (validationError) {
+                        setAudioMasterStatus(validationError, 'error');
+                        return;
+                    }
 
                     audioMasterSaveBtn.disabled = true;
                     setAudioMasterStatus('Saving…');
@@ -1202,6 +1482,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 body: JSON.stringify({
                                     filename: activeAudioMasterFile,
                                     fields,
+                                    cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
+                                    cover_mode: audioMasterCoverMode,
                                     csrf_token: csrfToken,
                                 }),
                             });
@@ -1220,9 +1502,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         const detail = data.detail || {};
+                        if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(detail);
+                        setAudioMasterCoverMode('preserve');
+                        if (audioMasterCoverPath) {
+                            setPickerFieldValue('audioMasterFieldCoverPath', '');
+                        }
                         setAudioMasterSummary(detail);
                         setAudioMasterFormValues(detail);
-                        setAudioMasterStatus('Master metadata saved. Full Build is now required.', 'success');
+                        const successMessage = data.no_change
+                            ? 'No changes to save.'
+                            : data.warning
+                            ? data.warning
+                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                ? 'Track details saved. Validation refreshed.'
+                                : 'Track details saved.');
+                        setAudioMasterStatus(successMessage, data.warning ? 'error' : 'success');
                         if (data.build_required_state) {
                             setBuildRequiredNudge(
                                 data.build_required === true,
@@ -1230,8 +1524,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 data.build_required_state.action || 'none'
                             );
                         }
-                        await loadMediaList('audio');
-                        showAdminToast('Audio master metadata updated. Full Build is now required.');
+                        updateAudioFileRowMetadata(activeAudioMasterFile, detail);
+                        showAdminToast(data.no_change
+                            ? 'No changes were saved.'
+                            : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                            ? 'Track details updated and validation refreshed.'
+                            : 'Track details updated.');
                     } catch (error) {
                         setAudioMasterStatus(error.message || 'Could not save metadata', 'error');
                     } finally {

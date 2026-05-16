@@ -45,11 +45,12 @@ function bandpromo_default_audio_metadata_health(): array {
         'inspected' => false,
         'source' => 'latest_build_validation',
         'fields' => [
+            'cover' => ['label' => 'Cover', 'state' => 'unknown'],
             'artist' => ['label' => 'Artist', 'state' => 'unknown'],
             'title' => ['label' => 'Title', 'state' => 'unknown'],
             'release' => ['label' => 'Release', 'state' => 'unknown'],
+            'description' => ['label' => 'Description', 'state' => 'unknown'],
             'lyrics' => ['label' => 'Lyrics', 'state' => 'unknown'],
-            'cover' => ['label' => 'Cover', 'state' => 'unknown'],
         ],
     ];
 }
@@ -57,6 +58,26 @@ function bandpromo_default_audio_metadata_health(): array {
 function bandpromo_load_audio_validation_map(string $root): array {
     $default = [];
     $validation_file = $root . '/play/playlist-validation.json';
+    $playlist_map = [];
+
+    $playlist_file = $root . '/play/playlist.json';
+    if (is_file($playlist_file)) {
+        $playlist_raw = file_get_contents($playlist_file);
+        $playlist_decoded = $playlist_raw !== false ? json_decode($playlist_raw, true) : null;
+        if (is_array($playlist_decoded)) {
+            foreach ($playlist_decoded as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $file = trim((string) ($entry['file'] ?? ''));
+                if ($file === '') {
+                    continue;
+                }
+                $playlist_map[$file] = $entry;
+            }
+        }
+    }
+
     if (!is_file($validation_file)) {
         return $default;
     }
@@ -87,16 +108,19 @@ function bandpromo_load_audio_validation_map(string $root): array {
             static fn($value) => is_string($value) && $value !== ''
         ));
         $warning_set = array_fill_keys($warnings, true);
+        $playlist_entry = is_array($playlist_map[$file] ?? null) ? $playlist_map[$file] : [];
+        $has_description = trim((string) ($playlist_entry['description'] ?? '')) !== '';
 
         $default[$file] = [
             'inspected' => true,
             'source' => 'latest_build_validation',
             'fields' => [
-                'artist' => ['label' => 'Artist', 'state' => isset($warning_set['missing_artist_tag']) ? 'missing' : 'present'],
-                'title' => ['label' => 'Title', 'state' => isset($warning_set['missing_title_tag']) ? 'missing' : 'present'],
-                'release' => ['label' => 'Release', 'state' => isset($warning_set['missing_album_tag']) ? 'missing' : 'present'],
-                'lyrics' => ['label' => 'Lyrics', 'state' => isset($warning_set['missing_lyrics']) ? 'missing' : 'present'],
-                'cover' => ['label' => 'Cover', 'state' => isset($warning_set['missing_cover_art']) ? 'missing' : 'present'],
+                'cover' => ['label' => 'Cover', 'state' => isset($warning_set['missing_cover_art']) ? 'required' : 'good'],
+                'artist' => ['label' => 'Artist', 'state' => isset($warning_set['missing_artist_tag']) ? 'required' : 'good'],
+                'title' => ['label' => 'Title', 'state' => isset($warning_set['missing_title_tag']) ? 'required' : 'good'],
+                'release' => ['label' => 'Release', 'state' => isset($warning_set['missing_album_tag']) ? 'improvable' : 'good'],
+                'description' => ['label' => 'Description', 'state' => $has_description ? 'good' : 'improvable'],
+                'lyrics' => ['label' => 'Lyrics', 'state' => isset($warning_set['missing_lyrics']) ? 'improvable' : 'good'],
             ],
         ];
     }
