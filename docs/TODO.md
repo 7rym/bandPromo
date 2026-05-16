@@ -117,13 +117,17 @@ Policy already locked in docs:
 Policy still to define before implementation:
 
 - [x] Lock operator-facing media validation language focused on fixes, not raw tag terminology.
-- [ ] Define the first metadata editing tools needed in the file manager: title, artist, album, track number, lyrics, and cover handling.
-- [ ] Define the first master-building tools needed in admin: metadata repair, artwork embedding, lyrics embedding, filename cleanup, and export/download of corrected masters.
+- [x] Define the first metadata editing tools needed in the file manager: simple metadata fixes should start with title, artist, release/album name, and lyrics on the audio-master surface; track-order fixes should route to Playlist, and cover fixes should route to the dedicated media/theme surfaces instead of a generic build notice form.
+- [x] Define the first master-building tools needed in admin: the first repair layer should use actionable validation tasks plus deep links to the right editor, with later selective quick-edit for simple metadata fields; artwork embedding, lyrics embedding, filename cleanup, and corrected-master export/download should stay in dedicated metadata/master tools rather than bloating the Build tab.
 
 Implementation follow-up after policy:
 
 - [x] Surface metadata validation warnings in the admin UI build log after builds finish.
 - [x] Implement the operator-facing validation summary outside the raw build log, using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels.
+- [x] Add actionable validation actions from the Build summary to the right editor surfaces (`Edit metadata`, `Open playlist order`, and Files/theme/media when cover work is needed).
+- [ ] Add a persistent operator task/notification panel for unresolved build and validation issues, driven by current system state and auto-resolved when the underlying issue is fixed instead of relying on manual checklist truth.
+- [ ] Add selective inline quick-edit for simple metadata fields (title, artist, release/album name, lyrics) only after the task/action model is in place; keep track order, cover work, and broader master-building in their dedicated editors.
+- [x] Surface compact latest-build metadata health badges in Files -> Audio for Artist, Title, Release, Lyrics, and Cover so operators can scan file completeness without opening each track.
 - [x] Add placeholder-origin and hidden-state support to media listing/picker flows so bundled demo assets are suppressed by default once a real install has user media in that group, and bundled delete actions hide them locally instead of pretending git-tracked demo files were truly removed.
 - [x] Start the eager-master intake path for supported audio uploads by preserving originals in `media/audio/original/` and seeding a local working copy in `media/audio/master/` without changing current playback or delivery reads yet.
 - [x] Backfill missing audio masters for older libraries automatically when Files -> Audio inspects preserved originals, so legacy installs do not leave operators stuck with persistent `Master pending` rows for supported FLAC/MP3/WAV sources.

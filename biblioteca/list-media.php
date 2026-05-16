@@ -40,6 +40,74 @@ $includeHidden = isset($_GET['include_hidden']) && $_GET['include_hidden'] === '
 $dir = $dirs[$target];
 $files = [];
 
+function bandpromo_default_audio_metadata_health(): array {
+    return [
+        'inspected' => false,
+        'source' => 'latest_build_validation',
+        'fields' => [
+            'artist' => ['label' => 'Artist', 'state' => 'unknown'],
+            'title' => ['label' => 'Title', 'state' => 'unknown'],
+            'release' => ['label' => 'Release', 'state' => 'unknown'],
+            'lyrics' => ['label' => 'Lyrics', 'state' => 'unknown'],
+            'cover' => ['label' => 'Cover', 'state' => 'unknown'],
+        ],
+    ];
+}
+
+function bandpromo_load_audio_validation_map(string $root): array {
+    $default = [];
+    $validation_file = $root . '/play/playlist-validation.json';
+    if (!is_file($validation_file)) {
+        return $default;
+    }
+
+    $raw = file_get_contents($validation_file);
+    if ($raw === false) {
+        return $default;
+    }
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        return $default;
+    }
+
+    $tracks = is_array($decoded['tracks'] ?? null) ? $decoded['tracks'] : [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+
+        $file = trim((string) ($track['file'] ?? ''));
+        if ($file === '') {
+            continue;
+        }
+
+        $warnings = array_values(array_filter(
+            is_array($track['warnings'] ?? null) ? $track['warnings'] : [],
+            static fn($value) => is_string($value) && $value !== ''
+        ));
+        $warning_set = array_fill_keys($warnings, true);
+
+        $default[$file] = [
+            'inspected' => true,
+            'source' => 'latest_build_validation',
+            'fields' => [
+                'artist' => ['label' => 'Artist', 'state' => isset($warning_set['missing_artist_tag']) ? 'missing' : 'present'],
+                'title' => ['label' => 'Title', 'state' => isset($warning_set['missing_title_tag']) ? 'missing' : 'present'],
+                'release' => ['label' => 'Release', 'state' => isset($warning_set['missing_album_tag']) ? 'missing' : 'present'],
+                'lyrics' => ['label' => 'Lyrics', 'state' => isset($warning_set['missing_lyrics']) ? 'missing' : 'present'],
+                'cover' => ['label' => 'Cover', 'state' => isset($warning_set['missing_cover_art']) ? 'missing' : 'present'],
+            ],
+        ];
+    }
+
+    return $default;
+}
+
+function bandpromo_audio_metadata_health(string $filename, array $validation_map): array {
+    return $validation_map[$filename] ?? bandpromo_default_audio_metadata_health();
+}
+
 function bandpromo_audio_master_info(string $root, string $filename): array {
     $master = bandpromo_find_audio_master($root, $filename);
     if ($master['exists']) {
@@ -55,6 +123,7 @@ function bandpromo_audio_master_info(string $root, string $filename): array {
 }
 
 if (is_dir($dir)) {
+    $audio_validation_map = $target === 'audio' ? bandpromo_load_audio_validation_map($root) : [];
     $allFiles = [];
     foreach (new DirectoryIterator($dir) as $f) {
         if ($f->isDot() || $f->isDir()) continue;
@@ -70,6 +139,7 @@ if (is_dir($dir)) {
             'hidden'   => bandpromo_media_is_hidden_for_install($target, $filename),
             'original_format' => strtolower((string) pathinfo($filename, PATHINFO_EXTENSION)),
             'audio_master' => $target === 'audio' ? bandpromo_audio_master_info($root, $filename) : null,
+            'audio_metadata_health' => $target === 'audio' ? bandpromo_audio_metadata_health($filename, $audio_validation_map) : null,
         ];
     }
 

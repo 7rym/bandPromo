@@ -303,7 +303,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const buildRequiredBadge = document.getElementById('buildRequiredBadge');
             const recommendedBuildBtn = document.getElementById('recommendedBuildBtn');
             const toastHost = document.getElementById('adminToastHost');
-            const adminCsrf = typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
+            let adminCsrf = typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
             let currentBuildRequired = false;
             let currentBuildAction = 'none';
             let currentBuildReasons = [];
@@ -311,6 +311,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let modalFiles  = [];
             let mediaPickerState = null;
             let showBundledDemoAssets = false;
+            const adminQueryParams = new URLSearchParams(window.location.search);
+            const pendingAudioDetailFromQuery = String(adminQueryParams.get('audio_detail') || '').trim();
+            const pendingMediaFocusFromQuery = String(adminQueryParams.get('focus_file') || '').trim();
+            const pendingPlaylistFocusFromQuery = String(adminQueryParams.get('focus_track') || '').trim();
+            let openedAudioDetailFromQuery = false;
+            let appliedMediaFocusFromQuery = false;
+            let appliedPlaylistFocusFromQuery = false;
 
             const mediaTypeLabels = {
                 audio: 'Audio',
@@ -361,6 +368,55 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return ['flac', 'mp3'].includes(ext);
             }
 
+            function buildAdminUrl(params) {
+                const query = new URLSearchParams();
+                Object.entries(params || {}).forEach(([key, value]) => {
+                    if (value === null || value === undefined || value === '') {
+                        return;
+                    }
+                    query.set(key, value);
+                });
+                return `?${query.toString()}`;
+            }
+
+            function buildAudioMetadataUrl(filename) {
+                return buildAdminUrl({ tab: 'files', fpanel: 'audio', focus_file: filename, audio_detail: filename });
+            }
+
+            function buildAudioFilesUrl(filename) {
+                return buildAdminUrl({ tab: 'files', fpanel: 'audio', focus_file: filename });
+            }
+
+            function buildPlaylistOrderUrl(filename) {
+                return buildAdminUrl({ tab: 'content', cntab: 'playlist', focus_track: filename });
+            }
+
+            function formatAudioMetadataHealthBadges(file) {
+                const health = file.audio_metadata_health || {};
+                const fields = health.fields || {};
+                const order = [
+                    ['artist', 'A'],
+                    ['title', 'T'],
+                    ['release', 'R'],
+                    ['lyrics', 'L'],
+                    ['cover', 'C'],
+                ];
+
+                return order.map(([key, shortLabel]) => {
+                    const field = fields[key] || {};
+                    const label = String(field.label || key || '').trim();
+                    const state = String(field.state || 'unknown').toLowerCase();
+                    const statusClass = state === 'present' ? 'status-ok' : state === 'missing' ? 'status-error' : 'status-neutral';
+                    const stateLabel = state === 'present'
+                        ? 'ready'
+                        : state === 'missing'
+                            ? 'missing in latest build check'
+                            : 'not checked in latest build';
+                    const title = `${label}: ${stateLabel}`;
+                    return `<span class="badge audit-status-badge ${statusClass} media-file-badge media-file-field-badge" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${escapeHtml(shortLabel)}</span>`;
+                }).join(' ');
+            }
+
             function formatAudioMasterBadges(file) {
                 const originalFormat = String(file.original_format || String(file.name).split('.').pop() || '').toUpperCase();
                 const master = file.audio_master || {};
@@ -376,7 +432,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     badges.push('<span class="badge audit-status-badge status-warning media-file-badge">Master pending</span>');
                 }
 
+                badges.push(formatAudioMetadataHealthBadges(file));
+
                 return badges.join(' ');
+            }
+
+            function maybeOpenAudioDetailFromQuery(files) {
+                if (openedAudioDetailFromQuery || !pendingAudioDetailFromQuery || activeMediaPanel !== 'audio') {
+                    return;
+                }
+                const rows = Array.isArray(files) ? files : [];
+                const match = rows.find((file) => String(file.name || '') === pendingAudioDetailFromQuery);
+                if (!match || !match.audio_master || match.audio_master.editable !== true) {
+                    return;
+                }
+                openedAudioDetailFromQuery = true;
+                window.openAudioMasterModal(pendingAudioDetailFromQuery);
+            }
+
+            function maybeApplyMediaFocusFromQuery(type) {
+                if (appliedMediaFocusFromQuery || !pendingMediaFocusFromQuery || type !== 'audio') {
+                    return;
+                }
+                const rows = Array.from(document.querySelectorAll('#filelist-audio .media-file-row'));
+                const targetRow = rows.find((row) => String(row.dataset.file || '') === pendingMediaFocusFromQuery);
+                if (!targetRow) {
+                    return;
+                }
+                appliedMediaFocusFromQuery = true;
+                rows.forEach((row) => row.classList.remove('media-file-row-focus'));
+                targetRow.classList.add('media-file-row-focus');
+                targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }
 
             function getMediaBasePath(type) {
@@ -592,6 +678,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }, 3200);
             }
 
+            async function refreshAdminCsrfToken() {
+                const resp = await fetch('/biblioteca/get-admin-csrf.php', {
+                    credentials: 'same-origin',
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data || data.ok !== true || typeof data.csrf_token !== 'string' || !data.csrf_token) {
+                    throw new Error((data && data.error) || 'Could not refresh CSRF token');
+                }
+                adminCsrf = data.csrf_token;
+                return adminCsrf;
+            }
+
             async function loadMediaList(type) {
                 const listEl  = document.getElementById('filelist-' + type);
                 const countEl = document.getElementById(type + '-count');
@@ -625,7 +723,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const nameCell = type === 'audio'
                             ? `<span class="media-file-name-wrap"><span class="media-file-name">${f.name}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
                             : `<span class="media-file-name">${f.name}</span>`;
-                        return `<div class="media-file-row">
+                        return `<div class="media-file-row" data-file="${escapeHtml(f.name)}">
                             ${thumb}
                             ${nameCell}
                             <span class="media-file-size">${fmtSize(f.size)}</span>
@@ -634,6 +732,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             <button class="icon-btn danger" title="Delete" onclick="openDeleteModal('${type}', '${safeName}')">🗑️</button>
                         </div>`;
                     }).join('');
+                    maybeApplyMediaFocusFromQuery(type);
+                    maybeOpenAudioDetailFromQuery(files);
                 } catch(e) {
                     listEl.innerHTML = `<span class="text-error">Network error</span>`;
                 }
@@ -1095,16 +1195,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setAudioMasterStatus('Saving…');
 
                     try {
-                        const resp = await fetch('/biblioteca/save-audio-master-detail.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                filename: activeAudioMasterFile,
-                                fields,
-                                csrf_token: adminCsrf,
-                            }),
-                        });
-                        const data = await resp.json();
+                        const saveMetadata = async (csrfToken) => {
+                            const resp = await fetch('/biblioteca/save-audio-master-detail.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    filename: activeAudioMasterFile,
+                                    fields,
+                                    csrf_token: csrfToken,
+                                }),
+                            });
+                            const data = await resp.json().catch(() => ({}));
+                            return { resp, data };
+                        };
+
+                        let { resp, data } = await saveMetadata(adminCsrf);
+                        if (resp.status === 403 && data && data.error === 'Invalid CSRF token') {
+                            const freshToken = await refreshAdminCsrfToken();
+                            ({ resp, data } = await saveMetadata(freshToken));
+                        }
+
                         if (!resp.ok || data.error) {
                             throw new Error(data.error || 'Could not save metadata');
                         }
@@ -1798,6 +1908,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         </li>`;
                     }).join('');
 
+                    if (!appliedPlaylistFocusFromQuery && pendingPlaylistFocusFromQuery) {
+                        const targetRow = Array.from(list.querySelectorAll('.playlist-editor-row')).find((row) => String(row.dataset.file || '') === pendingPlaylistFocusFromQuery);
+                        if (targetRow) {
+                            appliedPlaylistFocusFromQuery = true;
+                            list.querySelectorAll('.playlist-editor-row').forEach((row) => row.classList.remove('playlist-editor-row-focus'));
+                            targetRow.classList.add('playlist-editor-row-focus');
+                            targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                            if (statusEl) {
+                                statusEl.textContent = `Focused track: ${pendingPlaylistFocusFromQuery}`;
+                                statusEl.style.color = 'var(--muted)';
+                            }
+                        }
+                    }
+
                     if (hintEl) {
                         hintEl.textContent = showBundledDemoAssets
                             ? 'Showing current source tracks with bundled demo audio revealed.'
@@ -2176,6 +2300,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             action: `Replace or convert unsupported source file ${String(file || '').trim()}`,
                         },
                         extras: [],
+                        actions: [
+                            {
+                                label: 'Open Files',
+                                href: buildAudioFilesUrl(String(file || '')),
+                            }
+                        ],
                     });
                 });
 
@@ -2197,11 +2327,56 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return (validationSeverityConfig[right.severity]?.rank || 0) - (validationSeverityConfig[left.severity]?.rank || 0);
                     });
 
+                    const actions = [];
+                    const actionKeys = new Set();
+                    warnings.forEach(code => {
+                        let action = null;
+                        switch (String(code || '').toLowerCase()) {
+                            case 'missing_title_tag':
+                            case 'missing_artist_tag':
+                            case 'missing_album_tag':
+                            case 'missing_lyrics':
+                                action = {
+                                    key: 'metadata',
+                                    label: 'Edit metadata',
+                                    href: buildAudioMetadataUrl(String(track.file || '')),
+                                };
+                                break;
+                            case 'missing_track_number':
+                                action = {
+                                    key: 'playlist',
+                                    label: 'Open playlist order',
+                                    href: buildPlaylistOrderUrl(String(track.file || '')),
+                                };
+                                break;
+                            case 'missing_cover_art':
+                                action = {
+                                    key: 'files',
+                                    label: 'Open Files',
+                                    href: buildAudioFilesUrl(String(track.file || '')),
+                                };
+                                break;
+                            default:
+                                action = {
+                                    key: 'files',
+                                    label: 'Open Files',
+                                    href: buildAudioFilesUrl(String(track.file || '')),
+                                };
+                                break;
+                        }
+
+                        if (action && !actionKeys.has(action.key) && action.href !== '?') {
+                            actionKeys.add(action.key);
+                            actions.push({ label: action.label, href: action.href });
+                        }
+                    });
+
                     items.push({
                         title: String(track.title || track.file || 'Untitled track'),
                         file: String(track.file || ''),
                         primary: classified[0],
                         extras: classified.slice(1),
+                        actions,
                     });
                 });
 
@@ -2271,6 +2446,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const fileLine = item.file && item.file !== item.title
                         ? `<div class="build-validation-item-file">${escapeHtml(item.file)}</div>`
                         : '';
+                    const actionLinks = Array.isArray(item.actions) && item.actions.length
+                        ? `<div class="build-validation-item-links">${item.actions.map(action => `<a class="build-validation-link" href="${escapeHtml(action.href)}">${escapeHtml(action.label)}</a>`).join('')}</div>`
+                        : '';
 
                     return `
                         <article class="build-validation-item">
@@ -2282,6 +2460,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 <span class="badge audit-status-badge ${primaryConfig.statusClass}">${escapeHtml(primaryConfig.label)}</span>
                             </div>
                             <ul class="build-validation-item-actions">${actions}</ul>
+                            ${actionLinks}
                         </article>
                     `;
                 }).join('');

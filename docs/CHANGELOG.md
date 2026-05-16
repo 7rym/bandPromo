@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-16 11:35 - Fixed stale-CSRF failures when saving audio master metadata from long-lived admin tabs: the admin UI now refreshes its CSRF token and retries once on the specific `Invalid CSRF token` response, backed by a small authenticated token endpoint so the normal Save Metadata button works again without requiring a page reload.
+
+2026-05-16 01:16 - The operator-facing validation flow now includes actions and file-level health badges: Build summary items link directly to metadata editing, playlist order, or Files as appropriate, Files -> Audio rows now show compact latest-build status badges for Artist, Title, Release, Lyrics, and Cover after the master badge, and admin deep links can focus the relevant playlist row or audio file/modal when opened from those actions.
+
+2026-05-16 00:45 - Locked the next operator-repair direction in planning docs: `docs/TODO.md` now marks the first metadata-editing and master-building policy items as defined, adds follow-up tasks for actionable validation links, a persistent task/notification panel, and selective inline quick-edit, while `docs/ROADMAP.md` and `docs/MEDIA-HANDLING.md` now reflect the decision that validation issues should become auto-resolving operator tasks routed to the correct editor surfaces instead of acting like manual checklist items or full Build-tab forms.
+
 2026-05-16 00:12 - Build now shows an operator-facing validation summary outside the raw log: the admin Build tab renders a dedicated validation card using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels, grouping unsupported files and per-track metadata fixes into plain-language actions while keeping the raw build log available underneath.
 
 2026-05-15 23:58 - Updated planning docs after the automatic audio-master backfill checkpoint: `docs/TODO.md` now records the legacy master backfill work as complete, and `docs/ROADMAP.md` now reflects the current policy that supported originals should create or backfill masters automatically during normal admin inspection instead of waiting for a separate operator-driven repair step.

@@ -561,6 +561,33 @@ button.danger:hover { background: #d32f2f; }
     margin-top: 4px;
 }
 
+.build-validation-item-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.build-validation-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 107, 107, 0.28);
+    background: rgba(255, 107, 107, 0.1);
+    color: #ffc4c4;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.build-validation-link:hover {
+    background: rgba(255, 107, 107, 0.16);
+    border-color: rgba(255, 107, 107, 0.45);
+}
+
 .build-validation-empty {
     color: var(--muted);
     font-size: 13px;
@@ -1526,6 +1553,23 @@ canvas { max-width: 100%; height: auto; }
 
 .media-file-badge {
     min-width: 0;
+}
+
+.media-file-field-badge {
+    min-width: 22px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.media-file-row-focus {
+    border-color: rgba(255, 107, 107, 0.5);
+    box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.22);
+}
+
+.playlist-editor-row-focus {
+    border-color: rgba(255, 107, 107, 0.55) !important;
+    box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.22);
+    background: rgba(255, 107, 107, 0.08);
 }
 
 .media-file-size {

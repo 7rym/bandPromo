@@ -1166,9 +1166,8 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 ## Current limitations
 
-- The admin UI does not yet provide metadata repair or master-building tools.
-- Metadata warnings are visible in the admin build log, but they should become more prominent and actionable outside the raw log view.
-- `WAV` is not yet a supported source format, even though it is a desired operator path.
+- The admin UI now shows an operator-facing validation summary, but it still does not turn those issues into direct actions or a persistent operator task list.
+- Metadata repair exists for audio masters, but the validation flow still needs better links into the correct repair surfaces and selective quick-edit for simple fields.
 - Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
 - The current `optimal` label is too vague; delivery targets should be defined by actual usage context rather than implied quality alone.
 
@@ -1176,10 +1175,10 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 The next practical improvements should be:
 
-- make media validation warnings more prominent in the admin UI
-- implement the operator-facing validation summary using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels
-- add tools for editing core tags and packaging fields in admin
-- define a proper WAV intake path that can produce a corrected FLAC master
+- add actionable links from validation issues to the right repair surfaces in admin
+- introduce a persistent operator task/notification surface for unresolved validation and build tasks, with automatic resolution when the underlying issue is fixed
+- add selective quick-edit for simple metadata fields such as title, artist, release/album name, and lyrics without turning the Build tab into a second full editor
+- continue expanding dedicated metadata/master tools for packaging fields and corrected-master workflows
 - preserve originals while generating corrected masters and delivery derivatives separately
 - redefine `optimal` into explicit delivery targets for player, mobile, cover, and lightbox contexts
 - implement the intake policy matrix above as the working contract for build, admin repair tools, and future exported masters

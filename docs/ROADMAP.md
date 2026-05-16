@@ -148,6 +148,9 @@ Build-pipeline implications:
 - the current `full` vs `optimize` split is too coarse for the intended `original` / `master` / `delivery` model
 - build-required tracking should evolve from broad action labels into task-level requirements such as playlist scan, metadata validation, audio delivery generation, image delivery generation, social asset generation, and manifest generation
 - admin-facing build language should describe concrete outputs instead of the vague word `media`
+- validation issues should become persistent operator tasks with direct actions to the correct editor surface instead of remaining buried in build logs or transient summaries
+- publish-blocking and recommended-fix tasks should derive from current validation/build state and clear automatically when the underlying issue is fixed; manual acknowledgement should be reserved for informational notices, not used as the truth source for fixable blockers
+- the first remediation flow should prefer navigation to dedicated editors, while inline quick-edit stays limited to simple metadata fields such as title, artist, release/album name, and lyrics
 - source-aware processing must stop assuming every supported audio input follows the same FLAC-first path
 - offline-capable playback and scalable playback should share the same future direction: PHP should authorize access, but long-lived audio byte delivery should move away from PHP streaming toward a cache-friendly protected delivery path
 - the PWA/service-worker layer should be audited as product infrastructure, not treated as a one-time install checkbox; update behavior, cache-busting, stale-shell risk, and offline value on phones are part of the core user experience
@@ -229,6 +232,7 @@ Trust-gate scope note for `v0.7`:
 - common setup and operation steps are documented well enough for trial use
 - weak source material can be uploaded, diagnosed, and repaired through understandable admin guidance instead of expert-only metadata tooling
 - operator-facing media repair/editing tools follow the locked media-handling policy instead of exposing raw tagging concepts first
+- unresolved publish blockers and recommended fixes remain visible in a persistent operator task/notification surface until the underlying issue is actually fixed
 
 ### 5. User Friendliness gate
 
