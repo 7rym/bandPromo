@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-18 20:58 - Fixed first-install setup prefills for non-technical operators: the setup wizard now treats the shipped demo/template site profile as an unconfigured state and falls back to domain-derived defaults instead of showing placeholder values like `Your Site Name`, `https://example.com`, or the local demo site details on a fresh install.
+
 2026-05-16 17:12 - Checkpointed the audio-metadata workflow session as `v0.7 build 243`, syncing the media-handling doc's current-state reference with the required VERSION bump used for the push routine.
 
 2026-05-16 17:05 - Refreshed the session-affected docs for a checkpoint: `TODO.md`, `ROADMAP.md`, `MEDIA-HANDLING.md`, and `FEATURES.md` now reflect the shipped Files -> Audio metadata editor, automatic playlist/validation refresh after metadata edits, embedded track-number alignment rules, no-op save suppression, and the remaining gap that real metadata edits still collapse into the coarse build-required model.

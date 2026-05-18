@@ -71,6 +71,46 @@ if (file_exists(CONFIG_FILE)) {
     $config = json_decode(file_get_contents(CONFIG_FILE), true) ?? [];
 }
 
+function bandpromo_setup_normalize_prefill_value(string $value): string {
+  return strtolower(trim($value));
+}
+
+function bandpromo_setup_matches_placeholder_profile(array $prefill): bool {
+  $profiles = [
+    [
+      'name' => 'Your Site Name',
+      'short_name' => 'Short Name',
+      'description' => 'Site description for manifest and meta tags',
+      'url' => 'https://example.com',
+      'author' => 'Your Name',
+    ],
+    [
+      'name' => 'bandPromo Demo Site',
+      'short_name' => 'bandPromo',
+      'description' => 'a demo site for the bandPromo publishing and marketing tool',
+      'url' => 'http://localhost:8000',
+      'author' => '7rym',
+    ],
+  ];
+
+  foreach ($profiles as $profile) {
+    $matches = true;
+    foreach ($profile as $key => $expected) {
+      $actual = bandpromo_setup_normalize_prefill_value((string) ($prefill[$key] ?? ''));
+      if ($actual !== bandpromo_setup_normalize_prefill_value($expected)) {
+        $matches = false;
+        break;
+      }
+    }
+
+    if ($matches) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Auto-derive site info from hostname if not already set
 $host = $_SERVER['HTTP_HOST'] ?? '';
 $hostNoPort = strtolower(preg_replace('/:\d+$/', '', $host));
@@ -83,11 +123,29 @@ function hostnameToTitle($host) {
 $derivedName = hostnameToTitle($hostNoPort);
 $derivedUrl  = 'https://' . $hostNoPort;
 
-$siteName        = htmlspecialchars((string) bandpromo_config_get_value($config, 'release.identity.title', $derivedName));
-$siteShortName   = htmlspecialchars((string) bandpromo_config_get_value($config, 'release.identity.short_label', $derivedName));
-$siteDescription = htmlspecialchars((string) bandpromo_config_get_value($config, 'release.identity.description', ''));
-$siteUrl         = htmlspecialchars((string) bandpromo_config_get_value($config, 'install.site.url', $derivedUrl));
-$siteAuthor      = htmlspecialchars((string) bandpromo_config_get_value($config, 'install.site.author', ''));
+$prefill = [
+  'name' => (string) bandpromo_config_get_nonempty_value($config, 'release.identity.title', ''),
+  'short_name' => (string) bandpromo_config_get_nonempty_value($config, 'release.identity.short_label', ''),
+  'description' => (string) bandpromo_config_get_nonempty_value($config, 'release.identity.description', ''),
+  'url' => (string) bandpromo_config_get_nonempty_value($config, 'install.site.url', ''),
+  'author' => (string) bandpromo_config_get_nonempty_value($config, 'install.site.author', ''),
+];
+
+if (bandpromo_setup_matches_placeholder_profile($prefill)) {
+  $prefill = [
+    'name' => $derivedName,
+    'short_name' => $derivedName,
+    'description' => '',
+    'url' => $derivedUrl,
+    'author' => '',
+  ];
+}
+
+$siteName        = htmlspecialchars($prefill['name'] !== '' ? $prefill['name'] : $derivedName);
+$siteShortName   = htmlspecialchars($prefill['short_name'] !== '' ? $prefill['short_name'] : $derivedName);
+$siteDescription = htmlspecialchars($prefill['description']);
+$siteUrl         = htmlspecialchars($prefill['url'] !== '' ? $prefill['url'] : $derivedUrl);
+$siteAuthor      = htmlspecialchars($prefill['author']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
