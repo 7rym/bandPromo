@@ -1,0 +1,28 @@
+name: "Build release package artifact"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-release-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build distributable package
+        run: python scripts/build_release_package.py --clean
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandpromo-release-package
+          path: |
+            dist/*.zip
+            dist/release-manifest.json
+          if-no-files-found: error

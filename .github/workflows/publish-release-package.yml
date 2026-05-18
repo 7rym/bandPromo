@@ -1,0 +1,52 @@
+name: "Publish release package"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to publish, for example v0.7-build-246"
+        required: true
+      release_name:
+        description: "Human-readable release name"
+        required: true
+      prerelease:
+        description: "Publish as prerelease"
+        required: true
+        default: "false"
+      draft:
+        description: "Publish as draft"
+        required: true
+        default: "false"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build distributable package with release URLs
+        run: >-
+          python scripts/build_release_package.py --clean
+          --release-tag "${{ inputs.tag_name }}"
+          --package-url-base "https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}"
+          --manifest-url "https://github.com/${{ github.repository }}/releases/latest/download/release-manifest.json"
+
+      - name: Publish GitHub release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          name: ${{ inputs.release_name }}
+          draft: ${{ inputs.draft == 'true' }}
+          prerelease: ${{ inputs.prerelease == 'true' }}
+          files: |
+            dist/*.zip
+            dist/release-manifest.json

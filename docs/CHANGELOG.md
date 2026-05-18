@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-19 01:02 - Wired the next immutable-release slice for the operator installer path: `bootstrap.php` now tries the latest published `release-manifest.json` asset before falling back to a manual ZIP URL, verifies SHA256 when the manifest provides it, `scripts/build_release_package.py` can now emit release-aware manifest fields, and `.github/workflows/publish-release-package.yml` adds an explicit manual publish path for builds that should become immutable GitHub Release assets.
+
+2026-05-19 00:48 - Added an explicit distributable-package builder path instead of packaging every build automatically: `scripts/build_release_package.py` now assembles a tracked-file install ZIP plus checksum manifest, and `.github/workflows/build-release-package.yml` exposes the same step as a manual `workflow_dispatch` action. `README.md` documents that install packages are created only on intentional action, and `docs/TODO.md` now marks that manual packaging-path decision complete.
+
+2026-05-19 00:34 - Added the first real browser-driven package installer entry point as `bootstrap.php`: it performs host checks, downloads a ZIP package into a temporary work area, extracts and validates the application root, copies tracked files into place while preserving runtime state (`web-config.json`, `.env`, `data/`, `log/`, `media/`), and then hands off to `setup.php`. The README and TODO tracker now document this as an initial bootstrap implementation rather than a completed immutable-release workflow.
+
+2026-05-19 00:20 - Aligned the top-level operator-facing docs with the intended install/setup workflow: `README.md` now presents the bootstrap/package flow as the primary operator path, keeps the repository upload path as a manual/developer fallback, and documents seeded demo content plus the admin-first success checklist; `docs/FEATURES.md` now reflects the same setup expectations. `docs/TODO.md` now marks that README/setup alignment task complete.
+
+2026-05-19 00:10 - Defined the first-run verification model for the v0.7 reusability gate: reusable installs should ship with seeded demo content by default, treat that content as a practical verification surface, and confirm success primarily through an admin landing with a clear next-step checklist. `docs/TODO.md` now marks that planning task complete.
+
+2026-05-19 00:02 - Defined the install-locked paid add-on entitlement model for the v0.7 reusability gate: the roadmap now distinguishes install-locked bandPromo add-ons from audience/member premium access, scopes the first entitlement model to themes and modules, preserves legitimate moved installs when runtime identity survives, and requires a generous local grace period during entitlement-service outages. `docs/TODO.md` now marks that planning task complete.
+
+2026-05-18 23:52 - Clarified premium terminology in the roadmap and TODO tracker so two different future models are not conflated: operator-defined `premium access` for audience/member access inside an installation versus install-locked paid add-ons/services sold by bandPromo itself.
+
+2026-05-18 23:44 - Closed the install-shell versus release-identity split as a v0.7 planning contract: the roadmap now states exactly which current `site` fields stay install-level, which mixed fields (`site.name`, `site.short_name`, `site.description`, `media.cover`) must split, and how install-shell assets differ from release-scoped presentation. `docs/TODO.md` now marks that schema-boundary task complete.
+
+2026-05-18 23:34 - Defined the installation-identity model for the v0.7 reusability gate: the roadmap now distinguishes a stable local `install_id` from stronger runtime-only install secret/key material, preserves identity across normal moves/restores, and makes explicit that this identity is a product/runtime primitive rather than a complete paid-entitlement defense. `docs/TODO.md` now marks that identity-definition task complete.
+
+2026-05-18 23:22 - Closed the install/update telemetry-definition cluster for the v0.7 reusability gate: the roadmap now defines the release-observability model, the maintenance-telemetry payload boundary, and the friendly setup/admin consent UX, and `docs/TODO.md` now marks those three planning items complete.
+
+2026-05-18 23:11 - Defined the admin-panel updater contract for the v0.7 reusability gate: the roadmap now spells out how update checks, package download/apply, integrity validation, failure handling, preserved runtime state, post-update tasks, and operator-facing messaging should work without exposing Git-centric deployment jargon, and `docs/TODO.md` now marks that definition task complete.
+
+2026-05-18 23:01 - Defined the missing package-install contracts for the v0.7 reusability gate: the roadmap now spells out the bootstrap installer contract, ZIP update/preservation contract, and package source/version-check contract, and the TODO now marks those definition tasks complete. The docs also now explicitly treat GitHub `main.zip` branch snapshots as a manual developer fallback rather than the intended operator package source.
+
+2026-05-18 22:52 - Synced the v0.7 milestone tracker with the shipped setup work: `docs/TODO.md` now marks the license/operator-responsibility acknowledgment flow as implemented and live-verified on `bandpromo.site`, so the remaining reusability work is focused on package installs, update contracts, telemetry policy, and install identity rather than already-completed wizard UX.
+
 2026-05-18 22:46 - Extended the recorded setup acknowledgment with install-location context: `complete-setup.php` now stores the current host plus both the current and configured site URL in `data/operator-acknowledgment.json`, so the installation record is more useful for later recovery, identity, and support checks.
 
 2026-05-18 22:28 - Upgraded the first-run acknowledgment flow from a plain note to a recorded setup contract: `setup.php` now uses friendly in-wizard modals instead of raw document links, `setup-init.php` enforces explicit confirmation before setup can proceed, and `complete-setup.php` now writes a local `data/operator-acknowledgment.json` record alongside the normal setup-complete marker.

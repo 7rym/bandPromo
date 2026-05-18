@@ -137,6 +137,56 @@ Preferred operator install/update direction:
 - the update flow should preserve runtime/user-managed paths (`web-config.json`, `.env`, `data/`, `media/`, logs) while replacing tracked application files
 - the long-term best operator flow should include admin-panel updates driven by release packages, not by `git pull` or hosting-panel repository tools
 
+Bootstrap installer contract for v0.7 exit:
+
+- operator entry point should be one uploaded PHP bootstrap file placed in the target web folder
+- the bootstrap should check minimum PHP capabilities first: writable target folder, `ZipArchive`, HTTPS-capable remote download support, and the required extensions already documented by the project
+- the bootstrap should fetch a package manifest or equivalent lightweight metadata first, then verify what package URL and version it is about to install before downloading the ZIP
+- the bootstrap should unpack into a staging folder, validate the expected application structure, and only then copy the tracked application files into place
+- first install should seed required runtime files from tracked templates after extraction, not rely on example files being used directly as runtime fallbacks
+- if any check fails, the bootstrap should stop with a plain-language explanation and safe re-entry instructions instead of leaving a half-installed tree behind
+- rerunning the bootstrap in the same folder should be safe: it should detect an unfinished install, an already-installed runtime, or a recoverable partial extraction and explain the next valid action
+
+First-run verification model for v0.7 exit:
+
+- a brand-new reusable install should land with seeded demo content by default rather than an entirely empty public shell
+- that seeded content is part of the first-run verification experience: it should prove that install, build, playback, theming, and the basic site shell are functioning on a real host
+- the seeded content may remain editable in place so a non-technical operator can start by replacing example values instead of facing a blank admin
+- setup success should be confirmed primarily by opening admin with a clear next-step checklist rather than only dropping the operator on a public placeholder page
+- the public site should still be viewable immediately after setup, but the main success signal for the operator is a readable admin path that says what to replace, review, and publish next
+- if the product later offers a cleaner empty-state path, that can exist as an additional mode, but the baseline reusable-install contract for v0.7 is seeded demo content plus an admin-first success checklist
+
+ZIP update contract for v0.7 exit:
+
+- updates should replace only tracked application files and directories from the package payload
+- updates must preserve operator/runtime-managed files and paths, at minimum: `web-config.json`, `.env`, `data/`, `media/`, and logs
+- the preservation list should be treated as an explicit product contract, not as an incidental side effect of `.gitignore`
+- updates should run any required post-update tasks automatically where practical: cache refresh, manifest refresh, build-required recalculation, and any schema or runtime migrations needed for the shipped version
+- if a package extract or copy step fails, the updater should stop before claiming success and should leave preserved runtime state untouched
+- package retry should be safe after a failed update attempt; operators should not need shell access to recover from a normal failed extraction or copy
+
+Package source and version-check contract for v0.7 exit:
+
+- the preferred operator package source should be immutable GitHub release assets, not mutable branch snapshots
+- lightweight update checks should read the published `VERSION` first and only download a full package when a newer compatible package exists
+- the package metadata should eventually expose at least: version, package URL, checksum or equivalent integrity signal, and optional release notes text for admin/update messaging
+- `https://github.com/7rym/bandPromo/archive/refs/heads/main.zip` can remain a developer/manual fallback for ad-hoc testing, but it should not be the primary operator install/update source because it is mutable, branch-shaped, and not a stable release artifact
+- the operator-facing bootstrap/updater should prefer URLs that map to explicit packaged versions so support, recovery, and telemetry all refer to the same immutable build identity
+
+Admin-panel updater model for v0.7 exit:
+
+- the admin updater should be an operator-facing package workflow, not a thin wrapper around `git pull`
+- update availability should begin with a lightweight remote version check against the published package metadata and `VERSION`, then present a plain-language summary before any package download begins
+- the operator should see at least: current version, available version, whether the update is recommended or optional, and short release notes or a compact change summary when available
+- the update action should download the selected immutable package into a temporary runtime-safe location, verify integrity, extract to staging, validate expected structure, then apply the update using the same preservation rules defined for ZIP updates
+- the updater should not require shell access, SSH keys, Git configuration, or hosting-panel tools for normal use
+- the updater should present a clear pre-apply warning that runtime/operator-managed files are preserved while tracked application files are replaced
+- after apply, the updater should run required post-update tasks automatically where practical and then report whether the site is ready, needs a build refresh, or needs a follow-up admin action
+- if any step fails, the updater should report the failing stage in plain language: version check, download, integrity verification, extraction, file apply, migration, or post-update tasks
+- failed updates should leave preserved runtime state untouched and should offer a retry path without forcing the operator into manual cleanup
+- successful updates should record enough local state for support and diagnostics: previous version, new version, package identity, timestamp, and whether post-update tasks succeeded
+- the updater UI should be readable to non-technical operators: no raw Git terms, no branch names, no repository jargon, and no assumption that the operator understands deployment internals
+
 Observability preference for install/update adoption:
 
 - passive package-download counts from GitHub releases are the safest default signal and should be treated as coarse adoption data only
@@ -147,6 +197,59 @@ Observability preference for install/update adoption:
 - operators should be able to disable or never enable the webhook path without losing core install/update functionality
 - the basic install identifier used for maintenance reporting should be treated as a product identity primitive, but a plain copied UID is not a sufficient future basis for paid-module enforcement
 - if premium modules, themes, or other paid expansions are introduced later, they should bind entitlements to a stronger installation identity model such as a locally held secret or keypair plus server-issued activation state, so copying files alone is not enough to duplicate access
+
+Release-observability model for v0.7 exit:
+
+- package-download counts from immutable GitHub releases are the passive baseline and should be reported internally as download counts, not as active-install counts
+- the product should distinguish between package distribution signals and actual opt-in maintenance-success signals
+- the only future central install/update events worth considering in core are maintenance events such as `install_succeeded`, `update_succeeded`, and optional `update_failed`
+- if failure reporting is ever included, it should stay optional and coarse enough to help diagnose product issues without collecting local content or audience data
+- local installs should also keep their own local update/install history for operator review and support, so central reporting is not the only source of truth
+
+Install/update telemetry payload boundary for v0.7 exit:
+
+- payloads should stay minimal and product-maintenance focused
+- allowed fields should be limited to things such as: event type, timestamp, bandPromo version, previous version for updates, package identity/channel, anonymous install identifier, and a narrow environment summary useful for compatibility debugging
+- environment summary should stay coarse, for example PHP major/minor version and installer/update path, not full server inventory
+- raw domains, operator names, uploaded content, track names, media metadata, audience analytics, admin credentials, IP-based audience data, and third-party integration secrets must not be sent as part of maintenance telemetry
+- if host context is ever needed centrally, it should prefer a one-way or otherwise privacy-preserving form over sending the plain live domain by default
+- operators should be able to inspect the exact telemetry fields in documentation and, later, in admin UI before enabling reporting
+
+Setup consent UX for maintenance telemetry for v0.7 exit:
+
+- the setup wizard should ask one friendly yes/no question after the operator-responsibility acknowledgment, framed around helping bandPromo learn whether installs and updates succeed in the real world
+- the default should be no reporting until the operator explicitly enables it
+- the copy should say plainly that bandPromo works fully without this, what kind of maintenance events may be reported, and that no audience or content analytics are included
+- the choice should be revisitable later from admin settings without editing files manually
+- if the operator skips or declines reporting during setup, later update flows may remind them that the option exists, but should not nag on every update
+- the consent UI should avoid technical jargon such as webhook, telemetry, payload, or install ping in the primary operator-facing sentence; those details belong in secondary help text
+
+Installation-identity model for v0.7 exit:
+
+- each installed site should generate one stable installation identity during first successful setup or bootstrap completion
+- that identity should have at least two parts: a non-secret opaque `install_id` for local records and support references, plus a stronger runtime-only install secret or key material that is never treated as a public identifier
+- both parts should be generated locally with cryptographically strong randomness and stored only in runtime-managed state, not in tracked application files or release packages
+- the install secret or private key material should live in a preserved runtime path such as `data/` so normal updates do not replace it
+- maintenance telemetry should use an anonymous reporting identifier derived from local identity state; it should not send the raw secret, and it should not rely on a human-visible copied UID alone
+- the model must not hard-bind core installation identity to the current domain, because legitimate restore and moved-site recovery need to preserve continuity when the host changes
+- backup and restore should preserve installation identity by default so a real moved installation remains the same installation for local history, support, and future entitlement continuity
+- the model should allow an explicit future repair or reissue path when an operator intentionally wants to reset installation identity after a compromised clone, migration mistake, or licensing/support event
+- a copied filesystem clone may still duplicate the local identity state; that is acceptable for core offline behavior, but it means installation identity alone must not be treated as sufficient paid-entitlement enforcement
+- the installation identity contract is about the install shell and runtime instance, not about release title, artist branding, or site-presentation fields
+- future terminology should stay explicit: `premium access` means operator-defined audience/member access levels inside an installation, while install-locked `paid add-ons/services` means bandPromo-sold modules, themes, services, or entitlements bound to the installation itself
+
+Install-locked paid add-on entitlement model for v0.7 exit:
+
+- this model applies first to bandPromo-sold themes/skins and modules/features; it should not be confused with operator-defined audience/member premium access inside a site
+- core bandPromo must remain fully usable without central activation; only the paid add-on itself may depend on entitlement checks
+- each paid add-on entitlement should bind to the stronger installation identity state, not to a visible copied UID alone
+- the entitlement service should recognize a legitimate moved or restored installation when the preserved runtime identity is still intact, so normal host moves do not force a punitive relicensing flow
+- the product should still support an explicit reissue or repair path for real edge cases such as lost runtime identity, compromised clones, or operator support events
+- a local entitlement cache should allow a generous grace period when the entitlement service is temporarily unreachable, so hosting outages or provider downtime do not immediately disable paid add-ons on legitimate installations
+- grace behavior should fail soft for legitimate operators: warn in admin, keep the paid add-on working during the grace window, and surface plain-language recovery guidance before any hard disable decision
+- entitlement checks should record enough local state for support and diagnostics, such as add-on identity, entitled version or tier, last successful verification time, grace expiry, and recent entitlement errors
+- copied filesystem clones that preserve runtime identity may still appear valid locally for some time; the enforcement boundary should therefore assume provider-side reissue/revocation logic and install-identity continuity checks, not secret local files alone
+- add-on entitlements should be revocable and transferable through a documented support/operator flow without threatening the operator's access to the free core product
 
 Design constraints for that direction:
 
@@ -159,6 +262,7 @@ Design constraints for that direction:
 - private-repo distribution should be treated as a developer path; the operator path should rely on release packages that do not require GitHub credentials or SSH keys
 - backup/restore should become a first-class operator feature: operators should be able to export their site state, move it to another host, and restore it there
 - moved-site recovery should be explicit: when restored runtime data no longer matches the current host/base URL, setup/bootstrap should recognize that situation and offer to repair host-specific config rather than forcing manual file edits
+- maintenance telemetry consent must remain reversible and must never block install, update, playback, or admin use when disabled
 
 ## Media intake and publishing strategy
 
@@ -208,6 +312,17 @@ Platform-model implications:
 - the current single-release `web-config` shape must be split deliberately: install shell fields stay install-wide, release identity fields move to release scope, and track overrides remain narrow exceptions rather than a second theme layer
 - the future schema should use explicit scoped blocks such as `install.site`, `install.theme`, `install.social`, `release.identity`, `release.theme`, `release.social`, and a narrow track-presentation exception layer
 - the migration must be staged: compatibility reads first, then dual-write saves, then schema-first admin UI, and only then legacy cleanup
+
+Install-shell versus release-identity split for v0.7 exit:
+
+- the current flat `site` surface should no longer be treated as one identity block with mixed meanings
+- `site.url`, `site.language`, and `site.author` belong to the install shell and should remain install-level concerns
+- `site.name` must split into an install-level shell title and a release-level title; one field cannot continue to mean both the site identity and the highlighted release identity
+- `site.short_name` must split into an install-level app short name and, only when needed later, an optional release short label
+- `site.description` must split into install description versus release description so shell copy and release copy stop overwriting each other conceptually
+- `media.cover` should stop acting as a blurred primary artwork field and should be replaced conceptually by an explicit release-level cover, with track cover remaining a separate narrow override
+- install-level social handles and shell assets remain part of the install shell, while release-level keywords, categories, poster/share imagery, and background presentation belong to release scope with install defaults only as fallback
+- this split is a schema and migration contract first; current single-release admin UX does not need to expose multi-release complexity before the product is ready
 
 This strategy is part of the v0.7 exit work because it defines what "usable by non-technical operators" actually means in practice.
 
@@ -680,9 +795,9 @@ bandPromo should not become the payment flow by default.
 
 The safest model is for payments, donations, purchases, subscriptions, and tips to go directly through services controlled by the operator. bandPromo may provide buttons, embeds, links, metadata, or integration points, but should avoid holding funds, splitting revenue, storing payout details, or becoming a payment intermediary unless a future version intentionally accepts the legal and operational burden of doing so.
 
-If future support, membership, or premium-access features need provider-side verification or synchronization, bandPromo should treat that as an operator-owned integration layer for services such as Ko-fi, Patreon, Stripe, PayPal, Vipps, or similar APIs. That layer should stay provider-agnostic where practical, remain optional per installation, and be designed after the anonymous vs registered vs premium access model is defined clearly enough to know what bandPromo is actually enforcing.
+If future support, membership, or premium-access features need provider-side verification or synchronization, bandPromo should treat that as an operator-owned integration layer for services such as Ko-fi, Patreon, Stripe, PayPal, Vipps, or similar APIs. That layer should stay provider-agnostic where practical, remain optional per installation, and be designed after the anonymous vs registered vs premium-access model is defined clearly enough to know what audience or member access bandPromo is actually enforcing.
 
-If bandPromo later sells premium modules, themes, or services directly, a simple visible installation UID will not be enough to protect those entitlements. The future-proof design boundary should be: core bandPromo stays fully functional without central activation, while paid expansions may rely on a stronger installation identity and provider-side entitlement check that can distinguish a legitimate moved/restored install from a copied clone.
+If bandPromo later sells paid modules, themes, services, or other install-locked add-ons directly, a simple visible installation UID will not be enough to protect those entitlements. The future-proof design boundary should be: core bandPromo stays fully functional without central activation, while install-locked paid add-ons may rely on a stronger installation identity and provider-side entitlement check that can distinguish a legitimate moved/restored install from a copied clone.
 
 bandPromo should not become a central discovery catalog.
 

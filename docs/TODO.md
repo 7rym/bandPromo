@@ -47,24 +47,25 @@ Scope: correctness and interpretability of observed behavior. Put items here whe
 Scope: reusable deployment, setup, and personalization. Put items here when they determine whether bandPromo can be installed again easily, configured without code surgery, and still feel specific to each deployment.
 
 - [x] Test a fresh setup path on a real hosted server and document the friction points in the current Git/Plesk/private-repo deployment path.
-- [ ] Replace the current repo-upload/Git-first installation story with an operator-first package story: one uploaded bootstrap PHP file, browser-led setup, and ZIP-based releases.
-- [ ] Define the bootstrap installer contract: required PHP capabilities, release ZIP download/extract flow, writable-path checks, runtime-file seeding, failure handling, and safe re-entry behavior.
-- [ ] Define the update contract for ZIP-based releases: which tracked app files are replaced, which runtime/user-managed paths are preserved (`web-config.json`, `.env`, `/data`, `/media`, logs), and which post-update tasks or migrations run automatically.
-- [ ] Define the package source/version-check contract: GitHub-hosted release ZIPs alongside the repo, with `VERSION` used as the first lightweight update check before download.
-- [ ] Define the admin-panel updater model around release packages instead of Git operations, including version checks, download/apply flow, integrity validation, restore-after-failure behavior, and operator messaging.
-- [ ] Define the release-observability model for installs and updates: GitHub release download counts as the passive baseline, plus an optional documented webhook/ping model for install/update events.
-- [ ] Define the install/update telemetry payload boundary before implementation: minimal event data, explicit opt-in, no audience tracking, no content data, and clear operator-facing disclosure/controls.
-- [ ] Define the setup-wizard consent UX for maintenance telemetry: a friendly plain-language question during setup, safe default behavior, and later admin controls for changing that choice.
-- [ ] Define the setup-wizard acknowledgment UX for license and operator responsibility: friendly plain-language summary, links to `LICENSE` and operator-responsibility docs, explicit confirmation, and wording that informs rather than pretending to waive real legal duties.
-- [ ] Define the installation-identity model before premium modules exist: a locally generated install ID plus a stronger install secret/keypair stored in runtime state, so telemetry and later entitlements do not depend on a copyable plain UID alone.
-- [ ] Define the premium-entitlement model for future paid modules/themes: core remains fully usable without activation, but paid add-ons must bind to a stronger installation identity with transfer/reissue/recovery rules so copying files or a visible ID is not enough to clone access.
-- [ ] Confirm README/setup docs match the intended operator workflow, not only the current developer/server-admin path.
-- [ ] Decide the minimal first-run verification model for reusable installs: documented empty-state setup, seeded demo content, or both.
+- [ ] Finish replacing the current repo-upload/Git-first installation story with an operator-first package story: `bootstrap.php` now prefers a published `release-manifest.json` asset and a manual release-publish workflow now exists, but the final operator flow still needs release/version discovery defaults and the remaining manual/developer fallback removed.
+- [x] Add an explicit distributable-package builder path that does not run on every build: a manual script/workflow should create install ZIPs only for builds that intentionally qualify as operator-facing packages.
+- [x] Define the bootstrap installer contract: required PHP capabilities, release ZIP download/extract flow, writable-path checks, runtime-file seeding, failure handling, and safe re-entry behavior.
+- [x] Define the update contract for ZIP-based releases: which tracked app files are replaced, which runtime/user-managed paths are preserved (`web-config.json`, `.env`, `/data`, `/media`, logs), and which post-update tasks or migrations run automatically.
+- [x] Define the package source/version-check contract: GitHub-hosted immutable release ZIPs alongside the repo, with `VERSION` used as the first lightweight update check before download; mutable `main.zip` snapshots stay a developer/manual fallback only.
+- [x] Define the admin-panel updater model around release packages instead of Git operations, including version checks, download/apply flow, integrity validation, restore-after-failure behavior, and operator messaging.
+- [x] Define the release-observability model for installs and updates: GitHub release download counts as the passive baseline, plus an optional documented webhook/ping model for install/update events.
+- [x] Define the install/update telemetry payload boundary before implementation: minimal event data, explicit opt-in, no audience tracking, no content data, and clear operator-facing disclosure/controls.
+- [x] Define the setup-wizard consent UX for maintenance telemetry: a friendly plain-language question during setup, safe default behavior, and later admin controls for changing that choice.
+- [x] Define and implement the setup-wizard acknowledgment UX for license and operator responsibility: friendly plain-language summary, in-wizard modals, explicit confirmation, recorded acceptance, and live verification on `bandpromo.site`.
+- [x] Define the installation-identity model before premium modules exist: a locally generated install ID plus a stronger install secret/keypair stored in runtime state, so telemetry and later entitlements do not depend on a copyable plain UID alone.
+- [x] Define the install-locked paid add-on entitlement model for future modules/themes/services: core remains fully usable without activation, but bandPromo-sold add-ons must bind to a stronger installation identity with transfer/reissue/recovery rules so copying files or a visible ID is not enough to clone access. Keep this separate from any future audience/member premium-access model inside an installation.
+- [x] Confirm README/setup docs match the intended operator workflow, not only the current developer/server-admin path.
+- [x] Decide the minimal first-run verification model for reusable installs: documented empty-state setup, seeded demo content, or both.
 - [x] Fix localhost install/admin "Open site" link resolution so local setup and verification use the expected host.
 - [x] Rename Files -> `System` to Files -> `Theme` if that panel remains the home for install-specific branding/design assets.
 - [x] Define the explicit asset-scope model for install-wide theme assets plus release and track-level overrides.
 - [x] Define the inheritance contract for install defaults, release overrides, and track-level exceptions.
-- [ ] Split the current mixed `site` identity fields into explicit install-shell fields vs release identity fields.
+- [x] Split the current mixed `site` identity fields into explicit install-shell fields vs release identity fields.
 - [x] Define target schema names for install shell, release identity/presentation, and track exception fields.
 - [x] Lock the future identity-asset rule: mandatory site-level logo/poster fallbacks, optional release-level logo/poster overrides, without exposing multi-release concepts in the current admin UI.
 - [x] Define the migration and compatibility rules from current `site` / `social` / `media` fields into the future scoped schema.

@@ -5,9 +5,11 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 ## Key Features
 
 ### Easy Setup
-- Browser-based setup wizard
+- Browser-based setup wizard after install/bootstrap
 - Automatic creation of required folders and initial configuration
-- First admin account creation and demo content included
+- Friendly license/operator-responsibility acknowledgment during setup
+- First admin account creation with seeded demo content for first-run verification
+- Admin-first post-setup flow with a clear next-step checklist
 
 ### Admin Dashboard
 - User-friendly admin panel for managing users, files, and site content
