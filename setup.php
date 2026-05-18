@@ -116,9 +116,19 @@ $host = $_SERVER['HTTP_HOST'] ?? '';
 $hostNoPort = strtolower(preg_replace('/:\d+$/', '', $host));
 // e.g. "myband.com" → "Myband"
 function hostnameToTitle($host) {
-    $base = preg_replace('/\.[^.]+$/', '', $host); // strip TLD
-    $base = preg_replace('/[^a-z0-9]+/i', ' ', $base);
-    return ucwords(trim($base));
+  $base = preg_replace('/\.[^.]+$/', '', $host); // strip TLD
+  $base = strtolower(trim((string) $base));
+
+  $brandOverrides = [
+    'bandpromo' => 'bandPromo',
+  ];
+
+  if (isset($brandOverrides[$base])) {
+    return $brandOverrides[$base];
+  }
+
+  $base = preg_replace('/[^a-z0-9]+/i', ' ', $base);
+  return ucwords(trim($base));
 }
 $derivedName = hostnameToTitle($hostNoPort);
 $derivedUrl  = 'https://' . $hostNoPort;
@@ -360,6 +370,131 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
     .msg.error   { background: rgba(244,67,54,.1);  border: 1px solid rgba(244,67,54,.3);  color: var(--error); }
     .msg.success { background: rgba(76,175,80,.1);  border: 1px solid rgba(76,175,80,.3);  color: var(--success); }
 
+    .setup-note {
+      margin-top: 22px;
+      padding: 16px 18px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+    }
+    .setup-note h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .setup-note p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+    .setup-note ul {
+      margin: 0 0 12px 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .setup-note li + li {
+      margin-top: 6px;
+    }
+    .setup-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .setup-links button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--accent);
+      font-size: 13px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, color .2s;
+    }
+    .setup-links button:hover {
+      border-color: var(--accent);
+      background: rgba(255,107,107,.06);
+    }
+    .setup-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .setup-check input {
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .setup-fineprint {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .modal-shell {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .modal-shell.open {
+      display: flex;
+    }
+    .modal-card {
+      width: 100%;
+      max-width: 640px;
+      max-height: min(80vh, 720px);
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.45);
+    }
+    .modal-card h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    .modal-card p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      margin-bottom: 14px;
+    }
+    .modal-card ul {
+      margin: 0 0 16px 20px;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .modal-card li + li {
+      margin-top: 8px;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .modal-path {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     /* --- Done screen --- */
     .done-icon {
       font-size: 52px;
@@ -459,6 +594,30 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
       <input type="password" id="s1-password2" autocomplete="new-password" placeholder="••••••••" />
     </div>
 
+    <div class="setup-note">
+      <h2>Before you continue</h2>
+      <p>
+        bandPromo is free self-hosted software, but each operator is still responsible for the site they run.
+        Please take a moment to confirm that you understand the basic boundaries before finishing setup.
+      </p>
+      <ul>
+        <li>You are responsible for the content, rights, and publication choices on your site.</li>
+        <li>You are responsible for privacy, hosting, backups, and any third-party services you enable.</li>
+        <li>bandPromo helps you run the site, but it does not clear rights or take over legal or operational duties.</li>
+      </ul>
+      <div class="setup-links">
+        <button type="button" class="modal-open" data-modal="license">License summary</button>
+        <button type="button" class="modal-open" data-modal="responsibility">Operator responsibilities</button>
+      </div>
+      <label class="setup-check" for="s1-responsibility">
+        <input type="checkbox" id="s1-responsibility" />
+        <span>I understand that bandPromo is provided under its license and that I am responsible for how this installation is configured, published, and operated.</span>
+      </label>
+      <p class="setup-fineprint">
+        This acknowledgment is recorded for this installation during setup. It is meant to make the product boundaries explicit, not to hide them behind unclear wording.
+      </p>
+    </div>
+
     <div class="actions">
       <span></span>
       <button class="btn btn-primary" id="s1-next" <?php echo $hasSetupErrors ? 'disabled' : ''; ?>>Next <div class="spinner" id="s1-spin"></div></button>
@@ -529,9 +688,53 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
 
 </div><!-- /.wizard -->
 
+<div class="modal-shell" id="setup-modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="setup-modal-title">
+    <h2 id="setup-modal-title"></h2>
+    <div id="setup-modal-body"></div>
+    <div class="modal-footer">
+      <div class="modal-path" id="setup-modal-path"></div>
+      <button type="button" class="btn btn-ghost" id="setup-modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const STEPS = 3;
 let currentStep = 1;
+const modalShell = document.getElementById('setup-modal');
+const modalTitle = document.getElementById('setup-modal-title');
+const modalBody = document.getElementById('setup-modal-body');
+const modalPath = document.getElementById('setup-modal-path');
+
+const MODAL_CONTENT = {
+  license: {
+    title: 'bandPromo license summary',
+    path: 'Full text shipped as /LICENSE',
+    body: `
+      <p>bandPromo is distributed as free software under the GNU Affero General Public License v3.</p>
+      <ul>
+        <li>You may use, study, modify, and share the software under that license.</li>
+        <li>If you run a modified version as a networked service, the AGPL expects the corresponding source to remain available under the same license terms.</li>
+        <li>The license gives you software freedoms, but it does not transfer responsibility for the site you operate.</li>
+      </ul>
+      <p>This setup step is here to make the rules visible up front, not to surprise operators later.</p>
+    `,
+  },
+  responsibility: {
+    title: 'Operator responsibility summary',
+    path: 'Full text shipped as docs/OPERATOR-RESPONSIBILITY.md',
+    body: `
+      <p>bandPromo provides the toolset. The operator remains responsible for the real site they run with it.</p>
+      <ul>
+        <li>You are responsible for what you publish, including audio, artwork, lyrics, text, branding, and any rights behind them.</li>
+        <li>You are responsible for privacy choices, hosting, backups, admin access, and enabled third-party integrations.</li>
+        <li>bandPromo can help with structure, validation, and workflows, but it does not replace legal review, operational review, or publishing judgment.</li>
+      </ul>
+      <p>The goal is clarity: the software should help operators, but it should not pretend to take over responsibilities that stay local to each installation.</p>
+    `,
+  },
+};
 
 // ─── Step indicator ─────────────────────────────────────────────────────────
 function setStepUI(step) {
@@ -579,16 +782,49 @@ function setDisabled(id, dis) {
   document.getElementById(id).disabled = dis;
 }
 
+function openModal(name) {
+  const content = MODAL_CONTENT[name];
+  if (!content) return;
+  modalTitle.textContent = content.title;
+  modalBody.innerHTML = content.body;
+  modalPath.textContent = content.path;
+  modalShell.classList.add('open');
+  modalShell.setAttribute('aria-hidden', 'false');
+}
+
+function closeModal() {
+  modalShell.classList.remove('open');
+  modalShell.setAttribute('aria-hidden', 'true');
+}
+
+document.querySelectorAll('.modal-open').forEach(button => {
+  button.addEventListener('click', () => openModal(button.dataset.modal));
+});
+
+document.getElementById('setup-modal-close').addEventListener('click', closeModal);
+modalShell.addEventListener('click', (event) => {
+  if (event.target === modalShell) {
+    closeModal();
+  }
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && modalShell.classList.contains('open')) {
+    closeModal();
+  }
+});
+
 // ─── STEP 1: Create account ───────────────────────────────────────────────────
 document.getElementById('s1-next').addEventListener('click', async () => {
   hideMsg('s1-error');
   const username  = document.getElementById('s1-username').value.trim();
   const password  = document.getElementById('s1-password').value;
   const password2 = document.getElementById('s1-password2').value;
+  const responsibilityAccepted = document.getElementById('s1-responsibility').checked;
 
   if (!username)           return showMsg('s1-error', 'Username is required.', 'error');
   if (password.length < 6) return showMsg('s1-error', 'Password must be at least 6 characters.', 'error');
   if (password !== password2) return showMsg('s1-error', 'Passwords do not match.', 'error');
+  if (!responsibilityAccepted) return showMsg('s1-error', 'Please confirm the license and operator responsibility note before continuing.', 'error');
 
   setDisabled('s1-next', true);
   setSpin('s1-spin', true);
@@ -597,7 +833,11 @@ document.getElementById('s1-next').addEventListener('click', async () => {
     const res  = await fetch('/biblioteca/setup-init.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({
+        username,
+        password,
+        responsibility_acknowledged: responsibilityAccepted,
+      }),
     });
     const data = await res.json();
     if (data.ok) {

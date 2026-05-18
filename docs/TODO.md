@@ -46,8 +46,19 @@ Scope: correctness and interpretability of observed behavior. Put items here whe
 
 Scope: reusable deployment, setup, and personalization. Put items here when they determine whether bandPromo can be installed again easily, configured without code surgery, and still feel specific to each deployment.
 
-- [ ] Test a fresh setup path from clone to working private release site.
-- [ ] Confirm README/setup docs still match the current actual workflow.
+- [x] Test a fresh setup path on a real hosted server and document the friction points in the current Git/Plesk/private-repo deployment path.
+- [ ] Replace the current repo-upload/Git-first installation story with an operator-first package story: one uploaded bootstrap PHP file, browser-led setup, and ZIP-based releases.
+- [ ] Define the bootstrap installer contract: required PHP capabilities, release ZIP download/extract flow, writable-path checks, runtime-file seeding, failure handling, and safe re-entry behavior.
+- [ ] Define the update contract for ZIP-based releases: which tracked app files are replaced, which runtime/user-managed paths are preserved (`web-config.json`, `.env`, `/data`, `/media`, logs), and which post-update tasks or migrations run automatically.
+- [ ] Define the package source/version-check contract: GitHub-hosted release ZIPs alongside the repo, with `VERSION` used as the first lightweight update check before download.
+- [ ] Define the admin-panel updater model around release packages instead of Git operations, including version checks, download/apply flow, integrity validation, restore-after-failure behavior, and operator messaging.
+- [ ] Define the release-observability model for installs and updates: GitHub release download counts as the passive baseline, plus an optional documented webhook/ping model for install/update events.
+- [ ] Define the install/update telemetry payload boundary before implementation: minimal event data, explicit opt-in, no audience tracking, no content data, and clear operator-facing disclosure/controls.
+- [ ] Define the setup-wizard consent UX for maintenance telemetry: a friendly plain-language question during setup, safe default behavior, and later admin controls for changing that choice.
+- [ ] Define the setup-wizard acknowledgment UX for license and operator responsibility: friendly plain-language summary, links to `LICENSE` and operator-responsibility docs, explicit confirmation, and wording that informs rather than pretending to waive real legal duties.
+- [ ] Define the installation-identity model before premium modules exist: a locally generated install ID plus a stronger install secret/keypair stored in runtime state, so telemetry and later entitlements do not depend on a copyable plain UID alone.
+- [ ] Define the premium-entitlement model for future paid modules/themes: core remains fully usable without activation, but paid add-ons must bind to a stronger installation identity with transfer/reissue/recovery rules so copying files or a visible ID is not enough to clone access.
+- [ ] Confirm README/setup docs match the intended operator workflow, not only the current developer/server-admin path.
 - [ ] Decide the minimal first-run verification model for reusable installs: documented empty-state setup, seeded demo content, or both.
 - [x] Fix localhost install/admin "Open site" link resolution so local setup and verification use the expected host.
 - [x] Rename Files -> `System` to Files -> `Theme` if that panel remains the home for install-specific branding/design assets.
@@ -152,6 +163,10 @@ Scope: first real tester/operator experience. Put items here when they concern h
 
 - [ ] Review admin help text and identify remaining confusing areas for non-technical operators.
 - [ ] Confirm trial-use caching/update behavior is reliable: aggressive caching where safe, low needless re-downloads, and no stale generated artifacts after updates.
+- [ ] Write operator-facing installation guidance for the future bootstrap installer, with no assumption of Plesk, SSH, Git, Cloudflare, or shell/root access.
+- [ ] Write operator-facing update guidance for the future admin/package updater so hosted users can stay current without developer/server-admin tools.
+- [ ] Define the first backup/restore operator flow so a site can be packed up, moved to another server, and restored without manual code surgery.
+- [ ] Define the moved-site recovery rule: setup/bootstrap should detect when runtime data was restored onto a new host and offer to repair host-specific config instead of treating it as a broken install.
 - [ ] Prepare a short tester checklist for the first closed beta.
 
 ## Post-v0.7 planning

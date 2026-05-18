@@ -19,9 +19,20 @@ if (file_exists(TERCES_FILE) && filesize(TERCES_FILE) > 0) {
         $body = json_decode(file_get_contents('php://input'), true);
         $username = trim($body['username'] ?? '');
         $password = $body['password'] ?? '';
+        $responsibilityAcknowledged = !empty($body['responsibility_acknowledged']);
         if ($username && $password && authenticate($username, $password) && isAdminUser($username)) {
+                    if (!$responsibilityAcknowledged) {
+                        http_response_code(400);
+                        echo json_encode(['ok' => false, 'error' => 'Please confirm the license and operator responsibility note before continuing.']);
+                        exit;
+                    }
             $_SESSION['authenticated'] = true;
             $_SESSION['username'] = $username;
+                    $_SESSION['setup_acknowledgment'] = [
+                        'accepted' => true,
+                        'accepted_at' => date('c'),
+                        'acknowledgment_version' => 'setup-operator-ack-v1',
+                    ];
             echo json_encode(['ok' => true]);
             exit;
         }
@@ -46,6 +57,7 @@ if (!is_array($body)) {
 
 $username = trim($body['username'] ?? '');
 $password = $body['password'] ?? '';
+$responsibilityAcknowledged = !empty($body['responsibility_acknowledged']);
 
 if ($username === '') {
     echo json_encode(['ok' => false, 'error' => 'Username is required.']);
@@ -57,6 +69,10 @@ if (!preg_match('/^[a-zA-Z0-9_\-]{1,64}$/', $username)) {
 }
 if (strlen($password) < 6) {
     echo json_encode(['ok' => false, 'error' => 'Password must be at least 6 characters.']);
+    exit;
+}
+if (!$responsibilityAcknowledged) {
+    echo json_encode(['ok' => false, 'error' => 'Please confirm the license and operator responsibility note before continuing.']);
     exit;
 }
 
@@ -111,5 +127,10 @@ file_put_contents($configPath, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCA
 // Auto-login
 $_SESSION['authenticated'] = true;
 $_SESSION['username'] = $username;
+$_SESSION['setup_acknowledgment'] = [
+    'accepted' => true,
+    'accepted_at' => date('c'),
+    'acknowledgment_version' => 'setup-operator-ack-v1',
+];
 
 echo json_encode(['ok' => true]);

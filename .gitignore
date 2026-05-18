@@ -2,6 +2,13 @@
 .DS_Store
 Thumbs.db
 
+# Runtime preservation checklist for future ZIP installs/updates:
+# - Keep operator-owned runtime state out of git so package installs/updates never overwrite it.
+# - The main preserved runtime roots are /data and /media.
+# - Local site config and environment files must also stay outside git.
+# - Some bundled demo media under /media remains intentionally tracked as install seed content,
+#   so the patterns below mix broad ignores with explicit keep-rules for shipped placeholders.
+
 # Google Drive sync artifacts (Windows + Google Drive File Sync creates these everywhere)
 # These MUST be ignored or they corrupt .git/refs/ when committed
 desktop.ini
@@ -36,12 +43,12 @@ node_modules/
 .env.*
 !.env.example
 
-# Sensitive data
+# Sensitive/local runtime config
 FTP_PASS
 credentials.txt
 web-config.json
 
-# User-managed content (stored in data/ at runtime, never overwritten by git pull)
+# User-managed content (stored in data/ at runtime, never overwritten by git pull or ZIP update)
 data/bio.html
 data/gallery.json
 data/faq.html
@@ -52,13 +59,14 @@ biblioteca/gallery.json
 # Build artifacts (generated from web-config.json)
 site.webmanifest
 
-# Data folders (server-managed)
+# Data folders (runtime/server-managed, always preserve on install/update)
 data/*
 log/
 # But track the .htaccess that protects the data folder
 !data/.htaccess
 
-# Media files (too large)
+# Media files (runtime/operator-managed, always preserve on install/update unless explicitly
+# shipped as bundled demo assets kept by the allow-rules below)
 *.flac
 *.mp3
 *.wav

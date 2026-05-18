@@ -119,6 +119,47 @@ Before v1.0, the platform should move toward:
 - branding and content changes that do not require manual code edits
 - setup workflows that a non-developer operator can realistically follow
 
+Current installation-policy clarification:
+
+- Git/Plesk/SSH deployment remains acceptable for developer-operated installs, but it is not the target operator path.
+- The baseline operator assumption should be reduced to: the host can serve files from a folder and supports PHP.
+- bandPromo should not assume Plesk, Cloudflare, shell access, SSH access, root access, cron access, or server-admin comfort for normal operators.
+
+Preferred operator install/update direction:
+
+- first install should move toward a one-file bootstrap PHP flow: upload one bootstrap file, open it in the browser, and let bandPromo fetch and install a release package automatically
+- install and update artifacts should be versioned ZIP/release packages rather than Git operations
+- release ZIPs should be published alongside the GitHub repository so install/update logic can use the same upstream source as the developer path without requiring Git credentials on operator hosts
+- lightweight version checks should be able to rely on the published `VERSION` file before downloading a full package
+- GitHub-hosted release downloads should also provide the first passive installation signal for project-level adoption tracking
+- the bootstrap flow should validate environment requirements, writable paths, and package integrity before handing off to the normal setup wizard
+- the setup wizard should also include a friendly acknowledgment step that reminds operators they are using AGPL-licensed self-hosted software and remain responsible for their content, rights, privacy choices, hosting, and enabled integrations
+- the update flow should preserve runtime/user-managed paths (`web-config.json`, `.env`, `data/`, `media/`, logs) while replacing tracked application files
+- the long-term best operator flow should include admin-panel updates driven by release packages, not by `git pull` or hosting-panel repository tools
+
+Observability preference for install/update adoption:
+
+- passive package-download counts from GitHub releases are the safest default signal and should be treated as coarse adoption data only
+- if bandPromo later reports install/update events centrally, that should be a separate explicit opt-in feature, not a hidden default behavior
+- the setup wizard should ask this in friendly plain language as a maintenance-success question, not as a technical telemetry toggle, and core product behavior must not depend on accepting it
+- any future install/update webhook should report only minimal product-maintenance data such as event type, version, optional channel, and a site-generated install identifier designed for future extensibility
+- install/update telemetry must not become audience analytics, playback tracking, or content reporting by another name
+- operators should be able to disable or never enable the webhook path without losing core install/update functionality
+- the basic install identifier used for maintenance reporting should be treated as a product identity primitive, but a plain copied UID is not a sufficient future basis for paid-module enforcement
+- if premium modules, themes, or other paid expansions are introduced later, they should bind entitlements to a stronger installation identity model such as a locally held secret or keypair plus server-issued activation state, so copying files alone is not enough to duplicate access
+
+Design constraints for that direction:
+
+- package installation must fail safely and explain what the operator needs to fix when hosting requirements are not met
+- the setup acknowledgment should be phrased as respectful operator guidance, not a hostile clickthrough wall, while still requiring a clear confirmation before first-run completion
+- updates must be resumable or retryable without leaving the install in an ambiguous half-updated state
+- package integrity should be treated as the first safety line: if the ZIP is verified and extraction succeeds, the install should be able to recover without depending on a complex rollback system
+- rollback is not the preferred primary strategy; a clearer recovery model is preserved runtime state plus a documented restore path
+- runtime migrations, cache refresh, build-required state, and post-update regeneration tasks must be part of the product contract, not left to manual shell steps
+- private-repo distribution should be treated as a developer path; the operator path should rely on release packages that do not require GitHub credentials or SSH keys
+- backup/restore should become a first-class operator feature: operators should be able to export their site state, move it to another host, and restore it there
+- moved-site recovery should be explicit: when restored runtime data no longer matches the current host/base URL, setup/bootstrap should recognize that situation and offer to repair host-specific config rather than forcing manual file edits
+
 ## Media intake and publishing strategy
 
 bandPromo should help non-technical artists move from weak source material to a professional publish-ready package without requiring external tagging or packaging tools.
@@ -641,6 +682,8 @@ The safest model is for payments, donations, purchases, subscriptions, and tips 
 
 If future support, membership, or premium-access features need provider-side verification or synchronization, bandPromo should treat that as an operator-owned integration layer for services such as Ko-fi, Patreon, Stripe, PayPal, Vipps, or similar APIs. That layer should stay provider-agnostic where practical, remain optional per installation, and be designed after the anonymous vs registered vs premium access model is defined clearly enough to know what bandPromo is actually enforcing.
 
+If bandPromo later sells premium modules, themes, or services directly, a simple visible installation UID will not be enough to protect those entitlements. The future-proof design boundary should be: core bandPromo stays fully functional without central activation, while paid expansions may rely on a stronger installation identity and provider-side entitlement check that can distinguish a legitimate moved/restored install from a copied clone.
+
 bandPromo should not become a central discovery catalog.
 
 A central catalog would change the project’s role. It could create moderation, ranking, takedown, spam, copyright, and platform-governance obligations. If discovery features are ever considered, they should be treated as a separate strategic decision with a much higher risk profile.
@@ -711,6 +754,7 @@ Mitigation:
 
 - require operators to accept responsibility during setup
 - include clear rights reminders in upload and publish flows
+- link setup acknowledgment copy directly to the shipped `LICENSE` and operator-responsibility documentation instead of hiding the actual terms behind vague UI summaries
 - provide optional metadata fields for credits and rights notes
 - avoid claims that bandPromo clears, verifies, licenses, or approves material
 - keep takedown responsibility local to the operator unless a future hosted service exists
@@ -727,6 +771,8 @@ Mitigation:
 - privacy documentation templates may be provided, but not presented as legal advice
 - operators should be reminded that they are responsible for their own privacy obligations
 - avoid central telemetry unless explicitly opt-in and documented
+- treat any future install/update webhook as maintenance telemetry only, with narrow payloads and explicit operator control
+- ask for that maintenance-reporting consent in friendly setup/admin language that makes the optional nature clear
 
 #### 4. Payment and tax risk
 

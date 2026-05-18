@@ -14,6 +14,15 @@ Current version: `v0.7`
 3. **Log in to the admin panel** (`/admin.php`) to upload media, edit content, and run builds.
 4. **Run the build** from the admin panel (or use `python scripts/build.py` if you have shell access).
 
+Current installation note:
+
+- The current repository-based install path is still best suited to developer/server-admin users.
+- The intended operator-facing direction is a simpler package installer: upload one bootstrap PHP file, open it in the browser, let it download/install a ZIP release, and then continue with the normal setup wizard.
+- That future setup flow should include a friendly acknowledgment step covering the AGPL license plus the operator responsibilities documented for content, rights, privacy, hosting, and enabled third-party services.
+- The intended long-term update path is also ZIP/package-based, ideally exposed through the admin panel rather than requiring Git, Plesk, SSH, or other hosting-panel tooling.
+- The preferred package source is versioned ZIP releases hosted alongside the repository on GitHub, with the tracked `VERSION` file used for update/version checks.
+- Future package installs/updates must preserve local runtime state such as `web-config.json`, `.env`, `/data`, `/media`, and logs.
+
 ---
 
 ## Requirements
@@ -50,3 +59,4 @@ bandPromo is licensed under the GNU Affero General Public License v3 (AGPLv3).
 See the LICENSE file for details. 
 Operator and deployment responsibilities are described in docs/OPERATOR-RESPONSIBILITY.md.
 Third-party tools and services used by the project are documented in docs/THIRD-PARTY-NOTICES.md.
+The intended first-run experience should explicitly ask operators to confirm that they understand those boundaries before completing setup.

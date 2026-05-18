@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-18 22:28 - Upgraded the first-run acknowledgment flow from a plain note to a recorded setup contract: `setup.php` now uses friendly in-wizard modals instead of raw document links, `setup-init.php` enforces explicit confirmation before setup can proceed, and `complete-setup.php` now writes a local `data/operator-acknowledgment.json` record alongside the normal setup-complete marker.
+
+2026-05-18 22:13 - Added the first setup-wizard acknowledgment for operator boundaries: `setup.php` now shows a friendly required confirmation covering the AGPL license and operator responsibilities, with direct links to the shipped license and responsibility documents before the admin account step can continue.
+
+2026-05-18 22:01 - Extended the setup-policy planning docs so the future install flow includes a friendly acknowledgment step for the AGPL license and operator responsibilities, with links back to the shipped responsibility and license documents instead of a vague one-line disclaimer.
+
+2026-05-18 21:53 - Refined the install/update observability plan with product-identity constraints: planning docs now require a friendly opt-in setup question for maintenance-success reporting, keep the core product independent of telemetry or activation, and reserve a stronger install-secret/entitlement model for any future paid modules or themes so a copied plain UID is not treated as sufficient licensing proof.
+
+2026-05-18 21:42 - Extended the pre-implementation install/update policy with observability rules: GitHub release download counts are now documented as the preferred passive adoption signal, while any future install/update webhook is explicitly framed as opt-in maintenance telemetry with minimal payloads and clear privacy boundaries.
+
+2026-05-18 21:33 - Refined the pre-implementation install/update policy: `.gitignore` now explicitly serves as the runtime-preservation checklist for future ZIP installs/updates, planning docs now lock GitHub-hosted ZIP releases plus `VERSION`-based update checks as the preferred operator path, and the roadmap/TODO now record backup/restore plus moved-site recovery as first-class future requirements.
+
+2026-05-18 21:22 - Locked the installation/update strategy in planning docs before implementation: bandPromo should move toward a one-file bootstrap installer plus ZIP-based release packages for both first installs and future updates, with Git/Plesk/SSH explicitly treated as a developer path rather than the expected operator workflow.
+
+2026-05-18 21:08 - Refined setup hostname naming for branded installs: the first-install wizard now preserves the intended `bandPromo` casing when deriving a site name from `bandpromo.site`, instead of falling back to generic title-casing as `Bandpromo`.
+
 2026-05-18 20:58 - Fixed first-install setup prefills for non-technical operators: the setup wizard now treats the shipped demo/template site profile as an unconfigured state and falls back to domain-derived defaults instead of showing placeholder values like `Your Site Name`, `https://example.com`, or the local demo site details on a fresh install.
 
 2026-05-16 17:12 - Checkpointed the audio-metadata workflow session as `v0.7 build 243`, syncing the media-handling doc's current-state reference with the required VERSION bump used for the push routine.
