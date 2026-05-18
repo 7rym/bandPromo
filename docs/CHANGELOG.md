@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-18 22:46 - Extended the recorded setup acknowledgment with install-location context: `complete-setup.php` now stores the current host plus both the current and configured site URL in `data/operator-acknowledgment.json`, so the installation record is more useful for later recovery, identity, and support checks.
+
 2026-05-18 22:28 - Upgraded the first-run acknowledgment flow from a plain note to a recorded setup contract: `setup.php` now uses friendly in-wizard modals instead of raw document links, `setup-init.php` enforces explicit confirmation before setup can proceed, and `complete-setup.php` now writes a local `data/operator-acknowledgment.json` record alongside the normal setup-complete marker.
 
 2026-05-18 22:13 - Added the first setup-wizard acknowledgment for operator boundaries: `setup.php` now shows a friendly required confirmation covering the AGPL license and operator responsibilities, with direct links to the shipped license and responsibility documents before the admin account step can continue.

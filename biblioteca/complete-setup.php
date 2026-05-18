@@ -8,6 +8,8 @@
 session_start();
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/config-loader.php';
+
 if (empty($_SESSION['authenticated'])) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'error' => 'Not authenticated.']);
@@ -29,6 +31,12 @@ if (!is_array($acknowledgment) || empty($acknowledgment['accepted'])) {
 
 $versionFile = __DIR__ . '/../VERSION';
 $version = file_exists($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
+$host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+$host = preg_replace('/:\d+$/', '', $host);
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$currentSiteUrl = $host !== '' ? $scheme . '://' . $host : null;
+$configuredSiteUrl = bandpromo_config_get_nonempty_value($config, 'install.site.url', null);
+$configuredSiteUrl = is_string($configuredSiteUrl) && trim($configuredSiteUrl) !== '' ? trim($configuredSiteUrl) : null;
 $ackFile = __DIR__ . '/../data/operator-acknowledgment.json';
 $ackRecord = [
     'accepted' => true,
@@ -37,6 +45,9 @@ $ackRecord = [
     'bandpromo_version' => $version,
     'username' => $_SESSION['username'] ?? null,
     'source' => 'setup-wizard',
+    'host' => $host !== '' ? $host : null,
+    'current_site_url' => $currentSiteUrl,
+    'configured_site_url' => $configuredSiteUrl,
     'documents' => [
         'LICENSE',
         'docs/OPERATOR-RESPONSIBILITY.md',
