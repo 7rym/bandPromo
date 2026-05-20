@@ -22,6 +22,28 @@ $appVersion = trim(@file_get_contents(__DIR__ . '/VERSION') ?: 'dev');
 $adminCsrfToken = get_csrf_token();
 $siteName  = get_config('release.identity.title', 'Admin');
 $siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
+$defaultThemeStatus = null;
+$defaultThemeMarkerPath = __DIR__ . '/data/default-theme-package.json';
+if (is_file($defaultThemeMarkerPath)) {
+    $defaultThemeMarker = json_decode((string) file_get_contents($defaultThemeMarkerPath), true);
+    if (is_array($defaultThemeMarker)) {
+        $installedAt = trim((string) ($defaultThemeMarker['installed_at_utc'] ?? ''));
+        $installedLabel = '';
+        if ($installedAt !== '') {
+            try {
+                $installedLabel = (new DateTimeImmutable($installedAt))->format('j M Y, H:i');
+            } catch (Throwable $throwable) {
+                $installedLabel = $installedAt;
+            }
+        }
+
+        $defaultThemeStatus = [
+            'version' => trim((string) ($defaultThemeMarker['version'] ?? '')), 
+            'installed_at' => $installedLabel,
+            'path_count' => is_array($defaultThemeMarker['paths'] ?? null) ? count($defaultThemeMarker['paths']) : 0,
+        ];
+    }
+}
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
 if ($requestHostNoPort === 'localhost') {
@@ -437,6 +459,28 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <p class="card-note">
                     bandPromo is built for operators who want more than another profile on someone else's platform. It gives you a professional, self-hosted home base where your presentation, your audience relationship, and your support paths stay under your control.
                 </p>
+            </div>
+
+            <div class="card">
+                <h3>Starter Design Pack</h3>
+                <?php if ($defaultThemeStatus !== null): ?>
+                    <p class="card-note">
+                        Your starter design pack is already in place, so this site has the default artwork, icons, and sample media it needs to finish setup and show a complete first version.
+                    </p>
+                    <p>
+                        Installed version: <strong><?php echo htmlspecialchars($defaultThemeStatus['version'] !== '' ? $defaultThemeStatus['version'] : 'Ready'); ?></strong>
+                        <?php if ($defaultThemeStatus['installed_at'] !== ''): ?>
+                            <br>Installed on this site: <?php echo htmlspecialchars($defaultThemeStatus['installed_at']); ?>
+                        <?php endif; ?>
+                        <?php if ($defaultThemeStatus['path_count'] > 0): ?>
+                            <br>Included starter files: <?php echo htmlspecialchars((string) $defaultThemeStatus['path_count']); ?>
+                        <?php endif; ?>
+                    </p>
+                <?php else: ?>
+                    <p class="card-note">
+                        This site has not recorded its starter design pack yet. If the site still looks unfinished or setup was interrupted earlier, open the Build tab and run the build once to let bandPromo fetch the default artwork and sample media automatically.
+                    </p>
+                <?php endif; ?>
             </div>
 
             <div class="card-grid two-up">

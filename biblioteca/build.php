@@ -149,7 +149,7 @@ try {
     $debug['default_theme_package'] = bandpromo_ensure_default_theme_package($root_dir);
 } catch (Throwable $throwable) {
     echo json_encode([
-        'error' => 'Could not prepare the required default theme package: ' . $throwable->getMessage(),
+        'error' => 'bandPromo could not prepare the starter design pack this site needs before the build can continue. ' . $throwable->getMessage(),
         'debug' => $debug,
     ]);
     exit;
