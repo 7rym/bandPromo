@@ -7,68 +7,57 @@ Current version: `v0.7`
 
 ---
 
-## Quick Start
+bandPromo is intended for artists and small operators who want to run a branded music site on their own hosting without depending on a centralized platform. The normal install path is now a browser-based bootstrap flow aimed at non-technical operators.
 
-Target operator workflow:
+## For Operators
 
-1. **Upload one bootstrap PHP file** to the target web folder.
-2. **Open it in the browser** so bandPromo can validate the host, download a package ZIP, and install the tracked application files.
-3. **Continue through the setup wizard** to create the first admin, confirm the operator responsibility note, and finish the site setup.
-4. **Land in the admin panel** with seeded demo content and a clear next-step checklist so the operator can verify the install and start replacing example content.
+Most installs should use the bootstrap method.
 
-Current manual/developer fallback:
+1. **Upload `bootstrap.php`** to the target web folder.
+2. **Open it in the browser** so bandPromo can check the host, download the latest published release package, and install the tracked application files.
+3. **Continue through the setup wizard** to create the first admin account, confirm the operator responsibility note, and finish setup.
+4. **Open the admin panel** to verify the seeded demo content and start replacing the example material with your own site details, media, and pages.
 
-1. **Upload the current repository tree** to a web server (via git, ZIP extraction, or file copy).
-2. **Open the site in your browser** so the setup wizard can create the admin user and runtime configuration.
-3. **Log in to the admin panel** (`/admin.php`) to upload media, edit content, and run builds.
-4. **Run the build** from the admin panel (or use `python scripts/build.py` if you have shell access).
+bandPromo is designed so the first-run experience can work with ordinary PHP hosting. The product direction is one uploaded bootstrap file, one browser-based install flow, and package-based updates rather than Git, SSH, Plesk, or other developer-oriented server tools.
 
-Current installation note:
+### Manual Alternative
 
-- The operator-facing direction is a one-file bootstrap installer plus packaged release ZIPs; that is the workflow the product docs should optimize for.
-- An initial standalone installer now exists as `bootstrap.php` in the project root. It performs environment checks, downloads a ZIP package, extracts it into place, preserves runtime state on re-entry, and then hands off to `setup.php`.
-- Distributable install packages are not produced by every build. They are produced only when explicitly requested, either locally with `python scripts/build_release_package.py`, through the manual GitHub Actions workflow `Build release package artifact`, or through the manual `Publish release package` workflow when a build should become an operator-facing immutable release.
-- The current repository-based install path remains a temporary manual/developer fallback and is still best suited to developer/server-admin users.
-- The setup flow includes a friendly acknowledgment step covering the AGPL license plus the operator responsibilities documented for content, rights, privacy, hosting, and enabled third-party services.
-- Reusable installs should seed demo content by default and confirm success primarily by opening admin with a next-step checklist, not by leaving operators at a blank public shell.
-- The intended long-term update path is ZIP/package-based through the admin panel rather than requiring Git, Plesk, SSH, or other hosting-panel tooling.
-- The preferred package source is immutable versioned ZIP releases hosted alongside the repository on GitHub, with the tracked `VERSION` file used for lightweight update/version checks.
-- The bootstrap installer now depends on the latest published `release-manifest.json` asset and installs the immutable package URL declared there; the normal operator flow no longer asks for a manual package ZIP URL or falls back to a mutable branch snapshot.
-- A plain GitHub branch snapshot such as `archive/refs/heads/main.zip` may still be acceptable for ad-hoc developer testing outside the operator flow, but it is no longer part of the bootstrap installer path because it is mutable and not tied to a stable packaged version.
-- Package installs/updates must preserve local runtime state such as `web-config.json`, `.env`, `/data`, `/media`, and logs.
+bandPromo can also work by uploading or cloning the repository and then opening `setup.php`, but that path is mainly for developers or server administrators. It is supported as a fallback, not as the primary operator story.
 
 ---
 
-## Requirements
+## Hosting Requirements
 
 - Web server: Apache/Nginx with PHP 8+
-- PHP extensions: `json`, `session`, `openssl`
+- For bootstrap install: `ZipArchive`, outbound HTTPS download support (`curl` or `allow_url_fopen`), and a writable target folder
 - HTTPS hosting required, HTTP support for localhost supported
-- For build: Python 3.8+, `Pillow`, `mutagen`, `ffmpeg`
+- For the build step: Python 3.8+, `Pillow`, `mutagen`, and `ffmpeg`
+
+If your hosting provider does not already support the build requirements, the bootstrap and setup flow now try to explain what needs to be enabled before continuing.
 
 ---
 
-## Documentation
+## Operator Documentation
 
 - [Features](docs/FEATURES.md) — Current features overview
 - [First Bootstrap Test Checklist](docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md) — Real-host smoke test checklist for the operator installer
 - [Install and Update Guide](docs/INSTALL-UPDATE.md) — Operator-facing install and planned package-update guidance
-- [Roadmap](docs/ROADMAP.md) — Long-term goals and milestones
-- [Media Handling](docs/MEDIA-HANDLING.md) — Source media policy, metadata, masters, and delivery strategy
-- [Third-Party Notices](docs/THIRD-PARTY-NOTICES.md) — Third-party libraries, tools, hosted services, and license notes
-- [Operator Responsibility](docs/OPERATOR-RESPONSIBILITY.md) — Operator boundaries
+- [Operator Responsibility](docs/OPERATOR-RESPONSIBILITY.md) — Content, rights, privacy, hosting, and integration boundaries
 - [Support](docs/SUPPORT.md) — Support and maintenance
+- [Third-Party Notices](docs/THIRD-PARTY-NOTICES.md) — Third-party libraries, tools, hosted services, and license notes
 - [Trademarks](docs/TRADEMARKS.md) — Naming and branding
 
----
+## For Developers
 
-**Tips:**
-- Source/demo audio does not have to be perfect, but reliable builds still depend on enough usable media information ([docs/MEDIA-HANDLING.md](docs/MEDIA-HANDLING.md)).
-- Local runtime files (`web-config.json`, `.env`, media, data, logs) are not tracked by git and should never be committed.
-- For repository pushes to `main`, bump the tracked build number locally first with `python scripts/bump_version.py` so the commit already contains the new `VERSION`.
-- To create a distributable install package intentionally, run `python scripts/build_release_package.py --clean`, trigger `Build release package artifact` for a private/manual artifact build, or trigger `Publish release package` when you want that build exposed as an immutable GitHub Release asset for bootstrap installs.
-- Use tracked templates for first-time setup: `biblioteca/templates/web-config.template.json`, `biblioteca/templates/gallery.template.json`, `biblioteca/templates/bio.template.html`, `biblioteca/templates/faq.template.html`, and `.env.example`.
-- For details on features, configuration, media handling, security, and roadmap: see the markdown files above.
+If you are evaluating bandPromo as a codebase rather than as an operator, start here instead:
+
+- [Development Guide](docs/DEVELOPMENT.md) — Repository workflow, manual install path, build/package commands, and release notes for developers
+- [Roadmap](docs/ROADMAP.md) — Long-term goals and milestones
+- [Media Handling](docs/MEDIA-HANDLING.md) — Source media policy, metadata, masters, and delivery strategy
+
+The preferred packaged operator flow and the repository/manual setup flow are both valid, but they serve different audiences. The README stays focused on operators; deeper repository workflow details now live in the development guide.
+
+---
 
 ## License
 

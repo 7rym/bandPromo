@@ -59,7 +59,7 @@ Scope: reusable deployment, setup, and personalization. Put items here when they
 - [x] Define and implement the setup-wizard acknowledgment UX for license and operator responsibility: friendly plain-language summary, in-wizard modals, explicit confirmation, recorded acceptance, and live verification on `bandpromo.site`.
 - [x] Define the installation-identity model before premium modules exist: a locally generated install ID plus a stronger install secret/keypair stored in runtime state, so telemetry and later entitlements do not depend on a copyable plain UID alone.
 - [x] Define the install-locked paid add-on entitlement model for future modules/themes/services: core remains fully usable without activation, but bandPromo-sold add-ons must bind to a stronger installation identity with transfer/reissue/recovery rules so copying files or a visible ID is not enough to clone access. Keep this separate from any future audience/member premium-access model inside an installation.
-- [x] Confirm README/setup docs match the intended operator workflow, not only the current developer/server-admin path.
+- [x] Confirm README/setup docs match the intended operator workflow, not only the current developer/server-admin path; the root README now stays operator-first while repository workflow details live in `docs/DEVELOPMENT.md`.
 - [x] Decide the minimal first-run verification model for reusable installs: documented empty-state setup, seeded demo content, or both.
 - [x] Fix localhost install/admin "Open site" link resolution so local setup and verification use the expected host.
 - [x] Rename Files -> `System` to Files -> `Theme` if that panel remains the home for install-specific branding/design assets.

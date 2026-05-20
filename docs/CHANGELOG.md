@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 13:09 - Reframed the root documentation around the real operator audience. `README.md` now keeps the top-level story focused on what bandPromo is, the preferred bootstrap install path, and the supported repository/manual fallback without developer-heavy release workflow detail. Added `docs/DEVELOPMENT.md` as the home for repository workflow, build/package commands, and release-publishing notes, tightened `docs/TODO.md` plus `docs/ROADMAP.md` so they reflect the current bootstrap-first install reality, and corrected the top-level requirement wording so the documented bootstrap requirements now match the actual installer checks (`PHP 8+`, `ZipArchive`, outbound HTTPS download support, and a writable target folder).
+
 2026-05-20 12:46 - Refined the final thank-you line in `setup.php` so the closing message now lands on its own emphasized line in the setup-complete screen.
 
 2026-05-20 12:37 - Hardened the install/setup entry points after reviewing post-setup security. `bootstrap.php` now immediately redirects completed installations to `admin.php` instead of exposing the installer again, `biblioteca/setup-init.php` now refuses to run once setup is complete and tags setup-authenticated sessions explicitly, and `biblioteca/complete-setup.php` now requires that active setup session and destroys it after writing the completion marker so operators see the normal login flow afterward.

@@ -112,6 +112,11 @@ bandPromo is distributed under the GNU Affero General Public License v3 (AGPLv3)
 
 bandPromo should be reproducible as software, not just clonable as a project.
 
+Current v0.7 install reality:
+
+- the preferred operator path is now the bootstrap installer plus the latest published release manifest/package
+- the repository-upload plus `setup.php` path still works, but it remains a developer/server-admin fallback rather than the main operator story
+
 Before v1.0, the platform should move toward:
 
 - installation and upgrade paths that are reproducible and documented
@@ -127,7 +132,7 @@ Current installation-policy clarification:
 
 Preferred operator install/update direction:
 
-- first install should move toward a one-file bootstrap PHP flow: upload one bootstrap file, open it in the browser, and let bandPromo fetch and install a release package automatically
+- first install should use a one-file bootstrap PHP flow: upload one bootstrap file, open it in the browser, and let bandPromo fetch and install a release package automatically
 - install and update artifacts should be versioned ZIP/release packages rather than Git operations
 - release ZIPs should be published alongside the GitHub repository so install/update logic can use the same upstream source as the developer path without requiring Git credentials on operator hosts
 - lightweight version checks should be able to rely on the published `VERSION` file before downloading a full package
