@@ -684,7 +684,8 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
       From here you can open the site to check that everything works for your audience, or jump straight into the Admin panel.
     </p>
     <p class="subtitle" style="text-align:center;margin-top:0;">
-      If you sign in on the player with an admin or developer account, a gear icon appears at the top left and takes you into the Admin panel. Thank you for joining us!
+      If you sign in on the player with an admin or developer account, a gear icon appears at the top left and takes you into the Admin panel.
+      <br><strong>Thank you for joining us!</strong>
     </p>
     <div class="done-links">
       <a href="/play/" class="link-play">Open site</a>
