@@ -19,6 +19,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
+require_once __DIR__ . '/release-package.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $log_dir   = $root_dir . '/log';
@@ -54,6 +55,7 @@ $debug = [
     'os' => PHP_OS_FAMILY,
     'launcher' => $is_windows ? 'windows-powershell-start-process' : 'unix-nohup-sh',
     'python' => null,
+    'default_theme_package' => null,
     'script' => $script,
     'launch_command' => null,
     'launch_exit_code' => null,
@@ -143,6 +145,16 @@ if (file_exists($lock_file)) {
     unlink($lock_file);
 }
 
+try {
+    $debug['default_theme_package'] = bandpromo_ensure_default_theme_package($root_dir);
+} catch (Throwable $throwable) {
+    echo json_encode([
+        'error' => 'Could not prepare the required default theme package: ' . $throwable->getMessage(),
+        'debug' => $debug,
+    ]);
+    exit;
+}
+
 // Ensure log directory exists and clear old log
 if (!is_dir($log_dir)) {
     mkdir($log_dir, 0750, true);
@@ -151,6 +163,11 @@ file_put_contents($log_file, '');
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Mode: " . $mode . "\n", FILE_APPEND);
+if (is_array($debug['default_theme_package'])) {
+    $themePackage = $debug['default_theme_package'];
+    $themeState = !empty($themePackage['installed']) ? 'downloaded' : 'already present';
+    file_put_contents($log_file, "DEBUG Default theme package: {$themeState} ({$themePackage['version']})\n", FILE_APPEND);
+}
 file_put_contents($meta_file, json_encode([
     'run_id' => $build_run_id,
     'mode' => $mode,

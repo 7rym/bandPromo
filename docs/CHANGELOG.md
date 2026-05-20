@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 10:02 - Moved the required demo/starter media contract out of `bootstrap.php` and into the setup/build path where it belongs. `scripts/build_release_package.py` now publishes a separate required default-theme asset ZIP alongside the core app ZIP and records it in `release-manifest.json`, while `biblioteca/build.php` now ensures that package is downloaded, checksum-verified, extracted, and recorded before the first build starts. `setup.php` and `docs/INSTALL-UPDATE.md` now reflect that bootstrap installs the app and setup is responsible for the required default-theme assets.
+
 2026-05-20 09:34 - Corrected the bootstrap seed-media fix after a second live retest on bandpromo.site: the packaged demo FLACs and `media/icons/bP-icons.zip` were still skipped because the installer preserved the `media/` directory before recursing into its children. `bootstrap.php` now still preserves operator-managed runtime media on updates while descending into preserved media folders that contain packaged seed assets, so fresh installs can actually copy the bundled demo inputs needed for the first successful build.
 
 2026-05-20 09:20 - Fixed the first real bootstrap-install blocker discovered during live testing: the release package already contained the tracked demo FLACs and `media/icons/bP-icons.zip`, but `bootstrap.php` was preserving the entire `media/` tree and therefore skipped those bundled seed assets on fresh installs. The bootstrap copy rules now still preserve operator-managed media on updates while allowing the packaged icon bundle and tracked `bandPromo_*` demo media to be copied into a brand-new install.

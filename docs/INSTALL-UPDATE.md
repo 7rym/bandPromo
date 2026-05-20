@@ -83,10 +83,11 @@ Setup should then:
 
 - create the first admin account
 - seed the required runtime files from tracked templates
+- download the required default theme package if its starter assets are not already present on the server
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 
-The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host.
+The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. The bootstrap installs the application itself; the setup build step is responsible for ensuring the required default-theme asset package is present before the first build runs.
 
 ## If the bootstrap stops
 

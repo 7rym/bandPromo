@@ -658,7 +658,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
   <!-- STEP 3: Build -->
   <div class="panel" id="panel-3">
     <h1>Build site</h1>
-    <p class="subtitle">Generate config and optimize media files.</p>
+    <p class="subtitle">Generate config and optimize media files. If the required default theme assets are missing, setup will download them automatically before the build starts.</p>
     <div class="msg error" id="s3-error"></div>
 
     <div id="build-log" style="margin-bottom:14px;"></div>

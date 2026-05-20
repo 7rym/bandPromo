@@ -39,6 +39,10 @@ EXCLUDED_FILES = {
     "desktop.ini",
 }
 
+DEFAULT_THEME_PREFIXES = (
+    "media/",
+)
+
 
 def read_version() -> str:
     version_text = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
@@ -81,6 +85,10 @@ def package_name(version_text: str) -> str:
     return f"bandpromo-{slugify_version(version_text)}.zip"
 
 
+def default_theme_package_name(version_text: str) -> str:
+    return f"bandpromo-default-theme-{slugify_version(version_text)}.zip"
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -89,19 +97,20 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def build_zip(
-    output_dir: Path,
-    package_url_base: str | None = None,
-    manifest_url: str | None = None,
-    release_tag: str | None = None,
-) -> tuple[Path, dict[str, object]]:
-    version_text = read_version()
-    files = tracked_files()
-    if not files:
-        raise RuntimeError("No tracked files found to package.")
+def split_release_files(files: list[str]) -> tuple[list[str], list[str]]:
+    app_files: list[str] = []
+    default_theme_files: list[str] = []
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    archive_path = output_dir / package_name(version_text)
+    for relative_path in files:
+        if any(relative_path.startswith(prefix) for prefix in DEFAULT_THEME_PREFIXES):
+            default_theme_files.append(relative_path)
+        else:
+            app_files.append(relative_path)
+
+    return app_files, default_theme_files
+
+
+def write_zip(archive_path: Path, files: list[str]) -> None:
     if archive_path.exists():
         archive_path.unlink()
 
@@ -112,29 +121,65 @@ def build_zip(
                 continue
             archive.write(source_path, relative_path)
 
+
+def build_zip(
+    output_dir: Path,
+    package_url_base: str | None = None,
+    manifest_url: str | None = None,
+    release_tag: str | None = None,
+) -> tuple[Path, Path, dict[str, object]]:
+    version_text = read_version()
+    files = tracked_files()
+    if not files:
+        raise RuntimeError("No tracked files found to package.")
+
+    app_files, default_theme_files = split_release_files(files)
+    if not app_files:
+        raise RuntimeError("No tracked application files found to package.")
+    if not default_theme_files:
+        raise RuntimeError("No tracked default theme files found to package.")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = output_dir / package_name(version_text)
+    default_theme_archive_path = output_dir / default_theme_package_name(version_text)
+
+    write_zip(archive_path, app_files)
+    write_zip(default_theme_archive_path, default_theme_files)
+
     manifest = {
         "version": version_text,
         "package_file": archive_path.name,
         "sha256": sha256_file(archive_path),
         "git_commit": git("rev-parse", "HEAD"),
-        "tracked_file_count": len(files),
+        "tracked_file_count": len(app_files),
         "generated_at_utc": git("show", "-s", "--format=%cI", "HEAD"),
         "notes": [
             "This package is built only on explicit operator/developer action.",
-            "Tracked runtime state such as web-config.json, .env, data/, log/, and media/ is excluded from the package surface by repository policy.",
+            "Tracked runtime state such as web-config.json, .env, data/, and log/ is excluded from the package surface by repository policy.",
+            "Tracked media starter assets are published separately as a required default theme package that setup installs before the first build.",
         ],
+        "default_theme_package": {
+            "version": version_text,
+            "package_file": default_theme_archive_path.name,
+            "sha256": sha256_file(default_theme_archive_path),
+            "tracked_file_count": len(default_theme_files),
+            "paths": default_theme_files,
+            "role": "required_setup_assets",
+        },
     }
 
     if package_url_base:
         manifest["package_url"] = package_url_base.rstrip("/") + "/" + archive_path.name
+        manifest["default_theme_package"]["package_url"] = package_url_base.rstrip("/") + "/" + default_theme_archive_path.name
     if manifest_url:
         manifest["manifest_url"] = manifest_url
     if release_tag:
         manifest["release_tag"] = release_tag
+        manifest["default_theme_package"]["release_tag"] = release_tag
 
     manifest_path = output_dir / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    return archive_path, manifest
+    return archive_path, default_theme_archive_path, manifest
 
 
 def parse_args() -> argparse.Namespace:
@@ -184,7 +229,7 @@ def main() -> int:
         shutil.rmtree(output_dir, onexc=handle_remove_readonly)
 
     try:
-        archive_path, manifest = build_zip(
+        archive_path, default_theme_archive_path, manifest = build_zip(
             output_dir,
             package_url_base=args.package_url_base,
             manifest_url=args.manifest_url,
@@ -195,9 +240,11 @@ def main() -> int:
         return 1
 
     print(f"Built package: {archive_path}")
+    print(f"Built default theme package: {default_theme_archive_path}")
     print(f"Version: {manifest['version']}")
     print(f"SHA256: {manifest['sha256']}")
-    print(f"Tracked files: {manifest['tracked_file_count']}")
+    print(f"App package tracked files: {manifest['tracked_file_count']}")
+    print(f"Default theme tracked files: {manifest['default_theme_package']['tracked_file_count']}")
     return 0
 
 
