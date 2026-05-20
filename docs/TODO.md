@@ -47,7 +47,7 @@ Scope: correctness and interpretability of observed behavior. Put items here whe
 Scope: reusable deployment, setup, and personalization. Put items here when they determine whether bandPromo can be installed again easily, configured without code surgery, and still feel specific to each deployment.
 
 - [x] Test a fresh setup path on a real hosted server and document the friction points in the current Git/Plesk/private-repo deployment path.
-- [ ] Finish replacing the current repo-upload/Git-first installation story with an operator-first package story: `bootstrap.php` now prefers a published `release-manifest.json` asset and a manual release-publish workflow now exists, but the final operator flow still needs release/version discovery defaults and the remaining manual/developer fallback removed.
+- [x] Finish replacing the current repo-upload/Git-first installation story with an operator-first package story: `bootstrap.php` now discovers the published `release-manifest.json` asset as the authoritative operator source, defaults to the published release/version automatically, and no longer exposes the old manual/developer ZIP fallback in the normal install path.
 - [x] Add an explicit distributable-package builder path that does not run on every build: a manual script/workflow should create install ZIPs only for builds that intentionally qualify as operator-facing packages.
 - [x] Define the bootstrap installer contract: required PHP capabilities, release ZIP download/extract flow, writable-path checks, runtime-file seeding, failure handling, and safe re-entry behavior.
 - [x] Define the update contract for ZIP-based releases: which tracked app files are replaced, which runtime/user-managed paths are preserved (`web-config.json`, `.env`, `/data`, `/media`, logs), and which post-update tasks or migrations run automatically.
@@ -164,11 +164,14 @@ Scope: first real tester/operator experience. Put items here when they concern h
 
 - [ ] Review admin help text and identify remaining confusing areas for non-technical operators.
 - [ ] Confirm trial-use caching/update behavior is reliable: aggressive caching where safe, low needless re-downloads, and no stale generated artifacts after updates.
-- [ ] Write operator-facing installation guidance for the future bootstrap installer, with no assumption of Plesk, SSH, Git, Cloudflare, or shell/root access.
-- [ ] Write operator-facing update guidance for the future admin/package updater so hosted users can stay current without developer/server-admin tools.
-- [ ] Define the first backup/restore operator flow so a site can be packed up, moved to another server, and restored without manual code surgery.
-- [ ] Define the moved-site recovery rule: setup/bootstrap should detect when runtime data was restored onto a new host and offer to repair host-specific config instead of treating it as a broken install.
-- [ ] Prepare a short tester checklist for the first closed beta.
+- [x] Write operator-facing installation guidance for the future bootstrap installer, with no assumption of Plesk, SSH, Git, Cloudflare, or shell/root access.
+- [x] Write operator-facing update guidance for the future admin/package updater so hosted users can stay current without developer/server-admin tools.
+- [x] Prepare a short tester checklist for the first closed beta.
+
+Deferred to v0.8:
+
+- backup/restore operator flow definition
+- moved-site recovery and host-specific config repair flow
 
 ## Post-v0.7 planning
 
@@ -192,15 +195,13 @@ Scope: first real tester/operator experience. Put items here when they concern h
 
 ### PWA offline audio caching and offline logging
 
-- [ ] Replace PHP-streamed audio delivery with an architecture that can support both scalable playback and offline-capable cached audio delivery
 - [ ] Define the protected-audio delivery model for production: PHP authorization plus web-server/static delivery handoff, signed URLs, or equivalent protected media strategy
 - [ ] Define which core services can work offline, which should degrade gracefully, and which still require online authorization/runtime support
 - [ ] Define the installed-phone success criteria: what must feel better in the PWA than in the browser, especially offline listening, startup behavior, update reliability, and media availability
 - [ ] Audit `service-worker.js` end to end: current exclusions, cache strategy, stale-asset risks, update behavior, and which legacy workarounds should be removed
 - [ ] Audit update propagation and cache invalidation for installed PWAs so phones can cache aggressively without getting stuck on stale player, config, gallery, or shell assets
-- [ ] Implement service worker audio caching for offline playback only after the audio delivery path is cacheable and no longer depends on PHP byte streaming
-- [ ] Add cache management for audio (eviction, update handling)
-- [ ] Implement offline logging (store logs locally when offline, sync when online)
+- [ ] Lock the v0.8 architecture direction now: no future playback path should keep PHP in the long-lived audio byte-delivery path
+- [ ] Move the actual delivery/caching/offline implementation work into the v0.8 scaling plan: protected delivery handoff, player contract changes, service worker audio caching, cache eviction, and offline log sync
 
 ## Notes
 

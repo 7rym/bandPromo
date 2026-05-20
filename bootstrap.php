@@ -5,7 +5,6 @@ header('Content-Type: text/html; charset=utf-8');
 
 const BANDPROMO_BOOTSTRAP_WORKDIR = '.bandpromo-bootstrap';
 const BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
-const BANDPROMO_BOOTSTRAP_DEFAULT_PACKAGE_URL = 'https://github.com/7rym/bandPromo/archive/refs/heads/main.zip';
 
 function bandpromo_bootstrap_h(string $value): string {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -238,6 +237,10 @@ function bandpromo_bootstrap_load_manifest(string $manifestUrl): array {
     throw new RuntimeException('Release manifest is missing package_url.');
   }
 
+  if (empty($decoded['version']) || !is_string($decoded['version'])) {
+    throw new RuntimeException('Release manifest is missing version.');
+  }
+
   return $decoded;
 }
 
@@ -403,22 +406,22 @@ try {
   $releaseManifestError = $throwable->getMessage();
 }
 
-$packageUrl = trim((string) ($_POST['package_url'] ?? ($releaseManifest['package_url'] ?? BANDPROMO_BOOTSTRAP_DEFAULT_PACKAGE_URL)));
-$expectedSha256 = null;
-
-if ($releaseManifest !== null && $packageUrl === (string) $releaseManifest['package_url']) {
-  $expectedSha256 = isset($releaseManifest['sha256']) && is_string($releaseManifest['sha256'])
-    ? $releaseManifest['sha256']
-    : null;
-}
+$packageUrl = $releaseManifest !== null ? trim((string) $releaseManifest['package_url']) : '';
+$expectedSha256 = $releaseManifest !== null && isset($releaseManifest['sha256']) && is_string($releaseManifest['sha256'])
+  ? $releaseManifest['sha256']
+  : null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'install') {
     if (bandpromo_bootstrap_has_blocking_failures($checks)) {
         $errors[] = 'Fix the blocking environment checks before starting the installer.';
     }
 
+    if ($releaseManifest === null) {
+        $errors[] = 'No published immutable release package was discovered. Publish a release package first, then reload this installer.';
+    }
+
     if ($packageUrl === '') {
-        $errors[] = 'Enter a package ZIP URL before starting the installer.';
+        $errors[] = 'The published release manifest did not provide a usable package URL.';
     }
 
     if ($errors === []) {
@@ -640,7 +643,7 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
     <section class="hero">
       <div class="eyebrow">bandPromo Installer</div>
       <h1>Install bandPromo from one browser page.</h1>
-      <p>This bootstrap installer is the package-entry point that should replace manual repository uploads for normal operators. Today it already performs environment checks, downloads a package ZIP, unpacks the application into this folder, preserves runtime state on re-entry, and then hands off to the normal setup wizard.</p>
+      <p>This bootstrap installer is the package-entry point that should replace manual repository uploads for normal operators. It performs environment checks, discovers the latest published release package, unpacks the application into this folder, preserves runtime state on re-entry, and then hands off to the normal setup wizard.</p>
     </section>
 
     <div class="grid">
@@ -677,12 +680,13 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
           <?php if (!empty($releaseManifest['release_tag'])): ?>
             <li>Release tag: <code><?= bandpromo_bootstrap_h((string) $releaseManifest['release_tag']) ?></code></li>
           <?php endif; ?>
+          <li>Package source: <code><?= bandpromo_bootstrap_h((string) $releaseManifest['package_url']) ?></code></li>
           <?php if (!empty($releaseManifest['sha256'])): ?>
             <li>Checksum verification: <code>SHA256</code> available and will be enforced during install.</li>
           <?php endif; ?>
         </ul>
       <?php else: ?>
-        <p>No published release manifest was discovered automatically. The installer can still use a manually pasted package ZIP URL, but that is a development fallback.</p>
+        <p>No published release manifest was discovered automatically. The operator install flow now requires a published immutable release package before installation can continue.</p>
         <?php if ($releaseManifestError !== null): ?>
           <p>Manifest lookup detail: <?= bandpromo_bootstrap_h($releaseManifestError) ?></p>
         <?php endif; ?>
@@ -709,16 +713,12 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
         </div>
       <?php endif; ?>
 
-      <p>Use an immutable release ZIP when available. The installer now tries the latest published release manifest first; if no published release exists yet, the field below falls back to the current GitHub branch snapshot for development and early testing only.</p>
+      <p>The operator installer now uses the latest published immutable release discovered from the manifest. Manual ZIP URLs and mutable branch snapshots are no longer part of the normal install path.</p>
 
       <form method="post">
         <input type="hidden" name="action" value="install">
-        <div class="field">
-          <label for="package_url">Package ZIP URL</label>
-          <input id="package_url" type="url" name="package_url" value="<?= bandpromo_bootstrap_h($packageUrl) ?>" required>
-        </div>
         <div class="actions">
-          <button type="submit"<?= bandpromo_bootstrap_has_blocking_failures($checks) ? ' disabled' : '' ?>>Download and install</button>
+          <button type="submit"<?= bandpromo_bootstrap_has_blocking_failures($checks) || $releaseManifest === null || $packageUrl === '' ? ' disabled' : '' ?>>Download and install latest release</button>
           <?php if ($successMessage !== null || is_file($root . DIRECTORY_SEPARATOR . 'setup.php')): ?>
             <a class="button-link" href="setup.php">Open setup</a>
           <?php endif; ?>

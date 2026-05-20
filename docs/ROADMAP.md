@@ -532,10 +532,12 @@ Documentation rule for this strategy:
 
 ### PWA Roadmap
 
-- Service worker audio caching for offline playback
-- Robust range/download support in PHP endpoint
-- Offline logging and sync mechanism
-- Offline fallback for core services
+- v0.8 should treat playback delivery, caching, and offline support as one scaling architecture track rather than as isolated PWA polish
+- PHP should authorize access, but long-lived audio byte delivery should move to a cache-friendly protected/static delivery path instead of PHP byte streaming
+- safe aggressive caching needs an explicit contract across immutable build assets, revalidated runtime data, and protected media delivery
+- service worker audio caching should only land after the delivery path is cacheable and update-safe
+- installed-PWA reliability should be part of the architecture scope: shell update propagation, stale-cache avoidance, and bounded offline storage/eviction
+- offline logging and sync remain part of the target model, but they should follow the delivery/cache redesign rather than block it
 
 - Responsive design must work for all common screen sizes:
     - 360–430px: Mobile (vertical)

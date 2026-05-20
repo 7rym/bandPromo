@@ -33,8 +33,8 @@ Current installation note:
 - Reusable installs should seed demo content by default and confirm success primarily by opening admin with a next-step checklist, not by leaving operators at a blank public shell.
 - The intended long-term update path is ZIP/package-based through the admin panel rather than requiring Git, Plesk, SSH, or other hosting-panel tooling.
 - The preferred package source is immutable versioned ZIP releases hosted alongside the repository on GitHub, with the tracked `VERSION` file used for lightweight update/version checks.
-- The bootstrap installer now looks for the latest published `release-manifest.json` asset first. If no published immutable release exists yet, it accepts a package ZIP URL directly and falls back to the current GitHub branch snapshot only for manual development/testing.
-- A plain GitHub branch snapshot such as `archive/refs/heads/main.zip` may still be acceptable for manual developer testing, but it is not the intended operator install/update source because it is mutable and not tied to a stable packaged version.
+- The bootstrap installer now depends on the latest published `release-manifest.json` asset and installs the immutable package URL declared there; the normal operator flow no longer asks for a manual package ZIP URL or falls back to a mutable branch snapshot.
+- A plain GitHub branch snapshot such as `archive/refs/heads/main.zip` may still be acceptable for ad-hoc developer testing outside the operator flow, but it is no longer part of the bootstrap installer path because it is mutable and not tied to a stable packaged version.
 - Package installs/updates must preserve local runtime state such as `web-config.json`, `.env`, `/data`, `/media`, and logs.
 
 ---
@@ -51,6 +51,8 @@ Current installation note:
 ## Documentation
 
 - [Features](docs/FEATURES.md) — Current features overview
+- [First Bootstrap Test Checklist](docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md) — Real-host smoke test checklist for the operator installer
+- [Install and Update Guide](docs/INSTALL-UPDATE.md) — Operator-facing install and planned package-update guidance
 - [Roadmap](docs/ROADMAP.md) — Long-term goals and milestones
 - [Media Handling](docs/MEDIA-HANDLING.md) — Source media policy, metadata, masters, and delivery strategy
 - [Third-Party Notices](docs/THIRD-PARTY-NOTICES.md) — Third-party libraries, tools, hosted services, and license notes

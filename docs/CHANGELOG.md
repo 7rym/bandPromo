@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 00:56 - Added `docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md` as a narrow real-host smoke-test checklist for the operator installer, linked it from `README.md`, and marked the first tester-checklist task complete in `docs/TODO.md`. The checklist also records the two current blockers to the first full hosted bootstrap trial: no reachable published release manifest yet and no deployed `bootstrap.php` URL yet.
+
+2026-05-20 00:43 - Narrowed the remaining v0.7 beta-readiness scope: `docs/TODO.md` now explicitly defers backup/restore flow design and moved-site recovery handling to v0.8 instead of treating them as v0.7 blockers.
+
+2026-05-20 00:31 - Added the first operator-facing install/update guidance document as `docs/INSTALL-UPDATE.md`, written for non-technical hosted operators rather than Git/SSH users. `README.md` and `docs/SUPPORT.md` now point to that guide, and `docs/TODO.md` marks the bootstrap-install and future package-updater guidance tasks complete.
+
+2026-05-20 00:13 - Finished the operator-first bootstrap install path for the v0.7 reusability gate: `bootstrap.php` now requires the published `release-manifest.json` as the authoritative release source, validates that the manifest exposes both version and package URL, installs the discovered immutable package without a user-editable ZIP field, and no longer falls back to the mutable `main.zip` branch snapshot in the normal operator flow. `README.md` and `docs/TODO.md` now reflect that the bootstrap path is manifest-driven rather than a manual URL entry flow.
+
+2026-05-19 01:18 - Reframed the mobile-data/offline playback work as a v0.8 scaling architecture track instead of a late v0.7 implementation bucket: `docs/ROADMAP.md` now treats playback delivery, caching, and installed-PWA reliability as one architecture effort, while `docs/TODO.md` keeps only the definition/audit tasks in the current milestone and explicitly pushes the actual delivery/cache/offline implementation work into v0.8.
+
 2026-05-19 01:02 - Wired the next immutable-release slice for the operator installer path: `bootstrap.php` now tries the latest published `release-manifest.json` asset before falling back to a manual ZIP URL, verifies SHA256 when the manifest provides it, `scripts/build_release_package.py` can now emit release-aware manifest fields, and `.github/workflows/publish-release-package.yml` adds an explicit manual publish path for builds that should become immutable GitHub Release assets.
 
 2026-05-19 00:48 - Added an explicit distributable-package builder path instead of packaging every build automatically: `scripts/build_release_package.py` now assembles a tracked-file install ZIP plus checksum manifest, and `.github/workflows/build-release-package.yml` exposes the same step as a manual `workflow_dispatch` action. `README.md` documents that install packages are created only on intentional action, and `docs/TODO.md` now marks that manual packaging-path decision complete.
