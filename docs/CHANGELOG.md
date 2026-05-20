@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 11:41 - Polished setup step 3 for first-run operators. `setup.php` now introduces the build phase as "Downloading demo content and building site" with friendlier first-run copy and a `Start building` action, while `biblioteca/build.php` and `biblioteca/release-package.php` now write explicit starter-pack progress lines into the build log for checking, downloading, verifying, extracting, and installing the demo package before the normal site build starts.
+
+2026-05-20 11:10 - Refocused the `bootstrap.php` post-install flow after a real test-server pass. The numbered step cards now own the operator journey: install lives in step 1, successful install turns step 1 into a success state, step 2 becomes the promoted setup action, the duplicate setup panel is gone, and latest-package status now appears as one more prerequisite card instead of a visually separate panel.
+
+2026-05-20 10:52 - Compressed the `bootstrap.php` installer layout into a shorter, friendlier operator flow. The primary install action is now a green success button, the redundant `Ready when you are` panel is gone, release-package status now lives inside the `Before you install` section, and the success-state `What happens next` steps now sit directly under the welcome confirmation instead of reading like a separate document.
+
+2026-05-20 10:40 - Compacted the `bootstrap.php` environment-check wording again after another local UX read. Failed check cards now describe only the missing requirement instead of repeating "ask your hosting provider" on every item, while the provider-help box now includes the exact site/domain and install-folder path the operator can send along with the generated request list.
+
+2026-05-20 10:35 - Tightened the blocked-state operator experience in `bootstrap.php` after a local UX pass. The welcome area no longer teases setup before installation has succeeded, the disabled hero action is replaced with a clearer waiting message, release-support detail is tucked behind a secondary disclosure, and failed environment checks now generate an exact ready-to-send request the operator can forward to their hosting provider.
+
+2026-05-20 10:28 - Rewrote the operator-facing `bootstrap.php` welcome flow so the installer feels encouraging instead of technical. The page now leads with a top-level install button and motivational copy, turns environment checks into plain-language readiness/help messages for hosting providers, simplifies the "what happens next" explanation into three operator steps, and makes failed checks stop with calmer wording that explains nothing was changed and what kind of help is needed.
+
+2026-05-20 10:03 - Cleared the GitHub Actions Node 20 deprecation warning in the manual release-publish workflow. `.github/workflows/publish-release-package.yml` now uses `actions/checkout@v6`, `actions/setup-python@v6`, and `softprops/action-gh-release@v3`, moving the workflow onto the current Node 24 action runtime without changing the release-publish behavior.
+
 2026-05-20 10:18 - Softened the new setup-theme-package language for nontechnical operators. `setup.php` now describes the required media bundle as a starter design pack instead of a package dependency, `biblioteca/build.php` now returns a friendlier setup error if that pack cannot be prepared, and `admin.php` now shows a plain-language Welcome card explaining whether the starter design pack is already installed on the site.
 
 2026-05-20 10:02 - Moved the required demo/starter media contract out of `bootstrap.php` and into the setup/build path where it belongs. `scripts/build_release_package.py` now publishes a separate required default-theme asset ZIP alongside the core app ZIP and records it in `release-manifest.json`, while `biblioteca/build.php` now ensures that package is downloaded, checksum-verified, extracted, and recorded before the first build starts. `setup.php` and `docs/INSTALL-UPDATE.md` now reflect that bootstrap installs the app and setup is responsible for the required default-theme assets.

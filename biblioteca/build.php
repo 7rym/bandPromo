@@ -145,9 +145,27 @@ if (file_exists($lock_file)) {
     unlink($lock_file);
 }
 
+// Lock immediately so package preparation also counts as in-progress work.
+file_put_contents($lock_file, 'preparing');
+
+// Ensure log directory exists and clear old log before preparing the starter pack.
+if (!is_dir($log_dir)) {
+    mkdir($log_dir, 0750, true);
+}
+file_put_contents($log_file, '');
+file_put_contents($log_file, "[setup] Preparing your first build...\n", FILE_APPEND);
+
 try {
-    $debug['default_theme_package'] = bandpromo_ensure_default_theme_package($root_dir);
+    $debug['default_theme_package'] = bandpromo_ensure_default_theme_package(
+        $root_dir,
+        BANDPROMO_RELEASE_MANIFEST_URL,
+        static function (string $message) use ($log_file): void {
+            file_put_contents($log_file, $message . "\n", FILE_APPEND);
+        }
+    );
 } catch (Throwable $throwable) {
+    file_put_contents($log_file, '[starter pack] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
+    @unlink($lock_file);
     echo json_encode([
         'error' => 'bandPromo could not prepare the starter design pack this site needs before the build can continue. ' . $throwable->getMessage(),
         'debug' => $debug,
@@ -155,11 +173,6 @@ try {
     exit;
 }
 
-// Ensure log directory exists and clear old log
-if (!is_dir($log_dir)) {
-    mkdir($log_dir, 0750, true);
-}
-file_put_contents($log_file, '');
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Mode: " . $mode . "\n", FILE_APPEND);

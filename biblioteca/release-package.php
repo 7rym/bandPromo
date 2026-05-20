@@ -5,6 +5,12 @@ const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releas
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
 
+function bandpromo_release_log(?callable $logger, string $message): void {
+    if ($logger !== null) {
+        $logger($message);
+    }
+}
+
 function bandpromo_release_ensure_dir(string $path): void {
     if (is_dir($path)) {
         return;
@@ -319,10 +325,12 @@ function bandpromo_release_write_default_theme_marker(string $root, array $packa
     file_put_contents($markerPath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 }
 
-function bandpromo_ensure_default_theme_package(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
+function bandpromo_ensure_default_theme_package(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL, ?callable $logger = null): array {
+    bandpromo_release_log($logger, '[starter pack] Checking for the required demo content package...');
     $manifest = bandpromo_release_load_manifest($manifestUrl);
     $package = bandpromo_release_default_theme_package($manifest);
     if (bandpromo_release_default_theme_is_current($root, $package)) {
+        bandpromo_release_log($logger, '[starter pack] Demo content is already present.');
         return [
             'installed' => false,
             'version' => $package['version'],
@@ -338,8 +346,11 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
 
     bandpromo_release_rrmdir($workDir);
     bandpromo_release_ensure_dir($extractDir);
+
+    bandpromo_release_log($logger, '[starter pack] Downloading demo content package...');
     bandpromo_release_download_file($package['package_url'], $downloadPath);
 
+    bandpromo_release_log($logger, '[starter pack] Verifying downloaded demo content package...');
     $actualSha256 = bandpromo_release_sha256_file($downloadPath);
     if ($actualSha256 !== $package['sha256']) {
         throw new RuntimeException('Default theme package checksum did not match the published release manifest.');
@@ -351,12 +362,14 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
         throw new RuntimeException('Could not open downloaded default theme package ZIP.');
     }
 
+    bandpromo_release_log($logger, '[starter pack] Extracting demo content package...');
     if (!$zip->extractTo($extractDir)) {
         $zip->close();
         throw new RuntimeException('Could not extract the default theme package ZIP.');
     }
     $zip->close();
 
+    bandpromo_release_log($logger, '[starter pack] Installing demo content into this site...');
     bandpromo_release_copy_tree($extractDir, $root);
     if (!bandpromo_release_default_theme_paths_present($root, $package['paths'])) {
         throw new RuntimeException('Default theme package was extracted, but required asset files are still missing.');
@@ -364,6 +377,7 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
 
     bandpromo_release_write_default_theme_marker($root, $package);
     bandpromo_release_rrmdir($workDir);
+    bandpromo_release_log($logger, '[starter pack] Demo content package installed successfully.');
 
     return [
         'installed' => true,

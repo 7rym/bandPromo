@@ -103,6 +103,103 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
     ];
 }
 
+  function bandpromo_bootstrap_install_target_context(string $root): array {
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+      $host = 'this site';
+    }
+
+    return [
+      'site' => $host,
+      'folder' => $root,
+    ];
+  }
+
+  function bandpromo_bootstrap_operator_check_status(array $check): array {
+    $label = (string) ($check['label'] ?? 'Requirement');
+    $detail = (string) ($check['detail'] ?? '');
+    $ok = !empty($check['ok']);
+
+    if ($label === 'PHP 8+') {
+      return [
+        'title' => 'PHP version',
+        'success' => 'Your hosting is already running a compatible PHP version.',
+        'failure' => 'bandPromo needs PHP 8 or newer before installation can begin.',
+        'detail' => $ok ? $detail : 'PHP 8.0 or newer is required.',
+      ];
+    }
+
+    if ($label === 'ZipArchive available') {
+      return [
+        'title' => 'ZIP support',
+        'success' => 'Your hosting can unpack the bandPromo install package.',
+        'failure' => 'bandPromo needs ZIP support to unpack the install package safely.',
+        'detail' => $ok ? 'ZIP support is available.' : 'The PHP ZipArchive extension is required.',
+      ];
+    }
+
+    if ($label === 'HTTPS-capable download support') {
+      return [
+        'title' => 'Secure download support',
+        'success' => 'This site can download the published bandPromo package securely.',
+        'failure' => 'This site cannot yet download the published bandPromo package securely.',
+        'detail' => $ok ? 'Secure download support is available.' : 'Outbound HTTPS downloads need curl or allow_url_fopen.',
+      ];
+    }
+
+    if ($label === 'Target folder writable') {
+      return [
+        'title' => 'Install folder access',
+        'success' => 'bandPromo can write the files it needs into this site folder.',
+        'failure' => 'bandPromo cannot write into this site folder yet.',
+        'detail' => $ok ? 'This folder is writable.' : 'The install folder needs write permission.',
+      ];
+    }
+
+    return [
+      'title' => $label,
+      'success' => $label . ' is ready.',
+      'failure' => $label . ' still needs attention.',
+      'detail' => $detail,
+    ];
+  }
+
+  function bandpromo_bootstrap_hosting_provider_requests(array $checks): array {
+    $requests = [];
+
+    foreach ($checks as $check) {
+      if (!empty($check['ok'])) {
+        continue;
+      }
+
+      $label = (string) ($check['label'] ?? '');
+
+      if ($label === 'PHP 8+') {
+        $requests[] = 'Please switch this site to PHP 8.0 or newer so bandPromo can run.';
+        continue;
+      }
+
+      if ($label === 'ZipArchive available') {
+        $requests[] = 'Please enable the PHP ZipArchive extension for this site so bandPromo can unpack its install package.';
+        continue;
+      }
+
+      if ($label === 'HTTPS-capable download support') {
+        $requests[] = 'Please enable outbound HTTPS downloads for this site by turning on curl or allow_url_fopen in PHP.';
+        continue;
+      }
+
+      if ($label === 'Target folder writable') {
+        $requests[] = 'Please give the site write permission to this install folder so bandPromo can place its files during setup.';
+        continue;
+      }
+
+      $requests[] = 'Please review and fix this hosting requirement for bandPromo: ' . $label . '.';
+    }
+
+    return $requests;
+  }
+
 function bandpromo_bootstrap_has_blocking_failures(array $checks): bool {
     foreach ($checks as $check) {
         if (!$check['ok']) {
@@ -461,18 +558,22 @@ $packageUrl = $releaseManifest !== null ? trim((string) $releaseManifest['packag
 $expectedSha256 = $releaseManifest !== null && isset($releaseManifest['sha256']) && is_string($releaseManifest['sha256'])
   ? $releaseManifest['sha256']
   : null;
+$installTarget = bandpromo_bootstrap_install_target_context($root);
+$hasBlockingFailures = bandpromo_bootstrap_has_blocking_failures($checks);
+$canInstall = !$hasBlockingFailures && $releaseManifest !== null && $packageUrl !== '';
+$hostingProviderRequests = bandpromo_bootstrap_hosting_provider_requests($checks);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'install') {
-    if (bandpromo_bootstrap_has_blocking_failures($checks)) {
-        $errors[] = 'Fix the blocking environment checks before starting the installer.';
+  if ($hasBlockingFailures) {
+    $errors[] = 'bandPromo stopped before making changes because this hosting setup is not ready yet.';
     }
 
     if ($releaseManifest === null) {
-        $errors[] = 'No published immutable release package was discovered. Publish a release package first, then reload this installer.';
+    $errors[] = 'The published bandPromo install package could not be reached right now. Please try again in a moment or ask the person managing releases to publish a package first.';
     }
 
     if ($packageUrl === '') {
-        $errors[] = 'The published release manifest did not provide a usable package URL.';
+    $errors[] = 'The published install package information is incomplete right now, so the installer cannot continue yet.';
     }
 
     if ($errors === []) {
@@ -505,6 +606,7 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
       --accent: #ff7a59;
       --danger: #ff5b6e;
       --success: #52c17a;
+      --success-strong: #6ee48f;
     }
 
     * { box-sizing: border-box; }
@@ -557,12 +659,6 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
     label {
       color: var(--muted);
       line-height: 1.6;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 20px;
     }
 
     .panel {
@@ -647,19 +743,27 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
     }
 
     button {
-      background: var(--accent);
-      color: #1b120d;
+      background: linear-gradient(180deg, var(--success-strong) 0%, var(--success) 100%);
+      color: #102016;
+      box-shadow: 0 10px 24px rgba(82, 193, 122, 0.24);
     }
 
     button[disabled] {
       opacity: 0.55;
       cursor: not-allowed;
+      box-shadow: none;
     }
 
     .button-link {
       background: transparent;
       border: 1px solid var(--border);
       color: var(--text);
+    }
+
+    .button-link.disabled {
+      opacity: 0.7;
+      cursor: default;
+      border-style: dashed;
     }
 
     .notice,
@@ -679,6 +783,114 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
       border: 1px solid rgba(255, 91, 110, 0.35);
     }
 
+        .status-banner {
+          border-radius: 14px;
+          padding: 16px 18px;
+          margin-top: 20px;
+          background: rgba(82, 193, 122, 0.12);
+          border: 1px solid rgba(82, 193, 122, 0.32);
+        }
+
+        .status-banner.warning {
+          background: rgba(255, 122, 89, 0.12);
+          border-color: rgba(255, 122, 89, 0.28);
+        }
+
+        .status-banner strong {
+          display: block;
+          margin-bottom: 6px;
+        }
+
+        .hero-actions {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-top: 20px;
+        }
+
+        .mini-steps {
+          display: grid;
+          gap: 12px;
+          margin-top: 18px;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+
+        .mini-step {
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 14px 16px;
+          background: rgba(29, 34, 48, 0.72);
+        }
+
+        .mini-step.success {
+          background: rgba(82, 193, 122, 0.12);
+          border-color: rgba(82, 193, 122, 0.35);
+        }
+
+        .mini-step.active {
+          border-color: rgba(110, 228, 143, 0.45);
+          box-shadow: inset 0 0 0 1px rgba(110, 228, 143, 0.08);
+        }
+
+        .mini-step strong,
+        .check strong {
+          display: block;
+          margin-bottom: 4px;
+        }
+
+        .help-note {
+          margin-top: 14px;
+          font-size: 14px;
+          color: var(--muted);
+        }
+
+        .provider-help {
+          margin-top: 18px;
+          border: 1px solid rgba(255, 122, 89, 0.28);
+          background: rgba(255, 122, 89, 0.08);
+          border-radius: 14px;
+          padding: 16px 18px;
+        }
+
+        .provider-help h3 {
+          margin: 0 0 8px;
+          font-size: 16px;
+        }
+
+        details.support-note {
+          margin-top: 12px;
+        }
+
+        details.support-note summary {
+          cursor: pointer;
+          color: var(--muted);
+        }
+
+        .status-list {
+          display: grid;
+          gap: 8px;
+          margin: 0;
+          padding-left: 20px;
+        }
+
+        .compact-stack > * + * {
+          margin-top: 18px;
+        }
+
+        .step-action {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+
+        .button-link.primary {
+          background: linear-gradient(180deg, var(--success-strong) 0%, var(--success) 100%);
+          color: #102016;
+          border: 0;
+          box-shadow: 0 10px 24px rgba(82, 193, 122, 0.24);
+        }
+
     .error-list ul {
       margin-top: 10px;
     }
@@ -693,69 +905,56 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
   <div class="shell">
     <section class="hero">
       <div class="eyebrow">bandPromo Installer</div>
-      <h1>Install bandPromo from one browser page.</h1>
-      <p>This bootstrap installer is the package-entry point that should replace manual repository uploads for normal operators. It performs environment checks, discovers the latest published release package, unpacks the application into this folder, preserves runtime state on re-entry, and then hands off to the normal setup wizard.</p>
-    </section>
-
-    <div class="grid">
-      <section class="panel">
-        <h2>Environment checks</h2>
-        <div class="checks">
-          <?php foreach ($checks as $check): ?>
-            <div class="check">
-              <strong class="<?= $check['ok'] ? 'ok' : 'bad' ?>"><?= $check['ok'] ? 'OK' : 'Fix' ?></strong>
-              <?= bandpromo_bootstrap_h($check['label']) ?><br>
-              <span><?= bandpromo_bootstrap_h($check['detail']) ?></span>
+      <h1>You are only a few clicks away from running your own bandPromo site.</h1>
+      <p>This page does the heavy lifting for you. If the checks below are ready, you can install bandPromo here and move straight into setup.</p>
+      <?php if ($canInstall): ?>
+        <div class="status-banner">
+          <strong>Great news: this hosting looks ready.</strong>
+          <div class="mini-steps">
+            <div class="mini-step <?= $successMessage !== null ? 'success' : 'active' ?>">
+              <strong>1. Install bandPromo</strong>
+              <?php if ($successMessage !== null): ?>
+                bandPromo is installed and ready for setup.
+                <div class="step-action">
+                  <span>Installed version: <code><?= bandpromo_bootstrap_h($installedVersion ?? 'unknown') ?></code></span>
+                </div>
+              <?php else: ?>
+                The installer downloads the latest published version and places it into this site for you.
+                <div class="step-action">
+                  <button type="submit" form="install-form">Install bandPromo now</button>
+                </div>
+              <?php endif; ?>
             </div>
-          <?php endforeach; ?>
+            <div class="mini-step <?= $successMessage !== null ? 'active' : '' ?>">
+              <strong>2. Open setup</strong>
+              <?php if ($successMessage !== null): ?>
+                Continue straight into setup to create your first admin account and confirm the site details.
+                <div class="step-action">
+                  <a class="button-link primary" href="setup.php">Open setup</a>
+                </div>
+              <?php else: ?>
+                Setup unlocks as soon as bandPromo has been installed successfully.
+              <?php endif; ?>
+            </div>
+            <div class="mini-step">
+              <strong>3. Make it yours</strong>
+              bandPromo prepares the starter material so you can finish setup and begin customizing your own installation.
+            </div>
+          </div>
         </div>
-      </section>
-
-      <section class="panel">
-        <h2>What happens next</h2>
-        <ul>
-          <li>Download a package ZIP into a temporary installer work folder.</li>
-          <li>Extract it and verify that it contains a recognizable bandPromo application root.</li>
-          <li>Copy tracked application files into this folder without overwriting runtime state such as <code>web-config.json</code>, <code>.env</code>, <code>data/</code>, <code>log/</code>, or <code>media/</code>.</li>
-          <li>Continue into <code>setup.php</code> to create the first admin and finish site setup.</li>
-        </ul>
-      </section>
-    </div>
-
-    <section class="panel">
-      <h2>Release discovery</h2>
-      <?php if ($releaseManifest !== null): ?>
-        <p>Latest published package discovered automatically from the release manifest.</p>
-        <ul>
-          <li>Version: <code><?= bandpromo_bootstrap_h((string) ($releaseManifest['version'] ?? 'unknown')) ?></code></li>
-          <?php if (!empty($releaseManifest['release_tag'])): ?>
-            <li>Release tag: <code><?= bandpromo_bootstrap_h((string) $releaseManifest['release_tag']) ?></code></li>
-          <?php endif; ?>
-          <li>Package source: <code><?= bandpromo_bootstrap_h((string) $releaseManifest['package_url']) ?></code></li>
-          <?php if (!empty($releaseManifest['sha256'])): ?>
-            <li>Checksum verification: <code>SHA256</code> available and will be enforced during install.</li>
-          <?php endif; ?>
-        </ul>
       <?php else: ?>
-        <p>No published release manifest was discovered automatically. The operator install flow now requires a published immutable release package before installation can continue.</p>
-        <?php if ($releaseManifestError !== null): ?>
-          <p>Manifest lookup detail: <?= bandpromo_bootstrap_h($releaseManifestError) ?></p>
-        <?php endif; ?>
+        <div class="status-banner warning">
+          <strong>Almost there.</strong>
+          <p>If one of the checks below needs attention, bandPromo will stop safely before changing anything. In most cases your hosting provider only needs to adjust one or two settings.</p>
+        </div>
       <?php endif; ?>
     </section>
 
-    <section class="panel">
-      <h2>Install package</h2>
-      <?php if ($successMessage !== null): ?>
-        <div class="notice">
-          <strong><?= bandpromo_bootstrap_h($successMessage) ?></strong><br>
-          Installed version: <?= bandpromo_bootstrap_h($installedVersion ?? 'unknown') ?>
-        </div>
-      <?php endif; ?>
-
+    <section class="panel compact-stack">
+      <h2>Before you install</h2>
       <?php if ($errors !== []): ?>
         <div class="error-list">
-          <strong>The installer stopped safely.</strong>
+          <strong>The installer stopped safely before changing your site.</strong>
           <ul>
             <?php foreach ($errors as $error): ?>
               <li><?= bandpromo_bootstrap_h($error) ?></li>
@@ -764,21 +963,87 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
         </div>
       <?php endif; ?>
 
-      <p>The operator installer now uses the latest published immutable release discovered from the manifest. Manual ZIP URLs and mutable branch snapshots are no longer part of the normal install path.</p>
+      <div class="checks">
+        <?php foreach ($checks as $check): ?>
+          <?php $operatorCheck = bandpromo_bootstrap_operator_check_status($check); ?>
+          <div class="check">
+            <strong class="<?= $check['ok'] ? 'ok' : 'bad' ?>"><?= $check['ok'] ? 'Ready' : 'Needs attention' ?></strong>
+            <?= bandpromo_bootstrap_h($operatorCheck['title']) ?><br>
+            <span><?= bandpromo_bootstrap_h($check['ok'] ? $operatorCheck['success'] : $operatorCheck['failure']) ?></span><br>
+            <span><?= bandpromo_bootstrap_h($operatorCheck['detail']) ?></span>
+          </div>
+        <?php endforeach; ?>
 
-      <form method="post">
-        <input type="hidden" name="action" value="install">
-        <div class="actions">
-          <button type="submit"<?= bandpromo_bootstrap_has_blocking_failures($checks) || $releaseManifest === null || $packageUrl === '' ? ' disabled' : '' ?>>Download and install latest release</button>
-          <?php if ($successMessage !== null || is_file($root . DIRECTORY_SEPARATOR . 'setup.php')): ?>
-            <a class="button-link" href="setup.php">Open setup</a>
-          <?php endif; ?>
-          <?php if ($isSetupComplete): ?>
-            <a class="button-link" href="admin.php">Open admin</a>
+        <div class="check">
+          <?php if ($releaseManifest !== null): ?>
+            <strong class="ok">Ready</strong>
+            Latest install package<br>
+            <span>bandPromo has found the latest published install package automatically.</span><br>
+            <span>Version <?= bandpromo_bootstrap_h((string) ($releaseManifest['version'] ?? 'unknown')) ?><?= !empty($releaseManifest['release_tag']) ? ' · ' . bandpromo_bootstrap_h((string) $releaseManifest['release_tag']) : '' ?></span>
+          <?php else: ?>
+            <strong class="bad">Needs attention</strong>
+            Latest install package<br>
+            <span>The published install package is not available right now.</span><br>
+            <span>Installation is paused safely until that package can be reached.</span>
+            <?php if ($releaseManifestError !== null): ?>
+              <details class="support-note">
+                <summary>Technical detail for support</summary>
+                <p class="help-note"><?= bandpromo_bootstrap_h($releaseManifestError) ?></p>
+              </details>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
+      </div>
+
+      <?php if (!$canInstall): ?>
+        <div>
+          <h2>What happens next</h2>
+          <div class="mini-steps">
+            <div class="mini-step">
+              <strong>1. Fix the blocked checks</strong>
+              Use the message below if you need help from your hosting provider.
+            </div>
+            <div class="mini-step">
+              <strong>2. Reload this page</strong>
+              When the checks turn ready, the install button unlocks automatically.
+            </div>
+            <div class="mini-step">
+              <strong>3. Install bandPromo</strong>
+              Then you can move straight into the setup wizard.
+            </div>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($hostingProviderRequests !== []): ?>
+        <div class="provider-help">
+          <h3>Message you can send to your hosting provider</h3>
+          <p>Please help me prepare this site for a bandPromo installation.</p>
+          <ul>
+            <li>Site/domain: <code><?= bandpromo_bootstrap_h($installTarget['site']) ?></code></li>
+            <li>Install folder: <code><?= bandpromo_bootstrap_h($installTarget['folder']) ?></code></li>
+          </ul>
+          <p>Could you make these changes for this site and folder?</p>
+          <ul>
+            <?php foreach ($hostingProviderRequests as $request): ?>
+              <li><?= bandpromo_bootstrap_h($request) ?></li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      <?php endif; ?>
+
+      <form method="post" id="install-form">
+        <input type="hidden" name="action" value="install">
       </form>
     </section>
+
+    <?php if ($isSetupComplete): ?>
+      <section class="panel">
+        <div class="actions">
+          <a class="button-link" href="admin.php">Open admin</a>
+        </div>
+      </section>
+    <?php endif; ?>
   </div>
 </body>
 </html>

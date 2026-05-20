@@ -657,8 +657,8 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
 
   <!-- STEP 3: Build -->
   <div class="panel" id="panel-3">
-    <h1>Build site</h1>
-    <p class="subtitle">Generate your site files and prepare the starter artwork and sample media. If this site is missing its starter design pack, bandPromo will fetch it automatically before the build starts.</p>
+    <h1>Downloading demo content and building site</h1>
+    <p class="subtitle">bandPromo is built around your content, so before running for the first time, we add some demo content to make sure everything works as expected. Then we build everything required to run your new bandPromo installation. You can hide the demo content later in the Admin panel after you upload your own.</p>
     <div class="msg error" id="s3-error"></div>
 
     <div id="build-log" style="margin-bottom:14px;"></div>
@@ -667,7 +667,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
       <button class="btn btn-ghost" id="s3-back">Back</button>
       <div style="display:flex;gap:10px;align-items:center;">
         <span id="build-status" style="font-size:13px;color:var(--muted);"></span>
-        <button class="btn btn-primary" id="s3-build" <?php echo $hasSetupErrors ? 'disabled' : ''; ?>>Start build <div class="spinner" id="s3-spin"></div></button>
+        <button class="btn btn-primary" id="s3-build" <?php echo $hasSetupErrors ? 'disabled' : ''; ?>>Start building <div class="spinner" id="s3-spin"></div></button>
         <button class="btn btn-ghost"   id="s3-next" style="display:none;">Finish</button>
       </div>
     </div>
