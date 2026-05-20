@@ -172,7 +172,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
       --border:  #2a2a2a;
       --text:    #e8e8e8;
       --muted:   #888;
-      --accent:  #FF6B6B;
+      --accent:  #4CAF50;
       --success: #4CAF50;
       --error:   #f44336;
     }
@@ -290,7 +290,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
     }
     .drop-zone:hover, .drop-zone.dragover {
       border-color: var(--accent);
-      background: rgba(255,107,107,.04);
+      background: rgba(76,175,80,.06);
     }
     .drop-zone input[type="file"] { display: none; }
     .drop-label { font-size: 14px; color: var(--muted); }
@@ -416,7 +416,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
     }
     .setup-links button:hover {
       border-color: var(--accent);
-      background: rgba(255,107,107,.06);
+      background: rgba(76,175,80,.08);
     }
     .setup-check {
       display: flex;
@@ -668,7 +668,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
       <div style="display:flex;gap:10px;align-items:center;">
         <span id="build-status" style="font-size:13px;color:var(--muted);"></span>
         <button class="btn btn-primary" id="s3-build" <?php echo $hasSetupErrors ? 'disabled' : ''; ?>>Start building <div class="spinner" id="s3-spin"></div></button>
-        <button class="btn btn-ghost"   id="s3-next" style="display:none;">Finish</button>
+        <button class="btn btn-primary" id="s3-next" style="display:none;">Finish</button>
       </div>
     </div>
   </div>
@@ -678,11 +678,17 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
     <div class="done-icon">🎉</div>
     <h1 style="text-align:center;">Setup complete!</h1>
     <p class="subtitle" style="text-align:center;margin-top:8px;">
-      Your site is ready. You can now manage tracks and settings from the admin panel.
+      Congratulations! Your bandPromo setup is now complete.
+    </p>
+    <p class="subtitle" style="text-align:center;margin-top:0; margin-bottom:14px;">
+      From here you can open the site to check that everything works for your audience, or jump straight into the Admin panel.
+    </p>
+    <p class="subtitle" style="text-align:center;margin-top:0;">
+      If you sign in on the player with an admin or developer account, a gear icon appears at the top left and takes you into the Admin panel. Thank you for joining us!
     </p>
     <div class="done-links">
-      <a href="/play/" class="link-play">Open player</a>
-      <a href="/admin.php" class="link-admin">Admin panel</a>
+      <a href="/play/" class="link-play">Open site</a>
+      <a href="/admin.php" class="link-admin">Open Admin panel</a>
     </div>
   </div>
 
@@ -944,7 +950,10 @@ async function pollLog() {
       status.textContent = success ? 'Build complete!' : 'Build failed.';
       status.style.color = success ? 'var(--success)' : 'var(--error)';
       if (success) {
+        document.getElementById('s3-build').style.display = 'none';
         document.getElementById('s3-next').style.display = 'inline-flex';
+      } else {
+        document.getElementById('s3-build').style.display = 'inline-flex';
       }
     }
   } catch (e) {
@@ -956,6 +965,7 @@ document.getElementById('s3-build').addEventListener('click', async () => {
   const log = document.getElementById('build-log');
   log.innerHTML = '';
   document.getElementById('build-status').textContent = '';
+  document.getElementById('s3-build').style.display = 'inline-flex';
   document.getElementById('s3-next').style.display = 'none';
   document.getElementById('s3-error').style.display = 'none';
 

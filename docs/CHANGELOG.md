@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 12:21 - Refined the setup-complete copy in `setup.php` so the final screen now reads like a warmer operator handoff. It now congratulates the operator, explains the two clear next choices (`Open site` or `Open Admin panel`), and accurately notes that signing into the player with an admin or developer account shows a gear shortcut back into the Admin panel.
+
+2026-05-20 12:14 - Tightened the setup wizard's visual signals in `setup.php`. Active step dots and primary actions now use the green success color instead of the earlier warning-like red, red remains reserved for actual errors, and step 3 now hides `Start building` after a successful build while promoting `Finish` as the green primary next action.
+
 2026-05-20 11:41 - Polished setup step 3 for first-run operators. `setup.php` now introduces the build phase as "Downloading demo content and building site" with friendlier first-run copy and a `Start building` action, while `biblioteca/build.php` and `biblioteca/release-package.php` now write explicit starter-pack progress lines into the build log for checking, downloading, verifying, extracting, and installing the demo package before the normal site build starts.
 
 2026-05-20 11:10 - Refocused the `bootstrap.php` post-install flow after a real test-server pass. The numbered step cards now own the operator journey: install lives in step 1, successful install turns step 1 into a success state, step 2 becomes the promoted setup action, the duplicate setup panel is gone, and latest-package status now appears as one more prerequisite card instead of a visually separate panel.
