@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 09:20 - Fixed the first real bootstrap-install blocker discovered during live testing: the release package already contained the tracked demo FLACs and `media/icons/bP-icons.zip`, but `bootstrap.php` was preserving the entire `media/` tree and therefore skipped those bundled seed assets on fresh installs. The bootstrap copy rules now still preserve operator-managed media on updates while allowing the packaged icon bundle and tracked `bandPromo_*` demo media to be copied into a brand-new install.
+
 2026-05-20 00:56 - Added `docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md` as a narrow real-host smoke-test checklist for the operator installer, linked it from `README.md`, and marked the first tester-checklist task complete in `docs/TODO.md`. The checklist also records the two current blockers to the first full hosted bootstrap trial: no reachable published release manifest yet and no deployed `bootstrap.php` URL yet.
 
 2026-05-20 00:43 - Narrowed the remaining v0.7 beta-readiness scope: `docs/TODO.md` now explicitly defers backup/restore flow design and moved-site recovery handling to v0.8 instead of treating them as v0.7 blockers.

@@ -73,6 +73,8 @@ Preserved runtime paths include at least:
 - `media/`
 - `log/`
 
+Bundled install-seed assets shipped inside the package, such as the default icon bundle and tracked `bandPromo_*` demo media, should still be copied into a fresh install even though the broader `media/` tree is treated as preserved runtime state on updates.
+
 ### 6. Continue into setup
 
 After package install, open `setup.php`.
