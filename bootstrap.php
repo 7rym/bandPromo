@@ -26,28 +26,47 @@ function bandpromo_bootstrap_runtime_preserve_paths(): array {
     ];
 }
 
-  function bandpromo_bootstrap_seed_media_paths(): array {
+function bandpromo_bootstrap_seed_media_paths(): array {
     return [
-      'media/icons/bP-icons.zip',
+        'media/icons/bP-icons.zip',
     ];
-  }
+}
 
-  function bandpromo_bootstrap_is_seed_media_path(string $relativePath): bool {
+function bandpromo_bootstrap_is_seed_media_path(string $relativePath): bool {
     $normalized = str_replace('\\', '/', ltrim($relativePath, '/\\'));
 
     foreach (bandpromo_bootstrap_seed_media_paths() as $seedPath) {
-      if ($normalized === $seedPath) {
-        return true;
-      }
+        if ($normalized === $seedPath) {
+            return true;
+        }
     }
 
     $fileName = basename($normalized);
     if ($fileName !== '' && preg_match('/^bandPromo_/i', $fileName) === 1) {
-      return true;
+        return true;
     }
 
     return false;
-  }
+}
+
+function bandpromo_bootstrap_should_descend_preserved_dir(string $relativePath): bool {
+    $normalized = str_replace('\\', '/', trim($relativePath, '/\\'));
+    if ($normalized === '') {
+        return false;
+    }
+
+    foreach (bandpromo_bootstrap_seed_media_paths() as $seedPath) {
+        if (str_starts_with($seedPath, $normalized . '/')) {
+            return true;
+        }
+    }
+
+    if ($normalized === 'media' || $normalized === 'media/audio' || $normalized === 'media/audio/original') {
+        return true;
+    }
+
+    return false;
+}
 
 function bandpromo_bootstrap_runtime_dirs(): array {
     return [
@@ -309,9 +328,9 @@ function bandpromo_bootstrap_find_package_root(string $extractDir): string {
 function bandpromo_bootstrap_should_preserve(string $relativePath): bool {
     $relativePath = str_replace('\\', '/', ltrim($relativePath, '/\\'));
 
-  if (bandpromo_bootstrap_is_seed_media_path($relativePath)) {
-    return false;
-  }
+    if (bandpromo_bootstrap_is_seed_media_path($relativePath)) {
+        return false;
+    }
 
     foreach (bandpromo_bootstrap_runtime_preserve_paths() as $preservePath) {
         $preservePath = str_replace('\\', '/', $preservePath);
@@ -343,7 +362,11 @@ function bandpromo_bootstrap_copy_tree(string $sourceRoot, string $targetRoot, s
             }
 
             $childRelative = $relativePath === '' ? $item : $relativePath . DIRECTORY_SEPARATOR . $item;
-            if (bandpromo_bootstrap_should_preserve($childRelative)) {
+          $childSourcePath = $sourceRoot . DIRECTORY_SEPARATOR . $childRelative;
+          if (bandpromo_bootstrap_should_preserve($childRelative)) {
+            if (is_dir($childSourcePath) && !is_link($childSourcePath) && bandpromo_bootstrap_should_descend_preserved_dir($childRelative)) {
+              bandpromo_bootstrap_copy_tree($sourceRoot, $targetRoot, $childRelative);
+            }
                 continue;
             }
 

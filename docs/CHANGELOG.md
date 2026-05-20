@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 09:34 - Corrected the bootstrap seed-media fix after a second live retest on bandpromo.site: the packaged demo FLACs and `media/icons/bP-icons.zip` were still skipped because the installer preserved the `media/` directory before recursing into its children. `bootstrap.php` now still preserves operator-managed runtime media on updates while descending into preserved media folders that contain packaged seed assets, so fresh installs can actually copy the bundled demo inputs needed for the first successful build.
+
 2026-05-20 09:20 - Fixed the first real bootstrap-install blocker discovered during live testing: the release package already contained the tracked demo FLACs and `media/icons/bP-icons.zip`, but `bootstrap.php` was preserving the entire `media/` tree and therefore skipped those bundled seed assets on fresh installs. The bootstrap copy rules now still preserve operator-managed media on updates while allowing the packaged icon bundle and tracked `bandPromo_*` demo media to be copied into a brand-new install.
 
 2026-05-20 00:56 - Added `docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md` as a narrow real-host smoke-test checklist for the operator installer, linked it from `README.md`, and marked the first tester-checklist task complete in `docs/TODO.md`. The checklist also records the two current blockers to the first full hosted bootstrap trial: no reachable published release manifest yet and no deployed `bootstrap.php` URL yet.
