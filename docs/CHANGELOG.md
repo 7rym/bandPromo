@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-20 12:37 - Hardened the install/setup entry points after reviewing post-setup security. `bootstrap.php` now immediately redirects completed installations to `admin.php` instead of exposing the installer again, `biblioteca/setup-init.php` now refuses to run once setup is complete and tags setup-authenticated sessions explicitly, and `biblioteca/complete-setup.php` now requires that active setup session and destroys it after writing the completion marker so operators see the normal login flow afterward.
+
 2026-05-20 12:21 - Refined the setup-complete copy in `setup.php` so the final screen now reads like a warmer operator handoff. It now congratulates the operator, explains the two clear next choices (`Open site` or `Open Admin panel`), and accurately notes that signing into the player with an admin or developer account shows a gear shortcut back into the Admin panel.
 
 2026-05-20 12:14 - Tightened the setup wizard's visual signals in `setup.php`. Active step dots and primary actions now use the green success color instead of the earlier warning-like red, red remains reserved for actual errors, and step 3 now hides `Start building` after a successful build while promoting `Finish` as the green primary next action.

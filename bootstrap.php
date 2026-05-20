@@ -14,6 +14,11 @@ function bandpromo_bootstrap_is_setup_complete(string $root): bool {
     return is_file($root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . '.setup_complete');
 }
 
+if (bandpromo_bootstrap_is_setup_complete(__DIR__)) {
+  header('Location: /admin.php');
+  exit;
+}
+
 function bandpromo_bootstrap_runtime_preserve_paths(): array {
     return [
         '.env',

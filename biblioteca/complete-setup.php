@@ -9,6 +9,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/config-loader.php';
+require_once __DIR__ . '/setup-state.php';
 
 if (empty($_SESSION['authenticated'])) {
     http_response_code(401);
@@ -16,9 +17,21 @@ if (empty($_SESSION['authenticated'])) {
     exit;
 }
 
+if (bandpromo_is_setup_complete()) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Setup is already complete for this installation.']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['ok' => false, 'error' => 'POST required.']);
+    exit;
+}
+
+if (empty($_SESSION['setup_in_progress'])) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Setup can only be completed from an active setup session.']);
     exit;
 }
 
@@ -68,5 +81,14 @@ if (file_put_contents($marker, date('c')) === false) {
     echo json_encode(['ok' => false, 'error' => 'Could not write setup marker. Check folder permissions.']);
     exit;
 }
+
+$_SESSION = [];
+
+if (ini_get('session.use_cookies')) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+}
+
+session_destroy();
 
 echo json_encode(['ok' => true]);

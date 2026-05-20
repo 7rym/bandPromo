@@ -10,7 +10,14 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config-loader.php';
+require_once __DIR__ . '/setup-state.php';
 require_once __DIR__ . '/template-bootstrap.php';
+
+if (bandpromo_is_setup_complete()) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Setup is already complete for this installation.']);
+    exit;
+}
 
 // If user already exists, try to authenticate with provided credentials
 // (handles page refresh during setup without losing progress)
@@ -28,6 +35,7 @@ if (file_exists(TERCES_FILE) && filesize(TERCES_FILE) > 0) {
                     }
             $_SESSION['authenticated'] = true;
             $_SESSION['username'] = $username;
+            $_SESSION['setup_in_progress'] = true;
                     $_SESSION['setup_acknowledgment'] = [
                         'accepted' => true,
                         'accepted_at' => date('c'),
@@ -127,6 +135,7 @@ file_put_contents($configPath, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCA
 // Auto-login
 $_SESSION['authenticated'] = true;
 $_SESSION['username'] = $username;
+$_SESSION['setup_in_progress'] = true;
 $_SESSION['setup_acknowledgment'] = [
     'accepted' => true,
     'accepted_at' => date('c'),
