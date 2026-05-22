@@ -69,7 +69,11 @@ $end = $size - 1;
 $statusCode = 200;
 
 if (isset($_SERVER['HTTP_RANGE'])) {
-    if (preg_match('/bytes=(\d*)-(\d*)/i', (string) $_SERVER['HTTP_RANGE'], $m)) {
+    $rangeHeader = trim((string) $_SERVER['HTTP_RANGE']);
+    $rangeValue = preg_replace('/^bytes=/i', '', $rangeHeader);
+    $hasMultipleRanges = is_string($rangeValue) && strpos($rangeValue, ',') !== false;
+
+    if (!$hasMultipleRanges && preg_match('/^bytes=(\d*)-(\d*)$/i', $rangeHeader, $m)) {
         if ($m[1] !== '') {
             $start = (int) $m[1];
         }

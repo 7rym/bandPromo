@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-22 12:33 - Hardened the audio streaming endpoint after a live mobile retest suggested the remaining failure might be in range handling rather than the player state machine. `biblioteca/audio.php` now only serves `206 Partial Content` for a single byte range and ignores unsupported multi-range requests instead of incorrectly replying with a truncated single-range response. That keeps the endpoint within the HTTP contract for the range patterns it actually implements and avoids malformed `206` responses during browser media probes.
+
 2026-05-22 12:19 - Tightened the hidden/background next-track path again after live phone retesting on `v0.7 build 259`. `biblioteca/player.js` now keeps the media element in autoplay mode across track source swaps and preserves the auto-next transition marker until playback has actually advanced into the new track, so browsers that treat background source changes more strictly have a better chance of continuing seamlessly and any remaining failure can still be labeled as part of the next-track handoff instead of a generic interruption.
 
 2026-05-22 11:50 - Refined mobile/background playback behavior around automatic track changes. `biblioteca/player.js` now switches to the next track immediately when auto-advance happens while the page is hidden instead of relying on delayed animation timers, which are more likely to be throttled or blocked after the screen turns off. The player also now tags auto-next transitions explicitly so interruption alerts can say the next-track switch failed, and `play/index.php` no longer uses the extra inline `onended` handler on the audio element now that the scripted ended path is the single source of truth.
