@@ -7,9 +7,29 @@ const IMAGE_PATH_VARIANT = 'optimal';
 
 // Path helpers — use window.MEDIA_AUDIO_BASE / window.MEDIA_IMG_BASE when set
 // (new /play/ structure), otherwise fall back to old sibling-folder relative paths.
+function resolveAudioDeliveryFilename(filename) {
+    if (typeof filename !== 'string' || filename === '') {
+        return '';
+    }
+    return PATH_VARIANT === 'optimal' ? filename.replace(/\.(flac|wav)$/i, '.mp3') : filename;
+}
+
+function getAudioMimeType(filename) {
+    const ext = String(filename || '').split('.').pop().toLowerCase();
+    const mimeMap = {
+        mp3: 'audio/mpeg',
+        m4a: 'audio/mp4',
+        ogg: 'audio/ogg',
+        wav: 'audio/wav',
+        flac: 'audio/flac',
+        aac: 'audio/aac'
+    };
+    return mimeMap[ext] || '';
+}
+
 function buildAudioUrl(filename) {
     // For optimal, supported source-audio formats resolve to generated MP3 delivery.
-    const f = PATH_VARIANT === 'optimal' ? filename.replace(/\.(flac|wav)$/i, '.mp3') : filename;
+    const f = resolveAudioDeliveryFilename(filename);
 
     const params = new URLSearchParams({
         variant: PATH_VARIANT,
@@ -95,6 +115,8 @@ let analyticsInactivityTimerId = null;
 let pendingPlayActionSource = null;
 let debugRefreshIntervalId = null;
 let manifestDebugCache = null;
+let wasPlayingBeforeVisibilityHidden = false;
+let resumeAfterVisibilityPause = false;
 
 function isStandaloneDisplayMode() {
     return window.matchMedia('(display-mode: standalone)').matches ||
@@ -111,6 +133,143 @@ function isMobileWideMode() {
 
 function getFullscreenElement() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function updateMediaSessionMetadata() {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata !== 'function') {
+        return;
+    }
+
+    const song = playList[currentIndex];
+    if (!song) {
+        return;
+    }
+
+    const coverUrl = buildCoverUrl(song.cover);
+    const artwork = coverUrl ? [{ src: coverUrl, sizes: '600x600', type: 'image/jpeg' }] : [];
+
+    try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: song.title || song.file || 'Unknown title',
+            artist: song.artist || '',
+            album: song.album || '',
+            artwork,
+        });
+    } catch (error) {
+        console.warn('Unable to update media session metadata', error);
+    }
+}
+
+function updateMediaSessionPlaybackState() {
+    if (!('mediaSession' in navigator)) {
+        return;
+    }
+
+    navigator.mediaSession.playbackState = audioPlayer.paused ? 'paused' : 'playing';
+}
+
+function updateMediaSessionPositionState() {
+    if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function') {
+        return;
+    }
+
+    const duration = Number(audioPlayer.duration);
+    if (!Number.isFinite(duration) || duration <= 0) {
+        return;
+    }
+
+    try {
+        navigator.mediaSession.setPositionState({
+            duration,
+            playbackRate: audioPlayer.playbackRate || 1,
+            position: Math.min(audioPlayer.currentTime || 0, duration),
+        });
+    } catch (error) {
+        // Some browsers reject position updates during transitions.
+    }
+}
+
+function installMediaSessionHandlers() {
+    if (!('mediaSession' in navigator)) {
+        return;
+    }
+
+    const session = navigator.mediaSession;
+    const bind = (action, handler) => {
+        try {
+            session.setActionHandler(action, handler);
+        } catch (error) {
+            // Ignore unsupported media session actions.
+        }
+    };
+
+    bind('play', () => {
+        pendingPlayActionSource = 'media_session';
+        resumeAfterVisibilityPause = false;
+        audioPlayer.play().catch(() => {});
+    });
+
+    bind('pause', () => {
+        resumeAfterVisibilityPause = false;
+        wasPlayingBeforeVisibilityHidden = false;
+        audioPlayer.pause();
+        logActivity('play_pause', {
+            ...getCurrentTrackSnapshot({ actionSource: 'media_session' })
+        });
+    });
+
+    bind('previoustrack', () => {
+        pendingPlayActionSource = 'media_session';
+        prevSong();
+    });
+
+    bind('nexttrack', () => {
+        pendingPlayActionSource = 'media_session';
+        nextSong();
+    });
+
+    bind('seekbackward', (details = {}) => {
+        const offset = Number(details.seekOffset) || 10;
+        audioPlayer.currentTime = Math.max(0, (audioPlayer.currentTime || 0) - offset);
+        updateMediaSessionPositionState();
+    });
+
+    bind('seekforward', (details = {}) => {
+        const offset = Number(details.seekOffset) || 10;
+        const duration = Number(audioPlayer.duration) || 0;
+        if (duration > 0) {
+            audioPlayer.currentTime = Math.min(duration, (audioPlayer.currentTime || 0) + offset);
+        } else {
+            audioPlayer.currentTime = (audioPlayer.currentTime || 0) + offset;
+        }
+        updateMediaSessionPositionState();
+    });
+
+    bind('seekto', (details = {}) => {
+        if (typeof details.seekTime !== 'number' || !Number.isFinite(details.seekTime)) {
+            return;
+        }
+        audioPlayer.currentTime = Math.max(0, details.seekTime);
+        updateMediaSessionPositionState();
+    });
+}
+
+function handleVisibilityPlaybackChange() {
+    if (document.hidden) {
+        wasPlayingBeforeVisibilityHidden = !audioPlayer.paused && !audioPlayer.ended;
+        if (!wasPlayingBeforeVisibilityHidden) {
+            resumeAfterVisibilityPause = false;
+        }
+        return;
+    }
+
+    const shouldResume = resumeAfterVisibilityPause;
+    wasPlayingBeforeVisibilityHidden = false;
+    resumeAfterVisibilityPause = false;
+    if (shouldResume) {
+        pendingPlayActionSource = pendingPlayActionSource || 'visibility_resume';
+        audioPlayer.play().catch(() => {});
+    }
 }
 
 async function requestDocumentFullscreen() {
@@ -728,6 +887,10 @@ audioPlayer.onpause = () => playBtn.innerText = "Play";
 
 audioPlayer.addEventListener('pause', () => {
     scheduleAnalyticsSessionEnd();
+    updateMediaSessionPlaybackState();
+    if (document.hidden && wasPlayingBeforeVisibilityHidden) {
+        resumeAfterVisibilityPause = true;
+    }
 });
 
 // guard using expected duration from config
@@ -746,6 +909,7 @@ function checkExpected() {
     }
 }
 audioPlayer.addEventListener('timeupdate', checkExpected);
+audioPlayer.addEventListener('timeupdate', updateMediaSessionPositionState);
 
 audioPlayer.addEventListener('seeking', () => {
     isUserSeeking = true;
@@ -762,15 +926,20 @@ audioPlayer.addEventListener('loadedmetadata', () => {
     if (!isNaN(exp) && audioPlayer.duration > exp + 1) {
         console.warn('Metadata duration', audioPlayer.duration, 'differs from expected', exp);
     }
+    updateMediaSessionPositionState();
 });
+
+audioPlayer.addEventListener('ratechange', updateMediaSessionPositionState);
 
 // listen for errors (unsupported codec, network problems, etc.)
 audioPlayer.addEventListener('error', e => {
     console.error('Audio playback error', e);
     // give user some visible feedback if it happens during interaction
-    const track = playList[currentIndex] && playList[currentIndex].file;
-    if (track) {
-        alert('Unable to play ' + track + '. Your device may not support the file format or the URL may be invalid.');
+    const deliveryFile = audioPlayer.dataset.deliveryFile || (playList[currentIndex] && playList[currentIndex].file) || '';
+    const sourceFile = audioPlayer.dataset.sourceFile || deliveryFile;
+    if (deliveryFile) {
+        const sourceDetail = sourceFile !== deliveryFile ? ` Source track: ${sourceFile}.` : '';
+        alert('Unable to play ' + deliveryFile + '. Your device may not support the streamed format, or playback was interrupted.' + sourceDetail);
     }
 });
 
@@ -778,6 +947,9 @@ audioPlayer.addEventListener('error', e => {
 audioPlayer.addEventListener('play', () => {
     // Remove pulse guide when music actually starts (any source)
     removePulseGuide();
+    resumeAfterVisibilityPause = false;
+    updateMediaSessionPlaybackState();
+    updateMediaSessionPositionState();
 
     const actionSource = pendingPlayActionSource || 'player';
     pendingPlayActionSource = null;
@@ -806,6 +978,9 @@ audioPlayer.addEventListener('play', () => {
 
 // Log when track ends naturally (not skipped)
 audioPlayer.addEventListener('ended', () => {
+    resumeAfterVisibilityPause = false;
+    wasPlayingBeforeVisibilityHidden = false;
+    updateMediaSessionPlaybackState();
     logTrackExit('ended', 'auto');
     
     // Auto-play next song when current track ends
@@ -815,13 +990,17 @@ audioPlayer.addEventListener('ended', () => {
 // helper to safely set audio source with encoding and support check
 function setAudioSrc(filename) {
     // Build full path based on variant and configured media base
+    const deliveryFilename = resolveAudioDeliveryFilename(filename);
     const url = buildAudioUrl(filename);
     
     // url may contain spaces or brackets; encode for use in src attribute
     const encoded = encodeURI(url);
+    audioPlayer.dataset.sourceFile = filename;
+    audioPlayer.dataset.deliveryFile = deliveryFilename;
     audioPlayer.src = encoded;
     hasStartedCurrentTrack = false;
     isUserSeeking = false;
+    resumeAfterVisibilityPause = false;
 
     // set expected duration from playlist (caller should set before calling)
     const song = playList[currentIndex];
@@ -829,22 +1008,13 @@ function setAudioSrc(filename) {
         audioPlayer.dataset.expectedDuration = song.duration;
     }
 
-    // detect unsupported formats (iPhones notoriously do not support FLAC)
-    const ext = filename.split('.').pop().toLowerCase();
-    const mimeMap = {
-        mp3: 'audio/mpeg',
-        m4a: 'audio/mp4',
-        ogg: 'audio/ogg',
-        wav: 'audio/wav',
-        flac: 'audio/flac',
-        aac: 'audio/aac'
-    };
-    const mime = mimeMap[ext];
+    updateMediaSessionMetadata();
+
+    // Detect unsupported formats against the actual delivery file, not the source filename.
+    const mime = getAudioMimeType(deliveryFilename);
     if (mime && audioPlayer.canPlayType && audioPlayer.canPlayType(mime) === '') {
         console.warn('Browser cannot play format', mime, '(track ' + url + ')');
-        // give the user feedback; in production you might swap to an MP3 fallback
-        alert('Sorry – your device does not support playing "' + url + '".\n' +
-              'Tell the person that gave you this link that you have an (probably expensive, but) useless device...');
+        alert('Sorry - your device does not support playing ' + deliveryFilename + ' in the current delivery format.');
     }
 }
 
@@ -970,8 +1140,11 @@ function togglePlay() {
     if (playList.length === 0) return;
     if (audioPlayer.paused) {
         pendingPlayActionSource = 'button';
+        resumeAfterVisibilityPause = false;
         audioPlayer.play().catch(e => console.error(e));
     } else {
+        resumeAfterVisibilityPause = false;
+        wasPlayingBeforeVisibilityHidden = false;
         audioPlayer.pause();
         logActivity('play_pause', {
             ...getCurrentTrackSnapshot({ actionSource: 'button' })
@@ -1310,3 +1483,6 @@ function logSessionEnd({ actionSource = 'pagehide', useBeacon = false } = {}) {
 
 window.addEventListener('beforeunload', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
 window.addEventListener('pagehide', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
+document.addEventListener('visibilitychange', handleVisibilityPlaybackChange);
+
+installMediaSessionHandlers();

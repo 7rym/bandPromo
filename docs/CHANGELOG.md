@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-22 09:47 - Fixed two small playback/admin regressions. `biblioteca/light-build-tasks.php` now degrades cleanly on hosts that disable `shell_exec` or `proc_open`, and `biblioteca/get-playlist-preview.php` now falls back to the last built `play/playlist.json` so the Admin playlist/build view still loads instead of returning a 500 when the lightweight Python preview task is unavailable. `biblioteca/player.js` now checks support and reports errors against the actual streamed delivery file (so optimal-mode tracks no longer falsely report FLAC when MP3 is being served), and it now wires Media Session metadata/actions plus a targeted hidden-page resume path to improve phone lock-screen/background playback resilience.
+
 2026-05-20 13:09 - Reframed the root documentation around the real operator audience. `README.md` now keeps the top-level story focused on what bandPromo is, the preferred bootstrap install path, and the supported repository/manual fallback without developer-heavy release workflow detail. Added `docs/DEVELOPMENT.md` as the home for repository workflow, build/package commands, and release-publishing notes, tightened `docs/TODO.md` plus `docs/ROADMAP.md` so they reflect the current bootstrap-first install reality, and corrected the top-level requirement wording so the documented bootstrap requirements now match the actual installer checks (`PHP 8+`, `ZipArchive`, outbound HTTPS download support, and a writable target folder).
 
 2026-05-20 12:46 - Refined the final thank-you line in `setup.php` so the closing message now lands on its own emphasized line in the setup-complete screen.

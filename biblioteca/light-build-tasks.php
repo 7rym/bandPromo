@@ -5,6 +5,14 @@ function bandpromo_first_command_path(string $raw): string {
     return trim((string) ($lines[0] ?? ''));
 }
 
+function bandpromo_can_shell_exec(): bool {
+    return function_exists('shell_exec');
+}
+
+function bandpromo_can_proc_open(): bool {
+    return function_exists('proc_open');
+}
+
 function bandpromo_is_working_python(string $candidate): bool {
     if ($candidate === '') {
         return false;
@@ -41,14 +49,16 @@ function bandpromo_resolve_python_interpreter(): string {
         return $project_venv;
     }
 
-    foreach (['python3', 'python'] as $candidate) {
-        $test = shell_exec("where $candidate 2>nul") ?? shell_exec("which $candidate 2>/dev/null");
-        if (!$test) {
-            continue;
-        }
-        $resolved = bandpromo_first_command_path($test);
-        if ($resolved !== '' && bandpromo_is_working_python($resolved)) {
-            return $resolved;
+    if (bandpromo_can_shell_exec()) {
+        foreach (['python3', 'python'] as $candidate) {
+            $test = shell_exec("where $candidate 2>nul") ?? shell_exec("which $candidate 2>/dev/null");
+            if (!$test) {
+                continue;
+            }
+            $resolved = bandpromo_first_command_path($test);
+            if ($resolved !== '' && bandpromo_is_working_python($resolved)) {
+                return $resolved;
+            }
         }
     }
 
@@ -57,6 +67,16 @@ function bandpromo_resolve_python_interpreter(): string {
 
 function bandpromo_run_light_task(string $script_relative_path): array {
     $root_dir = dirname(__DIR__);
+
+    if (!bandpromo_can_proc_open()) {
+        return [
+            'ok' => false,
+            'error' => 'Process execution is unavailable on this host',
+            'output' => '',
+            'exit_code' => null,
+        ];
+    }
+
     $python = bandpromo_resolve_python_interpreter();
     $script = $root_dir . '/' . ltrim($script_relative_path, '/');
 
@@ -115,6 +135,17 @@ function bandpromo_run_light_task(string $script_relative_path): array {
 
 function bandpromo_run_light_json_task(string $script_relative_path, array $payload): array {
     $root_dir = dirname(__DIR__);
+
+    if (!bandpromo_can_proc_open()) {
+        return [
+            'ok' => false,
+            'error' => 'Process execution is unavailable on this host',
+            'output' => '',
+            'exit_code' => null,
+            'data' => null,
+        ];
+    }
+
     $python = bandpromo_resolve_python_interpreter();
     $script = $root_dir . '/' . ltrim($script_relative_path, '/');
 
