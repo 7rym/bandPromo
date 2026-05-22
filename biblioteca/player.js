@@ -901,6 +901,10 @@ function checkExpected() {
         return;
     }
 
+    if (currentTrackChangeSource !== null && audioPlayer.currentTime > 0.25) {
+        currentTrackChangeSource = null;
+    }
+
     const exp = parseFloat(audioPlayer.dataset.expectedDuration);
     if (!isNaN(exp)) {
         if (audioPlayer.currentTime >= exp - 0.5) {
@@ -951,7 +955,6 @@ audioPlayer.addEventListener('play', () => {
     // Remove pulse guide when music actually starts (any source)
     removePulseGuide();
     resumeAfterVisibilityPause = false;
-    currentTrackChangeSource = null;
     updateMediaSessionPlaybackState();
     updateMediaSessionPositionState();
 
@@ -1071,6 +1074,7 @@ let isChangingSong = false;
 
 function applySongChange(newIndex, direction) {
     currentIndex = newIndex;
+    audioPlayer.autoplay = true;
     setAudioSrc(playList[currentIndex].file);
     pendingPlayActionSource = pendingPlayActionSource || (direction === 'next' ? 'auto_next' : 'auto_prev');
     currentTrackChangeSource = pendingPlayActionSource;
