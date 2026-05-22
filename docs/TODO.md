@@ -195,6 +195,7 @@ Deferred to v0.8:
 
 ### PWA offline audio caching and offline logging
 
+- [ ] Record the current v0.7 limitation explicitly in operator/developer notes: real-phone screen-off playback can still fail during background continuation or next-track handoff even after the current player and `audio.php` hardening, so this behavior is recognized but deferred to the v0.8 playback architecture track rather than treated as a v0.7 gate blocker
 - [ ] Define the protected-audio delivery model for production: PHP authorization plus web-server/static delivery handoff, signed URLs, or equivalent protected media strategy
 - [ ] Define which core services can work offline, which should degrade gracefully, and which still require online authorization/runtime support
 - [ ] Define the installed-phone success criteria: what must feel better in the PWA than in the browser, especially offline listening, startup behavior, update reliability, and media availability

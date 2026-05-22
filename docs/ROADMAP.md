@@ -305,6 +305,7 @@ Build-pipeline implications:
 - source-aware processing must stop assuming every supported audio input follows the same FLAC-first path
 - offline-capable playback and scalable playback should share the same future direction: PHP should authorize access, but long-lived audio byte delivery should move away from PHP streaming toward a cache-friendly protected delivery path
 - the PWA/service-worker layer should be audited as product infrastructure, not treated as a one-time install checkbox; update behavior, cache-busting, stale-shell risk, and offline value on phones are part of the core user experience
+- background playback stability on real phones is now a confirmed product-level concern rather than a small player bug: even after tightening player state handling and HTTP range correctness in v0.7, screen-off continuation and next-track handoff can still fail on mobile browsers. Treat this as a known limitation of the current delivery model, not as a reason to keep stretching v0.7. The v0.8 playback architecture should make playback state authoritative, move visual transitions into a best-effort presentation layer, and revisit delivery/cache/offline behavior as one coherent stability track.
 
 Platform-model implications:
 

@@ -7,6 +7,7 @@ session_start();
 
 require_once 'biblioteca/auth.php';
 require_once 'biblioteca/admin-audit.php';
+require_once 'biblioteca/build-required.php';
 require_once 'biblioteca/config-loader.php';
 require_once 'biblioteca/csrf.php';
 require_once 'biblioteca/media-library-state.php';
@@ -24,6 +25,123 @@ function bandpromo_admin_default_theme_display_version(?string $rawVersion): str
     return $version;
 }
 
+function bandpromo_admin_welcome_build_status(array $buildState): string {
+    if (empty($buildState['required'])) {
+        return 'No pending build work is currently recorded.';
+    }
+
+    $action = strtolower((string) ($buildState['action'] ?? 'none'));
+    if ($action === 'optimize') {
+        return 'Media optimization is pending before the latest artwork changes reach the site.';
+    }
+
+    return 'A full build is pending before the latest source changes reach the site.';
+}
+
+function bandpromo_admin_normalize_text(string $value): string {
+    $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $decoded = strip_tags($decoded);
+    $decoded = strtolower($decoded);
+    $decoded = preg_replace('/\s+/u', ' ', $decoded);
+    return trim((string) $decoded);
+}
+
+function bandpromo_admin_file_text(string $path): string {
+    if (!is_file($path)) {
+        return '';
+    }
+
+    $raw = @file_get_contents($path);
+    return is_string($raw) ? $raw : '';
+}
+
+function bandpromo_admin_text_contains_any(string $haystack, array $needles): bool {
+    foreach ($needles as $needle) {
+        if ($needle !== '' && strpos($haystack, $needle) !== false) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function bandpromo_admin_starter_pack_files_present(string $root): bool {
+    $representativePaths = [
+        $root . '/media/special/bandPromo_share.png',
+        $root . '/media/img/original/bandPromo_vocalist.png',
+        $root . '/media/audio/original/bandPromo_the_very_first_song.flac',
+    ];
+
+    foreach ($representativePaths as $path) {
+        if (!is_file($path)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function bandpromo_admin_latest_full_build_success(string $root): bool {
+    $logFile = $root . '/log/build.log';
+    $lockFile = $root . '/log/build.lock';
+
+    if (!is_file($logFile) || is_file($lockFile)) {
+        return false;
+    }
+
+    $content = @file_get_contents($logFile);
+    if (!is_string($content) || trim($content) === '') {
+        return false;
+    }
+
+    return preg_match('/\nEXITCODE:0\s*$/', $content) === 1;
+}
+
+function bandpromo_admin_runtime_files_present(string $root): bool {
+    $requiredFiles = [
+        $root . '/web-config.json',
+        $root . '/data/bio.html',
+        $root . '/data/faq.html',
+        $root . '/data/terces',
+    ];
+
+    foreach ($requiredFiles as $path) {
+        if (!is_file($path)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function bandpromo_admin_write_inferred_starter_pack_marker(string $root): bool {
+    $markerPath = $root . '/data/default-theme-package.json';
+    if (is_file($markerPath) || !bandpromo_admin_starter_pack_files_present($root)) {
+        return false;
+    }
+
+    $payload = [
+        'version' => 'local-source-tree',
+        'display_version' => '1.0',
+        'sha256' => '',
+        'package_file' => '',
+        'package_url' => '',
+        'release_tag' => 'local-source-tree',
+        'paths' => [
+            'media/special/bandPromo_share.png',
+            'media/img/original/bandPromo_vocalist.png',
+            'media/audio/original/bandPromo_the_very_first_song.flac',
+        ],
+        'installed_at_utc' => gmdate('c'),
+        'source' => 'inferred-from-local-files',
+    ];
+
+    return @file_put_contents(
+        $markerPath,
+        json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
+    ) !== false;
+}
+
 // Redirect to setup wizard if setup hasn't been completed
 if (!bandpromo_is_setup_complete()) {
     header('Location: /setup.php');
@@ -37,6 +155,7 @@ $siteName  = get_config('release.identity.title', 'Admin');
 $siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
 $defaultThemeStatus = null;
 $defaultThemeMarkerPath = __DIR__ . '/data/default-theme-package.json';
+bandpromo_admin_write_inferred_starter_pack_marker(__DIR__);
 if (is_file($defaultThemeMarkerPath)) {
     $defaultThemeMarker = json_decode((string) file_get_contents($defaultThemeMarkerPath), true);
     if (is_array($defaultThemeMarker)) {
@@ -71,6 +190,161 @@ if ($requestHostNoPort === 'localhost') {
         $siteUrl = 'http://' . $requestHost;
     }
 }
+
+$buildRequiredState = bandpromo_get_build_required_state();
+$siteShortLabel = trim((string) get_config('release.identity.short_label', ''));
+$siteDescription = trim((string) get_config('release.identity.description', ''));
+$releaseCover = trim((string) get_config('release.theme.cover', ''));
+$installLogo = trim((string) get_config('install.theme.logo', ''));
+$supportUrl = trim((string) get_config('support.url', ''));
+$hasUploadedAudio = bandpromo_media_has_visible_user_uploads('audio');
+$hasUploadedIllustrations = bandpromo_media_has_visible_user_uploads('illustrations');
+$hasUploadedPhotos = bandpromo_media_has_visible_user_uploads('photos');
+$hasUploadedSpecial = bandpromo_media_has_visible_user_uploads('special');
+$hasUploadedVisualMedia = $hasUploadedIllustrations || $hasUploadedPhotos || $hasUploadedSpecial;
+$hasUploadedOwnMedia = $hasUploadedAudio || $hasUploadedVisualMedia;
+$starterPackInstalled = $defaultThemeStatus !== null || bandpromo_admin_starter_pack_files_present(__DIR__);
+$starterPackDetail = $starterPackInstalled
+    ? 'Starter design pack ' . (($defaultThemeStatus['display_version'] ?? '') !== '' ? $defaultThemeStatus['display_version'] : '1.0') . ' is recorded for this installation.'
+    : 'The starter design files are not fully available yet. Run a full build to install them.';
+
+$defaultIdentityNames = ['bandpromo demo site', 'your site name', 'bandpromo'];
+$defaultShortLabels = ['bandpromo', 'short name'];
+$defaultDescriptions = [
+    '',
+    'a demo site for the bandpromo publishing and marketing tool',
+    'site description for manifest and meta tags',
+];
+$identityNormalized = bandpromo_admin_normalize_text($siteName);
+$shortLabelNormalized = bandpromo_admin_normalize_text($siteShortLabel);
+$descriptionNormalized = bandpromo_admin_normalize_text($siteDescription);
+$coverPersonalized = $releaseCover !== '' && $releaseCover !== '/media/special/bandPromo_cover.png';
+$logoPersonalized = $installLogo !== '' && $installLogo !== '/media/special/bandPromo_logo.png';
+$installationPersonalized =
+    !in_array($identityNormalized, $defaultIdentityNames, true)
+    || !in_array($shortLabelNormalized, $defaultShortLabels, true)
+    || !in_array($descriptionNormalized, $defaultDescriptions, true)
+    || $coverPersonalized
+    || $logoPersonalized
+    || $supportUrl !== '';
+
+$bioCurrent = bandpromo_admin_normalize_text(bandpromo_admin_file_text(__DIR__ . '/data/bio.html'));
+$faqCurrent = bandpromo_admin_normalize_text(bandpromo_admin_file_text(__DIR__ . '/data/faq.html'));
+$pagesPublished =
+    $bioCurrent !== ''
+    && $faqCurrent !== ''
+    && !bandpromo_admin_text_contains_any($bioCurrent, [
+        'bandpromo brings your band to your fans',
+        'roger raspy',
+        'sam shredding',
+        'tom thunder',
+        'marty melody',
+        'describe your genre',
+        'every project has an origin',
+    ])
+    && !bandpromo_admin_text_contains_any($faqCurrent, [
+        'your band name',
+        'your name or band name',
+        'this is the place to be',
+    ]);
+
+$fullBuildSucceeded = bandpromo_admin_latest_full_build_success(__DIR__);
+$installationRunning = bandpromo_is_setup_complete() && bandpromo_admin_runtime_files_present(__DIR__);
+
+$welcomeChecklist = [
+    [
+        'label' => 'Starter pack installed',
+        'action_label' => 'Install the starter pack',
+        'severity' => 'blocking',
+        'complete' => $starterPackInstalled,
+        'detail' => $starterPackDetail,
+        'href' => '?tab=build',
+        'next' => 'Open Build and run a full build so bandPromo can install the starter design files.',
+    ],
+    [
+        'label' => 'Installation personalized',
+        'action_label' => 'Personalize the installation',
+        'severity' => 'nonblocking',
+        'complete' => $installationPersonalized,
+        'detail' => $installationPersonalized
+            ? 'The site identity or theme has been changed away from the shipped starter defaults.'
+            : 'The site is still using the shipped demo identity or default branding values.',
+        'href' => '?tab=config',
+        'next' => 'Open Config and replace the starter name, description, branding, or support details with your own.',
+    ],
+    [
+        'label' => 'Your own media content is present',
+        'action_label' => 'Upload your own media',
+        'severity' => 'nonblocking',
+        'complete' => $hasUploadedOwnMedia,
+        'detail' => $hasUploadedOwnMedia
+            ? 'Visible uploaded media is already present in this installation.'
+            : 'No visible uploaded media has been detected yet.',
+        'href' => '?tab=files&fpanel=audio',
+        'next' => 'Open Files and upload your own audio and artwork so the site stops depending on starter media.',
+    ],
+    [
+        'label' => 'Your own pages are published',
+        'action_label' => 'Publish your own info',
+        'severity' => 'nonblocking',
+        'complete' => $pagesPublished,
+        'detail' => $pagesPublished
+            ? 'The Bio and FAQ pages no longer look like the shipped starter copy.'
+            : 'Bio or FAQ still looks like starter content, so the public pages are not fully personalized yet.',
+        'href' => '?tab=content&cntab=pages',
+        'next' => 'Open Content -> Pages and replace the starter Bio / FAQ text with your own public copy.',
+    ],
+    [
+        'label' => 'The full build process ran successfully',
+        'action_label' => 'Run the full build',
+        'severity' => 'blocking',
+        'complete' => $fullBuildSucceeded,
+        'detail' => $fullBuildSucceeded
+            ? 'The latest full build finished successfully.'
+            : 'No successful full build has been recorded yet, or the last full build failed.',
+        'href' => '?tab=build',
+        'next' => 'Open Build and run a full build until it completes successfully.',
+    ],
+    [
+        'label' => 'This installation is up and running',
+        'action_label' => 'Finish the installation',
+        'severity' => 'blocking',
+        'complete' => $installationRunning,
+        'detail' => $installationRunning
+            ? 'Setup is complete and the required runtime files are available.'
+            : 'Setup is incomplete or required runtime files are still missing.',
+        'href' => '?tab=docs&doc_scope=operator',
+        'next' => 'Finish setup and make sure the required runtime files are in place before treating the install as live.',
+    ],
+];
+
+$welcomeCompletedChecks = 0;
+$welcomeNextSteps = [];
+foreach ($welcomeChecklist as $item) {
+    if (!empty($item['complete'])) {
+        $welcomeCompletedChecks++;
+        continue;
+    }
+
+    $welcomeNextSteps[] = [
+        'label' => $item['action_label'],
+        'href' => $item['href'],
+        'severity' => (string) ($item['severity'] ?? 'nonblocking'),
+        'description' => $item['next'],
+    ];
+}
+
+if ($welcomeNextSteps === []) {
+    $welcomeNextSteps[] = [
+        'label' => 'Documentation',
+        'href' => '?tab=docs&doc_scope=operator',
+        'description' => 'You are in a good place. Use Documentation when you want the deeper explanations and workflow guides.',
+    ];
+}
+
+$welcomePrimaryNotice = $welcomeCompletedChecks >= count($welcomeChecklist)
+    ? '6 of 6 checks complete. Great job!'
+    : $welcomeCompletedChecks . ' of ' . count($welcomeChecklist) . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
 
 // Ensure public media directories have world-readable permissions (0755) so the
 // HTTP server can serve static files.  This is a cheap no-op after the first run.
@@ -467,76 +741,51 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <!-- ===================== WELCOME TAB ===================== -->
         <div class="tab-content <?php echo $tab === 'welcome' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
-                <button class="help-toggle-btn collapsed" id="helpBtn-welcome" onclick="toggleHelp('welcome')" title="Show/hide help">ⓘ</button>
+                <div class="subtab-help-hint-wrap">
+                    <span class="subtab-help-hint">Click here to toggle help texts -&gt;</span>
+                    <button class="help-toggle-btn collapsed" id="helpBtn-welcome" onclick="toggleHelp('welcome')" title="Show/hide help">ⓘ</button>
+                </div>
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
-                Welcome is the operator-facing overview. Use it to remember the bigger purpose of the platform: you are not just filling out forms, you are building a durable home base for music, audience connection, and long-term operator control.
+                Use this page as your checklist. bandPromo should decide as much of the install state as it can on its own, then point you straight to the next incomplete step: <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for Bio / FAQ and playlist shaping, <strong>Build</strong> for publish/build state, and <strong>Documentation</strong> for the deeper explanations.
             </div>
 
-            <div class="card">
+            <div class="card welcome-card">
                 <h2>🌍 Welcome to bandPromo</h2>
-                <p class="card-note">
-                    bandPromo is built for operators who want more than another profile on someone else's platform. It gives you a professional, self-hosted home base where your presentation, your audience relationship, and your support paths stay under your control.
-                </p>
-            </div>
 
-            <div class="card">
-                <h3>Starter Design Pack</h3>
-                <?php if ($defaultThemeStatus !== null): ?>
-                    <p class="card-note">
-                        Your starter design pack is already in place, so this site has the default artwork, icons, and sample media it needs to finish setup and show a complete first version.
-                    </p>
-                    <p>
-                        Installed package version: <strong><?php echo htmlspecialchars($defaultThemeStatus['display_version'] !== '' ? $defaultThemeStatus['display_version'] : 'Ready'); ?></strong>
-                        <?php if ($defaultThemeStatus['installed_at'] !== ''): ?>
-                            <br>Installed on this site: <?php echo htmlspecialchars($defaultThemeStatus['installed_at']); ?>
-                        <?php endif; ?>
-                        <?php if ($defaultThemeStatus['path_count'] > 0): ?>
-                            <br>Included starter files: <?php echo htmlspecialchars((string) $defaultThemeStatus['path_count']); ?>
-                        <?php endif; ?>
-                    </p>
-                <?php else: ?>
-                    <p class="card-note">
-                        This site has not recorded its starter design pack yet. If the site still looks unfinished or setup was interrupted earlier, open the Build tab and run the build once to let bandPromo fetch the default artwork and sample media automatically.
-                    </p>
-                <?php endif; ?>
-            </div>
-
-            <div class="card-grid two-up">
-                <div class="card">
-                    <h3>What You Are Building</h3>
-                    <p>
-                        You are building a place where music, identity, story, private access, release context, and supporter pathways can live together. Instead of scattering your audience across services that each control one piece of the relationship, bandPromo helps you bring those pieces back into one operator-owned experience.
-                    </p>
+                <div class="welcome-callout">
+                    <?php echo htmlspecialchars($welcomePrimaryNotice); ?>
                 </div>
 
-                <div class="card">
-                    <h3>Why It Matters</h3>
-                    <p>
-                        Smaller artists and operators often lose both attention and control on larger platforms. bandPromo exists to push in the opposite direction: clearer presentation, closer fan connection, better reuse of your own work, and more freedom to decide how public, private, promotional, or supporter-focused each experience should be.
-                    </p>
-                </div>
+                <div class="welcome-grid">
+                    <div class="welcome-section">
+                        <h3>Checklist</h3>
+                        <ul class="welcome-checklist">
+                            <?php foreach ($welcomeChecklist as $check): ?>
+                                <li>
+                                    <?php $checkSeverityClass = !empty($check['complete']) ? 'is-complete' : ('is-' . htmlspecialchars((string) ($check['severity'] ?? 'nonblocking'))); ?>
+                                    <span class="welcome-check-icon <?php echo $checkSeverityClass; ?>"><?php echo !empty($check['complete']) ? '✔' : '○'; ?></span>
+                                    <div class="welcome-check-body">
+                                        <a class="welcome-link <?php echo $checkSeverityClass; ?>" href="<?php echo htmlspecialchars($check['href']); ?>"><strong><?php echo htmlspecialchars($check['label']); ?></strong></a>
+                                        <span><?php echo htmlspecialchars($check['detail']); ?></span>
+                                    </div>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
 
-                <div class="card">
-                    <h3>How It Can Create Value</h3>
-                    <p>
-                        The platform helps you turn a site into a working music operation: release pages, private listening, supporter links, premium or registered access paths, promotion workflows, and future service layers that can support better campaigns, better operator tooling, and stronger direct audience relationships.
-                    </p>
+                    <div class="welcome-section">
+                        <h3>What to do next</h3>
+                        <ol class="welcome-list welcome-list-numbered">
+                            <?php foreach ($welcomeNextSteps as $step): ?>
+                                <li>
+                                    <a class="welcome-link is-<?php echo htmlspecialchars((string) ($step['severity'] ?? 'nonblocking')); ?>" href="<?php echo htmlspecialchars($step['href']); ?>"><strong><?php echo htmlspecialchars($step['label']); ?></strong></a>
+                                    <span><?php echo htmlspecialchars($step['description']); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ol>
+                    </div>
                 </div>
-
-                <div class="card">
-                    <h3>Why Operators Can Trust It</h3>
-                    <p>
-                        bandPromo is designed to stay out of the riskiest roles by default. It does not aim to become your payment processor, rights authority, or legal decision-maker. Support flows stay operator-owned, and responsibilities for rights, payouts, compliance, and external provider terms stay with the operator. That keeps the platform safer, clearer, and easier to grow responsibly.
-                    </p>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>You Are Part of a Bigger Shift</h3>
-                <p>
-                    bandPromo is not trying to copy the largest platforms. It is part of a larger movement toward artist-owned presence, direct audience connection, reusable promotion tools, and healthier operator control. Every install that is run well helps prove that music sites can be more independent, more durable, and more human-centered than the platform-first model.
-                </p>
             </div>
         </div>
 
