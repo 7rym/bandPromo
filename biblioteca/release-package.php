@@ -4,6 +4,25 @@ declare(strict_types=1);
 const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
+const BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION = '1.0';
+
+function bandpromo_release_default_theme_display_version(array $package): string {
+    $displayVersion = trim((string) ($package['display_version'] ?? ''));
+    if ($displayVersion !== '') {
+        return $displayVersion;
+    }
+
+    $version = trim((string) ($package['version'] ?? ''));
+    if ($version === '') {
+        return BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION;
+    }
+
+    if (preg_match('/^v\d+\.\d+\s+build\s+\d+$/i', $version)) {
+        return BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION;
+    }
+
+    return $version;
+}
 
 function bandpromo_release_log(?callable $logger, string $message): void {
     if ($logger !== null) {
@@ -266,6 +285,7 @@ function bandpromo_release_default_theme_package(array $manifest): array {
 
     return [
         'version' => trim($version),
+        'display_version' => bandpromo_release_default_theme_display_version($package),
         'package_file' => is_string($package['package_file'] ?? null) ? trim((string) $package['package_file']) : '',
         'package_url' => trim($packageUrl),
         'sha256' => strtolower(trim($sha256)),
@@ -315,6 +335,7 @@ function bandpromo_release_write_default_theme_marker(string $root, array $packa
     bandpromo_release_ensure_dir(dirname($markerPath));
     $payload = [
         'version' => $package['version'],
+        'display_version' => bandpromo_release_default_theme_display_version($package),
         'sha256' => $package['sha256'],
         'package_file' => $package['package_file'],
         'package_url' => $package['package_url'],

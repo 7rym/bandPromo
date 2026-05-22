@@ -117,6 +117,7 @@ let debugRefreshIntervalId = null;
 let manifestDebugCache = null;
 let wasPlayingBeforeVisibilityHidden = false;
 let resumeAfterVisibilityPause = false;
+let currentTrackChangeSource = null;
 
 function isStandaloneDisplayMode() {
     return window.matchMedia('(display-mode: standalone)').matches ||
@@ -936,11 +937,13 @@ audioPlayer.addEventListener('error', e => {
     console.error('Audio playback error', e);
     // give user some visible feedback if it happens during interaction
     const deliveryFile = audioPlayer.dataset.deliveryFile || (playList[currentIndex] && playList[currentIndex].file) || '';
-    const sourceFile = audioPlayer.dataset.sourceFile || deliveryFile;
     if (deliveryFile) {
-        const sourceDetail = sourceFile !== deliveryFile ? ` Source track: ${sourceFile}.` : '';
-        alert('Unable to play ' + deliveryFile + '. Your device may not support the streamed format, or playback was interrupted.' + sourceDetail);
+        const prefix = currentTrackChangeSource === 'auto_next'
+            ? 'Playback stopped while switching to the next track.'
+            : 'Playback stopped unexpectedly.';
+        alert(prefix + ' Streamed file: ' + deliveryFile + '.');
     }
+    currentTrackChangeSource = null;
 });
 
 // Log when track starts playing (or resumes from pause)
@@ -948,6 +951,7 @@ audioPlayer.addEventListener('play', () => {
     // Remove pulse guide when music actually starts (any source)
     removePulseGuide();
     resumeAfterVisibilityPause = false;
+    currentTrackChangeSource = null;
     updateMediaSessionPlaybackState();
     updateMediaSessionPositionState();
 
@@ -982,7 +986,9 @@ audioPlayer.addEventListener('ended', () => {
     wasPlayingBeforeVisibilityHidden = false;
     updateMediaSessionPlaybackState();
     logTrackExit('ended', 'auto');
-    
+
+    currentTrackChangeSource = 'auto_next';
+    pendingPlayActionSource = 'auto_next';
     // Auto-play next song when current track ends
     triggerSongChange('next');
 });
@@ -1063,6 +1069,27 @@ function updateVisuals(index) {
 // Guard: prevents double/triple firing from checkExpected + ended + pause events
 let isChangingSong = false;
 
+function applySongChange(newIndex, direction) {
+    currentIndex = newIndex;
+    setAudioSrc(playList[currentIndex].file);
+    pendingPlayActionSource = pendingPlayActionSource || (direction === 'next' ? 'auto_next' : 'auto_prev');
+    currentTrackChangeSource = pendingPlayActionSource;
+
+    const playlistItems = document.querySelectorAll('.playlist-item');
+    playlistItems.forEach((item, index) => {
+        if (index === newIndex) {
+            item.classList.add('current');
+        } else {
+            item.classList.remove('current');
+        }
+    });
+
+    audioPlayer.play().catch(() => {
+        // Hidden/background transitions can still be blocked by the browser.
+    });
+    isChangingSong = false;
+}
+
 // Main function for song change with animation
 function triggerSongChange(direction) {
     isChangingSong = true;
@@ -1075,6 +1102,12 @@ function triggerSongChange(direction) {
         newIndex = (currentIndex + 1) % playList.length;
     } else {
         newIndex = (currentIndex - 1 + playList.length) % playList.length;
+    }
+
+    if (document.hidden && direction === 'next') {
+        updateVisuals(newIndex);
+        applySongChange(newIndex, direction);
+        return;
     }
 
     // 3. Determine animation class based on direction
@@ -1100,25 +1133,7 @@ function triggerSongChange(direction) {
 
     // 6. When animation is done (800ms): Load new audio and play
     setTimeout(() => {
-        currentIndex = newIndex;
-        setAudioSrc(playList[currentIndex].file);
-        pendingPlayActionSource = pendingPlayActionSource || (direction === 'next' ? 'auto_next' : 'auto_prev');
-        
-        // Update playlist highlight: remove 'current' from all items, add to new one
-        const playlistItems = document.querySelectorAll('.playlist-item');
-        playlistItems.forEach((item, index) => {
-            if (index === newIndex) {
-                item.classList.add('current');
-            } else {
-                item.classList.remove('current');
-            }
-        });
-        
-        // Auto play
-        audioPlayer.play().catch(e => {
-            // Autoplay blocked by browser before user interaction
-        });
-        isChangingSong = false;
+        applySongChange(newIndex, direction);
     }, 800);
 }
 

@@ -11,6 +11,19 @@ require_once 'biblioteca/config-loader.php';
 require_once 'biblioteca/csrf.php';
 require_once 'biblioteca/media-library-state.php';
 
+function bandpromo_admin_default_theme_display_version(?string $rawVersion): string {
+    $version = trim((string) $rawVersion);
+    if ($version === '') {
+        return '1.0';
+    }
+
+    if (preg_match('/^v\d+\.\d+\s+build\s+\d+$/i', $version)) {
+        return '1.0';
+    }
+
+    return $version;
+}
+
 // Redirect to setup wizard if setup hasn't been completed
 if (!bandpromo_is_setup_complete()) {
     header('Location: /setup.php');
@@ -37,8 +50,14 @@ if (is_file($defaultThemeMarkerPath)) {
             }
         }
 
+        $displayVersion = trim((string) ($defaultThemeMarker['display_version'] ?? ''));
+        if ($displayVersion === '') {
+            $displayVersion = bandpromo_admin_default_theme_display_version((string) ($defaultThemeMarker['version'] ?? ''));
+        }
+
         $defaultThemeStatus = [
             'version' => trim((string) ($defaultThemeMarker['version'] ?? '')), 
+            'display_version' => $displayVersion,
             'installed_at' => $installedLabel,
             'path_count' => is_array($defaultThemeMarker['paths'] ?? null) ? count($defaultThemeMarker['paths']) : 0,
         ];
@@ -468,7 +487,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         Your starter design pack is already in place, so this site has the default artwork, icons, and sample media it needs to finish setup and show a complete first version.
                     </p>
                     <p>
-                        Installed version: <strong><?php echo htmlspecialchars($defaultThemeStatus['version'] !== '' ? $defaultThemeStatus['version'] : 'Ready'); ?></strong>
+                        Installed package version: <strong><?php echo htmlspecialchars($defaultThemeStatus['display_version'] !== '' ? $defaultThemeStatus['display_version'] : 'Ready'); ?></strong>
                         <?php if ($defaultThemeStatus['installed_at'] !== ''): ?>
                             <br>Installed on this site: <?php echo htmlspecialchars($defaultThemeStatus['installed_at']); ?>
                         <?php endif; ?>

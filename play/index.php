@@ -225,7 +225,7 @@ if ($supportEnabled && $supportUrl !== '') {
             <button onclick="nextSong()">Next &#9654;</button>
         </div>
 
-        <audio id="audioPlayer" controls controlsList="nodownload noplaybackrate" preload="metadata" onended="nextSong()"></audio>
+        <audio id="audioPlayer" controls controlsList="nodownload noplaybackrate" preload="metadata"></audio>
 
         <div id="beggars-banquet">
             &nbsp;
