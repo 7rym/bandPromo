@@ -65,6 +65,23 @@ function bandpromo_admin_text_contains_any(string $haystack, array $needles): bo
     return false;
 }
 
+function bandpromo_admin_text_checksum(string $value): string {
+    return hash('sha256', $value);
+}
+
+function bandpromo_admin_pages_match_starter_template(string $currentText, string $templatePath): bool {
+    if ($currentText === '') {
+        return true;
+    }
+
+    $templateText = bandpromo_admin_normalize_text(bandpromo_admin_file_text($templatePath));
+    if ($templateText === '') {
+        return false;
+    }
+
+    return bandpromo_admin_text_checksum($currentText) === bandpromo_admin_text_checksum($templateText);
+}
+
 function bandpromo_admin_starter_pack_files_present(string $root): bool {
     $representativePaths = [
         $root . '/media/special/bandPromo_share.png',
@@ -233,20 +250,8 @@ $faqCurrent = bandpromo_admin_normalize_text(bandpromo_admin_file_text(__DIR__ .
 $pagesPublished =
     $bioCurrent !== ''
     && $faqCurrent !== ''
-    && !bandpromo_admin_text_contains_any($bioCurrent, [
-        'bandpromo brings your band to your fans',
-        'roger raspy',
-        'sam shredding',
-        'tom thunder',
-        'marty melody',
-        'describe your genre',
-        'every project has an origin',
-    ])
-    && !bandpromo_admin_text_contains_any($faqCurrent, [
-        'your band name',
-        'your name or band name',
-        'this is the place to be',
-    ]);
+    && !bandpromo_admin_pages_match_starter_template($bioCurrent, __DIR__ . '/biblioteca/templates/bio.template.html')
+    && !bandpromo_admin_pages_match_starter_template($faqCurrent, __DIR__ . '/biblioteca/templates/faq.template.html');
 
 $fullBuildSucceeded = bandpromo_admin_latest_full_build_success(__DIR__);
 $installationRunning = bandpromo_is_setup_complete() && bandpromo_admin_runtime_files_present(__DIR__);
