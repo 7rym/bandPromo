@@ -311,6 +311,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let modalFiles  = [];
             let mediaPickerState = null;
             let showBundledDemoAssets = false;
+            let audioDisplayMode = 'master';
+            let expandedAudioFile = null;
+            const mediaSelectionState = new Map();
+            const mediaFilesState = new Map();
+            const audioInlineDetailCache = new Map();
+            const audioInlineDetailErrors = new Map();
+            const audioInlineDetailLoading = new Set();
             const adminQueryParams = new URLSearchParams(window.location.search);
             const pendingAudioDetailFromQuery = String(adminQueryParams.get('audio_detail') || '').trim();
             const pendingMediaFocusFromQuery = String(adminQueryParams.get('focus_file') || '').trim();
@@ -428,24 +435,134 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function formatAudioMasterBadges(file) {
-                const originalFormat = String(file.original_format || String(file.name).split('.').pop() || '').toUpperCase();
                 const master = file.audio_master || {};
-                const badges = [
-                    `<span class="badge audit-status-badge status-neutral media-file-badge">Original ${originalFormat || 'FILE'}</span>`
-                ];
+                const badges = [];
 
-                if (master.exists) {
-                    const masterFormat = String(master.format || '').toUpperCase();
-                    const masterStatus = master.editable ? 'ok' : 'neutral';
-                    badges.push(`<span class="badge audit-status-badge status-${masterStatus} media-file-badge">Master ${masterFormat || 'READY'}</span>`);
-                } else {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge">Master pending</span>');
+                if (audioDisplayMode === 'master' && !master.exists) {
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Master file is not available for this upload yet">Master pending</span>');
                 }
 
                 badges.push(formatAudioMetadataHealthBadges(file));
 
                 return badges.join(' ');
             }
+
+            function getDisplayedMediaInfo(type, file) {
+                const mediaFile = file || {};
+                if (type === 'audio' && audioDisplayMode === 'master' && mediaFile.audio_master && mediaFile.audio_master.exists) {
+                    return {
+                        name: String(mediaFile.audio_master.filename || mediaFile.name || ''),
+                        size: Number(mediaFile.audio_master.size) || Number(mediaFile.size) || 0,
+                        downloadVariant: 'master',
+                        downloadAvailable: true,
+                    };
+                }
+
+                return {
+                    name: String(mediaFile.name || ''),
+                    size: Number(mediaFile.size) || 0,
+                    downloadVariant: 'original',
+                    downloadAvailable: true,
+                };
+            }
+
+            async function fetchAudioMasterDetailData(filename) {
+                const resp = await fetch(`/biblioteca/get-audio-master-detail.php?filename=${encodeURIComponent(filename)}`);
+                const data = await resp.json();
+                if (!resp.ok || data.error) {
+                    throw new Error(data.error || 'Could not load track details');
+                }
+                return data;
+            }
+
+            function buildAudioInlineDetailMarkup(filename) {
+                if (audioInlineDetailLoading.has(filename)) {
+                    return '<div class="media-file-inline-details"><span class="media-file-inline-empty">Loading track tags...</span></div>';
+                }
+
+                const error = String(audioInlineDetailErrors.get(filename) || '').trim();
+                if (error) {
+                    return `<div class="media-file-inline-details"><span class="media-file-inline-empty">${escapeHtml(error)}</span></div>`;
+                }
+
+                const detail = audioInlineDetailCache.get(filename);
+                if (!detail) {
+                    return '<div class="media-file-inline-details"><span class="media-file-inline-empty">Loading track tags...</span></div>';
+                }
+
+                const health = buildAudioMetadataHealthFromDetail(detail || {});
+                const healthFields = health && health.fields ? health.fields : {};
+                const titleParts = splitAudioTitleParts(detail.title || '');
+                const compactComment = String(detail.comment || '').trim();
+                const commentValue = compactComment.length > 140 ? `${compactComment.slice(0, 137)}...` : compactComment;
+                const coverValue = detail.sidecar_cover
+                    ? 'Track cover'
+                    : detail.embedded_cover_present
+                        ? 'Embedded cover'
+                        : detail.current_cover
+                            ? 'Release cover'
+                            : 'Missing';
+                const toneClass = (state, fallback = 'media-file-inline-chip-good') => {
+                    if (state === 'required') return 'media-file-inline-chip-danger';
+                    if (state === 'improvable') return 'media-file-inline-chip-amber';
+                    if (state === 'good') return 'media-file-inline-chip-good';
+                    return fallback;
+                };
+                const items = [
+                    { label: 'Cover', value: coverValue, tone: toneClass(healthFields.cover && healthFields.cover.state) },
+                    { label: 'Artist', value: String(detail.artist || '').trim() || 'Missing', tone: toneClass(healthFields.artist && healthFields.artist.state) },
+                    { label: 'Title', value: String(titleParts.title || detail.title || '').trim() || 'Missing', tone: toneClass(healthFields.title && healthFields.title.state) },
+                    { label: 'Release', value: String(detail.album || '').trim() || 'Missing', tone: toneClass(healthFields.release && healthFields.release.state) },
+                    { label: 'Description', value: commentValue || 'Missing', tone: toneClass(healthFields.description && healthFields.description.state) },
+                    { label: 'Lyrics', value: String(detail.lyrics || '').trim() !== '' ? 'Yes' : 'Missing', tone: toneClass(healthFields.lyrics && healthFields.lyrics.state) },
+                    { label: 'Track', value: String(detail.suggested_tracknumber || detail.playlist_tracknumber || '').trim(), tone: 'media-file-inline-chip-good' },
+                    { label: 'Version', value: String(titleParts.version || '').trim(), tone: 'media-file-inline-chip-good' },
+                    { label: 'Date', value: String(detail.date || '').trim(), tone: 'media-file-inline-chip-good' },
+                    { label: 'Genre', value: String(detail.genre || '').trim(), tone: 'media-file-inline-chip-good' },
+                    { label: 'BPM', value: String(detail.bpm || '').trim(), tone: 'media-file-inline-chip-good' },
+                    { label: 'Key', value: String(detail.initialkey || '').trim(), tone: 'media-file-inline-chip-good' },
+                ].filter((item) => item.value !== '');
+
+                if (!items.length) {
+                    return '<div class="media-file-inline-details"><span class="media-file-inline-empty">No saved tag values yet.</span></div>';
+                }
+
+                return `<div class="media-file-inline-details">${items.map((item) => `<span class="media-file-inline-chip ${item.tone}"><span class="media-file-inline-label">${escapeHtml(item.label)}</span>${escapeHtml(item.value)}</span>`).join('')}</div>`;
+            }
+
+            window.toggleAudioFileDetails = async function(filename) {
+                const nextFilename = String(filename || '').trim();
+                if (!nextFilename) return;
+
+                if (expandedAudioFile === nextFilename) {
+                    expandedAudioFile = null;
+                    loadMediaList('audio');
+                    return;
+                }
+
+                expandedAudioFile = nextFilename;
+                loadMediaList('audio');
+
+                if (audioInlineDetailCache.has(nextFilename) || audioInlineDetailLoading.has(nextFilename)) {
+                    return;
+                }
+
+                audioInlineDetailLoading.add(nextFilename);
+                audioInlineDetailErrors.delete(nextFilename);
+                loadMediaList('audio');
+
+                try {
+                    const detail = await fetchAudioMasterDetailData(nextFilename);
+                    audioInlineDetailCache.set(nextFilename, detail);
+                } catch (error) {
+                    audioInlineDetailErrors.set(nextFilename, error.message || 'Could not load track tags');
+                } finally {
+                    audioInlineDetailLoading.delete(nextFilename);
+                    if (expandedAudioFile === nextFilename) {
+                        loadMediaList('audio');
+                    }
+                }
+            };
 
             function maybeOpenAudioDetailFromQuery(files) {
                 if (openedAudioDetailFromQuery || !pendingAudioDetailFromQuery || activeMediaPanel !== 'audio') {
@@ -655,10 +772,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return bytes + ' B';
             }
 
-            function formatMediaCountSummary(files) {
+            function formatMediaCountSummary(files, type) {
                 const items = Array.isArray(files) ? files : [];
                 const count = items.length;
-                const totalBytes = items.reduce((sum, file) => sum + Math.max(0, Number(file && file.size) || 0), 0);
+                const totalBytes = items.reduce((sum, file) => sum + Math.max(0, Number(getDisplayedMediaInfo(type, file).size) || 0), 0);
                 const noun = count === 1 ? 'file' : 'files';
                 return `(${count} ${noun}, ${fmtSize(totalBytes)} total)`;
             }
@@ -688,6 +805,190 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }, 3200);
             }
 
+            function getMediaSelectionState(type) {
+                if (!mediaSelectionState.has(type)) {
+                    mediaSelectionState.set(type, {
+                        selected: new Set(),
+                        lastCheckboxIndex: null,
+                    });
+                }
+                return mediaSelectionState.get(type);
+            }
+
+            function getMediaRows(type) {
+                const listEl = document.getElementById('filelist-' + type);
+                if (!listEl) return [];
+                return Array.from(listEl.querySelectorAll('.media-file-row[data-file]'));
+            }
+
+            function pruneMediaSelection(type, files) {
+                const state = getMediaSelectionState(type);
+                const allowed = new Set((Array.isArray(files) ? files : []).map((file) => String(file && file.name || '')).filter(Boolean));
+                state.selected.forEach((filename) => {
+                    if (!allowed.has(filename)) {
+                        state.selected.delete(filename);
+                    }
+                });
+                if (state.lastCheckboxIndex !== null) {
+                    const rows = getMediaRows(type);
+                    if (state.lastCheckboxIndex >= rows.length) {
+                        state.lastCheckboxIndex = rows.length ? rows.length - 1 : null;
+                    }
+                }
+            }
+
+            function getSelectedMediaFiles(type) {
+                const state = getMediaSelectionState(type);
+                return getMediaRows(type)
+                    .map((row) => String(row.dataset.file || ''))
+                    .filter((filename) => state.selected.has(filename));
+            }
+
+            function getMediaFileState(type) {
+                return Array.isArray(mediaFilesState.get(type)) ? mediaFilesState.get(type) : [];
+            }
+
+            function getSelectedMediaDetails(type) {
+                const filesByName = new Map(getMediaFileState(type).map((file) => [String(file && file.name || ''), file]));
+                return getSelectedMediaFiles(type)
+                    .map((filename) => filesByName.get(filename))
+                    .filter(Boolean);
+            }
+
+            async function preflightMediaDownloadRequest(type, variant, files) {
+                const selectedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
+                if (!type || !selectedFiles.length) {
+                    return { ok: false, error: 'No files selected' };
+                }
+
+                const payload = new URLSearchParams();
+                payload.set('target', type);
+                payload.set('variant', variant || 'original');
+                payload.set('preflight', '1');
+                selectedFiles.forEach((filename) => payload.append('filenames[]', filename));
+
+                const resp = await fetch('/biblioteca/download-media.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                    body: payload.toString(),
+                    credentials: 'same-origin',
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data || data.ok !== true) {
+                    throw new Error((data && data.error) || 'Download is unavailable right now');
+                }
+                return data;
+            }
+
+            async function submitMediaDownloadRequest(type, variant, files) {
+                const selectedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
+                if (!type || !selectedFiles.length) {
+                    return;
+                }
+
+                try {
+                    await preflightMediaDownloadRequest(type, variant, selectedFiles);
+                } catch (error) {
+                    showAdminToast(error.message || 'Download is unavailable right now.', 'error');
+                    return;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/biblioteca/download-media.php';
+                form.style.display = 'none';
+
+                const fields = [
+                    ['target', type],
+                    ['variant', variant || 'original'],
+                ];
+
+                fields.forEach(([name, value]) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                });
+
+                selectedFiles.forEach((filename) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'filenames[]';
+                    input.value = filename;
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+                window.setTimeout(() => form.remove(), 0);
+            }
+
+            window.submitMediaDownloadRequest = submitMediaDownloadRequest;
+
+            function resolveBulkDownloadVariant(type, explicitVariant) {
+                if (type === 'audio' && (explicitVariant === '' || explicitVariant === 'current')) {
+                    return audioDisplayMode;
+                }
+                return explicitVariant || 'original';
+            }
+
+            function syncAudioDisplayToggleUi() {
+                document.querySelectorAll('[data-audio-display-toggle]').forEach((button) => {
+                    const showingOriginal = audioDisplayMode === 'original';
+                    const mode = showingOriginal ? 'original' : 'master';
+                    button.classList.remove('media-display-toggle-master', 'media-display-toggle-original');
+                    button.classList.add(showingOriginal ? 'media-display-toggle-original' : 'media-display-toggle-master');
+                    button.dataset.audioDisplayMode = mode;
+                    button.setAttribute('aria-pressed', showingOriginal ? 'false' : 'true');
+                    button.textContent = showingOriginal ? '◉ Original' : '◉ Master';
+                    button.title = showingOriginal ? 'Show master files' : 'Show original files';
+                });
+            }
+
+            function syncMediaSelectionUi(type) {
+                const state = getMediaSelectionState(type);
+                getMediaRows(type).forEach((row) => {
+                    const filename = String(row.dataset.file || '');
+                    const selected = state.selected.has(filename);
+                    row.classList.toggle('media-file-row-selected', selected);
+                    const checkbox = row.querySelector('.media-file-select');
+                    if (checkbox) {
+                        checkbox.checked = selected;
+                    }
+                });
+
+                const bulkDeleteBtn = document.querySelector(`[data-bulk-delete-target="${type}"]`);
+                if (bulkDeleteBtn) {
+                    const count = state.selected.size;
+                    bulkDeleteBtn.disabled = count <= 1;
+                }
+
+                const selectedDetails = getSelectedMediaDetails(type);
+                document.querySelectorAll(`[data-bulk-download-target="${type}"]`).forEach((button) => {
+                    const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'original').trim());
+                    const count = selectedDetails.length;
+                    const canDownloadOriginal = count > 1;
+                    const canDownloadMaster = type === 'audio'
+                        && count > 1
+                        && selectedDetails.every((file) => file && file.audio_master && file.audio_master.exists);
+                    const enabled = variant === 'master' ? canDownloadMaster : canDownloadOriginal;
+                    button.disabled = !enabled;
+                    if (variant === 'master' && !enabled && count > 0) {
+                        button.title = 'Every selected audio file must have a prepared copy before this download is available.';
+                    } else {
+                        button.removeAttribute('title');
+                    }
+                });
+            }
+
+            function clearMediaSelection(type) {
+                const state = getMediaSelectionState(type);
+                state.selected.clear();
+                state.lastCheckboxIndex = null;
+                syncMediaSelectionUi(type);
+            }
+
             async function refreshAdminCsrfToken() {
                 const resp = await fetch('/biblioteca/get-admin-csrf.php', {
                     credentials: 'same-origin',
@@ -706,9 +1007,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!listEl) return;
                 try {
                     const files = await fetchMediaFiles(type);
-                    if (countEl) countEl.textContent = formatMediaCountSummary(files);
+                    mediaFilesState.set(type, files);
+                    pruneMediaSelection(type, files);
+                    const selection = getMediaSelectionState(type);
+                    if (countEl) countEl.textContent = formatMediaCountSummary(files, type);
                     if (!files.length) {
                         listEl.innerHTML = '<span class="text-muted">No files yet.</span>';
+                        syncMediaSelectionUi(type);
                         return;
                     }
                     const basePath = getMediaBasePath(type);
@@ -716,6 +1021,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     listEl.innerHTML = files.map(f => {
                         const safeName = f.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                         const url = buildMediaUrl(type, f.name);
+                        const display = getDisplayedMediaInfo(type, f);
+                        const selected = selection.selected.has(f.name);
                         let thumb;
                         if (isImage(f.name)) {
                             thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
@@ -725,24 +1032,39 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             thumb = `<span class="media-file-icon">${extIcon(f.name)}</span>`;
                         }
                         const preview = isPreviewable(f.name)
-                            ? `<button class="icon-btn" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
+                            ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
                             : '';
                         const rowIsEditableAudio = type === 'audio' && f.audio_master && f.audio_master.editable;
-                        const nameCell = type === 'audio'
-                            ? `<span class="media-file-name-wrap"><span class="media-file-name">${f.name}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
-                            : `<span class="media-file-name">${f.name}</span>`;
-                        const rowAttributes = rowIsEditableAudio
-                            ? `data-editable-audio="true" tabindex="0" role="button" title="Open track details" onclick="openAudioMasterModal('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openAudioMasterModal('${safeName}'); }"`
+                        const editAction = rowIsEditableAudio
+                            ? `<button class="icon-btn media-action-btn media-action-good" title="Edit metadata" onclick="event.stopPropagation(); openAudioMasterModal('${safeName}')">✎</button>`
                             : '';
-                        const rowClassName = rowIsEditableAudio ? 'media-file-row media-file-row-clickable' : 'media-file-row';
+                        const downloadDisabled = type === 'audio' && display.downloadVariant === 'master' && (!f.audio_master || !f.audio_master.exists);
+                        const downloadAction = `<button class="icon-btn media-action-btn media-action-good" title="Download this file" ${downloadDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); submitMediaDownloadRequest('${type}', '${display.downloadVariant}', ['${safeName}'])">⬇</button>`;
+                        const nameCell = type === 'audio'
+                            ? `<span class="media-file-name-wrap"><span class="media-file-name">${escapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
+                            : `<span class="media-file-name">${escapeHtml(display.name || f.name)}</span>`;
+                        const isExpandedAudio = type === 'audio' && expandedAudioFile === f.name;
+                        const rowAttributes = rowIsEditableAudio
+                            ? `data-editable-audio="true" tabindex="0" role="button" aria-expanded="${isExpandedAudio ? 'true' : 'false'}" title="${isExpandedAudio ? 'Collapse track tags' : 'Expand track tags'}" onclick="toggleAudioFileDetails('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleAudioFileDetails('${safeName}'); }"`
+                            : '';
+                        const rowClassName = rowIsEditableAudio
+                            ? `media-file-row media-file-row-clickable${selected ? ' media-file-row-selected' : ''}${isExpandedAudio ? ' media-file-row-expanded' : ''}`
+                            : `media-file-row${selected ? ' media-file-row-selected' : ''}`;
+                        const expandedMarkup = isExpandedAudio ? buildAudioInlineDetailMarkup(f.name) : '';
                         return `<div class="${rowClassName}" data-file="${escapeHtml(f.name)}" ${rowAttributes}>
-                            ${thumb}
-                            ${nameCell}
-                            <span class="media-file-size">${fmtSize(f.size)}</span>
-                            ${preview}
-                            <button class="icon-btn danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeName}')">🗑️</button>
+                            <div class="media-file-row-main">
+                                <label class="media-file-select-wrap" title="Select for deletion" onclick="event.stopPropagation()">
+                                    <input type="checkbox" class="media-file-select" data-target="${escapeHtml(type)}" data-file="${escapeHtml(f.name)}" ${selected ? 'checked' : ''} aria-label="Select ${escapeHtml(f.name)} for deletion">
+                                </label>
+                                ${thumb}
+                                ${nameCell}
+                                <span class="media-file-size">${fmtSize(display.size)}</span>
+                                <span class="media-file-actions">${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeName}')">🗑️</button></span>
+                            </div>
+                            ${expandedMarkup}
                         </div>`;
                     }).join('');
+                    syncMediaSelectionUi(type);
                     maybeApplyMediaFocusFromQuery(type);
                     maybeOpenAudioDetailFromQuery(files);
                 } catch(e) {
@@ -773,7 +1095,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
+            document.querySelectorAll('[data-audio-display-toggle]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    audioDisplayMode = audioDisplayMode === 'original' ? 'master' : 'original';
+                    syncAudioDisplayToggleUi();
+                    loadMediaList('audio');
+                });
+            });
+
             syncBundledToggleUi();
+            syncAudioDisplayToggleUi();
 
             // Upload modal
             const modal       = document.getElementById('mediaUploadModal');
@@ -1031,7 +1362,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             // ── Delete modal ──────────────────────────────────────────────────
             const deleteModal      = document.getElementById('mediaDeleteModal');
+            const deleteTitleEl    = document.getElementById('mediaDeleteTitle');
             const deleteNameEl     = document.getElementById('mediaDeleteName');
+            const deleteListEl     = document.getElementById('mediaDeleteList');
+            const deleteHintEl     = document.getElementById('mediaDeleteHint');
             const deleteConfirmBtn = document.getElementById('mediaDeleteConfirmBtn');
             const deleteStatusEl   = document.getElementById('mediaDeleteStatus');
             const audioMasterModal = document.getElementById('audioMasterModal');
@@ -1054,7 +1388,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioMasterVersionField = document.getElementById('audioMasterFieldVersion');
             const audioMasterForm = document.getElementById('audioMasterForm');
             let deleteTarget = null;
-            let deleteFile   = null;
+            let deleteFiles  = [];
             let activeAudioMasterFile = null;
             let activeAudioMasterDetail = null;
             let audioMasterCoverMode = 'preserve';
@@ -1187,6 +1521,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function updateAudioFileRowMetadata(filename, detail) {
                 const list = document.getElementById('filelist-audio');
                 if (!list || !filename) return;
+                audioInlineDetailCache.set(filename, detail || {});
+                audioInlineDetailErrors.delete(filename);
                 const row = Array.from(list.querySelectorAll('.media-file-row')).find((candidate) => String(candidate.dataset.file || '') === filename);
                 if (!row) return;
                 const meta = row.querySelector('.media-file-meta');
@@ -1295,11 +1631,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setPickerFieldValue('audioMasterFieldCoverPath', '');
                 }
                 try {
-                    const resp = await fetch(`/biblioteca/get-audio-master-detail.php?filename=${encodeURIComponent(filename)}`);
-                    const data = await resp.json();
-                    if (!resp.ok || data.error) {
-                        throw new Error(data.error || 'Could not load track details');
-                    }
+                    const data = await fetchAudioMasterDetailData(filename);
+                    audioInlineDetailCache.set(filename, data);
+                    audioInlineDetailErrors.delete(filename);
                     if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(data);
                     setAudioMasterSummary(data);
                     setAudioMasterFormValues(data);
@@ -1413,10 +1747,88 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (lightbox) lightbox.close();
             };
 
+            document.querySelectorAll('[data-bulk-delete-target]').forEach((button) => {
+                const target = String(button.dataset.bulkDeleteTarget || '').trim();
+                syncMediaSelectionUi(target);
+                button.addEventListener('click', () => {
+                    const files = getSelectedMediaFiles(target);
+                    if (!files.length) return;
+                    openDeleteModal(target, files);
+                });
+            });
+
+            document.querySelectorAll('[data-bulk-download-target]').forEach((button) => {
+                const target = String(button.dataset.bulkDownloadTarget || '').trim();
+                syncMediaSelectionUi(target);
+                button.addEventListener('click', () => {
+                    const files = getSelectedMediaFiles(target);
+                    if (files.length <= 1) return;
+                    submitMediaDownloadRequest(target, resolveBulkDownloadVariant(target, String(button.dataset.downloadVariant || 'original').trim()), files);
+                });
+            });
+
+            document.querySelectorAll('.media-file-list').forEach((listEl) => {
+                listEl.addEventListener('click', (event) => {
+                    const checkbox = event.target.closest('.media-file-select');
+                    if (!checkbox) return;
+
+                    const type = String(checkbox.dataset.target || '').trim();
+                    const filename = String(checkbox.dataset.file || '').trim();
+                    if (!type || !filename) return;
+
+                    const state = getMediaSelectionState(type);
+                    const rows = getMediaRows(type);
+                    const clickedIndex = rows.findIndex((row) => String(row.dataset.file || '') === filename);
+                    const shouldSelect = checkbox.checked;
+
+                    if (event.shiftKey && state.lastCheckboxIndex !== null && clickedIndex >= 0) {
+                        const start = Math.min(state.lastCheckboxIndex, clickedIndex);
+                        const end = Math.max(state.lastCheckboxIndex, clickedIndex);
+                        rows.slice(start, end + 1).forEach((row) => {
+                            const rowFilename = String(row.dataset.file || '');
+                            if (!rowFilename) return;
+                            if (shouldSelect) {
+                                state.selected.add(rowFilename);
+                            } else {
+                                state.selected.delete(rowFilename);
+                            }
+                        });
+                    } else if (shouldSelect) {
+                        state.selected.add(filename);
+                    } else {
+                        state.selected.delete(filename);
+                    }
+
+                    state.lastCheckboxIndex = clickedIndex >= 0 ? clickedIndex : state.lastCheckboxIndex;
+                    syncMediaSelectionUi(type);
+                }, true);
+            });
+
             window.openDeleteModal = function(type, filename) {
                 deleteTarget = type;
-                deleteFile   = filename;
-                if (deleteNameEl)  deleteNameEl.textContent = filename;
+                deleteFiles  = Array.isArray(filename) ? filename.filter(Boolean) : [filename].filter(Boolean);
+                if (deleteTitleEl) {
+                    deleteTitleEl.textContent = deleteFiles.length > 1 ? 'Delete selected files?' : 'Delete file?';
+                }
+                if (deleteNameEl) {
+                    deleteNameEl.textContent = deleteFiles.length > 1
+                        ? `${deleteFiles.length} files selected`
+                        : (deleteFiles[0] || '');
+                }
+                if (deleteListEl) {
+                    if (deleteFiles.length > 1) {
+                        deleteListEl.style.display = 'block';
+                        deleteListEl.innerHTML = deleteFiles.map((name, index) => `<div class="modal-file-row">${index + 1}. ${escapeHtml(name)}</div>`).join('');
+                    } else {
+                        deleteListEl.style.display = 'none';
+                        deleteListEl.innerHTML = '';
+                    }
+                }
+                if (deleteHintEl) {
+                    deleteHintEl.textContent = deleteFiles.length > 1
+                        ? 'These deletions are immediate and cannot be undone.'
+                        : 'This cannot be undone.';
+                }
                 if (deleteStatusEl) deleteStatusEl.textContent = '';
                 if (deleteConfirmBtn) deleteConfirmBtn.disabled = false;
                 if (deleteModal) deleteModal.style.display = 'flex';
@@ -1425,25 +1837,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.closeDeleteModal = function() {
                 if (deleteModal) deleteModal.style.display = 'none';
                 deleteTarget = null;
-                deleteFile   = null;
+                deleteFiles  = [];
             };
 
             if (deleteConfirmBtn) {
                 deleteConfirmBtn.addEventListener('click', async () => {
-                    if (!deleteTarget || !deleteFile) return;
+                    if (!deleteTarget || !deleteFiles.length) return;
                     deleteConfirmBtn.disabled = true;
                     deleteStatusEl.textContent = 'Deleting…';
                     try {
                         const resp = await fetch('/biblioteca/delete-media.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ target: deleteTarget, filename: deleteFile }),
+                            body: JSON.stringify(deleteFiles.length > 1
+                                ? { target: deleteTarget, filenames: deleteFiles }
+                                : { target: deleteTarget, filename: deleteFiles[0] }),
                         });
                         const data = await resp.json();
                         if (data.ok) {
+                            clearMediaSelection(deleteTarget);
                             closeDeleteModal();
                             await loadMediaList(activeMediaPanel);
-                            showAdminToast(data.message || 'File removed.', data.action === 'hidden' ? 'success' : 'success');
+                            const toastType = data.failed_count ? 'warning' : 'success';
+                            showAdminToast(data.message || 'File removed.', toastType);
                         } else {
                             deleteStatusEl.innerHTML = `<span class="text-error">❌ ${data.error || 'Failed'}</span>`;
                             deleteConfirmBtn.disabled = false;
@@ -1525,6 +1941,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             );
                         }
                         updateAudioFileRowMetadata(activeAudioMasterFile, detail);
+                        if (expandedAudioFile === activeAudioMasterFile) {
+                            loadMediaList('audio');
+                        }
                         showAdminToast(data.no_change
                             ? 'No changes were saved.'
                             : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
@@ -2171,6 +2590,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!list || !saveBtn) return;
 
                 let dragSrc = null;
+                let draggedRows = [];
+                let selectedFiles = new Set();
+                let selectionAnchor = '';
+                let dragPlaceholder = null;
+                let suppressNextClick = false;
 
                 function formatPlaylistDuration(seconds) {
                     const duration = Math.max(0, Number(seconds) || 0);
@@ -2180,6 +2604,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function renderPlaylistRows(tracks) {
                     const rows = Array.isArray(tracks) ? tracks : [];
+                    const allowedFiles = new Set(rows.map((track) => String(track && track.file || '')).filter(Boolean));
+                    selectedFiles.forEach((filename) => {
+                        if (!allowedFiles.has(filename)) {
+                            selectedFiles.delete(filename);
+                        }
+                    });
+                    if (selectionAnchor && !allowedFiles.has(selectionAnchor)) {
+                        selectionAnchor = '';
+                    }
                     if (!rows.length) {
                         list.innerHTML = '';
                         if (hintEl) {
@@ -2195,7 +2628,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const meta = album ? `${artist} — ${album}` : artist;
                         const duration = formatPlaylistDuration(track.duration);
                         const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo' : '';
-                        return `<li class="playlist-editor-row${demoClass}" draggable="true" data-file="${escapeHtml(track.file || '')}">
+                        const selectedClass = selectedFiles.has(String(track.file || '')) ? ' playlist-editor-row-selected' : '';
+                        return `<li class="playlist-editor-row${demoClass}${selectedClass}" draggable="true" data-file="${escapeHtml(track.file || '')}" aria-selected="${selectedFiles.has(String(track.file || '')) ? 'true' : 'false'}">
                             <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
                             <span class="playlist-track-num">${index + 1}</span>
                             <span class="playlist-track-info">
@@ -2227,6 +2661,100 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                function getPlaylistRows() {
+                    return Array.from(list.querySelectorAll('.playlist-editor-row'));
+                }
+
+                function syncPlaylistSelectionUi() {
+                    getPlaylistRows().forEach((row) => {
+                        const selected = selectedFiles.has(String(row.dataset.file || ''));
+                        row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.setAttribute('aria-selected', selected ? 'true' : 'false');
+                    });
+                }
+
+                function selectPlaylistRange(targetFile, preserveExisting) {
+                    const rows = getPlaylistRows();
+                    if (!rows.length) return;
+                    const anchorFile = selectionAnchor && rows.some((row) => String(row.dataset.file || '') === selectionAnchor)
+                        ? selectionAnchor
+                        : targetFile;
+                    const anchorIndex = rows.findIndex((row) => String(row.dataset.file || '') === anchorFile);
+                    const targetIndex = rows.findIndex((row) => String(row.dataset.file || '') === targetFile);
+                    if (anchorIndex < 0 || targetIndex < 0) {
+                        return;
+                    }
+
+                    const nextSelected = preserveExisting ? new Set(selectedFiles) : new Set();
+                    const start = Math.min(anchorIndex, targetIndex);
+                    const end = Math.max(anchorIndex, targetIndex);
+                    rows.slice(start, end + 1).forEach((row) => nextSelected.add(String(row.dataset.file || '')));
+                    selectedFiles = nextSelected;
+                }
+
+                function handlePlaylistSelection(row, event) {
+                    const file = String(row.dataset.file || '').trim();
+                    if (!file) return;
+
+                    if (event.shiftKey) {
+                        selectPlaylistRange(file, event.ctrlKey || event.metaKey);
+                    } else if (event.ctrlKey || event.metaKey) {
+                        if (selectedFiles.has(file)) {
+                            selectedFiles.delete(file);
+                        } else {
+                            selectedFiles.add(file);
+                        }
+                    } else {
+                        selectedFiles = new Set([file]);
+                    }
+
+                    selectionAnchor = selectedFiles.size ? file : '';
+                    syncPlaylistSelectionUi();
+                }
+
+                function ensurePlaylistPlaceholder() {
+                    if (!dragPlaceholder) {
+                        dragPlaceholder = document.createElement('li');
+                        dragPlaceholder.className = 'playlist-editor-placeholder';
+                    }
+                    return dragPlaceholder;
+                }
+
+                function updatePlaylistPlaceholderHeight() {
+                    if (!draggedRows.length) return;
+                    const placeholder = ensurePlaylistPlaceholder();
+                    const totalHeight = draggedRows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0) + Math.max(0, draggedRows.length - 1) * 6;
+                    placeholder.style.height = `${Math.max(52, Math.round(totalHeight))}px`;
+                }
+
+                function movePlaylistPlaceholder(clientY) {
+                    if (!draggedRows.length) return;
+                    const placeholder = ensurePlaylistPlaceholder();
+                    updatePlaylistPlaceholderHeight();
+
+                    const candidateRows = getPlaylistRows().filter((row) => !draggedRows.includes(row));
+                    const referenceRow = candidateRows.find((row) => {
+                        const rect = row.getBoundingClientRect();
+                        return clientY < rect.top + rect.height / 2;
+                    });
+
+                    if (referenceRow) {
+                        list.insertBefore(placeholder, referenceRow);
+                    } else {
+                        list.appendChild(placeholder);
+                    }
+                }
+
+                function finalizePlaylistDrag() {
+                    const placeholder = ensurePlaylistPlaceholder();
+                    if (placeholder.parentNode === list && draggedRows.length) {
+                        draggedRows.forEach((row) => {
+                            list.insertBefore(row, placeholder);
+                        });
+                        placeholder.remove();
+                    }
+                }
+
                 async function loadPlaylistPreview() {
                     if (hintEl) {
                         hintEl.textContent = 'Loading current source tracks…';
@@ -2253,51 +2781,69 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                list.addEventListener('click', (event) => {
+                    if (suppressNextClick) {
+                        return;
+                    }
+                    const row = event.target.closest('.playlist-editor-row');
+                    if (!row) return;
+                    handlePlaylistSelection(row, event);
+                });
+
                 list.addEventListener('dragstart', (e) => {
                     dragSrc = e.target.closest('.playlist-editor-row');
                     if (!dragSrc) return;
-                    dragSrc.classList.add('dragging');
+                    const sourceFile = String(dragSrc.dataset.file || '').trim();
+                    if (sourceFile && !selectedFiles.has(sourceFile)) {
+                        selectedFiles = new Set([sourceFile]);
+                        selectionAnchor = sourceFile;
+                        syncPlaylistSelectionUi();
+                    }
+                    draggedRows = getPlaylistRows().filter((row) => selectedFiles.has(String(row.dataset.file || '')));
+                    if (!draggedRows.length) {
+                        draggedRows = [dragSrc];
+                    }
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', dragSrc.dataset.file);
+                    window.requestAnimationFrame(() => {
+                        if (!dragSrc || !draggedRows.length) {
+                            return;
+                        }
+                        updatePlaylistPlaceholderHeight();
+                        list.insertBefore(ensurePlaylistPlaceholder(), draggedRows[0]);
+                        draggedRows.forEach((row) => row.classList.add('dragging'));
+                    });
                 });
 
                 list.addEventListener('dragend', () => {
-                    list.querySelectorAll('.playlist-editor-row').forEach(r => {
-                        r.classList.remove('dragging', 'drag-over');
+                    finalizePlaylistDrag();
+                    list.querySelectorAll('.playlist-editor-row').forEach((row) => {
+                        row.classList.remove('dragging');
                     });
                     dragSrc = null;
+                    draggedRows = [];
                     renumberRows();
+                    syncPlaylistSelectionUi();
+                    suppressNextClick = true;
+                    window.requestAnimationFrame(() => {
+                        suppressNextClick = false;
+                    });
                 });
 
                 list.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
-                    const target = e.target.closest('.playlist-editor-row');
-                    if (!target || target === dragSrc) return;
-                    list.querySelectorAll('.playlist-editor-row').forEach(r => r.classList.remove('drag-over'));
-                    target.classList.add('drag-over');
-                });
-
-                list.addEventListener('dragleave', (e) => {
-                    const target = e.target.closest('.playlist-editor-row');
-                    if (target) target.classList.remove('drag-over');
+                    if (!dragSrc) return;
+                    movePlaylistPlaceholder(e.clientY);
                 });
 
                 list.addEventListener('drop', (e) => {
                     e.preventDefault();
-                    const target = e.target.closest('.playlist-editor-row');
-                    if (!target || target === dragSrc || !dragSrc) return;
-                    target.classList.remove('drag-over');
-
-                    // Insert dragSrc before or after target based on cursor position
-                    const rect = target.getBoundingClientRect();
-                    const mid  = rect.top + rect.height / 2;
-                    if (e.clientY < mid) {
-                        list.insertBefore(dragSrc, target);
-                    } else {
-                        list.insertBefore(dragSrc, target.nextSibling);
-                    }
+                    if (!dragSrc) return;
+                    movePlaylistPlaceholder(e.clientY);
+                    finalizePlaylistDrag();
                     renumberRows();
+                    syncPlaylistSelectionUi();
                 });
 
                 function renumberRows() {

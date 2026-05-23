@@ -1229,82 +1229,95 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     This is for theme assets such as share images, icons, logos, and similar install-specific design files.
                     <br><strong>After upload:</strong> usually no build needed.
                 <?php endif; ?>
-                <br><strong>⚠️ Deleting a file is immediate and permanent. There is no undo!</strong>
             </div>
 
             <!-- Audio -->
             <div class="media-panel card" id="panel-audio" <?php echo $filesPanel !== 'audio' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span id="audio-count" class="media-count"></span>
-                        <span class="media-panel-intro">Click on a track to edit or drop new files here to upload.</span>
+                        <span class="media-panel-intro">
+                            <strong>⚠️ Metadata edits and file deletions are immediate and permanent. There is no undo!</strong>
+                            <br>Drag and drop audio files here to add them directly. Select multiple files for group download or deletion.
+                            </span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                        <button type="button" class="btn btn-primary" onclick="openUploadModal('audio')">+ Add files</button>
+                        <button type="button" class="btn bundled-demo-toggle media-display-toggle" data-audio-display-toggle data-audio-display-mode="master" aria-pressed="true" title="Show original files">◉ Master</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="current" disabled aria-label="Download selected audio files" title="Download selected audio files">⬇</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files">🗑️</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('audio')" aria-label="Add audio files" title="Add audio files">＋</button>
                     </div>
                 </div>
                 <div id="filelist-audio" class="media-file-list"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="audio-count" class="media-count"></span></div>
             </div>
 
             <!-- Video -->
             <div class="media-panel card" id="panel-video" <?php echo $filesPanel !== 'video' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span id="video-count" class="media-count"></span>
-                        <span class="media-panel-intro">Click on a video to edit or drop new files here to upload.</span>
+                        <span class="media-panel-intro">Drag and drop video files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                    <button type="button" class="btn btn-primary" onclick="openUploadModal('video')">+ Add files</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="video" data-download-variant="original" disabled aria-label="Download selected video files" title="Download selected video files">⬇</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="video" disabled aria-label="Delete selected video files" title="Delete selected video files">🗑️</button>
+                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('video')" aria-label="Add video files" title="Add video files">＋</button>
                     </div>
                 </div>
                 <div id="filelist-video" class="media-file-list"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="video-count" class="media-count"></span></div>
             </div>
 
             <!-- Illustrations -->
             <div class="media-panel card" id="panel-illustrations" <?php echo $filesPanel !== 'illustrations' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span id="illustrations-count" class="media-count"></span>
-                        <span class="media-panel-intro">Click on an illustration to edit or drop new files here to upload.</span>
+                        <span class="media-panel-intro">Drag and drop illustration files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                    <button type="button" class="btn btn-primary" onclick="openUploadModal('illustrations')">+ Add files</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="illustrations" data-download-variant="original" disabled aria-label="Download selected illustration files" title="Download selected illustration files">⬇</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="illustrations" disabled aria-label="Delete selected illustration files" title="Delete selected illustration files">🗑️</button>
+                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('illustrations')" aria-label="Add illustration files" title="Add illustration files">＋</button>
                     </div>
                 </div>
                 <div id="filelist-illustrations" class="media-file-list"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="illustrations-count" class="media-count"></span></div>
             </div>
 
             <!-- Photos -->
             <div class="media-panel card" id="panel-photos" <?php echo $filesPanel !== 'photos' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span id="photos-count" class="media-count"></span>
-                        <span class="media-panel-intro">Click on a photo to edit or drop new files here to upload.</span>
+                        <span class="media-panel-intro">Drag and drop photo files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                    <button type="button" class="btn btn-primary" onclick="openUploadModal('photos')">+ Add files</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="photos" data-download-variant="original" disabled aria-label="Download selected photo files" title="Download selected photo files">⬇</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="photos" disabled aria-label="Delete selected photo files" title="Delete selected photo files">🗑️</button>
+                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('photos')" aria-label="Add photo files" title="Add photo files">＋</button>
                     </div>
                 </div>
                 <div id="filelist-photos" class="media-file-list"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="photos-count" class="media-count"></span></div>
             </div>
 
             <!-- Special -->
             <div class="media-panel card" id="panel-special" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span id="special-count" class="media-count"></span>
-                        <span class="media-panel-intro">Click on a theme file to edit or drop new files here to upload.</span>
+                        <span class="media-panel-intro">Drag and drop theme files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                    <button type="button" class="btn btn-primary" onclick="openUploadModal('special')">+ Add files</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected theme files" title="Download selected theme files">⬇</button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected theme files" title="Delete selected theme files">🗑️</button>
+                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('special')" aria-label="Add theme files" title="Add theme files">＋</button>
                     </div>
                 </div>
                 <div id="filelist-special" class="media-file-list"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="special-count" class="media-count"></span></div>
             </div>
 
             <!-- Upload modal (shared) -->
@@ -1328,9 +1341,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div id="mediaDeleteModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeDeleteModal()">
                 <div class="modal-box">
                     <button class="modal-close" onclick="closeDeleteModal()">✕</button>
-                    <h3>Delete file?</h3>
+                    <h3 id="mediaDeleteTitle">Delete file?</h3>
                     <p id="mediaDeleteName" class="delete-confirm-name"></p>
-                    <p class="text-muted">This cannot be undone.</p>
+                    <div id="mediaDeleteList" class="modal-file-list" style="display:none"></div>
+                    <p id="mediaDeleteHint" class="text-muted">This cannot be undone.</p>
                     <div class="modal-actions">
                         <button id="mediaDeleteConfirmBtn" class="btn btn-primary icon-btn danger">Delete</button>
                         <button class="btn" onclick="closeDeleteModal()">Cancel</button>
@@ -1384,7 +1398,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     </div>
                 </div>
                 <p class="card-note">
-                    Drag tracks to reorder them. This editor previews the current source audio set, even before the next full build.
+                    Drag tracks into the open insertion gap to reorder them. Use Shift-click or Ctrl/Cmd-click to select multiple tracks and move them together.
                     Saving still preserves the order for future builds, while the currently published playlist stays on its last built state until you rebuild.
                 </p>
                 <p id="playlistPreviewHint" class="hint">Loading current source tracks…</p>

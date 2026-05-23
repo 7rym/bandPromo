@@ -29,7 +29,8 @@ bandPromo can also work by uploading or cloning the repository and then opening 
 ## Hosting Requirements
 
 - Web server: Apache/Nginx with PHP 8+
-- For bootstrap install: `ZipArchive`, outbound HTTPS download support (`curl` or `allow_url_fopen`), and a writable target folder
+- `ZipArchive` for bootstrap package install, package-based updates, and multi-file downloads
+- For bootstrap install: outbound HTTPS download support (`curl` or `allow_url_fopen`) and a writable target folder
 - HTTPS hosting required, HTTP support for localhost supported
 - For the build step: Python 3.8+, `Pillow`, `mutagen`, and `ffmpeg`
 

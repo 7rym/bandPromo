@@ -61,6 +61,11 @@ if (!file_exists($highscoresFile)) {
 $setupErrors = array_merge($setupErrors, bandpromo_ensure_runtime_files_seeded());
 // ─────────────────────────────────────────────────────────────────────────────
 
+$setupWarnings = [];
+if (!class_exists('ZipArchive')) {
+  $setupWarnings[] = 'ZipArchive is missing. Setup can continue, but bootstrap package installs, future package updates, and multi-file downloads will stay unavailable until your host enables the PHP ZipArchive extension.';
+}
+
 require_once __DIR__ . '/biblioteca/config-loader.php';
 
 $hasSetupErrors = !empty($setupErrors);
@@ -566,6 +571,14 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
   </div>
 <?php endif; ?>
 
+<?php if (!empty($setupWarnings)): ?>
+  <div style="background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:#f0b429;
+              border-radius:8px;padding:16px 20px;margin-bottom:24px;font-size:14px;line-height:1.55;">
+    <strong>Some hosting features are still missing.</strong><br>
+    <?= implode('<br>', array_map('htmlspecialchars', $setupWarnings)) ?>
+  </div>
+<?php endif; ?>
+
   <!-- Step indicator -->
   <div class="steps" id="step-indicator">
     <div class="step-dot active" id="dot-1">1</div>
@@ -659,6 +672,11 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
   <div class="panel" id="panel-3">
     <h1>Downloading demo content and building site</h1>
     <p class="subtitle">bandPromo is built around your content, so before running for the first time, we add some demo content to make sure everything works as expected. Then we build everything required to run your new bandPromo installation. You can hide the demo content later in the Admin panel after you upload your own.</p>
+    <?php if (!class_exists('ZipArchive')): ?>
+    <div class="msg" style="display:block;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:#f0b429;">
+      ZipArchive is not available on this host. The build can still run, but bootstrap package install/update flows and multi-file downloads will remain unavailable until the PHP ZipArchive extension is enabled.
+    </div>
+    <?php endif; ?>
     <div class="msg error" id="s3-error"></div>
 
     <div id="build-log" style="margin-bottom:14px;"></div>

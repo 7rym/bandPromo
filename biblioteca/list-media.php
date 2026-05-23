@@ -135,12 +135,21 @@ function bandpromo_audio_metadata_health(string $filename, array $validation_map
 function bandpromo_audio_master_info(string $root, string $filename): array {
     $master = bandpromo_find_audio_master($root, $filename);
     if ($master['exists']) {
+        $masterPath = $root . '/media/audio/master/' . $master['filename'];
+        $master['size'] = is_file($masterPath) ? filesize($masterPath) : 0;
+        $master['modified'] = is_file($masterPath) ? filemtime($masterPath) : 0;
         return $master;
     }
 
     $prepared = bandpromo_prepare_audio_master_from_original($root, $filename);
     if (!empty($prepared['prepared'])) {
-        return bandpromo_find_audio_master($root, $filename);
+        $master = bandpromo_find_audio_master($root, $filename);
+        if ($master['exists']) {
+            $masterPath = $root . '/media/audio/master/' . $master['filename'];
+            $master['size'] = is_file($masterPath) ? filesize($masterPath) : 0;
+            $master['modified'] = is_file($masterPath) ? filemtime($masterPath) : 0;
+        }
+        return $master;
     }
 
     return $master;
