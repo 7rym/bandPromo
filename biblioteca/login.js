@@ -96,6 +96,7 @@ async function testConnectionSpeed(forceRefresh = true) {
             if (cached) {
                 const data = JSON.parse(cached);
                 resultDiv.textContent = `📊 ${data.speed.toFixed(2)} Mbps - Max quality available`;
+                updateBackground();
                 return;
             }
         } else {
@@ -174,6 +175,7 @@ async function testConnectionSpeed(forceRefresh = true) {
                 speed: 0,
                 recommended: 'high'
             }));
+            updateBackground();
             return;
         }
         
@@ -201,12 +203,14 @@ async function testConnectionSpeed(forceRefresh = true) {
         const speedDisplay = avgSpeedMbps.toFixed(2);
         const indicator = avgSpeedMbps >= 20 ? '🚀' : avgSpeedMbps >= 10 ? '⚡' : avgSpeedMbps >= 5 ? '🟡' : '🐌';
         resultDiv.textContent = `${indicator} ${speedDisplay} Mbps - Max quality available`;
+        updateBackground();
         
     } catch (error) {
         console.error('❌ Speed test error:', error);
         if (resultDiv) {
             resultDiv.innerHTML = '⚠️ Speed test error, optimized mode remains selected';
         }
+        updateBackground();
     }
 }
 
@@ -283,38 +287,26 @@ function updateBackground() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const buttons = document.querySelectorAll('.quality-btn');
     const qualityInput = document.getElementById('quality-hidden');
     const loginForm = document.querySelector('.login-form-column form');
-
-    autoSelectQuality(qualityInput?.value || 'low');
-    persistSelectedQuality(qualityInput?.value || 'low');
-
     const retestBtn = document.getElementById('retest-speed-btn');
+
+    if (qualityInput) {
+        qualityInput.value = 'low';
+    }
+    persistSelectedQuality('low');
+
     if (retestBtn) {
         retestBtn.addEventListener('click', function() {
             sessionStorage.removeItem('connection_speed');
             testConnectionSpeed(true);
         });
     }
-    
-    // Manual quality selection (user can override auto-selected)
-    buttons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const quality = this.dataset.quality;
-            
-            buttons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            qualityInput.value = quality;
-            persistSelectedQuality(quality);
-            updateBackground();
-        });
-    });
 
     if (loginForm && qualityInput) {
         loginForm.addEventListener('submit', () => {
-            persistSelectedQuality(qualityInput.value);
+            qualityInput.value = 'low';
+            persistSelectedQuality('low');
         });
     }
     
@@ -363,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Run speed test after full page load (all resources downloaded)
 window.addEventListener('load', function() {
-    testConnectionSpeed(true);  // forceRefresh = true, run full test
+    testConnectionSpeed(true);
 });
 
 // PWA Install Banner

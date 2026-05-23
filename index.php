@@ -36,10 +36,10 @@ if (file_exists($versionFile)) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = isset($_POST['username']) ? trim($_POST['username']) : '';
     $password = isset($_POST['password']) ? trim($_POST['password']) : '';
-    $quality = isset($_POST['quality']) ? trim($_POST['quality']) : '';
+    $quality = 'low';
     
     // Basic validation
-    if (empty($username) || empty($password) || empty($quality)) {
+    if (empty($username) || empty($password)) {
         $error = 'Please fill in all fields.';
     } else {
         // Use authentication library
@@ -255,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         required
                     >
                 </div>
-                
+
                 <div class="quality-group">
                     <div id="speed-test-result" style="text-align: center; font-size: 12px; color: #fff; margin-bottom: 4px; min-height: 20px;">
                         Testing connection speed...
@@ -263,12 +263,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div style="text-align: center; margin-bottom: 10px;">
                         <button type="button" id="retest-speed-btn" style="background: none; border: none; color: #aaa; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0;">Re-test connection</button>
                     </div>
-                    <div class="quality-options">
-                        <button type="button" class="quality-btn" data-quality="high">Maximum Quality<br>(Broadband)</button>
-                        <button type="button" class="quality-btn active" data-quality="low">Optimized<br>(Mobile Friendly)</button>
-                    </div>
-                    <input type="hidden" id="quality-hidden" name="quality" value="low" required>
                 </div>
+                
+                <input type="hidden" id="quality-hidden" name="quality" value="low">
                 
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>" required>
                 

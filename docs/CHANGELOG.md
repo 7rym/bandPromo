@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-23 14:51 - Fixed the login-page background so it refreshes after the speed test completes. `biblioteca/login.js` now reapplies the background choice when the measured speed result, cached speed result, or speed-test failure state is written, so the login screen no longer stays stuck on the static-image fallback after a fast connection test.
+
+2026-05-23 14:51 - Restored login-page speed testing while keeping the quality choice hidden and fixed to Optimized. `index.php` again shows the speed-test result and re-test link on the login form, while `biblioteca/login.js` once more runs the speed test and uses its measured connection result to choose between the video background and static image without bringing back the old quality buttons.
+
+2026-05-23 14:46 - Simplified the login-page quality UX by removing the quality chooser and fixing login playback preference to Optimized. `index.php` now treats `low` as the fixed login quality instead of requiring a user-selected quality field, and `biblioteca/login.js` now persists that Optimized choice without running the old speed-test/button-selection flow on the login screen.
+
 2026-05-23 14:21 - Closed the manual-setup documentation gap around ZipArchive. `setup.php` now warns repository/manual installs when the PHP ZipArchive extension is missing, explaining that setup/build can continue but bootstrap package flows, package updates, and multi-file downloads will stay unavailable until the host enables it. `README.md` and `docs/DEVELOPMENT.md` now also describe ZipArchive as an ongoing requirement for package flows and multi-file downloads, not only for the bootstrap installer.
 
 2026-05-23 14:17 - Stopped failed file-download requests from exposing the raw download endpoint in the Admin UI. `biblioteca/download-media.php` now supports a JSON preflight mode for validating download requests without streaming a file, and `biblioteca/admin.js` now calls that preflight before submitting the real download form so operator-facing errors stay inside the admin panel as toasts instead of replacing the page.
