@@ -58,8 +58,7 @@ function getPreferredPrimaryView(song) {
 }
 
 function syncLyricsTab(song) {
-    const buttons = document.querySelectorAll('.content-toggle button');
-    const lyricsButton = buttons[0];
+    const lyricsButton = document.querySelector('.content-toggle button[data-view="lyrics"]');
     if (!lyricsButton) {
         return;
     }
@@ -1182,10 +1181,10 @@ function toggleView(view) {
     const galleryBox = document.getElementById('galleryBox');
     const buttons = document.querySelectorAll('.content-toggle button');
     const buttonByView = {
-        lyrics: buttons[0],
-        playlist: buttons[1],
-        bio: buttons[2],
-        gallery: buttons[3]
+        lyrics: document.querySelector('.content-toggle button[data-view="lyrics"]'),
+        playlist: document.querySelector('.content-toggle button[data-view="playlist"]'),
+        bio: document.querySelector('.content-toggle button[data-view="bio"]'),
+        gallery: document.querySelector('.content-toggle button[data-view="gallery"]')
     };
 
     if (view === 'lyrics' && !hasDisplayableLyrics(playList[currentIndex])) {

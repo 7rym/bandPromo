@@ -722,7 +722,6 @@ button.pulse-guide {
         background: rgba(0, 210, 255, 0.15);
         border-color: var(--primary-color);
         box-shadow: 0 0 8px rgba(0, 210, 255, 0.3);
-        transform: translateX(5px);
     }
 }
 

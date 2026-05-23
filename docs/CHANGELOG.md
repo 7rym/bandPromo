@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-23 14:58 - Fixed the player playlist panel defaults and hover stability. `play/index.php` now places `Playlist` first in the header and makes it the default active panel on load, `biblioteca/player.js` now resolves panel buttons by explicit `data-view` keys so the new order stays stable, and `biblioteca/style.css` no longer shifts playlist rows sideways on hover.
+
 2026-05-23 14:51 - Fixed the login-page background so it refreshes after the speed test completes. `biblioteca/login.js` now reapplies the background choice when the measured speed result, cached speed result, or speed-test failure state is written, so the login screen no longer stays stuck on the static-image fallback after a fast connection test.
 
 2026-05-23 14:51 - Restored login-page speed testing while keeping the quality choice hidden and fixed to Optimized. `index.php` again shows the speed-test result and re-test link on the login form, while `biblioteca/login.js` once more runs the speed test and uses its measured connection result to choose between the video background and static image without bringing back the old quality buttons.

@@ -237,13 +237,13 @@ if ($supportEnabled && $supportUrl !== '') {
             <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
         </div>
         <div class="content-toggle">
-            <button class="active" onclick="toggleView('lyrics')">Lyrics</button>
-            <button onclick="toggleView('playlist')">Playlist</button>
-            <button onclick="toggleView('bio')">Bio</button>
-            <button onclick="toggleView('gallery')">Gallery</button>
+            <button class="active" type="button" data-view="playlist" onclick="toggleView('playlist')">Playlist</button>
+            <button type="button" data-view="lyrics" onclick="toggleView('lyrics')">Lyrics</button>
+            <button type="button" data-view="bio" onclick="toggleView('bio')">Bio</button>
+            <button type="button" data-view="gallery" onclick="toggleView('gallery')">Gallery</button>
         </div>
-        <div class="lyrics-box active" id="lyricsBox">Loading lyrics...</div>
-        <div class="playlist-box" id="playlistBox">Loading playlist...</div>
+        <div class="lyrics-box" id="lyricsBox">Loading lyrics...</div>
+        <div class="playlist-box active" id="playlistBox">Loading playlist...</div>
         <div class="bio-box" id="bioBox">
             <?php
             $bio_file = dirname(__DIR__) . '/data/bio.html';
