@@ -94,22 +94,16 @@ $activityTypes = $analytics->getActivityTypes($dateStart, $dateEnd);
                     <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['activity'] ?? ''); ?></span></td>
                     <td>
                         <?php
-                            $title  = $entry['data']['track_title']  ?? '';
-                            $artist = $entry['data']['track_artist'] ?? '';
-                            if ($title) {
-                                echo htmlspecialchars($title);
-                                if ($artist) echo ' <span style="color:#999; font-size:11px;">— ' . htmlspecialchars($artist) . '</span>';
-                            } else {
-                                echo '—';
+                            $logRow = bandpromo_describe_log_entry($entry);
+                            echo htmlspecialchars($logRow['track_primary']);
+                            if (!empty($logRow['track_secondary'])) {
+                                echo ' <span style="color:#999; font-size:11px;">— ' . htmlspecialchars($logRow['track_secondary']) . '</span>';
                             }
                         ?>
                     </td>
                     <td style="color:#888; font-size:12px;">
                         <?php
-                            $parts = [];
-                            if (!empty($entry['data']['completion_rate'])) $parts[] = 'completion: ' . $entry['data']['completion_rate'] . '%';
-                            if (!empty($entry['data']['duration']))        $parts[] = PlaybackAnalytics::formatSeconds($entry['data']['duration']);
-                            echo htmlspecialchars(implode(' · ', $parts));
+                            echo htmlspecialchars($logRow['detail']);
                         ?>
                     </td>
                 </tr>

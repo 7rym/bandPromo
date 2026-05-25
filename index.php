@@ -32,11 +32,73 @@ if (file_exists($versionFile)) {
     }
 }
 
+function bandpromo_sanitize_environment_scalar($value) {
+    if (is_bool($value) || is_int($value) || is_float($value) || $value === null) {
+        return $value;
+    }
+
+    if (!is_string($value)) {
+        return null;
+    }
+
+    return substr(trim($value), 0, 120);
+}
+
+function bandpromo_sanitize_environment_payload($value) {
+    if (!is_array($value)) {
+        return [];
+    }
+
+    $allowedKeys = [
+        'display_mode',
+        'viewport_width',
+        'viewport_height',
+        'visual_viewport_width',
+        'visual_viewport_height',
+        'visual_viewport_scale',
+        'screen_width',
+        'screen_height',
+        'orientation_type',
+        'orientation_angle',
+        'device_pixel_ratio',
+        'touch_points',
+        'coarse_pointer',
+        'standalone',
+        'fullscreen',
+        'online',
+        'language',
+        'platform',
+        'connection_speed_mbps',
+        'captured_at',
+    ];
+
+    $sanitized = [];
+    foreach ($allowedKeys as $key) {
+        if (!array_key_exists($key, $value)) {
+            continue;
+        }
+
+        $sanitizedValue = bandpromo_sanitize_environment_scalar($value[$key]);
+        if ($sanitizedValue !== null) {
+            $sanitized[$key] = $sanitizedValue;
+        }
+    }
+
+    return $sanitized;
+}
+
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = isset($_POST['username']) ? trim($_POST['username']) : '';
     $password = isset($_POST['password']) ? trim($_POST['password']) : '';
     $quality = 'low';
+    $loginEnvironment = [];
+    if (isset($_POST['environment_snapshot']) && is_string($_POST['environment_snapshot'])) {
+        $decodedEnvironment = json_decode($_POST['environment_snapshot'], true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $loginEnvironment = bandpromo_sanitize_environment_payload($decodedEnvironment);
+        }
+    }
     
     // Basic validation
     if (empty($username) || empty($password)) {
@@ -52,6 +114,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = htmlspecialchars($username);
                 $_SESSION['quality'] = $quality;
                 $_SESSION['login_time'] = time(); // Track login time for possible timeout
+
+                require_once __DIR__ . '/biblioteca/log.php';
+                $loginLogger = new UserActivityLogger();
+                $loginLogger->log('login_environment', [
+                    'quality' => 'optimal',
+                    'action_source' => 'login_form',
+                    'environment' => $loginEnvironment,
+                ]);
                 
                 // Always redirect to the canonical player
                 $redirect_url = '/play/';
@@ -266,6 +336,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 
                 <input type="hidden" id="quality-hidden" name="quality" value="low">
+                <input type="hidden" id="environment-snapshot" name="environment_snapshot" value="">
                 
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>" required>
                 

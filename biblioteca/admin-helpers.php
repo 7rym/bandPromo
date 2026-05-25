@@ -190,6 +190,103 @@ function getMaxDevice($devices) {
     return $maxDevice;
 }
 
+function bandpromo_format_dimension_label($label, $width, $height) {
+    $width = is_numeric($width) ? (int) $width : 0;
+    $height = is_numeric($height) ? (int) $height : 0;
+    if ($width <= 0 || $height <= 0) {
+        return '';
+    }
+
+    return $label . ': ' . $width . ' x ' . $height;
+}
+
+function bandpromo_extract_log_environment(array $entry): array {
+    $data = $entry['data'] ?? null;
+    if (!is_array($data)) {
+        return [];
+    }
+
+    $environment = $data['environment'] ?? null;
+    return is_array($environment) ? $environment : [];
+}
+
+function bandpromo_describe_log_entry(array $entry): array {
+    $data = $entry['data'] ?? [];
+    if (!is_array($data)) {
+        $data = [];
+    }
+
+    $activity = (string) ($entry['activity'] ?? '');
+    $trackPrimary = (string) ($data['track_title'] ?? '');
+    $trackSecondary = (string) ($data['track_artist'] ?? '');
+    $detailParts = [];
+
+    if (!empty($data['completion_rate'])) {
+        $detailParts[] = 'completion: ' . $data['completion_rate'] . '%';
+    }
+    if (!empty($data['current_time'])) {
+        $detailParts[] = PlaybackAnalytics::formatSeconds($data['current_time']);
+    } elseif (!empty($data['duration'])) {
+        $detailParts[] = PlaybackAnalytics::formatSeconds($data['duration']);
+    }
+
+    if (in_array($activity, ['login_environment', 'environment_snapshot', 'environment_changed'], true)) {
+        $environment = bandpromo_extract_log_environment($entry);
+        $platform = trim((string) ($environment['platform'] ?? ''));
+        $orientation = trim((string) ($environment['orientation_type'] ?? ''));
+        $displayMode = trim((string) ($environment['display_mode'] ?? ''));
+        $viewport = bandpromo_format_dimension_label('viewport', $environment['viewport_width'] ?? null, $environment['viewport_height'] ?? null);
+        $screen = bandpromo_format_dimension_label('screen', $environment['screen_width'] ?? null, $environment['screen_height'] ?? null);
+        $visualViewport = bandpromo_format_dimension_label('visual', $environment['visual_viewport_width'] ?? null, $environment['visual_viewport_height'] ?? null);
+        $visualScale = $environment['visual_viewport_scale'] ?? null;
+        $devicePixelRatio = $environment['device_pixel_ratio'] ?? null;
+        $touchPoints = $environment['touch_points'] ?? null;
+        $connectionSpeed = $environment['connection_speed_mbps'] ?? null;
+
+        $trackPrimary = $platform !== '' ? $platform : ($viewport !== '' ? $viewport : 'Environment');
+        $trackSecondary = $orientation !== '' ? $orientation : $displayMode;
+
+        if ($viewport !== '') {
+            $detailParts[] = $viewport;
+        }
+        if ($screen !== '') {
+            $detailParts[] = $screen;
+        }
+        if ($visualViewport !== '') {
+            $detailParts[] = $visualViewport . (is_numeric($visualScale) ? ' @ ' . number_format((float) $visualScale, 2) : '');
+        }
+        if ($displayMode !== '') {
+            $detailParts[] = 'display: ' . $displayMode;
+        }
+        if (is_numeric($devicePixelRatio)) {
+            $detailParts[] = 'dpr: ' . rtrim(rtrim(number_format((float) $devicePixelRatio, 2, '.', ''), '0'), '.');
+        }
+        if (is_numeric($touchPoints)) {
+            $detailParts[] = 'touch: ' . (int) $touchPoints;
+        }
+        if (array_key_exists('fullscreen', $environment)) {
+            $detailParts[] = !empty($environment['fullscreen']) ? 'fullscreen' : 'windowed';
+        }
+        if (array_key_exists('standalone', $environment) && !empty($environment['standalone'])) {
+            $detailParts[] = 'standalone';
+        }
+        if (array_key_exists('online', $environment)) {
+            $detailParts[] = !empty($environment['online']) ? 'online' : 'offline';
+        }
+        if (is_numeric($connectionSpeed) && (float) $connectionSpeed > 0) {
+            $detailParts[] = 'speed: ' . number_format((float) $connectionSpeed, 2) . ' Mbps';
+        }
+    }
+
+    return [
+        'track_primary' => $trackPrimary !== '' ? $trackPrimary : '—',
+        'track_secondary' => $trackSecondary,
+        'detail' => implode(' · ', array_values(array_filter($detailParts, static function ($part) {
+            return is_string($part) && trim($part) !== '';
+        }))),
+    ];
+}
+
 /**
  * Format and display metric with commas
  * 

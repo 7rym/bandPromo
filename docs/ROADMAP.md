@@ -83,6 +83,7 @@ Initial theme support should focus on:
 
 - design tokens and CSS variables
 - brand assets: mandatory site logo/poster plus optional release-specific logo/poster overrides
+- operator-friendly brand-asset intake, including support for uploading favicon packages from realfavicongenerator.net and unpacking the expected icon files into `media/icons/` without asking operators to place each file manually
 - typography choices
 - layout variants
 - module templates inheriting from the active theme

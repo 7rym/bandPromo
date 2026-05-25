@@ -1103,19 +1103,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['activity'] ?? ''); ?></span></td>
                             <td>
                                 <?php
-                                    $t = $entry['data']['track_title']  ?? '';
-                                    $a = $entry['data']['track_artist'] ?? '';
-                                    if ($t) { echo htmlspecialchars($t); if ($a) echo ' <span style="color:#999;font-size:11px;">— ' . htmlspecialchars($a) . '</span>'; }
-                                    else echo '—';
+                                    $logRow = bandpromo_describe_log_entry($entry);
+                                    echo htmlspecialchars($logRow['track_primary']);
+                                    if (!empty($logRow['track_secondary'])) {
+                                        echo ' <span style="color:#999;font-size:11px;">— ' . htmlspecialchars($logRow['track_secondary']) . '</span>';
+                                    }
                                 ?>
                             </td>
                             <td class="text-muted">
                                 <?php
-                                    $parts = [];
-                                    if (!empty($entry['data']['completion_rate'])) $parts[] = 'completion: ' . $entry['data']['completion_rate'] . '%';
-                                    if (!empty($entry['data']['current_time']))    $parts[] = PlaybackAnalytics::formatSeconds($entry['data']['current_time']);
-                                    elseif (!empty($entry['data']['duration']))    $parts[] = PlaybackAnalytics::formatSeconds($entry['data']['duration']);
-                                    echo htmlspecialchars(implode(' · ', $parts));
+                                    echo htmlspecialchars($logRow['detail']);
                                 ?>
                             </td>
                         </tr>

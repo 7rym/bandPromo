@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-05-25 16:32 - Surfaced the new environment events in the Admin analytics views. `biblioteca/admin-helpers.php` now formats `login_environment`, `environment_snapshot`, and `environment_changed` rows into readable device/environment summaries, and both `admin.php` and `biblioteca/get-user-detail.php` now use that shared formatter so the analytics raw log and per-user activity modal show viewport, screen, display mode, orientation, fullscreen/standalone state, and related environment details instead of blank track-centric rows.
+
+2026-05-25 16:20 - Added environment logging around login and player runtime changes. `index.php` and `biblioteca/login.js` now capture a client environment snapshot at login time so successful sign-ins record viewport, screen, orientation, display mode, touch capability, and related device context alongside the login event, and `biblioteca/player.js` now writes an initial `environment_snapshot` plus low-noise `environment_changed` entries when the authenticated player detects meaningful environment shifts such as orientation, viewport, fullscreen, online, or display-mode changes.
+
+2026-05-23 15:03 - Added a theme-roadmap note for favicon package intake. `docs/ROADMAP.md` now calls out support for uploading RealFaviconGenerator ZIP packages and unpacking them into `media/icons/` as part of future operator-friendly brand asset handling.
+
 2026-05-23 14:58 - Fixed the player playlist panel defaults and hover stability. `play/index.php` now places `Playlist` first in the header and makes it the default active panel on load, `biblioteca/player.js` now resolves panel buttons by explicit `data-view` keys so the new order stays stable, and `biblioteca/style.css` no longer shifts playlist rows sideways on hover.
 
 2026-05-23 14:51 - Fixed the login-page background so it refreshes after the speed test completes. `biblioteca/login.js` now reapplies the background choice when the measured speed result, cached speed result, or speed-test failure state is written, so the login screen no longer stays stuck on the static-image fallback after a fast connection test.

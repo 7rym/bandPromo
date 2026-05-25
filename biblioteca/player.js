@@ -117,12 +117,30 @@ let manifestDebugCache = null;
 let wasPlayingBeforeVisibilityHidden = false;
 let resumeAfterVisibilityPause = false;
 let currentTrackChangeSource = null;
+let environmentSnapshotSignature = null;
+let environmentChangeDebounceId = null;
 
 function isStandaloneDisplayMode() {
     return window.matchMedia('(display-mode: standalone)').matches ||
         window.matchMedia('(display-mode: window-controls-overlay)').matches ||
         window.matchMedia('(display-mode: fullscreen)').matches ||
         navigator.standalone === true;
+}
+
+function getDisplayModeLabel() {
+    if (window.matchMedia('(display-mode: fullscreen)').matches) {
+        return 'fullscreen';
+    }
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+        return 'standalone';
+    }
+    if (window.matchMedia('(display-mode: window-controls-overlay)').matches) {
+        return 'window-controls-overlay';
+    }
+    if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+        return 'minimal-ui';
+    }
+    return 'browser';
 }
 
 function isMobileWideMode() {
@@ -696,6 +714,10 @@ async function clearAppCache() {
 
 // Logging Function
 async function logActivity(activity, trackData = null) {
+    const extraData = trackData && typeof trackData === 'object' && !Array.isArray(trackData)
+        ? Object.fromEntries(Object.entries(trackData).filter(([, value]) => value !== undefined))
+        : {};
+
     try {
         const response = await fetch('/biblioteca/log.php?action=log', {
             method: 'POST',
@@ -713,7 +735,8 @@ async function logActivity(activity, trackData = null) {
                     quality: PATH_VARIANT || 'unknown', // HQ or optimal
                     completion_rate: trackData?.completionRate || null, // For skip pattern analysis
                     exit_reason: trackData?.exitReason || null,
-                    action_source: trackData?.actionSource || null
+                    action_source: trackData?.actionSource || null,
+                    ...extraData
                 }
             })
         });
@@ -745,6 +768,95 @@ function logTrackExit(exitReason, actionSource = null) {
         exitReason: exitReason,
         actionSource: actionSource
     }));
+}
+
+function buildEnvironmentSnapshot() {
+    const visualViewport = window.visualViewport;
+    const orientation = window.screen?.orientation;
+
+    return {
+        display_mode: getDisplayModeLabel(),
+        viewport_width: window.innerWidth || null,
+        viewport_height: window.innerHeight || null,
+        visual_viewport_width: visualViewport ? Math.round(visualViewport.width) : null,
+        visual_viewport_height: visualViewport ? Math.round(visualViewport.height) : null,
+        visual_viewport_scale: visualViewport ? Number(visualViewport.scale.toFixed(3)) : null,
+        screen_width: window.screen?.width || null,
+        screen_height: window.screen?.height || null,
+        orientation_type: orientation?.type || (window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait'),
+        orientation_angle: typeof orientation?.angle === 'number' ? orientation.angle : null,
+        device_pixel_ratio: window.devicePixelRatio || 1,
+        touch_points: navigator.maxTouchPoints || 0,
+        coarse_pointer: window.matchMedia('(pointer: coarse)').matches,
+        standalone: isStandaloneDisplayMode(),
+        fullscreen: !!getFullscreenElement(),
+        online: navigator.onLine,
+        language: navigator.language || '',
+        platform: navigator.platform || '',
+        captured_at: new Date().toISOString(),
+    };
+}
+
+function buildEnvironmentSignature(snapshot) {
+    return JSON.stringify({
+        display_mode: snapshot.display_mode,
+        viewport_width: snapshot.viewport_width,
+        viewport_height: snapshot.viewport_height,
+        visual_viewport_width: snapshot.visual_viewport_width,
+        visual_viewport_height: snapshot.visual_viewport_height,
+        visual_viewport_scale: snapshot.visual_viewport_scale,
+        screen_width: snapshot.screen_width,
+        screen_height: snapshot.screen_height,
+        orientation_type: snapshot.orientation_type,
+        orientation_angle: snapshot.orientation_angle,
+        device_pixel_ratio: snapshot.device_pixel_ratio,
+        touch_points: snapshot.touch_points,
+        coarse_pointer: snapshot.coarse_pointer,
+        standalone: snapshot.standalone,
+        fullscreen: snapshot.fullscreen,
+        online: snapshot.online,
+        language: snapshot.language,
+        platform: snapshot.platform,
+    });
+}
+
+function clearEnvironmentChangeDebounce() {
+    if (environmentChangeDebounceId !== null) {
+        window.clearTimeout(environmentChangeDebounceId);
+        environmentChangeDebounceId = null;
+    }
+}
+
+function logEnvironmentSnapshot(actionSource = 'player_loaded') {
+    const snapshot = buildEnvironmentSnapshot();
+    const signature = buildEnvironmentSignature(snapshot);
+
+    if (environmentSnapshotSignature === null) {
+        environmentSnapshotSignature = signature;
+        logActivity('environment_snapshot', {
+            actionSource,
+            environment: snapshot,
+        });
+        return;
+    }
+
+    if (signature === environmentSnapshotSignature) {
+        return;
+    }
+
+    environmentSnapshotSignature = signature;
+    logActivity('environment_changed', {
+        actionSource,
+        environment: snapshot,
+    });
+}
+
+function scheduleEnvironmentSnapshot(actionSource) {
+    clearEnvironmentChangeDebounce();
+    environmentChangeDebounceId = window.setTimeout(() => {
+        environmentChangeDebounceId = null;
+        logEnvironmentSnapshot(actionSource);
+    }, 250);
 }
 
 function clearAnalyticsInactivityTimer() {
@@ -1452,6 +1564,7 @@ function determineQuality() {
 (async () => {
     determineQuality();
     loadConfig();
+    logEnvironmentSnapshot('player_loaded');
 })();
 
 // Log session_end when the page unloads or when analytics inactivity ends the current session.
@@ -1501,6 +1614,18 @@ function logSessionEnd({ actionSource = 'pagehide', useBeacon = false } = {}) {
 
 window.addEventListener('beforeunload', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
 window.addEventListener('pagehide', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
+window.addEventListener('resize', () => scheduleEnvironmentSnapshot('resize'));
+window.addEventListener('orientationchange', () => scheduleEnvironmentSnapshot('orientationchange'));
+window.addEventListener('fullscreenchange', () => scheduleEnvironmentSnapshot('fullscreenchange'));
+window.addEventListener('pageshow', () => scheduleEnvironmentSnapshot('pageshow'));
+window.addEventListener('online', () => scheduleEnvironmentSnapshot('online'));
+window.addEventListener('offline', () => scheduleEnvironmentSnapshot('offline'));
+window.visualViewport?.addEventListener('resize', () => scheduleEnvironmentSnapshot('visualviewport_resize'));
 document.addEventListener('visibilitychange', handleVisibilityPlaybackChange);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        scheduleEnvironmentSnapshot('visibility_return');
+    }
+});
 
 installMediaSessionHandlers();

@@ -63,6 +63,60 @@ async function exitDocumentFullscreen() {
 
 let wideModeFullscreenOwned = false;
 
+function getDisplayModeLabel() {
+    if (window.matchMedia('(display-mode: fullscreen)').matches) {
+        return 'fullscreen';
+    }
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+        return 'standalone';
+    }
+    if (window.matchMedia('(display-mode: window-controls-overlay)').matches) {
+        return 'window-controls-overlay';
+    }
+    if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+        return 'minimal-ui';
+    }
+    return 'browser';
+}
+
+function buildLoginEnvironmentSnapshot() {
+    const connectionData = JSON.parse(sessionStorage.getItem('connection_speed') || '{}');
+    const visualViewport = window.visualViewport;
+    const orientation = window.screen?.orientation;
+
+    return {
+        display_mode: getDisplayModeLabel(),
+        viewport_width: window.innerWidth || null,
+        viewport_height: window.innerHeight || null,
+        visual_viewport_width: visualViewport ? Math.round(visualViewport.width) : null,
+        visual_viewport_height: visualViewport ? Math.round(visualViewport.height) : null,
+        visual_viewport_scale: visualViewport ? Number(visualViewport.scale.toFixed(3)) : null,
+        screen_width: window.screen?.width || null,
+        screen_height: window.screen?.height || null,
+        orientation_type: orientation?.type || (window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait'),
+        orientation_angle: typeof orientation?.angle === 'number' ? orientation.angle : null,
+        device_pixel_ratio: window.devicePixelRatio || 1,
+        touch_points: navigator.maxTouchPoints || 0,
+        coarse_pointer: window.matchMedia('(pointer: coarse)').matches,
+        standalone: isStandaloneDisplayMode(),
+        fullscreen: !!getFullscreenElement(),
+        online: navigator.onLine,
+        language: navigator.language || '',
+        platform: navigator.platform || '',
+        connection_speed_mbps: Number.isFinite(connectionData.speed) ? Number(connectionData.speed.toFixed(3)) : null,
+        captured_at: new Date().toISOString(),
+    };
+}
+
+function updateLoginEnvironmentSnapshotField() {
+    const environmentField = document.getElementById('environment-snapshot');
+    if (!environmentField) {
+        return;
+    }
+
+    environmentField.value = JSON.stringify(buildLoginEnvironmentSnapshot());
+}
+
 async function syncWideModeFullscreen() {
     if (isStandaloneDisplayMode()) {
         return;
@@ -307,8 +361,11 @@ document.addEventListener('DOMContentLoaded', function() {
         loginForm.addEventListener('submit', () => {
             qualityInput.value = 'low';
             persistSelectedQuality('low');
+            updateLoginEnvironmentSnapshotField();
         });
     }
+
+    updateLoginEnvironmentSnapshotField();
     
     updateBackground();
 
@@ -318,8 +375,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.addEventListener('resize', syncWideModeFullscreen);
     window.addEventListener('orientationchange', syncWideModeFullscreen);
+    window.addEventListener('resize', updateLoginEnvironmentSnapshotField);
+    window.addEventListener('orientationchange', updateLoginEnvironmentSnapshotField);
+    window.visualViewport?.addEventListener('resize', updateLoginEnvironmentSnapshotField);
     document.addEventListener('fullscreenchange', () => {
         wideModeFullscreenOwned = isMobileWideMode() && !!getFullscreenElement();
+        updateLoginEnvironmentSnapshotField();
     });
 
     syncWideModeFullscreen();
@@ -356,6 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Run speed test after full page load (all resources downloaded)
 window.addEventListener('load', function() {
     testConnectionSpeed(true);
+    updateLoginEnvironmentSnapshotField();
 });
 
 // PWA Install Banner
