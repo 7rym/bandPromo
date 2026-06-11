@@ -988,7 +988,11 @@ Current implementation note:
 - Files -> Audio metadata saves already run `playlist-scan` automatically after a real change so `play/playlist.json` and `play/playlist-validation.json` refresh immediately.
 - The save flow now preserves an existing embedded `tracknumber` or backfills it from the current playlist position when the master tag is blank.
 - A true no-op metadata save is treated as a no-op and does not create a fresh build-required reason.
-- Real metadata changes still fall back to the older coarse build-required model, so task-level follow-up remains incomplete.
+- Build-required state now also records concrete task units (`playlist-scan`, `audio-delivery`, `image-delivery`, `social-assets`, `manifest`) alongside the legacy `full` / `optimize` action so the operator inbox and save/upload feedback can speak in task terms even before the manual build controls are fully split by task.
+- The Build tab now speaks in task-oriented operator language (`Run Publish Build` and `Refresh Image Files`) instead of the older vague `Full Build` / `Optimize Media` pairing, while still routing those buttons through the same current heavy-runner endpoints.
+- `Refresh Image Files` now truly runs the image-delivery path only: it regenerates track cover JPEGs, photos, and illustration derivatives without re-encoding audio delivery files. The full publish build still runs the optimizer in full mode so audio delivery regeneration remains part of the full publish pipeline.
+- Theme-cover changes and image-only uploads now auto-run the image-delivery path in the background when that cheap refresh succeeds, so those safe cases no longer have to leave a manual image-refresh task behind just to regenerate derived JPEG assets.
+- Real metadata changes still rely on the older coarse manual build controls, so task-level follow-up remains only partially complete until those controls are split beyond `full` / `optimize`.
 
 ### Action matrix
 
@@ -1185,7 +1189,7 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 ## Current limitations
 
-- The admin UI now shows an operator-facing validation summary with direct actions into metadata editing and playlist order, but it still does not keep those issues visible in a persistent operator task list.
+- The admin UI now keeps unresolved publish/build follow-up and validation issues visible in a persistent operator inbox, with the same live system state also rendered as a larger Welcome-panel task list.
 - Metadata repair now covers the first audio-master editor pass, including common text fields, lyrics, cover selection, release date, and operator-facing title/version handling, but broader packaging workflows and selective inline quick-edit are still incomplete.
 - Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
 - Real audio metadata changes still flow through the older coarse build-required state, so the operator messaging is better for no-op saves than for task-specific follow-up after actual edits.
@@ -1195,7 +1199,6 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 The next practical improvements should be:
 
-- introduce a persistent operator task/notification surface for unresolved validation and build tasks, with automatic resolution when the underlying issue is fixed
 - break the coarse build-required model into concrete task states so real metadata edits do not look like generic full-build work when only lighter follow-up is pending
 - add selective quick-edit for simple metadata fields such as title, artist, release/album name, and lyrics without turning the Build tab into a second full editor
 - continue expanding dedicated metadata/master tools for packaging fields and corrected-master workflows

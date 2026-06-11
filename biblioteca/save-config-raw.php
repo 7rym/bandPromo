@@ -129,6 +129,30 @@ if ($branch === 'media') {
         $task = bandpromo_run_light_task('scripts/makePlaylists.py');
         if ($task['ok']) {
             $state = bandpromo_mark_build_required('theme_cover_changed');
+            $imageTask = bandpromo_run_light_task('scripts/optimizeMedia.py', [
+                'BANDPROMO_OPTIMIZE_MODE' => 'image-only',
+            ]);
+            if ($imageTask['ok']) {
+                $state = bandpromo_clear_build_required_tasks(['image-delivery']);
+                bandpromo_admin_audit_log('config_saved', [
+                    'target_type' => 'config',
+                    'target_id' => 'web-config.json:media',
+                    'status' => !empty($state['required']) ? 'warning' : 'ok',
+                    'data' => [
+                        'build_required' => !empty($state['required']),
+                        'reasons' => $state['reasons'] ?? [],
+                        'auto_tasks' => ['playlist-scan', 'image-delivery'],
+                    ],
+                ]);
+                echo json_encode([
+                    'ok' => true,
+                    'build_required' => !empty($state['required']),
+                    'build_required_state' => $state,
+                    'auto_tasks' => ['playlist-scan', 'image-delivery'],
+                ]);
+                exit;
+            }
+
             bandpromo_admin_audit_log('config_saved', [
                 'target_type' => 'config',
                 'target_id' => 'web-config.json:media',
@@ -137,7 +161,7 @@ if ($branch === 'media') {
                     'build_required' => true,
                     'reasons' => $state['reasons'] ?? [],
                     'auto_tasks' => ['playlist-scan'],
-                    'warning' => 'image optimization still required',
+                    'warning' => 'automatic image refresh failed',
                 ],
             ]);
             echo json_encode([
@@ -145,7 +169,8 @@ if ($branch === 'media') {
                 'build_required' => true,
                 'build_required_state' => $state,
                 'auto_tasks' => ['playlist-scan'],
-                'warning' => 'Saved and refreshed playlist metadata. Run image optimization to refresh delivery covers.',
+                'warning' => 'Saved and refreshed playlist metadata, but the automatic image refresh failed.',
+                'task_output' => trim(($task['output'] ?? '') . "\n" . ($imageTask['output'] ?? '')),
             ]);
             exit;
         }

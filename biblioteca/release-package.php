@@ -241,6 +241,24 @@ function bandpromo_release_load_manifest(string $manifestUrl = BANDPROMO_RELEASE
     return $decoded;
 }
 
+function bandpromo_release_load_manifest_file(string $path): array {
+    if (!is_file($path)) {
+        throw new RuntimeException('Local release manifest file is missing: ' . $path);
+    }
+
+    $body = file_get_contents($path);
+    if (!is_string($body) || trim($body) === '') {
+        throw new RuntimeException('Local release manifest file could not be read: ' . $path);
+    }
+
+    $decoded = json_decode($body, true);
+    if (!is_array($decoded)) {
+        throw new RuntimeException('Local release manifest is not valid JSON: ' . $path);
+    }
+
+    return $decoded;
+}
+
 function bandpromo_release_normalize_paths(array $paths): array {
     $normalized = [];
     foreach ($paths as $path) {
@@ -346,15 +364,104 @@ function bandpromo_release_write_default_theme_marker(string $root, array $packa
     file_put_contents($markerPath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 }
 
+function bandpromo_release_default_theme_from_marker(string $root): ?array {
+    $markerPath = bandpromo_release_default_theme_marker_path($root);
+    if (!is_file($markerPath)) {
+        return null;
+    }
+
+    $decoded = json_decode((string) file_get_contents($markerPath), true);
+    if (!is_array($decoded)) {
+        return null;
+    }
+
+    $version = trim((string) ($decoded['version'] ?? ''));
+    $sha256 = strtolower(trim((string) ($decoded['sha256'] ?? '')));
+    $packageUrl = trim((string) ($decoded['package_url'] ?? ''));
+    $source = trim((string) ($decoded['source'] ?? ''));
+    $paths = bandpromo_release_normalize_paths(is_array($decoded['paths'] ?? null) ? $decoded['paths'] : []);
+    if ($version === '' || $paths === []) {
+        return null;
+    }
+
+    if (!bandpromo_release_default_theme_paths_present($root, $paths)) {
+        return null;
+    }
+
+    $isLocalSourceTree = $version === 'local-source-tree' || $source === 'inferred-from-local-files';
+    if (!$isLocalSourceTree && $sha256 === '') {
+        return null;
+    }
+
+    return [
+        'version' => $version,
+        'display_version' => bandpromo_release_default_theme_display_version($decoded),
+        'package_file' => trim((string) ($decoded['package_file'] ?? '')),
+        'package_url' => $packageUrl,
+        'sha256' => $sha256,
+        'paths' => $paths,
+        'release_tag' => trim((string) ($decoded['release_tag'] ?? '')),
+    ];
+}
+
+function bandpromo_release_default_theme_from_local_manifest(string $root): ?array {
+    $localManifestPath = $root . DIRECTORY_SEPARATOR . 'dist' . DIRECTORY_SEPARATOR . 'validate' . DIRECTORY_SEPARATOR . 'release-manifest.json';
+    if (!is_file($localManifestPath)) {
+        return null;
+    }
+
+    try {
+        $manifest = bandpromo_release_load_manifest_file($localManifestPath);
+        $package = bandpromo_release_default_theme_package($manifest);
+    } catch (Throwable $throwable) {
+        return null;
+    }
+
+    if (!bandpromo_release_default_theme_paths_present($root, $package['paths'])) {
+        return null;
+    }
+
+    return $package;
+}
+
+function bandpromo_release_default_theme_local_fallback(string $root): ?array {
+    $package = bandpromo_release_default_theme_from_marker($root);
+    if ($package !== null) {
+        return $package;
+    }
+
+    return bandpromo_release_default_theme_from_local_manifest($root);
+}
+
 function bandpromo_ensure_default_theme_package(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL, ?callable $logger = null): array {
     bandpromo_release_log($logger, '[starter pack] Checking for the required demo content package...');
-    $manifest = bandpromo_release_load_manifest($manifestUrl);
-    $package = bandpromo_release_default_theme_package($manifest);
+    try {
+        $manifest = bandpromo_release_load_manifest($manifestUrl);
+        $package = bandpromo_release_default_theme_package($manifest);
+    } catch (Throwable $throwable) {
+        $fallbackPackage = bandpromo_release_default_theme_local_fallback($root);
+        if ($fallbackPackage !== null) {
+            bandpromo_release_log($logger, '[starter pack] Remote package check failed, but required demo content is already present locally. Continuing with local starter assets.');
+            return [
+                'installed' => false,
+                'version' => $fallbackPackage['version'],
+                'display_version' => bandpromo_release_default_theme_display_version($fallbackPackage),
+                'release_tag' => $fallbackPackage['release_tag'],
+                'package_file' => $fallbackPackage['package_file'],
+                'path_count' => count($fallbackPackage['paths']),
+                'source' => 'local-fallback',
+            ];
+        }
+
+        throw $throwable;
+    }
+
     if (bandpromo_release_default_theme_is_current($root, $package)) {
         bandpromo_release_log($logger, '[starter pack] Demo content is already present.');
         return [
             'installed' => false,
             'version' => $package['version'],
+            'display_version' => bandpromo_release_default_theme_display_version($package),
             'release_tag' => $package['release_tag'],
             'package_file' => $package['package_file'],
             'path_count' => count($package['paths']),
@@ -403,6 +510,7 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
     return [
         'installed' => true,
         'version' => $package['version'],
+        'display_version' => bandpromo_release_default_theme_display_version($package),
         'release_tag' => $package['release_tag'],
         'package_file' => $package['package_file'],
         'path_count' => count($package['paths']),

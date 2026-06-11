@@ -13,6 +13,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Treat documentation as source-of-truth. If code and docs disagree, update docs in the same change.
 - When updating planning docs or TODO lists, order work from policy/cases/definitions first and implementation second. Keep sections conceptually coherent; do not let headings become mixed bags of unrelated tasks.
 - At the start of every session, check the active environment context first: OS, current shell, workspace root, available tasks, and language runtimes relevant to the task.
+- Default to the fast startup path first: run `scripts/session-start.ps1` or the workspace task `bandPromo: Fast session startup` to gather the standard environment/worktree/backlog summary, then widen into deeper docs only when the task needs more context.
 - Choose commands and tooling that match the active session environment. On Windows + PowerShell sessions, prefer PowerShell-native commands and repo tasks/scripts; do not probe Bash/Linux command variants first unless the environment explicitly provides them or the task requires them.
 - Treat an unqualified "checkpoint" request as a publishable checkpoint unless the user explicitly asks for status-only: summarize progress against the current milestone/checkpoint docs, run focused validation for the touched work, bump `VERSION`, commit the checkpoint, push it, and then verify local/remote sync with the repository's pull-after-push workflow.
 - Do not add runtime fallbacks that silently use example/template files in production paths.

@@ -300,13 +300,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             };
             window.activeMediaPanel = adminActivePanel;
             const buildTabLink = document.querySelector('.primary-tabs .tab-link[href*="tab=build"]');
-            const buildRequiredBadge = document.getElementById('buildRequiredBadge');
             const recommendedBuildBtn = document.getElementById('recommendedBuildBtn');
+            const operatorNotificationsToggle = document.getElementById('operatorNotificationsToggle');
+            const operatorNotificationsCount = document.getElementById('operatorNotificationsCount');
+            const operatorNotificationsDrawer = document.getElementById('operatorNotificationsDrawer');
+            const operatorNotificationsDrawerBody = document.getElementById('operatorNotificationsDrawerBody');
+            const operatorNotificationsClose = document.getElementById('operatorNotificationsClose');
+            const operatorNotificationsWelcomeCard = document.getElementById('operatorNotificationsWelcomeCard');
+            const operatorNotificationsWelcomeBody = document.getElementById('operatorNotificationsWelcomeBody');
+            const operatorNotificationsWelcomeSummary = document.getElementById('operatorNotificationsWelcomeSummary');
             const toastHost = document.getElementById('adminToastHost');
             let adminCsrf = typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
             let currentBuildRequired = false;
             let currentBuildAction = 'none';
             let currentBuildReasons = [];
+            let latestBuildValidation = null;
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
@@ -322,9 +330,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const pendingAudioDetailFromQuery = String(adminQueryParams.get('audio_detail') || '').trim();
             const pendingMediaFocusFromQuery = String(adminQueryParams.get('focus_file') || '').trim();
             const pendingPlaylistFocusFromQuery = String(adminQueryParams.get('focus_track') || '').trim();
+            const pendingBuildRunFromQuery = adminQueryParams.get('run_recommended') === '1';
             let openedAudioDetailFromQuery = false;
             let appliedMediaFocusFromQuery = false;
             let appliedPlaylistFocusFromQuery = false;
+            let triggeredBuildRunFromQuery = false;
+
+            const validationSeverityConfig = {
+                'cannot-build': { label: 'Cannot build', statusClass: 'status-error', rank: 4 },
+                'fix-before-publish': { label: 'Fix before publish', statusClass: 'status-warning', rank: 3 },
+                'recommended-fix': { label: 'Recommended fix', statusClass: 'status-neutral', rank: 2 },
+                'can-be-repaired-automatically': { label: 'Can be repaired automatically', statusClass: 'status-ok', rank: 1 },
+            };
+            const operatorNotificationSeverityConfig = {
+                'cannot-build': { label: 'Cannot build', itemClass: 'is-critical', summaryClass: 'status-error' },
+                'fix-before-publish': { label: 'Needs attention', itemClass: 'is-attention', summaryClass: 'status-warning' },
+                'recommended-fix': { label: 'Recommended improvement', itemClass: 'is-recommended', summaryClass: 'status-neutral' },
+                'build-step': { label: 'Publish step pending', itemClass: 'is-attention', summaryClass: 'status-warning' },
+            };
 
             const mediaTypeLabels = {
                 audio: 'Audio',
@@ -397,6 +420,323 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function buildPlaylistOrderUrl(filename) {
                 return buildAdminUrl({ tab: 'content', cntab: 'playlist', focus_track: filename });
             }
+
+            function buildBuildTabUrl() {
+                return `${buildAdminUrl({ tab: 'build' })}#build-log-card`;
+            }
+
+            function buildRecommendedRunUrl() {
+                return `${buildAdminUrl({ tab: 'build', run_recommended: '1' })}#build-log-card`;
+            }
+
+            function formatBuildTaskLabel(task) {
+                const taskLabels = {
+                    'playlist-scan': 'Refresh playlist and validation data',
+                    'audio-delivery': 'Refresh publish-ready audio files',
+                    'image-delivery': 'Refresh publish-ready image files',
+                    'social-assets': 'Refresh social/share assets',
+                    'manifest': 'Rewrite the site manifest',
+                };
+
+                return taskLabels[String(task || '').trim()] || String(task || '').trim();
+            }
+
+            function formatBuildTaskSummary(state) {
+                const tasks = Array.isArray(state && state.tasks) ? state.tasks : [];
+                if (!tasks.length) {
+                    return String(state && state.action || 'none') === 'optimize'
+                        ? 'Updated media is waiting for optimized delivery files.'
+                        : 'Recent changes are waiting for a publish build.';
+                }
+
+                if (tasks.length === 1) {
+                    return `${formatBuildTaskLabel(tasks[0])}.`;
+                }
+
+                return `${tasks.length} follow-up tasks are pending.`;
+            }
+
+            function formatBuildTaskList(state) {
+                const tasks = Array.isArray(state && state.tasks) ? state.tasks : [];
+                if (!tasks.length) {
+                    return [];
+                }
+
+                return tasks.map(task => formatBuildTaskLabel(task));
+            }
+
+            function formatBuildNextStep(state) {
+                const tasks = formatBuildTaskList(state);
+                const action = String(state && state.action || 'full').toLowerCase() === 'optimize' ? 'Refresh Image Files' : 'Run Publish Build';
+                if (!tasks.length) {
+                    return `Next: run ${action}.`;
+                }
+
+                if (tasks.length === 1) {
+                    return `Next: run ${action} to ${tasks[0].charAt(0).toLowerCase() + tasks[0].slice(1)}.`;
+                }
+
+                return `Next: run ${action} to finish ${tasks.length} pending tasks.`;
+            }
+
+            function getBuildActionLabel(action) {
+                return String(action || 'full').toLowerCase() === 'optimize'
+                    ? 'Refresh Image Files'
+                    : 'Run Publish Build';
+            }
+
+            function formatBuildHintMessage(state) {
+                const actionLabel = getBuildActionLabel(state && state.action || 'full');
+                const tasks = formatBuildTaskList(state);
+                if (tasks.length === 1) {
+                    return `⚠ ${tasks[0]} is pending. ${actionLabel} to finish it.`;
+                }
+                if (tasks.length > 1) {
+                    return `⚠ ${tasks.length} publishing tasks are pending. ${actionLabel} to finish them.`;
+                }
+                return String(state && state.action || 'none').toLowerCase() === 'optimize'
+                    ? '⚠ Updated media is waiting for refreshed image files.'
+                    : '⚠ Recent changes are waiting for a publish build.';
+            }
+
+            function closeOperatorNotifications() {
+                if (!operatorNotificationsDrawer || !operatorNotificationsToggle) {
+                    return;
+                }
+                operatorNotificationsDrawer.hidden = true;
+                operatorNotificationsToggle.setAttribute('aria-expanded', 'false');
+            }
+
+            function openOperatorNotifications() {
+                if (!operatorNotificationsDrawer || !operatorNotificationsToggle) {
+                    return;
+                }
+                operatorNotificationsDrawer.hidden = false;
+                operatorNotificationsToggle.setAttribute('aria-expanded', 'true');
+            }
+
+            function clearRecommendedRunQuery() {
+                if (!window.history || typeof window.history.replaceState !== 'function') {
+                    return;
+                }
+                window.history.replaceState({}, '', buildBuildTabUrl());
+            }
+
+            function buildNotificationFromBuildState(buildState) {
+                if (!buildState || buildState.required !== true) {
+                    return null;
+                }
+
+                const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
+                return {
+                    severity: 'build-step',
+                    title: action === 'optimize' ? 'Media optimization pending' : 'Publish build pending',
+                    file: '',
+                    details: (formatBuildTaskList(buildState).length ? formatBuildTaskList(buildState) : [formatBuildTaskSummary(buildState)]).map(text => ({ text })),
+                    actions: [
+                        { label: getBuildActionLabel(action), action: 'run-recommended-build' },
+                        { label: 'Open Build', href: buildBuildTabUrl() },
+                    ],
+                };
+            }
+
+            function buildOperatorNotificationModel(buildState, validation) {
+                const attention = [];
+                const recommended = [];
+                const buildNotification = buildNotificationFromBuildState(buildState || {});
+
+                if (buildNotification) {
+                    attention.push(buildNotification);
+                }
+
+                const validationModel = buildValidationSummaryModel(validation);
+                if (validationModel && Array.isArray(validationModel.items)) {
+                    validationModel.items.forEach(item => {
+                        const relevantIssues = [item.primary, ...(Array.isArray(item.extras) ? item.extras : [])]
+                            .filter(issue => issue && String(issue.severity || '') !== 'can-be-repaired-automatically')
+                            .sort((left, right) => (validationSeverityConfig[right.severity]?.rank || 0) - (validationSeverityConfig[left.severity]?.rank || 0));
+
+                        if (!relevantIssues.length) {
+                            return;
+                        }
+
+                        const notification = {
+                            severity: relevantIssues[0].severity,
+                            title: item.title,
+                            file: item.file,
+                            details: relevantIssues.map(issue => ({
+                                label: validationSeverityConfig[issue.severity]?.label || 'Needs attention',
+                                text: issue.action,
+                            })),
+                            actions: Array.isArray(item.actions) ? item.actions : [],
+                        };
+
+                        if (notification.severity === 'recommended-fix') {
+                            recommended.push(notification);
+                        } else {
+                            attention.push(notification);
+                        }
+                    });
+                }
+
+                return {
+                    attention,
+                    recommended,
+                    attentionCount: attention.length,
+                    recommendedCount: recommended.length,
+                    totalCount: attention.length + recommended.length,
+                    hasCritical: attention.some(item => item.severity === 'cannot-build'),
+                };
+            }
+
+            function renderOperatorNotificationItem(item) {
+                const severityConfig = operatorNotificationSeverityConfig[item.severity] || operatorNotificationSeverityConfig['recommended-fix'];
+                const badgeConfig = validationSeverityConfig[item.severity] || {
+                    label: severityConfig.label,
+                    statusClass: severityConfig.summaryClass || 'status-neutral',
+                };
+                const fileLine = item.file && item.file !== item.title
+                    ? `<div class="operator-notifications-item-file">${escapeHtml(item.file)}</div>`
+                    : '';
+                const detailsHtml = Array.isArray(item.details) && item.details.length
+                    ? `<ul class="operator-notifications-item-list">${item.details.map(detail => {
+                        const label = String(detail.label || '').trim();
+                        const text = String(detail.text || '').trim();
+                        return `<li>${label !== '' ? `<strong>${escapeHtml(label)}:</strong> ` : ''}${escapeHtml(text)}</li>`;
+                    }).join('')}</ul>`
+                    : '';
+                const actionsHtml = Array.isArray(item.actions) && item.actions.length
+                    ? `<div class="operator-notifications-actions">${item.actions.map(action => {
+                        if (action && action.action) {
+                            return `<button type="button" class="operator-notifications-action" data-operator-action="${escapeHtml(action.action)}">${escapeHtml(action.label)}</button>`;
+                        }
+                        return `<a class="operator-notifications-action" href="${escapeHtml(action.href || '?')}">${escapeHtml(action.label || 'Open')}</a>`;
+                    }).join('')}</div>`
+                    : '';
+
+                return `
+                    <article class="operator-notifications-item ${severityConfig.itemClass}">
+                        <div class="operator-notifications-item-head">
+                            <div>
+                                <div class="operator-notifications-item-title">${escapeHtml(item.title)}</div>
+                                ${fileLine}
+                            </div>
+                            <span class="badge audit-status-badge ${badgeConfig.statusClass}">${escapeHtml(badgeConfig.label)}</span>
+                        </div>
+                        ${detailsHtml}
+                        ${actionsHtml}
+                    </article>
+                `;
+            }
+
+            function renderOperatorNotificationSections(model) {
+                if (!model || model.totalCount === 0) {
+                    return '<p class="operator-notifications-empty">No operator follow-up is waiting right now. Quick background work should stay out of the way unless it genuinely needs attention.</p>';
+                }
+
+                const sections = [
+                    { title: 'Needs attention', count: model.attentionCount, items: model.attention },
+                    { title: 'Recommended improvements', count: model.recommendedCount, items: model.recommended },
+                ].filter(section => section.count > 0);
+
+                return sections.map(section => `
+                    <section class="operator-notifications-section">
+                        <div class="operator-notifications-section-head">
+                            <h4>${escapeHtml(section.title)}</h4>
+                            <span class="operator-notifications-section-count">${section.count} ${section.count === 1 ? 'item' : 'items'}</span>
+                        </div>
+                        <div class="operator-notifications-list">${section.items.map(renderOperatorNotificationItem).join('')}</div>
+                    </section>
+                `).join('');
+            }
+
+            function renderOperatorNotifications(buildState, validation) {
+                const model = buildOperatorNotificationModel(buildState, validation);
+                const html = renderOperatorNotificationSections(model);
+
+                if (operatorNotificationsDrawerBody) {
+                    operatorNotificationsDrawerBody.innerHTML = html;
+                }
+
+                if (operatorNotificationsWelcomeCard && operatorNotificationsWelcomeBody && operatorNotificationsWelcomeSummary) {
+                    operatorNotificationsWelcomeBody.innerHTML = html;
+                    operatorNotificationsWelcomeCard.style.display = model.totalCount > 0 ? '' : 'none';
+
+                    if (model.totalCount === 0) {
+                        operatorNotificationsWelcomeSummary.textContent = 'No open operator tasks';
+                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-ok';
+                    } else if (model.hasCritical) {
+                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} needs attention`;
+                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-error';
+                    } else if (model.attentionCount > 0) {
+                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} needs attention`;
+                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-warning';
+                    } else {
+                        operatorNotificationsWelcomeSummary.textContent = `${model.recommendedCount} recommended`;
+                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-neutral';
+                    }
+                }
+
+                if (operatorNotificationsCount) {
+                    operatorNotificationsCount.textContent = String(model.totalCount);
+                    operatorNotificationsCount.className = 'operator-notifications-count';
+                    if (model.totalCount === 0) {
+                        operatorNotificationsCount.classList.add('is-empty');
+                    } else if (model.hasCritical) {
+                        operatorNotificationsCount.classList.add('is-critical');
+                    } else if (model.attentionCount > 0) {
+                        operatorNotificationsCount.classList.add('is-attention');
+                    }
+                }
+            }
+
+            if (operatorNotificationsToggle && operatorNotificationsDrawer) {
+                operatorNotificationsToggle.addEventListener('click', () => {
+                    if (operatorNotificationsDrawer.hidden) {
+                        openOperatorNotifications();
+                    } else {
+                        closeOperatorNotifications();
+                    }
+                });
+            }
+
+            if (operatorNotificationsClose) {
+                operatorNotificationsClose.addEventListener('click', closeOperatorNotifications);
+            }
+
+            document.addEventListener('click', (event) => {
+                const actionButton = event.target.closest('[data-operator-action]');
+                if (actionButton) {
+                    const action = String(actionButton.dataset.operatorAction || '').trim();
+                    if (action === 'run-recommended-build') {
+                        event.preventDefault();
+                        closeOperatorNotifications();
+                        const buildTabActive = document.getElementById('tab-build')?.classList.contains('active');
+                        if (!buildTabActive) {
+                            window.location.href = buildRecommendedRunUrl();
+                            return;
+                        }
+                        runRecommendedAction();
+                    }
+                    return;
+                }
+
+                if (!operatorNotificationsDrawer || operatorNotificationsDrawer.hidden) {
+                    return;
+                }
+
+                if ((operatorNotificationsToggle && operatorNotificationsToggle.contains(event.target)) || operatorNotificationsDrawer.contains(event.target)) {
+                    return;
+                }
+
+                closeOperatorNotifications();
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeOperatorNotifications();
+                }
+            });
 
             function formatAudioMetadataHealthBadges(file) {
                 const health = file.audio_metadata_health || {};
@@ -693,35 +1033,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            function setBuildRequiredNudge(required, reasons, action) {
+            function setBuildRequiredNudge(required, reasons, action, tasks) {
                 currentBuildRequired = required === true;
                 currentBuildAction = typeof action === 'string' ? action : 'none';
                 currentBuildReasons = Array.isArray(reasons) ? reasons : [];
+                currentBuildTasks = Array.isArray(tasks) ? tasks : [];
                 if (!buildTabLink) return;
 
                 buildTabLink.classList.toggle('build-required-nudge', currentBuildRequired);
                 buildTabLink.classList.toggle('build-required-pulse', currentBuildRequired);
 
                 if (currentBuildRequired) {
-                    const suffix = currentBuildReasons.length ? ` (${currentBuildReasons.join(', ')})` : '';
-                    const actionLabel = currentBuildAction === 'optimize' ? 'Media optimization required' : 'Full build required';
-                    buildTabLink.title = `${actionLabel} to publish recent updates` + suffix;
+                    const suffix = currentBuildTasks.length
+                        ? ` (${currentBuildTasks.join(', ')})`
+                        : (currentBuildReasons.length ? ` (${currentBuildReasons.join(', ')})` : '');
+                    const actionLabel = getBuildActionLabel(currentBuildAction);
+                    buildTabLink.title = `${actionLabel} is recommended for the current pending work` + suffix;
                 } else {
                     buildTabLink.removeAttribute('title');
                 }
 
-                if (!buildRequiredBadge) return;
-                if (currentBuildRequired) {
-                    buildRequiredBadge.style.display = 'block';
-                    if (currentBuildAction === 'optimize') {
-                        buildRequiredBadge.textContent = '⚠ Media optimization pending';
-                    } else {
-                        buildRequiredBadge.textContent = '⚠ Full rebuild pending';
-                    }
-                } else {
-                    buildRequiredBadge.style.display = 'none';
-                    buildRequiredBadge.textContent = '';
-                }
+                refreshBuildActionCopy();
 
                 if (!recommendedBuildBtn) return;
                 if (!currentBuildRequired) {
@@ -731,40 +1063,36 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 recommendedBuildBtn.style.display = 'inline-block';
-                if (currentBuildAction === 'optimize') {
-                    recommendedBuildBtn.textContent = '⚡ Run Recommended: Optimize';
-                } else {
-                    recommendedBuildBtn.textContent = '⚡ Run Recommended: Full Build';
-                }
+                recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel(currentBuildAction)}`;
             }
 
             async function refreshBuildRequiredState() {
                 try {
-                    const resp = await fetch('/biblioteca/get-build-required.php');
+                    const resp = await fetch('/biblioteca/get-operator-notifications.php');
                     const data = await resp.json();
-                    if (!data || data.ok !== true) return;
+                    if (!resp.ok || !data || data.ok !== true) return;
 
                     const state = data.build_required_state || {};
-                    setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none');
+                    latestBuildValidation = data.metadata_validation || null;
+                    setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
+                    renderOperatorNotifications(state, latestBuildValidation);
+                    renderBuildValidationSummary(latestBuildValidation);
 
                     const statusEl = document.getElementById('buildStatus');
                     if (statusEl && data.build_required === true && !statusEl.textContent) {
-                        const actionLabel = (state.action === 'optimize')
-                            ? '⚠ New image updates detected. Run media optimization.'
-                            : '⚠ New changes detected. Run full build to publish updates.';
-                        statusEl.textContent = actionLabel;
+                        statusEl.textContent = formatBuildHintMessage(state);
                         statusEl.style.color = '#f0b429';
                         statusEl.dataset.mode = 'nudge';
                     } else if (statusEl && data.build_required !== true && statusEl.dataset.mode === 'nudge') {
                         statusEl.textContent = '';
                         statusEl.removeAttribute('data-mode');
                     }
+
+                    maybeRunRecommendedActionFromQuery();
                 } catch (e) {
                     // Keep UI usable even if this hint endpoint is temporarily unavailable.
                 }
             }
-
-            refreshBuildRequiredState();
 
             function fmtSize(bytes) {
                 if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
@@ -1937,9 +2265,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             setBuildRequiredNudge(
                                 data.build_required === true,
                                 data.build_required_state.reasons || [],
-                                data.build_required_state.action || 'none'
+                                data.build_required_state.action || 'none',
+                                data.build_required_state.tasks || []
                             );
                         }
+                        await refreshBuildRequiredState();
                         updateAudioFileRowMetadata(activeAudioMasterFile, detail);
                         if (expandedAudioFile === activeAudioMasterFile) {
                             loadMediaList('audio');
@@ -2004,6 +2334,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let done = 0, failed = 0;
                     let latestBuildState = null;
                     let masterPreparedCount = 0;
+                    let autoImageDeliveryRan = false;
                     const masterWarnings = [];
                     for (let fi = 0; fi < modalFiles.length; fi++) {
                         const file = modalFiles[fi];
@@ -2022,6 +2353,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (uploadData && uploadData.master_warning) {
                                 masterWarnings.push(`${file.name}: ${uploadData.master_warning}`);
                             }
+                            if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.includes('image-delivery')) {
+                                autoImageDeliveryRan = true;
+                            }
                             done++;
                         } catch(e) {
                             failed++;
@@ -2034,18 +2368,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         modalList.innerHTML = '';
                         await loadMediaList(modalTarget);
                         if (latestBuildState) {
-                            setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none');
-                        } else if (done > 0) {
+                            setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
+                        }
+                        if (done > 0) {
                             await refreshBuildRequiredState();
                         }
 
                         if (latestBuildState && latestBuildState.required) {
-                            const next = latestBuildState.action === 'optimize' ? 'Next: run Optimize Media.' : 'Next: run Full Build.';
+                            const next = formatBuildNextStep(latestBuildState);
                             const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
-                            showAdminToast(`Upload complete.${masterNote} ${next}`, 'success');
+                            const imageNote = autoImageDeliveryRan
+                                ? ' Image files refreshed automatically.'
+                                : '';
+                            showAdminToast(`Upload complete.${masterNote}${imageNote} ${next}`, 'success');
                         } else {
                             const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
-                            showAdminToast(`Upload complete.${masterNote} No build step needed.`, 'success');
+                            const imageNote = autoImageDeliveryRan
+                                ? ' Image files refreshed automatically.'
+                                : '';
+                            showAdminToast(`Upload complete.${masterNote}${imageNote} No build step needed.`, 'success');
                         }
                         if (masterWarnings.length) {
                             modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${escapeHtml(masterWarnings.join(' | '))}</span>`;
@@ -2056,8 +2397,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await loadMediaList(modalTarget);
                         }
                         if (latestBuildState) {
-                            setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none');
-                        } else if (done > 0) {
+                            setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
+                        }
+                        if (done > 0) {
                             await refreshBuildRequiredState();
                         }
 
@@ -2136,7 +2478,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             cfgBasicsStatus.style.color = 'var(--success, #4ade80)';
                             const reasons = (data.build_required_state && data.build_required_state.reasons) || ['site_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
-                            setBuildRequiredNudge(data.build_required === true, reasons, action);
+                            setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
+                            await refreshBuildRequiredState();
                             refreshBuildHint();
                         } else {
                             cfgBasicsStatus.textContent = '❌ ' + (data.error || 'Unknown error');
@@ -2186,13 +2529,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const data = await resp.json();
                         if (data.ok) {
                             cfgThemeFullSource.value = payload;
-                            cfgThemeStatus.textContent = Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                                ? '✅ Saved and playlist refreshed'
-                                : '✅ Saved';
+                            cfgThemeStatus.textContent = Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan') && data.auto_tasks.includes('image-delivery')
+                                ? '✅ Saved, playlist refreshed, and image files updated'
+                                : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                    ? '✅ Saved and playlist refreshed'
+                                    : '✅ Saved';
                             cfgThemeStatus.style.color = 'var(--success, #4ade80)';
                             const reasons = (data.build_required_state && data.build_required_state.reasons) || ['theme_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
-                            setBuildRequiredNudge(data.build_required === true, reasons, action);
+                            setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
+                            await refreshBuildRequiredState();
                             refreshBuildHint();
                         } else {
                             cfgThemeStatus.textContent = '❌ ' + (data.error || 'Unknown error');
@@ -3005,7 +3351,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 status.style.color = 'var(--success, #4ade80)';
                                 const reasons = (data.build_required_state && data.build_required_state.reasons) || ['social_config_changed'];
                                 const action = (data.build_required_state && data.build_required_state.action) || 'full';
-                                setBuildRequiredNudge(data.build_required === true, reasons, action);
+                                setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
+                                await refreshBuildRequiredState();
                                 refreshBuildHint();
                             } else {
                                 status.textContent = '❌ ' + (data.error || 'Unknown error');
@@ -3022,6 +3369,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             // ── Build ─────────────────────────────────────────────────────────
             const buildBtn     = document.getElementById('buildBtn');
             const optimizeBtn  = document.getElementById('optimizeBtn');
+            const buildHelpBox = document.getElementById('help-build');
             const buildSpinner = document.getElementById('buildSpinner');
             const optimizeSpinner = document.getElementById('optimizeSpinner');
             const buildLog     = document.getElementById('buildLog');
@@ -3031,13 +3379,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const buildValidationOverall = document.getElementById('buildValidationOverall');
             let pollTimer      = null;
             let currentRunMode = 'full';
-
-            const validationSeverityConfig = {
-                'cannot-build': { label: 'Cannot build', statusClass: 'status-error', rank: 4 },
-                'fix-before-publish': { label: 'Fix before publish', statusClass: 'status-warning', rank: 3 },
-                'recommended-fix': { label: 'Recommended fix', statusClass: 'status-neutral', rank: 2 },
-                'can-be-repaired-automatically': { label: 'Can be repaired automatically', statusClass: 'status-ok', rank: 1 },
-            };
+            let currentBuildTasks = [];
 
             function runRecommendedAction() {
                 if (pollTimer) return;
@@ -3050,17 +3392,58 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
+            function maybeRunRecommendedActionFromQuery() {
+                if (!pendingBuildRunFromQuery || triggeredBuildRunFromQuery) {
+                    return;
+                }
+
+                triggeredBuildRunFromQuery = true;
+                clearRecommendedRunQuery();
+
+                const logCard = document.getElementById('build-log-card');
+                if (logCard) {
+                    logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                if (currentBuildRequired) {
+                    runRecommendedAction();
+                }
+            }
+
             if (recommendedBuildBtn) {
                 recommendedBuildBtn.addEventListener('click', runRecommendedAction);
+            }
+
+            function refreshBuildActionCopy() {
+                if (buildBtn) {
+                    buildBtn.textContent = '▶️ Run Publish Build';
+                }
+                if (optimizeBtn) {
+                    optimizeBtn.textContent = '🖼️ Refresh Image Files';
+                }
+                if (buildHelpBox) {
+                    if (currentBuildRequired) {
+                        const tasks = formatBuildTaskList({ tasks: currentBuildTasks });
+                        const actionLabel = getBuildActionLabel(currentBuildAction);
+                        const taskLine = tasks.length
+                            ? `Pending now: <strong>${escapeHtml(tasks.join(' · '))}</strong>.`
+                            : 'Pending now: bandPromo still has publish work to finish.';
+                        buildHelpBox.innerHTML = `${actionLabel} is the recommended next step for the current pending work. ${taskLine} Jobs continue in the background while this log updates.`;
+                    } else {
+                        buildHelpBox.innerHTML = 'Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> when audio, validation, playlist, manifest, or other heavier publish steps are still pending. Jobs continue in the background while this log updates.';
+                    }
+                }
             }
 
             function refreshBuildHint() {
                 if (!buildStatus) return;
                 if (pollTimer) return;
                 if (currentBuildRequired) {
-                    buildStatus.textContent = currentBuildAction === 'optimize'
-                        ? '⚠ New image updates detected. Run media optimization.'
-                        : '⚠ New changes detected. Run full build to publish updates.';
+                    buildStatus.textContent = formatBuildHintMessage({
+                        action: currentBuildAction,
+                        tasks: currentBuildTasks,
+                        reasons: currentBuildReasons,
+                    });
                     buildStatus.style.color = '#f0b429';
                     buildStatus.dataset.mode = 'nudge';
                 } else if (buildStatus.dataset.mode === 'nudge') {
@@ -3070,6 +3453,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             refreshBuildHint();
+            refreshBuildActionCopy();
 
             function scrollLog() {
                 if (buildLog) buildLog.scrollTop = buildLog.scrollHeight;
@@ -3369,6 +3753,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return lines.join('\n');
             }
 
+            refreshBuildRequiredState();
+
             async function pollLog() {
                 try {
                     const resp = await fetch('/biblioteca/get-build-log.php?mode=' + encodeURIComponent(currentRunMode));
@@ -3393,6 +3779,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (data.is_running) {
                         setBuildValidationVisibility(false);
                     } else {
+                        latestBuildValidation = data.metadata_validation || null;
                         renderBuildValidationSummary(data.metadata_validation);
                     }
 
@@ -3400,8 +3787,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         setBuildRequiredNudge(
                             data.build_required === true,
                             data.build_required_state.reasons || [],
-                            data.build_required_state.action || 'none'
+                            data.build_required_state.action || 'none',
+                            data.build_required_state.tasks || []
                         );
+                        renderOperatorNotifications(data.build_required_state, latestBuildValidation);
                         refreshBuildHint();
                     }
 

@@ -16,6 +16,7 @@ function bandpromo_get_build_required_state(): array {
         'action' => 'none',
         'updated_at' => null,
         'reasons' => [],
+        'tasks' => [],
     ];
 
     $file = bandpromo_build_required_file();
@@ -35,10 +36,96 @@ function bandpromo_get_build_required_state(): array {
 
     return [
         'required' => !empty($decoded['required']),
-        'action' => isset($decoded['action']) ? (string) $decoded['action'] : 'none',
+        'action' => isset($decoded['tasks']) && is_array($decoded['tasks'])
+            ? bandpromo_max_action_for_tasks($decoded['tasks'])
+            : (isset($decoded['action']) ? (string) $decoded['action'] : 'none'),
         'updated_at' => isset($decoded['updated_at']) ? (string) $decoded['updated_at'] : null,
         'reasons' => isset($decoded['reasons']) && is_array($decoded['reasons']) ? array_values($decoded['reasons']) : [],
+        'tasks' => isset($decoded['tasks']) && is_array($decoded['tasks']) ? array_values($decoded['tasks']) : bandpromo_collect_tasks_for_reasons(isset($decoded['reasons']) && is_array($decoded['reasons']) ? $decoded['reasons'] : []),
     ];
+}
+
+function bandpromo_reason_tasks(string $reason): array {
+    $map = [
+        'media_audio_upload' => ['playlist-scan', 'audio-delivery'],
+        'media_audio_master_changed' => ['audio-delivery'],
+        'media_cover_upload' => ['audio-delivery', 'image-delivery'],
+        'web_config_changed' => ['manifest'],
+        'theme_config_changed' => ['image-delivery', 'social-assets'],
+        'theme_cover_changed' => ['image-delivery'],
+        'site_config_changed' => ['manifest'],
+        'social_config_changed' => ['social-assets', 'manifest'],
+        'media_image_upload' => ['image-delivery'],
+    ];
+
+    return $map[$reason] ?? [];
+}
+
+function bandpromo_collect_tasks_for_reasons(array $reasons): array {
+    $tasks = [];
+    foreach ($reasons as $reason) {
+        foreach (bandpromo_reason_tasks((string) $reason) as $task) {
+            if (!in_array($task, $tasks, true)) {
+                $tasks[] = $task;
+            }
+        }
+    }
+
+    return $tasks;
+}
+
+function bandpromo_merge_tasks(array $existingTasks, array $newTasks): array {
+    $merged = [];
+    foreach (array_merge($existingTasks, $newTasks) as $task) {
+        $task = trim((string) $task);
+        if ($task === '' || in_array($task, $merged, true)) {
+            continue;
+        }
+        $merged[] = $task;
+    }
+
+    return $merged;
+}
+
+function bandpromo_task_action(string $task): string {
+    $map = [
+        'playlist-scan' => 'full',
+        'audio-delivery' => 'full',
+        'image-delivery' => 'optimize',
+        'social-assets' => 'full',
+        'manifest' => 'full',
+    ];
+
+    return $map[$task] ?? 'none';
+}
+
+function bandpromo_max_action_for_tasks(array $tasks): string {
+    $max = 'none';
+    foreach ($tasks as $task) {
+        $action = bandpromo_task_action((string) $task);
+        if (bandpromo_action_rank($action) > bandpromo_action_rank($max)) {
+            $max = $action;
+        }
+    }
+    return $max;
+}
+
+function bandpromo_filter_reasons_for_tasks(array $reasons, array $tasks): array {
+    if (empty($tasks)) {
+        return [];
+    }
+
+    $filtered = [];
+    foreach ($reasons as $reason) {
+        foreach (bandpromo_reason_tasks((string) $reason) as $task) {
+            if (in_array($task, $tasks, true)) {
+                $filtered[] = (string) $reason;
+                break;
+            }
+        }
+    }
+
+    return array_values(array_unique($filtered));
 }
 
 function bandpromo_reason_action(string $reason): string {
@@ -88,6 +175,7 @@ function bandpromo_write_build_required_state(array $state): void {
         'action' => isset($state['action']) ? (string) $state['action'] : 'none',
         'updated_at' => $state['updated_at'] ?? gmdate('c'),
         'reasons' => isset($state['reasons']) && is_array($state['reasons']) ? array_values(array_unique($state['reasons'])) : [],
+        'tasks' => isset($state['tasks']) && is_array($state['tasks']) ? array_values(array_unique($state['tasks'])) : bandpromo_collect_tasks_for_reasons(isset($state['reasons']) && is_array($state['reasons']) ? $state['reasons'] : []),
     ];
 
     file_put_contents(
@@ -104,10 +192,13 @@ function bandpromo_mark_build_required(string $reason): array {
         $reasons[] = $reason;
     }
 
-    $state['required'] = true;
-    $state['action'] = bandpromo_max_action($reasons);
+    $tasks = bandpromo_merge_tasks($state['tasks'] ?? [], bandpromo_collect_tasks_for_reasons($reasons));
+
+    $state['required'] = !empty($tasks);
+    $state['action'] = bandpromo_max_action_for_tasks($tasks);
     $state['updated_at'] = gmdate('c');
     $state['reasons'] = $reasons;
+    $state['tasks'] = $tasks;
     bandpromo_write_build_required_state($state);
     return $state;
 }
@@ -118,6 +209,7 @@ function bandpromo_clear_build_required(): array {
         'action' => 'none',
         'updated_at' => gmdate('c'),
         'reasons' => [],
+        'tasks' => [],
     ];
     bandpromo_write_build_required_state($state);
     return $state;
@@ -130,20 +222,47 @@ function bandpromo_clear_build_required_for_action(string $completed_action): ar
 
     $state = bandpromo_get_build_required_state();
     $reasons = isset($state['reasons']) && is_array($state['reasons']) ? $state['reasons'] : [];
+    $tasks = isset($state['tasks']) && is_array($state['tasks']) ? $state['tasks'] : bandpromo_collect_tasks_for_reasons($reasons);
 
     if ($completed_action === 'optimize') {
-        $reasons = array_values(array_filter(
-            $reasons,
-            static fn($reason) => bandpromo_reason_action((string) $reason) !== 'optimize'
+        $tasks = array_values(array_filter(
+            $tasks,
+            static fn($task) => bandpromo_task_action((string) $task) !== 'optimize'
         ));
     }
 
-    $action = bandpromo_max_action($reasons);
+    $reasons = bandpromo_filter_reasons_for_tasks($reasons, $tasks);
+    $action = bandpromo_max_action_for_tasks($tasks);
     $next = [
-        'required' => !empty($reasons),
+        'required' => !empty($tasks),
         'action' => $action,
         'updated_at' => gmdate('c'),
         'reasons' => $reasons,
+        'tasks' => $tasks,
+    ];
+    bandpromo_write_build_required_state($next);
+    return $next;
+}
+
+function bandpromo_clear_build_required_tasks(array $completedTasks): array {
+    if ($completedTasks === []) {
+        return bandpromo_get_build_required_state();
+    }
+
+    $state = bandpromo_get_build_required_state();
+    $tasks = isset($state['tasks']) && is_array($state['tasks']) ? $state['tasks'] : [];
+    $remainingTasks = array_values(array_filter(
+        $tasks,
+        static fn($task) => !in_array((string) $task, $completedTasks, true)
+    ));
+    $reasons = bandpromo_filter_reasons_for_tasks(isset($state['reasons']) && is_array($state['reasons']) ? $state['reasons'] : [], $remainingTasks);
+
+    $next = [
+        'required' => !empty($remainingTasks),
+        'action' => bandpromo_max_action_for_tasks($remainingTasks),
+        'updated_at' => gmdate('c'),
+        'reasons' => $reasons,
+        'tasks' => $remainingTasks,
     ];
     bandpromo_write_build_required_state($next);
     return $next;

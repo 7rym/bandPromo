@@ -369,7 +369,10 @@ def main():
     # ── Step 2: Optimize media (MP3 + optimised covers) ─────────────────────────────
     print("\n── Step 2/4: Optimizing media (audio + image + photo optimisation) ──")
     sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'optimizeMedia.py', {'FFMPEG_PATH': ffmpeg_path}):
+    if not run_script(SCRIPT_DIR / 'optimizeMedia.py', {
+        'FFMPEG_PATH': ffmpeg_path,
+        'BANDPROMO_OPTIMIZE_MODE': 'full',
+    }):
         print("\n❌ Build failed at step 2")
         sys.stdout.flush()
         sys.exit(1)

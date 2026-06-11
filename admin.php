@@ -714,13 +714,32 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <div class="container">
         <h1>🔐 Admin Panel</h1>
         <p class="app-version">using bandPromo <?php echo htmlspecialchars($appVersion); ?></p>
-        <div id="buildRequiredBadge" class="build-required-badge" style="display:none;"></div>
-        <div class="user-badge">Logged in as: <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>
-            <?php if ($currentUserRole !== ''): ?>
-                <span class="role-badge <?php echo $currentUserRole === 'developer' ? 'role-developer' : ($currentUserRole === 'admin' ? 'role-admin' : 'role-user'); ?>"><?php echo htmlspecialchars(ucfirst($currentUserRole)); ?></span>
-            <?php endif; ?>
-            &nbsp;·&nbsp;<a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
-            &nbsp;·&nbsp;<a href="/admin.php?logout=1">Logout</a>
+        <div class="admin-header-bar">
+            <div class="user-badge">Logged in as: <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>
+                <?php if ($currentUserRole !== ''): ?>
+                    <span class="role-badge <?php echo $currentUserRole === 'developer' ? 'role-developer' : ($currentUserRole === 'admin' ? 'role-admin' : 'role-user'); ?>"><?php echo htmlspecialchars(ucfirst($currentUserRole)); ?></span>
+                <?php endif; ?>
+                &nbsp;·&nbsp;<a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
+                &nbsp;·&nbsp;<a href="/admin.php?logout=1">Logout</a>
+            </div>
+            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsDrawer">
+                <span class="operator-notifications-icon">🔔</span>
+                <span class="operator-notifications-label">Operator inbox</span>
+                <span id="operatorNotificationsCount" class="operator-notifications-count is-empty">0</span>
+            </button>
+        </div>
+
+        <div id="operatorNotificationsDrawer" class="operator-notifications-drawer" hidden>
+            <div class="operator-notifications-drawer-head">
+                <div>
+                    <h2>Operator inbox</h2>
+                    <p class="card-note">Quick background actions stay quiet. Only slower publish steps and operator-owned fixes stay visible here until they are resolved.</p>
+                </div>
+                <button type="button" id="operatorNotificationsClose" class="operator-notifications-close" aria-label="Close operator inbox">✕</button>
+            </div>
+            <div id="operatorNotificationsDrawerBody" class="operator-notifications-body">
+                <p class="operator-notifications-empty">Loading operator notifications…</p>
+            </div>
         </div>
 
         <?php if ($message): ?>
@@ -760,6 +779,17 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <div class="welcome-callout">
                     <?php echo htmlspecialchars($welcomePrimaryNotice); ?>
+                </div>
+
+                <div id="operatorNotificationsWelcomeCard" class="welcome-section operator-notifications-welcome" style="display:none">
+                    <div class="operator-notifications-section-head">
+                        <h3>Operator inbox</h3>
+                        <span id="operatorNotificationsWelcomeSummary" class="badge audit-status-badge status-neutral">No open operator tasks</span>
+                    </div>
+                    <p class="card-note">Simple background actions should not interrupt operators. This list keeps only the heavier publish steps and real fixes visible until the underlying issue is gone.</p>
+                    <div id="operatorNotificationsWelcomeBody" class="operator-notifications-body">
+                        <p class="operator-notifications-empty">Loading operator notifications…</p>
+                    </div>
                 </div>
 
                 <div class="welcome-grid">
@@ -1215,13 +1245,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <br>
                 <?php elseif ($filesPanel === 'photos'): ?>
                     Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images.
-                    <br><strong>After upload:</strong> run <strong>Optimize Media</strong>.
+                    <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
                 <?php elseif ($filesPanel === 'video'): ?>
                     Drop videos here (MP4, WEBM, MOV). They are used directly from this folder.
                     <br><strong>After upload:</strong> no build needed.
                 <?php elseif ($filesPanel === 'illustrations'): ?>
                     Drop artwork and illustrations here (PNG, JPG, JPEG).
-                    <br><strong>After upload:</strong> run <strong>Optimize Media</strong>.
+                    <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
                 <?php elseif ($filesPanel === 'special'): ?>
                     This is for theme assets such as share images, icons, logos, and similar install-specific design files.
                     <br><strong>After upload:</strong> usually no build needed.
@@ -1905,13 +1935,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <!-- ===================== BUILD TAB ===================== -->
         <div id="tab-build" class="tab-content <?php echo $tab === 'build' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
-                <button id="buildBtn" class="subtab-action">▶️ Full Build</button>
-                <button id="optimizeBtn" class="subtab-action">🖼️ Optimize Media</button>
+                <button id="buildBtn" class="subtab-action">▶️ Run Publish Build</button>
+                <button id="optimizeBtn" class="subtab-action">🖼️ Refresh Image Files</button>
                 <button id="recommendedBuildBtn" class="subtab-action" style="display:none"></button>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-build">
-                Use <strong>Optimize Media</strong> after photo/illustration updates when you only need refreshed optimized images. Use <strong>Full Build</strong> after audio uploads, cover changes tied to tracks, or web-config edits. Jobs continue in the background while this log updates.
+                Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> when audio, validation, playlist, manifest, or other heavier publish steps are still pending. Jobs continue in the background while this log updates.
             </div>
 
             <div id="buildValidationCard" class="card build-validation-card" style="display:none">

@@ -32,10 +32,22 @@ Tracked application updates must preserve that runtime state.
   - `python scripts/bump_version.py`
 - Run a build from the repository:
   - `python scripts/build.py`
+- Run the fast session-start summary:
+  - `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
 - Check PHP syntax for a touched file:
   - `php -l path/to/file.php`
 - Build a local distributable package intentionally:
   - `python scripts/build_release_package.py --clean`
+
+## Fast Session Start
+
+Use the fast startup path when opening the repository after a break or starting a new chat session.
+
+- CLI: `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
+- VS Code task: `bandPromo: Fast session startup`
+- VS Code chat slash prompt: `/bandpromo-session-start`
+
+The fast path is meant to replace repeated manual startup checks. It prints the active shell/runtime context, current git state, available workspace tasks, the current milestone target, the first unresolved `v0.7` tasks from `docs/TODO.md`, recent changelog entries, and one recommended next focus.
 
 ## Release Package Notes
 

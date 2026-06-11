@@ -65,7 +65,7 @@ function bandpromo_resolve_python_interpreter(): string {
     return '';
 }
 
-function bandpromo_run_light_task(string $script_relative_path): array {
+function bandpromo_run_light_task(string $script_relative_path, array $env_extras = []): array {
     $root_dir = dirname(__DIR__);
 
     if (!bandpromo_can_proc_open()) {
@@ -106,6 +106,9 @@ function bandpromo_run_light_task(string $script_relative_path): array {
     $env = $_ENV;
     $env['BUILD_ROOT'] = $root_dir;
     $env['PYTHONIOENCODING'] = 'utf-8:replace';
+    foreach ($env_extras as $key => $value) {
+        $env[(string) $key] = (string) $value;
+    }
 
     $process = proc_open([$python, '-u', $script], $descriptors, $pipes, $root_dir, $env);
     if (!is_resource($process)) {

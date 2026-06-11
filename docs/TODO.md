@@ -140,14 +140,14 @@ Implementation follow-up after policy:
 - [x] Refresh playlist and validation data automatically after audio metadata saves so file badges and warnings can update without waiting for a manual full build.
 - [x] Keep embedded master track numbers aligned with operator playlist order by syncing reordered tracks back into masters and autofilling blank track tags from playlist position during metadata saves.
 - [x] Suppress fresh build-required warnings for true no-op audio metadata saves while still preserving existing pending build state from earlier real changes.
-- [ ] Add a persistent operator task/notification panel for unresolved build and validation issues, driven by current system state and auto-resolved when the underlying issue is fixed instead of relying on manual checklist truth.
+- [x] Add a persistent operator task/notification panel for unresolved build and validation issues, driven by current system state and auto-resolved when the underlying issue is fixed instead of relying on manual checklist truth.
 - [ ] Add selective inline quick-edit for simple metadata fields (title, artist, release/album name, lyrics) only after the task/action model is in place; keep track order, cover work, and broader master-building in their dedicated editors.
 - [x] Surface compact latest-build metadata health badges in Files -> Audio for Artist, Title, Release, Lyrics, and Cover so operators can scan file completeness without opening each track.
 - [x] Add placeholder-origin and hidden-state support to media listing/picker flows so bundled demo assets are suppressed by default once a real install has user media in that group, and bundled delete actions hide them locally instead of pretending git-tracked demo files were truly removed.
 - [x] Start the eager-master intake path for supported audio uploads by preserving originals in `media/audio/original/` and seeding a local working copy in `media/audio/master/` without changing current playback or delivery reads yet.
 - [x] Backfill missing audio masters for older libraries automatically when Files -> Audio inspects preserved originals, so legacy installs do not leave operators stuck with persistent `Master pending` rows for supported FLAC/MP3/WAV sources.
-- [ ] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
-- [ ] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split; real audio metadata changes still collapse into `full` even though unchanged saves are now ignored.
+- [x] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
+- [x] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split; pending work now records task units and can clear targeted work such as `image-delivery` independently.
 - [ ] Split the current optimizer into source-aware tasks; MP3 sources must not be treated as if they always need the FLAC-to-MP3 path.
 - [ ] Add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity.
 - [ ] Separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location.

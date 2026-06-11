@@ -23,6 +23,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/audio-master-helpers.php';
+require_once __DIR__ . '/light-build-tasks.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -168,6 +169,37 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
     return '';
 }
 
+function bandpromo_maybe_run_auto_image_delivery(array $reasons, ?array $state): array {
+    $hasImageWork = in_array('media_image_upload', $reasons, true) || in_array('media_cover_upload', $reasons, true);
+    if (!$hasImageWork) {
+        return [
+            'state' => $state,
+            'auto_tasks' => [],
+            'warning' => '',
+            'task_output' => '',
+        ];
+    }
+
+    $task = bandpromo_run_light_task('scripts/optimizeMedia.py', [
+        'BANDPROMO_OPTIMIZE_MODE' => 'image-only',
+    ]);
+    if ($task['ok']) {
+        return [
+            'state' => bandpromo_clear_build_required_tasks(['image-delivery']),
+            'auto_tasks' => ['image-delivery'],
+            'warning' => '',
+            'task_output' => trim((string) ($task['output'] ?? '')),
+        ];
+    }
+
+    return [
+        'state' => $state,
+        'auto_tasks' => [],
+        'warning' => 'Automatic image refresh failed after upload.',
+        'task_output' => trim((string) ($task['output'] ?? '')),
+    ];
+}
+
 // ─── Chunked upload mode ──────────────────────────────────────────────────────
 if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $chunkIndex  = (int)$_POST['chunk_index'];
@@ -267,8 +299,18 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
 
     if ($reason !== '') {
         $state = bandpromo_mark_build_required($reason);
+        $autoImage = bandpromo_maybe_run_auto_image_delivery([$reason], $state);
+        $state = $autoImage['state'];
         $response['build_required'] = true;
+        $response['build_required'] = !empty($state['required']);
         $response['build_required_state'] = $state;
+        if (!empty($autoImage['auto_tasks'])) {
+            $response['auto_tasks'] = $autoImage['auto_tasks'];
+        }
+        if ($autoImage['warning'] !== '') {
+            $response['warning'] = $autoImage['warning'];
+            $response['task_output'] = $autoImage['task_output'];
+        }
     } else {
         $response['build_required'] = false;
     }
@@ -405,8 +447,17 @@ if ($uploaded > 0 && !empty($upload_reasons)) {
     foreach ($upload_reasons as $reason) {
         $state = bandpromo_mark_build_required($reason);
     }
-    $response['build_required'] = true;
+    $autoImage = bandpromo_maybe_run_auto_image_delivery($upload_reasons, $state);
+    $state = $autoImage['state'];
+    $response['build_required'] = !empty($state['required']);
     $response['build_required_state'] = $state;
+    if (!empty($autoImage['auto_tasks'])) {
+        $response['auto_tasks'] = $autoImage['auto_tasks'];
+    }
+    if ($autoImage['warning'] !== '') {
+        $response['warning'] = $autoImage['warning'];
+        $response['task_output'] = $autoImage['task_output'];
+    }
 } else {
     $response['build_required'] = false;
 }
