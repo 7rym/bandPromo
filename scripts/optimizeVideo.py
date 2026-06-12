@@ -102,7 +102,7 @@ def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
         str(target_path),
     ]
     try:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     except Exception as exc:
         print(f"  ❌ Could not start ffmpeg for video transcode: {exc}")
         return False
@@ -139,7 +139,7 @@ def ensure_video_poster(source_path: Path, poster_path: Path) -> bool:
         str(poster_path),
     ]
     try:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     except Exception as exc:
         print(f"  ⚠️  Could not start ffmpeg for poster extraction: {exc}")
         return False

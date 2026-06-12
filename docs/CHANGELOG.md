@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 09:10 - Fixed Python 3.6 compatibility in `scripts/optimizeVideo.py` after a real remote full-build test on `bandpromo.site`. The video build step was reaching the optimized MP4 copy path but failing poster extraction because the host Python 3.6 runtime does not accept `subprocess.run(..., text=True)`, so the script now uses `universal_newlines=True` for both transcode and poster ffmpeg calls.
+
 2026-06-12 09:02 - Fixed gallery lightbox video playback behavior in `biblioteca/lightbox.js`. Opening a gallery video now resets it, starts playback immediately, leaves sound enabled, and turns on looping so the lightbox behavior matches the expected poster-to-video experience.
 
 2026-06-12 08:53 - Fixed the stale Files -> Video operator guidance in `admin.php` after remote verification. The panel now says original videos are kept locally while publish-ready MP4 files are prepared during the full build, and it correctly tells operators to run `Run Publish Build` after video uploads instead of claiming that no build is needed.
