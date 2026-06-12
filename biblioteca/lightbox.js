@@ -58,13 +58,25 @@ class Lightbox {
         if (this.vid) {
             this.vid.style.display = isVid ? '' : 'none';
             if (isVid) {
+                this.vid.pause();
+                this.vid.currentTime = 0;
+                this.vid.autoplay = true;
+                this.vid.loop = true;
+                this.vid.muted = false;
                 if (poster) this.vid.poster = poster;
                 else this.vid.removeAttribute('poster');
                 this.vid.src = src;
                 this.vid.load();
+                const playPromise = this.vid.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {});
+                }
             }
             else {
                 this.vid.pause();
+                this.vid.currentTime = 0;
+                this.vid.autoplay = false;
+                this.vid.loop = false;
                 this.vid.removeAttribute('poster');
                 this.vid.src = '';
             }
@@ -115,7 +127,13 @@ class Lightbox {
     }
 
     close() {
-        if (this.vid) { this.vid.pause(); this.vid.src = ''; }
+        if (this.vid) {
+            this.vid.pause();
+            this.vid.currentTime = 0;
+            this.vid.autoplay = false;
+            this.vid.loop = false;
+            this.vid.src = '';
+        }
         if (this.img) this.img.src = '';
         if (this.overlay) this.overlay.classList.remove('active');
     }
