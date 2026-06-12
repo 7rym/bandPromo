@@ -1,8 +1,10 @@
 <?php
 
-function bandpromo_first_command_path(string $raw): string {
-    $lines = preg_split('/\r\n|\r|\n/', trim($raw));
-    return trim((string) ($lines[0] ?? ''));
+if (!function_exists('bandpromo_first_command_path')) {
+    function bandpromo_first_command_path(string $raw): string {
+        $lines = preg_split('/\r\n|\r|\n/', trim($raw));
+        return trim((string) ($lines[0] ?? ''));
+    }
 }
 
 function bandpromo_can_shell_exec(): bool {
