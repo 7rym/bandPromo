@@ -6,12 +6,12 @@ Designed to be called from the admin panel (Admin > Config > Build),
 but can also be run directly from the command line.
 
 Output (new structure):
-  media/audio/original/   - source FLAC files (uploaded by admin)
-  media/audio/optimal/  - converted MP3 files (generated here)
-  media/img/original/     - source PNG cover art (uploaded by admin)
-  media/img/optimal/   - optimised JPEG covers (generated here)
+    media/audio/original/   - source audio files (uploaded by admin)
+    media/audio/optimal/  - publish-ready audio delivery files (generated here)
+    media/img/original/     - source cover/artwork files (uploaded by admin)
+    media/img/optimal/   - publish-ready cover/artwork delivery files (generated here)
   play/playlist.json  - single playlist config for the player
-  media/special/*_facebook.jpg, *_twitter.jpg – social share images
+    media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   media/special/    - platform-specific social share images (generated here)
 """
 
@@ -409,12 +409,12 @@ def main():
 ╚══════════════════════════════════════════════════╝
 
 Output:
-  media/audio/optimal/  — MP3 files
-  media/img/original/    — cover PNG files
-  media/img/optimal/    — cover JPEG files (optimised)
-    media/video/optimal/  — MP4 delivery files
+    media/audio/optimal/  — publish-ready audio delivery files
+    media/img/original/    — source cover/artwork files
+    media/img/optimal/    — publish-ready cover/artwork delivery files
+    media/video/optimal/  — publish-ready video delivery files
   play/playlist.json — player playlist
-  media/special/*_facebook.jpg, *_twitter.jpg – social share images
+    media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   site.webmanifest — PWA manifest
 """)
     sys.stdout.flush()

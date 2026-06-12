@@ -40,6 +40,8 @@ $dirs = [
 ];
 
 $target = $body['target'] ?? '';
+$mode = isset($body['mode']) ? strtolower(trim((string) $body['mode'])) : 'delete';
+$detach_references = !array_key_exists('detach_references', $body) || !empty($body['detach_references']);
 
 if (!isset($dirs[$target])) {
     echo json_encode(['error' => 'Unknown target']);
@@ -71,6 +73,17 @@ function bandpromo_audio_master_paths(string $root, string $filename): array {
     return $paths ?? [];
 }
 
+function bandpromo_audio_delivery_paths(string $root, string $filename): array {
+    $optimal_dir = $root . '/media/audio/optimal';
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    $paths = [];
+    $candidate = $optimal_dir . '/' . $stem . '.mp3';
+    if (is_file($candidate)) {
+        $paths[] = $candidate;
+    }
+    return $paths;
+}
+
 function bandpromo_video_poster_path(string $root, string $filename): string {
     return $root . '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
 }
@@ -79,7 +92,208 @@ function bandpromo_video_delivery_path(string $root, string $filename): string {
     return $root . '/media/video/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.mp4';
 }
 
-function bandpromo_delete_media_item(string $root, array $dirs, string $target, string $filename): array
+function bandpromo_image_delivery_path(string $root, string $target, string $filename): string {
+    $subdir = $target === 'photos' ? 'photo' : 'img';
+    return $root . '/media/' . $subdir . '/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
+}
+
+function bandpromo_json_read_array_file(string $file): ?array {
+    if (!is_file($file)) {
+        return null;
+    }
+    $raw = file_get_contents($file);
+    if ($raw === false) {
+        return null;
+    }
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function bandpromo_json_write_file(string $file, $data): bool {
+    $dir = dirname($file);
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
+        return false;
+    }
+
+    $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (!is_string($encoded)) {
+        return false;
+    }
+
+    return file_put_contents($file, $encoded, LOCK_EX) !== false;
+}
+
+function bandpromo_normalize_reference_src(string $src): string {
+    $path = parse_url($src, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        $path = $src;
+    }
+    return str_replace('\\', '/', $path);
+}
+
+function bandpromo_gallery_item_matches_target(string $target, string $filename, array $item): bool {
+    $src = bandpromo_normalize_reference_src((string) ($item['src'] ?? ''));
+    if ($src === '' || basename($src) !== $filename) {
+        return false;
+    }
+
+    $type = trim((string) ($item['type'] ?? ''));
+    if ($target === 'video') {
+        return $type === 'video' && strpos($src, '/media/video/') !== false;
+    }
+    if ($target === 'photos') {
+        return $type !== 'video' && strpos($src, '/media/photo/') !== false;
+    }
+    if ($target === 'illustrations') {
+        return $type !== 'video' && strpos($src, '/media/img/') !== false;
+    }
+
+    return false;
+}
+
+function bandpromo_collect_media_references(string $root, string $target, string $filename): array {
+    $references = [];
+
+    if ($target === 'audio' || $target === 'illustrations') {
+        $playlist = bandpromo_json_read_array_file($root . '/play/playlist.json');
+        if (is_array($playlist)) {
+            foreach ($playlist as $index => $track) {
+                if (!is_array($track)) {
+                    continue;
+                }
+                $label = trim((string) ($track['title'] ?? $track['file'] ?? ''));
+                if ($target === 'audio' && trim((string) ($track['file'] ?? '')) === $filename) {
+                    $references[] = [
+                        'scope' => 'playlist',
+                        'kind' => 'playlist-track',
+                        'label' => $label !== '' ? $label : $filename,
+                    ];
+                }
+                if ($target === 'illustrations' && basename(trim((string) ($track['cover'] ?? ''))) === $filename) {
+                    $references[] = [
+                        'scope' => 'playlist',
+                        'kind' => 'playlist-cover',
+                        'label' => $label !== '' ? $label : $filename,
+                    ];
+                }
+            }
+        }
+    }
+
+    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+        $gallery = bandpromo_json_read_array_file($root . '/data/gallery.json');
+        if (is_array($gallery)) {
+            foreach ($gallery as $item) {
+                if (!is_array($item) || !bandpromo_gallery_item_matches_target($target, $filename, $item)) {
+                    continue;
+                }
+                $references[] = [
+                    'scope' => 'gallery',
+                    'kind' => 'gallery-item',
+                    'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
+                ];
+            }
+        }
+    }
+
+    return $references;
+}
+
+function bandpromo_summarize_reference_counts(array $references): array {
+    $summary = [
+        'playlist_tracks' => 0,
+        'playlist_covers' => 0,
+        'gallery_items' => 0,
+        'total' => 0,
+    ];
+
+    foreach ($references as $reference) {
+        $kind = (string) ($reference['kind'] ?? '');
+        if ($kind === 'playlist-track') {
+            $summary['playlist_tracks']++;
+        } elseif ($kind === 'playlist-cover') {
+            $summary['playlist_covers']++;
+        } elseif ($kind === 'gallery-item') {
+            $summary['gallery_items']++;
+        }
+        $summary['total']++;
+    }
+
+    return $summary;
+}
+
+function bandpromo_cleanup_media_references(string $root, string $target, string $filename): array {
+    $cleanup = [
+        'playlist_tracks_removed' => 0,
+        'playlist_covers_cleared' => 0,
+        'gallery_items_removed' => 0,
+        'warnings' => [],
+    ];
+
+    if ($target === 'audio' || $target === 'illustrations') {
+        $playlist_file = $root . '/play/playlist.json';
+        $playlist = bandpromo_json_read_array_file($playlist_file);
+        if (is_array($playlist)) {
+            $changed = false;
+            $updated = [];
+            foreach ($playlist as $track) {
+                if (!is_array($track)) {
+                    $updated[] = $track;
+                    continue;
+                }
+                if ($target === 'audio' && trim((string) ($track['file'] ?? '')) === $filename) {
+                    $cleanup['playlist_tracks_removed']++;
+                    $changed = true;
+                    continue;
+                }
+                if ($target === 'illustrations' && basename(trim((string) ($track['cover'] ?? ''))) === $filename) {
+                    $track['cover'] = '';
+                    $cleanup['playlist_covers_cleared']++;
+                    $changed = true;
+                }
+                $updated[] = $track;
+            }
+            if ($changed && !bandpromo_json_write_file($playlist_file, $updated)) {
+                $cleanup['warnings'][] = 'Could not update play/playlist.json';
+            }
+        }
+    }
+
+    if ($target === 'audio') {
+        $order_file = $root . '/data/playlist-order.json';
+        $order = bandpromo_json_read_array_file($order_file);
+        if (is_array($order)) {
+            $updated_order = array_values(array_filter($order, static function ($entry) use ($filename) {
+                return is_string($entry) && $entry !== $filename;
+            }));
+            if (count($updated_order) !== count($order) && !bandpromo_json_write_file($order_file, $updated_order)) {
+                $cleanup['warnings'][] = 'Could not update data/playlist-order.json';
+            }
+        }
+    }
+
+    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+        $gallery_file = $root . '/data/gallery.json';
+        $gallery = bandpromo_json_read_array_file($gallery_file);
+        if (is_array($gallery)) {
+            $updated_gallery = [];
+            foreach ($gallery as $item) {
+                if (is_array($item) && bandpromo_gallery_item_matches_target($target, $filename, $item)) {
+                    $cleanup['gallery_items_removed']++;
+                    continue;
+                }
+                $updated_gallery[] = $item;
+            }
+            if ($cleanup['gallery_items_removed'] > 0 && !bandpromo_json_write_file($gallery_file, $updated_gallery)) {
+                $cleanup['warnings'][] = 'Could not update data/gallery.json';
+            }
+        }
+    }
+
+    return $cleanup;
+}
+
+function bandpromo_delete_media_item(string $root, array $dirs, string $target, string $filename, bool $detach_references, string $mode): array
 {
     $safe = basename($filename);
     if ($safe === '' || $safe === '.' || $safe === '..') {
@@ -89,6 +303,19 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
     $path = $dirs[$target] . '/' . $safe;
     if (!file_exists($path)) {
         return ['ok' => false, 'filename' => $safe, 'error' => 'File not found'];
+    }
+
+    $references = bandpromo_collect_media_references($root, $target, $safe);
+    $reference_summary = bandpromo_summarize_reference_counts($references);
+
+    if ($mode === 'preview') {
+        return [
+            'ok' => true,
+            'filename' => $safe,
+            'action' => 'preview',
+            'references' => $references,
+            'reference_summary' => $reference_summary,
+        ];
     }
 
     if (bandpromo_media_is_bundled_placeholder($safe)) {
@@ -117,6 +344,23 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         ];
     }
 
+    $reference_cleanup = [
+        'playlist_tracks_removed' => 0,
+        'playlist_covers_cleared' => 0,
+        'gallery_items_removed' => 0,
+        'warnings' => [],
+    ];
+    if ($detach_references && $reference_summary['total'] > 0) {
+        $reference_cleanup = bandpromo_cleanup_media_references($root, $target, $safe);
+        if (!empty($reference_cleanup['warnings'])) {
+            return [
+                'ok' => false,
+                'filename' => $safe,
+                'error' => implode(' ', $reference_cleanup['warnings']),
+            ];
+        }
+    }
+
     if (!unlink($path)) {
         bandpromo_admin_audit_log('media_deleted', [
             'target_type' => 'media',
@@ -129,14 +373,21 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
 
     $master_deleted = false;
     $master_warning = '';
+    $audio_delivery_deleted = false;
     $video_poster_deleted = false;
     $video_delivery_deleted = false;
+    $image_delivery_deleted = false;
     if ($target === 'audio') {
         foreach (bandpromo_audio_master_paths($root, $safe) as $master_path) {
             if (@unlink($master_path)) {
                 $master_deleted = true;
             } else {
                 $master_warning = 'Audio original was deleted, but one or more matching master files could not be removed';
+            }
+        }
+        foreach (bandpromo_audio_delivery_paths($root, $safe) as $delivery_path) {
+            if (@unlink($delivery_path)) {
+                $audio_delivery_deleted = true;
             }
         }
     } elseif ($target === 'video') {
@@ -147,6 +398,11 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         $delivery_path = bandpromo_video_delivery_path($root, $safe);
         if (is_file($delivery_path) && @unlink($delivery_path)) {
             $video_delivery_deleted = true;
+        }
+    } elseif (in_array($target, ['illustrations', 'photos'], true)) {
+        $delivery_path = bandpromo_image_delivery_path($root, $target, $safe);
+        if (is_file($delivery_path) && @unlink($delivery_path)) {
+            $image_delivery_deleted = true;
         }
     }
 
@@ -159,8 +415,12 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         'data' => [
             'master_deleted' => $master_deleted,
             'master_warning' => $master_warning,
+            'audio_delivery_deleted' => $audio_delivery_deleted,
             'video_poster_deleted' => $video_poster_deleted,
             'video_delivery_deleted' => $video_delivery_deleted,
+            'image_delivery_deleted' => $image_delivery_deleted,
+            'reference_summary' => $reference_summary,
+            'reference_cleanup' => $reference_cleanup,
         ],
     ]);
 
@@ -170,15 +430,45 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         'action' => 'deleted',
         'master_deleted' => $master_deleted,
         'master_warning' => $master_warning,
+        'audio_delivery_deleted' => $audio_delivery_deleted,
         'video_poster_deleted' => $video_poster_deleted,
         'video_delivery_deleted' => $video_delivery_deleted,
+        'image_delivery_deleted' => $image_delivery_deleted,
+        'references' => $references,
+        'reference_summary' => $reference_summary,
+        'reference_cleanup' => $reference_cleanup,
     ];
 }
 
 $requestedFiles = array_values(array_unique(array_map(static fn($value) => (string) $value, $requestedFiles)));
 $results = [];
 foreach ($requestedFiles as $filename) {
-    $results[] = bandpromo_delete_media_item($root, $dirs, $target, $filename);
+    $results[] = bandpromo_delete_media_item($root, $dirs, $target, $filename, $detach_references, $mode);
+}
+
+if ($mode === 'preview') {
+    $references = [];
+    foreach ($results as $result) {
+        if (!empty($result['ok']) && !empty($result['references']) && is_array($result['references'])) {
+            foreach ($result['references'] as $reference) {
+                $references[] = array_merge(['filename' => (string) ($result['filename'] ?? '')], $reference);
+            }
+        }
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'files' => array_map(static function ($result) {
+            return [
+                'filename' => (string) ($result['filename'] ?? ''),
+                'reference_summary' => is_array($result['reference_summary'] ?? null) ? $result['reference_summary'] : bandpromo_summarize_reference_counts([]),
+                'references' => is_array($result['references'] ?? null) ? $result['references'] : [],
+            ];
+        }, $results),
+        'reference_summary' => bandpromo_summarize_reference_counts($references),
+        'references' => $references,
+    ]);
+    exit;
 }
 
 if (count($results) === 1) {
@@ -194,6 +484,8 @@ if (count($results) === 1) {
         'message' => $result['message'] ?? '',
         'master_deleted' => $result['master_deleted'] ?? false,
         'master_warning' => $result['master_warning'] ?? '',
+        'reference_summary' => $result['reference_summary'] ?? bandpromo_summarize_reference_counts([]),
+        'reference_cleanup' => $result['reference_cleanup'] ?? null,
     ]);
     exit;
 }
@@ -203,6 +495,17 @@ $failed = array_values(array_filter($results, static fn($result) => empty($resul
 $hiddenCount = count(array_filter($successful, static fn($result) => ($result['action'] ?? '') === 'hidden'));
 $deletedCount = count($successful) - $hiddenCount;
 $warnings = array_values(array_filter(array_map(static fn($result) => (string) ($result['master_warning'] ?? ''), $successful)));
+$totalReferenceCleanup = [
+    'playlist_tracks_removed' => 0,
+    'playlist_covers_cleared' => 0,
+    'gallery_items_removed' => 0,
+];
+foreach ($successful as $result) {
+    $cleanup = is_array($result['reference_cleanup'] ?? null) ? $result['reference_cleanup'] : [];
+    $totalReferenceCleanup['playlist_tracks_removed'] += (int) ($cleanup['playlist_tracks_removed'] ?? 0);
+    $totalReferenceCleanup['playlist_covers_cleared'] += (int) ($cleanup['playlist_covers_cleared'] ?? 0);
+    $totalReferenceCleanup['gallery_items_removed'] += (int) ($cleanup['gallery_items_removed'] ?? 0);
+}
 
 if ($successful === []) {
     echo json_encode([
@@ -225,6 +528,15 @@ if ($hiddenCount > 0) {
 if ($failed !== []) {
     $messageParts[] = sprintf('%d failed', count($failed));
 }
+if ($totalReferenceCleanup['playlist_tracks_removed'] > 0) {
+    $messageParts[] = sprintf('removed %d playlist entr%s', $totalReferenceCleanup['playlist_tracks_removed'], $totalReferenceCleanup['playlist_tracks_removed'] === 1 ? 'y' : 'ies');
+}
+if ($totalReferenceCleanup['playlist_covers_cleared'] > 0) {
+    $messageParts[] = sprintf('cleared %d playlist cover reference%s', $totalReferenceCleanup['playlist_covers_cleared'], $totalReferenceCleanup['playlist_covers_cleared'] === 1 ? '' : 's');
+}
+if ($totalReferenceCleanup['gallery_items_removed'] > 0) {
+    $messageParts[] = sprintf('removed %d gallery item%s', $totalReferenceCleanup['gallery_items_removed'], $totalReferenceCleanup['gallery_items_removed'] === 1 ? '' : 's');
+}
 
 echo json_encode([
     'ok' => true,
@@ -237,5 +549,6 @@ echo json_encode([
         'error' => $result['error'] ?? 'Delete failed',
     ], $failed),
     'warnings' => $warnings,
+    'reference_cleanup' => $totalReferenceCleanup,
     'message' => ucfirst(implode('; ', $messageParts)) . '.',
 ]);

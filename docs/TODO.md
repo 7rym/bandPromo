@@ -153,7 +153,7 @@ Implementation follow-up after policy:
 - [x] Video transcoding: add a separate build task that converts queued `.mov` / `.webm` sources into `.mp4` delivery assets with visible operator progress, instead of doing that heavy work during upload
 - [ ] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
 - [ ] Orphan detection: identify files in media/img/, media/photo/, media/video/ that are not referenced by any active gallery entry or playlist track, and expose in admin
-- [ ] Media deletion: add a safe delete action in the file manager that checks for active references before removing a file
+- [x] Media deletion: warn when a file is still referenced by playlist or gallery data, let the operator choose whether to continue, and if they do, remove those references automatically and refresh the affected playlist/gallery state after delete
 - [x] Video poster attribute: once thumbnail generation exists, write `poster` field into gallery.json entries and use it in gallery.js
 
 ### Beta operator readiness

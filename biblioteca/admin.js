@@ -335,6 +335,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let appliedMediaFocusFromQuery = false;
             let appliedPlaylistFocusFromQuery = false;
             let triggeredBuildRunFromQuery = false;
+            let deleteReferencePreview = null;
 
             const validationSeverityConfig = {
                 'cannot-build': { label: 'Cannot build', statusClass: 'status-error', rank: 4 },
@@ -2136,6 +2137,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.openDeleteModal = function(type, filename) {
                 deleteTarget = type;
                 deleteFiles  = Array.isArray(filename) ? filename.filter(Boolean) : [filename].filter(Boolean);
+                deleteReferencePreview = null;
                 if (deleteTitleEl) {
                     deleteTitleEl.textContent = deleteFiles.length > 1 ? 'Delete selected files?' : 'Delete file?';
                 }
@@ -2155,18 +2157,60 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 if (deleteHintEl) {
                     deleteHintEl.textContent = deleteFiles.length > 1
-                        ? 'These deletions are immediate and cannot be undone.'
-                        : 'This cannot be undone.';
+                        ? 'Checking whether these files are still used in the playlist or gallery…'
+                        : 'Checking whether this file is still used in the playlist or gallery…';
                 }
                 if (deleteStatusEl) deleteStatusEl.textContent = '';
-                if (deleteConfirmBtn) deleteConfirmBtn.disabled = false;
+                if (deleteConfirmBtn) deleteConfirmBtn.disabled = true;
                 if (deleteModal) deleteModal.style.display = 'flex';
+
+                (async () => {
+                    try {
+                        const payload = deleteFiles.length > 1
+                            ? { target: deleteTarget, filenames: deleteFiles, mode: 'preview' }
+                            : { target: deleteTarget, filename: deleteFiles[0], mode: 'preview' };
+                        const resp = await fetch('/biblioteca/delete-media.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || ('Request failed: ' + resp.status));
+                        }
+
+                        deleteReferencePreview = data;
+                        const summary = data.reference_summary || {};
+                        const total = Number(summary.total || 0);
+                        if (deleteHintEl) {
+                            if (!total) {
+                                deleteHintEl.textContent = deleteFiles.length > 1
+                                    ? 'These deletions are immediate and cannot be undone. No playlist or gallery references will be changed.'
+                                    : 'This cannot be undone. No playlist or gallery references will be changed.';
+                            } else {
+                                const parts = [];
+                                if (summary.playlist_tracks) parts.push(`${summary.playlist_tracks} playlist entr${summary.playlist_tracks === 1 ? 'y' : 'ies'}`);
+                                if (summary.playlist_covers) parts.push(`${summary.playlist_covers} playlist cover reference${summary.playlist_covers === 1 ? '' : 's'}`);
+                                if (summary.gallery_items) parts.push(`${summary.gallery_items} gallery item${summary.gallery_items === 1 ? '' : 's'}`);
+                                const labels = Array.isArray(data.references) ? data.references.slice(0, 6).map((reference) => `${escapeHtml(reference.filename || '')}: ${escapeHtml(reference.label || '')}`) : [];
+                                deleteHintEl.innerHTML = `Deleting ${deleteFiles.length > 1 ? 'these files' : 'this file'} will also remove ${parts.join(', ')} from the playlist/gallery data.<br>${labels.join('<br>')}${(data.references || []).length > 6 ? '<br>…' : ''}`;
+                            }
+                        }
+                    } catch (error) {
+                        if (deleteHintEl) {
+                            deleteHintEl.textContent = 'Could not inspect playlist/gallery references first. Deleting will still try to remove related references automatically.';
+                        }
+                    } finally {
+                        if (deleteConfirmBtn) deleteConfirmBtn.disabled = false;
+                    }
+                })();
             };
 
             window.closeDeleteModal = function() {
                 if (deleteModal) deleteModal.style.display = 'none';
                 deleteTarget = null;
                 deleteFiles  = [];
+                deleteReferencePreview = null;
             };
 
             if (deleteConfirmBtn) {
@@ -2179,8 +2223,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(deleteFiles.length > 1
-                                ? { target: deleteTarget, filenames: deleteFiles }
-                                : { target: deleteTarget, filename: deleteFiles[0] }),
+                                ? { target: deleteTarget, filenames: deleteFiles, detach_references: true }
+                                : { target: deleteTarget, filename: deleteFiles[0], detach_references: true }),
                         });
                         const data = await resp.json();
                         if (data.ok) {

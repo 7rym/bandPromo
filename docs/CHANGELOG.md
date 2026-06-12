@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 09:44 - Added the first warn-and-clean media deletion flow. `biblioteca/delete-media.php` now supports a preview step that reports playlist/gallery references for the selected file(s), and confirmed deletes now remove those references automatically before removing the file when the operator chooses to continue. `biblioteca/admin.js` now shows that warning text inside the existing delete modal and passes the confirmed delete through the new cleanup path.
+
 2026-06-12 09:38 - Fixed local JPG photo uploads after the recent media-task refactor. `biblioteca/light-build-tasks.php` now avoids redeclaring the shared `bandpromo_first_command_path()` helper when loaded alongside `audio-master-helpers.php`, preventing `upload-media.php` from crashing before it could return JSON, and `scripts/optimizeMedia.py` now lets image-only refreshes continue without requiring audio/playlist prerequisites that are irrelevant to plain photo or illustration uploads.
 
 2026-06-12 09:18 - Tightened the media-management direction after the latest review. `docs/TODO.md` now treats in-use media deletion as an operator-confirmed warn-and-clean flow that removes playlist/gallery references automatically if the operator still chooses delete, and `scripts/build.py` now describes source artwork/audio versus publish-ready delivery outputs without implying that originals must be specific codec/container formats such as PNG.
