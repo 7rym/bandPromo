@@ -1247,8 +1247,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images.
                     <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
                 <?php elseif ($filesPanel === 'video'): ?>
-                    Drop videos here (MP4, WEBM, MOV). They are used directly from this folder.
-                    <br><strong>After upload:</strong> no build needed.
+                    Drop videos here (MP4, WEBM, MOV). bandPromo keeps the original here and prepares a publish-ready MP4 during the full build.
+                    <br><strong>After upload:</strong> use <strong>Run Publish Build</strong> so the publish-ready video files can be refreshed.
                 <?php elseif ($filesPanel === 'illustrations'): ?>
                     Drop artwork and illustrations here (PNG, JPG, JPEG).
                     <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.

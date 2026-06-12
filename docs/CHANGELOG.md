@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 08:53 - Fixed the stale Files -> Video operator guidance in `admin.php` after remote verification. The panel now says original videos are kept locally while publish-ready MP4 files are prepared during the full build, and it correctly tells operators to run `Run Publish Build` after video uploads instead of claiming that no build is needed.
+
 2026-06-12 00:06 - Ignored generated video poster artifacts in `.gitignore` so `media/video/poster/` stays local like other derived media outputs and does not leak into checkpoints after validation builds.
 
 2026-06-11 19:33 - Added a separate build-stage video delivery task instead of doing heavy transcoding during upload. Video uploads now mark a `video-delivery` follow-up task in `biblioteca/build-required.php` and `biblioteca/upload-media.php`, the full build pipeline in `scripts/build.py` now runs the new `scripts/optimizeVideo.py` step with visible progress, public gallery loading in `play/index.php`, `biblioteca/gallery.php`, and `biblioteca/get-gallery-items.php` now prefers built `media/video/optimal/*.mp4` assets when they exist, and `biblioteca/delete-media.php` cleans up the derived delivery file together with the source video.
