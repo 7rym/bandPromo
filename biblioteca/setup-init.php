@@ -9,6 +9,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/array-helpers.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/setup-state.php';
 require_once __DIR__ . '/template-bootstrap.php';
@@ -116,18 +117,7 @@ $examplePath = __DIR__ . '/templates/web-config.template.json';
 $base     = file_exists($examplePath) ? (json_decode(file_get_contents($examplePath), true) ?? []) : [];
 $existing = file_exists($configPath)  ? (json_decode(file_get_contents($configPath),  true) ?? []) : [];
 
-function setup_deep_merge(array $base, array $overlay): array {
-    foreach ($overlay as $key => $value) {
-        if (is_array($value) && isset($base[$key]) && is_array($base[$key])) {
-            $base[$key] = setup_deep_merge($base[$key], $value);
-        } else {
-            $base[$key] = $value;
-        }
-    }
-    return $base;
-}
-
-$cfg = setup_deep_merge($base, $existing);
+$cfg = bandpromo_deep_merge($base, $existing);
 bandpromo_sync_scoped_config_fields($cfg, ['site', 'social', 'media']);
 
 file_put_contents($configPath, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));

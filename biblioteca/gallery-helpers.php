@@ -21,6 +21,10 @@ function bandpromo_gallery_video_poster_relative_path(string $filename): string 
     return '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
 }
 
+function bandpromo_gallery_video_poster_absolute_path(string $root_dir, string $filename): string {
+    return $root_dir . bandpromo_gallery_video_poster_relative_path($filename);
+}
+
 function bandpromo_gallery_normalize_items(string $root_dir, array $items): array {
     foreach ($items as $index => $item) {
         if (!is_array($item)) {

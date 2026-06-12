@@ -8,6 +8,8 @@
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/media-reference-helpers.php';
+require_once __DIR__ . '/json-file-helpers.php';
+require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/admin-api-guard.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -78,10 +80,6 @@ function bandpromo_audio_delivery_paths(string $root, string $filename): array {
     return $paths;
 }
 
-function bandpromo_video_poster_path(string $root, string $filename): string {
-    return $root . '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-}
-
 function bandpromo_video_delivery_path(string $root, string $filename): string {
     return $root . '/media/video/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.mp4';
 }
@@ -89,60 +87,6 @@ function bandpromo_video_delivery_path(string $root, string $filename): string {
 function bandpromo_image_delivery_path(string $root, string $target, string $filename): string {
     $subdir = $target === 'photos' ? 'photo' : 'img';
     return $root . '/media/' . $subdir . '/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-}
-
-function bandpromo_json_read_array_file(string $file): ?array {
-    if (!is_file($file)) {
-        return null;
-    }
-    $raw = file_get_contents($file);
-    if ($raw === false) {
-        return null;
-    }
-    $decoded = json_decode($raw, true);
-    return is_array($decoded) ? $decoded : null;
-}
-
-function bandpromo_json_write_file(string $file, $data): bool {
-    $dir = dirname($file);
-    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
-        return false;
-    }
-
-    $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if (!is_string($encoded)) {
-        return false;
-    }
-
-    return file_put_contents($file, $encoded, LOCK_EX) !== false;
-}
-
-function bandpromo_normalize_reference_src(string $src): string {
-    $path = parse_url($src, PHP_URL_PATH);
-    if (!is_string($path) || $path === '') {
-        $path = $src;
-    }
-    return str_replace('\\', '/', $path);
-}
-
-function bandpromo_gallery_item_matches_target(string $target, string $filename, array $item): bool {
-    $src = bandpromo_normalize_reference_src((string) ($item['src'] ?? ''));
-    if ($src === '' || basename($src) !== $filename) {
-        return false;
-    }
-
-    $type = trim((string) ($item['type'] ?? ''));
-    if ($target === 'video') {
-        return $type === 'video' && strpos($src, '/media/video/') !== false;
-    }
-    if ($target === 'photos') {
-        return $type !== 'video' && strpos($src, '/media/photo/') !== false;
-    }
-    if ($target === 'illustrations') {
-        return $type !== 'video' && strpos($src, '/media/img/') !== false;
-    }
-
-    return false;
 }
 
 function bandpromo_collect_media_references(string $root, string $target, string $filename): array {
@@ -259,7 +203,7 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
         if (is_array($gallery)) {
             $updated_gallery = [];
             foreach ($gallery as $item) {
-                if (is_array($item) && bandpromo_gallery_item_matches_target($target, $filename, $item)) {
+                if (is_array($item) && bandpromo_media_reference_gallery_matches_target($target, $filename, $item)) {
                     $cleanup['gallery_items_removed']++;
                     continue;
                 }
@@ -372,7 +316,7 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             }
         }
     } elseif ($target === 'video') {
-        $poster_path = bandpromo_video_poster_path($root, $safe);
+        $poster_path = bandpromo_gallery_video_poster_absolute_path($root, $safe);
         if (is_file($poster_path) && @unlink($poster_path)) {
             $video_poster_deleted = true;
         }

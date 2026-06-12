@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/https.php';
+require_once __DIR__ . '/quiz-input.php';
 bandpromo_enforce_https();
 
 session_start();
@@ -29,7 +30,7 @@ $allowed_types = array_map(
 );
 if (empty($allowed_types)) $allowed_types = ['chronicles'];
 
-$quizType = isset($_GET['type']) ? sanitize_input($_GET['type']) : $allowed_types[0];
+$quizType = isset($_GET['type']) ? bandpromo_sanitize_quiz_input($_GET['type']) : $allowed_types[0];
 if (!in_array($quizType, $allowed_types)) {
     $quizType = $allowed_types[0];
 }
@@ -73,11 +74,3 @@ echo json_encode([
     'questions' => $safeQuizData,
     'totalQuestions' => count($safeQuizData)
 ]);
-
-// Sanitize input
-function sanitize_input($data) {
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
-}

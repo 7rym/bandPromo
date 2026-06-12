@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 16:00 - v0.7 code cleanup before v0.8: removed dead endpoints (`save-bio.php`, `get-gallery-items.php`, `get-build-required.php`, `check-uploads.php`), extracted shared helpers (`array-helpers.php`, `json-file-helpers.php`, `quiz-input.php`), deduplicated `delete-media.php` reference/JSON logic, unified video poster paths in `gallery-helpers.php`, and hoisted shared `admin.js` date/HTML helpers.
+
 2026-06-12 15:12 - Track `log/.htaccess` in git via `.gitignore` exception so log-folder HTTP deny rules ship with releases.
 
 2026-06-12 15:10 - v0.7 release checkpoint: enforced admin-role guards on `admin.php` and admin biblioteca APIs via `bandpromo_require_admin_session()`, added `log/.htaccess`, restored `docs/SECURITY-AUDIT.md`, and refreshed `docs/FEATURES.md`, `docs/MEDIA-HANDLING.md`, and `docs/ROADMAP.md` for shipped v0.7 behavior.

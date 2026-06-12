@@ -6,6 +6,7 @@ bandpromo_enforce_https();
 session_start();
 
 require_once 'biblioteca/auth.php';
+require_once 'biblioteca/array-helpers.php';
 require_once 'biblioteca/admin-audit.php';
 require_once 'biblioteca/build-required.php';
 require_once 'biblioteca/config-loader.php';
@@ -1715,15 +1716,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php
             // Repair action: deep-merge example into current config
             if (isset($_GET['repair']) && !empty($cfgExample) && !empty($cfgCurrent)) {
-                function admin_deep_merge(array $base, array $overlay): array {
-                    foreach ($overlay as $k => $v) {
-                        if (is_array($v) && isset($base[$k]) && is_array($base[$k])) {
-                            $base[$k] = admin_deep_merge($base[$k], $v);
-                        } else { $base[$k] = $v; }
-                    }
-                    return $base;
-                }
-                $cfgRepaired = admin_deep_merge($cfgExample, $cfgCurrent);
+                $cfgRepaired = bandpromo_deep_merge($cfgExample, $cfgCurrent);
                 bandpromo_sync_scoped_config_fields($cfgRepaired, ['site', 'social', 'media']);
                 file_put_contents($cfgCurrentPath, json_encode($cfgRepaired, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                 header('Location: ?tab=config&ctab=basics'); exit;

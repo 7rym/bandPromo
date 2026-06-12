@@ -18,6 +18,7 @@ require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/cover-art-helpers.php';
+require_once __DIR__ . '/gallery-helpers.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -113,14 +114,6 @@ function bandpromo_is_video_extension(string $ext): bool {
     return in_array($ext, ['mp4', 'webm', 'mov'], true);
 }
 
-function bandpromo_video_poster_relative_path(string $filename): string {
-    return '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-}
-
-function bandpromo_video_poster_absolute_path(string $root_dir, string $filename): string {
-    return $root_dir . bandpromo_video_poster_relative_path($filename);
-}
-
 function bandpromo_ffmpeg_command(): string {
     $configured = trim((string) getenv('FFMPEG_PATH'));
     return $configured !== '' ? $configured : 'ffmpeg';
@@ -177,8 +170,8 @@ function bandpromo_generate_video_poster(string $root_dir, string $saved_ext, st
         ];
     }
 
-    $poster_relative = bandpromo_video_poster_relative_path($saved_name);
-    $poster_path = bandpromo_video_poster_absolute_path($root_dir, $saved_name);
+    $poster_relative = bandpromo_gallery_video_poster_relative_path($saved_name);
+    $poster_path = bandpromo_gallery_video_poster_absolute_path($root_dir, $saved_name);
     $ffmpeg = bandpromo_ffmpeg_command();
     $result = bandpromo_run_command([
         $ffmpeg,

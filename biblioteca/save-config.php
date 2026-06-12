@@ -10,6 +10,7 @@
  */
 
 require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/array-helpers.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/config-loader.php';
@@ -50,19 +51,7 @@ if (file_exists(CONFIG_FILE)) {
     $existing = json_decode(file_get_contents(CONFIG_FILE), true) ?? [];
 }
 
-// Deep-merge: example provides all keys, existing values win where present
-function deep_merge(array $base, array $overlay): array {
-    foreach ($overlay as $key => $value) {
-        if (is_array($value) && isset($base[$key]) && is_array($base[$key])) {
-            $base[$key] = deep_merge($base[$key], $value);
-        } else {
-            $base[$key] = $value;
-        }
-    }
-    return $base;
-}
-
-$config = deep_merge($base, $existing);
+$config = bandpromo_deep_merge($base, $existing);
 
 // Merge site fields
 $siteFields = ['name', 'short_name', 'description', 'url', 'author', 'language'];

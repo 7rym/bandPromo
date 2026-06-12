@@ -64,7 +64,7 @@ Planned future dependencies should not be listed here until they are actually ad
 ### HTML Purifier
 
 - Purpose: server-side sanitization of admin-managed HTML content before storage and rendering
-- Used by: `biblioteca/save-bio.php`, `biblioteca/save-page.php`
+- Used by: `biblioteca/save-page.php`
 - Version: 4.19.0
 - Vendored path: `vendor/htmlpurifier`
 - Homepage: <http://htmlpurifier.org/>

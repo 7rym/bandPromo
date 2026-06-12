@@ -12,6 +12,7 @@
  */
 
 require_once __DIR__ . '/https.php';
+require_once __DIR__ . '/quiz-input.php';
 bandpromo_enforce_https();
 
 session_start();
@@ -36,7 +37,7 @@ if ($is_browser_request) {
 }
 
 // Get quiz type from query string
-$quizType = isset($_GET['type']) ? sanitize_input($_GET['type']) : 'chronicles';
+$quizType = isset($_GET['type']) ? bandpromo_sanitize_quiz_input($_GET['type']) : 'chronicles';
 $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
 
 // Validate limits
@@ -91,11 +92,4 @@ echo json_encode([
     'scores' => $topScores,
     'count' => count($topScores)
 ]);
-
-function sanitize_input($data) {
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
-}
 ?>

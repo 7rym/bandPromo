@@ -186,6 +186,16 @@ Deferred to v0.8:
 
 ## Post-v0.7 planning
 
+### v0.7 cleanup (completed 2026-06-12)
+
+- [x] Remove dead biblioteca endpoints superseded by newer APIs
+- [x] Extract shared PHP helpers (`bandpromo_deep_merge`, JSON read/write, quiz input sanitize)
+- [x] Deduplicate `delete-media.php` gallery/reference helpers against `media-reference-helpers.php`
+- [x] Unify video poster path helpers in `gallery-helpers.php`
+- [x] Hoist shared `admin.js` date/HTML escape helpers
+
+Deferred to later refactors: split `admin.js` into modules, remove remaining `save-page.php` HTML sanitizer duplication if a shared page-save helper is introduced.
+
 ### Immediate next after v0.7
 
 - [ ] Define the `v0.8` multi-release data model.

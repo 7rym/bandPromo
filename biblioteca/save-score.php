@@ -12,6 +12,7 @@ require_once __DIR__ . '/quiz-validator.php';
 
 // Load rate limiting for Phase 5
 require_once __DIR__ . '/rate-limit.php';
+require_once __DIR__ . '/quiz-input.php';
 
 // Check if user is authenticated
 if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
@@ -41,7 +42,7 @@ if (!$data || !isset($data['quizType']) || !isset($data['score'])) {
     exit;
 }
 
-$quizType = sanitize_input($data['quizType']);
+$quizType = bandpromo_sanitize_quiz_input($data['quizType']);
 $score = intval($data['score']);
 
 // ========== PHASE 3: CSRF Token Validation ==========
@@ -218,9 +219,3 @@ echo json_encode([
 ]);
 
 // Sanitize input
-function sanitize_input($data) {
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
-}

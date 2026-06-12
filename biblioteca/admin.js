@@ -1,3 +1,19 @@
+function bandpromoAdminFormatDate(date) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function bandpromoAdminEscapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Handle preset date range buttons
 document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
@@ -29,15 +45,8 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
                 break;
         }
         
-        const formatDate = (date) => {
-            const yyyy = date.getFullYear();
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const dd = String(date.getDate()).padStart(2, '0');
-            return `${yyyy}-${mm}-${dd}`;
-        };
-        
-        dateStartInput.value = formatDate(startDate);
-        dateEndInput.value = formatDate(today);
+        dateStartInput.value = bandpromoAdminFormatDate(startDate);
+        dateEndInput.value = bandpromoAdminFormatDate(today);
         
         presetBtnsContainer.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
@@ -117,20 +126,13 @@ if (document.readyState === 'loading') {
 
 // ===== Mark active preset button on page load =====
 function detectActivePreset() {
-    const formatDate = (date) => {
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const dd = String(date.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    };
-
     const today = new Date();
-    const todayStr = formatDate(today);
+    const todayStr = bandpromoAdminFormatDate(today);
 
     const presets = {
-        day:   formatDate(new Date(today)),
-        week:  formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
-        month: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30)),
+        day:   bandpromoAdminFormatDate(new Date(today)),
+        week:  bandpromoAdminFormatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
+        month: bandpromoAdminFormatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30)),
         all:   '2015-01-01',
     };
 
@@ -374,15 +376,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 photos: '/media/photo/original',
                 special: '/media/special',
             };
-
-            function escapeHtml(value) {
-                return String(value)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            }
 
             function extIcon(name) {
                 const ext = String(name).split('.').pop().toLowerCase();
@@ -630,20 +623,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     statusClass: severityConfig.summaryClass || 'status-neutral',
                 };
                 const fileLine = item.file && item.file !== item.title
-                    ? `<div class="operator-notifications-item-file">File: ${escapeHtml(item.file)}</div>`
+                    ? `<div class="operator-notifications-item-file">File: ${bandpromoAdminEscapeHtml(item.file)}</div>`
                     : '';
                 const detailsHtml = Array.isArray(item.details) && item.details.length
                     ? `<ul class="operator-notifications-item-list">${item.details.map(detail => {
                         const text = String(detail.text || '').trim();
-                        return text !== '' ? `<li>${escapeHtml(text)}</li>` : '';
+                        return text !== '' ? `<li>${bandpromoAdminEscapeHtml(text)}</li>` : '';
                     }).join('')}</ul>`
                     : '';
                 const actionsHtml = Array.isArray(item.actions) && item.actions.length
                     ? `<div class="operator-notifications-actions">${item.actions.map(action => {
                         if (action && action.action) {
-                            return `<button type="button" class="operator-notifications-action" data-operator-action="${escapeHtml(action.action)}">${escapeHtml(action.label)}</button>`;
+                            return `<button type="button" class="operator-notifications-action" data-operator-action="${bandpromoAdminEscapeHtml(action.action)}">${bandpromoAdminEscapeHtml(action.label)}</button>`;
                         }
-                        return `<a class="operator-notifications-action" href="${escapeHtml(action.href || '?')}">${escapeHtml(action.label || 'Open')}</a>`;
+                        return `<a class="operator-notifications-action" href="${bandpromoAdminEscapeHtml(action.href || '?')}">${bandpromoAdminEscapeHtml(action.label || 'Open')}</a>`;
                     }).join('')}</div>`
                     : '';
 
@@ -651,10 +644,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     <article class="operator-notifications-item ${severityConfig.itemClass}">
                         <div class="operator-notifications-item-head">
                             <div>
-                                <div class="operator-notifications-item-title">${escapeHtml(item.title)}</div>
+                                <div class="operator-notifications-item-title">${bandpromoAdminEscapeHtml(item.title)}</div>
                                 ${fileLine}
                             </div>
-                            <span class="badge audit-status-badge ${badgeConfig.statusClass}">${escapeHtml(badgeConfig.label)}</span>
+                            <span class="badge audit-status-badge ${badgeConfig.statusClass}">${bandpromoAdminEscapeHtml(badgeConfig.label)}</span>
                         </div>
                         ${detailsHtml}
                         ${actionsHtml}
@@ -675,7 +668,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return sections.map(section => `
                     <section class="operator-notifications-section">
                         <div class="operator-notifications-section-head">
-                            <h4>${escapeHtml(section.title)}</h4>
+                            <h4>${bandpromoAdminEscapeHtml(section.title)}</h4>
                             <span class="operator-notifications-section-count">${section.count} ${section.count === 1 ? 'item' : 'items'}</span>
                         </div>
                         <div class="operator-notifications-list">${section.items.map(renderOperatorNotificationItem).join('')}</div>
@@ -803,7 +796,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? (source === 'audio_master_detail' ? 'could be improved in saved master metadata' : 'could be improved in the latest build check')
                                 : (source === 'audio_master_detail' ? 'not checked in saved master metadata' : 'not checked in the latest build');
                     const title = `${label}: ${stateLabel}`;
-                    return `<span class="badge audit-status-badge ${statusClass} media-file-badge media-file-field-badge" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${escapeHtml(shortLabel)}</span>`;
+                    return `<span class="badge audit-status-badge ${statusClass} media-file-badge media-file-field-badge" title="${bandpromoAdminEscapeHtml(title)}" aria-label="${bandpromoAdminEscapeHtml(title)}">${bandpromoAdminEscapeHtml(shortLabel)}</span>`;
                 }).join(' ');
             }
 
@@ -858,12 +851,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : role === 'release-fallback'
                             ? 'status-warning'
                             : 'status-neutral';
-                    badges.push(`<span class="badge audit-status-badge ${roleClass} media-file-badge" title="Role: ${escapeHtml(roleLabel)}">${escapeHtml(roleLabel)}</span>`);
+                    badges.push(`<span class="badge audit-status-badge ${roleClass} media-file-badge" title="Role: ${bandpromoAdminEscapeHtml(roleLabel)}">${bandpromoAdminEscapeHtml(roleLabel)}</span>`);
                 }
 
                 if (origin && origin !== 'user-upload') {
                     const originLabel = coverOriginLabels[origin] || origin;
-                    badges.push(`<span class="badge audit-status-badge status-neutral media-file-badge" title="Origin: ${escapeHtml(originLabel)}">${escapeHtml(originLabel)}</span>`);
+                    badges.push(`<span class="badge audit-status-badge status-neutral media-file-badge" title="Origin: ${bandpromoAdminEscapeHtml(originLabel)}">${bandpromoAdminEscapeHtml(originLabel)}</span>`);
                 }
 
                 if (info.orphan === true) {
@@ -914,7 +907,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     .slice(0, 3);
                 const suffix = references.length > labels.length ? ` +${references.length - labels.length} more` : '';
                 const text = `Used by: ${labels.join(', ')}${suffix}`;
-                return `<span class="media-cover-reference-line" title="${escapeHtml(text)}">${escapeHtml(text)}</span>`;
+                return `<span class="media-cover-reference-line" title="${bandpromoAdminEscapeHtml(text)}">${bandpromoAdminEscapeHtml(text)}</span>`;
             }
 
             function matchesMediaReferenceFilter(type, file) {
@@ -1029,7 +1022,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '';
                 }
 
-                return items.map((item) => `<span class="media-file-inline-chip ${item.tone}"><span class="media-file-inline-label">${escapeHtml(item.label)}</span>${escapeHtml(item.value)}</span>`).join('');
+                return items.map((item) => `<span class="media-file-inline-chip ${item.tone}"><span class="media-file-inline-label">${bandpromoAdminEscapeHtml(item.label)}</span>${bandpromoAdminEscapeHtml(item.value)}</span>`).join('');
             }
 
             function getAudioQuickEditInput(container, field) {
@@ -1111,17 +1104,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (isEditing) {
-                    const inputMode = field.inputMode ? ` inputmode="${escapeHtml(field.inputMode)}"` : '';
+                    const inputMode = field.inputMode ? ` inputmode="${bandpromoAdminEscapeHtml(field.inputMode)}"` : '';
                     return `<span class="media-file-inline-chip media-file-inline-chip-editing ${tone}" onclick="event.stopPropagation()">
-                        <span class="media-file-inline-label">${escapeHtml(field.label)}</span>
-                        <input class="media-file-inline-chip-input" type="${escapeHtml(field.inputType || 'text')}" data-quick-field="${escapeHtml(field.key)}" value="${escapeHtml(rawValue)}"${inputMode} ${isSaving ? 'disabled' : ''} onkeydown="handleAudioQuickEditKey(event, '${safeName}', '${field.key}')">
-                        <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); saveAudioQuickEdit('${safeName}', '${field.key}')" title="Save ${escapeHtml(field.label)}">✓</button>
+                        <span class="media-file-inline-label">${bandpromoAdminEscapeHtml(field.label)}</span>
+                        <input class="media-file-inline-chip-input" type="${bandpromoAdminEscapeHtml(field.inputType || 'text')}" data-quick-field="${bandpromoAdminEscapeHtml(field.key)}" value="${bandpromoAdminEscapeHtml(rawValue)}"${inputMode} ${isSaving ? 'disabled' : ''} onkeydown="handleAudioQuickEditKey(event, '${safeName}', '${field.key}')">
+                        <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); saveAudioQuickEdit('${safeName}', '${field.key}')" title="Save ${bandpromoAdminEscapeHtml(field.label)}">✓</button>
                         <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); cancelAudioQuickEdit('${safeName}')" title="Cancel">×</button>
                     </span>`;
                 }
 
-                return `<button type="button" class="media-file-inline-chip media-file-inline-chip-button ${tone}" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); editAudioQuickEditChip('${safeName}', '${field.key}')" title="Edit ${escapeHtml(field.label)}">
-                    <span class="media-file-inline-label">${escapeHtml(field.label)}</span>${escapeHtml(value)}
+                return `<button type="button" class="media-file-inline-chip media-file-inline-chip-button ${tone}" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); editAudioQuickEditChip('${safeName}', '${field.key}')" title="Edit ${bandpromoAdminEscapeHtml(field.label)}">
+                    <span class="media-file-inline-label">${bandpromoAdminEscapeHtml(field.label)}</span>${bandpromoAdminEscapeHtml(value)}
                 </button>`;
             }
 
@@ -1132,7 +1125,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const error = String(audioInlineDetailErrors.get(filename) || '').trim();
                 if (error) {
-                    return `<div class="media-file-inline-details"><span class="media-file-inline-empty">${escapeHtml(error)}</span></div>`;
+                    return `<div class="media-file-inline-details"><span class="media-file-inline-empty">${bandpromoAdminEscapeHtml(error)}</span></div>`;
                 }
 
                 const detail = audioInlineDetailCache.get(filename);
@@ -1148,7 +1141,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     .map((field) => renderAudioQuickEditChip(filename, field, detail, healthFields, isSaving))
                     .join('');
 
-                return `<div class="media-file-inline-details media-file-quick-edit" data-quick-edit-file="${escapeHtml(filename)}" onclick="event.stopPropagation()">
+                return `<div class="media-file-inline-details media-file-quick-edit" data-quick-edit-file="${bandpromoAdminEscapeHtml(filename)}" onclick="event.stopPropagation()">
                     <p class="media-file-quick-edit-intro">Click a tag to edit it in place. Use the full editor for cover art, description, lyrics, and packaging details.</p>
                     <div class="media-file-inline-chip-list">${chips}${buildAudioInlineReadonlyChips(detail)}</div>
                     <span class="media-file-quick-edit-status status-text" data-quick-edit-status></span>
@@ -1672,10 +1665,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const downloadDisabled = type === 'audio' && display.downloadVariant === 'master' && (!f.audio_master || !f.audio_master.exists);
                         const downloadAction = `<button class="icon-btn media-action-btn media-action-good" title="Download this file" ${downloadDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); submitMediaDownloadRequest('${type}', '${display.downloadVariant}', ['${safeName}'])">⬇</button>`;
                         const nameCell = type === 'audio'
-                            ? `<span class="media-file-name-wrap"><span class="media-file-name">${escapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
+                            ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
                             : mediaReferenceFilterTypes.has(type)
-                                ? `<span class="media-file-name-wrap"><span class="media-file-name">${escapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span>${formatCoverInfoReferenceLine(f)}</span>`
-                                : `<span class="media-file-name">${escapeHtml(display.name || f.name)}</span>`;
+                                ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span>${formatCoverInfoReferenceLine(f)}</span>`
+                                : `<span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span>`;
                         const isExpandedAudio = type === 'audio' && expandedAudioFile === f.name;
                         const rowAttributes = rowIsEditableAudio
                             ? `data-editable-audio="true" tabindex="0" role="button" aria-expanded="${isExpandedAudio ? 'true' : 'false'}" title="${isExpandedAudio ? 'Collapse quick-edit' : 'Quick-edit track tags'}" onclick="toggleAudioFileDetails('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleAudioFileDetails('${safeName}'); }"`
@@ -1684,10 +1677,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `media-file-row media-file-row-clickable${selected ? ' media-file-row-selected' : ''}${isExpandedAudio ? ' media-file-row-expanded' : ''}`
                             : `media-file-row${selected ? ' media-file-row-selected' : ''}`;
                         const expandedMarkup = isExpandedAudio ? buildAudioInlineDetailMarkup(f.name) : '';
-                        return `<div class="${rowClassName}" data-file="${escapeHtml(f.name)}" ${rowAttributes}>
+                        return `<div class="${rowClassName}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${rowAttributes}>
                             <div class="media-file-row-main">
                                 <label class="media-file-select-wrap" title="Select for deletion" onclick="event.stopPropagation()">
-                                    <input type="checkbox" class="media-file-select" data-target="${escapeHtml(type)}" data-file="${escapeHtml(f.name)}" ${selected ? 'checked' : ''} aria-label="Select ${escapeHtml(f.name)} for deletion">
+                                    <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(type)}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${selected ? 'checked' : ''} aria-label="Select ${bandpromoAdminEscapeHtml(f.name)} for deletion">
                                 </label>
                                 ${thumb}
                                 ${nameCell}
@@ -1840,7 +1833,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     mediaPickerStatus.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}.`;
                     mediaPickerList.innerHTML = files.map((file) => {
                         const encodedName = encodeURIComponent(file.name);
-                        const safeName = escapeHtml(file.name);
+                        const safeName = bandpromoAdminEscapeHtml(file.name);
                         const url = buildMediaUrl(target, file.name);
                         let thumb;
 
@@ -1866,7 +1859,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }).join('');
                     mediaPickerStatus.style.color = '#aaa';
                 } catch (error) {
-                    mediaPickerList.innerHTML = `<span class="text-error">${escapeHtml(error.message)}</span>`;
+                    mediaPickerList.innerHTML = `<span class="text-error">${bandpromoAdminEscapeHtml(error.message)}</span>`;
                     mediaPickerStatus.textContent = 'Failed to load files.';
                     mediaPickerStatus.style.color = '#f55';
                 }
@@ -2695,7 +2688,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (deleteListEl) {
                     if (deleteFiles.length > 1) {
                         deleteListEl.style.display = 'block';
-                        deleteListEl.innerHTML = deleteFiles.map((name, index) => `<div class="modal-file-row">${index + 1}. ${escapeHtml(name)}</div>`).join('');
+                        deleteListEl.innerHTML = deleteFiles.map((name, index) => `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(name)}</div>`).join('');
                     } else {
                         deleteListEl.style.display = 'none';
                         deleteListEl.innerHTML = '';
@@ -2739,11 +2732,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     ? 'These deletions are immediate and cannot be undone. No playlist, gallery, or theme references will be changed.'
                                     : 'This cannot be undone. No playlist, gallery, or theme references will be changed.';
                                 deleteHintEl.innerHTML = extras.length
-                                    ? `${base}<br>${extras.map((line) => escapeHtml(line)).join('<br>')}`
+                                    ? `${base}<br>${extras.map((line) => bandpromoAdminEscapeHtml(line)).join('<br>')}`
                                     : base;
                             } else {
                                 const parts = formatDeleteReferenceParts(summary);
-                                const labels = Array.isArray(data.references) ? data.references.slice(0, 6).map((reference) => `${escapeHtml(reference.filename || '')}: ${escapeHtml(reference.label || '')}`) : [];
+                                const labels = Array.isArray(data.references) ? data.references.slice(0, 6).map((reference) => `${bandpromoAdminEscapeHtml(reference.filename || '')}: ${bandpromoAdminEscapeHtml(reference.label || '')}`) : [];
                                 const lines = [
                                     `Deleting ${deleteFiles.length > 1 ? 'these files' : 'this file'} will also remove ${parts.join(', ')} from the saved site data.`,
                                     labels.join('<br>'),
@@ -2752,7 +2745,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     lines.push('…');
                                 }
                                 if (extras.length) {
-                                    lines.push(...extras.map((line) => escapeHtml(line)));
+                                    lines.push(...extras.map((line) => bandpromoAdminEscapeHtml(line)));
                                 }
                                 deleteHintEl.innerHTML = lines.filter(Boolean).join('<br>');
                             }
@@ -2940,7 +2933,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             showAdminToast(`Upload complete.${masterNote}${imageNote} No build step needed.`, 'success');
                         }
                         if (masterWarnings.length) {
-                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${escapeHtml(masterWarnings.join(' | '))}</span>`;
+                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(masterWarnings.join(' | '))}</span>`;
                         }
                     } else {
                         modalStatus.innerHTML += `<br><span style="color:#f55">❌ ${failed} failed, ✅ ${done} ok</span>`;
@@ -2959,7 +2952,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             showAdminToast(`Uploaded ${done} file(s), ${failed} failed.${masterNote}`, 'warning');
                         }
                         if (masterWarnings.length) {
-                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${escapeHtml(masterWarnings.join(' | '))}</span>`;
+                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(masterWarnings.join(' | '))}</span>`;
                         }
                     }
                     refreshBuildHint();
@@ -3282,12 +3275,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!editorEl || !saveBtn) return;
 
                 // ── helpers ──────────────────────────────────────────────────
-                function escHtml(str) {
-                    return String(str ?? '')
-                        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                }
-
                 function prettifyName(filename) {
                     return filename
                         .replace(/\.[^.]+$/, '')
@@ -3335,14 +3322,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const poster = resolveVideoPoster(file);
                             row.innerHTML =
                                 (poster
-                                    ? `<img class="gallery-thumb" src="${escHtml(poster)}" alt="${escHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">`
+                                    ? `<img class="gallery-thumb" src="${bandpromoAdminEscapeHtml(poster)}" alt="${bandpromoAdminEscapeHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">`
                                     : `<span class="gallery-thumb gallery-thumb--video">▶</span>`) +
-                                `<span class="gallery-available-name">${escHtml(file.name)}</span>` +
+                                `<span class="gallery-available-name">${bandpromoAdminEscapeHtml(file.name)}</span>` +
                                 `<button class="btn btn-sm gallery-add-btn" title="Add to gallery">＋</button>`;
                         } else {
                             row.innerHTML =
-                                `<img class="gallery-thumb" src="${escHtml(file.src)}" alt="${escHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">` +
-                                `<span class="gallery-available-name">${escHtml(file.name)}</span>` +
+                                `<img class="gallery-thumb" src="${bandpromoAdminEscapeHtml(file.src)}" alt="${bandpromoAdminEscapeHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">` +
+                                `<span class="gallery-available-name">${bandpromoAdminEscapeHtml(file.name)}</span>` +
                                 `<button class="btn btn-sm gallery-add-btn" title="Add to gallery">＋</button>`;
                         }
                         row.querySelector('.gallery-add-btn').addEventListener('click', () => addItem(file));
@@ -3366,12 +3353,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             `<span class="playlist-drag-handle" title="Drag to reorder">⠿</span>` +
                             (isVideo
                                 ? (poster
-                                    ? `<img class="gallery-thumb gallery-thumb--sm" src="${escHtml(poster)}" alt="${escHtml(item.alt || item.name || '')}" loading="lazy" onerror="this.style.opacity=0.2">`
+                                    ? `<img class="gallery-thumb gallery-thumb--sm" src="${bandpromoAdminEscapeHtml(poster)}" alt="${bandpromoAdminEscapeHtml(item.alt || item.name || '')}" loading="lazy" onerror="this.style.opacity=0.2">`
                                     : `<span class="gallery-thumb gallery-thumb--video gallery-thumb--sm">▶</span>`)
-                                : `<img class="gallery-thumb gallery-thumb--sm" src="${escHtml(item.src)}" alt="${escHtml(item.alt || '')}" loading="lazy" onerror="this.style.opacity=0.2">`) +
+                                : `<img class="gallery-thumb gallery-thumb--sm" src="${bandpromoAdminEscapeHtml(item.src)}" alt="${bandpromoAdminEscapeHtml(item.alt || '')}" loading="lazy" onerror="this.style.opacity=0.2">`) +
                             `<div class="gallery-active-fields">` +
-                            `<input class="gallery-field-name" type="text" value="${escHtml(item.name || '')}" placeholder="Name" aria-label="Name">` +
-                            `<input class="gallery-field-alt"  type="text" value="${escHtml(item.alt  || '')}" placeholder="Alt text" aria-label="Alt text">` +
+                            `<input class="gallery-field-name" type="text" value="${bandpromoAdminEscapeHtml(item.name || '')}" placeholder="Name" aria-label="Name">` +
+                            `<input class="gallery-field-alt"  type="text" value="${bandpromoAdminEscapeHtml(item.alt  || '')}" placeholder="Alt text" aria-label="Alt text">` +
                             `</div>` +
                             `<button class="gallery-remove-btn" title="Remove from gallery">✕</button>`;
                         activeEl.appendChild(li);
@@ -3593,14 +3580,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     list.innerHTML = rows.map((track, index) => {
-                        const title = escapeHtml(track.title || track.file || 'Untitled');
-                        const artist = escapeHtml(track.artist || '');
-                        const album = escapeHtml(track.album || '');
+                        const title = bandpromoAdminEscapeHtml(track.title || track.file || 'Untitled');
+                        const artist = bandpromoAdminEscapeHtml(track.artist || '');
+                        const album = bandpromoAdminEscapeHtml(track.album || '');
                         const meta = album ? `${artist} — ${album}` : artist;
                         const duration = formatPlaylistDuration(track.duration);
                         const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo' : '';
                         const selectedClass = selectedFiles.has(String(track.file || '')) ? ' playlist-editor-row-selected' : '';
-                        return `<li class="playlist-editor-row${demoClass}${selectedClass}" draggable="true" data-file="${escapeHtml(track.file || '')}" aria-selected="${selectedFiles.has(String(track.file || '')) ? 'true' : 'false'}">
+                        return `<li class="playlist-editor-row${demoClass}${selectedClass}" draggable="true" data-file="${bandpromoAdminEscapeHtml(track.file || '')}" aria-selected="${selectedFiles.has(String(track.file || '')) ? 'true' : 'false'}">
                             <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
                             <span class="playlist-track-num">${index + 1}</span>
                             <span class="playlist-track-info">
@@ -4051,7 +4038,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const tasks = formatBuildTaskList({ tasks: currentBuildTasks });
                         const actionLabel = getBuildActionLabel(currentBuildAction);
                         const taskLine = tasks.length
-                            ? `Pending now: <strong>${escapeHtml(tasks.join(' · '))}</strong>.`
+                            ? `Pending now: <strong>${bandpromoAdminEscapeHtml(tasks.join(' · '))}</strong>.`
                             : 'Pending now: bandPromo still has publish work to finish.';
                         buildHelpBox.innerHTML = `${actionLabel} is the recommended next step for the current pending work. ${taskLine} Jobs continue in the background while this log updates.`;
                     } else {
@@ -4285,7 +4272,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 Object.entries(validationSeverityConfig).forEach(([key, config]) => {
                     if (model.counts[key] > 0) {
-                        metrics.push(`<span class="build-validation-metric">${escapeHtml(config.label)}: ${model.counts[key]}</span>`);
+                        metrics.push(`<span class="build-validation-metric">${bandpromoAdminEscapeHtml(config.label)}: ${model.counts[key]}</span>`);
                     }
                 });
 
@@ -4301,24 +4288,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const primaryConfig = validationSeverityConfig[item.primary.severity] || validationSeverityConfig['recommended-fix'];
                     const actions = [item.primary, ...item.extras].map(issue => {
                         const config = validationSeverityConfig[issue.severity] || validationSeverityConfig['recommended-fix'];
-                        return `<li><strong>${escapeHtml(config.label)}:</strong> ${escapeHtml(issue.action)}</li>`;
+                        return `<li><strong>${bandpromoAdminEscapeHtml(config.label)}:</strong> ${bandpromoAdminEscapeHtml(issue.action)}</li>`;
                     }).join('');
 
                     const fileLine = item.file && item.file !== item.title
-                        ? `<div class="build-validation-item-file">${escapeHtml(item.file)}</div>`
+                        ? `<div class="build-validation-item-file">${bandpromoAdminEscapeHtml(item.file)}</div>`
                         : '';
                     const actionLinks = Array.isArray(item.actions) && item.actions.length
-                        ? `<div class="build-validation-item-links">${item.actions.map(action => `<a class="build-validation-link" href="${escapeHtml(action.href)}">${escapeHtml(action.label)}</a>`).join('')}</div>`
+                        ? `<div class="build-validation-item-links">${item.actions.map(action => `<a class="build-validation-link" href="${bandpromoAdminEscapeHtml(action.href)}">${bandpromoAdminEscapeHtml(action.label)}</a>`).join('')}</div>`
                         : '';
 
                     return `
                         <article class="build-validation-item">
                             <div class="build-validation-item-head">
                                 <div>
-                                    <div class="build-validation-item-title">${escapeHtml(item.title)}</div>
+                                    <div class="build-validation-item-title">${bandpromoAdminEscapeHtml(item.title)}</div>
                                     ${fileLine}
                                 </div>
-                                <span class="badge audit-status-badge ${primaryConfig.statusClass}">${escapeHtml(primaryConfig.label)}</span>
+                                <span class="badge audit-status-badge ${primaryConfig.statusClass}">${bandpromoAdminEscapeHtml(primaryConfig.label)}</span>
                             </div>
                             <ul class="build-validation-item-actions">${actions}</ul>
                             ${actionLinks}
