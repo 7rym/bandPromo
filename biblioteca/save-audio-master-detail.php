@@ -60,7 +60,7 @@ if ($filename === '' || strpbrk($filename, '/\\') !== false) {
 }
 
 $fields = is_array($payload['fields'] ?? null) ? $payload['fields'] : [];
-$allowed_keys = ['title', 'artist', 'album', 'date', 'bpm', 'initialkey', 'genre', 'comment', 'lyrics'];
+$allowed_keys = ['title', 'artist', 'album', 'date', 'tracknumber', 'bpm', 'initialkey', 'genre', 'comment', 'lyrics'];
 $normalized_fields = [];
 foreach ($allowed_keys as $key) {
     $value = $fields[$key] ?? '';
@@ -75,7 +75,7 @@ if ($normalized_fields['album'] === '') {
 
 if (!bandpromo_audio_master_validate_release_date($normalized_fields['date'])) {
     http_response_code(400);
-    echo json_encode(['error' => 'Release date must use ISO format YYYY-MM-DD']);
+    echo json_encode(['error' => 'Release date must use YYYY or YYYY-MM-DD']);
     exit;
 }
 
@@ -94,6 +94,12 @@ if ($normalized_fields['title'] === '') {
 if ($normalized_fields['bpm'] !== '' && !preg_match('/^\d{1,3}$/', $normalized_fields['bpm'])) {
     http_response_code(400);
     echo json_encode(['error' => 'BPM must be 1 to 3 digits']);
+    exit;
+}
+
+if ($normalized_fields['tracknumber'] !== '' && !preg_match('/^\d{1,3}$/', $normalized_fields['tracknumber'])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Track must be 1 to 3 digits']);
     exit;
 }
 
@@ -127,10 +133,12 @@ $existing_tracknumber = is_array($inspect_data) ? trim((string) ($inspect_data['
 $playlist_map = bandpromo_audio_master_playlist_map($root);
 $playlist_entry = is_array($playlist_map[$filename] ?? null) ? $playlist_map[$filename] : [];
 $playlist_tracknumber = trim((string) ($playlist_entry['playlist_tracknumber'] ?? ''));
-$normalized_fields['tracknumber'] = $existing_tracknumber !== '' ? $existing_tracknumber : $playlist_tracknumber;
+if ($normalized_fields['tracknumber'] === '') {
+    $normalized_fields['tracknumber'] = $existing_tracknumber !== '' ? $existing_tracknumber : $playlist_tracknumber;
+}
 
 $current_fields = [];
-foreach (array_merge($allowed_keys, ['tracknumber']) as $key) {
+foreach ($allowed_keys as $key) {
     $current_fields[$key] = is_array($inspect_data) ? trim((string) ($inspect_data[$key] ?? '')) : '';
 }
 

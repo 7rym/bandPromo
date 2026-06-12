@@ -302,7 +302,7 @@ Build-pipeline implications:
 - validation issues should become persistent operator tasks with direct actions to the correct editor surface instead of remaining buried in build logs or transient summaries
 - light admin repairs should prefer automatic light-task refresh and no-op suppression: unchanged saves should not create new pending work, and lightweight validation refresh should happen immediately when possible
 - publish-blocking and recommended-fix tasks should derive from current validation/build state and clear automatically when the underlying issue is fixed; manual acknowledgement should be reserved for informational notices, not used as the truth source for fixable blockers
-- the first remediation flow should prefer navigation to dedicated editors, while inline quick-edit stays limited to simple metadata fields such as title, artist, release/album name, and lyrics
+- the first remediation flow should prefer navigation to dedicated editors, while inline quick-edit stays limited to short metadata fields such as artist, title, version, release/album name, track, release date, genre, BPM, and key
 - source-aware processing must stop assuming every supported audio input follows the same FLAC-first path
 - offline-capable playback and scalable playback should share the same future direction: PHP should authorize access, but long-lived audio byte delivery should move away from PHP streaming toward a cache-friendly protected delivery path
 - the PWA/service-worker layer should be audited as product infrastructure, not treated as a one-time install checkbox; update behavior, cache-busting, stale-shell risk, and offline value on phones are part of the core user experience

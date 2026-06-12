@@ -89,6 +89,10 @@ function bandpromo_audio_master_validate_release_date(string $value): bool
         return true;
     }
 
+    if (preg_match('/^\d{4}$/', $value)) {
+        return true;
+    }
+
     $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
     return $date instanceof DateTimeImmutable && $date->format('Y-m-d') === $value;
 }

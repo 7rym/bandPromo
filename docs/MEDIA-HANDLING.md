@@ -1191,7 +1191,7 @@ If multiple issues affect one track, the admin summary should show the highest-s
 ## Current limitations
 
 - The admin UI now keeps unresolved publish/build follow-up and validation issues visible in a persistent operator inbox, with the same live system state also rendered as a larger Welcome-panel task list.
-- Metadata repair now covers the first audio-master editor pass, including common text fields, lyrics, cover selection, release date, and operator-facing title/version handling, but broader packaging workflows and selective inline quick-edit are still incomplete.
+- Metadata repair now covers the first audio-master editor pass, including common text fields, lyrics, cover selection, release date, and operator-facing title/version handling, plus tag-bullet quick-edit for short fields from Files -> Audio: artist, title, version, release/album name, track, release date, genre, BPM, and key. Larger fields such as description and lyrics stay in the full editor. Broader packaging workflows are still incomplete.
 - Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
 - Real audio metadata changes still flow through the older coarse build-required state, so the operator messaging is better for no-op saves than for task-specific follow-up after actual edits.
 - The current `optimal` label is too vague; delivery targets should be defined by actual usage context rather than implied quality alone.
@@ -1201,7 +1201,7 @@ If multiple issues affect one track, the admin summary should show the highest-s
 The next practical improvements should be:
 
 - break the coarse build-required model into concrete task states so real metadata edits do not look like generic full-build work when only lighter follow-up is pending
-- add selective quick-edit for simple metadata fields such as title, artist, release/album name, and lyrics without turning the Build tab into a second full editor
+- continue tightening task-specific follow-up after real metadata edits so operators see lighter refresh work instead of generic full-build messaging
 - continue expanding dedicated metadata/master tools for packaging fields and corrected-master workflows
 - preserve originals while generating corrected masters and delivery derivatives separately
 - redefine `optimal` into explicit delivery targets for player, mobile, cover, and lightbox contexts

@@ -1972,7 +1972,6 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-left: 68px;
     padding: 2px 0 4px;
 }
 
@@ -2017,6 +2016,74 @@ canvas { max-width: 100%; height: auto; }
 .media-file-inline-empty {
     color: var(--muted);
     font-size: 12px;
+}
+
+.media-file-quick-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 2px 0 6px;
+}
+
+.media-file-quick-edit-intro {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.media-file-inline-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.media-file-inline-chip-button {
+    cursor: pointer;
+    font: inherit;
+}
+
+.media-file-inline-chip-button:hover {
+    filter: brightness(1.08);
+}
+
+.media-file-inline-chip-editing {
+    padding: 3px 5px 3px 8px;
+}
+
+.media-file-inline-chip-input {
+    width: 120px;
+    max-width: min(40vw, 220px);
+    padding: 2px 5px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.media-file-inline-chip-input[type="date"] {
+    width: 135px;
+}
+
+.media-file-inline-chip-btn {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    cursor: pointer;
+    line-height: 1;
+    font-size: 12px;
+}
+
+.media-file-inline-chip-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
 }
 
 .media-file-badge {

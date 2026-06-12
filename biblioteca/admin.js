@@ -326,8 +326,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioInlineDetailCache = new Map();
             const audioInlineDetailErrors = new Map();
             const audioInlineDetailLoading = new Set();
+            const audioInlineDetailSaving = new Set();
+            let activeAudioQuickEdit = null;
             const adminQueryParams = new URLSearchParams(window.location.search);
             const pendingAudioDetailFromQuery = String(adminQueryParams.get('audio_detail') || '').trim();
+            const pendingAudioDetailModeFromQuery = String(adminQueryParams.get('audio_editor') || '').trim();
             const pendingMediaFocusFromQuery = String(adminQueryParams.get('focus_file') || '').trim();
             const pendingPlaylistFocusFromQuery = String(adminQueryParams.get('focus_track') || '').trim();
             const pendingBuildRunFromQuery = adminQueryParams.get('run_recommended') === '1';
@@ -412,6 +415,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function buildAudioMetadataUrl(filename) {
                 return buildAdminUrl({ tab: 'files', fpanel: 'audio', focus_file: filename, audio_detail: filename });
+            }
+
+            function buildAudioFullMetadataUrl(filename) {
+                return buildAdminUrl({ tab: 'files', fpanel: 'audio', focus_file: filename, audio_detail: filename, audio_editor: 'full' });
             }
 
             function buildAudioFilesUrl(filename) {
@@ -817,6 +824,142 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return data;
             }
 
+            function getAudioQuickEditContainer(filename) {
+                const list = document.getElementById('filelist-audio');
+                if (!list) return null;
+                return Array.from(list.querySelectorAll('.media-file-quick-edit')).find((node) => String(node.dataset.quickEditFile || '') === filename) || null;
+            }
+
+            function setAudioQuickEditStatus(filename, message, type = '') {
+                const container = getAudioQuickEditContainer(filename);
+                if (!container) return;
+                const statusEl = container.querySelector('[data-quick-edit-status]');
+                if (!statusEl) return;
+                statusEl.textContent = message || '';
+                statusEl.classList.remove('audio-master-status-error', 'audio-master-status-success');
+                if (type === 'error') {
+                    statusEl.classList.add('audio-master-status-error');
+                } else if (type === 'success') {
+                    statusEl.classList.add('audio-master-status-success');
+                }
+            }
+
+            function buildAudioInlineReadonlyChips(detail) {
+                const coverValue = detail.sidecar_cover
+                    ? 'Track cover'
+                    : detail.embedded_cover_present
+                        ? 'Embedded cover'
+                        : detail.current_cover
+                            ? 'Release cover'
+                            : 'Missing';
+                const hasDescription = String(detail.comment || '').trim() !== '';
+                const hasLyrics = String(detail.lyrics || '').trim() !== '';
+                const items = [
+                    { label: 'Description', value: hasDescription ? 'Ready' : 'Missing', tone: hasDescription ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
+                    { label: 'Lyrics', value: hasLyrics ? 'Ready' : 'Missing', tone: hasLyrics ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
+                    { label: 'Cover', value: coverValue, tone: coverValue === 'Missing' ? 'media-file-inline-chip-danger' : 'media-file-inline-chip-good' },
+                ];
+
+                if (!items.length) {
+                    return '';
+                }
+
+                return items.map((item) => `<span class="media-file-inline-chip ${item.tone}"><span class="media-file-inline-label">${escapeHtml(item.label)}</span>${escapeHtml(item.value)}</span>`).join('');
+            }
+
+            function getAudioQuickEditInput(container, field) {
+                if (!container) return null;
+                return Array.from(container.querySelectorAll('[data-quick-field]'))
+                    .find((input) => String(input.dataset.quickField || '') === field) || null;
+            }
+
+            function buildAudioQuickEditFieldsPayload(filename, detail, overrides = {}) {
+                const cached = detail || audioInlineDetailCache.get(filename) || {};
+                const titleParts = splitAudioTitleParts(cached.title || '');
+                const title = String(overrides.title ?? titleParts.title ?? '').trim();
+                const version = String(overrides.version ?? titleParts.version ?? '').trim();
+                return {
+                    artist: String(overrides.artist ?? cached.artist ?? '').trim(),
+                    title: combineAudioTitleParts(title, version),
+                    album: String(overrides.album ?? cached.album ?? '').trim(),
+                    date: String(overrides.date ?? cached.date ?? '').trim(),
+                    tracknumber: String(overrides.tracknumber ?? cached.tracknumber ?? cached.suggested_tracknumber ?? '').trim(),
+                    genre: String(overrides.genre ?? cached.genre ?? '').trim(),
+                    bpm: String(overrides.bpm ?? cached.bpm ?? '').trim(),
+                    initialkey: String(overrides.initialkey ?? cached.initialkey ?? '').trim(),
+                    comment: String(cached.comment ?? '').trim(),
+                    lyrics: String(cached.lyrics ?? '').trim(),
+                };
+            }
+
+            function validateAudioQuickEditFields(fields) {
+                if (!String(fields.artist || '').trim()) {
+                    return 'Please fill in Artist.';
+                }
+                if (!String(fields.title || '').trim()) {
+                    return 'Please fill in Title.';
+                }
+                if (!String(fields.album || '').trim()) {
+                    return 'Please fill in Release name.';
+                }
+                if (String(fields.date || '').trim() !== '' && !/^\d{4}(?:-\d{2}-\d{2})?$/.test(String(fields.date || '').trim())) {
+                    return 'Release date must use YYYY or YYYY-MM-DD.';
+                }
+                if (String(fields.tracknumber || '').trim() !== '' && !/^\d{1,3}$/.test(String(fields.tracknumber || '').trim())) {
+                    return 'Track must be 1 to 3 digits.';
+                }
+                if (String(fields.bpm || '').trim() !== '' && !/^\d{1,3}$/.test(String(fields.bpm || '').trim())) {
+                    return 'BPM must be 1 to 3 digits.';
+                }
+                if (String(fields.initialkey || '').trim().length > 3) {
+                    return 'Key must be 3 characters or fewer.';
+                }
+                return '';
+            }
+
+            const audioQuickEditFields = [
+                { key: 'artist', label: 'Artist', health: 'artist', inputType: 'text', read: (detail) => String(detail.artist || '').trim() },
+                { key: 'title', label: 'Title', health: 'title', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').title || detail.title || '').trim() },
+                { key: 'version', label: 'Version', health: '', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').version || '').trim() },
+                { key: 'album', label: 'Release', health: 'release', inputType: 'text', read: (detail) => String(detail.album || '').trim() },
+                { key: 'tracknumber', label: 'Track', health: '', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.suggested_tracknumber || detail.playlist_tracknumber || '').trim() },
+                { key: 'date', label: 'Release date', health: '', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.date || '').trim() },
+                { key: 'genre', label: 'Genre', health: '', inputType: 'text', read: (detail) => String(detail.genre || '').trim() },
+                { key: 'bpm', label: 'BPM', health: '', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.bpm || '').trim() },
+                { key: 'initialkey', label: 'Key', health: '', inputType: 'text', read: (detail) => String(detail.initialkey || '').trim() },
+            ];
+
+            function renderAudioQuickEditChip(filename, field, detail, healthFields, isSaving) {
+                const safeName = filename.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const rawValue = field.read(detail);
+                const value = rawValue || 'Missing';
+                const isMissing = rawValue === '';
+                const isEditing = activeAudioQuickEdit
+                    && activeAudioQuickEdit.filename === filename
+                    && activeAudioQuickEdit.field === field.key;
+                const state = field.health && healthFields[field.health] ? healthFields[field.health].state : '';
+                let tone = 'media-file-inline-chip-good';
+                if (state === 'required' || isMissing) {
+                    tone = 'media-file-inline-chip-danger';
+                } else if (state === 'improvable') {
+                    tone = 'media-file-inline-chip-amber';
+                }
+
+                if (isEditing) {
+                    const inputMode = field.inputMode ? ` inputmode="${escapeHtml(field.inputMode)}"` : '';
+                    return `<span class="media-file-inline-chip media-file-inline-chip-editing ${tone}" onclick="event.stopPropagation()">
+                        <span class="media-file-inline-label">${escapeHtml(field.label)}</span>
+                        <input class="media-file-inline-chip-input" type="${escapeHtml(field.inputType || 'text')}" data-quick-field="${escapeHtml(field.key)}" value="${escapeHtml(rawValue)}"${inputMode} ${isSaving ? 'disabled' : ''} onkeydown="handleAudioQuickEditKey(event, '${safeName}', '${field.key}')">
+                        <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); saveAudioQuickEdit('${safeName}', '${field.key}')" title="Save ${escapeHtml(field.label)}">✓</button>
+                        <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); cancelAudioQuickEdit('${safeName}')" title="Cancel">×</button>
+                    </span>`;
+                }
+
+                return `<button type="button" class="media-file-inline-chip media-file-inline-chip-button ${tone}" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); editAudioQuickEditChip('${safeName}', '${field.key}')" title="Edit ${escapeHtml(field.label)}">
+                    <span class="media-file-inline-label">${escapeHtml(field.label)}</span>${escapeHtml(value)}
+                </button>`;
+            }
+
             function buildAudioInlineDetailMarkup(filename) {
                 if (audioInlineDetailLoading.has(filename)) {
                     return '<div class="media-file-inline-details"><span class="media-file-inline-empty">Loading track tags...</span></div>';
@@ -832,44 +975,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '<div class="media-file-inline-details"><span class="media-file-inline-empty">Loading track tags...</span></div>';
                 }
 
+                const safeName = filename.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const isSaving = audioInlineDetailSaving.has(filename);
                 const health = buildAudioMetadataHealthFromDetail(detail || {});
                 const healthFields = health && health.fields ? health.fields : {};
-                const titleParts = splitAudioTitleParts(detail.title || '');
-                const compactComment = String(detail.comment || '').trim();
-                const commentValue = compactComment.length > 140 ? `${compactComment.slice(0, 137)}...` : compactComment;
-                const coverValue = detail.sidecar_cover
-                    ? 'Track cover'
-                    : detail.embedded_cover_present
-                        ? 'Embedded cover'
-                        : detail.current_cover
-                            ? 'Release cover'
-                            : 'Missing';
-                const toneClass = (state, fallback = 'media-file-inline-chip-good') => {
-                    if (state === 'required') return 'media-file-inline-chip-danger';
-                    if (state === 'improvable') return 'media-file-inline-chip-amber';
-                    if (state === 'good') return 'media-file-inline-chip-good';
-                    return fallback;
-                };
-                const items = [
-                    { label: 'Cover', value: coverValue, tone: toneClass(healthFields.cover && healthFields.cover.state) },
-                    { label: 'Artist', value: String(detail.artist || '').trim() || 'Missing', tone: toneClass(healthFields.artist && healthFields.artist.state) },
-                    { label: 'Title', value: String(titleParts.title || detail.title || '').trim() || 'Missing', tone: toneClass(healthFields.title && healthFields.title.state) },
-                    { label: 'Release', value: String(detail.album || '').trim() || 'Missing', tone: toneClass(healthFields.release && healthFields.release.state) },
-                    { label: 'Description', value: commentValue || 'Missing', tone: toneClass(healthFields.description && healthFields.description.state) },
-                    { label: 'Lyrics', value: String(detail.lyrics || '').trim() !== '' ? 'Yes' : 'Missing', tone: toneClass(healthFields.lyrics && healthFields.lyrics.state) },
-                    { label: 'Track', value: String(detail.suggested_tracknumber || detail.playlist_tracknumber || '').trim(), tone: 'media-file-inline-chip-good' },
-                    { label: 'Version', value: String(titleParts.version || '').trim(), tone: 'media-file-inline-chip-good' },
-                    { label: 'Date', value: String(detail.date || '').trim(), tone: 'media-file-inline-chip-good' },
-                    { label: 'Genre', value: String(detail.genre || '').trim(), tone: 'media-file-inline-chip-good' },
-                    { label: 'BPM', value: String(detail.bpm || '').trim(), tone: 'media-file-inline-chip-good' },
-                    { label: 'Key', value: String(detail.initialkey || '').trim(), tone: 'media-file-inline-chip-good' },
-                ].filter((item) => item.value !== '');
+                const chips = audioQuickEditFields
+                    .map((field) => renderAudioQuickEditChip(filename, field, detail, healthFields, isSaving))
+                    .join('');
 
-                if (!items.length) {
-                    return '<div class="media-file-inline-details"><span class="media-file-inline-empty">No saved tag values yet.</span></div>';
-                }
-
-                return `<div class="media-file-inline-details">${items.map((item) => `<span class="media-file-inline-chip ${item.tone}"><span class="media-file-inline-label">${escapeHtml(item.label)}</span>${escapeHtml(item.value)}</span>`).join('')}</div>`;
+                return `<div class="media-file-inline-details media-file-quick-edit" data-quick-edit-file="${escapeHtml(filename)}" onclick="event.stopPropagation()">
+                    <p class="media-file-quick-edit-intro">Click a tag to edit it in place. Use the full editor for cover art, description, lyrics, and packaging details.</p>
+                    <div class="media-file-inline-chip-list">${chips}${buildAudioInlineReadonlyChips(detail)}</div>
+                    <span class="media-file-quick-edit-status status-text" data-quick-edit-status></span>
+                </div>`;
             }
 
             window.toggleAudioFileDetails = async function(filename) {
@@ -916,7 +1034,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 openedAudioDetailFromQuery = true;
-                window.openAudioMasterModal(pendingAudioDetailFromQuery);
+                if (pendingAudioDetailModeFromQuery === 'full') {
+                    window.openAudioMasterModal(pendingAudioDetailFromQuery);
+                } else {
+                    window.toggleAudioFileDetails(pendingAudioDetailFromQuery);
+                }
             }
 
             function maybeApplyMediaFocusFromQuery(type) {
@@ -1366,7 +1488,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : '';
                         const rowIsEditableAudio = type === 'audio' && f.audio_master && f.audio_master.editable;
                         const editAction = rowIsEditableAudio
-                            ? `<button class="icon-btn media-action-btn media-action-good" title="Edit metadata" onclick="event.stopPropagation(); openAudioMasterModal('${safeName}')">✎</button>`
+                            ? `<button class="icon-btn media-action-btn media-action-good" title="Open full metadata editor" onclick="event.stopPropagation(); openAudioMasterModal('${safeName}')">✎</button>`
                             : '';
                         const downloadDisabled = type === 'audio' && display.downloadVariant === 'master' && (!f.audio_master || !f.audio_master.exists);
                         const downloadAction = `<button class="icon-btn media-action-btn media-action-good" title="Download this file" ${downloadDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); submitMediaDownloadRequest('${type}', '${display.downloadVariant}', ['${safeName}'])">⬇</button>`;
@@ -1375,7 +1497,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : `<span class="media-file-name">${escapeHtml(display.name || f.name)}</span>`;
                         const isExpandedAudio = type === 'audio' && expandedAudioFile === f.name;
                         const rowAttributes = rowIsEditableAudio
-                            ? `data-editable-audio="true" tabindex="0" role="button" aria-expanded="${isExpandedAudio ? 'true' : 'false'}" title="${isExpandedAudio ? 'Collapse track tags' : 'Expand track tags'}" onclick="toggleAudioFileDetails('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleAudioFileDetails('${safeName}'); }"`
+                            ? `data-editable-audio="true" tabindex="0" role="button" aria-expanded="${isExpandedAudio ? 'true' : 'false'}" title="${isExpandedAudio ? 'Collapse quick-edit' : 'Quick-edit track tags'}" onclick="toggleAudioFileDetails('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleAudioFileDetails('${safeName}'); }"`
                             : '';
                         const rowClassName = rowIsEditableAudio
                             ? `media-file-row media-file-row-clickable${selected ? ' media-file-row-selected' : ''}${isExpandedAudio ? ' media-file-row-expanded' : ''}`
@@ -1808,6 +1930,178 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 return '';
             }
+
+            async function persistAudioMasterMetadata(filename, fields, options = {}) {
+                const coverPath = String(options.cover_path || '').trim();
+                const coverMode = String(options.cover_mode || 'preserve');
+
+                const saveMetadata = async (csrfToken) => {
+                    const resp = await fetch('/biblioteca/save-audio-master-detail.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            filename,
+                            fields,
+                            cover_path: coverPath,
+                            cover_mode: coverMode,
+                            csrf_token: csrfToken,
+                        }),
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    return { resp, data };
+                };
+
+                let { resp, data } = await saveMetadata(adminCsrf);
+                if (resp.status === 403 && data && data.error === 'Invalid CSRF token') {
+                    const freshToken = await refreshAdminCsrfToken();
+                    ({ resp, data } = await saveMetadata(freshToken));
+                }
+
+                if (!resp.ok || data.error) {
+                    throw new Error(data.error || 'Could not save metadata');
+                }
+
+                return data;
+            }
+
+            async function handleAudioMetadataSaveResult(filename, data, options = {}) {
+                const detail = data.detail || {};
+                audioInlineDetailCache.set(filename, detail);
+                audioInlineDetailErrors.delete(filename);
+
+                if (options.updateModal !== false && activeAudioMasterFile === filename) {
+                    if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(detail);
+                    setAudioMasterCoverMode('preserve');
+                    if (audioMasterCoverPath) {
+                        setPickerFieldValue('audioMasterFieldCoverPath', '');
+                    }
+                    setAudioMasterSummary(detail);
+                    setAudioMasterFormValues(detail);
+                    const successMessage = data.no_change
+                        ? 'No changes to save.'
+                        : data.warning
+                            ? data.warning
+                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                ? 'Track details saved. Validation refreshed.'
+                                : 'Track details saved.');
+                    setAudioMasterStatus(successMessage, data.warning ? 'error' : 'success');
+                }
+
+                if (data.build_required_state) {
+                    setBuildRequiredNudge(
+                        data.build_required === true,
+                        data.build_required_state.reasons || [],
+                        data.build_required_state.action || 'none',
+                        data.build_required_state.tasks || []
+                    );
+                }
+                await refreshBuildRequiredState();
+                updateAudioFileRowMetadata(filename, detail);
+                if (expandedAudioFile === filename) {
+                    loadMediaList('audio');
+                }
+
+                if (options.showToast !== false) {
+                    showAdminToast(data.no_change
+                        ? 'No changes were saved.'
+                        : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                            ? 'Track details updated and validation refreshed.'
+                            : 'Track details updated.');
+                }
+
+                return detail;
+            }
+
+            window.editAudioQuickEditChip = function(filename, field) {
+                const nextFilename = String(filename || '').trim();
+                const nextField = String(field || '').trim();
+                if (!nextFilename || !nextField || audioInlineDetailSaving.has(nextFilename)) {
+                    return;
+                }
+                activeAudioQuickEdit = { filename: nextFilename, field: nextField };
+                loadMediaList('audio');
+                window.setTimeout(() => {
+                    const container = getAudioQuickEditContainer(nextFilename);
+                    const input = getAudioQuickEditInput(container, nextField);
+                    if (input) {
+                        input.focus();
+                        if (typeof input.select === 'function') {
+                            input.select();
+                        }
+                    }
+                }, 0);
+            };
+
+            window.handleAudioQuickEditKey = function(event, filename, field) {
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    window.saveAudioQuickEdit(filename, field);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    window.cancelAudioQuickEdit(filename);
+                }
+            };
+
+            window.saveAudioQuickEdit = async function(filename, field) {
+                const nextFilename = String(filename || '').trim();
+                const nextField = String(field || '').trim();
+                if (!nextFilename || audioInlineDetailSaving.has(nextFilename)) {
+                    return;
+                }
+
+                const container = getAudioQuickEditContainer(nextFilename);
+                const input = getAudioQuickEditInput(container, nextField);
+                if (!input) {
+                    return;
+                }
+                const overrides = { [nextField]: String(input.value || '') };
+                const fields = buildAudioQuickEditFieldsPayload(nextFilename, null, overrides);
+                const validationError = validateAudioQuickEditFields(fields);
+                if (validationError) {
+                    setAudioQuickEditStatus(nextFilename, validationError, 'error');
+                    return;
+                }
+
+                audioInlineDetailSaving.add(nextFilename);
+                setAudioQuickEditStatus(nextFilename, 'Saving…');
+                loadMediaList('audio');
+
+                try {
+                    const data = await persistAudioMasterMetadata(nextFilename, fields, { cover_mode: 'preserve' });
+                    activeAudioQuickEdit = null;
+                    await handleAudioMetadataSaveResult(nextFilename, data, { updateModal: activeAudioMasterFile === nextFilename });
+                    const successMessage = data.no_change
+                        ? 'No changes to save.'
+                        : data.warning
+                            ? data.warning
+                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                ? 'Tags saved. Validation refreshed.'
+                                : 'Tags saved.');
+                    setAudioQuickEditStatus(nextFilename, successMessage, data.warning ? 'error' : 'success');
+                } catch (error) {
+                    setAudioQuickEditStatus(nextFilename, error.message || 'Could not save tags', 'error');
+                } finally {
+                    audioInlineDetailSaving.delete(nextFilename);
+                    if (expandedAudioFile === nextFilename) {
+                        loadMediaList('audio');
+                    }
+                }
+            };
+
+            window.cancelAudioQuickEdit = function(filename) {
+                const nextFilename = String(filename || '').trim();
+                if (!nextFilename) {
+                    return;
+                }
+                if (activeAudioQuickEdit && activeAudioQuickEdit.filename === nextFilename) {
+                    activeAudioQuickEdit = null;
+                }
+                setAudioQuickEditStatus(nextFilename, '');
+                if (expandedAudioFile === nextFilename) {
+                    loadMediaList('audio');
+                }
+            };
 
             function buildAudioMasterHeading(detail) {
                 const artist = String(detail && detail.artist || '').trim();
@@ -2264,66 +2558,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setAudioMasterStatus('Saving…');
 
                     try {
-                        const saveMetadata = async (csrfToken) => {
-                            const resp = await fetch('/biblioteca/save-audio-master-detail.php', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    filename: activeAudioMasterFile,
-                                    fields,
-                                    cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
-                                    cover_mode: audioMasterCoverMode,
-                                    csrf_token: csrfToken,
-                                }),
-                            });
-                            const data = await resp.json().catch(() => ({}));
-                            return { resp, data };
-                        };
-
-                        let { resp, data } = await saveMetadata(adminCsrf);
-                        if (resp.status === 403 && data && data.error === 'Invalid CSRF token') {
-                            const freshToken = await refreshAdminCsrfToken();
-                            ({ resp, data } = await saveMetadata(freshToken));
-                        }
-
-                        if (!resp.ok || data.error) {
-                            throw new Error(data.error || 'Could not save metadata');
-                        }
-
-                        const detail = data.detail || {};
-                        if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(detail);
-                        setAudioMasterCoverMode('preserve');
-                        if (audioMasterCoverPath) {
-                            setPickerFieldValue('audioMasterFieldCoverPath', '');
-                        }
-                        setAudioMasterSummary(detail);
-                        setAudioMasterFormValues(detail);
-                        const successMessage = data.no_change
-                            ? 'No changes to save.'
-                            : data.warning
-                            ? data.warning
-                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                                ? 'Track details saved. Validation refreshed.'
-                                : 'Track details saved.');
-                        setAudioMasterStatus(successMessage, data.warning ? 'error' : 'success');
-                        if (data.build_required_state) {
-                            setBuildRequiredNudge(
-                                data.build_required === true,
-                                data.build_required_state.reasons || [],
-                                data.build_required_state.action || 'none',
-                                data.build_required_state.tasks || []
-                            );
-                        }
-                        await refreshBuildRequiredState();
-                        updateAudioFileRowMetadata(activeAudioMasterFile, detail);
-                        if (expandedAudioFile === activeAudioMasterFile) {
-                            loadMediaList('audio');
-                        }
-                        showAdminToast(data.no_change
-                            ? 'No changes were saved.'
-                            : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                            ? 'Track details updated and validation refreshed.'
-                            : 'Track details updated.');
+                        const data = await persistAudioMasterMetadata(activeAudioMasterFile, fields, {
+                            cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
+                            cover_mode: audioMasterCoverMode,
+                        });
+                        await handleAudioMetadataSaveResult(activeAudioMasterFile, data);
                     } catch (error) {
                         setAudioMasterStatus(error.message || 'Could not save metadata', 'error');
                     } finally {
@@ -3639,18 +3878,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             case 'missing_title_tag':
                             case 'missing_artist_tag':
                             case 'missing_album_tag':
-                            case 'missing_lyrics':
                                 action = {
                                     key: 'metadata',
-                                    label: 'Edit metadata',
+                                    label: 'Quick-edit metadata',
                                     href: buildAudioMetadataUrl(String(track.file || '')),
                                 };
                                 break;
                             case 'missing_track_number':
                                 action = {
-                                    key: 'playlist',
-                                    label: 'Open playlist order',
-                                    href: buildPlaylistOrderUrl(String(track.file || '')),
+                                    key: 'metadata-track',
+                                    label: 'Quick-edit track number',
+                                    href: buildAudioMetadataUrl(String(track.file || '')),
+                                };
+                                break;
+                            case 'missing_lyrics':
+                                action = {
+                                    key: 'metadata-full',
+                                    label: 'Open full editor',
+                                    href: buildAudioFullMetadataUrl(String(track.file || '')),
                                 };
                                 break;
                             case 'missing_cover_art':

@@ -1241,7 +1241,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <br>At the same time, bandPromo prepares the versions needed to give visitors a smoother, better listening experience.
                     <br><strong>This list shows what is ready and what still needs a little attention.</strong>
                     <br>Green means good, amber means it could be improved, and red means required data is missing and the build can be blocked.
-                    <br>Better track details mean clearer pages, better playback information, and a more polished experience for everyone, so click a track whenever you want to improve it.
+                    <br>Better track details mean clearer pages, better playback information, and a more polished experience for everyone, so click a track to show editable metadata tags.
+                    <br>Click a tag bullet to edit short fields such as artist, title, version, release, track, release date, genre, BPM, or key. Use the pencil button for cover art, description, lyrics, and packaging details.
                     <br>
                 <?php elseif ($filesPanel === 'photos'): ?>
                     Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images.
@@ -1264,7 +1265,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
                             <strong>⚠️ Metadata edits and file deletions are immediate and permanent. There is no undo!</strong>
-                            <br>Drag and drop audio files here to add them directly. Select multiple files for group download or deletion.
+                            <br>Drag and drop audio files here to add them directly. Click a track row to quick-edit common tags, or use the pencil button for the full metadata editor.
+                            <br>Select multiple files for group download or deletion.
                             </span>
                     </div>
                     <div class="media-panel-actions">

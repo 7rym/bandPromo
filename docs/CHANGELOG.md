@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 10:15 - Added selective inline quick-edit for short audio metadata in Files -> Audio. Expanding an editable track row now keeps the compact tag-bullet view; clicking a tag edits Artist, Title, Version, Release, Track, Release date, Genre, BPM, or Key inside that bullet, reusing the existing audio-master save path with no-op suppression and validation refresh. Release date quick-edit now preserves the existing `date` / `year` / `TDRC` value, including year-only tags such as `2026`, while Description, Lyrics, and Cover remain read-only status chips and broader packaging work stays behind the existing pencil-icon editor.
+
 2026-06-12 09:44 - Added the first warn-and-clean media deletion flow. `biblioteca/delete-media.php` now supports a preview step that reports playlist/gallery references for the selected file(s), and confirmed deletes now remove those references automatically before removing the file when the operator chooses to continue. `biblioteca/admin.js` now shows that warning text inside the existing delete modal and passes the confirmed delete through the new cleanup path.
 
 2026-06-12 09:38 - Fixed local JPG photo uploads after the recent media-task refactor. `biblioteca/light-build-tasks.php` now avoids redeclaring the shared `bandpromo_first_command_path()` helper when loaded alongside `audio-master-helpers.php`, preventing `upload-media.php` from crashing before it could return JSON, and `scripts/optimizeMedia.py` now lets image-only refreshes continue without requiring audio/playlist prerequisites that are irrelevant to plain photo or illustration uploads.
