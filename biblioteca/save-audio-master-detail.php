@@ -22,15 +22,7 @@ function bandpromo_text_length(string $value): int {
     return strlen($value);
 }
 
-session_start();
-
-header('Content-Type: application/json; charset=utf-8');
-
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

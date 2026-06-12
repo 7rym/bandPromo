@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 
@@ -32,8 +33,12 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $jsonMode = bandpromo_download_wants_json();
 
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
+if (!bandpromo_is_authenticated_session()) {
     bandpromo_download_error(401, 'Unauthorized', $jsonMode);
+}
+$downloadUsername = trim((string) ($_SESSION['username'] ?? ''));
+if ($downloadUsername === '' || !isAdminUser($downloadUsername)) {
+    bandpromo_download_error(403, 'Admin privileges required', $jsonMode);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

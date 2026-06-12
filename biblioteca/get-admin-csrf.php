@@ -3,15 +3,7 @@ require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/csrf.php';
 bandpromo_enforce_https();
 
-session_start();
-
-header('Content-Type: application/json; charset=utf-8');
-
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 echo json_encode([
     'ok' => true,

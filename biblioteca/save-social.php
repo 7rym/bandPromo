@@ -1,12 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 session_write_close(); // release lock before file I/O
 
 require_once __DIR__ . '/config-loader.php';

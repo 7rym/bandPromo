@@ -9,6 +9,7 @@ function bandpromo_media_library_default_state(): array
 {
     return [
         'hidden' => [],
+        'assets' => [],
     ];
 }
 
@@ -33,8 +34,42 @@ function bandpromo_media_library_load_state(): array
     if (isset($decoded['hidden']) && is_array($decoded['hidden'])) {
         $state['hidden'] = $decoded['hidden'];
     }
+    if (isset($decoded['assets']) && is_array($decoded['assets'])) {
+        $state['assets'] = $decoded['assets'];
+    }
 
     return $state;
+}
+
+function bandpromo_media_get_asset_record(string $target, string $filename): array
+{
+    $state = bandpromo_media_library_load_state();
+    $assets = is_array($state['assets'] ?? null) ? $state['assets'] : [];
+    $key = bandpromo_media_library_key($target, $filename);
+    $record = is_array($assets[$key] ?? null) ? $assets[$key] : [];
+
+    return $record;
+}
+
+function bandpromo_media_record_asset(string $target, string $filename, array $meta): bool
+{
+    $safe = basename($filename);
+    if ($safe === '' || $safe === '.' || $safe === '..') {
+        return false;
+    }
+
+    $state = bandpromo_media_library_load_state();
+    if (!isset($state['assets']) || !is_array($state['assets'])) {
+        $state['assets'] = [];
+    }
+
+    $key = bandpromo_media_library_key($target, $safe);
+    $existing = is_array($state['assets'][$key] ?? null) ? $state['assets'][$key] : [];
+    $state['assets'][$key] = array_merge($existing, $meta, [
+        'recorded_at' => gmdate('Y-m-d H:i:s'),
+    ]);
+
+    return bandpromo_media_library_save_state($state);
 }
 
 function bandpromo_media_library_save_state(array $state): bool

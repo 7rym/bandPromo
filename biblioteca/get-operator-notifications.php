@@ -1,17 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    if (!isset($_SESSION['user'])) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit;
-    }
-}
-
-header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/build-required.php';
 

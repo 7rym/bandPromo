@@ -14,14 +14,7 @@ require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/gallery-helpers.php';
 bandpromo_enforce_https();
 
-session_start();
-
-// Require authentication
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 // Check for direct browser access (reject with 403)
 $accept = isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';

@@ -56,7 +56,6 @@ Core features are part of every bandPromo install:
 - static page editing for core site content
 - playlist editing
 - gallery editing
-- ChromeCasting to supported devices
 - PWA installs
 - Basic tools for sharing to social media platforms
 
@@ -341,13 +340,16 @@ v0.7 is complete when bandPromo can honestly be described as:
 
 Exit gates:
 
-Recent hardening completed (Apr 2026):
+Recent hardening completed (Apr–Jun 2026):
 
 - strict runtime-file seeding from tracked templates (`web-config`, `gallery`, `bio`, `faq`)
 - runtime fallback removal for required content paths (fail loudly with actionable errors)
 - local-only file policy hardening (`data/*` strategy + guard workflow)
 - non-core quiz feature moved out of core player flow and preserved as modular assets
 - localhost admin quality-of-life fix for "Open site" link behavior
+- welcome dashboard after setup completion, operator inbox modal, plain-language inbox copy
+- cover-art management, orphan detection, reference-aware media deletion
+- admin-role guard on operator panel and admin APIs (listener accounts cannot open admin surfaces)
 
 ### 1. Stability gate
 
@@ -393,7 +395,6 @@ Trust-gate scope note for `v0.7`:
 ### 4. Beta operator gate
 
 - help text and admin structure are understandable for non-technical testers
-- caching and update propagation are efficient and trustworthy: clients should reuse cached assets aggressively where safe, without getting stuck on stale shell/player/config artifacts
 - common setup and operation steps are documented well enough for trial use
 - weak source material can be uploaded, diagnosed, and repaired through understandable admin guidance instead of expert-only metadata tooling
 - operator-facing media repair/editing tools follow the locked media-handling policy instead of exposing raw tagging concepts first
@@ -407,6 +408,8 @@ Trust-gate scope note for `v0.7`:
 - Suitable and optimized designs for various display scenarios (vertical/horizontal, mobile/tablet, desktop/TV)
 
 These features must be working and accessible before this gate is considered passed
+
+Caching and update propagation (aggressive safe caching, low needless re-downloads, no stale shell/player/config artifacts after updates) are explicitly deferred to the **v0.8** PWA/service-worker architecture track rather than treated as a remaining `v0.7` blocker. See `docs/TODO.md` Post-v0.7 planning.
 
 ## v0.8 beta goals
 

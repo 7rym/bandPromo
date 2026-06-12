@@ -303,11 +303,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const recommendedBuildBtn = document.getElementById('recommendedBuildBtn');
             const operatorNotificationsToggle = document.getElementById('operatorNotificationsToggle');
             const operatorNotificationsCount = document.getElementById('operatorNotificationsCount');
-            const operatorNotificationsDrawer = document.getElementById('operatorNotificationsDrawer');
-            const operatorNotificationsDrawerBody = document.getElementById('operatorNotificationsDrawerBody');
+            const operatorNotificationsModal = document.getElementById('operatorNotificationsModal');
+            const operatorNotificationsModalBody = document.getElementById('operatorNotificationsModalBody');
             const operatorNotificationsClose = document.getElementById('operatorNotificationsClose');
             const operatorNotificationsWelcomeCard = document.getElementById('operatorNotificationsWelcomeCard');
-            const operatorNotificationsWelcomeBody = document.getElementById('operatorNotificationsWelcomeBody');
+            const operatorNotificationsWelcomeOpen = document.getElementById('operatorNotificationsWelcomeOpen');
+            const operatorNotificationsWelcomeStatus = document.getElementById('operatorNotificationsWelcomeStatus');
             const operatorNotificationsWelcomeSummary = document.getElementById('operatorNotificationsWelcomeSummary');
             const toastHost = document.getElementById('adminToastHost');
             let adminCsrf = typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
@@ -319,6 +320,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let modalFiles  = [];
             let mediaPickerState = null;
             let showBundledDemoAssets = false;
+            let illustrationsCoverFilter = 'all';
+            const mediaReferenceFilters = {
+                photos: 'all',
+                video: 'all',
+            };
+            const mediaReferenceFilterTypes = new Set(['illustrations', 'photos', 'video']);
             let audioDisplayMode = 'master';
             let expandedAudioFile = null;
             const mediaSelectionState = new Map();
@@ -341,16 +348,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let deleteReferencePreview = null;
 
             const validationSeverityConfig = {
-                'cannot-build': { label: 'Cannot build', statusClass: 'status-error', rank: 4 },
-                'fix-before-publish': { label: 'Fix before publish', statusClass: 'status-warning', rank: 3 },
-                'recommended-fix': { label: 'Recommended fix', statusClass: 'status-neutral', rank: 2 },
-                'can-be-repaired-automatically': { label: 'Can be repaired automatically', statusClass: 'status-ok', rank: 1 },
+                'cannot-build': { label: 'Blocked', statusClass: 'status-error', rank: 4 },
+                'fix-before-publish': { label: 'Fix first', statusClass: 'status-warning', rank: 3 },
+                'recommended-fix': { label: 'Nice to have', statusClass: 'status-neutral', rank: 2 },
+                'can-be-repaired-automatically': { label: 'Can be fixed automatically', statusClass: 'status-ok', rank: 1 },
             };
             const operatorNotificationSeverityConfig = {
-                'cannot-build': { label: 'Cannot build', itemClass: 'is-critical', summaryClass: 'status-error' },
-                'fix-before-publish': { label: 'Needs attention', itemClass: 'is-attention', summaryClass: 'status-warning' },
-                'recommended-fix': { label: 'Recommended improvement', itemClass: 'is-recommended', summaryClass: 'status-neutral' },
-                'build-step': { label: 'Publish step pending', itemClass: 'is-attention', summaryClass: 'status-warning' },
+                'cannot-build': { label: 'Blocked', itemClass: 'is-critical', summaryClass: 'status-error' },
+                'fix-before-publish': { label: 'Fix first', itemClass: 'is-attention', summaryClass: 'status-warning' },
+                'recommended-fix': { label: 'Nice to have', itemClass: 'is-recommended', summaryClass: 'status-neutral' },
+                'build-step': { label: 'Ready to go live', itemClass: 'is-attention', summaryClass: 'status-warning' },
             };
 
             const mediaTypeLabels = {
@@ -439,30 +446,30 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function formatBuildTaskLabel(task) {
                 const taskLabels = {
-                    'playlist-scan': 'Refresh playlist and validation data',
-                    'audio-delivery': 'Refresh publish-ready audio files',
-                    'video-delivery': 'Refresh publish-ready video files',
-                    'image-delivery': 'Refresh publish-ready image files',
-                    'social-assets': 'Refresh social/share assets',
-                    'manifest': 'Rewrite the site manifest',
+                    'playlist-scan': 'Check the playlist order',
+                    'audio-delivery': 'Prepare your songs for the website',
+                    'video-delivery': 'Prepare your videos for the website',
+                    'image-delivery': 'Prepare your photos and artwork for the website',
+                    'social-assets': 'Refresh how links look when shared on social media',
+                    'manifest': 'Update the site listing fans browse',
                 };
 
-                return taskLabels[String(task || '').trim()] || String(task || '').trim();
+                return taskLabels[String(task || '').trim()] || 'Finish preparing your latest changes for the website';
             }
 
             function formatBuildTaskSummary(state) {
                 const tasks = Array.isArray(state && state.tasks) ? state.tasks : [];
                 if (!tasks.length) {
                     return String(state && state.action || 'none') === 'optimize'
-                        ? 'Updated media is waiting for optimized delivery files.'
-                        : 'Recent changes are waiting for a publish build.';
+                        ? 'New photos or artwork are saved but not yet visible on the live site.'
+                        : 'Your latest changes are saved here but not yet on the public website.';
                 }
 
                 if (tasks.length === 1) {
                     return `${formatBuildTaskLabel(tasks[0])}.`;
                 }
 
-                return `${tasks.length} follow-up tasks are pending.`;
+                return `${tasks.length} steps are waiting before visitors see your latest changes.`;
             }
 
             function formatBuildTaskList(state) {
@@ -490,38 +497,48 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function getBuildActionLabel(action) {
                 return String(action || 'full').toLowerCase() === 'optimize'
-                    ? 'Refresh Image Files'
-                    : 'Run Publish Build';
+                    ? 'Refresh photos & artwork'
+                    : 'Update the live site';
             }
 
             function formatBuildHintMessage(state) {
                 const actionLabel = getBuildActionLabel(state && state.action || 'full');
                 const tasks = formatBuildTaskList(state);
                 if (tasks.length === 1) {
-                    return `⚠ ${tasks[0]} is pending. ${actionLabel} to finish it.`;
+                    return `⚠ ${tasks[0]} Use ${actionLabel} when you are ready.`;
                 }
                 if (tasks.length > 1) {
-                    return `⚠ ${tasks.length} publishing tasks are pending. ${actionLabel} to finish them.`;
+                    return `⚠ ${tasks.length} steps are waiting. Use ${actionLabel} when you are ready.`;
                 }
                 return String(state && state.action || 'none').toLowerCase() === 'optimize'
-                    ? '⚠ Updated media is waiting for refreshed image files.'
-                    : '⚠ Recent changes are waiting for a publish build.';
+                    ? '⚠ New photos or artwork are not live yet. Refresh them when you are ready.'
+                    : '⚠ Your latest changes are not on the public site yet. Update the site when you are ready.';
             }
 
             function closeOperatorNotifications() {
-                if (!operatorNotificationsDrawer || !operatorNotificationsToggle) {
+                if (!operatorNotificationsModal || !operatorNotificationsToggle) {
                     return;
                 }
-                operatorNotificationsDrawer.hidden = true;
+                operatorNotificationsModal.style.display = 'none';
                 operatorNotificationsToggle.setAttribute('aria-expanded', 'false');
             }
 
             function openOperatorNotifications() {
-                if (!operatorNotificationsDrawer || !operatorNotificationsToggle) {
+                if (!operatorNotificationsModal || !operatorNotificationsToggle) {
                     return;
                 }
-                operatorNotificationsDrawer.hidden = false;
+                operatorNotificationsModal.style.display = 'flex';
                 operatorNotificationsToggle.setAttribute('aria-expanded', 'true');
+                if (operatorNotificationsClose) {
+                    operatorNotificationsClose.focus();
+                }
+            }
+
+            window.closeOperatorNotifications = closeOperatorNotifications;
+            window.openOperatorNotifications = openOperatorNotifications;
+
+            if (operatorNotificationsModal && operatorNotificationsModal.parentElement !== document.body) {
+                document.body.appendChild(operatorNotificationsModal);
             }
 
             function clearRecommendedRunQuery() {
@@ -537,14 +554,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
+                const taskDetails = formatBuildTaskList(buildState);
+                const summaryDetails = taskDetails.length
+                    ? taskDetails.map(text => ({ text }))
+                    : [{ text: formatBuildTaskSummary(buildState) }];
+                const introDetail = action === 'optimize'
+                    ? { text: 'You changed photos or artwork. Visitors will not see the new versions until you refresh them.' }
+                    : { text: 'You made changes that are saved in admin but not yet on the website fans visit.' };
+
                 return {
                     severity: 'build-step',
-                    title: action === 'optimize' ? 'Media optimization pending' : 'Publish build pending',
+                    title: action === 'optimize' ? 'New images are not live yet' : 'Your site is not up to date',
                     file: '',
-                    details: (formatBuildTaskList(buildState).length ? formatBuildTaskList(buildState) : [formatBuildTaskSummary(buildState)]).map(text => ({ text })),
+                    details: [introDetail, ...summaryDetails],
                     actions: [
                         { label: getBuildActionLabel(action), action: 'run-recommended-build' },
-                        { label: 'Open Build', href: buildBuildTabUrl() },
+                        { label: 'Go to Update site', href: buildBuildTabUrl() },
                     ],
                 };
             }
@@ -605,13 +630,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     statusClass: severityConfig.summaryClass || 'status-neutral',
                 };
                 const fileLine = item.file && item.file !== item.title
-                    ? `<div class="operator-notifications-item-file">${escapeHtml(item.file)}</div>`
+                    ? `<div class="operator-notifications-item-file">File: ${escapeHtml(item.file)}</div>`
                     : '';
                 const detailsHtml = Array.isArray(item.details) && item.details.length
                     ? `<ul class="operator-notifications-item-list">${item.details.map(detail => {
-                        const label = String(detail.label || '').trim();
                         const text = String(detail.text || '').trim();
-                        return `<li>${label !== '' ? `<strong>${escapeHtml(label)}:</strong> ` : ''}${escapeHtml(text)}</li>`;
+                        return text !== '' ? `<li>${escapeHtml(text)}</li>` : '';
                     }).join('')}</ul>`
                     : '';
                 const actionsHtml = Array.isArray(item.actions) && item.actions.length
@@ -640,12 +664,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function renderOperatorNotificationSections(model) {
                 if (!model || model.totalCount === 0) {
-                    return '<p class="operator-notifications-empty">No operator follow-up is waiting right now. Quick background work should stay out of the way unless it genuinely needs attention.</p>';
+                    return '<p class="operator-notifications-empty">You are all caught up. Nothing needs your attention right now.</p>';
                 }
 
                 const sections = [
-                    { title: 'Needs attention', count: model.attentionCount, items: model.attention },
-                    { title: 'Recommended improvements', count: model.recommendedCount, items: model.recommended },
+                    { title: 'Do these first', count: model.attentionCount, items: model.attention },
+                    { title: 'When you have time', count: model.recommendedCount, items: model.recommended },
                 ].filter(section => section.count > 0);
 
                 return sections.map(section => `
@@ -663,25 +687,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const model = buildOperatorNotificationModel(buildState, validation);
                 const html = renderOperatorNotificationSections(model);
 
-                if (operatorNotificationsDrawerBody) {
-                    operatorNotificationsDrawerBody.innerHTML = html;
+                if (operatorNotificationsModalBody) {
+                    operatorNotificationsModalBody.innerHTML = html;
                 }
 
-                if (operatorNotificationsWelcomeCard && operatorNotificationsWelcomeBody && operatorNotificationsWelcomeSummary) {
-                    operatorNotificationsWelcomeBody.innerHTML = html;
-                    operatorNotificationsWelcomeCard.style.display = model.totalCount > 0 ? '' : 'none';
+                if (operatorNotificationsWelcomeCard && operatorNotificationsWelcomeSummary) {
+                    const welcomeDashboardMode = typeof adminWelcomeDashboardMode === 'boolean' && adminWelcomeDashboardMode;
+                    operatorNotificationsWelcomeCard.style.display = welcomeDashboardMode || model.totalCount > 0 ? '' : 'none';
+
+                    if (operatorNotificationsWelcomeStatus) {
+                        operatorNotificationsWelcomeStatus.textContent = model.totalCount === 0
+                            ? 'Everything looks good. Open the inbox any time to double-check.'
+                            : `${model.totalCount} ${model.totalCount === 1 ? 'item needs' : 'items need'} your attention. Open the inbox to see what to do next.`;
+                    }
 
                     if (model.totalCount === 0) {
-                        operatorNotificationsWelcomeSummary.textContent = 'No open operator tasks';
+                        operatorNotificationsWelcomeSummary.textContent = 'All clear';
                         operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-ok';
                     } else if (model.hasCritical) {
-                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} needs attention`;
+                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} blocked`;
                         operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-error';
                     } else if (model.attentionCount > 0) {
-                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} needs attention`;
+                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} to do first`;
                         operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-warning';
                     } else {
-                        operatorNotificationsWelcomeSummary.textContent = `${model.recommendedCount} recommended`;
+                        operatorNotificationsWelcomeSummary.textContent = `${model.recommendedCount} optional`;
                         operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-neutral';
                     }
                 }
@@ -699,13 +729,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
-            if (operatorNotificationsToggle && operatorNotificationsDrawer) {
+            if (operatorNotificationsToggle && operatorNotificationsModal) {
                 operatorNotificationsToggle.addEventListener('click', () => {
-                    if (operatorNotificationsDrawer.hidden) {
-                        openOperatorNotifications();
-                    } else {
-                        closeOperatorNotifications();
-                    }
+                    openOperatorNotifications();
+                });
+            }
+
+            if (operatorNotificationsWelcomeOpen) {
+                operatorNotificationsWelcomeOpen.addEventListener('click', () => {
+                    openOperatorNotifications();
                 });
             }
 
@@ -715,36 +747,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             document.addEventListener('click', (event) => {
                 const actionButton = event.target.closest('[data-operator-action]');
-                if (actionButton) {
-                    const action = String(actionButton.dataset.operatorAction || '').trim();
-                    if (action === 'run-recommended-build') {
-                        event.preventDefault();
-                        closeOperatorNotifications();
-                        const buildTabActive = document.getElementById('tab-build')?.classList.contains('active');
-                        if (!buildTabActive) {
-                            window.location.href = buildRecommendedRunUrl();
-                            return;
-                        }
-                        runRecommendedAction();
+                if (!actionButton) {
+                    return;
+                }
+
+                const action = String(actionButton.dataset.operatorAction || '').trim();
+                if (action === 'run-recommended-build') {
+                    event.preventDefault();
+                    closeOperatorNotifications();
+                    const buildTabActive = document.getElementById('tab-build')?.classList.contains('active');
+                    if (!buildTabActive) {
+                        window.location.href = buildRecommendedRunUrl();
+                        return;
                     }
-                    return;
+                    runRecommendedAction();
                 }
-
-                if (!operatorNotificationsDrawer || operatorNotificationsDrawer.hidden) {
-                    return;
-                }
-
-                if ((operatorNotificationsToggle && operatorNotificationsToggle.contains(event.target)) || operatorNotificationsDrawer.contains(event.target)) {
-                    return;
-                }
-
-                closeOperatorNotifications();
             });
 
             document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') {
-                    closeOperatorNotifications();
+                if (event.key !== 'Escape' || !operatorNotificationsModal || operatorNotificationsModal.style.display === 'none') {
+                    return;
                 }
+                closeOperatorNotifications();
             });
 
             function formatAudioMetadataHealthBadges(file) {
@@ -794,6 +818,147 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 badges.push(formatAudioMetadataHealthBadges(file));
 
                 return badges.join(' ');
+            }
+
+            const coverRoleLabels = {
+                'track-cover': 'Track cover',
+                'release-fallback': 'Release fallback',
+                illustration: 'Illustration',
+            };
+
+            const coverOriginLabels = {
+                'user-upload': 'Uploaded',
+                'build-extracted': 'Build extracted',
+                'build-configured': 'Build configured',
+                'build-sidecar-copy': 'Build copied',
+                'bundled-placeholder': 'Bundled demo',
+            };
+
+            function getFileReferenceInfo(file) {
+                return (file && (file.reference_info || file.cover_info)) || {};
+            }
+
+            function getMediaReferenceFilter(type) {
+                if (type === 'illustrations') {
+                    return illustrationsCoverFilter;
+                }
+                return mediaReferenceFilters[type] || 'all';
+            }
+
+            function formatCoverInfoBadges(file) {
+                const info = getFileReferenceInfo(file);
+                const badges = [];
+                const role = String(info.role || '').trim();
+                const origin = String(info.origin || '').trim();
+
+                if (role) {
+                    const roleLabel = coverRoleLabels[role] || role;
+                    const roleClass = role === 'track-cover'
+                        ? 'status-ok'
+                        : role === 'release-fallback'
+                            ? 'status-warning'
+                            : 'status-neutral';
+                    badges.push(`<span class="badge audit-status-badge ${roleClass} media-file-badge" title="Role: ${escapeHtml(roleLabel)}">${escapeHtml(roleLabel)}</span>`);
+                }
+
+                if (origin && origin !== 'user-upload') {
+                    const originLabel = coverOriginLabels[origin] || origin;
+                    badges.push(`<span class="badge audit-status-badge status-neutral media-file-badge" title="Origin: ${escapeHtml(originLabel)}">${escapeHtml(originLabel)}</span>`);
+                }
+
+                if (info.orphan === true) {
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by playlist, gallery, or theme settings">Orphan</span>');
+                }
+
+                return badges.join(' ');
+            }
+
+            function formatMediaReferenceBadges(type, file) {
+                if (type === 'illustrations') {
+                    return formatCoverInfoBadges(file);
+                }
+
+                const info = getFileReferenceInfo(file);
+                const references = Array.isArray(info.references) ? info.references : [];
+                const badges = [];
+
+                if (info.orphan === true) {
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by gallery or theme settings">Orphan</span>');
+                } else if (references.length) {
+                    badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Referenced by gallery or theme settings">In use</span>');
+                }
+
+                const kinds = new Set(references.map((reference) => String(reference.kind || '')));
+                if (kinds.has('gallery-item')) {
+                    badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by a gallery item">Gallery</span>');
+                }
+                if ([...kinds].some((kind) => kind.startsWith('theme-') || kind === 'share-image')) {
+                    badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by theme or share settings">Theme</span>');
+                }
+
+                return badges.join(' ');
+            }
+
+            function formatCoverInfoReferenceLine(file) {
+                const info = getFileReferenceInfo(file);
+                const references = Array.isArray(info.references) ? info.references : [];
+                if (!references.length) {
+                    return info.orphan === true
+                        ? '<span class="media-cover-reference-line">Not referenced</span>'
+                        : '';
+                }
+
+                const labels = references
+                    .map((reference) => String(reference.label || '').trim())
+                    .filter(Boolean)
+                    .slice(0, 3);
+                const suffix = references.length > labels.length ? ` +${references.length - labels.length} more` : '';
+                const text = `Used by: ${labels.join(', ')}${suffix}`;
+                return `<span class="media-cover-reference-line" title="${escapeHtml(text)}">${escapeHtml(text)}</span>`;
+            }
+
+            function matchesMediaReferenceFilter(type, file) {
+                const filter = getMediaReferenceFilter(type);
+                if (filter === 'all') {
+                    return true;
+                }
+
+                const info = getFileReferenceInfo(file);
+                if (filter === 'orphans') {
+                    return info.orphan === true;
+                }
+                if (filter === 'referenced') {
+                    return Number(info.reference_count || 0) > 0;
+                }
+                if (type === 'illustrations' && filter === 'track-covers') {
+                    return info.role === 'track-cover';
+                }
+                if (type === 'illustrations' && filter === 'build-generated') {
+                    return ['build-extracted', 'build-configured', 'build-sidecar-copy'].includes(String(info.origin || ''));
+                }
+
+                return true;
+            }
+
+            function filterReferencedMediaFiles(type, files) {
+                if (!mediaReferenceFilterTypes.has(type)) {
+                    return Array.isArray(files) ? files : [];
+                }
+                return (Array.isArray(files) ? files : []).filter((file) => matchesMediaReferenceFilter(type, file));
+            }
+
+            function syncMediaReferenceFilterUi() {
+                document.querySelectorAll('[data-cover-filter]').forEach((button) => {
+                    const active = String(button.dataset.coverFilter || '') === illustrationsCoverFilter;
+                    button.classList.toggle('active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                document.querySelectorAll('[data-media-ref-filter-target]').forEach((button) => {
+                    const target = String(button.dataset.mediaRefFilterTarget || '');
+                    const active = getMediaReferenceFilter(target) === String(button.dataset.mediaRefFilter || '');
+                    button.classList.toggle('active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
             }
 
             function getDisplayedMediaInfo(type, file) {
@@ -1224,11 +1389,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return bytes + ' B';
             }
 
-            function formatMediaCountSummary(files, type) {
+            function formatMediaCountSummary(files, type, options = {}) {
                 const items = Array.isArray(files) ? files : [];
                 const count = items.length;
                 const totalBytes = items.reduce((sum, file) => sum + Math.max(0, Number(getDisplayedMediaInfo(type, file).size) || 0), 0);
                 const noun = count === 1 ? 'file' : 'files';
+                const totalCount = Number(options.totalCount);
+                if (mediaReferenceFilterTypes.has(type) && getMediaReferenceFilter(type) !== 'all' && Number.isFinite(totalCount) && totalCount !== count) {
+                    return `(${count} of ${totalCount} ${totalCount === 1 ? 'file' : 'files'} shown, ${fmtSize(totalBytes)} visible)`;
+                }
                 return `(${count} ${noun}, ${fmtSize(totalBytes)} total)`;
             }
 
@@ -1458,13 +1627,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const countEl = document.getElementById(type + '-count');
                 if (!listEl) return;
                 try {
-                    const files = await fetchMediaFiles(type);
-                    mediaFilesState.set(type, files);
-                    pruneMediaSelection(type, files);
+                    const allFiles = await fetchMediaFiles(type);
+                    mediaFilesState.set(type, allFiles);
+                    const files = filterReferencedMediaFiles(type, allFiles);
+                    pruneMediaSelection(type, allFiles);
                     const selection = getMediaSelectionState(type);
-                    if (countEl) countEl.textContent = formatMediaCountSummary(files, type);
-                    if (!files.length) {
+                    if (countEl) {
+                        countEl.textContent = formatMediaCountSummary(files, type, {
+                            totalCount: mediaReferenceFilterTypes.has(type) ? allFiles.length : files.length,
+                        });
+                    }
+                    if (!allFiles.length) {
                         listEl.innerHTML = '<span class="text-muted">No files yet.</span>';
+                        syncMediaSelectionUi(type);
+                        return;
+                    }
+                    if (!files.length) {
+                        listEl.innerHTML = '<span class="text-muted">No files match the current filter.</span>';
                         syncMediaSelectionUi(type);
                         return;
                     }
@@ -1494,7 +1673,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const downloadAction = `<button class="icon-btn media-action-btn media-action-good" title="Download this file" ${downloadDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); submitMediaDownloadRequest('${type}', '${display.downloadVariant}', ['${safeName}'])">⬇</button>`;
                         const nameCell = type === 'audio'
                             ? `<span class="media-file-name-wrap"><span class="media-file-name">${escapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
-                            : `<span class="media-file-name">${escapeHtml(display.name || f.name)}</span>`;
+                            : mediaReferenceFilterTypes.has(type)
+                                ? `<span class="media-file-name-wrap"><span class="media-file-name">${escapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span>${formatCoverInfoReferenceLine(f)}</span>`
+                                : `<span class="media-file-name">${escapeHtml(display.name || f.name)}</span>`;
                         const isExpandedAudio = type === 'audio' && expandedAudioFile === f.name;
                         const rowAttributes = rowIsEditableAudio
                             ? `data-editable-audio="true" tabindex="0" role="button" aria-expanded="${isExpandedAudio ? 'true' : 'false'}" title="${isExpandedAudio ? 'Collapse quick-edit' : 'Quick-edit track tags'}" onclick="toggleAudioFileDetails('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleAudioFileDetails('${safeName}'); }"`
@@ -1528,6 +1709,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             loadMediaList(activeMediaPanel);
 
             const showBundledAssetsToggleButtons = document.querySelectorAll('[data-bundled-toggle]');
+            const coverFilterToggleButtons = document.querySelectorAll('[data-cover-filter]');
+            const mediaRefFilterToggleButtons = document.querySelectorAll('[data-media-ref-filter-target]');
+
+            function setMediaReferenceFilter(type, nextValue) {
+                if (type === 'illustrations') {
+                    const allowed = new Set(['all', 'track-covers', 'orphans', 'build-generated']);
+                    illustrationsCoverFilter = allowed.has(nextValue) ? nextValue : 'all';
+                } else if (type === 'photos' || type === 'video') {
+                    const allowed = new Set(['all', 'referenced', 'orphans']);
+                    mediaReferenceFilters[type] = allowed.has(nextValue) ? nextValue : 'all';
+                } else {
+                    return;
+                }
+                syncMediaReferenceFilterUi();
+                if (activeMediaPanel === type) {
+                    loadMediaList(type);
+                }
+            }
+
+            coverFilterToggleButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    setMediaReferenceFilter('illustrations', String(button.dataset.coverFilter || 'all'));
+                });
+            });
+
+            mediaRefFilterToggleButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = String(button.dataset.mediaRefFilterTarget || '');
+                    setMediaReferenceFilter(target, String(button.dataset.mediaRefFilter || 'all'));
+                });
+            });
 
             function setShowBundledDemoAssets(nextValue) {
                 showBundledDemoAssets = nextValue === true;
@@ -1556,6 +1768,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             });
 
             syncBundledToggleUi();
+            syncMediaReferenceFilterUi();
             syncAudioDisplayToggleUi();
 
             // Upload modal
@@ -2428,6 +2641,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }, true);
             });
 
+            function formatDeleteReferenceParts(summary) {
+                const parts = [];
+                if (summary.playlist_tracks) parts.push(`${summary.playlist_tracks} playlist entr${summary.playlist_tracks === 1 ? 'y' : 'ies'}`);
+                if (summary.playlist_covers) parts.push(`${summary.playlist_covers} playlist cover reference${summary.playlist_covers === 1 ? '' : 's'}`);
+                if (summary.gallery_items) parts.push(`${summary.gallery_items} gallery item${summary.gallery_items === 1 ? '' : 's'}`);
+                if (summary.theme_assets) parts.push(`${summary.theme_assets} theme setting reference${summary.theme_assets === 1 ? '' : 's'}`);
+                if (summary.release_fallbacks) parts.push(`${summary.release_fallbacks} release fallback reference${summary.release_fallbacks === 1 ? '' : 's'}`);
+                return parts;
+            }
+
+            function buildMediaReferenceDeleteExtraHint(data, filenames, target) {
+                if (!mediaReferenceFilterTypes.has(target)) {
+                    return [];
+                }
+
+                const files = Array.isArray(data.files) ? data.files : [];
+                const selected = new Set((Array.isArray(filenames) ? filenames : []).map((name) => String(name || '')));
+                const selectedFiles = files.filter((entry) => selected.has(String(entry.filename || '')));
+                const extras = [];
+                const themeKinds = new Set(['theme-cover', 'theme-background', 'theme-background-video', 'share-image']);
+
+                const hasThemeRefs = selectedFiles.some((entry) => (
+                    Array.isArray(entry.references) && entry.references.some((reference) => themeKinds.has(String(reference.kind || '')))
+                ));
+                if (hasThemeRefs) {
+                    extras.push('Theme or share-image settings still point at this file and will not be cleared automatically.');
+                }
+
+                const regenerableOrphans = selectedFiles.filter((entry) => {
+                    const info = entry.reference_info || entry.cover_info || {};
+                    return info.regenerable === true && Number((entry.reference_summary || {}).total || 0) === 0;
+                });
+                if (regenerableOrphans.length) {
+                    extras.push('Build-generated cover files can be recreated on the next image refresh if they are still needed.');
+                }
+
+                return extras;
+            }
+
             window.openDeleteModal = function(type, filename) {
                 deleteTarget = type;
                 deleteFiles  = Array.isArray(filename) ? filename.filter(Boolean) : [filename].filter(Boolean);
@@ -2450,9 +2702,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
                 if (deleteHintEl) {
-                    deleteHintEl.textContent = deleteFiles.length > 1
-                        ? 'Checking whether these files are still used in the playlist or gallery…'
-                        : 'Checking whether this file is still used in the playlist or gallery…';
+                    deleteHintEl.textContent = mediaReferenceFilterTypes.has(deleteTarget)
+                        ? (deleteFiles.length > 1
+                            ? 'Checking whether these files are still referenced…'
+                            : 'Checking whether this file is still referenced…')
+                        : (deleteFiles.length > 1
+                            ? 'Checking whether these files are still used in the playlist or gallery…'
+                            : 'Checking whether this file is still used in the playlist or gallery…');
                 }
                 if (deleteStatusEl) deleteStatusEl.textContent = '';
                 if (deleteConfirmBtn) deleteConfirmBtn.disabled = true;
@@ -2477,17 +2733,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const summary = data.reference_summary || {};
                         const total = Number(summary.total || 0);
                         if (deleteHintEl) {
+                            const extras = buildMediaReferenceDeleteExtraHint(data, deleteFiles, deleteTarget);
                             if (!total) {
-                                deleteHintEl.textContent = deleteFiles.length > 1
-                                    ? 'These deletions are immediate and cannot be undone. No playlist or gallery references will be changed.'
-                                    : 'This cannot be undone. No playlist or gallery references will be changed.';
+                                const base = deleteFiles.length > 1
+                                    ? 'These deletions are immediate and cannot be undone. No playlist, gallery, or theme references will be changed.'
+                                    : 'This cannot be undone. No playlist, gallery, or theme references will be changed.';
+                                deleteHintEl.innerHTML = extras.length
+                                    ? `${base}<br>${extras.map((line) => escapeHtml(line)).join('<br>')}`
+                                    : base;
                             } else {
-                                const parts = [];
-                                if (summary.playlist_tracks) parts.push(`${summary.playlist_tracks} playlist entr${summary.playlist_tracks === 1 ? 'y' : 'ies'}`);
-                                if (summary.playlist_covers) parts.push(`${summary.playlist_covers} playlist cover reference${summary.playlist_covers === 1 ? '' : 's'}`);
-                                if (summary.gallery_items) parts.push(`${summary.gallery_items} gallery item${summary.gallery_items === 1 ? '' : 's'}`);
+                                const parts = formatDeleteReferenceParts(summary);
                                 const labels = Array.isArray(data.references) ? data.references.slice(0, 6).map((reference) => `${escapeHtml(reference.filename || '')}: ${escapeHtml(reference.label || '')}`) : [];
-                                deleteHintEl.innerHTML = `Deleting ${deleteFiles.length > 1 ? 'these files' : 'this file'} will also remove ${parts.join(', ')} from the playlist/gallery data.<br>${labels.join('<br>')}${(data.references || []).length > 6 ? '<br>…' : ''}`;
+                                const lines = [
+                                    `Deleting ${deleteFiles.length > 1 ? 'these files' : 'this file'} will also remove ${parts.join(', ')} from the saved site data.`,
+                                    labels.join('<br>'),
+                                ];
+                                if ((data.references || []).length > 6) {
+                                    lines.push('…');
+                                }
+                                if (extras.length) {
+                                    lines.push(...extras.map((line) => escapeHtml(line)));
+                                }
+                                deleteHintEl.innerHTML = lines.filter(Boolean).join('<br>');
                             }
                         }
                     } catch (error) {
@@ -3153,40 +3420,83 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 // ── drag and drop (delegated on activeEl) ────────────────────
                 let dragSrc = null;
+                let galleryDragPlaceholder = null;
+
+                function getGalleryRows() {
+                    return Array.from(activeEl.querySelectorAll('.gallery-active-row'));
+                }
+
+                function ensureGalleryPlaceholder() {
+                    if (!galleryDragPlaceholder) {
+                        galleryDragPlaceholder = document.createElement('li');
+                        galleryDragPlaceholder.className = 'gallery-editor-placeholder';
+                    }
+                    return galleryDragPlaceholder;
+                }
+
+                function updateGalleryPlaceholderHeight() {
+                    if (!dragSrc) return;
+                    const placeholder = ensureGalleryPlaceholder();
+                    const height = Math.max(52, Math.round(dragSrc.getBoundingClientRect().height));
+                    placeholder.style.height = `${height}px`;
+                }
+
+                function moveGalleryPlaceholder(clientY) {
+                    if (!dragSrc) return;
+                    const placeholder = ensureGalleryPlaceholder();
+                    updateGalleryPlaceholderHeight();
+
+                    const candidateRows = getGalleryRows().filter((row) => row !== dragSrc);
+                    const referenceRow = candidateRows.find((row) => {
+                        const rect = row.getBoundingClientRect();
+                        return clientY < rect.top + rect.height / 2;
+                    });
+
+                    if (referenceRow) {
+                        activeEl.insertBefore(placeholder, referenceRow);
+                    } else {
+                        activeEl.appendChild(placeholder);
+                    }
+                }
+
+                function finalizeGalleryDrag() {
+                    const placeholder = ensureGalleryPlaceholder();
+                    if (placeholder.parentNode === activeEl && dragSrc) {
+                        activeEl.insertBefore(dragSrc, placeholder);
+                        placeholder.remove();
+                    }
+                }
+
                 activeEl.addEventListener('dragstart', (e) => {
                     dragSrc = e.target.closest('.gallery-active-row');
                     if (!dragSrc) return;
-                    dragSrc.classList.add('dragging');
                     e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', dragSrc.dataset.src || '');
+                    window.requestAnimationFrame(() => {
+                        if (!dragSrc) return;
+                        updateGalleryPlaceholderHeight();
+                        activeEl.insertBefore(ensureGalleryPlaceholder(), dragSrc);
+                        dragSrc.classList.add('dragging');
+                    });
                 });
                 activeEl.addEventListener('dragend', () => {
-                    activeEl.querySelectorAll('.gallery-active-row').forEach(r => r.classList.remove('dragging', 'drag-over'));
+                    finalizeGalleryDrag();
+                    activeEl.querySelectorAll('.gallery-active-row').forEach((row) => row.classList.remove('dragging', 'drag-over'));
                     dragSrc = null;
                     syncFromDOM();
                 });
                 activeEl.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
-                    const target = e.target.closest('.gallery-active-row');
-                    if (!target || target === dragSrc) return;
-                    activeEl.querySelectorAll('.gallery-active-row').forEach(r => r.classList.remove('drag-over'));
-                    target.classList.add('drag-over');
-                });
-                activeEl.addEventListener('dragleave', (e) => {
-                    const target = e.target.closest('.gallery-active-row');
-                    if (target) target.classList.remove('drag-over');
+                    if (!dragSrc) return;
+                    moveGalleryPlaceholder(e.clientY);
                 });
                 activeEl.addEventListener('drop', (e) => {
                     e.preventDefault();
-                    const target = e.target.closest('.gallery-active-row');
-                    if (!target || target === dragSrc || !dragSrc) return;
-                    target.classList.remove('drag-over');
-                    const rect = target.getBoundingClientRect();
-                    if (e.clientY < rect.top + rect.height / 2) {
-                        activeEl.insertBefore(dragSrc, target);
-                    } else {
-                        activeEl.insertBefore(dragSrc, target.nextSibling);
-                    }
+                    if (!dragSrc) return;
+                    moveGalleryPlaceholder(e.clientY);
+                    finalizeGalleryDrag();
+                    syncFromDOM();
                 });
 
                 // ── save ─────────────────────────────────────────────────────
@@ -3793,26 +4103,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 switch (String(code || '').toLowerCase()) {
                     case 'missing_title_tag':
-                        return { severity: 'fix-before-publish', action: 'Add a track title' };
+                        return { severity: 'fix-before-publish', action: 'Add the song title so fans know what they are listening to' };
                     case 'missing_artist_tag':
                         return { severity: 'fix-before-publish', action: 'Add the artist name' };
                     case 'missing_album_tag':
-                        return { severity: 'recommended-fix', action: 'Add the release or album name' };
+                        return { severity: 'recommended-fix', action: 'Add the album or release name (helpful for fans)' };
                     case 'missing_track_number':
                         return {
                             severity: totalTracks > 1 ? 'fix-before-publish' : 'recommended-fix',
-                            action: 'Confirm the track order',
+                            action: totalTracks > 1
+                                ? 'Set the track number so the playlist stays in the right order'
+                                : 'Set the track number if this song belongs to a numbered release',
                         };
                     case 'missing_lyrics':
-                        return { severity: 'recommended-fix', action: 'Add lyrics if lyric display is expected' };
+                        return { severity: 'recommended-fix', action: 'Add lyrics if you want them to show on the site' };
                     case 'missing_cover_art':
                         return hasApprovedFallbackCover
-                            ? { severity: 'can-be-repaired-automatically', action: 'Embed the approved cover into the corrected master' }
-                            : { severity: 'fix-before-publish', action: 'Add cover art or confirm the approved fallback cover' };
+                            ? { severity: 'can-be-repaired-automatically', action: 'Cover art can be added automatically when you update the site' }
+                            : { severity: 'fix-before-publish', action: 'Add cover art so this track looks complete on the site' };
                     default:
                         return {
                             severity: 'recommended-fix',
-                            action: humanizeValidationCode(code),
+                            action: 'Open the song in Files and fill in any missing information',
                         };
                 }
             }
@@ -3836,16 +4148,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 unsupported.forEach(file => {
                     counts['cannot-build'] += 1;
                     items.push({
-                        title: 'Unsupported source file',
+                        title: 'This file cannot be used',
                         file: String(file || ''),
                         primary: {
                             severity: 'cannot-build',
-                            action: `Replace or convert unsupported source file ${String(file || '').trim()}`,
+                            action: 'Replace it with an MP3 or FLAC file, or remove it from your audio folder',
                         },
                         extras: [],
                         actions: [
                             {
-                                label: 'Open Files',
+                                label: 'Open your files',
                                 href: buildAudioFilesUrl(String(file || '')),
                             }
                         ],
@@ -3880,35 +4192,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             case 'missing_album_tag':
                                 action = {
                                     key: 'metadata',
-                                    label: 'Quick-edit metadata',
+                                    label: 'Fix song info',
                                     href: buildAudioMetadataUrl(String(track.file || '')),
                                 };
                                 break;
                             case 'missing_track_number':
                                 action = {
                                     key: 'metadata-track',
-                                    label: 'Quick-edit track number',
+                                    label: 'Set track order',
                                     href: buildAudioMetadataUrl(String(track.file || '')),
                                 };
                                 break;
                             case 'missing_lyrics':
                                 action = {
                                     key: 'metadata-full',
-                                    label: 'Open full editor',
+                                    label: 'Edit song details',
                                     href: buildAudioFullMetadataUrl(String(track.file || '')),
                                 };
                                 break;
                             case 'missing_cover_art':
                                 action = {
                                     key: 'files',
-                                    label: 'Open Files',
+                                    label: 'Open your files',
                                     href: buildAudioFilesUrl(String(track.file || '')),
                                 };
                                 break;
                             default:
                                 action = {
                                     key: 'files',
-                                    label: 'Open Files',
+                                    label: 'Open your files',
                                     href: buildAudioFilesUrl(String(track.file || '')),
                                 };
                                 break;

@@ -5,17 +5,11 @@
  * Returns: { files: [{name, size, modified}] }
  * Admin-only.
  */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/audio-master-helpers.php';
+require_once __DIR__ . '/media-reference-helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -164,7 +158,7 @@ if (is_dir($dir)) {
         $filename = $f->getFilename();
         if (strcasecmp($filename, 'desktop.ini') === 0) continue;
 
-        $allFiles[] = [
+        $entry = [
             'name'     => $filename,
             'size'     => $f->getSize(),
             'modified' => $f->getMTime(),
@@ -174,6 +168,13 @@ if (is_dir($dir)) {
             'audio_master' => $target === 'audio' ? bandpromo_audio_master_info($root, $filename) : null,
             'audio_metadata_health' => $target === 'audio' ? bandpromo_audio_metadata_health($filename, $audio_validation_map) : null,
         ];
+        if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+            $entry['reference_info'] = bandpromo_media_reference_describe_file($root, $target, $filename);
+            if ($target === 'illustrations') {
+                $entry['cover_info'] = $entry['reference_info'];
+            }
+        }
+        $allFiles[] = $entry;
     }
 
     foreach ($allFiles as $entry) {

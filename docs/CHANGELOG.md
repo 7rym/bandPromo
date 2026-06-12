@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 15:12 - Track `log/.htaccess` in git via `.gitignore` exception so log-folder HTTP deny rules ship with releases.
+
+2026-06-12 15:10 - v0.7 release checkpoint: enforced admin-role guards on `admin.php` and admin biblioteca APIs via `bandpromo_require_admin_session()`, added `log/.htaccess`, restored `docs/SECURITY-AUDIT.md`, and refreshed `docs/FEATURES.md`, `docs/MEDIA-HANDLING.md`, and `docs/ROADMAP.md` for shipped v0.7 behavior.
+
+2026-06-12 14:45 - Closed the remaining `v0.7` beta-readiness scope in `docs/TODO.md`: admin help text is complete enough for closed beta with ticket-driven follow-up, and trial-use caching/update propagation moves to the `v0.8` gate.
+
+2026-06-12 14:30 - Rewrote admin Operator inbox copy for non-technical operators. Task titles, severity badges, build steps, validation fixes, action buttons, and dashboard summary text now use plain language about what fans will see and what to do next instead of publish/build jargon.
+
+2026-06-12 14:05 - Finished Operator inbox modal polish: removed obsolete drawer CSS, aligned modal layering and width, and updated dashboard help text to point operators at the inbox modal instead of an inline task list.
+
+2026-06-12 13:45 - Moved the admin Operator inbox from an inline expanding drawer into a focused modal. The header bell and dashboard summary now open the same modal, while the Welcome dashboard keeps only a short status line plus an Open operator inbox button instead of rendering the full task list inline.
+
+2026-06-12 13:25 - Reworked the admin Welcome page into a dashboard once all setup checklist items are complete. Completed installs now show a site-named dashboard view with quick actions, an always-visible operator inbox, and a collapsible setup archive, while incomplete installs keep the original checklist and next-step flow. The tab label, help text, and status callout now switch between setup and dashboard wording automatically.
+
+2026-06-12 13:00 - Standardized Files tab panel intros so every sub-tab opens with the same bold permanent-action warning pattern. Audio keeps the metadata-edit plus delete warning, while Photos, Video, Illustrations, and Theme now lead with the shared delete warning before their panel-specific workflow guidance.
+
+2026-06-12 12:35 - Added shared orphan detection for Files -> Photos and Files -> Video. `biblioteca/media-reference-helpers.php` now computes `reference_info` from gallery entries and theme settings, `list-media.php` exposes it for illustrations/photos/video, and the admin file lists now show in-use/orphan badges, reference lines, and `All` / `In use` / `Orphans` filters on the photo and video panels.
+
+2026-06-12 12:05 - Finished cover art management Phases 2 and 3 plus the Gallery reorder UX follow-up. Files -> Illustrations now shows cover role/origin/reference badges, filter chips for track covers/orphans/build-generated files, and richer delete hints for theme references and regenerable build artifacts. Stale `configured_release_cover.*` variants are now cleaned up after playlist regeneration, and the Gallery editor reuses the Playlist-style dashed placeholder row while dragging active items.
+
+2026-06-12 11:30 - Started cover art management Phase 1. Added `biblioteca/cover-art-helpers.php` and extended `data/media-library-state.json` with advisory `assets` metadata so Files -> Illustrations can expose per-file `cover_info` (role, origin, references, orphan/regenerable flags) from `biblioteca/list-media.php`. Build, upload, and audio-master cover saves now record cover origins, `scripts/makePlaylists.py` tags build-extracted and configured release covers, and illustration delete previews now include theme/config references through the shared cover reference index. `docs/TODO.md` also adds a Gallery editor follow-up to match the Playlist drag-placeholder reorder UX.
+
 2026-06-12 10:15 - Added selective inline quick-edit for short audio metadata in Files -> Audio. Expanding an editable track row now keeps the compact tag-bullet view; clicking a tag edits Artist, Title, Version, Release, Track, Release date, Genre, BPM, or Key inside that bullet, reusing the existing audio-master save path with no-op suppression and validation refresh. Release date quick-edit now preserves the existing `date` / `year` / `TDRC` value, including year-only tags such as `2026`, while Description, Lyrics, and Cover remain read-only status chips and broader packaging work stays behind the existing pencil-icon editor.
 
 2026-06-12 09:44 - Added the first warn-and-clean media deletion flow. `biblioteca/delete-media.php` now supports a preview step that reports playlist/gallery references for the selected file(s), and confirmed deletes now remove those references automatically before removing the file when the operator chooses to continue. `biblioteca/admin.js` now shows that warning text inside the existing delete modal and passes the confirmed delete through the new cleanup path.

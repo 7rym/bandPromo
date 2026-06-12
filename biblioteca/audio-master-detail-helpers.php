@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/media-library-state.php';
+require_once __DIR__ . '/cover-art-helpers.php';
 
 function bandpromo_audio_master_playlist_map(string $root): array
 {
@@ -202,6 +203,10 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
             'error' => 'Could not save the selected cover image',
         ];
     }
+
+    bandpromo_cover_art_record_build_asset($targetFilename, 'track-cover', 'build-sidecar-copy', [
+        'linked_audio' => $audioFilename,
+    ]);
 
     return [
         'ok' => true,

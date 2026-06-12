@@ -6,19 +6,8 @@
  * Admin-only endpoint — polled every second by the Config tab.
  */
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    // Also allow setup session (setup wizard uses $_SESSION['user'])
-    if (!isset($_SESSION['user'])) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit;
-    }
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
-header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/admin-audit.php';
 

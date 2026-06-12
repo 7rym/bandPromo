@@ -9,6 +9,7 @@ else:
 
 import os
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from mutagen import File
 
@@ -39,21 +40,91 @@ def is_bundled_placeholder(filename):
     return str(filename).startswith('bandPromo_')
 
 
-def load_hidden_media_keys():
+def load_media_library_state():
     if not MEDIA_LIBRARY_STATE_FILE.exists():
-        return set()
+        return {'hidden': {}, 'assets': {}}
 
     try:
         with open(str(MEDIA_LIBRARY_STATE_FILE), 'r', encoding='utf-8') as f:
             payload = json.load(f)
     except Exception as e:
         print(f"Warning: Could not read media-library-state.json: {e}")
-        return set()
+        return {'hidden': {}, 'assets': {}}
 
-    hidden = payload.get('hidden') if isinstance(payload, dict) else None
-    if not isinstance(hidden, dict):
-        return set()
+    if not isinstance(payload, dict):
+        return {'hidden': {}, 'assets': {}}
 
+    hidden = payload.get('hidden') if isinstance(payload.get('hidden'), dict) else {}
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    return {'hidden': hidden, 'assets': assets}
+
+
+def save_media_library_state(state):
+    try:
+        MEDIA_LIBRARY_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(str(MEDIA_LIBRARY_STATE_FILE), 'w', encoding='utf-8') as f:
+            json.dump(state, f, indent=4, ensure_ascii=False)
+            f.write('\n')
+    except Exception as e:
+        print(f"Warning: Could not write media-library-state.json: {e}")
+
+
+def cleanup_stale_configured_release_covers(keep_filename=None):
+    keep_name = os.path.basename(str(keep_filename or '').strip())
+    removed = []
+    if not IMG_ORIG_DIR.exists():
+        return removed
+
+    for entry in IMG_ORIG_DIR.iterdir():
+        if not entry.is_file():
+            continue
+        if entry.name.lower() == 'desktop.ini':
+            continue
+        if Path(entry.name).stem != CONFIG_COVER_BASENAME:
+            continue
+        if keep_name and entry.name == keep_name:
+            continue
+        removed.append(entry.name)
+        try:
+            entry.unlink()
+        except Exception as e:
+            print(f"Warning: Could not remove stale configured release cover {entry.name}: {e}")
+
+    if removed:
+        print(f"ℹ️  Removed stale configured release cover variant(s): {', '.join(removed)}")
+
+    return removed
+
+
+def record_cover_asset(filename, role, origin, linked_audio=None, linked_config=None):
+    safe_name = os.path.basename(str(filename or '').strip())
+    if not safe_name:
+        return
+
+    state = load_media_library_state()
+    assets = state.setdefault('assets', {})
+    key = f'illustrations/{safe_name}'
+    record = assets.get(key) if isinstance(assets.get(key), dict) else {}
+    existing_origin = str(record.get('origin') or '').strip()
+    build_origins = {'build-extracted', 'build-configured', 'build-sidecar-copy'}
+    if existing_origin in build_origins and origin == 'user-upload':
+        origin = existing_origin
+    record.update({
+        'role': role,
+        'origin': origin,
+        'recorded_at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+    })
+    if linked_audio:
+        record['linked_audio'] = linked_audio
+    if linked_config:
+        record['linked_config'] = linked_config
+    assets[key] = record
+    save_media_library_state(state)
+
+
+def load_hidden_media_keys():
+    state = load_media_library_state()
+    hidden = state.get('hidden') if isinstance(state.get('hidden'), dict) else {}
     return {str(key) for key, value in hidden.items() if value}
 
 
@@ -195,6 +266,12 @@ def get_configured_cover_filename():
         target_needs_write = (not target_path.exists()) or (target_path.read_bytes() != source_bytes)
         if target_needs_write:
             target_path.write_bytes(source_bytes)
+        record_cover_asset(
+            target_name,
+            'release-fallback',
+            'build-configured',
+            linked_config='media.cover',
+        )
     except Exception as e:
         print(f"Warning: Could not prepare configured cover fallback: {e}")
         return None
@@ -783,6 +860,23 @@ def generate_playlist():
             'warnings': metadata_warnings,
         })
 
+        cover_source = info.get('cover_source', 'missing')
+        if cover_file:
+            if cover_source == 'configured':
+                record_cover_asset(
+                    cover_file,
+                    'release-fallback',
+                    'build-configured',
+                    linked_config='media.cover',
+                )
+            elif cover_source == 'embedded':
+                record_cover_asset(
+                    cover_file,
+                    'track-cover',
+                    'build-extracted',
+                    linked_audio=filename,
+                )
+
         disp_track = str(info['track']) if info['track'] != 999 else "-"
         warning_suffix = f" [metadata warnings: {', '.join(metadata_warnings)}]" if metadata_warnings else ''
         print(f"Track {disp_track}: {info['title']}{warning_suffix}")
@@ -818,6 +912,10 @@ def generate_playlist():
         'tracks': validation_entries,
     }
     write_validation_report(validation_report)
+
+    active_configured_cover = get_configured_cover_filename()
+    if active_configured_cover:
+        cleanup_stale_configured_release_covers(active_configured_cover)
 
     if metadata_warning_count:
         print(f"⚠️  Metadata warnings found for {metadata_warning_count} track(s).")

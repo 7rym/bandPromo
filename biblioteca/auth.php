@@ -191,3 +191,41 @@ function changePassword($username, $newPassword) {
     return setUser($username, $newPassword);
 }
 
+function bandpromo_ensure_session_started(): void {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+}
+
+function bandpromo_is_authenticated_session(): bool {
+    return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
+}
+
+function bandpromo_send_auth_failure(int $status, bool $json, string $message): void {
+    http_response_code($status);
+    if ($json) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['error' => $message], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } else {
+        echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+    }
+    exit;
+}
+
+function bandpromo_require_authenticated_session(bool $json = true): void {
+    bandpromo_ensure_session_started();
+    if (!bandpromo_is_authenticated_session()) {
+        bandpromo_send_auth_failure(401, $json, 'Unauthorized');
+    }
+}
+
+function bandpromo_require_admin_session(bool $json = true): void {
+    bandpromo_require_authenticated_session($json);
+    $username = trim((string) ($_SESSION['username'] ?? ''));
+    if ($username === '' || !isAdminUser($username)) {
+        bandpromo_send_auth_failure(403, $json, 'Admin privileges required');
+    }
+}
+

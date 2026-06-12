@@ -920,21 +920,21 @@ Guidance:
 
 ## Current v0.7 support stance
 
-Current supported source audio formats for playlist generation:
+Current supported source audio formats for playlist generation and master intake:
 
 - `FLAC`
 - `MP3`
+- `WAV` (converted or packaged into corrected masters where supported)
 
 Known but currently unsupported source audio formats are surfaced as skipped during build validation, including:
 
-- `WAV`
 - `AIFF`
 - `M4A`
 - `AAC`
 - `OGG`
 - `WMA`
 
-This is an operator-safety improvement, not full support.
+Unsupported files should be replaced with FLAC/MP3/WAV or removed from the audio folder.
 
 ## Current pipeline model
 
@@ -1086,6 +1086,28 @@ Embedded artwork is currently read from:
 
 When the configured release cover is used as fallback, the build copies it into `media/img/original/` as a normal generated cover asset so the rest of the pipeline can treat it like any other track cover.
 
+### Cover art roles and reference index
+
+Files in `media/img/original/` can serve different product roles:
+
+- `track-cover`: basename sidecar used by one or more playlist tracks
+- `release-fallback`: `configured_release_cover.*` copied from the theme/release cover
+- `illustration`: general artwork used by gallery items or media pickers
+
+Origins are tracked separately from roles:
+
+- `user-upload`
+- `build-extracted`
+- `build-configured`
+- `build-sidecar-copy`
+- `bundled-placeholder`
+
+The runtime manifest in `data/media-library-state.json` records advisory `assets` metadata, but live references are always recomputed from `play/playlist.json`, `data/gallery.json`, and `web-config.json`. `biblioteca/list-media.php` now returns this as `cover_info` for Files -> Illustrations, including role, origin, references, and an `orphan` flag for unreferenced non-demo files.
+
+Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, reference lines, filter chips (`All`, `Covers`, `Orphans`, `Built`), and delete-preview hints for theme references and regenerable build artifacts. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
+
+Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery/theme references, an `orphan` flag, and admin filters for `All`, `In use`, and `Orphans`.
+
 ## Current FLAC optimization path
 
 The FLAC-to-MP3 optimization path is implemented in [scripts/optimizeMedia.py](scripts/optimizeMedia.py).
@@ -1150,19 +1172,19 @@ The first operator-facing layer should be fix-oriented and use short status labe
 - can this release be published yet
 - what should the operator do next
 
-The preferred labels are:
+The shipped operator-facing labels in the admin inbox and build summary are:
 
-- `Cannot build`: the source file or referenced asset is unusable and bandPromo cannot produce the required output
-- `Fix before publish`: the release can remain in draft/admin use, but the missing information should be corrected before the operator presents it as finished
-- `Recommended fix`: the release can still be published, but the package is weaker or less complete than intended
-- `Can be repaired automatically`: bandPromo can safely normalize or embed the missing information once the required source input is available
+- `Blocked`: the source file or referenced asset is unusable and bandPromo cannot produce the required output
+- `Fix first`: the site can stay in admin use, but the issue should be corrected before presenting the release as finished
+- `Nice to have`: the site can still be updated, but the package is weaker or less complete than intended
+- `Can be fixed automatically`: bandPromo can safely normalize or embed the missing information once the required source input is available
 
-These labels are the operator-facing translation layer for the underlying severity model:
+These map to the internal severity keys:
 
-- `Cannot build` -> hard blocker
-- `Fix before publish` -> publish blocker
-- `Recommended fix` -> warning
-- `Can be repaired automatically` -> autofixable issue
+- `cannot-build` -> `Blocked`
+- `fix-before-publish` -> `Fix first`
+- `recommended-fix` -> `Nice to have`
+- `can-be-repaired-automatically` -> `Can be fixed automatically`
 
 The admin summary should lead with the fix-oriented label and plain-language action, with raw tag terminology treated as secondary detail.
 
@@ -1170,7 +1192,7 @@ Examples:
 
 - `Fix before publish: add a track title for Track01.flac`
 - `Recommended fix: add lyrics for Midnight City if lyric display is expected`
-- `Cannot build: replace or convert unsupported source file demo.wav`
+- `Blocked: replace unsupported source file demo.aiff with FLAC or MP3`
 - `Can be repaired automatically: embed the approved cover into the corrected master`
 
 ### Current warning-code mapping guidance
@@ -1190,7 +1212,7 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 ## Current limitations
 
-- The admin UI now keeps unresolved publish/build follow-up and validation issues visible in a persistent operator inbox, with the same live system state also rendered as a larger Welcome-panel task list.
+- The admin UI keeps unresolved publish/build follow-up and validation issues visible in a persistent **What needs your attention** inbox modal (header bell and dashboard summary). The completed-install dashboard shows a short status line rather than the full task list inline.
 - Metadata repair now covers the first audio-master editor pass, including common text fields, lyrics, cover selection, release date, and operator-facing title/version handling, plus tag-bullet quick-edit for short fields from Files -> Audio: artist, title, version, release/album name, track, release date, genre, BPM, and key. Larger fields such as description and lyrics stay in the full editor. Broader packaging workflows are still incomplete.
 - Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
 - Real audio metadata changes still flow through the older coarse build-required state, so the operator messaging is better for no-op saves than for task-specific follow-up after actual edits.

@@ -3,14 +3,7 @@
  * List optimized images that are safe to embed in static page content.
  * Admin-only.
  */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 header('Content-Type: application/json; charset=utf-8');
 

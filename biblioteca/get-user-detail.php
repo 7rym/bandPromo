@@ -7,13 +7,7 @@
 require_once __DIR__ . '/https.php';
 bandpromo_enforce_https();
 
-session_start();
-
-// Auth check
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(403);
-    exit('Unauthorized');
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/analytics.php';
 require_once __DIR__ . '/admin-helpers.php';

@@ -9,17 +9,24 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Automatic creation of required folders and initial configuration
 - Friendly license/operator-responsibility acknowledgment during setup
 - First admin account creation with seeded demo content for first-run verification
-- Admin-first post-setup flow with a clear next-step checklist
+- Setup checklist while installation is incomplete; switches to a **Dashboard** once all checks pass
 
 ### Admin Dashboard
 - User-friendly admin panel for managing users, files, and site content
+- **What needs your attention** inbox modal with plain-language tasks (header bell + dashboard summary)
+- Quick actions on the completed-install dashboard (Analytics, Files, Content, Update site, live preview)
 - Built-in analytics for playback and user behavior
+- Guided Config forms (Basics, Theme, Support, Sharing) instead of raw JSON editing
 - Pages editor for public text pages such as Bio and FAQ, with rich text tools and safe server-side sanitization
-- Playlist and gallery management
-- Audio-master editing in Files -> Audio for common track metadata, lyrics, release date, title/version handling, and track-cover selection
+- Playlist and gallery management, including drag-placeholder reorder UX in both editors
+- Files panels for Audio, Photos, Video, Illustrations, and install-specific **Theme** assets (distinct from Config -> Theme presentation settings)
+- Audio quick-edit for common tag fields plus full editor for lyrics, description, and cover work
+- Cover-art badges/filters, orphan detection (illustrations/photos/video), and reference-aware delete warnings
 - Operator-facing validation actions and file-level metadata health badges for faster repair workflows
+- Build actions named for operators: **Update the live site** and **Refresh photos & artwork**
 - Separate admin audit trail for management actions
 - Built-in documentation browser with operator/developer doc separation
+- Listener accounts can use the player but cannot open admin surfaces
 
 ### Media Player
 - High-quality audio playback with seek/next/previous navigation
@@ -35,13 +42,13 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Social sharing metadata and web manifest generation
 
 ### Security & Privacy
-- Session-based authentication with role separation
-- HTTPS enforcement and CSRF protection
-- All passwords stored as secure hashes
+- Session-based authentication with admin vs listener role separation on admin surfaces
+- HTTPS enforcement and CSRF protection on selected mutation endpoints
+- Password hashing migration to modern algorithms is planned; see `docs/SECURITY-AUDIT.md`
 
 ### Performance
 - Fast page loads and player initialization
-- Optimized for both FLAC and MP3 source files
+- Optimized for FLAC, MP3, and WAV source files
 
 ---
 

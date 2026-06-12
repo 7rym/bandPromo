@@ -12,15 +12,8 @@ if (basename($_SERVER['PHP_SELF']) === basename(__FILE__)) {
     die('Access Denied');
 }
 
-// Verify session is active and user is authenticated
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(403);
-    die('Unauthorized');
-}
+require_once __DIR__ . '/auth.php';
+bandpromo_require_admin_session(false);
 
 /**
  * Render filter bar with date inputs and preset buttons

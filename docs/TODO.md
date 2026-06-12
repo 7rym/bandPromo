@@ -17,6 +17,8 @@ Rules for this file:
 
 Current target: finish `v0.7` cleanly before opening `v0.8 beta`.
 
+Status: all `v0.7` exit-gate sections are complete. Remaining beta-readiness polish is ticket-driven (help text) or explicitly deferred to `v0.8` (caching/update propagation). Next step is a publishable checkpoint, then open `v0.8 beta` planning.
+
 Reference: see `ROADMAP.md` for the full milestone and release structure.
 
 ## v0.7 exit gates
@@ -96,6 +98,7 @@ Scope: operator-facing editing and control surfaces. Put items here when the que
 - [x] Implement playlist editing
 - [x] Implement gallery editing
 - [x] Replace Playlist placeholder with real drag-and-drop track ordering UI.
+- [x] Add playlist-style drag placeholder rows to the Gallery editor so reordering active gallery items shows empty drop targets between rows, matching the Playlist editor reorder UX.
 - [x] Persist manual playlist order in `play/playlist.json` from admin edits.
 - [x] Update build generation so existing manual playlist order is preserved and new tracks are appended at the end.
 - [x] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
@@ -151,8 +154,11 @@ Implementation follow-up after policy:
 - [x] Split the current optimizer into source-aware tasks; MP3 sources are now copied to delivery without unnecessary re-encoding, while FLAC/WAV sources still take the transcode path.
 - [x] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
 - [x] Video transcoding: add a separate build task that converts queued `.mov` / `.webm` sources into `.mp4` delivery assets with visible operator progress, instead of doing that heavy work during upload
-- [ ] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
-- [ ] Orphan detection: identify files in media/img/, media/photo/, media/video/ that are not referenced by any active gallery entry or playlist track, and expose in admin
+- [x] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
+  - [x] Phase 1: cover reference index + `list-media.php` enrichment (roles, origins, references, orphan flag)
+  - [x] Phase 2: Illustrations panel badges, filters, and delete hints
+  - [x] Phase 3: orphan prevention on cover replace and theme-cover refresh
+- [x] Orphan detection: identify files in media/img/, media/photo/, media/video/ that are not referenced by any active gallery entry or playlist track, and expose in admin
 - [x] Media deletion: warn when a file is still referenced by playlist or gallery data, let the operator choose whether to continue, and if they do, remove those references automatically and refresh the affected playlist/gallery state after delete
 - [x] Video poster attribute: once thumbnail generation exists, write `poster` field into gallery.json entries and use it in gallery.js
 
@@ -160,14 +166,19 @@ Implementation follow-up after policy:
 
 Scope: first real tester/operator experience. Put items here when they concern help text, trial-use guidance, supportability, and whether non-technical testers can operate the system without expert intervention.
 
-- [ ] Review admin help text and identify remaining confusing areas for non-technical operators.
-- [ ] Confirm trial-use caching/update behavior is reliable: aggressive caching where safe, low needless re-downloads, and no stale generated artifacts after updates.
+- [x] Review admin help text and identify remaining confusing areas for non-technical operators.
+  - [x] Files tab: standardized permanent-action warning line across sub-tabs
+  - [x] Welcome tab: setup checklist vs completed-install dashboard help text and layout
+  - [x] Operator inbox: open focused modal instead of inline expanding drawer
+  - [x] Operator inbox: plain-language copy for non-technical operators
+  - Remaining tabs (Analytics, Content, Build, Config): revisit from beta tickets/bug reports rather than pre-emptive rewrites
 - [x] Write operator-facing installation guidance for the future bootstrap installer, with no assumption of Plesk, SSH, Git, Cloudflare, or shell/root access.
 - [x] Write operator-facing update guidance for the future admin/package updater so hosted users can stay current without developer/server-admin tools.
 - [x] Prepare a short tester checklist for the first closed beta.
 
 Deferred to v0.8:
 
+- trial-use caching and update propagation: aggressive safe caching, low needless re-downloads, no stale generated artifacts after updates (see Post-v0.7 planning → PWA offline audio caching)
 - backup/restore operator flow definition
 - moved-site recovery and host-specific config repair flow
 - add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity

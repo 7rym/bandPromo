@@ -148,37 +148,16 @@ h1 {
     color: #ffb1aa;
 }
 
-.operator-notifications-drawer {
-    position: relative;
-    margin-bottom: 16px;
-    padding: 16px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    background: linear-gradient(180deg, rgba(28, 28, 28, 0.98), rgba(20, 20, 20, 0.98));
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+.operator-notifications-modal {
+    z-index: 1050;
 }
 
-.operator-notifications-drawer-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
+.operator-notifications-modal .modal-box {
+    max-width: 760px;
 }
 
-.operator-notifications-drawer-head h2 {
-    margin-bottom: 6px;
-    font-size: 18px;
-}
-
-.operator-notifications-close {
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text);
-    border-radius: 999px;
-    width: 34px;
-    height: 34px;
-    cursor: pointer;
+.operator-notifications-modal .operator-notifications-body {
+    margin-top: 12px;
 }
 
 .operator-notifications-body {
@@ -307,6 +286,10 @@ h1 {
     border-radius: 8px;
     color: var(--muted);
     font-size: 13px;
+}
+
+.operator-notifications-open-btn {
+    margin-top: 4px;
 }
 
 .operator-notifications-welcome {
@@ -2330,6 +2313,40 @@ canvas { max-width: 100%; height: auto; }
     background: var(--accent-h);
 }
 
+.cover-filter-toggle.active:hover,
+.media-ref-filter-toggle.active:hover {
+    border-color: var(--accent-h);
+    background: var(--accent-h);
+}
+
+.cover-filter-toggle,
+.media-ref-filter-toggle {
+    min-width: 72px;
+    color: var(--muted);
+    border-color: var(--border2);
+    background: var(--surface);
+}
+
+.cover-filter-toggle:hover,
+.media-ref-filter-toggle:hover {
+    color: var(--text);
+    border-color: #8a919b;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.cover-filter-toggle.active,
+.media-ref-filter-toggle.active {
+    color: #fff;
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.media-cover-reference-line {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
 .media-display-toggle {
     min-width: 98px;
     font-weight: 600;
@@ -2459,6 +2476,73 @@ canvas { max-width: 100%; height: auto; }
     font-size: 13px;
     line-height: 1.6;
     padding: 12px 14px;
+}
+
+.welcome-callout-dashboard {
+    background: rgba(76, 175, 80, 0.14);
+    border-color: rgba(76, 175, 80, 0.32);
+    border-left-color: rgba(76, 175, 80, 0.95);
+    color: #d8f5d3;
+}
+
+.welcome-dashboard-links {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.welcome-dashboard-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.welcome-dashboard-link span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.welcome-dashboard-link:hover,
+.welcome-dashboard-link:focus-visible {
+    border-color: var(--accent);
+    background: rgba(98, 179, 255, 0.08);
+    text-decoration: none;
+}
+
+.welcome-setup-archive {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.welcome-setup-archive > summary {
+    cursor: pointer;
+    color: var(--text-soft);
+    font-weight: 600;
+    list-style-position: outside;
+}
+
+.welcome-setup-archive .welcome-checklist {
+    margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+    .welcome-dashboard-links {
+        grid-template-columns: 1fr;
+    }
 }
 
 .welcome-grid {
@@ -2680,14 +2764,9 @@ canvas { max-width: 100%; height: auto; }
 
 @media (max-width: 700px) {
     .operator-notifications-section-head,
-    .operator-notifications-item-head,
-    .operator-notifications-drawer-head {
+    .operator-notifications-item-head {
         flex-direction: column;
         align-items: flex-start;
-    }
-
-    .operator-notifications-close {
-        align-self: flex-end;
     }
 }
     .config-form-grid { grid-template-columns: 1fr; }
@@ -2793,7 +2872,8 @@ canvas { max-width: 100%; height: auto; }
     pointer-events: none;
 }
 
-.playlist-editor-placeholder {
+.playlist-editor-placeholder,
+.gallery-editor-placeholder {
     display: block;
     list-style: none;
     border: 1px dashed rgba(98, 179, 255, 0.65);

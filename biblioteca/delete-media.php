@@ -7,14 +7,8 @@
  */
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/media-library-state.php';
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/media-reference-helpers.php';
+require_once __DIR__ . '/admin-api-guard.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -152,46 +146,27 @@ function bandpromo_gallery_item_matches_target(string $target, string $filename,
 }
 
 function bandpromo_collect_media_references(string $root, string $target, string $filename): array {
+    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+        return bandpromo_media_reference_collect_references($root, $target, $filename);
+    }
+
     $references = [];
 
-    if ($target === 'audio' || $target === 'illustrations') {
+    if ($target === 'audio') {
         $playlist = bandpromo_json_read_array_file($root . '/play/playlist.json');
         if (is_array($playlist)) {
-            foreach ($playlist as $index => $track) {
+            foreach ($playlist as $track) {
                 if (!is_array($track)) {
                     continue;
                 }
                 $label = trim((string) ($track['title'] ?? $track['file'] ?? ''));
-                if ($target === 'audio' && trim((string) ($track['file'] ?? '')) === $filename) {
+                if (trim((string) ($track['file'] ?? '')) === $filename) {
                     $references[] = [
                         'scope' => 'playlist',
                         'kind' => 'playlist-track',
                         'label' => $label !== '' ? $label : $filename,
                     ];
                 }
-                if ($target === 'illustrations' && basename(trim((string) ($track['cover'] ?? ''))) === $filename) {
-                    $references[] = [
-                        'scope' => 'playlist',
-                        'kind' => 'playlist-cover',
-                        'label' => $label !== '' ? $label : $filename,
-                    ];
-                }
-            }
-        }
-    }
-
-    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
-        $gallery = bandpromo_json_read_array_file($root . '/data/gallery.json');
-        if (is_array($gallery)) {
-            foreach ($gallery as $item) {
-                if (!is_array($item) || !bandpromo_gallery_item_matches_target($target, $filename, $item)) {
-                    continue;
-                }
-                $references[] = [
-                    'scope' => 'gallery',
-                    'kind' => 'gallery-item',
-                    'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
-                ];
             }
         }
     }
@@ -204,6 +179,8 @@ function bandpromo_summarize_reference_counts(array $references): array {
         'playlist_tracks' => 0,
         'playlist_covers' => 0,
         'gallery_items' => 0,
+        'theme_assets' => 0,
+        'release_fallbacks' => 0,
         'total' => 0,
     ];
 
@@ -215,6 +192,10 @@ function bandpromo_summarize_reference_counts(array $references): array {
             $summary['playlist_covers']++;
         } elseif ($kind === 'gallery-item') {
             $summary['gallery_items']++;
+        } elseif (in_array($kind, ['theme-cover', 'theme-background', 'theme-background-video', 'share-image'], true)) {
+            $summary['theme_assets']++;
+        } elseif ($kind === 'release-fallback') {
+            $summary['release_fallbacks']++;
         }
         $summary['total']++;
     }
@@ -458,12 +439,19 @@ if ($mode === 'preview') {
 
     echo json_encode([
         'ok' => true,
-        'files' => array_map(static function ($result) {
-            return [
+        'files' => array_map(static function ($result) use ($root, $target) {
+            $payload = [
                 'filename' => (string) ($result['filename'] ?? ''),
                 'reference_summary' => is_array($result['reference_summary'] ?? null) ? $result['reference_summary'] : bandpromo_summarize_reference_counts([]),
                 'references' => is_array($result['references'] ?? null) ? $result['references'] : [],
             ];
+            if (in_array($target, ['illustrations', 'photos', 'video'], true) && $payload['filename'] !== '') {
+                $payload['reference_info'] = bandpromo_media_reference_describe_file($root, $target, $payload['filename']);
+                if ($target === 'illustrations') {
+                    $payload['cover_info'] = $payload['reference_info'];
+                }
+            }
+            return $payload;
         }, $results),
         'reference_summary' => bandpromo_summarize_reference_counts($references),
         'references' => $references,

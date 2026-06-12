@@ -25,6 +25,15 @@ function bandpromo_admin_default_theme_display_version(?string $rawVersion): str
     return $version;
 }
 
+function bandpromo_admin_files_permanent_warning_line(bool $include_metadata_edits = false): string
+{
+    if ($include_metadata_edits) {
+        return '<strong>⚠️ Metadata edits and file deletions are immediate and permanent. There is no undo!</strong>';
+    }
+
+    return '<strong>⚠️ File deletions are immediate and permanent. There is no undo!</strong>';
+}
+
 function bandpromo_admin_welcome_build_status(array $buildState): string {
     if (empty($buildState['required'])) {
         return 'No pending build work is currently recorded.';
@@ -347,9 +356,50 @@ if ($welcomeNextSteps === []) {
     ];
 }
 
-$welcomePrimaryNotice = $welcomeCompletedChecks >= count($welcomeChecklist)
-    ? '6 of 6 checks complete. Great job!'
-    : $welcomeCompletedChecks . ' of ' . count($welcomeChecklist) . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
+$welcomeTotalChecks = count($welcomeChecklist);
+$welcomeSetupComplete = $welcomeCompletedChecks >= $welcomeTotalChecks;
+$welcomeDashboardLinks = [
+    [
+        'label' => 'Analytics',
+        'href' => '?tab=analytics',
+        'description' => 'Review listener activity, playback trends, and recent usage.',
+    ],
+    [
+        'label' => 'Files',
+        'href' => '?tab=files&fpanel=audio',
+        'description' => 'Manage uploads, metadata, cover art, and media references.',
+    ],
+    [
+        'label' => 'Content',
+        'href' => '?tab=content',
+        'description' => 'Edit pages, playlist order, and gallery items.',
+    ],
+    [
+        'label' => 'Build',
+        'href' => '?tab=build',
+        'description' => 'Check publish status and run build tasks when needed.',
+    ],
+    [
+        'label' => 'Open public site',
+        'href' => $siteUrl !== '' ? $siteUrl : '../',
+        'description' => 'Preview the live site as visitors see it.',
+        'external' => true,
+    ],
+    [
+        'label' => 'Documentation',
+        'href' => '?tab=docs&doc_scope=operator',
+        'description' => 'Open the operator guides when you need deeper workflow help.',
+    ],
+];
+
+if ($welcomeSetupComplete) {
+    $welcomePrimaryNotice = 'Setup is complete. Use this dashboard to see what still needs doing, manage content, and keep the live site up to date.';
+    if (!empty($buildRequiredState['required'])) {
+        $welcomePrimaryNotice .= ' ' . bandpromo_admin_welcome_build_status($buildRequiredState);
+    }
+} else {
+    $welcomePrimaryNotice = $welcomeCompletedChecks . ' of ' . $welcomeTotalChecks . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
+}
 
 // Ensure public media directories have world-readable permissions (0755) so the
 // HTTP server can serve static files.  This is a cheap no-op after the first run.
@@ -447,6 +497,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$authenticated) {
                 ],
             ]);
         }
+    }
+}
+
+// Authenticated listeners may use the player, but only admin-capable users may open the panel.
+if ($authenticated) {
+    $sessionUsername = trim((string) ($_SESSION['username'] ?? ''));
+    if ($sessionUsername === '' || !isAdminUser($sessionUsername)) {
+        ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Admin Panel - Access Denied</title>
+        <link rel="stylesheet" href="/biblioteca/admin.css">
+    </head>
+    <body class="login-page">
+        <div class="login-container">
+            <h1>Access denied</h1>
+            <p class="app-version"><?php echo htmlspecialchars($appVersion ?? 'dev'); ?></p>
+            <p class="subtitle">This account can listen on the site but cannot open the admin panel.</p>
+            <p><a href="/play/">Return to the player</a></p>
+        </div>
+    </body>
+    </html>
+        <?php
+        exit;
     }
 }
 
@@ -722,24 +799,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 &nbsp;·&nbsp;<a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
                 &nbsp;·&nbsp;<a href="/admin.php?logout=1">Logout</a>
             </div>
-            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsDrawer">
+            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsModal">
                 <span class="operator-notifications-icon">🔔</span>
-                <span class="operator-notifications-label">Operator inbox</span>
+                <span class="operator-notifications-label">Needs attention</span>
                 <span id="operatorNotificationsCount" class="operator-notifications-count is-empty">0</span>
             </button>
-        </div>
-
-        <div id="operatorNotificationsDrawer" class="operator-notifications-drawer" hidden>
-            <div class="operator-notifications-drawer-head">
-                <div>
-                    <h2>Operator inbox</h2>
-                    <p class="card-note">Quick background actions stay quiet. Only slower publish steps and operator-owned fixes stay visible here until they are resolved.</p>
-                </div>
-                <button type="button" id="operatorNotificationsClose" class="operator-notifications-close" aria-label="Close operator inbox">✕</button>
-            </div>
-            <div id="operatorNotificationsDrawerBody" class="operator-notifications-body">
-                <p class="operator-notifications-empty">Loading operator notifications…</p>
-            </div>
         </div>
 
         <?php if ($message): ?>
@@ -751,7 +815,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
         <!-- Primary Tab Navigation -->
         <div class="tabs primary-tabs">
-            <?php renderTabLink('welcome',   $tab, '🌍', 'Welcome'); ?>
+            <?php renderTabLink('welcome',   $tab, $welcomeSetupComplete ? '📊' : '🌍', $welcomeSetupComplete ? 'Dashboard' : 'Welcome'); ?>
             <?php renderTabLink('analytics', $tab, '📊', 'Analytics'); ?>
             <?php renderTabLink('audit',     $tab, '🛡️', 'Audit'); ?>
             <?php renderTabLink('users',     $tab, '👥', 'Users'); ?>
@@ -771,30 +835,50 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 </div>
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
-                Use this page as your checklist. bandPromo should decide as much of the install state as it can on its own, then point you straight to the next incomplete step: <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for Bio / FAQ and playlist shaping, <strong>Build</strong> for publish/build state, and <strong>Documentation</strong> for the deeper explanations.
+                <?php if ($welcomeSetupComplete): ?>
+                    This page is your dashboard now that setup is complete. Use <strong>Needs attention</strong> in the header or the summary card below to see what still needs doing, then jump to <strong>Files</strong>, <strong>Content</strong>, or <strong>Update site</strong> to fix it. The completed setup checklist stays available below if you want to review what was finished during installation.
+                <?php else: ?>
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step: <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for Bio / FAQ and playlist shaping, <strong>Build</strong> for publish state, and <strong>Documentation</strong> for deeper explanations.
+                <?php endif; ?>
             </div>
 
-            <div class="card welcome-card">
-                <h2>🌍 Welcome to bandPromo</h2>
+            <div class="card welcome-card<?php echo $welcomeSetupComplete ? ' welcome-card-dashboard' : ''; ?>">
+                <?php if ($welcomeSetupComplete): ?>
+                    <h2>📊 <?php echo htmlspecialchars($siteName); ?> dashboard</h2>
+                <?php else: ?>
+                    <h2>🌍 Welcome to bandPromo</h2>
+                <?php endif; ?>
 
-                <div class="welcome-callout">
+                <div class="welcome-callout<?php echo $welcomeSetupComplete ? ' welcome-callout-dashboard' : ''; ?>">
                     <?php echo htmlspecialchars($welcomePrimaryNotice); ?>
                 </div>
 
-                <div id="operatorNotificationsWelcomeCard" class="welcome-section operator-notifications-welcome" style="display:none">
+                <div id="operatorNotificationsWelcomeCard" class="welcome-section operator-notifications-welcome"<?php echo $welcomeSetupComplete ? '' : ' style="display:none"'; ?>>
                     <div class="operator-notifications-section-head">
-                        <h3>Operator inbox</h3>
-                        <span id="operatorNotificationsWelcomeSummary" class="badge audit-status-badge status-neutral">No open operator tasks</span>
+                        <h3>What needs your attention</h3>
+                        <span id="operatorNotificationsWelcomeSummary" class="badge audit-status-badge status-neutral">All clear</span>
                     </div>
-                    <p class="card-note">Simple background actions should not interrupt operators. This list keeps only the heavier publish steps and real fixes visible until the underlying issue is gone.</p>
-                    <div id="operatorNotificationsWelcomeBody" class="operator-notifications-body">
-                        <p class="operator-notifications-empty">Loading operator notifications…</p>
-                    </div>
+                    <p id="operatorNotificationsWelcomeStatus" class="card-note">Loading…</p>
+                    <button type="button" id="operatorNotificationsWelcomeOpen" class="btn operator-notifications-open-btn">See what to do next</button>
                 </div>
 
-                <div class="welcome-grid">
+                <?php if ($welcomeSetupComplete): ?>
                     <div class="welcome-section">
-                        <h3>Checklist</h3>
+                        <h3>Quick actions</h3>
+                        <ul class="welcome-dashboard-links">
+                            <?php foreach ($welcomeDashboardLinks as $link): ?>
+                                <li>
+                                    <a class="welcome-dashboard-link" href="<?php echo htmlspecialchars($link['href']); ?>"<?php echo !empty($link['external']) ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                        <strong><?php echo htmlspecialchars($link['label']); ?></strong>
+                                        <span><?php echo htmlspecialchars($link['description']); ?></span>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+
+                    <details class="welcome-setup-archive">
+                        <summary>Setup checklist (<?php echo (int) $welcomeCompletedChecks; ?> of <?php echo (int) $welcomeTotalChecks; ?> complete)</summary>
                         <ul class="welcome-checklist">
                             <?php foreach ($welcomeChecklist as $check): ?>
                                 <li>
@@ -807,20 +891,38 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </li>
                             <?php endforeach; ?>
                         </ul>
-                    </div>
+                    </details>
+                <?php else: ?>
+                    <div class="welcome-grid">
+                        <div class="welcome-section">
+                            <h3>Checklist</h3>
+                            <ul class="welcome-checklist">
+                                <?php foreach ($welcomeChecklist as $check): ?>
+                                    <li>
+                                        <?php $checkSeverityClass = !empty($check['complete']) ? 'is-complete' : ('is-' . htmlspecialchars((string) ($check['severity'] ?? 'nonblocking'))); ?>
+                                        <span class="welcome-check-icon <?php echo $checkSeverityClass; ?>"><?php echo !empty($check['complete']) ? '✔' : '○'; ?></span>
+                                        <div class="welcome-check-body">
+                                            <a class="welcome-link <?php echo $checkSeverityClass; ?>" href="<?php echo htmlspecialchars($check['href']); ?>"><strong><?php echo htmlspecialchars($check['label']); ?></strong></a>
+                                            <span><?php echo htmlspecialchars($check['detail']); ?></span>
+                                        </div>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
 
-                    <div class="welcome-section">
-                        <h3>What to do next</h3>
-                        <ol class="welcome-list welcome-list-numbered">
-                            <?php foreach ($welcomeNextSteps as $step): ?>
-                                <li>
-                                    <a class="welcome-link is-<?php echo htmlspecialchars((string) ($step['severity'] ?? 'nonblocking')); ?>" href="<?php echo htmlspecialchars($step['href']); ?>"><strong><?php echo htmlspecialchars($step['label']); ?></strong></a>
-                                    <span><?php echo htmlspecialchars($step['description']); ?></span>
-                                </li>
-                            <?php endforeach; ?>
-                        </ol>
+                        <div class="welcome-section">
+                            <h3>What to do next</h3>
+                            <ol class="welcome-list welcome-list-numbered">
+                                <?php foreach ($welcomeNextSteps as $step): ?>
+                                    <li>
+                                        <a class="welcome-link is-<?php echo htmlspecialchars((string) ($step['severity'] ?? 'nonblocking')); ?>" href="<?php echo htmlspecialchars($step['href']); ?>"><strong><?php echo htmlspecialchars($step['label']); ?></strong></a>
+                                        <span><?php echo htmlspecialchars($step['description']); ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ol>
+                        </div>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -1245,13 +1347,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <br>Click a tag bullet to edit short fields such as artist, title, version, release, track, release date, genre, BPM, or key. Use the pencil button for cover art, description, lyrics, and packaging details.
                     <br>
                 <?php elseif ($filesPanel === 'photos'): ?>
-                    Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images.
+                    Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images. Unreferenced uploads are flagged as orphans so you can clean them up safely.
                     <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
                 <?php elseif ($filesPanel === 'video'): ?>
-                    Drop videos here (MP4, WEBM, MOV). bandPromo keeps the original here and prepares a publish-ready MP4 during the full build.
+                    Drop videos here (MP4, WEBM, MOV). bandPromo keeps the original here and prepares a publish-ready MP4 during the full build. Unreferenced uploads are flagged as orphans so you can clean them up safely.
                     <br><strong>After upload:</strong> use <strong>Run Publish Build</strong> so the publish-ready video files can be refreshed.
                 <?php elseif ($filesPanel === 'illustrations'): ?>
-                    Drop artwork and illustrations here (PNG, JPG, JPEG).
+                    Drop artwork, track covers, and illustrations here (PNG, JPG, JPEG). Rows show whether each file is a track cover, release fallback, or general artwork, plus where it is referenced.
                     <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
                 <?php elseif ($filesPanel === 'special'): ?>
                     This is for theme assets such as share images, icons, logos, and similar install-specific design files.
@@ -1264,10 +1366,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
-                            <strong>⚠️ Metadata edits and file deletions are immediate and permanent. There is no undo!</strong>
+                            <?php echo bandpromo_admin_files_permanent_warning_line(true); ?>
                             <br>Drag and drop audio files here to add them directly. Click a track row to quick-edit common tags, or use the pencil button for the full metadata editor.
                             <br>Select multiple files for group download or deletion.
-                            </span>
+                        </span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
@@ -1285,9 +1387,15 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-video" <?php echo $filesPanel !== 'video' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span class="media-panel-intro">Drag and drop video files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
+                        <span class="media-panel-intro">
+                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
+                            <br>Drag and drop video files here to add them directly. Rows show whether each file is used by the gallery or theme background video. Use the filters to review orphans.
+                        </span>
                     </div>
                     <div class="media-panel-actions">
+                        <button type="button" class="btn media-ref-filter-toggle active" data-media-ref-filter-target="video" data-media-ref-filter="all" aria-pressed="true" title="Show all video files">All</button>
+                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="video" data-media-ref-filter="referenced" aria-pressed="false" title="Show referenced video files only">In use</button>
+                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="video" data-media-ref-filter="orphans" aria-pressed="false" title="Show unreferenced video files only">Orphans</button>
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="video" data-download-variant="original" disabled aria-label="Download selected video files" title="Download selected video files">⬇</button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="video" disabled aria-label="Delete selected video files" title="Delete selected video files">🗑️</button>
@@ -1302,9 +1410,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-illustrations" <?php echo $filesPanel !== 'illustrations' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span class="media-panel-intro">Drag and drop illustration files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
+                        <span class="media-panel-intro">
+                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
+                            <br>Drag and drop artwork here to add track covers and illustrations. Use the filters to review track covers, build-generated files, or orphans.
+                        </span>
                     </div>
                     <div class="media-panel-actions">
+                        <button type="button" class="btn cover-filter-toggle active" data-cover-filter="all" aria-pressed="true" title="Show all illustration files">All</button>
+                        <button type="button" class="btn cover-filter-toggle" data-cover-filter="track-covers" aria-pressed="false" title="Show track cover files only">Covers</button>
+                        <button type="button" class="btn cover-filter-toggle" data-cover-filter="orphans" aria-pressed="false" title="Show unreferenced files only">Orphans</button>
+                        <button type="button" class="btn cover-filter-toggle" data-cover-filter="build-generated" aria-pressed="false" title="Show build-generated cover files only">Built</button>
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="illustrations" data-download-variant="original" disabled aria-label="Download selected illustration files" title="Download selected illustration files">⬇</button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="illustrations" disabled aria-label="Delete selected illustration files" title="Delete selected illustration files">🗑️</button>
@@ -1319,9 +1434,15 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-photos" <?php echo $filesPanel !== 'photos' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span class="media-panel-intro">Drag and drop photo files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
+                        <span class="media-panel-intro">
+                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
+                            <br>Drag and drop photo files here to add them directly. Rows show whether each file is used by the gallery or theme settings. Use the filters to review orphans.
+                        </span>
                     </div>
                     <div class="media-panel-actions">
+                        <button type="button" class="btn media-ref-filter-toggle active" data-media-ref-filter-target="photos" data-media-ref-filter="all" aria-pressed="true" title="Show all photo files">All</button>
+                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="photos" data-media-ref-filter="referenced" aria-pressed="false" title="Show referenced photo files only">In use</button>
+                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="photos" data-media-ref-filter="orphans" aria-pressed="false" title="Show unreferenced photo files only">Orphans</button>
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="photos" data-download-variant="original" disabled aria-label="Download selected photo files" title="Download selected photo files">⬇</button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="photos" disabled aria-label="Delete selected photo files" title="Delete selected photo files">🗑️</button>
@@ -1336,7 +1457,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="media-panel card" id="panel-special" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
-                        <span class="media-panel-intro">Drag and drop theme files here to add them directly. Select multiple files for group download or deletion. File deletions are permanent.</span>
+                        <span class="media-panel-intro">
+                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
+                            <br>Drag and drop theme files here to add them directly. Select multiple files for group download or deletion.
+                        </span>
                     </div>
                     <div class="media-panel-actions">
                         <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
@@ -2165,6 +2289,17 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         </div>
     </div>
 
+    <div id="operatorNotificationsModal" class="modal-overlay operator-notifications-modal" style="display:none" onclick="if(event.target===this)closeOperatorNotifications()">
+        <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="operatorNotificationsModalTitle">
+            <button type="button" class="modal-close" id="operatorNotificationsClose" aria-label="Close">✕</button>
+            <h3 id="operatorNotificationsModalTitle">What needs your attention</h3>
+            <p class="card-note">This is your to-do list for the site. Each item explains what is wrong and what to do next. Small fixes happen automatically — only things that need you show up here.</p>
+            <div id="operatorNotificationsModalBody" class="operator-notifications-body">
+                <p class="operator-notifications-empty">Loading…</p>
+            </div>
+        </div>
+    </div>
+
     <div id="adminToastHost" class="admin-toast-host" aria-live="polite" aria-atomic="true"></div>
 
     <script>
@@ -2173,6 +2308,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         const adminDateEnd   = <?php echo json_encode($dateEnd); ?>;
         const adminActivePanel = <?php echo json_encode($filesPanel); ?>;
         const adminCsrfToken = <?php echo json_encode($adminCsrfToken); ?>;
+        const adminWelcomeDashboardMode = <?php echo $welcomeSetupComplete ? 'true' : 'false'; ?>;
     </script>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 

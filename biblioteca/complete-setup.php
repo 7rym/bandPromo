@@ -5,17 +5,10 @@
  * Requires active authenticated session.
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/setup-state.php';
-
-if (empty($_SESSION['authenticated'])) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'Not authenticated.']);
-    exit;
-}
 
 if (bandpromo_is_setup_complete()) {
     http_response_code(403);

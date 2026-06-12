@@ -9,18 +9,11 @@
  * Fields not present in the body are left unchanged.
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/template-bootstrap.php';
-
-if (empty($_SESSION['authenticated'])) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'Not authenticated.']);
-    exit;
-}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

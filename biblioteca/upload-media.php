@@ -10,20 +10,14 @@
  *   total_chunks — total number of chunks
  */
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_once __DIR__ . '/admin-api-guard.php';
 
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/cover-art-helpers.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -259,6 +253,16 @@ function image_matches_audio_basename(string $filename): bool {
     return false;
 }
 
+function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved_path, string $saved_name): void
+{
+    $normalized = str_replace('\\', '/', $saved_path);
+    if (strpos($normalized, '/media/img/original/') === false) {
+        return;
+    }
+
+    bandpromo_cover_art_record_upload($root_dir, $saved_name, 'illustrations');
+}
+
 function build_reason_for_upload(string $target_hint, string $ext, string $filename): string {
     if ($target_hint === 'special') {
         return '';
@@ -389,6 +393,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $savedName = (string) ($finalized['saved_as'] ?? $safeName);
     $savedPath = (string) ($finalized['saved_path'] ?? $dest);
     $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
+    bandpromo_record_cover_upload_if_needed($root_dir, $savedPath, $savedName);
     $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
     $master = $target_hint === 'special'
         ? ['attempted' => false, 'prepared' => false, 'warning' => '']
@@ -532,6 +537,7 @@ foreach ($files as $file) {
         $saved_name = (string) ($finalized['saved_as'] ?? $safe_name);
         $saved_path = (string) ($finalized['saved_path'] ?? $dest);
         $saved_ext = (string) ($finalized['saved_ext'] ?? $ext);
+        bandpromo_record_cover_upload_if_needed($root_dir, $saved_path, $saved_name);
         $master = $target_hint === 'special'
             ? ['attempted' => false, 'prepared' => false, 'warning' => '']
             : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
