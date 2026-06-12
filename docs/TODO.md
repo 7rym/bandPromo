@@ -148,15 +148,13 @@ Implementation follow-up after policy:
 - [x] Backfill missing audio masters for older libraries automatically when Files -> Audio inspects preserved originals, so legacy installs do not leave operators stuck with persistent `Master pending` rows for supported FLAC/MP3/WAV sources.
 - [x] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
 - [x] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split; pending work now records task units and can clear targeted work such as `image-delivery` independently.
-- [ ] Split the current optimizer into source-aware tasks; MP3 sources must not be treated as if they always need the FLAC-to-MP3 path.
-- [ ] Add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity.
-- [ ] Separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location.
-- [ ] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
-- [ ] Video transcoding: convert uploaded .mov/.webm to .mp4 on upload for broad browser compatibility
+- [x] Split the current optimizer into source-aware tasks; MP3 sources are now copied to delivery without unnecessary re-encoding, while FLAC/WAV sources still take the transcode path.
+- [x] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
+- [x] Video transcoding: add a separate build task that converts queued `.mov` / `.webm` sources into `.mp4` delivery assets with visible operator progress, instead of doing that heavy work during upload
 - [ ] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager
 - [ ] Orphan detection: identify files in media/img/, media/photo/, media/video/ that are not referenced by any active gallery entry or playlist track, and expose in admin
 - [ ] Media deletion: add a safe delete action in the file manager that checks for active references before removing a file
-- [ ] Video poster attribute: once thumbnail generation exists, write `poster` field into gallery.json entries and use it in gallery.js
+- [x] Video poster attribute: once thumbnail generation exists, write `poster` field into gallery.json entries and use it in gallery.js
 
 ### Beta operator readiness
 
@@ -172,6 +170,8 @@ Deferred to v0.8:
 
 - backup/restore operator flow definition
 - moved-site recovery and host-specific config repair flow
+- add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity
+- separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location
 
 ## Post-v0.7 planning
 
@@ -210,4 +210,3 @@ Deferred to v0.8:
 - `TODO.md` is the short-term working list.
 - Current operator model: one branded site. Prepared internal model: separate `brand`, `theme`, and `social` concerns, with install defaults and future release overrides kept internal until multi-release is real.
 - If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.
-

@@ -1,6 +1,6 @@
 """
 Build pipeline for bandPromo
-Runs the full pipeline: preflight checks → source config → optimize media → manifest
+Runs the full pipeline: preflight checks → source config → optimize media → video delivery → social assets → manifest
 
 Designed to be called from the admin panel (Admin > Config > Build),
 but can also be run directly from the command line.
@@ -359,7 +359,7 @@ def main():
     sys.stdout.flush()
 
     # ── Step 1: Generate play/playlist.json ─────────────────────────────────────
-    print("── Step 1/4: Generating play/playlist.json ───────────")
+    print("── Step 1/5: Generating play/playlist.json ───────────")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'makePlaylists.py', {'FFMPEG_PATH': ffmpeg_path}):
         print("\n❌ Build failed at step 1")
@@ -367,7 +367,7 @@ def main():
         sys.exit(1)
 
     # ── Step 2: Optimize media (MP3 + optimised covers) ─────────────────────────────
-    print("\n── Step 2/4: Optimizing media (audio + image + photo optimisation) ──")
+    print("\n── Step 2/5: Optimizing media (audio + image + photo optimisation) ──")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'optimizeMedia.py', {
         'FFMPEG_PATH': ffmpeg_path,
@@ -377,19 +377,29 @@ def main():
         sys.stdout.flush()
         sys.exit(1)
 
-    # ── Step 3: Social media assets ──────────────────────────────────────────────
-    print("\n── Step 3/4: Generating social media assets ────────")
+    # ── Step 3: Build video delivery assets ──────────────────────────────────────
+    print("\n── Step 3/5: Building video delivery assets ─────────")
     sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'makeSocial.py'):
+    if not run_script(SCRIPT_DIR / 'optimizeVideo.py', {
+        'FFMPEG_PATH': ffmpeg_path,
+    }):
         print("\n❌ Build failed at step 3")
         sys.stdout.flush()
         sys.exit(1)
 
-    # ── Step 4: Generate PWA manifest ─────────────────────────────────────────
-    print("\n── Step 4/4: Generating PWA manifest ───────────────")
+    # ── Step 4: Social media assets ──────────────────────────────────────────────
+    print("\n── Step 4/5: Generating social media assets ────────")
+    sys.stdout.flush()
+    if not run_script(SCRIPT_DIR / 'makeSocial.py'):
+        print("\n❌ Build failed at step 4")
+        sys.stdout.flush()
+        sys.exit(1)
+
+    # ── Step 5: Generate PWA manifest ─────────────────────────────────────────
+    print("\n── Step 5/5: Generating PWA manifest ───────────────")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'makePWA.py'):
-        print("\n❌ Build failed at step 4")
+        print("\n❌ Build failed at step 5")
         sys.stdout.flush()
         sys.exit(1)
 
@@ -402,6 +412,7 @@ Output:
   media/audio/optimal/  — MP3 files
   media/img/original/    — cover PNG files
   media/img/optimal/    — cover JPEG files (optimised)
+    media/video/optimal/  — MP4 delivery files
   play/playlist.json — player playlist
   media/special/*_facebook.jpg, *_twitter.jpg – social share images
   site.webmanifest — PWA manifest

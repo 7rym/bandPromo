@@ -431,6 +431,8 @@ Suggested scope:
 - theme tokens and theme selection model
 - structured static-page content model: block JSON source with rendered HTML delivery
 - page-editor replacement plan aligned with the structured content model instead of legacy raw HTML authoring
+- nondestructive media naming (display names/aliases) layered on immutable source-file identities
+- role-based media handling that separates gallery media from page illustrations in admin/build behavior
 - initial roadmap for registered user features
 - actual LICENSE file added to the repo
 

@@ -3,13 +3,35 @@ async function loadVisualsGallery() {
     const gallery = document.getElementById('visualsGallery');
     if (!gallery) return;
 
+    function normalizeMediaPath(value) {
+        return String(value || '').replace(/\\/g, '/');
+    }
+
+    function deriveVideoPoster(item) {
+        const src = normalizeMediaPath(item && item.src);
+        if (!src) return '';
+        const pathOnly = src.split('?')[0];
+        const fileName = pathOnly.substring(pathOnly.lastIndexOf('/') + 1);
+        if (!/\.(mp4|webm|mov)$/i.test(fileName)) {
+            return '';
+        }
+        return `/media/video/poster/${fileName.replace(/\.[^.]+$/i, '.jpg')}`;
+    }
+
     function normalizeGalleryItem(item) {
-        if (!item || item.type === 'video' || !item.src) {
+        if (!item || !item.src) {
             return item;
         }
 
-        const normalizedSrc = String(item.src)
-            .replace(/\\/g, '/')
+        if (item.type === 'video') {
+            return {
+                ...item,
+                src: normalizeMediaPath(item.src),
+                poster: normalizeMediaPath(item.poster || deriveVideoPoster(item)),
+            };
+        }
+
+        const normalizedSrc = normalizeMediaPath(item.src)
             .replace('/original/', '/optimal/')
             .replace(/\.(png|jpe?g|webp)$/i, '.jpg');
 
@@ -34,9 +56,10 @@ async function loadVisualsGallery() {
             const clickHandler = `openLightboxAt(${idx})`;
 
             if (isVideo) {
+                const posterAttr = item.poster ? ` poster="${item.poster}"` : '';
                 return `
                     <div class="gallery-item gallery-item--video" onclick="${clickHandler}">
-                        <video src="${item.src}" preload="metadata" muted playsinline
+                        <video src="${item.src}"${posterAttr} preload="metadata" muted playsinline
                                style="pointer-events:none;width:100%;height:100%;object-fit:cover;">
                         </video>
                         <div class="gallery-video-play">&#9654;</div>

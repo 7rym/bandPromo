@@ -50,6 +50,7 @@ function bandpromo_reason_tasks(string $reason): array {
         'media_audio_upload' => ['playlist-scan', 'audio-delivery'],
         'media_audio_master_changed' => ['audio-delivery'],
         'media_cover_upload' => ['audio-delivery', 'image-delivery'],
+        'media_video_upload' => ['video-delivery'],
         'web_config_changed' => ['manifest'],
         'theme_config_changed' => ['image-delivery', 'social-assets'],
         'theme_cover_changed' => ['image-delivery'],
@@ -91,6 +92,7 @@ function bandpromo_task_action(string $task): string {
     $map = [
         'playlist-scan' => 'full',
         'audio-delivery' => 'full',
+        'video-delivery' => 'full',
         'image-delivery' => 'optimize',
         'social-assets' => 'full',
         'manifest' => 'full',
@@ -133,6 +135,7 @@ function bandpromo_reason_action(string $reason): string {
         'media_audio_upload' => 'full',
         'media_audio_master_changed' => 'full',
         'media_cover_upload' => 'full',
+        'media_video_upload' => 'full',
         'web_config_changed' => 'full',
         'theme_config_changed' => 'full',
         'theme_cover_changed' => 'optimize',

@@ -689,6 +689,7 @@ Preferred build sequencing:
 - on upload: validate intake, preserve original, and create or queue the master as early as the format policy allows
 - after master creation: treat the master as the normal admin-facing working asset
 - in background: generate or refresh delivery variants as required for playback, cards, lightboxes, sharing, and downloads
+- heavy delivery work such as full video transcoding should run as an explicit build-stage task with visible progress/state, not as a silent upload-time step that can make the operator think the upload has stalled
 
 This should feel "magic" to the operator while still keeping the underlying source-preservation guarantees intact.
 

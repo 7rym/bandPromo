@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-12 00:06 - Ignored generated video poster artifacts in `.gitignore` so `media/video/poster/` stays local like other derived media outputs and does not leak into checkpoints after validation builds.
+
+2026-06-11 19:33 - Added a separate build-stage video delivery task instead of doing heavy transcoding during upload. Video uploads now mark a `video-delivery` follow-up task in `biblioteca/build-required.php` and `biblioteca/upload-media.php`, the full build pipeline in `scripts/build.py` now runs the new `scripts/optimizeVideo.py` step with visible progress, public gallery loading in `play/index.php`, `biblioteca/gallery.php`, and `biblioteca/get-gallery-items.php` now prefers built `media/video/optimal/*.mp4` assets when they exist, and `biblioteca/delete-media.php` cleans up the derived delivery file together with the source video.
+
+2026-06-11 19:11 - Clarified the planned video-transcoding workflow. `docs/TODO.md` and `docs/MEDIA-HANDLING.md` now treat `.mov` / `.webm` to `.mp4` conversion as a separate build-stage task with visible operator progress instead of an upload-time action, so heavy video processing does not make uploads look stalled or ambiguous.
+
+2026-06-11 19:02 - Added the first video-poster workflow for gallery media. `biblioteca/upload-media.php` now generates a JPG poster from uploaded videos when `ffmpeg` is available, stores it under `media/video/poster/`, and reports poster-generation warnings without blocking the upload. `biblioteca/save-gallery.php` now writes matching `poster` fields into saved video gallery items when a derived poster exists, `biblioteca/gallery.js`, `biblioteca/lightbox.js`, and the gallery editor in `biblioteca/admin.js` now use those posters for preview/lightbox cover rendering, and `biblioteca/delete-media.php` removes the derived poster when the source video is deleted.
+
+2026-06-11 18:34 - Made the media optimizer source-aware for audio delivery generation. `scripts/optimizeMedia.py` now copies MP3 sources directly into the delivery tier instead of re-encoding them, only requires `ffmpeg` when at least one playlist track still needs transcoding, and logs the chosen per-track delivery route more clearly while `docs/TODO.md` and `docs/ROADMAP.md` move the completed optimizer split out of the remaining v0.7 work.
+
 2026-06-11 18:12 - Verified the new task-driven image-refresh automation path on live local admin flow. Theme-cover saves now consistently return `auto_tasks` including `image-delivery` where applicable, clear pending build-required task state after the cheap image-only refresh completes, and keep operator inbox/build-required state aligned without requiring a manual build step for that path.
 
 2026-06-10 16:55 - Automated safe image-only delivery refreshes. `biblioteca/save-config-raw.php` now auto-runs the image-only optimizer after theme-cover changes, `biblioteca/upload-media.php` now auto-runs the same image-delivery refresh after image-only uploads or cover-image uploads when that cheap work is enough, `biblioteca/build-required.php` now treats pending task units as authoritative so `image-delivery` can clear independently of unrelated audio follow-up, and `biblioteca/admin.js` now reports those automatic image refreshes in operator-facing save/upload messaging.

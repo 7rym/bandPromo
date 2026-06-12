@@ -433,6 +433,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const taskLabels = {
                     'playlist-scan': 'Refresh playlist and validation data',
                     'audio-delivery': 'Refresh publish-ready audio files',
+                    'video-delivery': 'Refresh publish-ready video files',
                     'image-delivery': 'Refresh publish-ready image files',
                     'social-assets': 'Refresh social/share assets',
                     'manifest': 'Rewrite the site manifest',
@@ -2751,6 +2752,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 let allFiles = []; // { src, name, type }
 
+                function videoPosterPathFromSrc(src) {
+                    const normalized = String(src || '').replace(/\\/g, '/');
+                    const pathOnly = normalized.split('?')[0];
+                    const fileName = pathOnly.substring(pathOnly.lastIndexOf('/') + 1);
+                    if (!/\.(mp4|webm|mov)$/i.test(fileName)) return '';
+                    return '/media/video/poster/' + fileName.replace(/\.[^.]+$/i, '.jpg');
+                }
+
+                function resolveVideoPoster(item) {
+                    if (!item || item.type !== 'video') return '';
+                    return item.poster || videoPosterPathFromSrc(item.src);
+                }
+
                 function activeSrcs() { return new Set(activeItems.map(i => i.src)); }
 
                 // ── render: available panel ──────────────────────────────────
@@ -2766,9 +2780,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const row = document.createElement('div');
                         row.className = 'gallery-available-row';
                         row.dataset.src = file.src;
+                        row.dataset.poster = file.poster || '';
                         if (file.type === 'video') {
+                            const poster = resolveVideoPoster(file);
                             row.innerHTML =
-                                `<span class="gallery-thumb gallery-thumb--video">▶</span>` +
+                                (poster
+                                    ? `<img class="gallery-thumb" src="${escHtml(poster)}" alt="${escHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">`
+                                    : `<span class="gallery-thumb gallery-thumb--video">▶</span>`) +
                                 `<span class="gallery-available-name">${escHtml(file.name)}</span>` +
                                 `<button class="btn btn-sm gallery-add-btn" title="Add to gallery">＋</button>`;
                         } else {
@@ -2791,11 +2809,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         li.draggable = true;
                         li.dataset.src  = item.src;
                         li.dataset.type = item.type || 'image';
+                        li.dataset.poster = resolveVideoPoster(item);
                         const isVideo = item.type === 'video';
+                        const poster = resolveVideoPoster(item);
                         li.innerHTML =
                             `<span class="playlist-drag-handle" title="Drag to reorder">⠿</span>` +
                             (isVideo
-                                ? `<span class="gallery-thumb gallery-thumb--video gallery-thumb--sm">▶</span>`
+                                ? (poster
+                                    ? `<img class="gallery-thumb gallery-thumb--sm" src="${escHtml(poster)}" alt="${escHtml(item.alt || item.name || '')}" loading="lazy" onerror="this.style.opacity=0.2">`
+                                    : `<span class="gallery-thumb gallery-thumb--video gallery-thumb--sm">▶</span>`)
                                 : `<img class="gallery-thumb gallery-thumb--sm" src="${escHtml(item.src)}" alt="${escHtml(item.alt || '')}" loading="lazy" onerror="this.style.opacity=0.2">`) +
                             `<div class="gallery-active-fields">` +
                             `<input class="gallery-field-name" type="text" value="${escHtml(item.name || '')}" placeholder="Name" aria-label="Name">` +
@@ -2813,15 +2835,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     activeItems = Array.from(rows).map(row => ({
                         src:  row.dataset.src,
                         type: row.dataset.type || 'image',
+                        poster: row.dataset.poster || '',
                         name: row.querySelector('.gallery-field-name').value.trim(),
                         alt:  row.querySelector('.gallery-field-alt').value.trim(),
-                    }));
+                    })).map(item => {
+                        if (item.type !== 'video' || !item.poster) {
+                            delete item.poster;
+                        }
+                        return item;
+                    });
                 }
 
                 // ── add / remove ─────────────────────────────────────────────
                 function addItem(file) {
                     syncFromDOM();
-                    activeItems.push({ src: file.src, name: file.name, alt: file.name, type: file.type });
+                    const item = { src: file.src, name: file.name, alt: file.name, type: file.type };
+                    const poster = resolveVideoPoster(file);
+                    if (poster) item.poster = poster;
+                    activeItems.push(item);
                     renderActive();
                     renderAvailable();
                 }
@@ -2917,6 +2948,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 src: '/media/video/original/' + f.name,
                                 name: prettifyName(f.name),
                                 type: 'video',
+                                poster: '/media/video/poster/' + f.name.replace(/\.[^.]+$/, '.jpg'),
                             })),
                         ];
                     } catch (e) {
@@ -3430,7 +3462,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : 'Pending now: bandPromo still has publish work to finish.';
                         buildHelpBox.innerHTML = `${actionLabel} is the recommended next step for the current pending work. ${taskLine} Jobs continue in the background while this log updates.`;
                     } else {
-                        buildHelpBox.innerHTML = 'Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> when audio, validation, playlist, manifest, or other heavier publish steps are still pending. Jobs continue in the background while this log updates.';
+                        buildHelpBox.innerHTML = 'Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> when audio, video, validation, playlist, manifest, or other heavier publish steps are still pending. Jobs continue in the background while this log updates.';
                     }
                 }
             }

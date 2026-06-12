@@ -47,7 +47,42 @@ if (!is_array($decoded)) {
     exit;
 }
 
+function bandpromo_gallery_video_poster_from_src(string $root, string $src): ?string {
+    $path = parse_url($src, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        $path = $src;
+    }
+    $path = str_replace('\\', '/', $path);
+    $filename = basename($path);
+    if ($filename === '' || !preg_match('/\.(mp4|webm|mov)$/i', $filename)) {
+        return null;
+    }
+
+    $poster = '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
+    return is_file($root . $poster) ? $poster : null;
+}
+
 $gallery_file = dirname(__DIR__) . '/data/gallery.json';
+$root = dirname(__DIR__);
+
+foreach ($decoded as $index => $item) {
+    if (!is_array($item)) {
+        continue;
+    }
+
+    $type = trim((string) ($item['type'] ?? ''));
+    if ($type === 'video') {
+        $poster = bandpromo_gallery_video_poster_from_src($root, (string) ($item['src'] ?? ''));
+        if ($poster !== null) {
+            $decoded[$index]['poster'] = $poster;
+        } else {
+            unset($decoded[$index]['poster']);
+        }
+        continue;
+    }
+
+    unset($decoded[$index]['poster']);
+}
 
 // Ensure data dir exists
 if (!is_dir(dirname($gallery_file))) {

@@ -106,6 +106,7 @@ media/special/*
 
 # Optimal/processed outputs are generated locally — never commit them
 media/**/optimal/
+media/video/poster/
 
 # Master working copies are local runtime artifacts until the storage model is finalized
 media/**/master/

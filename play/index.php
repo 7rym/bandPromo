@@ -35,6 +35,7 @@ if (!is_array($siteCfg)) {
 }
 
 require_once '../biblioteca/config-loader.php';
+require_once '../biblioteca/gallery-helpers.php';
 
 function bandpromo_support_parse_kofi_page_id(string $value): string {
     $trimmed = trim($value);
@@ -72,13 +73,7 @@ $json = file_get_contents($configFile);
 $playlistConfig = json_decode($json, true) ?: [];
 
 $galleryItems = [];
-$galleryFile = dirname(__DIR__) . '/data/gallery.json';
-if (file_exists($galleryFile)) {
-    $galleryData = json_decode(file_get_contents($galleryFile) ?: '[]', true);
-    if (is_array($galleryData)) {
-        $galleryItems = $galleryData;
-    }
-}
+$galleryItems = bandpromo_load_gallery_items(dirname(__DIR__));
 
 $appVersion = 'dev';
 $versionFile = dirname(__DIR__) . '/VERSION';

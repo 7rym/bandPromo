@@ -37,13 +37,14 @@ $audio_master_dir = $root_dir . '/media/audio/master';
 $img_orig_dir   = $root_dir . '/media/img/original';
 $photo_dir    = $root_dir . '/media/photo/original';
 $video_dir    = $root_dir . '/media/video/original';
+$video_poster_dir = $root_dir . '/media/video/poster';
 $special_dir  = $root_dir . '/media/special';
 $tmp_dir      = $root_dir . '/data/upload_tmp';
 
 // Optional target hint from Media sub-panel (audio | illustrations | photos | video | special)
 $target_hint  = $_POST['target'] ?? '';
 
-foreach ([$audio_orig_dir, $img_orig_dir, $photo_dir, $video_dir, $special_dir] as $dir) {
+foreach ([$audio_orig_dir, $img_orig_dir, $photo_dir, $video_dir, $video_poster_dir, $special_dir] as $dir) {
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 }
 if (!is_dir($audio_master_dir)) mkdir($audio_master_dir, 0755, true);
@@ -114,6 +115,116 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
     return null;
 }
 
+function bandpromo_is_video_extension(string $ext): bool {
+    return in_array($ext, ['mp4', 'webm', 'mov'], true);
+}
+
+function bandpromo_video_poster_relative_path(string $filename): string {
+    return '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
+}
+
+function bandpromo_video_poster_absolute_path(string $root_dir, string $filename): string {
+    return $root_dir . bandpromo_video_poster_relative_path($filename);
+}
+
+function bandpromo_ffmpeg_command(): string {
+    $configured = trim((string) getenv('FFMPEG_PATH'));
+    return $configured !== '' ? $configured : 'ffmpeg';
+}
+
+function bandpromo_run_command(array $command, string $cwd): array {
+    if (!function_exists('proc_open')) {
+        return [
+            'ok' => false,
+            'output' => '',
+            'exit_code' => null,
+            'error' => 'Process execution is unavailable on this host',
+        ];
+    }
+
+    $descriptors = [
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $process = @proc_open($command, $descriptors, $pipes, $cwd);
+    if (!is_resource($process)) {
+        return [
+            'ok' => false,
+            'output' => '',
+            'exit_code' => null,
+            'error' => 'Could not start process',
+        ];
+    }
+
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+
+    $exit_code = proc_close($process);
+    $output = trim((string) $stdout . (string) $stderr);
+
+    return [
+        'ok' => $exit_code === 0,
+        'output' => $output,
+        'exit_code' => $exit_code,
+        'error' => $exit_code === 0 ? '' : 'Command failed',
+    ];
+}
+
+function bandpromo_generate_video_poster(string $root_dir, string $saved_ext, string $saved_name, string $saved_path, string $target_hint = ''): array {
+    if ($target_hint === 'special' || !bandpromo_is_video_extension($saved_ext)) {
+        return [
+            'attempted' => false,
+            'generated' => false,
+            'poster' => '',
+            'warning' => '',
+        ];
+    }
+
+    $poster_relative = bandpromo_video_poster_relative_path($saved_name);
+    $poster_path = bandpromo_video_poster_absolute_path($root_dir, $saved_name);
+    $ffmpeg = bandpromo_ffmpeg_command();
+    $result = bandpromo_run_command([
+        $ffmpeg,
+        '-y',
+        '-i',
+        $saved_path,
+        '-frames:v',
+        '1',
+        '-q:v',
+        '2',
+        $poster_path,
+    ], $root_dir);
+
+    if ($result['ok'] && is_file($poster_path)) {
+        return [
+            'attempted' => true,
+            'generated' => true,
+            'poster' => $poster_relative,
+            'warning' => '',
+        ];
+    }
+
+    $output = strtolower((string) ($result['output'] ?? ''));
+    $warning = 'Could not generate a poster image automatically for this video.';
+    if (($result['exit_code'] ?? null) === null || strpos($output, 'not found') !== false || strpos($output, 'not recognized') !== false) {
+        $warning = 'Automatic video poster generation requires ffmpeg on the host.';
+    }
+
+    if (is_file($poster_path)) {
+        @unlink($poster_path);
+    }
+
+    return [
+        'attempted' => true,
+        'generated' => false,
+        'poster' => '',
+        'warning' => $warning,
+    ];
+}
+
 function image_matches_audio_basename(string $filename): bool {
     $root_dir = dirname(dirname(__FILE__));
     $audio_orig_dir = $root_dir . '/media/audio/original';
@@ -164,6 +275,10 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
         if ($target_hint === 'illustrations' || $target_hint === 'photos' || $target_hint === '') {
             return 'media_image_upload';
         }
+    }
+
+    if (bandpromo_is_video_extension($ext)) {
+        return 'media_video_upload';
     }
 
     return '';
@@ -278,6 +393,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $master = $target_hint === 'special'
         ? ['attempted' => false, 'prepared' => false, 'warning' => '']
         : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
+    $videoPoster = bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
     $response = [
         'ok' => true,
         'status' => 'complete',
@@ -294,6 +410,16 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         }
         if (!empty($master['warning'])) {
             $response['master_warning'] = $master['warning'];
+        }
+    }
+
+    if (!empty($videoPoster['attempted'])) {
+        $response['video_poster_generated'] = !empty($videoPoster['generated']);
+        if (!empty($videoPoster['poster'])) {
+            $response['video_poster'] = $videoPoster['poster'];
+        }
+        if (!empty($videoPoster['warning'])) {
+            $response['video_poster_warning'] = $videoPoster['warning'];
         }
     }
 
@@ -327,6 +453,8 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             'reasons' => $reason !== '' ? [$reason] : [],
             'master_prepared' => $response['master_prepared'] ?? false,
             'master_warning' => $response['master_warning'] ?? '',
+            'video_poster_generated' => $response['video_poster_generated'] ?? false,
+            'video_poster_warning' => $response['video_poster_warning'] ?? '',
         ],
     ]);
     exit;
@@ -373,6 +501,7 @@ $uploaded = 0;
 $errors   = 0;
 $masterPreparedCount = 0;
 $masterWarnings = [];
+$videoPosterWarnings = [];
 $upload_reasons = [];
 
 foreach ($files as $file) {
@@ -406,6 +535,7 @@ foreach ($files as $file) {
         $master = $target_hint === 'special'
             ? ['attempted' => false, 'prepared' => false, 'warning' => '']
             : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
+        $videoPoster = bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
         $result = ['name' => $original, 'ok' => true, 'saved_as' => $saved_name];
         if (!empty($master['attempted'])) {
             $result['master_prepared'] = !empty($master['prepared']);
@@ -421,6 +551,16 @@ foreach ($files as $file) {
             if (!empty($master['warning'])) {
                 $result['master_warning'] = $master['warning'];
                 $masterWarnings[] = $safe_name . ': ' . $master['warning'];
+            }
+        }
+        if (!empty($videoPoster['attempted'])) {
+            $result['video_poster_generated'] = !empty($videoPoster['generated']);
+            if (!empty($videoPoster['poster'])) {
+                $result['video_poster'] = $videoPoster['poster'];
+            }
+            if (!empty($videoPoster['warning'])) {
+                $result['video_poster_warning'] = $videoPoster['warning'];
+                $videoPosterWarnings[] = $saved_name . ': ' . $videoPoster['warning'];
             }
         }
         $results[]  = $result;
@@ -441,6 +581,9 @@ if ($masterPreparedCount > 0) {
 }
 if (!empty($masterWarnings)) {
     $response['master_warnings'] = $masterWarnings;
+}
+if (!empty($videoPosterWarnings)) {
+    $response['video_poster_warnings'] = $videoPosterWarnings;
 }
 if ($uploaded > 0 && !empty($upload_reasons)) {
     $state = null;
@@ -482,6 +625,7 @@ if ($uploaded > 0 || $errors > 0) {
             'reasons' => $upload_reasons,
             'master_prepared_count' => $masterPreparedCount,
             'master_warnings' => $masterWarnings,
+            'video_poster_warnings' => $videoPosterWarnings,
         ],
     ]);
 }

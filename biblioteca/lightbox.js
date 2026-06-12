@@ -47,7 +47,7 @@ class Lightbox {
 
     // ── Internal ────────────────────────────────────────────────────────────
 
-    _load(src, altText, type) {
+    _load(src, altText, type, poster = '') {
         const isVid = type === 'video';
 
         if (this.img) {
@@ -57,8 +57,17 @@ class Lightbox {
         }
         if (this.vid) {
             this.vid.style.display = isVid ? '' : 'none';
-            if (isVid) { this.vid.src = src; this.vid.load(); }
-            else       { this.vid.pause(); this.vid.src = ''; }
+            if (isVid) {
+                if (poster) this.vid.poster = poster;
+                else this.vid.removeAttribute('poster');
+                this.vid.src = src;
+                this.vid.load();
+            }
+            else {
+                this.vid.pause();
+                this.vid.removeAttribute('poster');
+                this.vid.src = '';
+            }
         }
         if (this.caption) this.caption.textContent = altText || '';
 
@@ -76,9 +85,9 @@ class Lightbox {
     // ── Public API ───────────────────────────────────────────────────────────
 
     /** Open a single item directly (no gallery navigation). */
-    open(src, altText = '', type = 'image') {
+    open(src, altText = '', type = 'image', poster = '') {
         this.currentIndex = -1;
-        this._load(src, altText, type);
+        this._load(src, altText, type, poster);
     }
 
     /** Open item at index from the items list. */
@@ -86,7 +95,7 @@ class Lightbox {
         const item = this.items[idx];
         if (!item) return;
         this.currentIndex = idx;
-        this._load(item.src, item.name || '', this._itemType(item));
+        this._load(item.src, item.name || '', this._itemType(item), item.poster || '');
     }
 
     prev(e) {
@@ -94,7 +103,7 @@ class Lightbox {
         if (!this.items.length || this.currentIndex < 0) return;
         this.currentIndex = (this.currentIndex - 1 + this.items.length) % this.items.length;
         const item = this.items[this.currentIndex];
-        this._load(item.src, item.name || '', this._itemType(item));
+        this._load(item.src, item.name || '', this._itemType(item), item.poster || '');
     }
 
     next(e) {
@@ -102,7 +111,7 @@ class Lightbox {
         if (!this.items.length || this.currentIndex < 0) return;
         this.currentIndex = (this.currentIndex + 1) % this.items.length;
         const item = this.items[this.currentIndex];
-        this._load(item.src, item.name || '', this._itemType(item));
+        this._load(item.src, item.name || '', this._itemType(item), item.poster || '');
     }
 
     close() {

@@ -71,6 +71,14 @@ function bandpromo_audio_master_paths(string $root, string $filename): array {
     return $paths ?? [];
 }
 
+function bandpromo_video_poster_path(string $root, string $filename): string {
+    return $root . '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
+}
+
+function bandpromo_video_delivery_path(string $root, string $filename): string {
+    return $root . '/media/video/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.mp4';
+}
+
 function bandpromo_delete_media_item(string $root, array $dirs, string $target, string $filename): array
 {
     $safe = basename($filename);
@@ -121,6 +129,8 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
 
     $master_deleted = false;
     $master_warning = '';
+    $video_poster_deleted = false;
+    $video_delivery_deleted = false;
     if ($target === 'audio') {
         foreach (bandpromo_audio_master_paths($root, $safe) as $master_path) {
             if (@unlink($master_path)) {
@@ -128,6 +138,15 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             } else {
                 $master_warning = 'Audio original was deleted, but one or more matching master files could not be removed';
             }
+        }
+    } elseif ($target === 'video') {
+        $poster_path = bandpromo_video_poster_path($root, $safe);
+        if (is_file($poster_path) && @unlink($poster_path)) {
+            $video_poster_deleted = true;
+        }
+        $delivery_path = bandpromo_video_delivery_path($root, $safe);
+        if (is_file($delivery_path) && @unlink($delivery_path)) {
+            $video_delivery_deleted = true;
         }
     }
 
@@ -140,6 +159,8 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         'data' => [
             'master_deleted' => $master_deleted,
             'master_warning' => $master_warning,
+            'video_poster_deleted' => $video_poster_deleted,
+            'video_delivery_deleted' => $video_delivery_deleted,
         ],
     ]);
 
@@ -149,6 +170,8 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         'action' => 'deleted',
         'master_deleted' => $master_deleted,
         'master_warning' => $master_warning,
+        'video_poster_deleted' => $video_poster_deleted,
+        'video_delivery_deleted' => $video_delivery_deleted,
     ];
 }
 
