@@ -303,6 +303,15 @@ if ($supportEnabled && $supportUrl !== '') {
         window.csrfToken = <?php echo json_encode($csrf_token); ?>;
         sessionStorage.setItem('csrf_token', window.csrfToken);
     </script>
+    <script>
+        window.BANDPROMO_SESSION_AUTH = {
+            enabled: true,
+            loginUrl: '/',
+            pingUrl: '/biblioteca/session-check.php',
+            pingIntervalMs: 300000,
+        };
+    </script>
+    <script src="../biblioteca/session-auth.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="../biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="../biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="../biblioteca/gallery.js?v=<?php echo rawurlencode($appVersion); ?>"></script>

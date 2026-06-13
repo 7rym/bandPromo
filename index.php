@@ -136,6 +136,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+if (!$error && isset($_GET['session_expired']) && $_GET['session_expired'] === '1') {
+    $error = 'Your session expired. Please log in again.';
+}
+
+require_once __DIR__ . '/biblioteca/config-loader.php';
+$installLogo = get_config('install.brand.logo', '/media/special/bandPromo_logo.png');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -246,8 +253,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="auth-success" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100vh; position: fixed; top: 0; left: 0; background: rgba(0, 0, 0, 0.7); z-index: 1000;">
             <div style="text-align: center; color: white;">
                 <h1 style="font-size: 32px; margin-bottom: 10px;">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
-                <p style="font-size: 18px; margin-bottom: 20px;">Loading album...</p>
-                <img src="<?php echo htmlspecialchars(get_config('release.theme.cover', '/media/special/bandPromo_cover.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" style="width: 100%; max-width: 600px; height: auto;">
+                <p class="auth-splash-message">Preparing your experience&hellip;</p>
+                <img src="<?php echo htmlspecialchars($installLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" class="auth-splash-logo">
             </div>
         </div>
         <script>

@@ -17,7 +17,7 @@ Rules for this file:
 
 Current target: finish `v0.7` cleanly before opening `v0.8 beta`.
 
-Status: all `v0.7` exit-gate sections are complete. Remaining beta-readiness polish is ticket-driven (help text) or explicitly deferred to `v0.8` (caching/update propagation). Next step is a publishable checkpoint, then open `v0.8 beta` planning.
+Status: all `v0.7` exit-gate sections are complete. The first hosted bootstrap audit on `bandpromo.site` succeeded; published package **v0.7 build 277** is now the operator install source. Remaining beta-readiness polish is ticket-driven (help text) or explicitly deferred to `v0.8` (caching/update propagation). **v0.8 beta opens with the admin-panel package updater as the first operator-facing implementation priority.**
 
 Reference: see `ROADMAP.md` for the full milestone and release structure.
 
@@ -198,6 +198,7 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 
 ### Immediate next after v0.7
 
+- [ ] **Priority:** ship the admin-panel package updater for hosted operators: version check against published `release-manifest.json`, plain-language update summary, download/verify/apply with runtime preservation, post-update tasks, and retry-safe failure reporting (spec already in `ROADMAP.md` and `INSTALL-UPDATE.md`).
 - [ ] Define the `v0.8` multi-release data model.
 - [ ] Define anonymous vs registered access levels.
 - [ ] Define how support/payment providers fit the future access model: keep v0.7 support links/widgets config-driven, then decide later whether Ko-fi/Patreon/Stripe/PayPal/Vipps-style APIs need a reusable provider integration layer for registered or premium access rules.

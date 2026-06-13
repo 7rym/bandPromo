@@ -394,9 +394,9 @@ $welcomeDashboardLinks = [
 ];
 
 if ($welcomeSetupComplete) {
-    $welcomePrimaryNotice = 'Setup is complete. Use this dashboard to see what still needs doing, manage content, and keep the live site up to date.';
+    $welcomePrimaryNotice = '';
     if (!empty($buildRequiredState['required'])) {
-        $welcomePrimaryNotice .= ' ' . bandpromo_admin_welcome_build_status($buildRequiredState);
+        $welcomePrimaryNotice = bandpromo_admin_welcome_build_status($buildRequiredState);
     }
 } else {
     $welcomePrimaryNotice = $welcomeCompletedChecks . ' of ' . $welcomeTotalChecks . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
@@ -427,6 +427,7 @@ if (isset($_GET['logout']) && $_GET['logout'] === '1') {
 
 $authenticated = isset($_SESSION['authenticated']) && $_SESSION['authenticated'];
 $login_error = '';
+$sessionExpiredNotice = isset($_GET['session_expired']) && $_GET['session_expired'] === '1';
 
 // Handle admin login
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$authenticated) {
@@ -545,6 +546,10 @@ if (!$authenticated) {
             <p class="app-version"><?php echo htmlspecialchars($appVersion ?? 'dev'); ?></p>
             <p class="subtitle"><?php echo htmlspecialchars($siteName); ?> Management</p>
             
+            <?php if ($sessionExpiredNotice): ?>
+                <div class="error">Your session expired. Please log in again.</div>
+            <?php endif; ?>
+
             <?php if ($login_error): ?>
                 <div class="error"><?php echo htmlspecialchars($login_error); ?></div>
             <?php endif; ?>
@@ -837,7 +842,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard now that setup is complete. Use <strong>Needs attention</strong> in the header or the summary card below to see what still needs doing, then jump to <strong>Files</strong>, <strong>Content</strong>, or <strong>Update site</strong> to fix it. The completed setup checklist stays available below if you want to review what was finished during installation.
+                    This page is your dashboard. Use <strong>Needs attention</strong> in the header to see open tasks, then jump to <strong>Files</strong>, <strong>Content</strong>, or <strong>Update site</strong> to fix them.
                 <?php else: ?>
                     Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step: <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for Bio / FAQ and playlist shaping, <strong>Build</strong> for publish state, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
@@ -850,18 +855,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <h2>🌍 Welcome to bandPromo</h2>
                 <?php endif; ?>
 
+                <?php if ($welcomePrimaryNotice !== ''): ?>
                 <div class="welcome-callout<?php echo $welcomeSetupComplete ? ' welcome-callout-dashboard' : ''; ?>">
                     <?php echo htmlspecialchars($welcomePrimaryNotice); ?>
                 </div>
-
-                <div id="operatorNotificationsWelcomeCard" class="welcome-section operator-notifications-welcome"<?php echo $welcomeSetupComplete ? '' : ' style="display:none"'; ?>>
-                    <div class="operator-notifications-section-head">
-                        <h3>What needs your attention</h3>
-                        <span id="operatorNotificationsWelcomeSummary" class="badge audit-status-badge status-neutral">All clear</span>
-                    </div>
-                    <p id="operatorNotificationsWelcomeStatus" class="card-note">Loading…</p>
-                    <button type="button" id="operatorNotificationsWelcomeOpen" class="btn operator-notifications-open-btn">See what to do next</button>
-                </div>
+                <?php endif; ?>
 
                 <?php if ($welcomeSetupComplete): ?>
                     <div class="welcome-section">
@@ -877,22 +875,6 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <?php endforeach; ?>
                         </ul>
                     </div>
-
-                    <details class="welcome-setup-archive">
-                        <summary>Setup checklist (<?php echo (int) $welcomeCompletedChecks; ?> of <?php echo (int) $welcomeTotalChecks; ?> complete)</summary>
-                        <ul class="welcome-checklist">
-                            <?php foreach ($welcomeChecklist as $check): ?>
-                                <li>
-                                    <?php $checkSeverityClass = !empty($check['complete']) ? 'is-complete' : ('is-' . htmlspecialchars((string) ($check['severity'] ?? 'nonblocking'))); ?>
-                                    <span class="welcome-check-icon <?php echo $checkSeverityClass; ?>"><?php echo !empty($check['complete']) ? '✔' : '○'; ?></span>
-                                    <div class="welcome-check-body">
-                                        <a class="welcome-link <?php echo $checkSeverityClass; ?>" href="<?php echo htmlspecialchars($check['href']); ?>"><strong><?php echo htmlspecialchars($check['label']); ?></strong></a>
-                                        <span><?php echo htmlspecialchars($check['detail']); ?></span>
-                                    </div>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </details>
                 <?php else: ?>
                     <div class="welcome-grid">
                         <div class="welcome-section">
@@ -1372,12 +1354,18 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <br>Select multiple files for group download or deletion.
                         </span>
                     </div>
-                    <div class="media-panel-actions">
-                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                        <button type="button" class="btn bundled-demo-toggle media-display-toggle" data-audio-display-toggle data-audio-display-mode="master" aria-pressed="true" title="Show original files">◉ Master</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="current" disabled aria-label="Download selected audio files" title="Download selected audio files">⬇</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files">🗑️</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('audio')" aria-label="Add audio files" title="Add audio files">＋</button>
+                    <div class="media-panel-toolbar">
+                        <div class="media-panel-controls">
+                            <button type="button" class="btn media-selection-btn" data-media-select-all="audio" title="Select all visible files">Select all</button>
+                            <button type="button" class="btn media-selection-btn" data-media-select-none="audio" title="Clear selection">Clear</button>
+                            <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                            <button type="button" class="btn bundled-demo-toggle media-display-toggle" data-audio-display-toggle data-audio-display-mode="master" aria-pressed="true" title="Show original files">◉ Master</button>
+                        </div>
+                        <div class="media-panel-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="current" disabled aria-label="Download selected audio files" title="Download selected audio files">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('audio')" aria-label="Add audio files" title="Add audio files">＋</button>
+                        </div>
                     </div>
                 </div>
                 <div id="filelist-audio" class="media-file-list"><span class="text-muted">Loading…</span></div>
@@ -1393,14 +1381,25 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <br>Drag and drop video files here to add them directly. Rows show whether each file is used by the gallery or theme background video. Use the filters to review orphans.
                         </span>
                     </div>
-                    <div class="media-panel-actions">
-                        <button type="button" class="btn media-ref-filter-toggle active" data-media-ref-filter-target="video" data-media-ref-filter="all" aria-pressed="true" title="Show all video files">All</button>
-                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="video" data-media-ref-filter="referenced" aria-pressed="false" title="Show referenced video files only">In use</button>
-                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="video" data-media-ref-filter="orphans" aria-pressed="false" title="Show unreferenced video files only">Orphans</button>
-                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="video" data-download-variant="original" disabled aria-label="Download selected video files" title="Download selected video files">⬇</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="video" disabled aria-label="Delete selected video files" title="Delete selected video files">🗑️</button>
-                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('video')" aria-label="Add video files" title="Add video files">＋</button>
+                    <div class="media-panel-toolbar">
+                        <div class="media-panel-controls">
+                            <button type="button" class="btn media-selection-btn" data-media-select-all="video" title="Select all visible files">Select all</button>
+                            <button type="button" class="btn media-selection-btn" data-media-select-none="video" title="Clear selection">Clear</button>
+                            <label class="media-filter-label">
+                                <span class="visually-hidden">Filter video files</span>
+                                <select class="media-filter-select" data-media-filter-target="video" aria-label="Filter video files">
+                                    <option value="all">All files</option>
+                                    <option value="referenced">In use</option>
+                                    <option value="orphans">Orphans</option>
+                                </select>
+                            </label>
+                            <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                        </div>
+                        <div class="media-panel-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="video" data-download-variant="original" disabled aria-label="Download selected video files" title="Download selected video files">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="video" disabled aria-label="Delete selected video files" title="Delete selected video files">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('video')" aria-label="Add video files" title="Add video files">＋</button>
+                        </div>
                     </div>
                 </div>
                 <div id="filelist-video" class="media-file-list"><span class="text-muted">Loading…</span></div>
@@ -1416,15 +1415,26 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <br>Drag and drop artwork here to add track covers and illustrations. Use the filters to review track covers, build-generated files, or orphans.
                         </span>
                     </div>
-                    <div class="media-panel-actions">
-                        <button type="button" class="btn cover-filter-toggle active" data-cover-filter="all" aria-pressed="true" title="Show all illustration files">All</button>
-                        <button type="button" class="btn cover-filter-toggle" data-cover-filter="track-covers" aria-pressed="false" title="Show track cover files only">Covers</button>
-                        <button type="button" class="btn cover-filter-toggle" data-cover-filter="orphans" aria-pressed="false" title="Show unreferenced files only">Orphans</button>
-                        <button type="button" class="btn cover-filter-toggle" data-cover-filter="build-generated" aria-pressed="false" title="Show build-generated cover files only">Built</button>
-                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="illustrations" data-download-variant="original" disabled aria-label="Download selected illustration files" title="Download selected illustration files">⬇</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="illustrations" disabled aria-label="Delete selected illustration files" title="Delete selected illustration files">🗑️</button>
-                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('illustrations')" aria-label="Add illustration files" title="Add illustration files">＋</button>
+                    <div class="media-panel-toolbar">
+                        <div class="media-panel-controls">
+                            <button type="button" class="btn media-selection-btn" data-media-select-all="illustrations" title="Select all visible files">Select all</button>
+                            <button type="button" class="btn media-selection-btn" data-media-select-none="illustrations" title="Clear selection">Clear</button>
+                            <label class="media-filter-label">
+                                <span class="visually-hidden">Filter illustration files</span>
+                                <select class="media-filter-select" data-media-filter-target="illustrations" aria-label="Filter illustration files">
+                                    <option value="all">All files</option>
+                                    <option value="track-covers">Track covers</option>
+                                    <option value="orphans">Orphans</option>
+                                    <option value="build-generated">Build-generated</option>
+                                </select>
+                            </label>
+                            <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                        </div>
+                        <div class="media-panel-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="illustrations" data-download-variant="original" disabled aria-label="Download selected illustration files" title="Download selected illustration files">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="illustrations" disabled aria-label="Delete selected illustration files" title="Delete selected illustration files">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('illustrations')" aria-label="Add illustration files" title="Add illustration files">＋</button>
+                        </div>
                     </div>
                 </div>
                 <div id="filelist-illustrations" class="media-file-list"><span class="text-muted">Loading…</span></div>
@@ -1440,14 +1450,25 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <br>Drag and drop photo files here to add them directly. Rows show whether each file is used by the gallery or theme settings. Use the filters to review orphans.
                         </span>
                     </div>
-                    <div class="media-panel-actions">
-                        <button type="button" class="btn media-ref-filter-toggle active" data-media-ref-filter-target="photos" data-media-ref-filter="all" aria-pressed="true" title="Show all photo files">All</button>
-                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="photos" data-media-ref-filter="referenced" aria-pressed="false" title="Show referenced photo files only">In use</button>
-                        <button type="button" class="btn media-ref-filter-toggle" data-media-ref-filter-target="photos" data-media-ref-filter="orphans" aria-pressed="false" title="Show unreferenced photo files only">Orphans</button>
-                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="photos" data-download-variant="original" disabled aria-label="Download selected photo files" title="Download selected photo files">⬇</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="photos" disabled aria-label="Delete selected photo files" title="Delete selected photo files">🗑️</button>
-                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('photos')" aria-label="Add photo files" title="Add photo files">＋</button>
+                    <div class="media-panel-toolbar">
+                        <div class="media-panel-controls">
+                            <button type="button" class="btn media-selection-btn" data-media-select-all="photos" title="Select all visible files">Select all</button>
+                            <button type="button" class="btn media-selection-btn" data-media-select-none="photos" title="Clear selection">Clear</button>
+                            <label class="media-filter-label">
+                                <span class="visually-hidden">Filter photo files</span>
+                                <select class="media-filter-select" data-media-filter-target="photos" aria-label="Filter photo files">
+                                    <option value="all">All files</option>
+                                    <option value="referenced">In use</option>
+                                    <option value="orphans">Orphans</option>
+                                </select>
+                            </label>
+                            <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                        </div>
+                        <div class="media-panel-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="photos" data-download-variant="original" disabled aria-label="Download selected photo files" title="Download selected photo files">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="photos" disabled aria-label="Delete selected photo files" title="Delete selected photo files">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('photos')" aria-label="Add photo files" title="Add photo files">＋</button>
+                        </div>
                     </div>
                 </div>
                 <div id="filelist-photos" class="media-file-list"><span class="text-muted">Loading…</span></div>
@@ -1463,11 +1484,17 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <br>Drag and drop theme files here to add them directly. Select multiple files for group download or deletion.
                         </span>
                     </div>
-                    <div class="media-panel-actions">
-                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected theme files" title="Download selected theme files">⬇</button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected theme files" title="Delete selected theme files">🗑️</button>
-                    <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('special')" aria-label="Add theme files" title="Add theme files">＋</button>
+                    <div class="media-panel-toolbar">
+                        <div class="media-panel-controls">
+                            <button type="button" class="btn media-selection-btn" data-media-select-all="special" title="Select all visible files">Select all</button>
+                            <button type="button" class="btn media-selection-btn" data-media-select-none="special" title="Clear selection">Clear</button>
+                            <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
+                        </div>
+                        <div class="media-panel-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected theme files" title="Download selected theme files">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected theme files" title="Delete selected theme files">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn" onclick="openUploadModal('special')" aria-label="Add theme files" title="Add theme files">＋</button>
+                        </div>
                     </div>
                 </div>
                 <div id="filelist-special" class="media-file-list"><span class="text-muted">Loading…</span></div>
@@ -2301,8 +2328,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         const adminDateEnd   = <?php echo json_encode($dateEnd); ?>;
         const adminActivePanel = <?php echo json_encode($filesPanel); ?>;
         const adminCsrfToken = <?php echo json_encode($adminCsrfToken); ?>;
-        const adminWelcomeDashboardMode = <?php echo $welcomeSetupComplete ? 'true' : 'false'; ?>;
     </script>
+    <script>
+        window.BANDPROMO_SESSION_AUTH = {
+            enabled: true,
+            loginUrl: '/admin.php',
+            pingUrl: '/biblioteca/session-check.php',
+            pingIntervalMs: 300000,
+        };
+    </script>
+    <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 
     <!-- Admin media preview lightbox -->

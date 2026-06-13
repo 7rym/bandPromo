@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-13 14:00 - Replaced Files tab filter button rows with compact fixed-width dropdowns and a split toolbar so download/delete/add actions stay pinned on the right when switching media panels.
+
+2026-06-13 12:00 - Beta quick wins: login splash now shows the install logo with "Preparing your experience…", admin file lists gained Select all/Clear controls, expired sessions redirect to login on both admin and player via shared session-auth handling, and the completed-setup welcome dashboard no longer repeats setup-complete messaging or duplicate operator inbox content.
+
+2026-06-12 22:30 - Completed the first full hosted bootstrap audit on `bandpromo.site`, published operator package `v0.7 build 277`, and locked the admin-panel package updater as the first v0.8 implementation priority in `docs/TODO.md` and `docs/ROADMAP.md`.
+
 2026-06-12 16:00 - v0.7 code cleanup before v0.8: removed dead endpoints (`save-bio.php`, `get-gallery-items.php`, `get-build-required.php`, `check-uploads.php`), extracted shared helpers (`array-helpers.php`, `json-file-helpers.php`, `quiz-input.php`), deduplicated `delete-media.php` reference/JSON logic, unified video poster paths in `gallery-helpers.php`, and hoisted shared `admin.js` date/HTML helpers.
 
 2026-06-12 15:12 - Track `log/.htaccess` in git via `.gitignore` exception so log-folder HTTP deny rules ship with releases.

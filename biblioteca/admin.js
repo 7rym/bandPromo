@@ -308,10 +308,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const operatorNotificationsModal = document.getElementById('operatorNotificationsModal');
             const operatorNotificationsModalBody = document.getElementById('operatorNotificationsModalBody');
             const operatorNotificationsClose = document.getElementById('operatorNotificationsClose');
-            const operatorNotificationsWelcomeCard = document.getElementById('operatorNotificationsWelcomeCard');
-            const operatorNotificationsWelcomeOpen = document.getElementById('operatorNotificationsWelcomeOpen');
-            const operatorNotificationsWelcomeStatus = document.getElementById('operatorNotificationsWelcomeStatus');
-            const operatorNotificationsWelcomeSummary = document.getElementById('operatorNotificationsWelcomeSummary');
             const toastHost = document.getElementById('adminToastHost');
             let adminCsrf = typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
             let currentBuildRequired = false;
@@ -684,31 +680,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     operatorNotificationsModalBody.innerHTML = html;
                 }
 
-                if (operatorNotificationsWelcomeCard && operatorNotificationsWelcomeSummary) {
-                    const welcomeDashboardMode = typeof adminWelcomeDashboardMode === 'boolean' && adminWelcomeDashboardMode;
-                    operatorNotificationsWelcomeCard.style.display = welcomeDashboardMode || model.totalCount > 0 ? '' : 'none';
-
-                    if (operatorNotificationsWelcomeStatus) {
-                        operatorNotificationsWelcomeStatus.textContent = model.totalCount === 0
-                            ? 'Everything looks good. Open the inbox any time to double-check.'
-                            : `${model.totalCount} ${model.totalCount === 1 ? 'item needs' : 'items need'} your attention. Open the inbox to see what to do next.`;
-                    }
-
-                    if (model.totalCount === 0) {
-                        operatorNotificationsWelcomeSummary.textContent = 'All clear';
-                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-ok';
-                    } else if (model.hasCritical) {
-                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} blocked`;
-                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-error';
-                    } else if (model.attentionCount > 0) {
-                        operatorNotificationsWelcomeSummary.textContent = `${model.attentionCount} to do first`;
-                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-warning';
-                    } else {
-                        operatorNotificationsWelcomeSummary.textContent = `${model.recommendedCount} optional`;
-                        operatorNotificationsWelcomeSummary.className = 'badge audit-status-badge status-neutral';
-                    }
-                }
-
                 if (operatorNotificationsCount) {
                     operatorNotificationsCount.textContent = String(model.totalCount);
                     operatorNotificationsCount.className = 'operator-notifications-count';
@@ -724,12 +695,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             if (operatorNotificationsToggle && operatorNotificationsModal) {
                 operatorNotificationsToggle.addEventListener('click', () => {
-                    openOperatorNotifications();
-                });
-            }
-
-            if (operatorNotificationsWelcomeOpen) {
-                operatorNotificationsWelcomeOpen.addEventListener('click', () => {
                     openOperatorNotifications();
                 });
             }
@@ -941,16 +906,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncMediaReferenceFilterUi() {
-                document.querySelectorAll('[data-cover-filter]').forEach((button) => {
-                    const active = String(button.dataset.coverFilter || '') === illustrationsCoverFilter;
-                    button.classList.toggle('active', active);
-                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
-                });
-                document.querySelectorAll('[data-media-ref-filter-target]').forEach((button) => {
-                    const target = String(button.dataset.mediaRefFilterTarget || '');
-                    const active = getMediaReferenceFilter(target) === String(button.dataset.mediaRefFilter || '');
-                    button.classList.toggle('active', active);
-                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                document.querySelectorAll('[data-media-filter-target]').forEach((select) => {
+                    const target = String(select.dataset.mediaFilterTarget || '');
+                    if (!target) {
+                        return;
+                    }
+                    select.value = getMediaReferenceFilter(target);
                 });
             }
 
@@ -1603,6 +1564,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 syncMediaSelectionUi(type);
             }
 
+            function selectAllVisibleMediaFiles(type) {
+                const state = getMediaSelectionState(type);
+                getMediaRows(type).forEach((row) => {
+                    const filename = String(row.dataset.file || '');
+                    if (filename) {
+                        state.selected.add(filename);
+                    }
+                });
+                syncMediaSelectionUi(type);
+            }
+
+            window.selectAllVisibleMediaFiles = selectAllVisibleMediaFiles;
+            window.clearMediaSelection = clearMediaSelection;
+
             async function refreshAdminCsrfToken() {
                 const resp = await fetch('/biblioteca/get-admin-csrf.php', {
                     credentials: 'same-origin',
@@ -1702,8 +1677,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             loadMediaList(activeMediaPanel);
 
             const showBundledAssetsToggleButtons = document.querySelectorAll('[data-bundled-toggle]');
-            const coverFilterToggleButtons = document.querySelectorAll('[data-cover-filter]');
-            const mediaRefFilterToggleButtons = document.querySelectorAll('[data-media-ref-filter-target]');
 
             function setMediaReferenceFilter(type, nextValue) {
                 if (type === 'illustrations') {
@@ -1721,16 +1694,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
-            coverFilterToggleButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    setMediaReferenceFilter('illustrations', String(button.dataset.coverFilter || 'all'));
-                });
-            });
-
-            mediaRefFilterToggleButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    const target = String(button.dataset.mediaRefFilterTarget || '');
-                    setMediaReferenceFilter(target, String(button.dataset.mediaRefFilter || 'all'));
+            document.querySelectorAll('[data-media-filter-target]').forEach((select) => {
+                select.addEventListener('change', () => {
+                    const target = String(select.dataset.mediaFilterTarget || '');
+                    setMediaReferenceFilter(target, String(select.value || 'all'));
                 });
             });
 
@@ -1763,6 +1730,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             syncBundledToggleUi();
             syncMediaReferenceFilterUi();
             syncAudioDisplayToggleUi();
+
+            document.querySelectorAll('[data-media-select-all]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const type = String(button.dataset.mediaSelectAll || '').trim();
+                    if (type) {
+                        selectAllVisibleMediaFiles(type);
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-media-select-none]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const type = String(button.dataset.mediaSelectNone || '').trim();
+                    if (type) {
+                        clearMediaSelection(type);
+                    }
+                });
+            });
 
             // Upload modal
             const modal       = document.getElementById('mediaUploadModal');

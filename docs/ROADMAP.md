@@ -417,6 +417,7 @@ Theme: architectural shift from a private single-release site to a reusable arti
 
 Primary goals:
 
+- ship the admin-panel package updater so hosted operators can move from published release packages to a current build without Git, SSH, or manual file uploads (first v0.8 implementation priority after the successful `bandpromo.site` bootstrap audit)
 - define the multi-release data model
 - define anonymous vs registered access levels
 - formalize core vs modules
