@@ -857,24 +857,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return badges.join(' ');
             }
 
-            function formatCoverInfoReferenceLine(file) {
-                const info = getFileReferenceInfo(file);
-                const references = Array.isArray(info.references) ? info.references : [];
-                if (!references.length) {
-                    return info.orphan === true
-                        ? '<span class="media-cover-reference-line">Not referenced</span>'
-                        : '';
-                }
-
-                const labels = references
-                    .map((reference) => String(reference.label || '').trim())
-                    .filter(Boolean)
-                    .slice(0, 3);
-                const suffix = references.length > labels.length ? ` +${references.length - labels.length} more` : '';
-                const text = `Used by: ${labels.join(', ')}${suffix}`;
-                return `<span class="media-cover-reference-line" title="${bandpromoAdminEscapeHtml(text)}">${bandpromoAdminEscapeHtml(text)}</span>`;
-            }
-
             function matchesMediaReferenceFilter(type, file) {
                 const filter = getMediaReferenceFilter(type);
                 if (filter === 'all') {
@@ -1230,12 +1212,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncBundledToggleUi() {
-                const toggleButtons = document.querySelectorAll('[data-bundled-toggle]');
-                toggleButtons.forEach((button) => {
+                document.querySelectorAll('[data-bundled-toggle]').forEach((button) => {
                     button.classList.toggle('active', showBundledDemoAssets);
                     button.setAttribute('aria-pressed', showBundledDemoAssets ? 'true' : 'false');
                     button.textContent = showBundledDemoAssets ? '◉ Demo' : '◌ Demo';
                     button.title = showBundledDemoAssets ? 'Hide bundled demo assets' : 'Show bundled demo assets';
+                });
+                document.querySelectorAll('[data-media-demo-filter]').forEach((select) => {
+                    select.value = showBundledDemoAssets ? 'show' : 'hide';
                 });
             }
 
@@ -1519,6 +1503,42 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     button.textContent = showingOriginal ? '◉ Original' : '◉ Master';
                     button.title = showingOriginal ? 'Show master files' : 'Show original files';
                 });
+                document.querySelectorAll('[data-media-audio-display-filter]').forEach((select) => {
+                    select.value = audioDisplayMode === 'original' ? 'original' : 'master';
+                });
+            }
+
+            function syncMediaListHeaderSelection(type) {
+                const headerCheckbox = document.querySelector(`.media-file-select-all[data-target="${type}"]`);
+                if (!headerCheckbox) {
+                    return;
+                }
+
+                const rows = getMediaRows(type);
+                const state = getMediaSelectionState(type);
+                const visibleFiles = rows
+                    .map((row) => String(row.dataset.file || ''))
+                    .filter(Boolean);
+                const selectedCount = visibleFiles.filter((filename) => state.selected.has(filename)).length;
+
+                if (visibleFiles.length === 0) {
+                    headerCheckbox.checked = false;
+                    headerCheckbox.indeterminate = false;
+                    headerCheckbox.disabled = true;
+                    return;
+                }
+
+                headerCheckbox.disabled = false;
+                if (selectedCount === 0) {
+                    headerCheckbox.checked = false;
+                    headerCheckbox.indeterminate = false;
+                } else if (selectedCount === visibleFiles.length) {
+                    headerCheckbox.checked = true;
+                    headerCheckbox.indeterminate = false;
+                } else {
+                    headerCheckbox.checked = false;
+                    headerCheckbox.indeterminate = true;
+                }
             }
 
             function syncMediaSelectionUi(type) {
@@ -1532,6 +1552,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         checkbox.checked = selected;
                     }
                 });
+
+                syncMediaListHeaderSelection(type);
 
                 const bulkDeleteBtn = document.querySelector(`[data-bulk-delete-target="${type}"]`);
                 if (bulkDeleteBtn) {
@@ -1642,7 +1664,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const nameCell = type === 'audio'
                             ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
                             : mediaReferenceFilterTypes.has(type)
-                                ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span>${formatCoverInfoReferenceLine(f)}</span>`
+                                ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span></span>`
                                 : `<span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span>`;
                         const isExpandedAudio = type === 'audio' && expandedAudioFile === f.name;
                         const rowAttributes = rowIsEditableAudio
@@ -1719,9 +1741,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
+            document.querySelectorAll('[data-media-demo-filter]').forEach((select) => {
+                select.addEventListener('change', () => {
+                    setShowBundledDemoAssets(String(select.value || 'hide') === 'show');
+                });
+            });
+
             document.querySelectorAll('[data-audio-display-toggle]').forEach((button) => {
                 button.addEventListener('click', () => {
                     audioDisplayMode = audioDisplayMode === 'original' ? 'master' : 'original';
+                    syncAudioDisplayToggleUi();
+                    loadMediaList('audio');
+                });
+            });
+
+            document.querySelectorAll('[data-media-audio-display-filter]').forEach((select) => {
+                select.addEventListener('change', () => {
+                    const nextMode = String(select.value || 'master').trim();
+                    audioDisplayMode = nextMode === 'original' ? 'original' : 'master';
                     syncAudioDisplayToggleUi();
                     loadMediaList('audio');
                 });
@@ -1731,19 +1768,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             syncMediaReferenceFilterUi();
             syncAudioDisplayToggleUi();
 
-            document.querySelectorAll('[data-media-select-all]').forEach((button) => {
-                button.addEventListener('click', () => {
-                    const type = String(button.dataset.mediaSelectAll || '').trim();
-                    if (type) {
-                        selectAllVisibleMediaFiles(type);
+            document.querySelectorAll('.media-file-select-all').forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    const type = String(checkbox.dataset.target || '').trim();
+                    if (!type) {
+                        return;
                     }
-                });
-            });
-
-            document.querySelectorAll('[data-media-select-none]').forEach((button) => {
-                button.addEventListener('click', () => {
-                    const type = String(button.dataset.mediaSelectNone || '').trim();
-                    if (type) {
+                    if (checkbox.checked) {
+                        selectAllVisibleMediaFiles(type);
+                    } else {
                         clearMediaSelection(type);
                     }
                 });

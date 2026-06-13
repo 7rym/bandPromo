@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-13 16:35 - Removed the operator-facing "Used by" reference line from Files list rows while keeping the compact in-use/orphan badges.
+
+2026-06-13 16:25 - Added Download and Delete text labels to Files list header bulk actions so Upload, Download, and Delete share the same icon-plus-label pattern.
+
+2026-06-13 16:15 - Reordered Files list header actions to Upload, Download, Delete and labeled the upload control with icon plus text.
+
+2026-06-13 16:00 - Styled Files list header filters consistently and moved bundled demo visibility into the same dropdown pattern as other file filters (User files / Include demo).
+
+2026-06-13 15:30 - Moved Files list controls into a row-style list header aligned with file items, replacing Select all/Clear text buttons with a master checkbox that supports all/none/indeterminate selection.
+
 2026-06-13 14:00 - Replaced Files tab filter button rows with compact fixed-width dropdowns and a split toolbar so download/delete/add actions stay pinned on the right when switching media panels.
 
 2026-06-13 12:00 - Beta quick wins: login splash now shows the install logo with "Preparing your experience…", admin file lists gained Select all/Clear controls, expired sessions redirect to login on both admin and player via shared session-auth handling, and the completed-setup welcome dashboard no longer repeats setup-complete messaging or duplicate operator inbox content.
