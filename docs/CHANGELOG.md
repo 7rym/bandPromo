@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-13 17:15 - Published operator package **v0.7 build 279** with the beta Files-tab polish batch, login splash/session redirect improvements, and synced operator documentation.
+
+2026-06-13 17:00 - Synced operator docs for the Files list header UX, demo/source filtering, login splash, session-expiry redirect, and removal of verbose Used-by row text in `docs/FEATURES.md`, `docs/MEDIA-HANDLING.md`, `docs/ROADMAP.md`, `docs/TODO.md`, and `docs/SECURITY-AUDIT.md`.
+
 2026-06-13 16:35 - Removed the operator-facing "Used by" reference line from Files list rows while keeping the compact in-use/orphan badges.
 
 2026-06-13 16:25 - Added Download and Delete text labels to Files list header bulk actions so Upload, Download, and Delete share the same icon-plus-label pattern.

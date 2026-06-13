@@ -735,7 +735,7 @@ Bundled placeholder/demo assets should be hidden by default in normal operator-f
 They may be shown only when one of these is true:
 
 - the install is still in an explicit empty/demo/setup state
-- the operator enables a dedicated `show bundled demo assets` toggle
+- the operator sets the Files list source filter to **Include demo**
 - a developer/admin troubleshooting view intentionally asks to include them
 
 This means an operator who replaces demo assets with real media should not keep seeing the old bundled files return as if they were ordinary active content.
@@ -1104,9 +1104,9 @@ Origins are tracked separately from roles:
 
 The runtime manifest in `data/media-library-state.json` records advisory `assets` metadata, but live references are always recomputed from `play/playlist.json`, `data/gallery.json`, and `web-config.json`. `biblioteca/list-media.php` now returns this as `cover_info` for Files -> Illustrations, including role, origin, references, and an `orphan` flag for unreferenced non-demo files.
 
-Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, reference lines, filter chips (`All`, `Covers`, `Orphans`, `Built`), and delete-preview hints for theme references and regenerable build artifacts. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
+Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, compact list-header filter dropdowns (`All`, `Track covers`, `Orphans`, `Build-generated`, plus `User files` / `Include demo`), and delete-preview hints for theme references and regenerable build artifacts. Detailed per-row `Used by:` reference text stays out of the normal operator list view; badges and filters are the primary signal. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
 
-Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery/theme references, an `orphan` flag, and admin filters for `All`, `In use`, and `Orphans`.
+Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery/theme references, an `orphan` flag, and the same list-header filter pattern (`All`, `In use`, `Orphans`, plus demo-source filtering).
 
 ## Current FLAC optimization path
 

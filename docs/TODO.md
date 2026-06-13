@@ -168,7 +168,9 @@ Scope: first real tester/operator experience. Put items here when they concern h
 
 - [x] Review admin help text and identify remaining confusing areas for non-technical operators.
   - [x] Files tab: standardized permanent-action warning line across sub-tabs
-  - [x] Welcome tab: setup checklist vs completed-install dashboard help text and layout
+  - [x] Files tab: list-header filters, master checkbox selection, and labeled Upload/Download/Delete bulk actions
+  - [x] Welcome tab: setup checklist vs completed-install dashboard help text and layout; completed installs rely on the header inbox instead of duplicate dashboard task cards
+  - [x] Login/player session expiry redirects back to login with a clear message
   - [x] Operator inbox: open focused modal instead of inline expanding drawer
   - [x] Operator inbox: plain-language copy for non-technical operators
   - Remaining tabs (Analytics, Content, Build, Config): revisit from beta tickets/bug reports rather than pre-emptive rewrites

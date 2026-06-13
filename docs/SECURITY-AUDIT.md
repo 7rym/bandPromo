@@ -8,7 +8,9 @@ Previous review: 2026-04-25
 
 bandPromo is a closed, session-authenticated PHP application with file/JSON storage (no SQL). Path handling, upload routing, HTTPS enforcement, and page HTML sanitization are generally sound. The **2026-06-12 release checkpoint** adds a shared **admin-role guard** on `admin.php` and admin biblioteca APIs so listener accounts cannot reach operator surfaces.
 
-Remaining release risks are mostly **session abuse hardening** (CSRF, login rate limits, password hashing) rather than missing authorization on admin endpoints.
+Remaining release risks are mostly **session abuse hardening** (CSRF, login rate limits, password hashing, explicit server-side session lifetime policy) rather than missing authorization on admin endpoints.
+
+**2026-06-13 UX note:** Admin and player now include a lightweight client-side session watchdog (`biblioteca/session-auth.js` + `biblioteca/session-check.php`) that redirects expired sessions to login. This improves operator clarity but is not a substitute for explicit server-side timeout configuration.
 
 ## Fixed in v0.7 build 276 checkpoint
 

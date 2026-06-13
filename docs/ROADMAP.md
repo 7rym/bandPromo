@@ -348,6 +348,8 @@ Recent hardening completed (Apr–Jun 2026):
 - non-core quiz feature moved out of core player flow and preserved as modular assets
 - localhost admin quality-of-life fix for "Open site" link behavior
 - welcome dashboard after setup completion, operator inbox modal, plain-language inbox copy
+- Files list header UX: master checkbox selection, compact filter dropdowns, labeled bulk actions, operator-facing row badges without verbose reference lines
+- login splash uses install branding; expired admin/player sessions redirect to login
 - cover-art management, orphan detection, reference-aware media deletion
 - admin-role guard on operator panel and admin APIs (listener accounts cannot open admin surfaces)
 
