@@ -314,6 +314,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let currentBuildAction = 'none';
             let currentBuildReasons = [];
             let latestBuildValidation = null;
+            let latestWelcomeState = null;
+            let latestPackageUpdate = null;
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
@@ -356,6 +358,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 'fix-before-publish': { label: 'Fix first', itemClass: 'is-attention', summaryClass: 'status-warning' },
                 'recommended-fix': { label: 'Nice to have', itemClass: 'is-recommended', summaryClass: 'status-neutral' },
                 'build-step': { label: 'Ready to go live', itemClass: 'is-attention', summaryClass: 'status-warning' },
+                'setup-step': { label: 'Setup', itemClass: 'is-attention', summaryClass: 'status-warning' },
+                'package-update': { label: 'Update available', itemClass: 'is-attention', summaryClass: 'status-warning' },
             };
 
             const mediaTypeLabels = {
@@ -563,13 +567,76 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
-            function buildOperatorNotificationModel(buildState, validation) {
+            function buildNotificationFromWelcomeItem(item) {
+                if (!item || item.complete === true) {
+                    return null;
+                }
+
+                const severity = String(item.severity || 'nonblocking') === 'blocking'
+                    ? 'setup-step'
+                    : 'recommended-fix';
+
+                return {
+                    severity,
+                    title: item.label,
+                    file: '',
+                    details: [
+                        { text: String(item.next || item.detail || '').trim() },
+                    ].filter((detail) => detail.text !== ''),
+                    actions: [
+                        { label: item.action_label || 'Open step', href: item.href || '?tab=welcome' },
+                    ],
+                };
+            }
+
+            function buildNotificationFromPackageUpdate(packageUpdate) {
+                if (!packageUpdate || packageUpdate.update_available !== true) {
+                    return null;
+                }
+
+                const installed = packageUpdate.installed_version || 'unknown';
+                const remote = packageUpdate.remote_version || 'a newer release';
+
+                return {
+                    severity: 'package-update',
+                    title: `Site update available (${installed} → ${remote})`,
+                    file: '',
+                    details: [
+                        { text: 'A newer bandPromo package is published. Application files can be updated while web-config.json, .env, data/, media/, and log/ stay preserved.' },
+                    ],
+                    actions: [
+                        { label: 'Go to Site update', href: '?tab=welcome#packageUpdateCard' },
+                    ],
+                };
+            }
+
+            function buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate) {
                 const attention = [];
                 const recommended = [];
+                const packageNotification = buildNotificationFromPackageUpdate(packageUpdate);
                 const buildNotification = buildNotificationFromBuildState(buildState || {});
+
+                if (packageNotification) {
+                    attention.push(packageNotification);
+                }
 
                 if (buildNotification) {
                     attention.push(buildNotification);
+                }
+
+                if (welcome && welcome.setup_complete !== true && Array.isArray(welcome.checklist)) {
+                    welcome.checklist.forEach((item) => {
+                        const notification = buildNotificationFromWelcomeItem(item);
+                        if (!notification) {
+                            return;
+                        }
+
+                        if (notification.severity === 'recommended-fix') {
+                            recommended.push(notification);
+                        } else {
+                            attention.push(notification);
+                        }
+                    });
                 }
 
                 const validationModel = buildValidationSummaryModel(validation);
@@ -608,7 +675,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     attentionCount: attention.length,
                     recommendedCount: recommended.length,
                     totalCount: attention.length + recommended.length,
-                    hasCritical: attention.some(item => item.severity === 'cannot-build'),
+                    hasCritical: attention.some(item => item.severity === 'cannot-build' || item.severity === 'setup-step'),
                 };
             }
 
@@ -672,8 +739,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 `).join('');
             }
 
-            function renderOperatorNotifications(buildState, validation) {
-                const model = buildOperatorNotificationModel(buildState, validation);
+            function renderOperatorNotifications(buildState, validation, welcome, packageUpdate) {
+                const model = buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate);
                 const html = renderOperatorNotificationSections(model);
 
                 if (operatorNotificationsModalBody) {
@@ -1293,6 +1360,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel(currentBuildAction)}`;
             }
 
+            let renderPackageUpdateStatus = null;
+
             async function refreshBuildRequiredState() {
                 try {
                     const resp = await fetch('/biblioteca/get-operator-notifications.php');
@@ -1301,9 +1370,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     const state = data.build_required_state || {};
                     latestBuildValidation = data.metadata_validation || null;
+                    latestWelcomeState = data.welcome || null;
+                    latestPackageUpdate = data.package_update || null;
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
-                    renderOperatorNotifications(state, latestBuildValidation);
+                    renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate);
                     renderBuildValidationSummary(latestBuildValidation);
+
+                    if (typeof renderPackageUpdateStatus === 'function' && data.package_update) {
+                        renderPackageUpdateStatus({
+                            ok: true,
+                            ...data.package_update,
+                        });
+                    }
 
                     const statusEl = document.getElementById('buildStatus');
                     if (statusEl && data.build_required === true && !statusEl.textContent) {
@@ -4258,7 +4336,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             data.build_required_state.action || 'none',
                             data.build_required_state.tasks || []
                         );
-                        renderOperatorNotifications(data.build_required_state, latestBuildValidation);
+                        renderOperatorNotifications(data.build_required_state, latestBuildValidation, latestWelcomeState, latestPackageUpdate);
                         refreshBuildHint();
                     }
 
@@ -4456,7 +4534,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     notesEl.hidden = false;
                 }
 
-                function renderPackageUpdateStatus(data) {
+                renderPackageUpdateStatus = function renderPackageUpdateCard(data) {
                     latestStatus = data;
                     renderChecks(data.checks || []);
                     renderNotes(data.release_notes || []);
@@ -4507,7 +4585,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             footnoteEl.hidden = true;
                         }
                     }
-                }
+                };
 
                 async function refreshPackageUpdateStatus() {
                     refreshBtn.disabled = true;
@@ -4516,19 +4594,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     statusEl.textContent = 'Checking for updates…';
 
                     try {
-                        const resp = await fetch('/biblioteca/check-package-update.php', {
-                            credentials: 'same-origin',
-                        });
-                        const data = await resp.json().catch(() => ({}));
-                        if (!resp.ok || !data || data.ok !== true) {
-                            renderPackageUpdateStatus({
-                                ok: false,
-                                error: (data && data.error) || 'Could not check for updates.',
-                            });
-                            return;
+                        if (typeof refreshBuildRequiredState === 'function') {
+                            await refreshBuildRequiredState();
                         }
-
-                        renderPackageUpdateStatus(data);
                     } catch (error) {
                         renderPackageUpdateStatus({
                             ok: false,

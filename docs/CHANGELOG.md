@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 04:15 - Checkpoint v0.7 build 283: operator inbox surfaces incomplete Welcome checklist steps and available site package updates from one shared notifications endpoint.
+
+2026-06-15 04:00 - Operator inbox now includes incomplete Welcome checklist steps and available site package updates, using shared welcome-state logic in `admin-welcome-state.php` and an expanded `get-operator-notifications.php` payload.
+
 2026-06-15 03:15 - Checkpoint v0.7 build 282: ship block-based page editor (richtext/picture/list blocks, Word-style toolbar, live preview, delete confirmations), JSON page templates, player page lightbox fix, login FAQ alignment, and v0.8 platform/marketing documentation.
 
 2026-06-15 03:00 - Refreshed `faq.template.json` from the latest locally saved FAQ page (centered H1 title, bold question labels, updated copy).
