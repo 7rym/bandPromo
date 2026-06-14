@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
+const BANDPROMO_GITHUB_REPOSITORY = '7rym/bandPromo';
+const BANDPROMO_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=30';
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
 const BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION = '1.0';
@@ -231,8 +233,156 @@ function bandpromo_release_copy_tree(string $sourceRoot, string $targetRoot, str
     }
 }
 
+function bandpromo_release_parse_version(string $version): ?array {
+    $version = trim($version);
+    if (preg_match('/^v(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) !== 1) {
+        return null;
+    }
+
+    return [
+        'major' => (int) $matches[1],
+        'minor' => (int) $matches[2],
+        'build' => (int) $matches[3],
+        'raw' => $version,
+    ];
+}
+
+function bandpromo_release_compare_versions(string $installed, string $remote): int {
+    $left = bandpromo_release_parse_version($installed);
+    $right = bandpromo_release_parse_version($remote);
+
+    if ($left === null || $right === null) {
+        return strcasecmp($installed, $remote);
+    }
+
+    if ($left['major'] !== $right['major']) {
+        return $left['major'] <=> $right['major'];
+    }
+    if ($left['minor'] !== $right['minor']) {
+        return $left['minor'] <=> $right['minor'];
+    }
+
+    return $left['build'] <=> $right['build'];
+}
+
+function bandpromo_release_version_text_from_tag(string $tag): ?string {
+    if (preg_match('/^v(\d+)\.(\d+)-build-(\d+)$/i', trim($tag), $matches) !== 1) {
+        return null;
+    }
+
+    return sprintf('v%s.%s build %s', $matches[1], $matches[2], $matches[3]);
+}
+
+function bandpromo_release_manifest_url_for_tag(string $repository, string $tag): string {
+    return 'https://github.com/' . trim($repository, '/') . '/releases/download/' . rawurlencode($tag) . '/release-manifest.json';
+}
+
+function bandpromo_release_is_latest_manifest_url(string $manifestUrl): bool {
+    return preg_match('#/releases/latest/download/release-manifest\.json$#i', $manifestUrl) === 1;
+}
+
+function bandpromo_release_fetch_github_releases(string $apiUrl = BANDPROMO_GITHUB_RELEASES_API_URL): array {
+    if (function_exists('curl_init')) {
+        $ch = curl_init($apiUrl);
+        if ($ch === false) {
+            throw new RuntimeException('Could not initialize cURL for GitHub releases fetch.');
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_USERAGENT => 'bandPromo release helper',
+            CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json'],
+            CURLOPT_FAILONERROR => false,
+        ]);
+
+        $body = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($body === false) {
+            throw new RuntimeException('GitHub releases fetch failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
+        }
+
+        if ($status >= 400) {
+            throw new RuntimeException('GitHub releases fetch failed with HTTP status ' . $status . '.');
+        }
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'follow_location' => 1,
+                'user_agent' => 'bandPromo release helper',
+                'header' => "Accept: application/vnd.github+json\r\n",
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+
+        $body = @file_get_contents($apiUrl, false, $context);
+        if ($body === false) {
+            throw new RuntimeException('GitHub releases fetch failed. Check outbound HTTPS support.');
+        }
+    }
+
+    $decoded = json_decode((string) $body, true);
+    if (!is_array($decoded)) {
+        throw new RuntimeException('GitHub releases response is not valid JSON.');
+    }
+
+    return $decoded;
+}
+
+function bandpromo_release_pick_newest_release_tag(array $releases): ?string {
+    $bestTag = null;
+    $bestVersion = null;
+
+    foreach ($releases as $release) {
+        if (!is_array($release)) {
+            continue;
+        }
+
+        $tag = trim((string) ($release['tag_name'] ?? ''));
+        $versionText = bandpromo_release_version_text_from_tag($tag);
+        if ($versionText === null) {
+            continue;
+        }
+
+        if ($bestVersion === null || bandpromo_release_compare_versions($bestVersion, $versionText) < 0) {
+            $bestVersion = $versionText;
+            $bestTag = $tag;
+        }
+    }
+
+    return $bestTag;
+}
+
+function bandpromo_release_resolve_manifest_url(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): string {
+    if (!bandpromo_release_is_latest_manifest_url($manifestUrl)) {
+        return $manifestUrl;
+    }
+
+    try {
+        $releases = bandpromo_release_fetch_github_releases();
+        $tag = bandpromo_release_pick_newest_release_tag($releases);
+        if ($tag !== null) {
+            return bandpromo_release_manifest_url_for_tag(BANDPROMO_GITHUB_REPOSITORY, $tag);
+        }
+    } catch (Throwable $throwable) {
+        // Fall back to GitHub's latest stable release URL when the API is unavailable.
+    }
+
+    return $manifestUrl;
+}
+
 function bandpromo_release_load_manifest(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
-    $body = bandpromo_release_fetch_text($manifestUrl);
+    $resolvedUrl = bandpromo_release_resolve_manifest_url($manifestUrl);
+    $body = bandpromo_release_fetch_text($resolvedUrl);
     $decoded = json_decode($body, true);
     if (!is_array($decoded)) {
         throw new RuntimeException('Release manifest is not valid JSON.');

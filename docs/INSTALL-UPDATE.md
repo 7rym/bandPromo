@@ -6,7 +6,7 @@ This guide is for operators who want to run bandPromo without relying on Git, SS
 
 - You can upload files into the folder where your site should live.
 - Your host can run PHP 8+.
-- Your host allows outbound HTTPS requests so the bootstrap installer can download the published release package.
+- Your host allows outbound HTTPS requests so the bootstrap installer can download the published release package and query the GitHub Releases API for beta prereleases.
 - You can open a URL in the browser after uploading the installer file.
 
 This guide does not assume:
@@ -116,6 +116,7 @@ The operator-facing admin/package updater is now available from **Dashboard → 
 That means:
 
 - bandPromo can check the published `release-manifest.json` from admin
+- during v0.8 beta, prerelease packages are included: the updater resolves the newest published release tag (including prereleases) because GitHub `releases/latest` points only at the newest stable release
 - operators can download and apply immutable release packages in the browser
 - normal operators should not be expected to use `git pull`, SSH, or hosting-panel repository tools as the long-term update path
 - failed update attempts are logged locally and are safe to retry

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 18:30 - Checkpoint v0.8 build 289: fix Site update to detect prerelease packages via GitHub Releases API so v0.8 beta builds are offered over older stable v0.7 releases.
+
+2026-06-15 18:00 - Fixed Site update not detecting v0.8 prereleases: GitHub `releases/latest` skips prerelease assets, so the updater now resolves the newest published release tag (including beta prereleases) via the GitHub Releases API before loading `release-manifest.json`.
+
 2026-06-15 17:00 - Checkpoint v0.8 build 288: open the v0.8 beta version line with continuous build numbering, reorganize `docs/TODO.md` and `docs/ROADMAP.md` around the active v0.8 milestone, and update session-start plus planning doc version references.
 
 2026-06-15 16:30 - Renamed the repository version line to `v0.8 build 287`, continuing build numbering from v0.7 build 286 without resetting; updated planning docs and session-start tooling for the active v0.8 milestone.

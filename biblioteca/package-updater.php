@@ -17,35 +17,11 @@ function bandpromo_package_read_installed_version(string $root): string {
 }
 
 function bandpromo_package_parse_version(string $version): ?array {
-    $version = trim($version);
-    if (preg_match('/^v(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) !== 1) {
-        return null;
-    }
-
-    return [
-        'major' => (int) $matches[1],
-        'minor' => (int) $matches[2],
-        'build' => (int) $matches[3],
-        'raw' => $version,
-    ];
+    return bandpromo_release_parse_version($version);
 }
 
 function bandpromo_package_compare_versions(string $installed, string $remote): int {
-    $left = bandpromo_package_parse_version($installed);
-    $right = bandpromo_package_parse_version($remote);
-
-    if ($left === null || $right === null) {
-        return strcasecmp($installed, $remote);
-    }
-
-    if ($left['major'] !== $right['major']) {
-        return $left['major'] <=> $right['major'];
-    }
-    if ($left['minor'] !== $right['minor']) {
-        return $left['minor'] <=> $right['minor'];
-    }
-
-    return $left['build'] <=> $right['build'];
+    return bandpromo_release_compare_versions($installed, $remote);
 }
 
 function bandpromo_package_load_app_release_manifest(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
