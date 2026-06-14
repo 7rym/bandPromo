@@ -50,8 +50,12 @@ KNOWN_AUDIO_EXTENSIONS = SUPPORTED_AUDIO_EXTENSIONS + ('.wav', '.aif', '.aiff', 
 RUNTIME_TEMPLATE_MAP = (
     ('biblioteca/templates/web-config.template.json', 'web-config.json', 'json'),
     ('biblioteca/templates/gallery.template.json', 'data/gallery.json', 'json'),
-    ('biblioteca/templates/bio.template.html', 'data/bio.html', 'text'),
-    ('biblioteca/templates/faq.template.html', 'data/faq.html', 'text'),
+)
+
+PAGE_TEMPLATE_MAP = (
+    ('biblioteca/templates/pages.registry.template.json', 'data/pages/registry.json'),
+    ('biblioteca/templates/bio.template.json', 'data/pages/bio.json'),
+    ('biblioteca/templates/faq.template.json', 'data/pages/faq.json'),
 )
 
 
@@ -114,6 +118,62 @@ def ensure_runtime_files_seeded():
         return False
 
     print('  ✅ Required runtime files present')
+    sys.stdout.flush()
+    return True
+
+
+def seed_page_runtime_files():
+    """Seed JSON page documents from tracked templates."""
+    print('Checking required page runtime files...')
+    sys.stdout.flush()
+
+    errors = []
+
+    for template_rel, json_rel in PAGE_TEMPLATE_MAP:
+        template_path = ROOT_DIR / template_rel
+        json_path = ROOT_DIR / json_rel
+
+        if not template_path.exists():
+            errors.append(f'Missing page template file: {template_path}')
+            continue
+
+        try:
+            template_loaded = json.loads(template_path.read_text(encoding='utf-8'))
+            if not isinstance(template_loaded, dict):
+                errors.append(f'Invalid page template/root type: {template_path}')
+                continue
+        except Exception as e:
+            errors.append(f'Invalid page template JSON: {template_path} ({e})')
+            continue
+
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not json_path.exists():
+            try:
+                json_path.write_text(
+                    json.dumps(template_loaded, indent=4, ensure_ascii=False) + '\n',
+                    encoding='utf-8',
+                )
+                print(f'  Seeded missing page JSON: {json_path}')
+            except Exception as e:
+                errors.append(f'Could not write page JSON: {json_path} ({e})')
+                continue
+
+        try:
+            loaded = json.loads(json_path.read_text(encoding='utf-8'))
+            if not isinstance(loaded, dict):
+                errors.append(f'Invalid runtime page JSON/root type: {json_path}')
+        except Exception as e:
+            errors.append(f'Invalid runtime page JSON file: {json_path} ({e})')
+
+    if errors:
+        print('  ❌ Page runtime preflight failed:')
+        for err in errors:
+            print('    - ' + err)
+        sys.stdout.flush()
+        return False
+
+    print('  ✅ Required page runtime files present')
     sys.stdout.flush()
     return True
 
@@ -319,6 +379,9 @@ def main():
     # -- Preflight --------------------------------------------------------
     print("-- Preflight -------------------------------")
     if not ensure_runtime_files_seeded():
+        sys.exit(1)
+
+    if not seed_page_runtime_files():
         sys.exit(1)
 
     if not install_pip_dependencies():

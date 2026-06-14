@@ -1,0 +1,25 @@
+{
+    "version": 1,
+    "pages": [
+        {
+            "id": "bio",
+            "title": "Band Bio",
+            "label": "Bio",
+            "surface": "player",
+            "show_in_player": true,
+            "required": false,
+            "system": true,
+            "sort_order": 10
+        },
+        {
+            "id": "faq",
+            "title": "FAQ / Info",
+            "label": "FAQ",
+            "surface": "login",
+            "show_in_player": false,
+            "required": true,
+            "system": true,
+            "sort_order": 20
+        }
+    ]
+}

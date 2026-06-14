@@ -49,9 +49,7 @@ credentials.txt
 web-config.json
 
 # User-managed content (stored in data/ at runtime, never overwritten by git pull or ZIP update)
-data/bio.html
 data/gallery.json
-data/faq.html
 # Legacy local paths from older versions
 biblioteca/bio.php
 biblioteca/gallery.json

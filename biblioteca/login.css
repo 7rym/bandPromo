@@ -445,12 +445,55 @@ body.video-loaded {
     }
 }
 
-.info-lightbox-content h2 {
+.info-lightbox-content h2:not(.page-align-left):not(.page-align-right) {
     color: #8b5;
     margin-bottom: 20px;
     text-align: center;
     font-size: 24px;
     text-shadow: 0 0 10px rgba(139, 181, 85, 0.5);
+}
+
+.info-lightbox-text .page-richtext h1,
+.info-lightbox-text .page-richtext h2,
+.info-lightbox-text .page-richtext h3,
+.info-lightbox-text .page-richtext h4,
+.info-lightbox-text .page-richtext p,
+.info-lightbox-text .page-richtext pre.page-text-code,
+.info-lightbox-text .page-richtext p.page-text-small {
+    text-align: inherit;
+}
+
+.info-lightbox-text .page-richtext .page-align-center,
+.info-lightbox-text .page-richtext h1.page-align-center,
+.info-lightbox-text .page-richtext h2.page-align-center,
+.info-lightbox-text .page-richtext h3.page-align-center,
+.info-lightbox-text .page-richtext h4.page-align-center,
+.info-lightbox-text .page-richtext p.page-align-center,
+.info-lightbox-text .page-richtext pre.page-text-code.page-align-center,
+.info-lightbox-text .page-richtext p.page-text-small.page-align-center {
+    text-align: center;
+}
+
+.info-lightbox-text .page-richtext .page-align-right,
+.info-lightbox-text .page-richtext h1.page-align-right,
+.info-lightbox-text .page-richtext h2.page-align-right,
+.info-lightbox-text .page-richtext h3.page-align-right,
+.info-lightbox-text .page-richtext h4.page-align-right,
+.info-lightbox-text .page-richtext p.page-align-right,
+.info-lightbox-text .page-richtext pre.page-text-code.page-align-right,
+.info-lightbox-text .page-richtext p.page-text-small.page-align-right {
+    text-align: right;
+}
+
+.info-lightbox-text .page-richtext .page-align-left,
+.info-lightbox-text .page-richtext h1.page-align-left,
+.info-lightbox-text .page-richtext h2.page-align-left,
+.info-lightbox-text .page-richtext h3.page-align-left,
+.info-lightbox-text .page-richtext h4.page-align-left,
+.info-lightbox-text .page-richtext p.page-align-left,
+.info-lightbox-text .page-richtext pre.page-text-code.page-align-left,
+.info-lightbox-text .page-richtext p.page-text-small.page-align-left {
+    text-align: left;
 }
 
 .info-lightbox-text {

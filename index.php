@@ -183,6 +183,7 @@ $installLogo = get_config('install.brand.logo', '/media/special/bandPromo_logo.p
 
     <!-- Stylesheet -->
     <link rel="stylesheet" href="./biblioteca/login.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <link rel="stylesheet" href="./biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
 
 </head>
 <body>

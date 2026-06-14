@@ -15,11 +15,11 @@ Rules for this file:
 
 ## Current milestone
 
-Current target: finish `v0.7` cleanly before opening `v0.8 beta`.
+Current target: **v0.8 beta** — platform model definitions and deliverables after the shipped page editor.
 
-Status: all `v0.7` exit-gate sections are complete. The first hosted bootstrap audit on `bandpromo.site` succeeded; published package **v0.7 build 279** is the current operator install source. **v0.8 priority 1 (admin package updater) is now shipped in admin.** Closed-beta feedback keeps the page editor/presentation overhaul as **v0.8 priority 2** before broader platform-model work begins.
+Status: **v0.8 priority 1** (package updater) and **priority 2** (block-based page editor) are **shipped**. **Priority 3** (platform model: multi-playlist, multi-gallery, page modules, delivery architecture) is active. Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first.
 
-Reference: see `ROADMAP.md` for the full milestone and release structure.
+Reference: see `ROADMAP.md` for milestone structure and beta-tester expectations.
 
 ## v0.7 exit gates
 
@@ -32,7 +32,7 @@ Scope: runtime sturdiness and safe delivery. Put items here only when they affec
 - [x] Review remaining known issues in admin, build, auth, and player flow.
 - [x] Confirm media upload -> build -> playback works end to end after recent cleanup.
 - [x] Ensure that local user-specific files (e.g. configuration, uploaded media, personal data) are never overwritten by the repo during git pull, and are never committed back into the repository.
-- [x] Enforce strict setup seeding for required runtime files (`web-config.json`, `data/gallery.json`, `data/bio.html`, `data/faq.html`) from tracked templates.
+- [x] Enforce strict setup seeding for required runtime files (`web-config.json`, `data/gallery.json`, and `data/pages/*.json`) from tracked templates.
 - [x] Remove silent runtime fallbacks for required content/config files and fail with actionable errors.
 - [x] Remove quiz from the required core player flow so non-core features cannot destabilize playback.
 
@@ -204,27 +204,60 @@ Priority 1 — operator delivery:
 
 - [x] **Priority 1:** ship the admin-panel package updater for hosted operators: version check against published `release-manifest.json`, plain-language update summary, download/verify/apply with runtime preservation, post-update tasks, and retry-safe failure reporting (spec already in `ROADMAP.md` and `INSTALL-UPDATE.md`).
 
-Priority 2 — page editor and presentation (beta blocker; complete before broader v0.8 platform definitions):
+Priority 2 — page editor and presentation (**complete**):
 
-- [ ] **Priority 2:** ship the page editor and presentation overhaul: block-based authoring, semantic image presets, player-styled live preview, and a usable image picker with thumbnails/upload instead of the current TinyMCE + filename dropdown workflow.
-- [ ] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and a narrow first-party block set.
-- [ ] Lock the first page-image presentation model for v0.8: semantic responsive presets instead of pixel sizing.
-- [ ] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
-- [ ] Define the migration path from `data/bio.html` and `data/faq.html` into JSON-backed pages, including the compatibility window.
-- [ ] Plan the page-editor replacement for v0.8 around the locked schema and block-based editing flow rather than raw HTML authoring.
+- [x] **Priority 2:** ship the page editor and presentation overhaul: block-based authoring, Width/Flow picture model, rich text toolbar, player-styled live preview, and image picker with thumbnails/upload.
+- [x] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and core block types (`richtext`, `picture`, `list`).
+- [x] Lock the first page-image presentation model for v0.8: fraction widths + flow modes (not pixel sizing).
+- [x] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
+- [x] Define the JSON-only page storage contract for v0.8 beta: `data/pages/*.json` as the sole runtime source, with HTML rendered at delivery time.
+- [x] Plan and ship the page-editor replacement around the locked schema and block-based editing flow.
 - [ ] Design the first theme/config structure and player semantic color tokens so page presentation and future theme packs share one contract.
 
-Priority 3 — platform model (after updater + page editor):
+Priority 3 — platform model (**v0.8 definitions + deliverables**):
 
-- [ ] Define the `v0.8` multi-release data model.
-- [ ] Define anonymous vs registered access levels.
-- [ ] Define how support/payment providers fit the future access model: keep v0.7 support links/widgets config-driven, then decide later whether Ko-fi/Patreon/Stripe/PayPal/Vipps-style APIs need a reusable provider integration layer for registered or premium access rules.
-- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access is introduced.
-- [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
+Policy and model (define before coding):
+
+- [ ] Lock the page composition model: **core blocks** vs **module blocks**; playlists/lyrics stay in the player (no page-embedded playlists).
+- [ ] Define multi-playlist libraries: playlists independent of releases; admin library UX; player **Playlists** tab selector above track list.
+- [ ] Define multi-gallery libraries: admin library UX; galleries placed via **module blocks** on pages; **remove Gallery player tab** when module blocks ship.
+- [ ] Define track deep links: page content links open player on target playlist + track.
+- [ ] Define gallery module presentation presets (grid, carousel, parallax, etc.) at product level.
+- [ ] Define FAQ/login/shared-link model: FAQ page required; shared URLs → login + FAQ; restricted anonymous entry on login page (implementation v0.9).
+- [ ] Define access-tier rules for v0.9 implementation: admin/dev (all), VIP (embargo + override), registered fan (released), anonymous (released-only + login upsell). **No fan credits in v0.8/v0.9.**
+- [ ] Define core vs module boundaries in implementation terms (module registry, enable/disable).
+- [ ] Define the multi-release data model and how releases reference playlists.
+- [ ] Define exposure/distribution architecture (Chromecast/cast targets) on top of playback delivery — **implement v0.9+**.
+
+Implementation slices (after definitions):
+
+- [ ] Implement multiple playlist libraries in admin + built `play/playlist*.json` (or successor) contract.
+- [ ] Implement playlist selector in player **Playlists** tab.
+- [ ] Implement multiple gallery libraries in admin.
+- [ ] Implement first gallery **module block** on pages (minimum: one layout preset).
+- [ ] Implement track deep links from page content into the player.
+- [ ] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.
+- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
+
+Transitional schema work (in progress):
+
 - [ ] Replace the single-release `web-config` field names with explicit install, release, and track scopes in the future schema.
 - [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
 - [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
 - [x] Implement dual-write admin saves for transitional fields during the schema migration window.
+
+Deferred to v0.9 (implement after v0.8 definitions are stable):
+
+- [ ] Implement access-tier enforcement in playback and page delivery.
+- [ ] Implement login/FAQ/shared-link + restricted anonymous entry UX.
+- [ ] Implement Chromecast/cast send on the v0.8 delivery architecture.
+
+Deferred to v1+:
+
+- [ ] Fan credits ledger and rebate/boon mechanics.
+- [ ] News module with timed release and social push.
+- [ ] Fanboard, feeds, and richer engagement modules beyond gallery.
+- [ ] Define how support/payment providers fit fan-credit and merch flows: keep v0.7 support links/widgets config-driven until a reusable provider layer is needed.
 
 ### PWA offline audio caching and offline logging
 
@@ -239,8 +272,10 @@ Priority 3 — platform model (after updater + page editor):
 
 ## Notes
 
-- `ROADMAP.md` is the long-term direction.
+- `ROADMAP.md` is the long-term direction and includes **beta tester expectations** for what is shipped vs planned.
 - `TODO.md` is the short-term working list.
-- **v0.8 order (2026-06-14 beta feedback):** package updater → page editor/presentation → platform model/PWA tracks.
-- Current operator model: one branded site. Prepared internal model: separate `brand`, `theme`, and `social` concerns, with install defaults and future release overrides kept internal until multi-release is real.
-- If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.
+- **v0.8 order:** package updater → page editor → platform model (multi-playlist/gallery, modules, delivery definitions).
+- **v0.9:** access-tier implementation, login/anonymous entry, Chromecast/cast implementation.
+- **v1+:** fan credits, news + social push, richer engagement modules.
+- Current operator model: one branded site, one primary playlist, one gallery — migrating to **multiple libraries** with pages as the composition surface.
+- If a task does not help ship or define the current v0.8 milestone, it probably belongs in the roadmap, not here.

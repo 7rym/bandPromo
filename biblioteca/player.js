@@ -1289,50 +1289,34 @@ function togglePlay() {
 function toggleView(view) {
     const lyricsBox = document.getElementById('lyricsBox');
     const playlistBox = document.getElementById('playlistBox');
-    const bioBox = document.getElementById('bioBox');
     const galleryBox = document.getElementById('galleryBox');
-    const buttons = document.querySelectorAll('.content-toggle button');
-    const buttonByView = {
-        lyrics: document.querySelector('.content-toggle button[data-view="lyrics"]'),
-        playlist: document.querySelector('.content-toggle button[data-view="playlist"]'),
-        bio: document.querySelector('.content-toggle button[data-view="bio"]'),
-        gallery: document.querySelector('.content-toggle button[data-view="gallery"]')
-    };
+    const buttons = document.querySelectorAll('.content-toggle button[data-view]');
+    const contentBoxes = document.querySelectorAll('[data-content-box]');
 
     if (view === 'lyrics' && !hasDisplayableLyrics(playList[currentIndex])) {
         view = getPreferredPrimaryView(playList[currentIndex]);
     }
 
-    // Remove active class from all boxes and buttons
-    lyricsBox.classList.remove('active');
-    playlistBox.classList.remove('active');
-    bioBox.classList.remove('active');
-    galleryBox.classList.remove('active');
-    buttons.forEach(btn => btn.classList.remove('active'));
+    if (lyricsBox) lyricsBox.classList.remove('active');
+    if (playlistBox) playlistBox.classList.remove('active');
+    if (galleryBox) galleryBox.classList.remove('active');
+    contentBoxes.forEach((box) => box.classList.remove('active'));
+    buttons.forEach((btn) => btn.classList.remove('active'));
 
-    if (view === 'lyrics') {
-        lyricsBox.classList.add('active');
-        if (buttonByView.lyrics) {
-            buttonByView.lyrics.classList.add('active');
-        }
-    } else if (view === 'playlist') {
-        playlistBox.classList.add('active');
-        if (buttonByView.playlist) {
-            buttonByView.playlist.classList.add('active');
-        }
-        renderPlaylist(); // Ensure playlist is rendered when switching to it
-    } else if (view === 'bio') {
-        bioBox.classList.add('active');
-        if (buttonByView.bio) {
-            buttonByView.bio.classList.add('active');
-        }
-    } else if (view === 'gallery') {
-        galleryBox.classList.add('active');
-        if (buttonByView.gallery) {
-            buttonByView.gallery.classList.add('active');
-        }
-        // Load gallery if not already loaded
-        if (document.getElementById('visualsGallery').children.length === 0) {
+    const targetBox = document.querySelector(`[data-content-box="${view}"]`);
+    const targetButton = document.querySelector(`.content-toggle button[data-view="${view}"]`);
+
+    if (targetBox) {
+        targetBox.classList.add('active');
+    }
+    if (targetButton) {
+        targetButton.classList.add('active');
+    }
+
+    if (view === 'playlist') {
+        renderPlaylist();
+    } else if (view === 'gallery' && galleryBox) {
+        if (document.getElementById('visualsGallery')?.children.length === 0) {
             loadVisualsGallery();
         }
     }
@@ -1435,29 +1419,30 @@ function openAlbumCoverLightbox() {
     openLightbox(buildCoverUrl(playList[currentIndex].cover), 'Album Cover');
 }
 
-function bindBioLightbox() {
-    const bioBox = document.getElementById('bioBox');
-    if (!bioBox || bioBox.dataset.lightboxBound === 'true') {
-        return;
-    }
-
-    bioBox.dataset.lightboxBound = 'true';
-    bioBox.addEventListener('click', (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLImageElement)) {
+function bindPageLightboxes() {
+    document.querySelectorAll('[data-page-id]').forEach((pageBox) => {
+        if (pageBox.dataset.lightboxBound === 'true') {
             return;
         }
 
-        const src = target.getAttribute('src');
-        if (!src) {
-            return;
-        }
+        pageBox.dataset.lightboxBound = 'true';
+        pageBox.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLImageElement)) {
+                return;
+            }
 
-        openLightbox(src, target.getAttribute('alt') || 'Bio image');
-    });
+            const src = target.getAttribute('src');
+            if (!src) {
+                return;
+            }
 
-    bioBox.querySelectorAll('img').forEach((img) => {
-        img.style.cursor = 'pointer';
+            openLightbox(src, target.getAttribute('alt') || 'Page image');
+        });
+
+        pageBox.querySelectorAll('img').forEach((img) => {
+            img.style.cursor = 'pointer';
+        });
     });
 }
 
@@ -1477,7 +1462,7 @@ function removePulseGuide() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    bindBioLightbox();
+    bindPageLightboxes();
 
     if (debugPanelButton) {
         debugPanelButton.addEventListener('click', openDebugModal);

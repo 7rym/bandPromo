@@ -336,6 +336,7 @@ function bandpromo_docs_preferred_order(): array {
     return [
         'README.md',
         'docs/FEATURES.md',
+        'docs/MARKETING-STRATEGY.md',
         'docs/OPERATOR-RESPONSIBILITY.md',
         'docs/SUPPORT.md',
         'docs/MEDIA-HANDLING.md',
@@ -354,6 +355,7 @@ function bandpromo_docs_audience_map(): array {
     return [
         'README.md' => 'shared',
         'docs/FEATURES.md' => 'operator',
+        'docs/MARKETING-STRATEGY.md' => 'operator',
         'docs/OPERATOR-RESPONSIBILITY.md' => 'operator',
         'docs/SUPPORT.md' => 'operator',
         'docs/MEDIA-HANDLING.md' => 'operator',

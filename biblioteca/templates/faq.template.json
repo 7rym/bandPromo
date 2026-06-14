@@ -1,0 +1,12 @@
+{
+    "version": 2,
+    "id": "faq",
+    "title": "FAQ / Info",
+    "updated_at": "2026-06-14T16:46:58Z",
+    "blocks": [
+        {
+            "type": "richtext",
+            "html": "<h1 class=\"page-align-center\">Welcome/FAQ</h1><p><b>What is this? <br /></b>A music experience created with bandPromo! <br />Enter to explore music and more.</p><p><b>Is it dangerous?</b><br />Only to your eardrums if you play too loud. 😂<br />No personal data is collected.</p><p><b>Is it fun? </b><br />Absolutely! Get in and find out right now!</p><p>🥰 the team from bandPromo!</p>"
+        }
+    ]
+}

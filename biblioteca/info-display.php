@@ -1,18 +1,13 @@
 <?php
-$faq_file = dirname(__DIR__) . '/data/faq.html';
+require_once __DIR__ . '/page-storage.php';
+
 $faq_html = '';
 
-if (!file_exists($faq_file)) {
-    error_log('bandPromo: FAQ content missing. Run setup to initialize data/faq.html.');
-    $faq_html = '<p>FAQ content is missing. Run setup to initialize <code>data/faq.html</code>.</p>';
-} else {
-    $loaded = file_get_contents($faq_file);
-    if ($loaded === false) {
-        error_log('bandPromo: Could not read FAQ content from data/faq.html.');
-        $faq_html = '<p>Could not read FAQ content. Check file permissions for <code>data/faq.html</code>.</p>';
-    } else {
-        $faq_html = $loaded;
-    }
+try {
+    $faq_html = bandpromo_page_render_for_delivery(dirname(__DIR__), 'faq');
+} catch (Throwable $throwable) {
+    error_log('bandPromo: FAQ content missing or unreadable: ' . $throwable->getMessage());
+    $faq_html = '<div class="page-content"><p class="page-paragraph">FAQ content is missing. Run setup to initialize page content.</p></div>';
 }
 ?>
 

@@ -44,6 +44,7 @@ If your hosting provider does not already support the build requirements, the bo
 - [First Bootstrap Test Checklist](docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md) — Real-host smoke test checklist for the operator installer
 - [Install and Update Guide](docs/INSTALL-UPDATE.md) — Operator-facing install and admin package-update guidance
 - [Operator Responsibility](docs/OPERATOR-RESPONSIBILITY.md) — Content, rights, privacy, hosting, and integration boundaries
+- [Marketing Strategy](docs/MARKETING-STRATEGY.md) — How to use social platforms as routers to your bandPromo site (operator-facing)
 - [Support](docs/SUPPORT.md) — Support and maintenance
 - [Third-Party Notices](docs/THIRD-PARTY-NOTICES.md) — Third-party libraries, tools, hosted services, and license notes
 - [Trademarks](docs/TRADEMARKS.md) — Naming and branding

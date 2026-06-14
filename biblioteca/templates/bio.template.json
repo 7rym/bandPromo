@@ -1,0 +1,52 @@
+{
+    "version": 2,
+    "id": "bio",
+    "title": "Band Bio",
+    "updated_at": "2026-06-15T00:00:00Z",
+    "blocks": [
+        {
+            "type": "richtext",
+            "html": "<h2 class=\"page-align-center\">bandPromo brings your band to your fans!</h2><p class=\"page-align-center\">So who are the members of this band?</p><p class=\"page-align-center\">Meet the talented individuals behind the <b>🎶</b> you <b>❤️</b></p>"
+        },
+        {
+            "type": "picture",
+            "src": "/media/img/optimal/bandPromo_vocalist.jpg",
+            "alt": "Vocalist",
+            "width_num": 1,
+            "width_den": 4,
+            "flow": "row",
+            "body": "<h4 class=\"page-align-center\">Vocals: Roger Raspy</h4><p class=\"page-text-small page-align-center\">The guy that sings the words you love.</p>"
+        },
+        {
+            "type": "picture",
+            "src": "/media/img/optimal/bandPromo_guitar.jpg",
+            "alt": "Guitarist",
+            "width_num": 1,
+            "width_den": 4,
+            "flow": "row",
+            "body": "<h4 class=\"page-align-center\">Guitar: Sam Shredding</h4><p class=\"page-text-small page-align-center\">The person shredding the riffs and solos that make your ears happy.</p>"
+        },
+        {
+            "type": "picture",
+            "src": "/media/img/optimal/bandPromo_drummer.jpg",
+            "alt": "Drummer",
+            "width_num": 1,
+            "width_den": 4,
+            "flow": "row",
+            "body": "<h4 class=\"page-align-center\">Drums: Tom Thunder</h4><p class=\"page-text-small page-align-center\">The person keeping the beat and driving the rhythm.</p>"
+        },
+        {
+            "type": "picture",
+            "src": "/media/img/optimal/bandPromo_keyboard.jpg",
+            "alt": "Keyboardist",
+            "width_num": 1,
+            "width_den": 4,
+            "flow": "row",
+            "body": "<h4 class=\"page-align-center\">Keyboard: Marty Melody</h4><p class=\"page-text-small page-align-center\">The person adding the melodic and harmonic layers that enrich the sound.</p>"
+        },
+        {
+            "type": "richtext",
+            "html": "<h1 class=\"page-align-center\">🎶</h1><pre class=\"page-text-code\">..--== The Sound ==--..</pre><p>Describe your genre, influences, and what makes your sound unique.</p><p>Production style, live energy, atmosphere. Reference other artists if it helps paint the picture.</p><h1 class=\"page-align-center\">📖</h1><pre class=\"page-text-code page-align-center\">..--== The Story ==--..</pre><p class=\"page-align-center\">Every project has an origin. Tell yours.</p><p class=\"page-align-center\">Why did you start this? What do you want to say with your music? What themes run through your work?</p><h1 class=\"page-align-center\">🎬</h1><pre class=\"page-text-code page-align-right\">..--== The Vision ==--..</pre><p class=\"page-align-right\">Where are you going? What do you stand for?</p><p class=\"page-align-right\">Visuals, live experience, collaborations, future plans — whatever defines your artistic identity.</p>"
+        }
+    ]
+}

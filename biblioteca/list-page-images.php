@@ -43,6 +43,8 @@ foreach ($groups as $title => $group) {
             $items[] = [
                 'title' => $filename,
                 'value' => $group['urlPrefix'] . rawurlencode($filename),
+                'thumb_url' => $group['urlPrefix'] . rawurlencode($filename),
+                'group' => $title,
             ];
         }
     }
@@ -56,4 +58,22 @@ foreach ($groups as $title => $group) {
     }
 }
 
-echo json_encode(['images' => $images], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$flatImages = [];
+foreach ($images as $group) {
+    if (!isset($group['menu']) || !is_array($group['menu'])) {
+        continue;
+    }
+    foreach ($group['menu'] as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $flatImages[] = [
+            'title' => (string) ($item['title'] ?? ''),
+            'value' => (string) ($item['value'] ?? ''),
+            'thumb_url' => (string) ($item['thumb_url'] ?? $item['value'] ?? ''),
+            'group' => (string) ($group['title'] ?? ''),
+        ];
+    }
+}
+
+echo json_encode(['images' => $images, 'flat_images' => $flatImages], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

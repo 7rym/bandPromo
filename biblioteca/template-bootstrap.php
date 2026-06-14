@@ -6,6 +6,8 @@
  * Missing or invalid templates are treated as setup/build errors.
  */
 
+require_once __DIR__ . '/page-storage.php';
+
 function bandpromo_template_map(): array {
     $root = dirname(__DIR__);
     return [
@@ -19,16 +21,6 @@ function bandpromo_template_map(): array {
             'target' => $root . '/data/gallery.json',
             'kind' => 'json',
         ],
-        [
-            'template' => $root . '/biblioteca/templates/bio.template.html',
-            'target' => $root . '/data/bio.html',
-            'kind' => 'text',
-        ],
-        [
-            'template' => $root . '/biblioteca/templates/faq.template.html',
-            'target' => $root . '/data/faq.html',
-            'kind' => 'text',
-        ],
     ];
 }
 
@@ -38,6 +30,7 @@ function bandpromo_template_map(): array {
  */
 function bandpromo_ensure_runtime_files_seeded(): array {
     $errors = [];
+    $root = dirname(__DIR__);
 
     foreach (bandpromo_template_map() as $spec) {
         $template = $spec['template'];
@@ -84,6 +77,8 @@ function bandpromo_ensure_runtime_files_seeded(): array {
             }
         }
     }
+
+    $errors = array_merge($errors, bandpromo_page_seed_all_if_missing($root));
 
     return $errors;
 }

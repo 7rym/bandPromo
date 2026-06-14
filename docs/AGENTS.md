@@ -46,6 +46,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - [docs/TODO.md](TODO.md)
 - [docs/ROADMAP.md](ROADMAP.md)
 - [docs/FEATURES.md](FEATURES.md)
+- [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)
 
 ## Project Structure
 

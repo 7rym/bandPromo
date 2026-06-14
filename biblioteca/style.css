@@ -899,7 +899,7 @@ audio {
 
 /* Desktop/Landscape Layout - Side-by-side 50/50 */
 
-.bio-box {
+.page-box {
     padding: 0px 8px 0px 8px;
     overflow-y: scroll;
     scrollbar-width: thin;
@@ -911,30 +911,30 @@ audio {
     text-align: center;
 }
 
-.bio-box a {
+.page-box a {
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
 }
 
-.bio-box a:hover {
+.page-box a:hover {
     color: var(--color-link-hover);
 }
 
-.bio-box a:visited {
+.page-box a:visited {
     color: var(--color-link-visited);
 }
 
-.bio-box a:focus-visible {
+.page-box a:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
 
-.bio-box.active {
+.page-box.active {
     display: block;
 }
 
-.bio-box h3 {
+.page-box h3 {
     color: var(--primary-color);
     font-size: 18px;
     margin-bottom: 12px;
@@ -942,42 +942,42 @@ audio {
     font-weight: 700;
 }
 
-.bio-box h4 {
+.page-box h4 {
     color: var(--secondary-color);
     font-size: 15px;
     margin-top: 15px;
     margin-bottom: 10px;
 }
 
-.bio-box p {
+.page-box p {
     margin-bottom: 12px;
 }
 
-.bio-box img,
-.bio-box video,
-.bio-box iframe,
-.bio-box figure,
-.bio-box figure img {
+.page-box img,
+.page-box video,
+.page-box iframe,
+.page-box figure,
+.page-box figure img {
     max-width: 100%;
 }
 
-.bio-box img,
-.bio-box video,
-.bio-box iframe {
+.page-box img,
+.page-box video,
+.page-box iframe {
     height: auto;
     border-radius: 10px;
     display: block;
     margin: 0 auto;
 }
 
-.bio-box img {
+.page-box img {
     width: auto;
     max-height: min(42vh, 320px);
     object-fit: contain;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
-.bio-box strong {
+.page-box strong {
     color: var(--primary-color);
 }
 
@@ -1107,66 +1107,13 @@ audio {
     color: var(--primary-color);
 }
 
-.bio-box::-webkit-scrollbar {
+.page-box::-webkit-scrollbar {
     width: 8px;
 }
 
-.bio-box::-webkit-scrollbar-thumb {
+.page-box::-webkit-scrollbar-thumb {
     background-color: var(--primary-color);
     border-radius: 4px;
-}
-
-/* Promo Photos for Band Members */
-.band-members {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-    margin: 20px 0;
-}
-
-.band-member {
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-}
-
-.band-member .promo-photo {
-    margin-right: 0;
-    flex-shrink: 0;
-}
-
-.band-member > div {
-    flex: 1;
-}
-
-.band-member h3 {
-    margin-top: 0;
-    margin-bottom: 8px;
-    color: var(--primary-color);
-    font-size: 1.3em;
-}
-
-.band-member p {
-    margin: 8px 0;
-    line-height: 1.6;
-}
-
-.promo-photo {
-    max-width: 150px;
-    height: auto;
-    border-radius: 8px;
-    vertical-align: top;
-    display: inline-block;
-    box-shadow: 0 4px 8px rgba(0, 210, 255, 0.2);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    cursor: pointer;
-}
-
-@media (hover: hover) {
-    .promo-photo:hover {
-        transform: scale(1.05);
-        box-shadow: 0 6px 12px rgba(0, 210, 255, 0.4);
-    }
 }
 
 @media (max-width: 768px) {
@@ -1174,17 +1121,6 @@ audio {
         max-width: 100%;
         max-height: 120px;
         width: auto;
-    }
-
-    .band-member {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 15px;
-    }
-    
-    .band-member .promo-photo {
-        max-width: 120px;
     }
 }
 
@@ -1284,14 +1220,14 @@ audio {
     }
 
     .lyrics-box,
-    .bio-box,
+    .page-box,
     .gallery-box,
     .playlist-box {
         font-size: 0.95rem;
         line-height: 1.45;
     }
 
-    .bio-box img {
+    .page-box img {
         max-height: 190px;
     }
 
@@ -1355,7 +1291,7 @@ audio {
         font-size: 0.8rem;
     }
 
-    .bio-box img {
+    .page-box img {
         max-height: 220px;
     }
 
@@ -1484,7 +1420,7 @@ audio {
     }
 
     .lyrics-box,
-    .bio-box,
+    .page-box,
     .gallery-box,
     .playlist-box {
         flex: 1;
@@ -1503,7 +1439,7 @@ audio {
         height: 118px;
     }
 
-    .bio-box img {
+    .page-box img {
         max-height: 150px;
     }
 

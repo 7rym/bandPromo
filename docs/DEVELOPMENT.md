@@ -67,8 +67,8 @@ First-time setup depends on tracked templates and examples being copied into run
 
 - `biblioteca/templates/web-config.template.json`
 - `biblioteca/templates/gallery.template.json`
-- `biblioteca/templates/bio.template.html`
-- `biblioteca/templates/faq.template.html`
+- `biblioteca/templates/bio.template.json`
+- `biblioteca/templates/faq.template.json`
 - `.env.example`
 
 ## Related Docs

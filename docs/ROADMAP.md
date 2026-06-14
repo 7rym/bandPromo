@@ -39,40 +39,47 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 
 ## Core vs modules
 
-Core features are part of every bandPromo install:
+Core features are part of every bandPromo install and define the listening + operator foundation:
 
-- authentication and session foundation
-- media player with lyrics support
-- enhanced playlists with short informational summaries of the track contents
+- authentication and session foundation (including the required FAQ/login surface for shared-link entry)
+- media player with **Playlists** and **Lyrics** tabs (playlist + lyrics stay in the player shell; they are not page-embedded modules)
+- enhanced playlists with short informational summaries of track contents
+- **multiple playlist libraries** in admin (v0.8+), with a playlist selector in the player tab
 - playback and behavior logging
 - admin UI for easy management and access to tools
-- build pipeline
-- media handling
+- build pipeline and media handling
 - analytics foundation
-- release/content model
+- release/content model (releases and playlists are related but independent entities)
 - operator-owned configuration and deployment model
 - explicit responsibility boundaries for content, privacy, and integrations
 - editing of metatags in media files (with user-friendly tools for missing/invalid tags)
-- static page editing for core site content
-- playlist editing
-- gallery editing
+- block-based static page editing for core site content (Text, Picture, List, and future core block types)
+- **gallery libraries** in admin (v0.8+); galleries are placed on pages via module blocks, not a dedicated player tab
+- track deep links in page content that open the player on the right playlist and track
 - PWA installs
-- Basic tools for sharing to social media platforms
+- basic tools for sharing to social media platforms
 
+Modular features can be enabled or omitted per install. Modules extend pages and operator workflows; they do not replace core playback:
 
-Modular features can be enabled or omitted per install:
-
+- **gallery presentation blocks** on pages (grid, carousel, parallax, and similar layouts referencing a gallery library)
+- news publishing with timed release and social push (v1+)
+- fanboard, feeds, and similar engagement surfaces
 - quizzes and games
 - merch and shop features
-- events and tour listings
+- events and tour listings (may start as static pages; richer modules later)
 - newsletters and mailing integrations
 - OAuth providers
 - analytics integrations such as Google Analytics
 - community/chat features
 - future automation and publishing integrations
-- timed releases
 - semi-automatic marketing tools
-- eksternal AI content creation helpers though API (Text, Images, Video, SoMe content design)
+- external AI content-creation helpers through API (text, images, video, social content design)
+
+**Composition rule:** operators build pages from **core blocks** (text, pictures, lists, and future first-party block types). **Module blocks** (gallery, news, fanboard, feeds, etc.) reference module libraries or services and are rendered inside those pages. The player remains the primary listening shell.
+
+**Access tiers** (admin/dev, VIP pre-access, registered fan, anonymous with restrictions) are documented in v0.8 and **implemented in v0.9**. Fan credits and rebate/boon mechanics are **v1+**.
+
+**Exposure/distribution** (Chromecast and similar cast targets): architecture and product boundaries are **defined in v0.8** after the playback/delivery model is stable; **implementation follows in v0.9+**, not before deliverables are trustworthy.
 
 ## Theme strategy
 
@@ -91,7 +98,7 @@ The first theme system does not need arbitrary custom templating. It needs a cle
 
 ## Identity strategy
 
-bandPromo should support both anonymous and registered users in v1.x.
+bandPromo should support both anonymous and registered users. **v0.8** locks the FAQ/login/shared-link and tier **definitions**; **v0.9** implements restricted anonymous entry and tier enforcement; **v1.x** expands OAuth and fan-credit mechanics.
 
 Recommended path:
 
@@ -415,78 +422,128 @@ Caching and update propagation (aggressive safe caching, low needless re-downloa
 
 ## v0.8 beta goals
 
-Theme: architectural shift from a private single-release site to a reusable artist platform foundation.
+Theme: architectural shift from a private single-release site to a reusable artist platform foundation — **definitions and core deliverables first**, not every future fan feature at once.
 
 Closed-beta feedback (2026-06-14) locked the first three implementation priorities:
 
-1. **Package updater** — shipped in admin (**Dashboard → Site update**); hosted operators can install published immutable packages without Git, SSH, or manual repo pulls.
-2. **Page editor and presentation** — the current TinyMCE/HTML workflow and image picker are a beta blocker; block-based authoring with player-styled preview comes before broader platform-model work.
-3. **Platform model** — multi-release, access levels, modules, and the rest of the v0.8 scope follow once operators can update and edit pages reliably.
+1. **Package updater** — **shipped** in admin (**Dashboard → Site update**).
+2. **Page editor and presentation** — **shipped** in admin (**Content → Pages**): block JSON authoring, Width/Flow picture model, rich text toolbar, live preview, and JSON-only page storage in `data/pages/`.
+3. **Platform model** — multi-playlist, multi-gallery, page composition, module boundaries, playback/delivery architecture, and stable specs for later access and distribution work.
+
+### What v0.8 delivers vs defines
+
+| Area | v0.8 deliverables | v0.8 definitions only (implementation later) |
+|------|-------------------|-----------------------------------------------|
+| Pages | Block-based editor, page registry, player-styled preview | Module block types (gallery layouts, news, etc.) |
+| Playlists | Multiple playlist libraries; player **Playlists** tab with selector | Access rules per tier (see v0.9) |
+| Galleries | Multiple gallery libraries; remove dedicated Gallery player tab | Gallery module blocks on pages (grid/carousel/parallax) |
+| Player | Core Playlists + Lyrics; track deep links from pages | Chromecast/cast targets |
+| Access | FAQ/login requirement; shared-link → login + FAQ copy | Tier enforcement, anonymous entry, VIP embargo |
+| Delivery/PWA | Protected delivery architecture, cache contract, offline direction | Full offline audio cache + cast send |
 
 Primary goals:
 
-- ship the admin-panel package updater so hosted operators can move from published release packages to a current build without Git, SSH, or manual file uploads (**shipped in admin; v0.8 priority 1 complete**)
-- ship the page editor and presentation overhaul: structured block authoring, semantic image presets, player-styled preview, and a usable image picker (**v0.8 priority 2**; beta blocker)
-- define the multi-release data model
-- define anonymous vs registered access levels
-- formalize core vs modules
+- ship the admin-panel package updater (**complete**)
+- ship the page editor and presentation overhaul (**complete**)
+- **define** the multi-release / multi-playlist / multi-gallery data model and admin library UX
+- **define** core vs module block boundaries and the page composition model
+- **define** the FAQ/login + shared-link entry model (FAQ page remains required; login page adds a restricted anonymous path)
+- **define** access-tier rules (admin/dev, VIP pre-access with embargo + override, registered fan, anonymous released-only) — **implementation in v0.9**
+- **define** exposure/distribution architecture (Chromecast and similar) on top of the new delivery model — **implementation in v0.9+**
 - add theme architecture and semantic player color tokens shared by page rendering and future theme packs
-- settle licensing direction
-- rewrite the audio delivery to be scalable and less resource intensive serverside
-- a solid PWA solution with strong offline support
-- ChromeCast support
+- rewrite audio delivery to be scalable and less resource-intensive server-side
+- a solid PWA solution with strong offline support (delivery/cache architecture first)
 
 Suggested scope:
 
-- admin-panel package updater workflow for hosted operators
-- artist -> releases -> tracks model
-- public/private access model
+- admin-panel package updater workflow for hosted operators (**shipped**)
+- artist → releases → tracks model; playlists as **independent** entities that releases can reference
+- multiple playlist libraries + playlist selector in the player **Playlists** tab
+- multiple gallery libraries + gallery **module blocks** embedded in pages (no Gallery player tab in the end state)
+- track deep links in page blocks: a link opens the player, activates the target playlist, and focuses the track
 - basic module registry or config-based enable/disable model
 - theme tokens and theme selection model
-- structured static-page content model: block JSON source with rendered HTML delivery
-- page-editor replacement aligned with the structured content model instead of legacy raw HTML authoring
+- structured static-page content model: block JSON source with rendered HTML delivery (**shipped**)
 - nondestructive media naming (display names/aliases) layered on immutable source-file identities
 - role-based media handling that separates gallery media from page illustrations in admin/build behavior
-- initial roadmap for registered user features
+- protected-audio delivery + cache-friendly playback path (architecture; pairs with PWA track)
 - actual LICENSE file added to the repo
+
+Not in v0.8 implementation scope (documented for later milestones):
+
+- access-tier enforcement and fan credits (**v0.9** definitions implementation; credits **v1+**)
+- Chromecast/cast send (**v0.9+**, after delivery definitions are stable)
+- news timed release + social push (**v1+**)
+- merch, chatrooms, heavy automation, many third-party integrations
+
+### Beta tester expectations (v0.8)
+
+Betatesters should treat current builds as **v0.8 beta: page-builder foundation**, not a finished platform:
+
+- **Shipped now:** package updater, block-based Pages editor (Text / Picture / List), improved player page presentation, delete confirmations, terminology cleanup.
+- **Coming in v0.8 (after page editor):** multiple playlists and galleries in admin, gallery module blocks on pages, playlist selector in player, track deep links, Gallery player tab removal, playback/delivery architecture.
+- **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.).
+- **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
+- **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
+
+Feedback is welcome on all of the above; missing items in the “Coming” rows are usually **planned**, not forgotten.
+
+### v0.8 page composition model
+
+The flexible page builder is the long-term composition surface:
+
+- **Core blocks** (every install): rich text, picture+text, list — with more core block types over time.
+- **Module blocks** (optional per install): gallery (grid/carousel/parallax referencing a gallery library), news, fanboard, feeds, and similar.
+- **Not module blocks:** playlists and lyrics remain in the **player shell**. Pages link **into** playlists via track URLs; they do not embed playlist players.
+
+Admin keeps familiar **Playlist** and **Gallery** management areas, but each supports **multiple libraries** instead of exactly one. Placement differs:
+
+- **Galleries:** chosen when inserting a gallery module block on a page.
+- **Playlists:** chosen in the player **Playlists** tab (selector above the track list); page links can deep-link to a specific track.
+
+### v0.8 login, FAQ, and shared links
+
+Required for the foreseeable future:
+
+- **FAQ page** stays required (`faq`): login info lightbox copy and operator guidance.
+- **Shared URLs** that expect authentication should reroute to the login page with FAQ context explaining the site.
+- **Login page** will offer **restricted anonymous entry** (listen/browse within released-only rules) in addition to full accounts — full tier behavior is **v0.9**; the UX contract is locked in v0.8 docs.
 
 ### v0.8 static page content model
 
-The current HTML-based page storage is a legacy bridge, not the long-term platform model.
+Static pages use a JSON-first content contract (**shipped**):
 
-For v0.8, static pages should move to a structured content contract:
+- canonical source: JSON block documents per page in `data/pages/` plus `data/pages/registry.json`
+- delivery format: server-rendered safe HTML for the player page tabs
+- fresh installs seed from `biblioteca/templates/*.template.json`; no legacy HTML migration path
 
-- canonical source: JSON block documents stored per page
-- delivery format: server-rendered safe HTML for the public site
-- migration stance: legacy HTML may remain as a temporary compatibility/read path, but not as the long-term authoring format
+Shipped first-party **core** block types:
 
-Initial schema direction:
+- `richtext` — headings, paragraphs, small/code styles, bold/italic/underline, links, alignment
+- `picture` — image + caption body, fraction **Width**, **Flow** placement
+- `list` — ordered or unordered
 
-- page identity fields such as `id`, `title`, `updated_at`, and schema `version`
-- ordered `blocks` array as the main content body
-- narrow first-party block set only: heading, paragraph, list, quote, image, divider, and simple callout/note if needed
-- no arbitrary inline CSS, no freeform width/height controls, and no operator-facing raw HTML as the primary workflow
+Schema notes:
 
-Image/layout direction:
+- page identity: `id`, `title`, `updated_at`, schema `version`
+- ordered `blocks` array as the main body
+- legacy block shapes (`heading`, `paragraph`, `image` presets) migrate on load/save during the transition window
+- module blocks (gallery, news, etc.) are a separate schema family added when each module ships
 
-- images should use semantic presentation presets rather than pixel sizing
-- first presets should be things like `inline`, `feature`, `wide`, `banner`, `float-left`, and `float-right`
-- image data should carry explicit `src`, `alt`, optional `caption`, and preset/layout intent
-- renderer/theme CSS should decide actual responsive behavior from those presets
+Image/layout direction (**shipped** for pictures):
 
-Renderer and editor direction:
+- fraction widths (numerator/denominator) and flow modes (in row, end of row, wrap left/right, beside left/right)
+- renderer/theme CSS decides responsive row layout; no operator pixel sizing
 
-- schema comes first; editor choice must follow the schema rather than define it
-- block editors such as Editor.js are a better fit than document-style rich-text editors because bandPromo needs structured presentation, not Word-like formatting freedom
-- public/runtime rendering should stay HTML-first even if authoring becomes JSON-first
+Future core block types may extend the editor; **module blocks** reference gallery libraries, news feeds, etc., and inherit theme/module templates.
 
 Migration direction:
 
-- existing `bio.html` and `faq.html` content should be importable into the first block schema where practical
-- runtime should support a migration window where legacy HTML can still be read until JSON-backed pages are fully adopted
-- generated/cached HTML artifacts are acceptable as a delivery optimization, but JSON should remain the source of truth once the migration is complete
+- beta rollout assumes fresh installs or package updates onto builds that already ship the JSON page editor
+- legacy `data/bio.html` and `data/faq.html` are not read, imported, or dual-written
+- HTML is generated at render/save time only; JSON remains the sole source of truth
 
-Illustrative first document shape:
+Illustrative document shape (simplified; shipped editor uses `richtext` / `picture` / `list`):
 
 ```json
 {
@@ -496,52 +553,38 @@ Illustrative first document shape:
     "updated_at": "2026-05-02T12:00:00Z",
     "blocks": [
         {
-            "type": "heading",
-            "level": 2,
-            "text": "About the Band"
+            "type": "richtext",
+            "html": "<h2>About the Band</h2><p>Structured pages, not a full CMS.</p>"
         },
         {
-            "type": "paragraph",
-            "text": "bandPromo should treat page content as structured presentation, not as freeform HTML with inline layout hacks."
-        },
-        {
-            "type": "image",
+            "type": "picture",
             "src": "/media/photo/optimal/band-portrait.webp",
             "alt": "Band portrait",
-            "caption": "Current lineup promo photo",
-            "preset": "feature"
-        },
-        {
-            "type": "quote",
-            "text": "Built for artists who need a strong release page without a full CMS.",
-            "attribution": "bandPromo direction"
+            "width_num": 1,
+            "width_den": 2,
+            "flow": "row",
+            "body": "<p>Current lineup promo photo</p>"
         },
         {
             "type": "list",
             "style": "unordered",
             "items": [
                 "Private release delivery",
-                "Playlist editing",
-                "Gallery editing",
-                "Operator-friendly presentation"
+                "Multiple playlists",
+                "Gallery blocks on pages",
+                "Track links into the player"
             ]
-        },
-        {
-            "type": "divider"
-        },
-        {
-            "type": "callout",
-            "tone": "note",
-            "text": "Themes and renderer CSS decide how presets like `feature` or `wide` actually behave on mobile and desktop."
         }
     ]
 }
 ```
 
-This example is intentionally narrow. If the first real page schema cannot represent most `bio` and `faq` content cleanly without escaping back into raw HTML, the schema is not ready yet.
+Not yet required in v0.8 implementation:
 
-Not yet required in v0.8:
-
+- gallery module blocks (grid/carousel/parallax) — defined here, built after multi-gallery libraries land
+- access-tier enforcement
+- Chromecast send
+- news timed release + social push
 - merch implementation
 - chatrooms
 - heavy automation
@@ -553,7 +596,7 @@ Documentation rule for this strategy:
 - TODO tracks the concrete implementation slices required to make it real
 - FEATURES and README should only advertise this workflow once the admin/build path actually supports it at a trustworthy level
 
-### PWA Roadmap
+### PWA and exposure roadmap
 
 - v0.8 should treat playback delivery, caching, and offline support as one scaling architecture track rather than as isolated PWA polish
 - PHP should authorize access, but long-lived audio byte delivery should move to a cache-friendly protected/static delivery path instead of PHP byte streaming
@@ -561,8 +604,9 @@ Documentation rule for this strategy:
 - service worker audio caching should only land after the delivery path is cacheable and update-safe
 - installed-PWA reliability should be part of the architecture scope: shell update propagation, stale-cache avoidance, and bounded offline storage/eviction
 - offline logging and sync remain part of the target model, but they should follow the delivery/cache redesign rather than block it
+- **Chromecast and similar cast targets:** product/architecture boundaries are **defined in v0.8** alongside the delivery model; **implementation is v0.9+** — do not ship cast send before playback deliverables are stable
 
-- Responsive design must work for all common screen sizes:
+Responsive design must work for all common screen sizes:
     - 360–430px: Mobile (vertical)
     - 431–767px: Large mobile/small tablet
     - 768–1365px: Tablet/small laptop
@@ -624,22 +668,27 @@ Rules:
 
 ## v0.9 goals
 
-Theme: public-readiness and access model hardening.
+Theme: public-readiness, **access-tier implementation**, and distribution hooks on stable v0.8 deliverables.
 
 Goals:
 
-- anonymous access support
-- registered-user foundation
-- excerpt/full-access rules
-- public-facing artist/release browsing
+- **implement** the access model defined in v0.8: admin/dev (full), VIP (pre-access via embargo schedule + per-item operator override), registered fan (released catalog), anonymous (released-only with clear login upsell)
+- **implement** login/FAQ/shared-link entry: shared URLs → login + FAQ context; **restricted anonymous entry** on the login page
+- registered-user foundation beyond today's listener accounts
+- excerpt/full-access rules where needed for public previews
+- public-facing artist/release browsing foundations
+- **implement** Chromecast/cast send and related exposure tools on top of the v0.8 delivery architecture
 - stronger theme and module polish
 
 Suggested scope:
 
-- anonymous users can browse static/public content
-- registered users can access interactive areas
+- anonymous users can browse static/public content and listen within released-only rules
+- registered users unlock VIP/fan tiers per operator configuration
 - release selector / discography structure begins to take shape
-- operator configuration for access tiers is documented and understandable
+- playlist selector in player uses the multi-playlist libraries from v0.8
+- gallery module blocks on pages replace the legacy Gallery player tab
+- track deep links from pages activate the correct playlist and track in the player
+- operator configuration for access tiers is understandable and enforced in playback + page delivery
 
 ## v1.0 goals
 
@@ -650,9 +699,10 @@ bandPromo v1.0 should be stable enough that a new operator can reasonably choose
 Expected capabilities:
 
 - multi-release artist presentation
-- anonymous and registered access model
+- anonymous and registered access model (**tier enforcement mature from v0.9**)
 - stable player and trustworthy analytics
-- usable admin experience
+- usable admin experience with **multiple playlists and galleries**
+- page composition with core blocks + shipped module blocks (gallery layouts, etc.)
 - dependable build and media workflow
 - tours/events support
 - simple merch/shop support or clear merch integration path
@@ -665,16 +715,18 @@ Expected capabilities:
 
 - Google OAuth as the first external identity provider
 - first registered-user fan features
+- **fan credits** ledger: earn through engagement, apply to rebates/boons/ticket-merch perks (operator-defined)
+- **news module** with timed release and social push integrations
 - stronger events/tour support
 - merch improvements
-- light interaction features
+- light interaction features (fanboard, feeds, and similar modules)
 
 Examples of good early registered-user features:
 
 - saved items or favorites
 - quizzes/highscores identity
 - newsletter opt-in
-- early-access content
+- early-access content via VIP tier
 - simple fan participation features with manageable moderation cost
 
 ## v2+ goals
@@ -718,11 +770,14 @@ For each phase:
 Before opening v0.8 beta:
 
 - v0.7 exit gates are met
-- the current product promise is stable
-- remaining issues are known and triaged
+- package updater and block-based page editor are shipped
+- platform-model definitions (multi-playlist/gallery, modules, delivery) are underway with explicit beta-tester expectations documented
 
 Before opening v0.9:
 
+- v0.8 platform deliverables are stable (multi-playlist/gallery, gallery module blocks, track deep links, delivery architecture)
+- access-tier and login/anonymous specs from v0.8 are complete and reviewed
+- Chromecast/cast architecture is defined against the delivery model
 - multi-release and access-model assumptions are proven enough to continue
 - theme/module direction is stable enough not to be reworked immediately
 
@@ -789,6 +844,8 @@ bandPromo should be built around the opposite premise: if a listener voluntarily
 Small artists usually lack the resources that make platform participation effective. They may be able to upload music to streaming services, but they often cannot compete for visibility. Their real opportunity is direct connection: a controlled landing page, a strong presentation, a private listening experience, a press-ready release page, a direct support link, and a reusable promotional workflow.
 
 Semi-autonomous promotion should help with the repetitive and technical parts of this work without replacing the artist’s judgment.
+
+**Operator-facing guide:** [MARKETING-STRATEGY.md](MARKETING-STRATEGY.md) explains the teaser → bridge → experience model, low-cost tactics for sending listeners to the operator’s own domain, and how bandPromo milestones support that workflow.
 
 Possible v2+ goals include:
 

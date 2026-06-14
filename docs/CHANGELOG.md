@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 03:15 - Checkpoint v0.7 build 282: ship block-based page editor (richtext/picture/list blocks, Word-style toolbar, live preview, delete confirmations), JSON page templates, player page lightbox fix, login FAQ alignment, and v0.8 platform/marketing documentation.
+
+2026-06-15 03:00 - Refreshed `faq.template.json` from the latest locally saved FAQ page (centered H1 title, bold question labels, updated copy).
+
+2026-06-15 02:45 - Fixed page editor left alignment for headings and paragraphs: align-left now applies an explicit `page-align-left` class (instead of only stripping center/right), clears inherited wrapper `div` alignment, and editor/preview CSS uses heading-specific left-align rules so FAQ headers can be left-aligned in the input box and live preview.
+
+2026-06-15 02:35 - Fixed page editor text toolbar on all pages (including FAQ): format/align/style buttons are handled before the `[data-action]` guard so toolbar clicks are not ignored. Login FAQ lightbox CSS now respects `page-align-*` classes instead of forcing every `h2` centered.
+
+2026-06-15 02:25 - Refreshed `bio.template.json` and `faq.template.json` from the current local block-based page content (richtext/picture blocks, v2 schema) so new installs seed the updated demo pages.
+
+2026-06-15 02:15 - Added operator-facing `docs/MARKETING-STRATEGY.md` (teaser → bridge → experience model, low-cost outbound tactics, feature timing, non-goals) and linked it from README, ROADMAP, FEATURES, AGENTS, and the admin documentation browser.
+
+2026-06-15 02:00 - Documented the post-page-editor platform direction: pages as composition surface (core blocks + module blocks), multiple playlist/gallery libraries, player-centric playlists/lyrics with track deep links, gallery modules on pages (no Gallery tab end state), access tiers and Chromecast defined in v0.8 but implemented in v0.9+, fan credits and news in v1+, and beta-tester expectation notes in `ROADMAP.md`, `TODO.md`, and `FEATURES.md`.
+
+2026-06-15 01:45 - Standardized page editor operator copy to say "block" instead of "section" in delete controls and confirmation modal text.
+
+2026-06-15 01:40 - Fixed page block delete in the editor: block removal now uses the same in-app confirmation modal as page delete (instead of `window.confirm`, which was blocking deletes), and block action clicks resolve via `closest('[data-action]')` so the trash button is always detected.
+
+2026-06-15 01:30 - Added a proper delete-page confirmation modal in the page editor (replacing the native browser prompt) and confirmation before deleting individual page blocks.
+
+2026-06-15 01:20 - Renamed legacy page UI artifacts: player dynamic pages now use `.page-box` instead of `.bio-box`, the admin preview uses `.page-preview`, dead band-member/promo-photo and layout-chip CSS was removed, and the Picture add-block action now uses `picture` consistently.
+
+2026-06-15 01:10 - Fixed page image lightbox in the player: `bindPageLightboxes()` now binds click-to-zoom on every `[data-page-id]` container instead of the removed `#bioBox` element.
+
+2026-06-15 01:00 - Fixed recurring admin navigation blocks in the page editor by comparing a saved content fingerprint on navigation instead of a sticky dirty flag, and by recapturing the baseline after the DOM settles on load.
+
+2026-06-15 00:50 - Fixed picture caption alignment in the player: toolbar align classes now apply inside `.page-picture-body`, row-flow captions default to centered, legacy `.bio-box` heading margins no longer break grid tiles, and picture cells keep a 2px gutter.
+
+2026-06-15 00:45 - Restored a minimum 2px padding around page text blocks (richtext, picture captions, lists) while keeping picture image tiles edge-to-edge for fraction widths.
+
+2026-06-15 00:40 - Compacted picture block controls: inline Width/Flow row, narrower dropdowns, smaller change button, and hint moved to a tooltip.
+
+2026-06-15 00:35 - Small text now keeps normal body color (no muted tint) and the page editor toolbar uses tighter horizontal spacing with grouped style buttons.
+
+2026-06-15 00:25 - Expanded the page editor text styles to H1–H3 headings plus Small and Code blocks, with matching delivery CSS and sanitizer support (legacy H4 content still renders).
+
+2026-06-15 00:10 - Fixed picture fraction widths in the player: removed flex gap and extra width subtraction so three 1/3 blocks fit per row, cleared picture block margins/padding, and overrode legacy `.bio-box img` max-height/width rules for structured page pictures.
+
+2026-06-14 23:55 - Fixed page editor navigation getting stuck on false dirty state: suppress dirty tracking during load/render, reset unload bypass after saves, guard all admin links with the unsaved modal instead of only page tabs, and ignore non-user input events that were flipping dirty on hydration.
+
+2026-06-14 23:45 - Moved the page editor Save button and status into the Live preview header row so they stay visible beside the sticky preview without scrolling past all blocks.
+
+2026-06-14 23:30 - Replaced picture Size/Align/Text controls with fraction Width (numerator/denominator 1–6, e.g. 2/5) and a single Flow picker (in row, end of row, wrap, beside); legacy size/align/text/layout values migrate on load and save as `width_num`, `width_den`, and `flow`.
+
+2026-06-14 22:45 - Reduced page editor input lag by tracking dirty state with a lightweight flag instead of re-serializing the whole document on every keystroke, and scoped toolbar selection updates to active editors only.
+
+2026-06-14 19:00 - Reworked the page editor toward a Word-like operator flow: combined Picture+text sections (text lives in the picture block, not separate blocks), single rich-text sections with style/bold/italic/underline/link toolbar, six plain-language placements including left/right with text underneath, instant layout chips without full re-render lag, and a sticky live preview that stays visible while editing.
+
+2026-06-14 18:00 - Simplified the page editor for non-technical operators: three add buttons (Text, Picture, List), plain-language text styles, bold/italic/link toolbar, friendly picture placement options with text-wrap flow groups, and left-aligned wrapped text in `page-flow` containers.
+
+2026-06-14 17:00 - Fixed page editor stuck on "Loading page blocks…": `page-editor.js` now waits for `DOMContentLoaded` and loads after `#pageEditorShell` exists instead of running from `<head>` before the markup is parsed.
+
+2026-06-14 16:30 - Fixed blank page editor on installs that still had only legacy `data/bio.html` / `data/faq.html`: `bandpromo_page_load_document()` now auto-seeds missing `data/pages/*.json` files from tracked templates on first load instead of failing silently in admin.
+
+2026-06-14 16:00 - Dropped legacy HTML page support for fresh-install beta rollout: removed `page-html-import.php`, `bio.template.html`, and `faq.template.html`; JSON-only load/save/seed in `page-storage.php` and `save-page.php`; simplified `scripts/build.py` seeding; and removed admin migration UI. Pages now live only in `data/pages/*.json` with server-rendered HTML at delivery time.
+
+2026-06-14 15:00 - Aligned fresh-install page seeding with the block editor: added `bio.template.json` and `faq.template.json`, updated `template-bootstrap.php` and `scripts/build.py` to seed `data/pages/*.json`, and switched the welcome checklist starter-page detection to JSON block checksums.
+
+2026-06-14 14:00 - Shipped the block-based page editor (**v0.7 build 281**): JSON page documents in `data/pages/`, server-side block rendering with semantic image presets, thumbnail image picker, player-styled live preview in admin, and public delivery updates for Bio and FAQ.
+
 2026-06-14 12:00 - Shipped the admin-panel package updater (**v0.7 build 280**): Dashboard → Site update checks `release-manifest.json`, downloads and verifies immutable release ZIPs, applies tracked app files while preserving runtime state, runs post-update tasks, logs outcomes to `log/package-updates.jsonl`, and documents the operator flow in `docs/INSTALL-UPDATE.md`.
 
 2026-06-14 10:00 - Beta polish: added semantic player link tokens and `.bio-box` link styles for readable visited links on dark backgrounds, swapped admin gear/debug icon order with borderless utility buttons, and reordered `docs/TODO.md` / `docs/ROADMAP.md` so the package updater stays v0.8 priority 1 and the page editor/presentation overhaul is priority 2 before broader platform-model work.

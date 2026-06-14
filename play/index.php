@@ -174,6 +174,7 @@ if ($supportEnabled && $supportUrl !== '') {
     <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
     <meta name="theme-color" content="#121212">
     <link rel="stylesheet" href="../biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <link rel="stylesheet" href="../biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
 </head>
 <body>
     <?php
@@ -231,27 +232,53 @@ if ($supportEnabled && $supportUrl !== '') {
             <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
         </div>
         <div class="content-toggle">
-            <button class="active" type="button" data-view="playlist" onclick="toggleView('playlist')">Playlist</button>
-            <button type="button" data-view="lyrics" onclick="toggleView('lyrics')">Lyrics</button>
-            <button type="button" data-view="bio" onclick="toggleView('bio')">Bio</button>
-            <button type="button" data-view="gallery" onclick="toggleView('gallery')">Gallery</button>
-        </div>
-        <div class="lyrics-box" id="lyricsBox">Loading lyrics...</div>
-        <div class="playlist-box active" id="playlistBox">Loading playlist...</div>
-        <div class="bio-box" id="bioBox">
             <?php
-            $bio_file = dirname(__DIR__) . '/data/bio.html';
-            if (!file_exists($bio_file)) {
-                http_response_code(500);
-                echo '<p>Missing runtime file: data/bio.html. Run setup.</p>';
-            } else {
-                echo file_get_contents($bio_file);
+            require_once dirname(__DIR__) . '/biblioteca/player-modules.php';
+            $playerRoot = dirname(__DIR__);
+            $playerTabs = bandpromo_player_content_tabs($playerRoot);
+            $defaultPlayerView = bandpromo_player_default_view();
+            $hasDefaultView = false;
+            foreach ($playerTabs as $playerTab) {
+                if (($playerTab['view'] ?? '') === $defaultPlayerView) {
+                    $hasDefaultView = true;
+                    break;
+                }
+            }
+            if (!$hasDefaultView && $playerTabs !== []) {
+                $defaultPlayerView = (string) ($playerTabs[0]['view'] ?? 'playlist');
+            }
+            foreach ($playerTabs as $playerTab):
+                $view = (string) ($playerTab['view'] ?? '');
+                $label = (string) ($playerTab['label'] ?? $view);
+                $isActive = $view === $defaultPlayerView ? ' active' : '';
+            ?>
+            <button type="button"<?php echo $isActive ? ' class="active"' : ''; ?> data-view="<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>" onclick="toggleView('<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>')"><?php echo htmlspecialchars($label); ?></button>
+            <?php endforeach; ?>
+        </div>
+        <div class="lyrics-box<?php echo $defaultPlayerView === 'lyrics' ? ' active' : ''; ?>" id="lyricsBox" data-content-box="lyrics">Loading lyrics...</div>
+        <div class="playlist-box<?php echo $defaultPlayerView === 'playlist' ? ' active' : ''; ?>" id="playlistBox" data-content-box="playlist">Loading playlist...</div>
+        <?php
+        require_once dirname(__DIR__) . '/biblioteca/page-storage.php';
+        foreach (bandpromo_page_player_visible_entries($playerRoot) as $playerPage):
+            $pageId = (string) ($playerPage['id'] ?? '');
+            $viewId = 'page-' . $pageId;
+            $isActive = $defaultPlayerView === $viewId ? ' active' : '';
+        ?>
+        <div class="page-box<?php echo $isActive; ?>" id="pageBox-<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>" data-content-box="<?php echo htmlspecialchars($viewId, ENT_QUOTES, 'UTF-8'); ?>" data-page-id="<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php
+            try {
+                echo bandpromo_page_render_for_delivery($playerRoot, $pageId);
+            } catch (Throwable $throwable) {
+                echo '<p class="page-paragraph">' . htmlspecialchars($throwable->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
             }
             ?>
         </div>
-        <div class="gallery-box" id="galleryBox">
+        <?php endforeach; ?>
+        <?php if (bandpromo_player_module_enabled('gallery')): ?>
+        <div class="gallery-box<?php echo $defaultPlayerView === 'gallery' ? ' active' : ''; ?>" id="galleryBox" data-content-box="gallery">
             <div class="visuals-gallery" id="visualsGallery"></div>
         </div>
+        <?php endif; ?>
     </div>
 
     <div class="lightbox" id="lightbox">
@@ -288,6 +315,8 @@ if ($supportEnabled && $supportUrl !== '') {
 
     <!-- Tell player.js where media lives in the new structure -->
     <script>
+        window.BANDPROMO_PLAYER_TABS = <?php echo json_encode($playerTabs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_DEFAULT_PLAYER_VIEW = <?php echo json_encode($defaultPlayerView, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.CONFIG_URL       = '/play/playlist.json';
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';

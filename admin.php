@@ -12,6 +12,9 @@ require_once 'biblioteca/build-required.php';
 require_once 'biblioteca/config-loader.php';
 require_once 'biblioteca/csrf.php';
 require_once 'biblioteca/media-library-state.php';
+require_once 'biblioteca/page-storage.php';
+require_once 'biblioteca/page-registry.php';
+require_once 'biblioteca/player-modules.php';
 
 function bandpromo_admin_default_theme_display_version(?string $rawVersion): string {
     $version = trim((string) $rawVersion);
@@ -79,18 +82,6 @@ function bandpromo_admin_text_checksum(string $value): string {
     return hash('sha256', $value);
 }
 
-function bandpromo_admin_pages_match_starter_template(string $currentText, string $templatePath): bool {
-    if ($currentText === '') {
-        return true;
-    }
-
-    $templateText = bandpromo_admin_normalize_text(bandpromo_admin_file_text($templatePath));
-    if ($templateText === '') {
-        return false;
-    }
-
-    return bandpromo_admin_text_checksum($currentText) === bandpromo_admin_text_checksum($templateText);
-}
 
 function bandpromo_admin_starter_pack_files_present(string $root): bool {
     $representativePaths = [
@@ -127,8 +118,6 @@ function bandpromo_admin_latest_full_build_success(string $root): bool {
 function bandpromo_admin_runtime_files_present(string $root): bool {
     $requiredFiles = [
         $root . '/web-config.json',
-        $root . '/data/bio.html',
-        $root . '/data/faq.html',
         $root . '/data/terces',
     ];
 
@@ -138,7 +127,7 @@ function bandpromo_admin_runtime_files_present(string $root): bool {
         }
     }
 
-    return true;
+    return bandpromo_page_runtime_present($root, 'faq');
 }
 
 function bandpromo_admin_write_inferred_starter_pack_marker(string $root): bool {
@@ -255,13 +244,9 @@ $installationPersonalized =
     || $logoPersonalized
     || $supportUrl !== '';
 
-$bioCurrent = bandpromo_admin_normalize_text(bandpromo_admin_file_text(__DIR__ . '/data/bio.html'));
-$faqCurrent = bandpromo_admin_normalize_text(bandpromo_admin_file_text(__DIR__ . '/data/faq.html'));
 $pagesPublished =
-    $bioCurrent !== ''
-    && $faqCurrent !== ''
-    && !bandpromo_admin_pages_match_starter_template($bioCurrent, __DIR__ . '/biblioteca/templates/bio.template.html')
-    && !bandpromo_admin_pages_match_starter_template($faqCurrent, __DIR__ . '/biblioteca/templates/faq.template.html');
+    bandpromo_page_runtime_present(__DIR__, 'faq')
+    && !bandpromo_page_matches_starter_template(__DIR__, 'faq');
 
 $fullBuildSucceeded = bandpromo_admin_latest_full_build_success(__DIR__);
 $installationRunning = bandpromo_is_setup_complete() && bandpromo_admin_runtime_files_present(__DIR__);
@@ -304,10 +289,10 @@ $welcomeChecklist = [
         'severity' => 'nonblocking',
         'complete' => $pagesPublished,
         'detail' => $pagesPublished
-            ? 'The Bio and FAQ pages no longer look like the shipped starter copy.'
-            : 'Bio or FAQ still looks like starter content, so the public pages are not fully personalized yet.',
-        'href' => '?tab=content&cntab=pages',
-        'next' => 'Open Content -> Pages and replace the starter Bio / FAQ text with your own public copy.',
+            ? 'The required FAQ page no longer looks like the shipped starter copy.'
+            : 'FAQ still looks like starter content, so the login info lightbox is not fully personalized yet.',
+        'href' => '?tab=content&cntab=pages&page=faq',
+        'next' => 'Open Content → Pages and replace the starter FAQ with your own login info copy. Add optional pages (Bio, Tour, News, …) as needed.',
     ],
     [
         'label' => 'The full build process ran successfully',
@@ -712,37 +697,30 @@ if (!in_array($analyticsTab, ['dashboard', 'tracks', 'user-activities', 'listeni
     $analyticsTab = 'dashboard';
 }
 
-$editablePages = [
-    'bio' => [
-        'emoji' => '📝',
-        'label' => 'Bio',
-        'title' => 'Band Bio',
-        'file' => __DIR__ . '/data/bio.html',
-        'description' => 'The band bio shown on your site.',
-    ],
-    'faq' => [
-        'emoji' => '❓',
-        'label' => 'FAQ',
-        'title' => 'FAQ / Info',
-        'file' => __DIR__ . '/data/faq.html',
-        'description' => 'The FAQ and info content shown in the site lightbox.',
-    ],
-];
+$editablePages = bandpromo_page_admin_pages_map(__DIR__);
+if ($editablePages === []) {
+    bandpromo_page_seed_registry_if_missing(__DIR__);
+    $editablePages = bandpromo_page_admin_pages_map(__DIR__);
+}
 
 // Content sub-tab
 $contentTab = $_GET['cntab'] ?? 'playlist';
 if ($contentTab === 'bio') {
     $contentTab = 'pages';
 }
-if (!in_array($contentTab, ['playlist', 'gallery', 'pages'])) {
+if (!in_array($contentTab, ['playlist', 'gallery', 'pages', 'player'], true)) {
     $contentTab = 'playlist';
 }
 
-$contentPage = $_GET['page'] ?? 'bio';
-if (!array_key_exists($contentPage, $editablePages)) {
-    $contentPage = 'bio';
+$pageTabEntries = bandpromo_page_admin_tab_entries(__DIR__);
+$contentPage = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'faq';
+if (!is_string($contentPage) || !array_key_exists($contentPage, $editablePages)) {
+    $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
 }
 $activeContentPage = $editablePages[$contentPage];
+$activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
+$playerModules = bandpromo_player_modules_config();
+$playerLayoutPages = bandpromo_page_registry_entries(__DIR__);
 
 // Config sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
@@ -788,8 +766,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player'], true)): ?>
+    <link rel="stylesheet" href="biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-content.css'); ?>">
+    <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
-    <script src="/vendor/tinymce/js/tinymce/tinymce.min.js"></script>
+    <link rel="stylesheet" href="biblioteca/page-editor.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.css'); ?>">
     <?php endif; ?>
     <script src="biblioteca/lightbox.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/lightbox.js'); ?>"></script>
 </head>
@@ -1626,6 +1607,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     'playlist' => ['🎵', 'Playlist'],
                     'gallery'  => ['🖼️', 'Gallery'],
                     'pages'    => ['📝', 'Pages'],
+                    'player'   => ['🎛️', 'Player'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
                     $active = $ct === $contentTab ? 'active' : '';
@@ -1646,7 +1628,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <?php elseif ($contentTab === 'gallery'): ?>
                     A JSON list of images shown in the site's gallery section. Each item needs a <code>src</code> path, <code>name</code>, and <code>alt</code> text. The preview below updates as you type — fix any red errors before saving.
                 <?php elseif ($contentTab === 'pages'): ?>
-                    Edit your public text pages with rich text tools or source view. Only safe formatting and optimized local content images are kept when you save, and changes apply immediately without a build.
+                    Create and edit static pages with the Word-like editor. FAQ is required for the login info lightbox; other pages are optional and can appear in the player when enabled under <strong>Content → Player</strong>.
+                <?php elseif ($contentTab === 'player'): ?>
+                    Choose which optional modules and pages appear in the player. Playlist and Lyrics are always available.
                 <?php endif; ?>
             </div>
 
@@ -1727,40 +1711,200 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
             <!-- ── PAGES ───────────────────────────────────────────────────── -->
             <?php elseif ($contentTab === 'pages'): ?>
-            <div class="card">
-                <div class="tabs sub-tabs" style="margin-bottom:18px;">
-                    <?php foreach ($editablePages as $pageKey => $pageSpec): ?>
+            <div class="card" id="pageEditorRoot"
+                 data-page-key="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
+                 data-page-required="<?php echo !empty($activeContentPage['required']) ? '1' : '0'; ?>"
+                 data-page-surface="<?php echo htmlspecialchars((string) ($activeContentPage['surface'] ?? 'player'), ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="tabs sub-tabs page-editor-tabs" id="pageEditorTabs">
+                    <?php foreach ($pageTabEntries as $tabEntry): ?>
                     <?php
+                        $pageKey = (string) ($tabEntry['id'] ?? '');
+                        if ($pageKey === '' || !isset($editablePages[$pageKey])) {
+                            continue;
+                        }
+                        $pageSpec = $editablePages[$pageKey];
                         $pageUrl = '?tab=content&cntab=pages&page=' . urlencode($pageKey);
                         $pageActive = $pageKey === $contentPage ? 'active' : '';
                     ?>
-                    <a href="<?php echo $pageUrl; ?>" class="tab-link <?php echo $pageActive; ?>">
+                    <a href="<?php echo $pageUrl; ?>" class="tab-link page-tab-link <?php echo $pageActive; ?>" data-page-id="<?php echo htmlspecialchars($pageKey, ENT_QUOTES, 'UTF-8'); ?>">
                         <?php echo htmlspecialchars($pageSpec['emoji'] . ' ' . $pageSpec['label']); ?>
                     </a>
                     <?php endforeach; ?>
+                    <div class="page-editor-tabs-action">
+                        <button type="button" class="subtab-action page-editor-add-btn" id="toggleAddPageBtn" aria-expanded="false" aria-label="Add page" title="Add page">
+                            <span class="page-editor-add-icon" aria-hidden="true">＋</span>
+                            <span>Add page</span>
+                        </button>
+                    </div>
                 </div>
-                <h3><?php echo htmlspecialchars($activeContentPage['emoji'] . ' ' . $activeContentPage['title']); ?></h3>
-                <p class="card-note">
-                    <?php echo htmlspecialchars($activeContentPage['description']); ?> Edit it with rich text tools or source view.
-                    Only safe formatting and optimized local content images are kept when you save.
-                </p>
-                <textarea id="pageEditor" class="code-editor" spellcheck="false" style="height:520px"
-                          data-page-key="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
-                          data-page-label="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>"><?php
-                $pageFile = $activeContentPage['file'];
-                if (!file_exists($pageFile)) {
-                    http_response_code(500);
-                    echo htmlspecialchars('Missing required runtime file: data/' . $contentPage . '.html. Run setup to seed templates.');
-                } else {
-                    echo htmlspecialchars(file_get_contents($pageFile) ?: '');
-                }
-                ?></textarea>
-                <p class="field-note">
-                    Inserted content images are limited to optimized files from your local media library.
-                </p>
+
+                <div class="add-page-panel" id="addPagePanel" hidden>
+                    <form id="addPageForm" class="add-page-form">
+                        <label class="add-page-field">
+                            <span>Page name</span>
+                            <input type="text" name="title" placeholder="Tour dates" required>
+                        </label>
+                        <div class="add-page-actions">
+                            <button type="submit" class="btn btn-primary">Create page</button>
+                            <button type="button" class="btn" id="cancelAddPageBtn">Cancel</button>
+                        </div>
+                    </form>
+                    <p id="pageRegistryStatus" class="status-text"></p>
+                </div>
+
+                <div class="page-editor-header">
+                    <div class="page-editor-meta">
+                        <label class="page-meta-field">
+                            <span>Page name</span>
+                            <input type="text" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120">
+                        </label>
+                        <?php if (!$activePageIsLoginOnly): ?>
+                        <label class="page-meta-field">
+                            <span>Player tab</span>
+                            <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
+                        </label>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (empty($activeContentPage['required'])): ?>
+                    <button type="button" class="icon-btn danger page-delete-btn" id="deleteCurrentPageBtn"
+                            data-page-id="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
+                            data-page-title="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>"
+                            title="Delete page" aria-label="Delete page">🗑️</button>
+                    <?php endif; ?>
+                </div>
+                <p class="hint page-editor-hint">Build with blocks — add text, pictures, and lists, and watch your preview update live.</p>
+
+                <div class="page-editor-shell" id="pageEditorShell"
+                     data-page-key="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
+                     data-page-label="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <div class="page-editor-panel">
+                        <div class="page-editor-panel-head">
+                            <h4>Page blocks</h4>
+                            <div class="page-editor-toolbar">
+                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
+                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
+                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
+                            </div>
+                        </div>
+                        <div class="page-editor-blocks" id="pageEditorBlocks">
+                            <p class="page-editor-empty">Loading page blocks…</p>
+                        </div>
+                    </div>
+
+                    <div class="page-editor-preview-panel">
+                        <div class="page-editor-preview-head">
+                            <h4>Live preview</h4>
+                            <div class="page-editor-save-row">
+                                <button id="pageSaveBtn" class="btn btn-primary" disabled>💾 Save changes</button>
+                                <span id="pageStatus" class="status-text"></span>
+                            </div>
+                        </div>
+                        <div class="page-editor-preview-frame" id="pageEditorPreview">
+                            <p class="page-editor-empty">Preview will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="page-image-picker-modal" id="pageImagePickerModal" aria-hidden="true">
+                    <div class="page-image-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="pageImagePickerTitle">
+                        <h4 id="pageImagePickerTitle">Choose content image</h4>
+                        <p class="hint">Pick from optimized illustrations and photos already prepared for page content.</p>
+                        <div class="page-image-picker-grid" id="pageImagePickerGrid"></div>
+                        <div class="page-image-picker-actions">
+                            <button type="button" class="btn" id="pageImagePickerCancelBtn">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="pageImagePickerApplyBtn">Use image</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-overlay" id="pageUnsavedModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pageUnsavedModalTitle">
+                    <h3 id="pageUnsavedModalTitle">Unsaved changes</h3>
+                    <p class="card-note">This page has changes that are not saved yet. What would you like to do?</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary" id="pageUnsavedSaveBtn">Save &amp; continue</button>
+                        <button type="button" class="btn btn-danger-outline" id="pageUnsavedDiscardBtn">Leave without saving</button>
+                        <button type="button" class="btn" id="pageUnsavedCancelBtn">Keep editing</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="pageDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pageDeleteModalTitle">
+                    <h3 id="pageDeleteModalTitle">Delete page?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="pageDeleteModalName"></strong> and all of its content. This cannot be undone.</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary icon-btn danger" id="pageDeleteConfirmBtn">Delete page</button>
+                        <button type="button" class="btn" id="pageDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="pageBlockDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pageBlockDeleteModalTitle">
+                    <h3 id="pageBlockDeleteModalTitle">Delete block?</h3>
+                    <p class="card-note">Delete the <strong id="pageBlockDeleteModalName"></strong> block? This cannot be undone.</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary icon-btn danger" id="pageBlockDeleteConfirmBtn">Delete block</button>
+                        <button type="button" class="btn" id="pageBlockDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <?php elseif ($contentTab === 'player'): ?>
+            <div class="card" id="playerLayoutCard"
+                 data-modules="<?php echo htmlspecialchars(json_encode($playerModules, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>"
+                 data-pages="<?php echo htmlspecialchars(json_encode($playerLayoutPages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
+                <h3>🎛️ Player layout</h3>
+                <p class="card-note">Playlist and Lyrics are always shown. Turn optional modules on or off, and choose which pages appear as player tabs.</p>
+
+                <div class="player-module-toggles">
+                    <label class="player-module-toggle is-locked">
+                        <input type="checkbox" checked disabled>
+                        <span><strong>Playlist</strong> — always on</span>
+                    </label>
+                    <label class="player-module-toggle is-locked">
+                        <input type="checkbox" checked disabled>
+                        <span><strong>Lyrics</strong> — always on</span>
+                    </label>
+                    <label class="player-module-toggle">
+                        <input type="checkbox" id="playerModuleGallery" <?php echo !empty($playerModules['gallery']['enabled']) ? 'checked' : ''; ?>>
+                        <span><strong>Gallery</strong> — photo/video gallery tab</span>
+                    </label>
+                    <label class="player-module-toggle">
+                        <input type="checkbox" id="playerModulePages" <?php echo !empty($playerModules['pages']['enabled']) ? 'checked' : ''; ?>>
+                        <span><strong>Pages</strong> — static page tabs (Bio, Tour, News, …)</span>
+                    </label>
+                </div>
+
+                <h4>Pages in the player</h4>
+                <p class="hint">FAQ stays on the login screen. Choose which other pages appear as player tabs.</p>
+                <div class="player-page-layout-list" id="playerPageLayoutList">
+                    <?php foreach ($playerLayoutPages as $layoutPage): ?>
+                    <?php
+                        $layoutPageId = (string) ($layoutPage['id'] ?? '');
+                        $isLoginOnly = ($layoutPage['surface'] ?? '') === 'login';
+                        $canShowInPlayer = !$isLoginOnly;
+                    ?>
+                    <div class="player-page-layout-row" data-page-id="<?php echo htmlspecialchars($layoutPageId, ENT_QUOTES, 'UTF-8'); ?>">
+                        <div class="player-page-layout-meta">
+                            <strong><?php echo htmlspecialchars((string) ($layoutPage['title'] ?? $layoutPageId)); ?></strong>
+                            <span class="hint"><?php echo $isLoginOnly ? 'Shown on login' : 'Player tab'; ?></span>
+                        </div>
+                        <label>Tab label <input type="text" class="player-page-label-input" value="<?php echo htmlspecialchars((string) ($layoutPage['label'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isLoginOnly ? 'disabled' : ''; ?>></label>
+                        <label class="player-page-show-toggle">
+                            <input type="checkbox" class="player-page-show-input" <?php echo !empty($layoutPage['show_in_player']) ? 'checked' : ''; ?> <?php echo $canShowInPlayer ? '' : 'disabled'; ?>>
+                            Show in player
+                        </label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
                 <div class="card-actions">
-                    <button id="pageSaveBtn" class="btn btn-primary">💾 Save <?php echo htmlspecialchars(strtolower($activeContentPage['label'])); ?></button>
-                    <span id="pageStatus" class="status-text"></span>
+                    <button type="button" class="btn btn-primary" id="savePlayerLayoutBtn">💾 Save player layout</button>
+                    <span id="playerLayoutStatus" class="status-text"></span>
                 </div>
             </div>
 
@@ -2419,6 +2563,12 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         };
     </script>
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
+    <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
+    <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
+    <?php endif; ?>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player'], true)): ?>
+    <script src="biblioteca/content-admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-admin.js'); ?>"></script>
+    <?php endif; ?>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 
     <!-- Admin media preview lightbox -->

@@ -86,6 +86,35 @@ $config['support'] = array_merge(array(
     'button_text_color' => '#ffffff'
 ), $config['support']);
 
+if (!isset($config['player']) || !is_array($config['player'])) {
+    $config['player'] = array();
+}
+
+$playerModuleDefaults = array(
+    'playlist' => array('enabled' => true),
+    'lyrics' => array('enabled' => true),
+    'gallery' => array('enabled' => true),
+    'pages' => array('enabled' => true),
+);
+
+if (!isset($config['player']['modules']) || !is_array($config['player']['modules'])) {
+    $config['player']['modules'] = array();
+}
+
+foreach ($playerModuleDefaults as $moduleKey => $moduleDefaults) {
+    $existing = is_array($config['player']['modules'][$moduleKey] ?? null)
+        ? $config['player']['modules'][$moduleKey]
+        : array();
+    $config['player']['modules'][$moduleKey] = array_merge($moduleDefaults, $existing);
+    if (in_array($moduleKey, array('playlist', 'lyrics'), true)) {
+        $config['player']['modules'][$moduleKey]['enabled'] = true;
+    }
+}
+
+if (!isset($config['player']['default_view']) || trim((string) $config['player']['default_view']) === '') {
+    $config['player']['default_view'] = 'playlist';
+}
+
 if (!isset($config['admins'])) {
     $config['admins'] = [];
 }

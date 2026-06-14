@@ -17,25 +17,28 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Quick actions on the completed-install dashboard (Analytics, Files, Content, Update site, live preview)
 - Built-in analytics for playback and user behavior
 - Guided Config forms (Basics, Theme, Support, Sharing) instead of raw JSON editing
-- Pages editor for public text pages such as Bio and FAQ, with rich text tools and safe server-side sanitization
-- Playlist and gallery management, including drag-placeholder reorder UX in both editors
-- Files panels for Audio, Photos, Video, Illustrations, and install-specific **Theme** assets (distinct from Config -> Theme presentation settings)
+- **Block-based Pages editor** (v0.8 beta): Text, Picture, and List blocks; rich formatting; fraction picture widths and Flow placement; live player-styled preview; delete confirmations for pages and blocks
+- Page registry in `data/pages/registry.json`: operators can add, rename, and remove optional pages; **FAQ remains required** for login info / shared-link context
+- Content → **Playlist** and **Gallery** management (single library each today; **multiple libraries** planned in v0.8)
+- Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
+- Files panels for Audio, Photos, Video, Illustrations, and install-specific **Theme** assets (distinct from Config → Theme presentation settings)
 - Files list header row aligned with file items: master select-all checkbox, compact filter dropdowns (`All` / usage filters plus `User files` / `Include demo`), and labeled **Upload**, **Download**, and **Delete** bulk actions
 - Per-row selection with shift-range support, ZIP bulk download, and reference-aware delete warnings
 - Audio quick-edit for common tag fields plus full editor for lyrics, description, and cover work
-- Cover-art badges and compact in-use/orphan indicators on illustrations, photos, and video (without verbose per-row reference text)
+- Cover-art badges and compact in-use/orphan indicators on illustrations, photos, and video
 - Operator-facing validation actions and file-level metadata health badges for faster repair workflows
 - Build actions named for operators: **Update the live site** and **Refresh photos & artwork**
+- Admin-panel **package updater** for hosted operators (immutable release packages)
 - Separate admin audit trail for management actions
 - Built-in documentation browser with operator/developer doc separation
 - Listener accounts can use the player but cannot open admin surfaces
 
 ### Media Player
 - High-quality audio playback with seek/next/previous navigation
-- Full lyrics display and enhanced playlist browsing
+- **Playlists** and **Lyrics** tabs (core player shell — not page-embedded)
 - Responsive design for mobile, tablet, and desktop
-- Compact two-column landscape layout for installed/mobile PWA playback, including safer top-edge spacing in standalone mode
-- Artwork and lightbox support
+- Compact two-column landscape layout for installed/mobile PWA playback
+- Artwork and lightbox support (including page images)
 - Post-login splash shows the install logo with **Preparing your experience…** before entering the player
 
 ### Build & Delivery
@@ -56,4 +59,31 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ---
 
-For future features, limitations, and roadmap, see [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
+## Planned (see ROADMAP.md for timing)
+
+These are **directional** — betatesters should check `ROADMAP.md` → **Beta tester expectations** for what is shipped vs coming.
+
+### v0.8 (in progress after page editor)
+- Multiple playlist and gallery libraries in admin
+- Playlist selector in the player **Playlists** tab
+- Gallery **module blocks** on pages (grid, carousel, parallax, etc.)
+- Track deep links from page content → player playlist + track
+- Remove dedicated Gallery player tab when gallery blocks ship
+- Playback/delivery architecture for scale (protected media path, PWA cache contract)
+- Stable **definitions** for access tiers, login/FAQ/shared-link flow, and Chromecast/cast architecture
+
+### v0.9
+- **Implement** access tiers: admin/dev, VIP pre-access, registered fan, anonymous (released-only)
+- Login page with **restricted anonymous entry**; shared URLs → login + FAQ
+- Chromecast / cast send on the new delivery stack
+
+### v1+
+- Fan credits and engagement rewards
+- News module with timed release and social push
+- Fanboard, feeds, and richer module blocks
+
+---
+
+For full milestone structure and beta expectations, see [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
+
+For a practical guide to promoting your site without relying on paid social ads, see [MARKETING-STRATEGY.md](MARKETING-STRATEGY.md).

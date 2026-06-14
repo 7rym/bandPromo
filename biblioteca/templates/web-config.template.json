@@ -73,5 +73,14 @@
       "background_image": "/media/special/bandPromo_background.png",
       "cover": "/media/special/bandPromo_cover.png"
     }
+  },
+  "player": {
+    "default_view": "playlist",
+    "modules": {
+      "playlist": { "enabled": true },
+      "lyrics": { "enabled": true },
+      "gallery": { "enabled": true },
+      "pages": { "enabled": true }
+    }
   }
 }

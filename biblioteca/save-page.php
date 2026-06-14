@@ -1,13 +1,12 @@
 <?php
 /**
- * Save editable page content.
- * Accepts raw HTML/text via POST body. Admin-only.
+ * Save editable page content as JSON block documents. Admin-only.
  */
 
-require_once dirname(__DIR__) . '/vendor/htmlpurifier/library/HTMLPurifier.auto.php';
 require_once __DIR__ . '/admin-audit.php';
-
 require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/page-storage.php';
+
 session_write_close();
 
 header('Content-Type: application/json; charset=utf-8');
@@ -18,13 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$editablePages = [
-    'bio' => dirname(__DIR__) . '/data/bio.html',
-    'faq' => dirname(__DIR__) . '/data/faq.html',
-];
-
-$pageKey = isset($_GET['page']) ? strtolower(trim((string) $_GET['page'])) : 'bio';
-if (!array_key_exists($pageKey, $editablePages)) {
+$root = dirname(__DIR__);
+$pageKey = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'bio';
+if (!bandpromo_page_is_allowed_id($pageKey, $root)) {
     http_response_code(400);
     bandpromo_admin_audit_log('page_saved', [
         'target_type' => 'page',
@@ -42,147 +37,73 @@ if ($body === false) {
     exit;
 }
 
-$purifierCacheDir = dirname(__DIR__) . '/log/htmlpurifier';
-if (!is_dir($purifierCacheDir)) {
-    mkdir($purifierCacheDir, 0750, true);
+$decoded = json_decode($body, true);
+if (!is_array($decoded) || !isset($decoded['document']) || !is_array($decoded['document'])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Page saves must send a JSON document payload.']);
+    exit;
 }
 
-function bandpromo_is_allowed_page_image_src(string $src): bool
-{
-    $allowedPrefixes = [
-        '/media/img/optimal/',
-        '/media/photo/optimal/',
-    ];
+try {
+    $result = bandpromo_page_save_document($root, $decoded['document']);
+    $document = $result['document'];
+    $html = $result['html'];
+    $registryEntry = null;
+    $meta = is_array($decoded['meta'] ?? null) ? $decoded['meta'] : [];
+    $registryChanges = [];
 
-    foreach ($allowedPrefixes as $prefix) {
-        if (strpos($src, $prefix) === 0) {
-            return true;
-        }
+    if (array_key_exists('title', $meta)) {
+        $registryChanges['title'] = (string) $meta['title'];
+    }
+    if (array_key_exists('label', $meta)) {
+        $registryChanges['label'] = (string) $meta['label'];
     }
 
-    return false;
-}
-
-function bandpromo_is_allowed_link_href(string $href): bool
-{
-    if ($href === '' || strpos($href, '//') === 0) {
-        return false;
+    if ($registryChanges !== []) {
+        require_once __DIR__ . '/page-registry.php';
+        $registryEntry = bandpromo_page_update_registry_entry($root, $pageKey, $registryChanges);
     }
 
-    if ($href[0] === '#' || $href[0] === '/') {
-        return true;
-    }
+    bandpromo_admin_audit_log('page_saved', [
+        'target_type' => 'page',
+        'target_id' => $pageKey,
+        'status' => 'ok',
+        'data' => [
+            'format' => 'json_blocks',
+            'block_count' => count($document['blocks'] ?? []),
+        ],
+    ]);
 
-    if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $href)) {
-        return (bool) preg_match('/^(https?|mailto):/i', $href);
-    }
-
-    return true;
-}
-
-function bandpromo_postprocess_page_html(string $html): string
-{
-    if (!class_exists('DOMDocument')) {
-        return $html;
-    }
-
-    $previousState = libxml_use_internal_errors(true);
-
-    $doc = new DOMDocument('1.0', 'UTF-8');
-    $wrapper = '<div id="bandpromo-page-root">' . $html . '</div>';
-    $doc->loadHTML('<?xml encoding="utf-8" ?>' . $wrapper, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
-
-    foreach (iterator_to_array($doc->getElementsByTagName('img')) as $img) {
-        $src = trim((string) $img->getAttribute('src'));
-        if (!bandpromo_is_allowed_page_image_src($src)) {
-            $img->parentNode?->removeChild($img);
-            continue;
-        }
-
-        foreach (['srcset', 'sizes', 'style', 'width', 'height'] as $attribute) {
-            if ($img->hasAttribute($attribute)) {
-                $img->removeAttribute($attribute);
-            }
-        }
-    }
-
-    foreach (iterator_to_array($doc->getElementsByTagName('a')) as $link) {
-        $href = trim((string) $link->getAttribute('href'));
-        if (!bandpromo_is_allowed_link_href($href)) {
-            $link->removeAttribute('href');
-        }
-
-        $target = trim((string) $link->getAttribute('target'));
-        if ($target === '_blank') {
-            $link->setAttribute('rel', 'noopener noreferrer');
-        } elseif ($target !== '') {
-            $link->removeAttribute('target');
-        }
-    }
-
-    $root = $doc->getElementsByTagName('div')->item(0);
-    $output = '';
-    if ($root !== null) {
-        foreach ($root->childNodes as $child) {
-            $output .= $doc->saveHTML($child);
-        }
-    }
-
-    libxml_clear_errors();
-    libxml_use_internal_errors($previousState);
-
-    return trim($output);
-}
-
-function bandpromo_sanitize_page_html(string $html): string
-{
-    $config = HTMLPurifier_Config::createDefault();
-    $config->set('Core.Encoding', 'UTF-8');
-    $config->set('HTML.Doctype', 'HTML 4.01 Transitional');
-    $config->set('Cache.SerializerPath', dirname(__DIR__) . '/log/htmlpurifier');
-    $config->set('HTML.Allowed', 'p,br,strong,em,b,i,h2,h3,h4,blockquote,ul,ol,li,a[href|target|rel],img[src|alt|title],hr');
-    $config->set('Attr.AllowedFrameTargets', ['_blank']);
-    $config->set('CSS.AllowedProperties', []);
-    $config->set('HTML.SafeIframe', false);
-    $config->set('HTML.SafeObject', false);
-    $config->set('Output.TidyFormat', true);
-
-    $purifier = new HTMLPurifier($config);
-    return bandpromo_postprocess_page_html($purifier->purify($html));
-}
-
-$pageFile = $editablePages[$pageKey];
-$sanitized = bandpromo_sanitize_page_html($body);
-
-if (!is_dir(dirname($pageFile))) {
-    mkdir(dirname($pageFile), 0750, true);
-}
-
-if (file_put_contents($pageFile, $sanitized) === false) {
+    echo json_encode([
+        'ok' => true,
+        'format' => 'json_blocks',
+        'page' => $pageKey,
+        'document' => $document,
+        'html' => $html,
+        'registry' => is_array($registryEntry) ? [
+            'title' => (string) ($registryEntry['title'] ?? ''),
+            'label' => (string) ($registryEntry['label'] ?? ''),
+            'surface' => (string) ($registryEntry['surface'] ?? 'player'),
+            'required' => !empty($registryEntry['required']),
+            'show_in_player' => !empty($registryEntry['show_in_player']),
+        ] : null,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+} catch (InvalidArgumentException $exception) {
+    http_response_code(400);
     bandpromo_admin_audit_log('page_saved', [
         'target_type' => 'page',
         'target_id' => $pageKey,
         'status' => 'error',
-        'data' => ['error' => 'Write failed'],
+        'data' => ['error' => $exception->getMessage(), 'format' => 'json_blocks'],
     ]);
-    echo json_encode(['error' => 'Could not write data/' . $pageKey . '.html — check file permissions']);
-    exit;
+    echo json_encode(['error' => $exception->getMessage()]);
+} catch (Throwable $throwable) {
+    http_response_code(500);
+    bandpromo_admin_audit_log('page_saved', [
+        'target_type' => 'page',
+        'target_id' => $pageKey,
+        'status' => 'error',
+        'data' => ['error' => $throwable->getMessage(), 'format' => 'json_blocks'],
+    ]);
+    echo json_encode(['error' => $throwable->getMessage()]);
 }
-
-bandpromo_admin_audit_log('page_saved', [
-    'target_type' => 'page',
-    'target_id' => $pageKey,
-    'status' => 'ok',
-    'data' => [
-        'sanitized' => trim($body) !== trim($sanitized),
-        'input_bytes' => strlen($body),
-        'saved_bytes' => strlen($sanitized),
-    ],
-]);
-
-echo json_encode([
-    'ok' => true,
-    'sanitized' => trim($body) !== trim($sanitized),
-    'html' => $sanitized,
-    'page' => $pageKey,
-]);
