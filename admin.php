@@ -442,8 +442,7 @@ if (!is_string($contentPage) || !array_key_exists($contentPage, $editablePages))
 }
 $activeContentPage = $editablePages[$contentPage];
 $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
-$playerModules = bandpromo_player_modules_config();
-$playerLayoutPages = bandpromo_page_registry_entries(__DIR__);
+$playerLayoutState = bandpromo_player_layout_admin_state(__DIR__);
 
 // Config sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
@@ -511,7 +510,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsModal">
                 <span class="operator-notifications-icon">🔔</span>
-                <span class="operator-notifications-label">Needs attention</span>
+                <span class="operator-notifications-label">Notifications</span>
                 <span id="operatorNotificationsCount" class="operator-notifications-count is-empty">0</span>
             </button>
         </div>
@@ -546,9 +545,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard. Use <strong>Needs attention</strong> in the header to see open tasks, then jump to <strong>Files</strong>, <strong>Content</strong>, or <strong>Build</strong> to fix them. Use <strong>Site update</strong> below when a newer published package is available.
+                    This page is your dashboard. Use <strong>Notifications</strong> in the header for open tasks and background activity, then jump to <strong>Files</strong> or <strong>Content</strong> to work on them. Use <strong>Site update</strong> below when a newer published package is available.
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Needs attention</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>Build</strong> for publish state, and <strong>Documentation</strong> for deeper explanations.
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>Build</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
             </div>
 
@@ -1053,15 +1052,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <br>Better track details mean clearer pages, better playback information, and a more polished experience for everyone, so click a track to show editable metadata tags.
                     <br>Click a tag bullet to edit short fields such as artist, title, version, release, track, release date, genre, BPM, or key. Use the pencil button for cover art, description, lyrics, and packaging details.
                     <br>
+                    <br><strong>After upload:</strong> bandPromo prepares delivery files automatically. Tracks appear in Content pools only after they are ready. Check <strong>Notifications</strong> only if preparation fails.
                 <?php elseif ($filesPanel === 'photos'): ?>
                     Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images. Unreferenced uploads are flagged as orphans so you can clean them up safely.
-                    <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
+                    <br><strong>After upload:</strong> bandPromo prepares publish-ready photo files automatically.
                 <?php elseif ($filesPanel === 'video'): ?>
-                    Drop videos here (MP4, WEBM, MOV). bandPromo keeps the original here and prepares a publish-ready MP4 during the full build. Unreferenced uploads are flagged as orphans so you can clean them up safely.
-                    <br><strong>After upload:</strong> use <strong>Run Publish Build</strong> so the publish-ready video files can be refreshed.
+                    Drop videos here (MP4, WEBM, MOV). bandPromo keeps the original here and prepares a publish-ready MP4 automatically after upload. Delivery and poster generation run in the background for all video types. Videos appear in Content pools only after delivery is ready.
+                    <br><strong>After upload:</strong> check <strong>Notifications</strong> for background progress or any preparation failure.
                 <?php elseif ($filesPanel === 'illustrations'): ?>
                     Drop artwork, track covers, and illustrations here (PNG, JPG, JPEG). Rows show whether each file is a track cover, release fallback, or general artwork, plus where it is referenced.
-                    <br><strong>After upload:</strong> use <strong>Refresh Image Files</strong>.
+                    <br><strong>After upload:</strong> bandPromo prepares publish-ready artwork automatically.
                 <?php elseif ($filesPanel === 'special'): ?>
                     This is for theme assets such as share images, icons, logos, and similar install-specific design files.
                     <br><strong>After upload:</strong> usually no build needed.
@@ -1347,34 +1347,68 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-content">
                 <?php if ($contentTab === 'playlist'): ?>
-                    Your playlist is built automatically from your audio files and their ID3 tags (title, artist, album). Upload audio via the <a href="?tab=files&fpanel=audio">Files → Audio</a> tab, then run a <a href="?tab=build">Build</a> to regenerate the playlist.
+                    Your playlist is built from your audio files and their ID3 tags (title, artist, album). Drag tracks between Available tracks and Playlist like the gallery editor. Upload audio via <a href="?tab=files&fpanel=audio">Files → Audio</a>, then run a <a href="?tab=build">Build</a> when needed.
                 <?php elseif ($contentTab === 'gallery'): ?>
-                    A JSON list of images shown in the site's gallery section. Each item needs a <code>src</code> path, <code>name</code>, and <code>alt</code> text. The preview below updates as you type — fix any red errors before saving.
+                    Drag photos and videos from the pool into the gallery order. Reorder on the right and edit name/alt inline. No build required.
                 <?php elseif ($contentTab === 'pages'): ?>
-                    Create and edit static pages with the Word-like editor. FAQ is required for the login info lightbox; other pages are optional and can appear in the player when enabled under <strong>Content → Player</strong>.
+                    Use the page pool on the left to pick a page, preview it on the right, and click Edit to open the block editor. Add new pages from the pool header.
                 <?php elseif ($contentTab === 'player'): ?>
-                    Choose which optional modules and pages appear in the player. Playlist and Lyrics are always available.
+                    Drag content from the pool into the player layout on the right. Reorder optional items like the playlist editor. Playlist and Lyrics always stay first.
                 <?php endif; ?>
             </div>
 
+            <?php
+            $poolDemoFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
+                . '<label class="media-filter-label player-layout-pool-filter-label">'
+                . '<span class="visually-hidden">Filter demo assets</span>'
+                . '<select class="media-filter-select player-layout-pool-filter" data-pool-demo-filter aria-label="Filter demo assets">'
+                . '<option value="hide">User files</option>'
+                . '<option value="show">Include demo</option>'
+                . '</select>'
+                . '</label>'
+                . '</div>';
+            $poolHeadSpacerHtml = '<div class="player-layout-pool-head-slot" aria-hidden="true"></div>';
+            ?>
+
             <!-- ── PLAYLIST ─────────────────────────────────────────────── -->
             <?php if ($contentTab === 'playlist'): ?>
-            <div class="card">
-                <div class="media-panel-header">
-                    <h3 style="margin:0;">🎵 Playlist Order</h3>
-                    <div class="media-panel-actions">
-                        <button type="button" class="btn bundled-demo-toggle" data-bundled-toggle aria-pressed="false" title="Show bundled demo assets">◌ Demo</button>
-                    </div>
-                </div>
+            <div class="card content-editor-card" id="playlistEditorCard">
+                <h3>🎵 Playlist</h3>
                 <p class="card-note">
-                    Drag tracks into the open insertion gap to reorder them. Use Shift-click or Ctrl/Cmd-click to select multiple tracks and move them together.
-                    Saving still preserves the order for future builds, while the currently published playlist stays on its last built state until you rebuild.
+                    Drag tracks from the pool into the playlist, or back to hide them. Reorder tracks on the right.
+                    Use Shift-click or Ctrl/Cmd-click to select multiple tracks and move them together.
+                    Saving updates the live playlist immediately and preserves the order for future builds.
                 </p>
-                <p id="playlistPreviewHint" class="hint">Loading current source tracks…</p>
-                <ol class="playlist-editor" id="playlistEditor"></ol>
-                <div class="card-actions">
-                    <button id="playlistSaveBtn" class="btn btn-primary">💾 Save order</button>
-                    <span id="playlistStatus" class="status-text"></span>
+                <div class="player-layout-editor" id="playlistLayoutEditor">
+                    <div class="player-layout-col player-layout-col--pool">
+                        <div class="player-layout-panel">
+                            <div class="player-layout-col-head player-layout-col-head--pool">
+                                <h4 class="player-layout-col-title">Available content</h4>
+                                <?php echo $poolDemoFilterHtml; ?>
+                            </div>
+                            <div class="player-layout-panel-body">
+                                <ol class="playlist-editor player-layout-list player-layout-pool-list" id="playlistAvailableList" aria-label="Available content">
+                                    <li class="player-layout-empty">Loading tracks…</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="player-layout-col player-layout-col--active">
+                        <div class="player-layout-panel">
+                            <div class="player-layout-col-head player-layout-col-head--active">
+                                <h4 class="player-layout-col-title">
+                                    Playlist <span class="player-layout-count" id="playlistActiveCount"></span>
+                                </h4>
+                                <div class="player-layout-save-row">
+                                    <button type="button" id="playlistSaveBtn" class="btn" hidden>💾 Save playlist</button>
+                                </div>
+                            </div>
+                            <div class="player-layout-panel-body">
+                                <p class="hint player-layout-hint">Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available tracks to remove them from the playlist.</p>
+                                <ol class="playlist-editor player-layout-list" id="playlistActiveList" aria-label="Playlist order"></ol>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1404,28 +1438,42 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <p class="card-note" style="color:#f87171"><?php echo htmlspecialchars($galleryError); ?></p>
             </div>
             <?php else: ?>
-            <div class="card">
+            <div class="card content-editor-card" id="galleryEditorCard">
                 <h3>🖼️ Gallery</h3>
                 <p class="card-note">
-                    Pick photos and videos from your uploaded media. Drag active items to reorder.
+                    Drag content from the pool into the gallery order, or back to hide it. Reorder items on the right.
+                    Use Shift-click or Ctrl/Cmd-click to select multiple items and move them together.
                     Name and alt text can be edited inline. Changes apply immediately — no build required.
                 </p>
-                <div class="gallery-editor" id="galleryEditor"
+                <div class="player-layout-editor" id="galleryEditor"
                      data-initial="<?php echo htmlspecialchars(json_encode($galleryItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>">
-                    <div class="gallery-editor-col gallery-editor-available">
-                        <h4 class="gallery-editor-col-title">Available media</h4>
-                        <div id="galleryAvailableList" class="gallery-available-list">
-                            <p class="hint">Loading…</p>
+                    <div class="player-layout-col player-layout-col--pool">
+                        <div class="player-layout-panel">
+                            <div class="player-layout-col-head player-layout-col-head--pool">
+                                <h4 class="player-layout-col-title">Available content</h4>
+                                <?php echo $poolDemoFilterHtml; ?>
+                            </div>
+                            <div class="player-layout-panel-body">
+                                <ol class="playlist-editor player-layout-list gallery-pool-list" id="galleryAvailableList" aria-label="Available content">
+                                    <li class="player-layout-empty">Loading media…</li>
+                                </ol>
+                            </div>
                         </div>
                     </div>
-                    <div class="gallery-editor-col gallery-editor-active">
-                        <h4 class="gallery-editor-col-title">
-                            Gallery <span id="galleryActiveCount" class="gallery-count-badge"></span>
-                        </h4>
-                        <ol id="galleryActiveList" class="gallery-active-list"></ol>
-                        <div class="card-actions">
-                            <button id="gallerySaveBtn" class="btn btn-primary">💾 Save gallery</button>
-                            <span id="galleryStatus" class="status-text"></span>
+                    <div class="player-layout-col player-layout-col--active">
+                        <div class="player-layout-panel">
+                            <div class="player-layout-col-head player-layout-col-head--active">
+                                <h4 class="player-layout-col-title">
+                                    Gallery order <span class="player-layout-count" id="galleryActiveCount"></span>
+                                </h4>
+                                <div class="player-layout-save-row">
+                                    <button type="button" id="gallerySaveBtn" class="btn" hidden>💾 Save gallery</button>
+                                </div>
+                            </div>
+                            <div class="player-layout-panel-body">
+                                <p class="hint player-layout-hint">Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple items. Move selections back to Available content to remove them from the gallery.</p>
+                                <ol class="playlist-editor player-layout-list gallery-active-list" id="galleryActiveList" aria-label="Gallery order"></ol>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1434,96 +1482,112 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
             <!-- ── PAGES ───────────────────────────────────────────────────── -->
             <?php elseif ($contentTab === 'pages'): ?>
-            <div class="card" id="pageEditorRoot"
-                 data-page-key="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
-                 data-page-required="<?php echo !empty($activeContentPage['required']) ? '1' : '0'; ?>"
-                 data-page-surface="<?php echo htmlspecialchars((string) ($activeContentPage['surface'] ?? 'player'), ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="tabs sub-tabs page-editor-tabs" id="pageEditorTabs">
-                    <?php foreach ($pageTabEntries as $tabEntry): ?>
-                    <?php
-                        $pageKey = (string) ($tabEntry['id'] ?? '');
-                        if ($pageKey === '' || !isset($editablePages[$pageKey])) {
-                            continue;
-                        }
-                        $pageSpec = $editablePages[$pageKey];
-                        $pageUrl = '?tab=content&cntab=pages&page=' . urlencode($pageKey);
-                        $pageActive = $pageKey === $contentPage ? 'active' : '';
-                    ?>
-                    <a href="<?php echo $pageUrl; ?>" class="tab-link page-tab-link <?php echo $pageActive; ?>" data-page-id="<?php echo htmlspecialchars($pageKey, ENT_QUOTES, 'UTF-8'); ?>">
-                        <?php echo htmlspecialchars($pageSpec['emoji'] . ' ' . $pageSpec['label']); ?>
-                    </a>
-                    <?php endforeach; ?>
-                    <div class="page-editor-tabs-action">
-                        <button type="button" class="subtab-action page-editor-add-btn" id="toggleAddPageBtn" aria-expanded="false" aria-label="Add page" title="Add page">
-                            <span class="page-editor-add-icon" aria-hidden="true">＋</span>
-                            <span>Add page</span>
-                        </button>
-                    </div>
-                </div>
+            <?php
+                $pagePoolData = [];
+                foreach ($pageTabEntries as $tabEntry) {
+                    $pageKey = (string) ($tabEntry['id'] ?? '');
+                    if ($pageKey === '' || !isset($editablePages[$pageKey])) {
+                        continue;
+                    }
+                    $pageSpec = $editablePages[$pageKey];
+                    $pagePoolData[] = [
+                        'id' => $pageKey,
+                        'emoji' => $pageSpec['emoji'],
+                        'label' => $pageSpec['label'],
+                        'title' => $pageSpec['title'],
+                        'required' => !empty($pageSpec['required']),
+                        'surface' => $pageSpec['surface'] ?? 'player',
+                        'show_in_player' => !empty($pageSpec['show_in_player']),
+                    ];
+                }
+            ?>
+            <div class="card content-editor-card" id="pageEditorRoot"
+                 data-initial-page="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
+                 data-pages="<?php echo htmlspecialchars(json_encode($pagePoolData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
+                <h3>📄 Pages</h3>
+                <p class="card-note">
+                    Pick a page from the pool to preview it on the right. Use the edit button to open the block editor on the left.
+                    FAQ is required for the login info lightbox; other pages are optional and can appear in the player when enabled under <strong>Content → Player</strong>.
+                </p>
 
-                <div class="add-page-panel" id="addPagePanel" hidden>
-                    <form id="addPageForm" class="add-page-form">
-                        <label class="add-page-field">
-                            <span>Page name</span>
-                            <input type="text" name="title" placeholder="Tour dates" required>
-                        </label>
-                        <div class="add-page-actions">
-                            <button type="submit" class="btn btn-primary">Create page</button>
-                            <button type="button" class="btn" id="cancelAddPageBtn">Cancel</button>
-                        </div>
-                    </form>
-                    <p id="pageRegistryStatus" class="status-text"></p>
-                </div>
+                <div class="player-layout-editor page-editor-layout" id="pageEditorLayout">
+                    <div class="player-layout-col player-layout-col--pool">
+                        <div class="player-layout-panel page-editor-left-panel">
+                            <div id="pagePoolView">
+                                <div class="player-layout-col-head player-layout-col-head--pool">
+                                    <h4 class="player-layout-col-title">Available content</h4>
+                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
+                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddPageBtn" aria-expanded="false" aria-label="Add page" title="Add page">
+                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                            <span>Add page</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body">
+                                    <div class="add-page-panel" id="addPagePanel" hidden>
+                                        <form id="addPageForm" class="add-page-form">
+                                            <label class="add-page-field">
+                                                <span>Page name</span>
+                                                <input type="text" name="title" placeholder="Tour dates" required>
+                                            </label>
+                                            <div class="add-page-actions">
+                                                <button type="submit" class="btn btn-primary">Create page</button>
+                                                <button type="button" class="btn" id="cancelAddPageBtn">Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <p id="pageRegistryStatus" class="status-text page-pool-status"></p>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="pagePoolList" aria-label="Available content"></ol>
+                                </div>
+                            </div>
 
-                <div class="page-editor-header">
-                    <div class="page-editor-meta">
-                        <label class="page-meta-field">
-                            <span>Page name</span>
-                            <input type="text" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120">
-                        </label>
-                        <?php if (!$activePageIsLoginOnly): ?>
-                        <label class="page-meta-field">
-                            <span>Player tab</span>
-                            <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
-                        </label>
-                        <?php endif; ?>
-                    </div>
-                    <?php if (empty($activeContentPage['required'])): ?>
-                    <button type="button" class="icon-btn danger page-delete-btn" id="deleteCurrentPageBtn"
-                            data-page-id="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
-                            data-page-title="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>"
-                            title="Delete page" aria-label="Delete page">🗑️</button>
-                    <?php endif; ?>
-                </div>
-                <p class="hint page-editor-hint">Build with blocks — add text, pictures, and lists, and watch your preview update live.</p>
-
-                <div class="page-editor-shell" id="pageEditorShell"
-                     data-page-key="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
-                     data-page-label="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>">
-                    <div class="page-editor-panel">
-                        <div class="page-editor-panel-head">
-                            <h4>Page blocks</h4>
-                            <div class="page-editor-toolbar">
-                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
-                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
-                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
+                            <div id="pageEditorView" class="page-editor-view" hidden>
+                                <div class="player-layout-col-head page-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn" id="pageEditorBackBtn" title="Back to page list">← Pages</button>
+                                    <button type="button" class="icon-btn danger page-delete-btn" id="deleteCurrentPageBtn" hidden
+                                            title="Delete page" aria-label="Delete page">🗑️</button>
+                                </div>
+                                <div class="player-layout-panel-body page-editor-view-body">
+                                    <div class="page-editor-meta">
+                                        <label class="page-meta-field">
+                                            <span>Page name</span>
+                                            <input type="text" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120">
+                                        </label>
+                                        <label class="page-meta-field" id="pageLabelFieldWrap"<?php echo $activePageIsLoginOnly ? ' hidden' : ''; ?>>
+                                            <span>Player tab</span>
+                                            <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
+                                        </label>
+                                    </div>
+                                    <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
+                                    <div class="page-editor-panel-head">
+                                        <h4 class="player-layout-col-title">Page blocks</h4>
+                                        <div class="page-editor-toolbar">
+                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
+                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
+                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
+                                        </div>
+                                    </div>
+                                    <div class="page-editor-blocks" id="pageEditorBlocks">
+                                        <p class="page-editor-empty">Loading page blocks…</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="page-editor-blocks" id="pageEditorBlocks">
-                            <p class="page-editor-empty">Loading page blocks…</p>
-                        </div>
                     </div>
 
-                    <div class="page-editor-preview-panel">
-                        <div class="page-editor-preview-head">
-                            <h4>Live preview</h4>
-                            <div class="page-editor-save-row">
-                                <button id="pageSaveBtn" class="btn btn-primary" disabled>💾 Save changes</button>
-                                <span id="pageStatus" class="status-text"></span>
+                    <div class="player-layout-col player-layout-col--active">
+                        <div class="player-layout-panel page-editor-preview-panel">
+                            <div class="player-layout-col-head player-layout-col-head--active">
+                                <h4 class="player-layout-col-title">Live preview</h4>
+                                <div class="player-layout-save-row">
+                                    <button id="pageSaveBtn" class="btn" hidden>💾 Save changes</button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="page-editor-preview-frame" id="pageEditorPreview">
-                            <p class="page-editor-empty">Preview will appear here.</p>
+                            <div class="player-layout-panel-body page-editor-preview-body">
+                                <div class="page-editor-preview-frame" id="pageEditorPreview">
+                                    <p class="page-editor-empty">Loading preview…</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1577,57 +1641,44 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
 
             <?php elseif ($contentTab === 'player'): ?>
-            <div class="card" id="playerLayoutCard"
-                 data-modules="<?php echo htmlspecialchars(json_encode($playerModules, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>"
-                 data-pages="<?php echo htmlspecialchars(json_encode($playerLayoutPages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
+            <div class="card content-editor-card" id="playerLayoutCard"
+                 data-layout="<?php echo htmlspecialchars(json_encode($playerLayoutState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎛️ Player layout</h3>
-                <p class="card-note">Playlist and Lyrics are always shown. Turn optional modules on or off, and choose which pages appear as player tabs.</p>
+                <p class="card-note">
+                    Drag content from the pool into the player layout, or back to hide it. Reorder optional items on the right.
+                    Use Shift-click or Ctrl/Cmd-click to select multiple items and move them together.
+                    Playlist and Lyrics always stay first.
+                </p>
 
-                <div class="player-module-toggles">
-                    <label class="player-module-toggle is-locked">
-                        <input type="checkbox" checked disabled>
-                        <span><strong>Playlist</strong> — always on</span>
-                    </label>
-                    <label class="player-module-toggle is-locked">
-                        <input type="checkbox" checked disabled>
-                        <span><strong>Lyrics</strong> — always on</span>
-                    </label>
-                    <label class="player-module-toggle">
-                        <input type="checkbox" id="playerModuleGallery" <?php echo !empty($playerModules['gallery']['enabled']) ? 'checked' : ''; ?>>
-                        <span><strong>Gallery</strong> — photo/video gallery tab</span>
-                    </label>
-                    <label class="player-module-toggle">
-                        <input type="checkbox" id="playerModulePages" <?php echo !empty($playerModules['pages']['enabled']) ? 'checked' : ''; ?>>
-                        <span><strong>Pages</strong> — static page tabs (Bio, Tour, News, …)</span>
-                    </label>
-                </div>
-
-                <h4>Pages in the player</h4>
-                <p class="hint">FAQ stays on the login screen. Choose which other pages appear as player tabs.</p>
-                <div class="player-page-layout-list" id="playerPageLayoutList">
-                    <?php foreach ($playerLayoutPages as $layoutPage): ?>
-                    <?php
-                        $layoutPageId = (string) ($layoutPage['id'] ?? '');
-                        $isLoginOnly = ($layoutPage['surface'] ?? '') === 'login';
-                        $canShowInPlayer = !$isLoginOnly;
-                    ?>
-                    <div class="player-page-layout-row" data-page-id="<?php echo htmlspecialchars($layoutPageId, ENT_QUOTES, 'UTF-8'); ?>">
-                        <div class="player-page-layout-meta">
-                            <strong><?php echo htmlspecialchars((string) ($layoutPage['title'] ?? $layoutPageId)); ?></strong>
-                            <span class="hint"><?php echo $isLoginOnly ? 'Shown on login' : 'Player tab'; ?></span>
+                <div class="player-layout-editor" id="playerLayoutEditor">
+                    <div class="player-layout-col player-layout-col--pool">
+                        <div class="player-layout-panel">
+                            <div class="player-layout-col-head player-layout-col-head--pool">
+                                <h4 class="player-layout-col-title">Available content</h4>
+                                <?php echo $poolHeadSpacerHtml; ?>
+                            </div>
+                            <div class="player-layout-panel-body">
+                                <ol class="playlist-editor player-layout-list player-layout-pool-list" id="playerLayoutAvailableList" aria-label="Available content"></ol>
+                            </div>
                         </div>
-                        <label>Tab label <input type="text" class="player-page-label-input" value="<?php echo htmlspecialchars((string) ($layoutPage['label'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isLoginOnly ? 'disabled' : ''; ?>></label>
-                        <label class="player-page-show-toggle">
-                            <input type="checkbox" class="player-page-show-input" <?php echo !empty($layoutPage['show_in_player']) ? 'checked' : ''; ?> <?php echo $canShowInPlayer ? '' : 'disabled'; ?>>
-                            Show in player
-                        </label>
                     </div>
-                    <?php endforeach; ?>
-                </div>
 
-                <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="savePlayerLayoutBtn">💾 Save player layout</button>
-                    <span id="playerLayoutStatus" class="status-text"></span>
+                    <div class="player-layout-col player-layout-col--active">
+                        <div class="player-layout-panel">
+                            <div class="player-layout-col-head player-layout-col-head--active">
+                                <h4 class="player-layout-col-title">
+                                    Player layout <span class="player-layout-count" id="playerLayoutActiveCount"></span>
+                                </h4>
+                                <div class="player-layout-save-row">
+                                    <button type="button" class="btn" id="savePlayerLayoutBtn" hidden>💾 Save player layout</button>
+                                </div>
+                            </div>
+                            <div class="player-layout-panel-body">
+                                <p class="hint player-layout-hint">Playlist and Lyrics are fixed at the top. Drag to reorder optional content. Shift-click or Ctrl/Cmd-click to select multiple items. Move selections back to Available content to remove them from the player.</p>
+                                <ol class="playlist-editor player-layout-list" id="playerLayoutActiveList" aria-label="Player layout"></ol>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2286,6 +2337,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         };
     </script>
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
+    <?php if ($tab === 'content'): ?>
+    <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>
+    <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
     <?php endif; ?>

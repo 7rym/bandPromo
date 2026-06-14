@@ -1,12 +1,17 @@
 <?php
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/auto-build-tasks.php';
 bandpromo_enforce_https();
 
 require_once __DIR__ . '/admin-api-guard.php';
 
 $includeBundled = isset($_GET['include_bundled']) && $_GET['include_bundled'] === '1';
 session_write_close();
+
+if ($includeBundled) {
+    bandpromo_ensure_bundled_demo_audio_delivery(dirname(__DIR__));
+}
 
 function bandpromo_playlist_preview_load_saved_order(string $file): array
 {
@@ -66,7 +71,8 @@ function bandpromo_playlist_preview_from_built_playlist(bool $includeBundled): ?
         });
     }
 
-    $tracks = [];
+    $playlistByFile = [];
+    $poolTrackMap = [];
     $hiddenBundled = [];
     foreach ($playlist as $track) {
         if (!is_array($track)) {
@@ -79,12 +85,7 @@ function bandpromo_playlist_preview_from_built_playlist(bool $includeBundled): ?
         }
 
         $isBundled = strncmp($file, 'bandPromo_', 10) === 0;
-        if ($isBundled && !$includeBundled) {
-            $hiddenBundled[] = $file;
-            continue;
-        }
-
-        $tracks[] = [
+        $entry = [
             'file' => $file,
             'title' => (string) ($track['title'] ?? $file),
             'artist' => (string) ($track['artist'] ?? ''),
@@ -93,11 +94,44 @@ function bandpromo_playlist_preview_from_built_playlist(bool $includeBundled): ?
             'origin' => $isBundled ? 'bundled-placeholder' : 'user-upload',
             'sourceTier' => 'built-playlist',
         ];
+        $playlistByFile[$file] = $entry;
+
+        if ($isBundled && !$includeBundled) {
+            $hiddenBundled[] = $file;
+            continue;
+        }
+
+        $poolTrackMap[$file] = $entry;
+    }
+
+    $savedOrder = bandpromo_playlist_preview_load_saved_order($root . '/data/playlist-order.json');
+
+    if ($savedOrder) {
+        $activeFiles = array_values(array_filter($savedOrder, static fn($name) => is_string($name) && $name !== ''));
+    } else {
+        $activeFiles = array_keys($playlistByFile);
+    }
+
+    $activeSet = array_fill_keys($activeFiles, true);
+    $activeTracks = [];
+    foreach ($activeFiles as $file) {
+        if (isset($playlistByFile[$file])) {
+            $activeTracks[] = $playlistByFile[$file];
+        }
+    }
+
+    $availableTracks = [];
+    foreach ($poolTrackMap as $file => $entry) {
+        if (!isset($activeSet[$file])) {
+            $availableTracks[] = $entry;
+        }
     }
 
     return [
         'ok' => true,
-        'tracks' => $tracks,
+        'tracks' => $activeTracks,
+        'activeTracks' => $activeTracks,
+        'availableTracks' => $availableTracks,
         'hiddenBundledSourceFiles' => $hiddenBundled,
         'unsupportedSourceFiles' => [],
         'includeBundled' => $includeBundled,

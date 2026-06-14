@@ -255,16 +255,24 @@ if ($supportEnabled && $supportUrl !== '') {
             <button type="button"<?php echo $isActive ? ' class="active"' : ''; ?> data-view="<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>" onclick="toggleView('<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>')"><?php echo htmlspecialchars($label); ?></button>
             <?php endforeach; ?>
         </div>
-        <div class="lyrics-box<?php echo $defaultPlayerView === 'lyrics' ? ' active' : ''; ?>" id="lyricsBox" data-content-box="lyrics">Loading lyrics...</div>
-        <div class="playlist-box<?php echo $defaultPlayerView === 'playlist' ? ' active' : ''; ?>" id="playlistBox" data-content-box="playlist">Loading playlist...</div>
         <?php
         require_once dirname(__DIR__) . '/biblioteca/page-storage.php';
-        foreach (bandpromo_page_player_visible_entries($playerRoot) as $playerPage):
-            $pageId = (string) ($playerPage['id'] ?? '');
-            $viewId = 'page-' . $pageId;
-            $isActive = $defaultPlayerView === $viewId ? ' active' : '';
+        foreach ($playerTabs as $playerTab):
+            $view = (string) ($playerTab['view'] ?? '');
+            $isActive = $view === $defaultPlayerView ? ' active' : '';
+            if ($view === 'lyrics'):
         ?>
-        <div class="page-box<?php echo $isActive; ?>" id="pageBox-<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>" data-content-box="<?php echo htmlspecialchars($viewId, ENT_QUOTES, 'UTF-8'); ?>" data-page-id="<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>">
+        <div class="lyrics-box<?php echo $isActive; ?>" id="lyricsBox" data-content-box="lyrics">Loading lyrics...</div>
+        <?php elseif ($view === 'playlist'): ?>
+        <div class="playlist-box<?php echo $isActive; ?>" id="playlistBox" data-content-box="playlist">Loading playlist...</div>
+        <?php elseif ($view === 'gallery'): ?>
+        <div class="gallery-box<?php echo $isActive; ?>" id="galleryBox" data-content-box="gallery">
+            <div class="visuals-gallery" id="visualsGallery"></div>
+        </div>
+        <?php elseif (str_starts_with($view, 'page-')):
+            $pageId = (string) ($playerTab['page_id'] ?? substr($view, 5));
+        ?>
+        <div class="page-box<?php echo $isActive; ?>" id="pageBox-<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>" data-content-box="<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>" data-page-id="<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>">
             <?php
             try {
                 echo bandpromo_page_render_for_delivery($playerRoot, $pageId);
@@ -273,12 +281,7 @@ if ($supportEnabled && $supportUrl !== '') {
             }
             ?>
         </div>
-        <?php endforeach; ?>
-        <?php if (bandpromo_player_module_enabled('gallery')): ?>
-        <div class="gallery-box<?php echo $defaultPlayerView === 'gallery' ? ' active' : ''; ?>" id="galleryBox" data-content-box="gallery">
-            <div class="visuals-gallery" id="visualsGallery"></div>
-        </div>
-        <?php endif; ?>
+        <?php endif; endforeach; ?>
     </div>
 
     <div class="lightbox" id="lightbox">

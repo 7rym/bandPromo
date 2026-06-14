@@ -1,15 +1,226 @@
 (function () {
     function initBandpromoPageEditor() {
-        const shell = document.getElementById('pageEditorShell');
-        if (!shell) {
+        const layout = document.getElementById('pageEditorLayout');
+        const root = document.getElementById('pageEditorRoot');
+        if (!layout || !root) {
             return;
         }
 
-        const pageKey = shell.dataset.pageKey || 'bio';
-        const pageLabel = shell.dataset.pageLabel || 'Page';
+        const poolView = document.getElementById('pagePoolView');
+        const editorView = document.getElementById('pageEditorView');
+        const poolList = document.getElementById('pagePoolList');
+        const backBtn = document.getElementById('pageEditorBackBtn');
+        const deleteCurrentPageBtn = document.getElementById('deleteCurrentPageBtn');
+        const pageLabelFieldWrap = document.getElementById('pageLabelFieldWrap');
+
+        let pages = [];
+        try {
+            pages = JSON.parse(root.dataset.pages || '[]');
+        } catch (error) {
+            pages = [];
+        }
+        if (!Array.isArray(pages)) {
+            pages = [];
+        }
+
+        let currentPageKey = String(root.dataset.initialPage || pages[0]?.id || 'faq');
+        let selectedPageId = currentPageKey;
+        let isEditing = false;
+        const BACK_TO_POOL = '__back__';
+
         const pageTitleInput = document.getElementById('pageTitleInput');
         const pageLabelInput = document.getElementById('pageLabelInput');
-        const pageEditorTabs = document.getElementById('pageEditorTabs');
+        function pageEntry(pageId) {
+            return pages.find((entry) => entry && entry.id === pageId) || null;
+        }
+
+        function pageMetaLine(entry) {
+            if (!entry) return '';
+            if (entry.surface === 'login') {
+                return 'Login / info lightbox';
+            }
+            if (entry.show_in_player) {
+                const label = String(entry.label || '').trim();
+                return label ? `Player tab: ${label}` : 'Shown in player';
+            }
+            return 'Not in player layout';
+        }
+
+        function syncPageUrl(pageId) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', 'content');
+            url.searchParams.set('cntab', 'pages');
+            url.searchParams.set('page', pageId);
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        function updateDeleteButton(pageId) {
+            if (!deleteCurrentPageBtn) return;
+            const entry = pageEntry(pageId);
+            const canDelete = entry && !entry.required;
+            deleteCurrentPageBtn.hidden = !canDelete || !isEditing;
+            if (!canDelete) {
+                return;
+            }
+            deleteCurrentPageBtn.dataset.pageId = pageId;
+            deleteCurrentPageBtn.dataset.pageTitle = entry.title || entry.label || pageId;
+        }
+
+        function updateLabelFieldVisibility(pageId) {
+            const entry = pageEntry(pageId);
+            const isLoginOnly = entry && entry.surface === 'login';
+            if (pageLabelFieldWrap) {
+                pageLabelFieldWrap.hidden = !!isLoginOnly;
+            }
+        }
+
+        function renderPoolList() {
+            if (!poolList) return;
+            if (!pages.length) {
+                poolList.innerHTML = '<li class="player-layout-empty">No pages available yet.</li>';
+                return;
+            }
+
+            poolList.innerHTML = pages.map((entry) => {
+                const selectedClass = entry.id === selectedPageId ? ' playlist-editor-row-selected' : '';
+                const title = `${entry.emoji || '📝'} ${entry.title || entry.label || entry.id}`.trim();
+                return `<li class="playlist-editor-row page-pool-row${selectedClass}" data-page-id="${escapeHtml(entry.id)}" aria-selected="${entry.id === selectedPageId ? 'true' : 'false'}">
+                    <span class="playlist-track-info">
+                        <strong>${escapeHtml(title)}</strong>
+                        <span class="playlist-track-meta">${escapeHtml(pageMetaLine(entry))}</span>
+                    </span>
+                    <button type="button" class="page-pool-edit-btn" data-page-id="${escapeHtml(entry.id)}" title="Edit page" aria-label="Edit ${escapeHtml(entry.title || entry.label || entry.id)}">✏️</button>
+                </li>`;
+            }).join('');
+        }
+
+        function showPoolView() {
+            isEditing = false;
+            if (poolView) poolView.hidden = false;
+            if (editorView) editorView.hidden = true;
+            if (saveBtn) {
+                saveBtn.hidden = true;
+            }
+            updateDeleteButton(currentPageKey);
+            renderPoolList();
+        }
+
+        function showEditorView(pageId) {
+            isEditing = true;
+            currentPageKey = pageId;
+            selectedPageId = pageId;
+            if (poolView) poolView.hidden = true;
+            if (editorView) editorView.hidden = false;
+            syncPageUrl(pageId);
+            updateDeleteButton(pageId);
+            updateLabelFieldVisibility(pageId);
+            renderPoolList();
+        }
+
+        function updatePoolEntry(pageId, meta) {
+            const entry = pageEntry(pageId);
+            if (!entry || !meta) return;
+            if (meta.title) entry.title = meta.title;
+            if (meta.label) entry.label = meta.label;
+            renderPoolList();
+        }
+
+        async function loadPreviewOnly(pageId) {
+            if (!previewEl) return;
+            previewEl.innerHTML = '<p class="page-editor-empty">Loading preview…</p>';
+            const resp = await fetch(`/biblioteca/get-page-document.php?page=${encodeURIComponent(pageId)}`, {
+                credentials: 'same-origin',
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.ok) {
+                throw new Error(data.error || 'Could not load page preview');
+            }
+            if (typeof data.html === 'string') {
+                previewEl.innerHTML = data.html;
+            } else {
+                previewEl.innerHTML = '<p class="page-editor-empty">Preview is not available for this page.</p>';
+            }
+        }
+
+        async function selectPageForPreview(pageId) {
+            if (!pageId || pageId === selectedPageId && !isEditing) {
+                return;
+            }
+            selectedPageId = pageId;
+            syncPageUrl(pageId);
+            renderPoolList();
+            try {
+                await loadPreviewOnly(pageId);
+                setStatus('', 'neutral');
+            } catch (error) {
+                if (previewEl) {
+                    previewEl.innerHTML = `<p class="page-editor-empty">${escapeHtml(error.message)}</p>`;
+                }
+            }
+        }
+
+        async function openPageEditor(pageId) {
+            if (!pageId) return;
+            if (pageId !== currentPageKey && isEditing && hasUnsavedChanges()) {
+                pendingNavHref = pageId;
+                openUnsavedModal(pageId);
+                return;
+            }
+            showEditorView(pageId);
+            try {
+                await loadDocument();
+            } catch (error) {
+                setStatus('❌ ' + error.message, 'error');
+                if (blocksEl) {
+                    blocksEl.innerHTML = `<p class="page-editor-empty">${escapeHtml(error.message)}</p>`;
+                }
+            }
+        }
+
+        function requestCloseEditor() {
+            if (hasUnsavedChanges()) {
+                openUnsavedModal(BACK_TO_POOL);
+                return;
+            }
+            showPoolView();
+        }
+
+        poolList?.addEventListener('click', (event) => {
+            const editBtn = event.target instanceof HTMLElement
+                ? event.target.closest('.page-pool-edit-btn')
+                : null;
+            if (editBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                const pageId = editBtn.getAttribute('data-page-id') || '';
+                openPageEditor(pageId);
+                return;
+            }
+
+            const row = event.target instanceof HTMLElement
+                ? event.target.closest('.page-pool-row')
+                : null;
+            if (!row || !poolList.contains(row)) {
+                return;
+            }
+            const pageId = row.getAttribute('data-page-id') || '';
+            if (!pageId) return;
+            if (isEditing && pageId !== currentPageKey && hasUnsavedChanges()) {
+                pendingNavHref = pageId;
+                openUnsavedModal(pageId);
+                return;
+            }
+            if (isEditing && pageId !== currentPageKey) {
+                openPageEditor(pageId);
+                return;
+            }
+            selectPageForPreview(pageId);
+        });
+
+        backBtn?.addEventListener('click', () => {
+            requestCloseEditor();
+        });
+
         const unsavedModal = document.getElementById('pageUnsavedModal');
         const unsavedSaveBtn = document.getElementById('pageUnsavedSaveBtn');
         const unsavedDiscardBtn = document.getElementById('pageUnsavedDiscardBtn');
@@ -21,7 +232,6 @@
         const blocksEl = document.getElementById('pageEditorBlocks');
         const previewEl = document.getElementById('pageEditorPreview');
         const saveBtn = document.getElementById('pageSaveBtn');
-        const statusEl = document.getElementById('pageStatus');
         const imagePickerModal = document.getElementById('pageImagePickerModal');
         const imagePickerGrid = document.getElementById('pageImagePickerGrid');
         const imagePickerApplyBtn = document.getElementById('pageImagePickerApplyBtn');
@@ -76,6 +286,17 @@
         let suppressDirtyTracking = false;
         let baselineFingerprint = '';
 
+        const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
+            saveLabel: '💾 Save changes',
+            readFingerprint() {
+                if (allowUnloadWithoutSave || suppressDirtyTracking || !documentState) {
+                    return baselineFingerprint;
+                }
+                syncRichEditors();
+                return buildDirtyFingerprint();
+            },
+        }) || null;
+
         function pageMetaSnapshot() {
             return {
                 title: pageTitleInput ? String(pageTitleInput.value || '').trim() : '',
@@ -102,9 +323,15 @@
         }
 
         function updateSaveButton() {
-            if (!saveBtn) return;
-            saveBtn.disabled = !isDirtyState;
-            saveBtn.textContent = isDirtyState ? '💾 Save changes' : '💾 Saved';
+            if (!saveBtn || !isEditing) {
+                if (saveBtn) saveBtn.hidden = true;
+                return;
+            }
+            const dirty = hasUnsavedChanges();
+            if (dirty !== isDirtyState) {
+                isDirtyState = dirty;
+            }
+            saveUi?.reconcile();
         }
 
         function reconcileDirtyState() {
@@ -121,14 +348,14 @@
             baselineFingerprint = buildDirtyFingerprint();
             isDirtyState = false;
             allowUnloadWithoutSave = false;
-            updateSaveButton();
+            saveUi?.setBaseline(baselineFingerprint);
         }
 
         function markDirty() {
             if (suppressDirtyTracking || isDirtyState) return;
             allowUnloadWithoutSave = false;
             isDirtyState = true;
-            updateSaveButton();
+            saveUi?.reconcile();
         }
 
         function syncMetaFromRegistry(registry) {
@@ -142,11 +369,7 @@
         }
 
         function updateActiveTabLabel(meta) {
-            const tabLink = pageEditorTabs?.querySelector(`.page-tab-link[data-page-id="${pageKey}"]`);
-            if (!tabLink || !meta) return;
-            const emoji = tabLink.textContent.trim().split(/\s+/)[0] || '📝';
-            const nextLabel = meta.label || meta.title || pageLabel;
-            tabLink.textContent = `${emoji} ${nextLabel}`;
+            updatePoolEntry(currentPageKey, meta);
         }
 
         function abandonUnsavedChanges() {
@@ -160,7 +383,15 @@
         function openUnsavedModal(href) {
             pendingNavHref = href;
             if (!unsavedModal) {
-                window.location.href = href;
+                if (href === BACK_TO_POOL) {
+                    abandonUnsavedChanges();
+                    showPoolView();
+                    loadPreviewOnly(selectedPageId).catch(() => {});
+                } else if (pages.some((entry) => entry && entry.id === href)) {
+                    openPageEditor(href);
+                } else if (href) {
+                    window.location.href = href;
+                }
                 return;
             }
             unsavedModal.style.display = 'flex';
@@ -490,17 +721,7 @@
             return `<div class="page-content page-preview">${rendered || '<p class="page-editor-empty">Preview will appear as you add content.</p>'}</div>`;
         }
 
-        function setStatus(message, tone) {
-            if (!statusEl) return;
-            statusEl.textContent = message;
-            if (tone === 'error') {
-                statusEl.style.color = '#f55';
-            } else if (tone === 'warn') {
-                statusEl.style.color = '#fbbf24';
-            } else {
-                statusEl.style.color = 'var(--success, #4ade80)';
-            }
-        }
+        function setStatus() {}
 
         function getRichEditor(index, field) {
             return blocksEl?.querySelector(`[data-rich-editor="1"][data-block-index="${index}"][data-rich-field="${field}"]`) ?? null;
@@ -558,10 +779,9 @@
             selection.addRange(range);
         }
 
-        function consumeEditorSelection(editor) {
+        function peekEditorSelection(editor) {
             const stored = editorSelectionStore.get(editor);
             if (stored) {
-                editorSelectionStore.delete(editor);
                 return stored.cloneRange();
             }
 
@@ -574,6 +794,16 @@
             }
 
             return selection.getRangeAt(0).cloneRange();
+        }
+
+        function consumeEditorSelection(editor) {
+            const stored = editorSelectionStore.get(editor);
+            if (stored) {
+                editorSelectionStore.delete(editor);
+                return stored.cloneRange();
+            }
+
+            return peekEditorSelection(editor);
         }
 
         function blockIntersectsRange(blockEl, range) {
@@ -623,7 +853,7 @@
         }
 
         function getBlockElementsInSelection(editor, range = null) {
-            const workingRange = range || consumeEditorSelection(editor);
+            const workingRange = range || peekEditorSelection(editor);
             if (!workingRange) {
                 const fallback = getBlockElementAtCursor(editor);
                 return fallback ? [fallback] : [];
@@ -678,8 +908,9 @@
         }
 
         function createBlockElement(normalizedTag, innerHtml, sourceBlock, options = {}) {
-            const clearFormatting = options.clearFormatting === true;
-            const content = clearFormatting ? stripInlineFormattingFromHtml(innerHtml) : innerHtml;
+            const clearInlineFormatting = options.clearInlineFormatting === true;
+            const resetAlignment = options.resetAlignment === true;
+            const content = clearInlineFormatting ? stripInlineFormattingFromHtml(innerHtml) : innerHtml;
             let next;
 
             if (normalizedTag === 'page-text-small') {
@@ -696,7 +927,7 @@
 
             next.innerHTML = content;
 
-            if (clearFormatting) {
+            if (resetAlignment) {
                 applyAlignmentClasses(next, 'left');
             } else if (sourceBlock instanceof HTMLElement) {
                 copyBlockAlignment(sourceBlock, next);
@@ -712,11 +943,36 @@
                 return null;
             }
 
-            const clearFormatting = options.clearFormatting === true;
-            const effectiveTag = clearFormatting ? 'p' : normalizedTag;
-            const next = createBlockElement(effectiveTag, blockEl.innerHTML, blockEl, { clearFormatting });
+            const clearInlineFormatting = options.clearInlineFormatting === true;
+            const resetAlignment = options.resetAlignment === true;
+            const effectiveTag = clearInlineFormatting ? 'p' : normalizedTag;
+            const next = createBlockElement(
+                effectiveTag,
+                blockEl.innerHTML,
+                blockEl,
+                { clearInlineFormatting, resetAlignment }
+            );
             blockEl.replaceWith(next);
             return next;
+        }
+
+        function restoreSelectionOnBlocks(editor, blocks, collapseToEnd = false) {
+            const targets = (Array.isArray(blocks) ? blocks : []).filter((blockEl) => blockEl instanceof HTMLElement);
+            if (!targets.length) {
+                return;
+            }
+
+            const range = document.createRange();
+            if (collapseToEnd || targets.length === 1) {
+                range.selectNodeContents(targets[targets.length - 1]);
+                range.collapse(false);
+            } else {
+                range.setStart(targets[0], 0);
+                range.setEnd(targets[targets.length - 1], targets[targets.length - 1].childNodes.length);
+            }
+
+            restoreEditorSelection(editor, range);
+            captureEditorSelection(editor);
         }
 
         function applyBlockStyle(editor, blockTag, range = null) {
@@ -729,23 +985,33 @@
             const togglesOff = ['page-text-small', 'page-text-code', 'h1', 'h2', 'h3', 'h4'].includes(normalizedTag)
                 && targets.every((blockEl) => inferBlockTag(blockEl) === normalizedTag);
 
+            const transformed = [];
             if (normalizedTag === 'p' || togglesOff) {
                 targets.forEach((blockEl) => {
-                    transformBlockElement(blockEl, 'p', { clearFormatting: true });
+                    transformed.push(transformBlockElement(blockEl, 'p', {
+                        clearInlineFormatting: true,
+                        resetAlignment: false,
+                    }));
                 });
-                return;
+            } else {
+                targets.forEach((blockEl) => {
+                    transformed.push(transformBlockElement(blockEl, normalizedTag, {
+                        clearInlineFormatting: false,
+                        resetAlignment: false,
+                    }));
+                });
             }
 
-            targets.forEach((blockEl) => {
-                transformBlockElement(blockEl, normalizedTag, { clearFormatting: false });
-            });
+            restoreSelectionOnBlocks(editor, transformed, togglesOff || normalizedTag === 'p');
         }
 
         function applyClearFormatting(editor, range = null) {
             const targets = getBlockElementsInSelection(editor, range);
-            targets.forEach((blockEl) => {
-                transformBlockElement(blockEl, 'p', { clearFormatting: true });
-            });
+            const transformed = targets.map((blockEl) => transformBlockElement(blockEl, 'p', {
+                clearInlineFormatting: true,
+                resetAlignment: true,
+            }));
+            restoreSelectionOnBlocks(editor, transformed, true);
         }
 
         function normalizeBlockTag(value) {
@@ -875,6 +1141,19 @@
             btn.setAttribute('aria-pressed', 'true');
         }
 
+        function selectionUsesInlineTag(editor, tagNames) {
+            const tags = Array.isArray(tagNames) ? tagNames : [tagNames];
+            return tags.some((tagName) => selectionInsideTag(editor, String(tagName).toUpperCase()));
+        }
+
+        function uniformBlockValue(blocks, readValue) {
+            if (!Array.isArray(blocks) || blocks.length === 0) {
+                return null;
+            }
+            const firstValue = readValue(blocks[0]);
+            return blocks.every((blockEl) => readValue(blockEl) === firstValue) ? firstValue : null;
+        }
+
         function updateToolbarForEditor(editor) {
             if (!editor || !blocksEl) return;
 
@@ -893,42 +1172,59 @@
 
             const selection = window.getSelection();
             const selectionInEditor = Boolean(selection?.anchorNode && editor.contains(selection.anchorNode));
-            const editorIsActive = document.activeElement === editor || selectionInEditor;
+            const storedRange = editorSelectionStore.get(editor);
+            const storedSelectionInEditor = Boolean(
+                storedRange && editor.contains(storedRange.commonAncestorContainer)
+            );
+            const editorIsActive = document.activeElement === editor || selectionInEditor || storedSelectionInEditor;
             if (!editorIsActive) {
                 clearToolbarState(toolbar);
                 return;
             }
 
-            const blockEl = getBlockElementAtCursor(editor);
+            const workingRange = peekEditorSelection(editor);
+            const selectedBlocks = getBlockElementsInSelection(editor, workingRange);
+            const blockEl = selectedBlocks[0] || getBlockElementAtCursor(editor, workingRange);
             const states = {
-                block: inferBlockTag(blockEl),
-                align: getAlignmentFromBlock(blockEl),
+                block: uniformBlockValue(selectedBlocks, inferBlockTag),
+                align: uniformBlockValue(selectedBlocks, getAlignmentFromBlock),
                 bold: false,
                 italic: false,
                 underline: false,
-                link: selectionInsideTag(editor, 'A'),
+                link: selectionUsesInlineTag(editor, ['A']),
             };
 
-            try {
-                states.bold = document.queryCommandState('bold');
-                states.italic = document.queryCommandState('italic');
-                states.underline = document.queryCommandState('underline');
-                states.block = normalizeBlockTag(document.queryCommandValue('formatBlock')) || states.block;
-            } catch (error) {
-                states.block = inferBlockTag(blockEl);
+            if (document.activeElement === editor) {
+                try {
+                    states.bold = document.queryCommandState('bold') || selectionUsesInlineTag(editor, ['B', 'STRONG']);
+                    states.italic = document.queryCommandState('italic') || selectionUsesInlineTag(editor, ['I', 'EM']);
+                    states.underline = document.queryCommandState('underline') || selectionUsesInlineTag(editor, ['U']);
+                } catch (error) {
+                    states.bold = selectionUsesInlineTag(editor, ['B', 'STRONG']);
+                    states.italic = selectionUsesInlineTag(editor, ['I', 'EM']);
+                    states.underline = selectionUsesInlineTag(editor, ['U']);
+                }
+            } else {
+                states.bold = selectionUsesInlineTag(editor, ['B', 'STRONG']);
+                states.italic = selectionUsesInlineTag(editor, ['I', 'EM']);
+                states.underline = selectionUsesInlineTag(editor, ['U']);
             }
 
-            if (blockEl) {
+            if (!states.block && blockEl) {
                 states.block = inferBlockTag(blockEl);
             }
 
             clearToolbarState(toolbar);
-            setToolbarButtonActive(toolbar, 'block', states.block);
+            if (states.block) {
+                setToolbarButtonActive(toolbar, 'block', states.block);
+            }
             if (states.bold) setToolbarButtonActive(toolbar, 'bold');
             if (states.italic) setToolbarButtonActive(toolbar, 'italic');
             if (states.underline) setToolbarButtonActive(toolbar, 'underline');
             if (states.link) setToolbarButtonActive(toolbar, 'link');
-            setToolbarButtonActive(toolbar, `align-${states.align}`);
+            if (states.align) {
+                setToolbarButtonActive(toolbar, `align-${states.align}`);
+            }
         }
 
         function updateActiveToolbarFromSelection() {
@@ -992,6 +1288,8 @@
                 applyAlignmentClasses(blockEl, align);
                 clearWrapperDivAlignment(blockEl, editor);
             });
+
+            restoreSelectionOnBlocks(editor, targets, false);
 
             syncRichField(blockIndex, field, editor.innerHTML);
             markDirty();
@@ -1286,7 +1584,7 @@
         }
 
         async function loadDocument() {
-            const resp = await fetch(`/biblioteca/get-page-document.php?page=${encodeURIComponent(pageKey)}`, {
+            const resp = await fetch(`/biblioteca/get-page-document.php?page=${encodeURIComponent(currentPageKey)}`, {
                 credentials: 'same-origin',
             });
             const data = await resp.json().catch(() => ({}));
@@ -1331,19 +1629,16 @@
         async function saveDocument() {
             if (!documentState || !saveBtn) return;
             syncRichEditors();
-            saveBtn.disabled = true;
-            setStatus('Saving…', 'neutral');
+            saveUi?.markSaving();
 
             const meta = pageMetaSnapshot();
             if (!meta.title) {
-                setStatus('Page name is required.', 'error');
-                saveBtn.disabled = false;
-                updateSaveButton();
+                saveUi?.markFailed();
                 throw new Error('Page name is required.');
             }
 
             try {
-                const resp = await fetch(`/biblioteca/save-page.php?page=${encodeURIComponent(pageKey)}`, {
+                const resp = await fetch(`/biblioteca/save-page.php?page=${encodeURIComponent(currentPageKey)}`, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -1364,21 +1659,19 @@
                 }
                 updateActiveTabLabel(data.registry || meta);
                 resetBaseline();
-                setStatus('Changes saved', 'ok');
+                saveUi?.markSaved();
             } catch (error) {
-                setStatus('❌ ' + error.message, 'error');
+                saveUi?.markFailed();
                 throw error;
-            } finally {
-                updateSaveButton();
             }
         }
 
-        shell.addEventListener('click', (event) => {
+        layout.addEventListener('click', (event) => {
             const rawTarget = event.target;
             if (!(rawTarget instanceof HTMLElement)) return;
 
             const formatBtn = rawTarget.closest('button[data-format]');
-            if (formatBtn instanceof HTMLButtonElement && shell.contains(formatBtn)) {
+            if (formatBtn instanceof HTMLButtonElement && layout.contains(formatBtn)) {
                 event.preventDefault();
                 applyRichFormat(
                     formatBtn.dataset.format || '',
@@ -1390,7 +1683,7 @@
             }
 
             const target = rawTarget.closest('[data-action]');
-            if (!(target instanceof HTMLElement) || !shell.contains(target)) return;
+            if (!(target instanceof HTMLElement) || !layout.contains(target)) return;
 
             const action = target.dataset.action;
             const blockIndex = Number(target.dataset.blockIndex);
@@ -1416,7 +1709,7 @@
             }
         });
 
-        shell.addEventListener('input', (event) => {
+        layout.addEventListener('input', (event) => {
             const target = event.target;
             if (!(target instanceof HTMLElement)) return;
 
@@ -1442,7 +1735,7 @@
             }
         });
 
-        shell.addEventListener('change', (event) => {
+        layout.addEventListener('change', (event) => {
             const target = event.target;
             if (!(target instanceof HTMLElement)) return;
 
@@ -1513,13 +1806,13 @@
         });
         document.addEventListener('click', guardAdminNavigation, true);
 
-        shell.addEventListener('paste', (event) => {
+        layout.addEventListener('paste', (event) => {
             const rawTarget = event.target;
             if (!(rawTarget instanceof HTMLElement)) {
                 return;
             }
             const editor = rawTarget.closest('[data-rich-editor="1"]');
-            if (!(editor instanceof HTMLElement) || !shell.contains(editor)) {
+            if (!(editor instanceof HTMLElement) || !layout.contains(editor)) {
                 return;
             }
 
@@ -1549,13 +1842,13 @@
             scheduleToolbarStateUpdate();
         });
 
-        shell.addEventListener('mousedown', (event) => {
+        layout.addEventListener('mousedown', (event) => {
             const rawTarget = event.target;
             if (!(rawTarget instanceof HTMLElement)) {
                 return;
             }
             const formatBtn = rawTarget.closest('.page-word-toolbar button[data-format]');
-            if (!(formatBtn instanceof HTMLButtonElement) || !shell.contains(formatBtn)) {
+            if (!(formatBtn instanceof HTMLButtonElement) || !layout.contains(formatBtn)) {
                 return;
             }
             event.preventDefault();
@@ -1570,27 +1863,28 @@
 
         document.addEventListener('selectionchange', () => {
             const editor = getActiveRichEditor();
-            if (!editor || !shell.contains(editor)) {
+            if (!editor || !layout.contains(editor)) {
                 return;
             }
+            captureEditorSelection(editor);
             scheduleToolbarStateUpdate();
         });
-        shell.addEventListener('mouseup', (event) => {
+        layout.addEventListener('mouseup', (event) => {
             if (event.target instanceof HTMLElement && event.target.closest('[data-rich-editor="1"]')) {
                 scheduleToolbarStateUpdate();
             }
         });
-        shell.addEventListener('keyup', (event) => {
+        layout.addEventListener('keyup', (event) => {
             if (event.target instanceof HTMLElement && event.target.dataset.richEditor === '1') {
                 scheduleToolbarStateUpdate();
             }
         });
-        shell.addEventListener('focusin', (event) => {
+        layout.addEventListener('focusin', (event) => {
             if (event.target instanceof HTMLElement && event.target.dataset.richEditor === '1') {
                 scheduleToolbarStateUpdate();
             }
         });
-        shell.addEventListener('focusout', (event) => {
+        layout.addEventListener('focusout', (event) => {
             if (event.target instanceof HTMLElement && event.target.dataset.richEditor === '1') {
                 window.setTimeout(() => {
                     scheduleToolbarStateUpdate();
@@ -1612,6 +1906,30 @@
             closeBlockDeleteModal();
         });
 
+        async function resolvePendingNavigation() {
+            const href = pendingNavHref;
+            pendingNavHref = '';
+            if (!href) {
+                return;
+            }
+            if (href === BACK_TO_POOL) {
+                showPoolView();
+                try {
+                    await loadPreviewOnly(selectedPageId);
+                } catch (error) {
+                    if (previewEl) {
+                        previewEl.innerHTML = `<p class="page-editor-empty">${escapeHtml(error.message)}</p>`;
+                    }
+                }
+                return;
+            }
+            if (pages.some((entry) => entry && entry.id === href)) {
+                await openPageEditor(href);
+                return;
+            }
+            window.location.href = href;
+        }
+
         unsavedSaveBtn?.addEventListener('click', async () => {
             const href = pendingNavHref;
             if (!href) {
@@ -1621,19 +1939,19 @@
             try {
                 await saveDocument();
                 closeUnsavedModal();
-                window.location.href = href;
+                pendingNavHref = href;
+                await resolvePendingNavigation();
             } catch (error) {
                 setStatus('❌ ' + error.message, 'error');
             }
         });
 
-        unsavedDiscardBtn?.addEventListener('click', () => {
+        unsavedDiscardBtn?.addEventListener('click', async () => {
             const href = pendingNavHref;
             abandonUnsavedChanges();
             closeUnsavedModal();
-            if (href) {
-                window.location.assign(href);
-            }
+            pendingNavHref = href;
+            await resolvePendingNavigation();
         });
 
         unsavedCancelBtn?.addEventListener('click', closeUnsavedModal);
@@ -1661,10 +1979,17 @@
             event.returnValue = '';
         });
 
-        Promise.all([loadImages(), loadDocument()]).catch((error) => {
+        const shouldOpenEditor = new URLSearchParams(window.location.search).get('edit') === '1';
+        const bootstrap = shouldOpenEditor
+            ? Promise.all([loadImages(), openPageEditor(selectedPageId)])
+            : Promise.all([loadImages(), loadPreviewOnly(selectedPageId)]);
+        if (!shouldOpenEditor) {
+            showPoolView();
+        }
+        bootstrap.catch((error) => {
             setStatus('❌ ' + error.message, 'error');
-            if (blocksEl) {
-                blocksEl.innerHTML = `<p class="page-editor-empty">${escapeHtml(error.message)}</p>`;
+            if (previewEl) {
+                previewEl.innerHTML = `<p class="page-editor-empty">${escapeHtml(error.message)}</p>`;
             }
         });
     }

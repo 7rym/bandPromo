@@ -689,7 +689,7 @@ Preferred build sequencing:
 - on upload: validate intake, preserve original, and create or queue the master as early as the format policy allows
 - after master creation: treat the master as the normal admin-facing working asset
 - in background: generate or refresh delivery variants as required for playback, cards, lightboxes, sharing, and downloads
-- heavy delivery work such as full video transcoding should run as an explicit build-stage task with visible progress/state, not as a silent upload-time step that can make the operator think the upload has stalled
+- heavy delivery work such as full video transcoding should run as a background task with visible progress/state in Notifications, not as a blocking upload-time step that can make the operator think the upload has stalled
 
 This should feel "magic" to the operator while still keeping the underlying source-preservation guarantees intact.
 
@@ -1001,9 +1001,10 @@ This matrix defines the preferred future behavior.
 
 | Admin action | Task units | Default behavior | Operator message |
 | --- | --- | --- | --- |
-| Upload audio source | `playlist-scan`, `audio-delivery`, sometimes `image-delivery` if cover extraction changes files | Run `playlist-scan` automatically; queue `audio-delivery` as heavy work | Show pending delivery generation only if derivatives are not ready yet |
-| Upload photo | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit build warning |
-| Upload illustration | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit build warning |
+| Upload audio source | `playlist-scan`, `audio-delivery`, sometimes `image-delivery` if cover extraction changes files | Run `playlist-scan` automatically in validation-only mode; run `audio-delivery` automatically for uploaded files | Show pending delivery generation only if derivatives are not ready yet; surface failures in Notifications |
+| Upload video source | `video-delivery` | Spawn async background delivery for all uploaded videos (MP4 copy, MOV/WEBM transcode, poster generation) | Show running/completed/failed state in Notifications; hide from gallery pool until delivery is ready |
+| Upload photo | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit notification |
+| Upload illustration | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit notification |
 | Upload theme/share/logo/background asset | `image-delivery` and/or `social-assets` depending on usage | Run automatically | No generic build warning; surface only direct file/validation errors |
 | Edit site basics text | `manifest` when manifest-facing fields changed | Run automatically | No build warning |
 | Edit social/share text fields | `social-assets`, `manifest` when affected | Run automatically | No build warning unless a referenced asset is missing |

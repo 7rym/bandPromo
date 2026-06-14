@@ -316,10 +316,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let latestBuildValidation = null;
             let latestWelcomeState = null;
             let latestPackageUpdate = null;
+            let latestBackgroundTasks = null;
+            let backgroundTaskPollTimer = null;
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
             let showBundledDemoAssets = false;
+            const demoFilterListeners = [];
+            function registerDemoFilterListener(listener) {
+                if (typeof listener === 'function') {
+                    demoFilterListeners.push(listener);
+                }
+            }
             let illustrationsCoverFilter = 'all';
             const mediaReferenceFilters = {
                 photos: 'all',
@@ -360,6 +368,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 'build-step': { label: 'Ready to go live', itemClass: 'is-attention', summaryClass: 'status-warning' },
                 'setup-step': { label: 'Setup', itemClass: 'is-attention', summaryClass: 'status-warning' },
                 'package-update': { label: 'Update available', itemClass: 'is-attention', summaryClass: 'status-warning' },
+                'background-running': { label: 'In progress', itemClass: 'is-recommended', summaryClass: 'status-neutral' },
+                'background-done': { label: 'Finished', itemClass: 'is-recommended', summaryClass: 'status-ok' },
             };
 
             const mediaTypeLabels = {
@@ -476,6 +486,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function formatBuildNextStep(state) {
                 const tasks = formatBuildTaskList(state);
+                if (latestWelcomeState && latestWelcomeState.setup_complete === true) {
+                    if (!tasks.length) {
+                        return 'Check Notifications for any remaining preparation issues.';
+                    }
+                    return `Some preparation could not finish automatically (${tasks.join(', ')}). Check Notifications.`;
+                }
                 const action = String(state && state.action || 'full').toLowerCase() === 'optimize' ? 'Refresh Image Files' : 'Run Publish Build';
                 if (!tasks.length) {
                     return `Next: run ${action}.`;
@@ -541,16 +557,33 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 window.history.replaceState({}, '', buildBuildTabUrl());
             }
 
-            function buildNotificationFromBuildState(buildState) {
+            function buildNotificationFromBuildState(buildState, welcome) {
                 if (!buildState || buildState.required !== true) {
                     return null;
                 }
 
-                const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
+                const setupComplete = !!(welcome && welcome.setup_complete === true);
                 const taskDetails = formatBuildTaskList(buildState);
                 const summaryDetails = taskDetails.length
                     ? taskDetails.map(text => ({ text }))
                     : [{ text: formatBuildTaskSummary(buildState) }];
+
+                if (setupComplete) {
+                    return {
+                        severity: 'recommended-fix',
+                        title: 'Some publish preparation is still pending',
+                        file: '',
+                        details: [
+                            { text: 'bandPromo could not finish every delivery step automatically after your latest change.' },
+                            ...summaryDetails,
+                        ],
+                        actions: [
+                            { label: 'Open Files', href: '?tab=files' },
+                        ],
+                    };
+                }
+
+                const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
                 const introDetail = action === 'optimize'
                     ? { text: 'You changed photos or artwork. Visitors will not see the new versions until you refresh them.' }
                     : { text: 'You made changes that are saved in admin but not yet on the website fans visit.' };
@@ -562,7 +595,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     details: [introDetail, ...summaryDetails],
                     actions: [
                         { label: getBuildActionLabel(action), action: 'run-recommended-build' },
-                        { label: 'Go to Update site', href: buildBuildTabUrl() },
+                        { label: 'Go to Build', href: buildBuildTabUrl() },
                     ],
                 };
             }
@@ -610,18 +643,107 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
-            function buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate) {
+            function buildNotificationsFromBackgroundTasks(backgroundTasks) {
+                const notifications = [];
+                const items = backgroundTasks && Array.isArray(backgroundTasks.items) ? backgroundTasks.items : [];
+
+                items.forEach((item) => {
+                    if (!item || typeof item !== 'object') {
+                        return;
+                    }
+
+                    const status = String(item.status || '').trim();
+                    const files = Array.isArray(item.files) ? item.files.filter(Boolean) : [];
+                    const fileLine = files.length
+                        ? files.join(', ')
+                        : 'video files';
+
+                    if (status === 'running') {
+                        notifications.push({
+                            severity: 'background-running',
+                            title: 'Preparing video delivery',
+                            file: '',
+                            details: [
+                                { text: `bandPromo is preparing ${fileLine} in the background. This can take a few minutes for large uploads.` },
+                            ],
+                            actions: [],
+                        });
+                        return;
+                    }
+
+                    if (status === 'done') {
+                        notifications.push({
+                            severity: 'background-done',
+                            title: 'Video delivery finished',
+                            file: '',
+                            details: [
+                                { text: `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for the gallery pool.` },
+                            ],
+                            actions: [
+                                { label: 'Open Content', href: '?tab=content&content=gallery' },
+                            ],
+                        });
+                        return;
+                    }
+
+                    if (status === 'failed') {
+                        notifications.push({
+                            severity: 'recommended-fix',
+                            title: 'Video delivery failed',
+                            file: files[0] || '',
+                            details: [
+                                { text: String(item.error || 'bandPromo could not prepare the publish-ready video file.').trim() },
+                            ],
+                            actions: [
+                                { label: 'Open Files', href: '?tab=files&files=video' },
+                            ],
+                        });
+                    }
+                });
+
+                return notifications;
+            }
+
+            function backgroundTasksNeedPolling(backgroundTasks) {
+                const items = backgroundTasks && Array.isArray(backgroundTasks.items) ? backgroundTasks.items : [];
+                return items.some((item) => item && String(item.status || '') === 'running');
+            }
+
+            function updateBackgroundTaskPolling(backgroundTasks) {
+                if (!backgroundTasksNeedPolling(backgroundTasks)) {
+                    if (backgroundTaskPollTimer) {
+                        clearInterval(backgroundTaskPollTimer);
+                        backgroundTaskPollTimer = null;
+                    }
+                    return;
+                }
+
+                if (backgroundTaskPollTimer) {
+                    return;
+                }
+
+                backgroundTaskPollTimer = setInterval(() => {
+                    refreshBuildRequiredState();
+                }, 4000);
+            }
+
+            function buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks) {
                 const attention = [];
                 const recommended = [];
+                const background = [];
                 const packageNotification = buildNotificationFromPackageUpdate(packageUpdate);
-                const buildNotification = buildNotificationFromBuildState(buildState || {});
+                const buildNotification = buildNotificationFromBuildState(buildState || {}, welcome);
 
                 if (packageNotification) {
                     attention.push(packageNotification);
                 }
 
                 if (buildNotification) {
-                    attention.push(buildNotification);
+                    if (buildNotification.severity === 'recommended-fix') {
+                        recommended.push(buildNotification);
+                    } else {
+                        attention.push(buildNotification);
+                    }
                 }
 
                 if (welcome && welcome.setup_complete !== true && Array.isArray(welcome.checklist)) {
@@ -669,12 +791,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                buildNotificationsFromBackgroundTasks(backgroundTasks).forEach((notification) => {
+                    if (notification.severity === 'background-running' || notification.severity === 'background-done') {
+                        background.push(notification);
+                    } else if (notification.severity === 'recommended-fix') {
+                        recommended.push(notification);
+                    } else {
+                        attention.push(notification);
+                    }
+                });
+
                 return {
                     attention,
                     recommended,
+                    background,
                     attentionCount: attention.length,
                     recommendedCount: recommended.length,
-                    totalCount: attention.length + recommended.length,
+                    backgroundCount: background.length,
+                    totalCount: attention.length + recommended.length + background.length,
                     hasCritical: attention.some(item => item.severity === 'cannot-build' || item.severity === 'setup-step'),
                 };
             }
@@ -720,11 +854,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function renderOperatorNotificationSections(model) {
                 if (!model || model.totalCount === 0) {
-                    return '<p class="operator-notifications-empty">You are all caught up. Nothing needs your attention right now.</p>';
+                    return '<p class="operator-notifications-empty">You are all caught up. No new notifications right now.</p>';
                 }
 
                 const sections = [
                     { title: 'Do these first', count: model.attentionCount, items: model.attention },
+                    { title: 'In the background', count: model.backgroundCount, items: model.background },
                     { title: 'When you have time', count: model.recommendedCount, items: model.recommended },
                 ].filter(section => section.count > 0);
 
@@ -739,8 +874,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 `).join('');
             }
 
-            function renderOperatorNotifications(buildState, validation, welcome, packageUpdate) {
-                const model = buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate);
+            function renderOperatorNotifications(buildState, validation, welcome, packageUpdate, backgroundTasks) {
+                const model = buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks);
                 const html = renderOperatorNotificationSections(model);
 
                 if (operatorNotificationsModalBody) {
@@ -1279,13 +1414,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncBundledToggleUi() {
-                document.querySelectorAll('[data-bundled-toggle]').forEach((button) => {
-                    button.classList.toggle('active', showBundledDemoAssets);
-                    button.setAttribute('aria-pressed', showBundledDemoAssets ? 'true' : 'false');
-                    button.textContent = showBundledDemoAssets ? '◉ Demo' : '◌ Demo';
-                    button.title = showBundledDemoAssets ? 'Hide bundled demo assets' : 'Show bundled demo assets';
-                });
-                document.querySelectorAll('[data-media-demo-filter]').forEach((select) => {
+                document.querySelectorAll('[data-media-demo-filter], [data-pool-demo-filter]').forEach((select) => {
                     select.value = showBundledDemoAssets ? 'show' : 'hide';
                 });
             }
@@ -1332,12 +1461,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 currentBuildAction = typeof action === 'string' ? action : 'none';
                 currentBuildReasons = Array.isArray(reasons) ? reasons : [];
                 currentBuildTasks = Array.isArray(tasks) ? tasks : [];
+                const suppressBuildTabNudge = !!(latestWelcomeState && latestWelcomeState.setup_complete === true);
+                const showBuildTabNudge = currentBuildRequired && !suppressBuildTabNudge;
                 if (!buildTabLink) return;
 
-                buildTabLink.classList.toggle('build-required-nudge', currentBuildRequired);
-                buildTabLink.classList.toggle('build-required-pulse', currentBuildRequired);
+                buildTabLink.classList.toggle('build-required-nudge', showBuildTabNudge);
+                buildTabLink.classList.toggle('build-required-pulse', showBuildTabNudge);
 
-                if (currentBuildRequired) {
+                if (showBuildTabNudge) {
                     const suffix = currentBuildTasks.length
                         ? ` (${currentBuildTasks.join(', ')})`
                         : (currentBuildReasons.length ? ` (${currentBuildReasons.join(', ')})` : '');
@@ -1350,7 +1481,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 refreshBuildActionCopy();
 
                 if (!recommendedBuildBtn) return;
-                if (!currentBuildRequired) {
+                if (!showBuildTabNudge) {
                     recommendedBuildBtn.style.display = 'none';
                     recommendedBuildBtn.textContent = '';
                     return;
@@ -1372,8 +1503,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     latestBuildValidation = data.metadata_validation || null;
                     latestWelcomeState = data.welcome || null;
                     latestPackageUpdate = data.package_update || null;
+                    latestBackgroundTasks = data.background_tasks || null;
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
-                    renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate);
+                    renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks);
+                    updateBackgroundTaskPolling(latestBackgroundTasks);
                     renderBuildValidationSummary(latestBuildValidation);
 
                     if (typeof renderPackageUpdateStatus === 'function' && data.package_update) {
@@ -1776,8 +1909,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             // Load active panel
             loadMediaList(activeMediaPanel);
 
-            const showBundledAssetsToggleButtons = document.querySelectorAll('[data-bundled-toggle]');
-
             function setMediaReferenceFilter(type, nextValue) {
                 if (type === 'illustrations') {
                     const allowed = new Set(['all', 'track-covers', 'orphans', 'build-generated']);
@@ -1811,15 +1942,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (mediaPickerState) {
                     renderMediaPickerList(mediaPickerState.activeTarget);
                 }
+                demoFilterListeners.forEach((listener) => listener());
             }
 
-            showBundledAssetsToggleButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    setShowBundledDemoAssets(!showBundledDemoAssets);
-                });
-            });
-
-            document.querySelectorAll('[data-media-demo-filter]').forEach((select) => {
+            document.querySelectorAll('[data-media-demo-filter], [data-pool-demo-filter]').forEach((select) => {
                 select.addEventListener('change', () => {
                     setShowBundledDemoAssets(String(select.value || 'hide') === 'show');
                 });
@@ -2958,11 +3084,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     fd.append('chunk_index', i);
                     fd.append('total_chunks', totalChunks);
                     fd.append('target', target);
+                    if (i === totalChunks - 1 && onProgress) {
+                        onProgress((i + 1) / totalChunks, true);
+                    }
                     const resp = await fetch('/biblioteca/upload-media.php', { method: 'POST', body: fd });
                     const data = await resp.json();
                     if (!data.ok) throw new Error(data.error || 'Chunk upload failed');
                     lastResponse = data;
-                    if (onProgress) onProgress((i + 1) / totalChunks);
+                    if (onProgress && i < totalChunks - 1) {
+                        onProgress((i + 1) / totalChunks, false);
+                    }
                 }
                 return lastResponse;
             }
@@ -2974,13 +3105,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let done = 0, failed = 0;
                     let latestBuildState = null;
                     let masterPreparedCount = 0;
-                    let autoImageDeliveryRan = false;
+                    let autoDeliveryRan = false;
+                    let backgroundVideoStarted = false;
                     const masterWarnings = [];
                     for (let fi = 0; fi < modalFiles.length; fi++) {
                         const file = modalFiles[fi];
                         modalStatus.textContent = `⏳ Uploading ${file.name} (${fi + 1}/${modalFiles.length})…`;
                         try {
-                            const uploadData = await uploadFileChunked(file, modalTarget, (p) => {
+                            const uploadData = await uploadFileChunked(file, modalTarget, (p, finishing) => {
+                                if (finishing) {
+                                    modalStatus.textContent = `⏳ ${file.name} — finishing upload…`;
+                                    return;
+                                }
                                 const pct = Math.round((fi + p) / modalFiles.length * 100);
                                 modalStatus.textContent = `⏳ ${file.name} — ${pct}%`;
                             });
@@ -2993,8 +3129,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (uploadData && uploadData.master_warning) {
                                 masterWarnings.push(`${file.name}: ${uploadData.master_warning}`);
                             }
-                            if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.includes('image-delivery')) {
-                                autoImageDeliveryRan = true;
+                            if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.length) {
+                                autoDeliveryRan = true;
+                            }
+                            if (Array.isArray(uploadData?.background_tasks) && uploadData.background_tasks.some((task) => task && task.status === 'running')) {
+                                backgroundVideoStarted = true;
                             }
                             done++;
                         } catch(e) {
@@ -3008,7 +3147,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         modalList.innerHTML = '';
                         await loadMediaList(modalTarget);
                         if (latestBuildState) {
-                            setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
+                            setBuildRequiredNudge(latestBuildState.required === true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
                         }
                         if (done > 0) {
                             await refreshBuildRequiredState();
@@ -3017,16 +3156,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (latestBuildState && latestBuildState.required) {
                             const next = formatBuildNextStep(latestBuildState);
                             const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
-                            const imageNote = autoImageDeliveryRan
-                                ? ' Image files refreshed automatically.'
-                                : '';
-                            showAdminToast(`Upload complete.${masterNote}${imageNote} ${next}`, 'success');
+                            const deliveryNote = backgroundVideoStarted
+                                ? ' Video delivery started in the background.'
+                                : (autoDeliveryRan ? ' Delivery files prepared automatically.' : '');
+                            showAdminToast(`Upload complete.${masterNote}${deliveryNote} ${next}`, 'success');
                         } else {
                             const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
-                            const imageNote = autoImageDeliveryRan
-                                ? ' Image files refreshed automatically.'
-                                : '';
-                            showAdminToast(`Upload complete.${masterNote}${imageNote} No build step needed.`, 'success');
+                            const deliveryNote = backgroundVideoStarted
+                                ? ' Video delivery started in the background.'
+                                : (autoDeliveryRan ? ' Delivery files prepared automatically.' : '');
+                            showAdminToast(`Upload complete.${masterNote}${deliveryNote}`, 'success');
                         }
                         if (masterWarnings.length) {
                             modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(masterWarnings.join(' | '))}</span>`;
@@ -3037,7 +3176,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await loadMediaList(modalTarget);
                         }
                         if (latestBuildState) {
-                            setBuildRequiredNudge(true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
+                            setBuildRequiredNudge(latestBuildState.required === true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
                         }
                         if (done > 0) {
                             await refreshBuildRequiredState();
@@ -3197,10 +3336,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const activeEl    = document.getElementById('galleryActiveList');
                 const countBadge  = document.getElementById('galleryActiveCount');
                 const saveBtn     = document.getElementById('gallerySaveBtn');
-                const statusEl    = document.getElementById('galleryStatus');
-                if (!editorEl || !saveBtn) return;
+                if (!editorEl || !saveBtn || !availableEl || !activeEl) return;
 
-                // ── helpers ──────────────────────────────────────────────────
+                const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
+                    saveLabel: '💾 Save gallery',
+                    readFingerprint() {
+                        syncFromDOM();
+                        return JSON.stringify(activeItems);
+                    },
+                }) || null;
+
                 function prettifyName(filename) {
                     return filename
                         .replace(/\.[^.]+$/, '')
@@ -3209,11 +3354,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         .trim();
                 }
 
-                // ── state ────────────────────────────────────────────────────
                 let activeItems = [];
                 try { activeItems = JSON.parse(editorEl.dataset.initial || '[]'); } catch (e) { activeItems = []; }
 
-                let allFiles = []; // { src, name, type }
+                let allFiles = [];
+                let dragSrc = null;
+                let draggedRows = [];
+                let dragSourceList = '';
+                let dragPlaceholder = null;
+                let selectedAvailable = new Set();
+                let selectedActive = new Set();
+                let selectionAnchorAvailable = '';
+                let selectionAnchorActive = '';
+                let suppressNextClick = false;
 
                 function videoPosterPathFromSrc(src) {
                     const normalized = String(src || '').replace(/\\/g, '/');
@@ -3228,80 +3381,235 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return item.poster || videoPosterPathFromSrc(item.src);
                 }
 
-                function activeSrcs() { return new Set(activeItems.map(i => i.src)); }
+                function activeSrcs() {
+                    return new Set(activeItems.map((item) => item.src));
+                }
 
-                // ── render: available panel ──────────────────────────────────
-                function renderAvailable() {
-                    const taken = activeSrcs();
-                    const available = allFiles.filter(f => !taken.has(f.src));
-                    if (available.length === 0) {
-                        availableEl.innerHTML = '<p class="hint">All uploaded media is already in the gallery.</p>';
-                        return;
+                function mediaTypeLabel(type) {
+                    return type === 'video' ? 'Video' : 'Photo';
+                }
+
+                function renderThumbMarkup(item, small) {
+                    const sizeClass = small ? ' gallery-thumb--sm' : '';
+                    const isVideo = item.type === 'video';
+                    const poster = resolveVideoPoster(item);
+                    if (isVideo) {
+                        return poster
+                            ? `<img class="gallery-thumb${sizeClass}" src="${bandpromoAdminEscapeHtml(poster)}" alt="" loading="lazy" onerror="this.style.opacity=0.2">`
+                            : `<span class="gallery-thumb gallery-thumb--video${sizeClass}">▶</span>`;
                     }
-                    availableEl.innerHTML = '';
-                    available.forEach(file => {
-                        const row = document.createElement('div');
-                        row.className = 'gallery-available-row';
-                        row.dataset.src = file.src;
-                        row.dataset.poster = file.poster || '';
-                        if (file.type === 'video') {
-                            const poster = resolveVideoPoster(file);
-                            row.innerHTML =
-                                (poster
-                                    ? `<img class="gallery-thumb" src="${bandpromoAdminEscapeHtml(poster)}" alt="${bandpromoAdminEscapeHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">`
-                                    : `<span class="gallery-thumb gallery-thumb--video">▶</span>`) +
-                                `<span class="gallery-available-name">${bandpromoAdminEscapeHtml(file.name)}</span>` +
-                                `<button class="btn btn-sm gallery-add-btn" title="Add to gallery">＋</button>`;
-                        } else {
-                            row.innerHTML =
-                                `<img class="gallery-thumb" src="${bandpromoAdminEscapeHtml(file.src)}" alt="${bandpromoAdminEscapeHtml(file.name)}" loading="lazy" onerror="this.style.opacity=0.2">` +
-                                `<span class="gallery-available-name">${bandpromoAdminEscapeHtml(file.name)}</span>` +
-                                `<button class="btn btn-sm gallery-add-btn" title="Add to gallery">＋</button>`;
-                        }
-                        row.querySelector('.gallery-add-btn').addEventListener('click', () => addItem(file));
-                        availableEl.appendChild(row);
-                    });
+                    return `<img class="gallery-thumb${sizeClass}" src="${bandpromoAdminEscapeHtml(item.src)}" alt="" loading="lazy" onerror="this.style.opacity=0.2">`;
                 }
 
-                // ── render: active list ──────────────────────────────────────
-                function renderActive() {
-                    activeEl.innerHTML = '';
-                    activeItems.forEach((item, idx) => {
-                        const li = document.createElement('li');
-                        li.className = 'gallery-active-row';
-                        li.draggable = true;
-                        li.dataset.src  = item.src;
-                        li.dataset.type = item.type || 'image';
-                        li.dataset.poster = resolveVideoPoster(item);
-                        const isVideo = item.type === 'video';
-                        const poster = resolveVideoPoster(item);
-                        li.innerHTML =
-                            `<span class="playlist-drag-handle" title="Drag to reorder">⠿</span>` +
-                            (isVideo
-                                ? (poster
-                                    ? `<img class="gallery-thumb gallery-thumb--sm" src="${bandpromoAdminEscapeHtml(poster)}" alt="${bandpromoAdminEscapeHtml(item.alt || item.name || '')}" loading="lazy" onerror="this.style.opacity=0.2">`
-                                    : `<span class="gallery-thumb gallery-thumb--video gallery-thumb--sm">▶</span>`)
-                                : `<img class="gallery-thumb gallery-thumb--sm" src="${bandpromoAdminEscapeHtml(item.src)}" alt="${bandpromoAdminEscapeHtml(item.alt || '')}" loading="lazy" onerror="this.style.opacity=0.2">`) +
-                            `<div class="gallery-active-fields">` +
-                            `<input class="gallery-field-name" type="text" value="${bandpromoAdminEscapeHtml(item.name || '')}" placeholder="Name" aria-label="Name">` +
-                            `<input class="gallery-field-alt"  type="text" value="${bandpromoAdminEscapeHtml(item.alt  || '')}" placeholder="Alt text" aria-label="Alt text">` +
-                            `</div>` +
-                            `<button class="gallery-remove-btn" title="Remove from gallery">✕</button>`;
-                        activeEl.appendChild(li);
-                    });
-                    if (countBadge) countBadge.textContent = activeItems.length ? `(${activeItems.length})` : '';
-                }
-
-                // ── sync DOM order → activeItems (called before mutations) ───
-                function syncFromDOM() {
-                    const rows = activeEl.querySelectorAll('.gallery-active-row');
-                    activeItems = Array.from(rows).map(row => ({
-                        src:  row.dataset.src,
+                function fileFromDataset(row) {
+                    const src = row.dataset.src || '';
+                    return allFiles.find((file) => file.src === src) || {
+                        src,
+                        name: row.dataset.name || prettifyName(src),
                         type: row.dataset.type || 'image',
                         poster: row.dataset.poster || '',
-                        name: row.querySelector('.gallery-field-name').value.trim(),
-                        alt:  row.querySelector('.gallery-field-alt').value.trim(),
-                    })).map(item => {
+                    };
+                }
+
+                function pruneAvailableSelection() {
+                    const allowed = new Set(allFiles.filter((file) => !activeSrcs().has(file.src)).map((file) => file.src));
+                    selectedAvailable.forEach((src) => {
+                        if (!allowed.has(src)) {
+                            selectedAvailable.delete(src);
+                        }
+                    });
+                    if (selectionAnchorAvailable && !allowed.has(selectionAnchorAvailable)) {
+                        selectionAnchorAvailable = '';
+                    }
+                }
+
+                function pruneActiveSelection() {
+                    const allowed = new Set(activeItems.map((item) => item.src));
+                    selectedActive.forEach((src) => {
+                        if (!allowed.has(src)) {
+                            selectedActive.delete(src);
+                        }
+                    });
+                    if (selectionAnchorActive && !allowed.has(selectionAnchorActive)) {
+                        selectionAnchorActive = '';
+                    }
+                }
+
+                function getAvailableRows() {
+                    return Array.from(availableEl.querySelectorAll('.gallery-pool-row'));
+                }
+
+                function getActiveRows() {
+                    return Array.from(activeEl.querySelectorAll('.gallery-active-row'));
+                }
+
+                function syncAvailableSelectionUi() {
+                    getAvailableRows().forEach((row) => {
+                        const src = row.dataset.src || '';
+                        const selected = selectedAvailable.has(src);
+                        row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.setAttribute('aria-selected', selected ? 'true' : 'false');
+                    });
+                }
+
+                function syncActiveSelectionUi() {
+                    getActiveRows().forEach((row) => {
+                        const src = row.dataset.src || '';
+                        const selected = selectedActive.has(src);
+                        row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.setAttribute('aria-selected', selected ? 'true' : 'false');
+                    });
+                }
+
+                function selectAvailableRange(targetSrc, preserveExisting) {
+                    const rows = getAvailableRows();
+                    if (!rows.length) return;
+                    const anchorSrc = selectionAnchorAvailable && rows.some((row) => row.dataset.src === selectionAnchorAvailable)
+                        ? selectionAnchorAvailable
+                        : targetSrc;
+                    const anchorIndex = rows.findIndex((row) => row.dataset.src === anchorSrc);
+                    const targetIndex = rows.findIndex((row) => row.dataset.src === targetSrc);
+                    if (anchorIndex === -1 || targetIndex === -1) return;
+
+                    const nextSelected = preserveExisting ? new Set(selectedAvailable) : new Set();
+                    const start = Math.min(anchorIndex, targetIndex);
+                    const end = Math.max(anchorIndex, targetIndex);
+                    rows.slice(start, end + 1).forEach((row) => {
+                        const src = row.dataset.src || '';
+                        if (src) nextSelected.add(src);
+                    });
+                    selectedAvailable = nextSelected;
+                }
+
+                function selectActiveRange(targetSrc, preserveExisting) {
+                    const rows = getActiveRows();
+                    if (!rows.length) return;
+                    const anchorSrc = selectionAnchorActive && rows.some((row) => row.dataset.src === selectionAnchorActive)
+                        ? selectionAnchorActive
+                        : targetSrc;
+                    const anchorIndex = rows.findIndex((row) => row.dataset.src === anchorSrc);
+                    const targetIndex = rows.findIndex((row) => row.dataset.src === targetSrc);
+                    if (anchorIndex === -1 || targetIndex === -1) return;
+
+                    const nextSelected = preserveExisting ? new Set(selectedActive) : new Set();
+                    const start = Math.min(anchorIndex, targetIndex);
+                    const end = Math.max(anchorIndex, targetIndex);
+                    rows.slice(start, end + 1).forEach((row) => {
+                        const src = row.dataset.src || '';
+                        if (src) nextSelected.add(src);
+                    });
+                    selectedActive = nextSelected;
+                }
+
+                function handleAvailableSelection(row, event) {
+                    const src = row.dataset.src || '';
+                    if (!src) return;
+                    selectedActive.clear();
+                    selectionAnchorActive = '';
+                    syncActiveSelectionUi();
+
+                    if (event.shiftKey) {
+                        selectAvailableRange(src, event.ctrlKey || event.metaKey);
+                    } else if (event.ctrlKey || event.metaKey) {
+                        if (selectedAvailable.has(src)) {
+                            selectedAvailable.delete(src);
+                        } else {
+                            selectedAvailable.add(src);
+                        }
+                    } else {
+                        selectedAvailable = new Set([src]);
+                    }
+
+                    selectionAnchorAvailable = selectedAvailable.size ? src : '';
+                    syncAvailableSelectionUi();
+                }
+
+                function handleActiveSelection(row, event) {
+                    const src = row.dataset.src || '';
+                    if (!src) return;
+                    selectedAvailable.clear();
+                    selectionAnchorAvailable = '';
+                    syncAvailableSelectionUi();
+
+                    if (event.shiftKey) {
+                        selectActiveRange(src, event.ctrlKey || event.metaKey);
+                    } else if (event.ctrlKey || event.metaKey) {
+                        if (selectedActive.has(src)) {
+                            selectedActive.delete(src);
+                        } else {
+                            selectedActive.add(src);
+                        }
+                    } else {
+                        selectedActive = new Set([src]);
+                    }
+
+                    selectionAnchorActive = selectedActive.size ? src : '';
+                    syncActiveSelectionUi();
+                }
+
+                function renderAvailable() {
+                    pruneAvailableSelection();
+                    const taken = activeSrcs();
+                    if (!allFiles.length) {
+                        availableEl.innerHTML = '<li class="player-layout-empty">No delivery-ready photos or videos in the pool yet. Upload under Files, or check Notifications for background delivery.</li>';
+                        return;
+                    }
+                    const available = allFiles.filter((file) => !taken.has(file.src));
+                    if (available.length === 0) {
+                        availableEl.innerHTML = '<li class="player-layout-empty">All available content is already in the gallery. Use ✕ on the right to move items back here.</li>';
+                        return;
+                    }
+                    availableEl.innerHTML = available.map((file) => {
+                        const poster = resolveVideoPoster(file);
+                        const selectedClass = selectedAvailable.has(file.src) ? ' playlist-editor-row-selected' : '';
+                        return `<li class="playlist-editor-row gallery-pool-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" data-name="${bandpromoAdminEscapeHtml(file.name)}" aria-selected="${selectedAvailable.has(file.src) ? 'true' : 'false'}">
+                            <span class="playlist-drag-handle" title="Drag into gallery order">⠿</span>
+                            ${renderThumbMarkup(file, true)}
+                            <span class="playlist-track-info">
+                                <strong>${bandpromoAdminEscapeHtml(file.name)}</strong>
+                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(mediaTypeLabel(file.type))}</span>
+                            </span>
+                        </li>`;
+                    }).join('');
+                }
+
+                function renderActive() {
+                    pruneActiveSelection();
+                    if (!activeItems.length) {
+                        activeEl.innerHTML = '<li class="player-layout-empty">Drag content here from Available content.</li>';
+                        if (countBadge) countBadge.textContent = '';
+                        saveUi?.reconcile();
+                        return;
+                    }
+
+                    activeEl.innerHTML = activeItems.map((item, index) => {
+                        const poster = resolveVideoPoster(item);
+                        const selectedClass = selectedActive.has(item.src) ? ' playlist-editor-row-selected' : '';
+                        return `<li class="gallery-active-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(item.src)}" data-type="${bandpromoAdminEscapeHtml(item.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" aria-selected="${selectedActive.has(item.src) ? 'true' : 'false'}">
+                            <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
+                            <span class="playlist-track-num">${index + 1}</span>
+                            ${renderThumbMarkup(item, true)}
+                            <div class="gallery-active-fields">
+                                <input class="gallery-field-name" type="text" value="${bandpromoAdminEscapeHtml(item.name || '')}" placeholder="Name" aria-label="Name" draggable="false">
+                                <input class="gallery-field-alt" type="text" value="${bandpromoAdminEscapeHtml(item.alt || '')}" placeholder="Alt text" aria-label="Alt text" draggable="false">
+                            </div>
+                            <button type="button" class="gallery-remove-btn" title="Move to Available content" aria-label="Remove from gallery">✕</button>
+                        </li>`;
+                    }).join('');
+
+                    if (countBadge) countBadge.textContent = `(${activeItems.length})`;
+                    saveUi?.reconcile();
+                }
+
+                function syncFromDOM() {
+                    const rows = activeEl.querySelectorAll('.gallery-active-row');
+                    activeItems = Array.from(rows).map((row) => ({
+                        src: row.dataset.src,
+                        type: row.dataset.type || 'image',
+                        poster: row.dataset.poster || '',
+                        name: row.querySelector('.gallery-field-name')?.value.trim() || '',
+                        alt: row.querySelector('.gallery-field-alt')?.value.trim() || '',
+                    })).map((item) => {
                         if (item.type !== 'video' || !item.poster) {
                             delete item.poster;
                         }
@@ -3309,114 +3617,275 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
-                // ── add / remove ─────────────────────────────────────────────
-                function addItem(file) {
-                    syncFromDOM();
-                    const item = { src: file.src, name: file.name, alt: file.name, type: file.type };
+                function buildActiveItemFromFile(file) {
+                    const item = {
+                        src: file.src,
+                        name: file.name,
+                        alt: file.name,
+                        type: file.type || 'image',
+                    };
                     const poster = resolveVideoPoster(file);
                     if (poster) item.poster = poster;
-                    activeItems.push(item);
-                    renderActive();
-                    renderAvailable();
+                    return item;
                 }
 
-                // ── delegated: remove button ─────────────────────────────────
-                activeEl.addEventListener('click', (e) => {
-                    const btn = e.target.closest('.gallery-remove-btn');
-                    if (!btn) return;
+                function insertActiveItems(files, index) {
                     syncFromDOM();
-                    const row = btn.closest('.gallery-active-row');
-                    activeItems = activeItems.filter(i => i.src !== row.dataset.src);
+                    const newItems = files.map((file) => buildActiveItemFromFile(file));
+                    const safeIndex = Math.max(0, Math.min(index, activeItems.length));
+                    activeItems.splice(safeIndex, 0, ...newItems);
                     renderActive();
                     renderAvailable();
-                });
-
-                // ── drag and drop (delegated on activeEl) ────────────────────
-                let dragSrc = null;
-                let galleryDragPlaceholder = null;
-
-                function getGalleryRows() {
-                    return Array.from(activeEl.querySelectorAll('.gallery-active-row'));
                 }
 
-                function ensureGalleryPlaceholder() {
-                    if (!galleryDragPlaceholder) {
-                        galleryDragPlaceholder = document.createElement('li');
-                        galleryDragPlaceholder.className = 'gallery-editor-placeholder';
+                function removeActiveBySrcs(srcs) {
+                    syncFromDOM();
+                    const removeSet = new Set(srcs);
+                    activeItems = activeItems.filter((item) => !removeSet.has(item.src));
+                    srcs.forEach((src) => selectedActive.delete(src));
+                    if (selectionAnchorActive && removeSet.has(selectionAnchorActive)) {
+                        selectionAnchorActive = '';
                     }
-                    return galleryDragPlaceholder;
+                    renderActive();
+                    renderAvailable();
                 }
 
-                function updateGalleryPlaceholderHeight() {
-                    if (!dragSrc) return;
-                    const placeholder = ensureGalleryPlaceholder();
-                    const height = Math.max(52, Math.round(dragSrc.getBoundingClientRect().height));
-                    placeholder.style.height = `${height}px`;
+                function removeActiveBySrc(src) {
+                    removeActiveBySrcs([src]);
                 }
 
-                function moveGalleryPlaceholder(clientY) {
-                    if (!dragSrc) return;
-                    const placeholder = ensureGalleryPlaceholder();
-                    updateGalleryPlaceholderHeight();
+                function draggedSrcSet() {
+                    return new Set(draggedRows.map((row) => row.dataset.src || '').filter(Boolean));
+                }
 
-                    const candidateRows = getGalleryRows().filter((row) => row !== dragSrc);
-                    const referenceRow = candidateRows.find((row) => {
+                function activeInsertIndexFromPlaceholder() {
+                    if (!dragPlaceholder?.parentNode) {
+                        return activeItems.length;
+                    }
+                    const children = Array.from(dragPlaceholder.parentNode.children);
+                    const placeholderIndex = children.indexOf(dragPlaceholder);
+                    const moving = draggedSrcSet();
+                    let index = 0;
+                    for (let i = 0; i < placeholderIndex; i += 1) {
+                        const child = children[i];
+                        if (!child.classList.contains('gallery-active-row')) continue;
+                        const src = child.dataset.src || '';
+                        if (moving.has(src)) continue;
+                        index += 1;
+                    }
+                    return index;
+                }
+
+                function ensurePlaceholder() {
+                    if (!dragPlaceholder) {
+                        dragPlaceholder = document.createElement('li');
+                        dragPlaceholder.className = 'playlist-editor-placeholder';
+                    }
+                    return dragPlaceholder;
+                }
+
+                function getDraggableRows(listEl) {
+                    if (!listEl) return [];
+                    if (listEl === availableEl) {
+                        return Array.from(listEl.querySelectorAll('.gallery-pool-row[draggable="true"]'));
+                    }
+                    return Array.from(listEl.querySelectorAll('.gallery-active-row[draggable="true"]'));
+                }
+
+                function listNameForElement(listEl) {
+                    if (listEl === activeEl) return 'active';
+                    if (listEl === availableEl) return 'available';
+                    return '';
+                }
+
+                function updatePlaceholderHeight() {
+                    if (!draggedRows.length) return;
+                    const placeholder = ensurePlaceholder();
+                    const totalHeight = draggedRows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0) + Math.max(0, draggedRows.length - 1) * 6;
+                    placeholder.style.height = `${Math.max(52, Math.round(totalHeight))}px`;
+                }
+
+                function movePlaceholder(listEl, clientY) {
+                    if (!draggedRows.length || !listEl) return;
+                    const placeholder = ensurePlaceholder();
+                    updatePlaceholderHeight();
+                    const rows = getDraggableRows(listEl).filter((row) => !draggedRows.includes(row));
+                    const referenceRow = rows.find((row) => {
                         const rect = row.getBoundingClientRect();
                         return clientY < rect.top + rect.height / 2;
                     });
-
                     if (referenceRow) {
-                        activeEl.insertBefore(placeholder, referenceRow);
+                        listEl.insertBefore(placeholder, referenceRow);
                     } else {
-                        activeEl.appendChild(placeholder);
+                        listEl.appendChild(placeholder);
                     }
                 }
 
-                function finalizeGalleryDrag() {
-                    const placeholder = ensureGalleryPlaceholder();
-                    if (placeholder.parentNode === activeEl && dragSrc) {
-                        activeEl.insertBefore(dragSrc, placeholder);
+                function finalizeWithinListDrag(listEl) {
+                    const placeholder = ensurePlaceholder();
+                    if (placeholder.parentNode === listEl && draggedRows.length) {
+                        draggedRows.forEach((row) => {
+                            listEl.insertBefore(row, placeholder);
+                        });
                         placeholder.remove();
                     }
                 }
 
-                activeEl.addEventListener('dragstart', (e) => {
-                    dragSrc = e.target.closest('.gallery-active-row');
-                    if (!dragSrc) return;
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', dragSrc.dataset.src || '');
-                    window.requestAnimationFrame(() => {
-                        if (!dragSrc) return;
-                        updateGalleryPlaceholderHeight();
-                        activeEl.insertBefore(ensureGalleryPlaceholder(), dragSrc);
-                        dragSrc.classList.add('dragging');
-                    });
-                });
-                activeEl.addEventListener('dragend', () => {
-                    finalizeGalleryDrag();
-                    activeEl.querySelectorAll('.gallery-active-row').forEach((row) => row.classList.remove('dragging', 'drag-over'));
+                function finalizeDrag() {
+                    if (!draggedRows.length || !dragPlaceholder?.parentNode) {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragSrc = null;
+                        draggedRows = [];
+                        dragSourceList = '';
+                        dragPlaceholder?.remove();
+                        return;
+                    }
+
+                    const targetListName = listNameForElement(dragPlaceholder.parentNode);
+                    const sourceListName = dragSourceList;
+                    const movingSrcs = draggedSrcSet();
+                    const insertIndex = (sourceListName === 'available' && targetListName === 'active')
+                        ? activeInsertIndexFromPlaceholder()
+                        : 0;
+
+                    if (sourceListName === targetListName) {
+                        if (targetListName === 'active') {
+                            finalizeWithinListDrag(activeEl);
+                            draggedRows.forEach((row) => row.classList.remove('dragging'));
+                            syncFromDOM();
+                            renderActive();
+                        }
+                    } else if (sourceListName === 'available' && targetListName === 'active') {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder.remove();
+                        const files = draggedRows
+                            .map((row) => fileFromDataset(row))
+                            .filter((file) => file.src && !activeSrcs().has(file.src));
+                        insertActiveItems(files, insertIndex);
+                    } else if (sourceListName === 'active' && targetListName === 'available') {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder.remove();
+                        removeActiveBySrcs(Array.from(movingSrcs));
+                    } else {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder.remove();
+                        renderActive();
+                        renderAvailable();
+                    }
+
                     dragSrc = null;
-                    syncFromDOM();
-                });
-                activeEl.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    if (!dragSrc) return;
-                    moveGalleryPlaceholder(e.clientY);
-                });
-                activeEl.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    if (!dragSrc) return;
-                    moveGalleryPlaceholder(e.clientY);
-                    finalizeGalleryDrag();
-                    syncFromDOM();
+                    draggedRows = [];
+                    dragSourceList = '';
+                }
+
+                function collectDraggedRows(listEl, row) {
+                    const listName = listNameForElement(listEl);
+                    if (listName === 'available') {
+                        return getAvailableRows().filter((candidate) => selectedAvailable.has(candidate.dataset.src || ''));
+                    }
+                    if (listName === 'active') {
+                        return getActiveRows().filter((candidate) => selectedActive.has(candidate.dataset.src || ''));
+                    }
+                    return [];
+                }
+
+                function bindDragList(listEl) {
+                    listEl.addEventListener('dragstart', (event) => {
+                        const row = event.target.closest('.gallery-pool-row[draggable="true"], .gallery-active-row[draggable="true"]');
+                        if (!row || !listEl.contains(row)) return;
+                        dragSrc = row;
+                        dragSourceList = listNameForElement(listEl);
+                        const sourceSrc = row.dataset.src || '';
+
+                        if (dragSourceList === 'available') {
+                            if (sourceSrc && !selectedAvailable.has(sourceSrc)) {
+                                selectedAvailable = new Set([sourceSrc]);
+                                selectionAnchorAvailable = sourceSrc;
+                                syncAvailableSelectionUi();
+                            }
+                            draggedRows = collectDraggedRows(listEl, row);
+                        } else if (dragSourceList === 'active') {
+                            if (sourceSrc && !selectedActive.has(sourceSrc)) {
+                                selectedActive = new Set([sourceSrc]);
+                                selectionAnchorActive = sourceSrc;
+                                syncActiveSelectionUi();
+                            }
+                            draggedRows = collectDraggedRows(listEl, row);
+                        }
+
+                        if (!draggedRows.length) {
+                            draggedRows = [row];
+                        }
+
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', sourceSrc);
+                        window.requestAnimationFrame(() => {
+                            if (!dragSrc || !draggedRows.length) return;
+                            updatePlaceholderHeight();
+                            listEl.insertBefore(ensurePlaceholder(), draggedRows[0]);
+                            draggedRows.forEach((dragRow) => dragRow.classList.add('dragging'));
+                        });
+                    });
+
+                    listEl.addEventListener('dragover', (event) => {
+                        if (!draggedRows.length) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        movePlaceholder(listEl, event.clientY);
+                    });
+
+                    listEl.addEventListener('drop', (event) => {
+                        if (!draggedRows.length) return;
+                        event.preventDefault();
+                        movePlaceholder(listEl, event.clientY);
+                        finalizeDrag();
+                    });
+
+                    listEl.addEventListener('dragend', () => {
+                        finalizeWithinListDrag(listEl);
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder?.remove();
+                        dragSrc = null;
+                        draggedRows = [];
+                        dragSourceList = '';
+                        syncFromDOM();
+                        syncAvailableSelectionUi();
+                        syncActiveSelectionUi();
+                        suppressNextClick = true;
+                        window.requestAnimationFrame(() => {
+                            suppressNextClick = false;
+                        });
+                    });
+                }
+
+                availableEl.addEventListener('click', (event) => {
+                    if (suppressNextClick) return;
+                    const row = event.target.closest('.gallery-pool-row');
+                    if (!row || !availableEl.contains(row)) return;
+                    handleAvailableSelection(row, event);
                 });
 
-                // ── save ─────────────────────────────────────────────────────
+                activeEl.addEventListener('click', (event) => {
+                    const button = event.target.closest('.gallery-remove-btn');
+                    if (button && activeEl.contains(button)) {
+                        const row = button.closest('.gallery-active-row');
+                        if (!row) return;
+                        removeActiveBySrc(row.dataset.src || '');
+                        return;
+                    }
+                    if (suppressNextClick) return;
+                    if (event.target.closest('.gallery-field-name, .gallery-field-alt')) return;
+                    const row = event.target.closest('.gallery-active-row');
+                    if (!row || !activeEl.contains(row)) return;
+                    handleActiveSelection(row, event);
+                });
+
+                bindDragList(activeEl);
+                bindDragList(availableEl);
+
                 saveBtn.addEventListener('click', async () => {
                     syncFromDOM();
-                    statusEl.textContent = 'Saving…';
-                    statusEl.style.color = '#aaa';
+                    saveUi?.markSaving();
                     try {
                         const resp = await fetch('/biblioteca/save-gallery.php', {
                             method: 'POST',
@@ -3425,32 +3894,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json();
                         if (data.ok) {
-                            statusEl.textContent = `✅ Saved ${data.count} item${data.count !== 1 ? 's' : ''}`;
-                            statusEl.style.color = 'var(--success, #4ade80)';
+                            saveUi?.markSaved();
                         } else {
-                            statusEl.textContent = '❌ ' + (data.error || 'Unknown error');
-                            statusEl.style.color = '#f55';
+                            saveUi?.markFailed();
+                            throw new Error(data.error || 'Unknown error');
                         }
                     } catch (e) {
-                        statusEl.textContent = '❌ Network error: ' + e.message;
-                        statusEl.style.color = '#f55';
+                        saveUi?.markFailed();
                     }
                 });
 
-                // ── fetch available media and initialise ─────────────────────
-                (async function init() {
+                activeEl.addEventListener('input', (event) => {
+                    if (event.target.closest('.gallery-field-name, .gallery-field-alt')) {
+                        saveUi?.reconcile();
+                    }
+                });
+
+                async function reloadGalleryPool() {
                     try {
                         const [photoFiles, videoFiles] = await Promise.all([
                             fetchMediaFiles('photos'),
                             fetchMediaFiles('video'),
                         ]);
                         allFiles = [
-                            ...(photoFiles || []).map(f => ({
+                            ...(photoFiles || []).filter((f) => f.pool_ready !== false).map((f) => ({
                                 src: '/media/photo/original/' + f.name,
                                 name: prettifyName(f.name),
                                 type: 'image',
                             })),
-                            ...(videoFiles || []).map(f => ({
+                            ...(videoFiles || []).filter((f) => f.pool_ready !== false).map((f) => ({
                                 src: '/media/video/original/' + f.name,
                                 name: prettifyName(f.name),
                                 type: 'video',
@@ -3458,26 +3930,47 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             })),
                         ];
                     } catch (e) {
-                        availableEl.innerHTML = '<p class="hint" style="color:#f55">Failed to load media files.</p>';
+                        availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Failed to load media files.</li>';
+                        return;
                     }
-                    renderActive();
                     renderAvailable();
-                })();
+                }
+
+                async function initGalleryEditor() {
+                    await reloadGalleryPool();
+                    renderActive();
+                    saveUi?.setBaseline();
+                }
+
+                registerDemoFilterListener(reloadGalleryPool);
+                initGalleryEditor();
             })();
 
             // ── Playlist editor ───────────────────────────────────────────────
             (function () {
-                const list       = document.getElementById('playlistEditor');
-                const saveBtn    = document.getElementById('playlistSaveBtn');
-                const statusEl   = document.getElementById('playlistStatus');
-                const hintEl     = document.getElementById('playlistPreviewHint');
-                if (!list || !saveBtn) return;
+                const availableEl = document.getElementById('playlistAvailableList');
+                const activeEl    = document.getElementById('playlistActiveList');
+                const countBadge  = document.getElementById('playlistActiveCount');
+                const saveBtn     = document.getElementById('playlistSaveBtn');
+                if (!availableEl || !activeEl || !saveBtn) return;
 
+                const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
+                    saveLabel: '💾 Save playlist',
+                    readFingerprint() {
+                        return JSON.stringify(activeTracks.map((track) => String(track.file || '')).filter(Boolean));
+                    },
+                }) || null;
+
+                let activeTracks = [];
+                let availableTracks = [];
                 let dragSrc = null;
                 let draggedRows = [];
-                let selectedFiles = new Set();
-                let selectionAnchor = '';
+                let dragSourceList = '';
                 let dragPlaceholder = null;
+                let selectedAvailable = new Set();
+                let selectedActive = new Set();
+                let selectionAnchorAvailable = '';
+                let selectionAnchorActive = '';
                 let suppressNextClick = false;
 
                 function formatPlaylistDuration(seconds) {
@@ -3486,117 +3979,311 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`;
                 }
 
-                function renderPlaylistRows(tracks) {
-                    const rows = Array.isArray(tracks) ? tracks : [];
-                    const allowedFiles = new Set(rows.map((track) => String(track && track.file || '')).filter(Boolean));
-                    selectedFiles.forEach((filename) => {
-                        if (!allowedFiles.has(filename)) {
-                            selectedFiles.delete(filename);
+                function cloneTrack(track) {
+                    return {
+                        file: track.file,
+                        title: track.title,
+                        artist: track.artist,
+                        album: track.album,
+                        duration: track.duration,
+                        origin: track.origin,
+                        sourceTier: track.sourceTier,
+                        deliveryReady: track.deliveryReady !== false,
+                    };
+                }
+
+                function trackMeta(track) {
+                    if (track.deliveryReady === false) {
+                        return 'Preparing delivery file — wait a moment and refresh the pool';
+                    }
+                    const artist = String(track.artist || '').trim();
+                    const album = String(track.album || '').trim();
+                    return album ? `${artist} — ${album}` : artist;
+                }
+
+                function pruneAvailableSelection() {
+                    const allowed = new Set(availableTracks.map((track) => String(track.file || '')));
+                    selectedAvailable.forEach((file) => {
+                        if (!allowed.has(file)) {
+                            selectedAvailable.delete(file);
                         }
                     });
-                    if (selectionAnchor && !allowedFiles.has(selectionAnchor)) {
-                        selectionAnchor = '';
-                    }
-                    if (!rows.length) {
-                        list.innerHTML = '';
-                        if (hintEl) {
-                            hintEl.textContent = 'No current source tracks found. Upload audio or enable Demo to inspect bundled tracks.';
-                        }
-                        return;
-                    }
-
-                    list.innerHTML = rows.map((track, index) => {
-                        const title = bandpromoAdminEscapeHtml(track.title || track.file || 'Untitled');
-                        const artist = bandpromoAdminEscapeHtml(track.artist || '');
-                        const album = bandpromoAdminEscapeHtml(track.album || '');
-                        const meta = album ? `${artist} — ${album}` : artist;
-                        const duration = formatPlaylistDuration(track.duration);
-                        const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo' : '';
-                        const selectedClass = selectedFiles.has(String(track.file || '')) ? ' playlist-editor-row-selected' : '';
-                        return `<li class="playlist-editor-row${demoClass}${selectedClass}" draggable="true" data-file="${bandpromoAdminEscapeHtml(track.file || '')}" aria-selected="${selectedFiles.has(String(track.file || '')) ? 'true' : 'false'}">
-                            <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
-                            <span class="playlist-track-num">${index + 1}</span>
-                            <span class="playlist-track-info">
-                                <strong>${title}</strong>
-                                <span class="playlist-track-meta">${meta}</span>
-                            </span>
-                            <span class="playlist-track-duration">${duration}</span>
-                        </li>`;
-                    }).join('');
-
-                    if (!appliedPlaylistFocusFromQuery && pendingPlaylistFocusFromQuery) {
-                        const targetRow = Array.from(list.querySelectorAll('.playlist-editor-row')).find((row) => String(row.dataset.file || '') === pendingPlaylistFocusFromQuery);
-                        if (targetRow) {
-                            appliedPlaylistFocusFromQuery = true;
-                            list.querySelectorAll('.playlist-editor-row').forEach((row) => row.classList.remove('playlist-editor-row-focus'));
-                            targetRow.classList.add('playlist-editor-row-focus');
-                            targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                            if (statusEl) {
-                                statusEl.textContent = `Focused track: ${pendingPlaylistFocusFromQuery}`;
-                                statusEl.style.color = 'var(--muted)';
-                            }
-                        }
-                    }
-
-                    if (hintEl) {
-                        hintEl.textContent = showBundledDemoAssets
-                            ? 'Showing current source tracks with bundled demo audio revealed.'
-                            : 'Showing current source tracks with bundled demo audio suppressed when real uploads exist.';
+                    if (selectionAnchorAvailable && !allowed.has(selectionAnchorAvailable)) {
+                        selectionAnchorAvailable = '';
                     }
                 }
 
-                function getPlaylistRows() {
-                    return Array.from(list.querySelectorAll('.playlist-editor-row'));
+                function pruneActiveSelection() {
+                    const allowed = new Set(activeTracks.map((track) => String(track.file || '')));
+                    selectedActive.forEach((file) => {
+                        if (!allowed.has(file)) {
+                            selectedActive.delete(file);
+                        }
+                    });
+                    if (selectionAnchorActive && !allowed.has(selectionAnchorActive)) {
+                        selectionAnchorActive = '';
+                    }
                 }
 
-                function syncPlaylistSelectionUi() {
-                    getPlaylistRows().forEach((row) => {
-                        const selected = selectedFiles.has(String(row.dataset.file || ''));
+                function getAvailableRows() {
+                    return Array.from(availableEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+                }
+
+                function getActiveRows() {
+                    return Array.from(activeEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+                }
+
+                function syncAvailableSelectionUi() {
+                    getAvailableRows().forEach((row) => {
+                        const file = String(row.dataset.file || '');
+                        const selected = selectedAvailable.has(file);
                         row.classList.toggle('playlist-editor-row-selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
 
-                function selectPlaylistRange(targetFile, preserveExisting) {
-                    const rows = getPlaylistRows();
+                function syncActiveSelectionUi() {
+                    getActiveRows().forEach((row) => {
+                        const file = String(row.dataset.file || '');
+                        const selected = selectedActive.has(file);
+                        row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.setAttribute('aria-selected', selected ? 'true' : 'false');
+                    });
+                }
+
+                function selectAvailableRange(targetFile, preserveExisting) {
+                    const rows = getAvailableRows();
                     if (!rows.length) return;
-                    const anchorFile = selectionAnchor && rows.some((row) => String(row.dataset.file || '') === selectionAnchor)
-                        ? selectionAnchor
+                    const anchorFile = selectionAnchorAvailable && rows.some((row) => String(row.dataset.file || '') === selectionAnchorAvailable)
+                        ? selectionAnchorAvailable
                         : targetFile;
                     const anchorIndex = rows.findIndex((row) => String(row.dataset.file || '') === anchorFile);
                     const targetIndex = rows.findIndex((row) => String(row.dataset.file || '') === targetFile);
-                    if (anchorIndex < 0 || targetIndex < 0) {
+                    if (anchorIndex === -1 || targetIndex === -1) return;
+
+                    const nextSelected = preserveExisting ? new Set(selectedAvailable) : new Set();
+                    const start = Math.min(anchorIndex, targetIndex);
+                    const end = Math.max(anchorIndex, targetIndex);
+                    rows.slice(start, end + 1).forEach((row) => {
+                        const file = String(row.dataset.file || '');
+                        if (file) nextSelected.add(file);
+                    });
+                    selectedAvailable = nextSelected;
+                }
+
+                function selectActiveRange(targetFile, preserveExisting) {
+                    const rows = getActiveRows();
+                    if (!rows.length) return;
+                    const anchorFile = selectionAnchorActive && rows.some((row) => String(row.dataset.file || '') === selectionAnchorActive)
+                        ? selectionAnchorActive
+                        : targetFile;
+                    const anchorIndex = rows.findIndex((row) => String(row.dataset.file || '') === anchorFile);
+                    const targetIndex = rows.findIndex((row) => String(row.dataset.file || '') === targetFile);
+                    if (anchorIndex === -1 || targetIndex === -1) return;
+
+                    const nextSelected = preserveExisting ? new Set(selectedActive) : new Set();
+                    const start = Math.min(anchorIndex, targetIndex);
+                    const end = Math.max(anchorIndex, targetIndex);
+                    rows.slice(start, end + 1).forEach((row) => {
+                        const file = String(row.dataset.file || '');
+                        if (file) nextSelected.add(file);
+                    });
+                    selectedActive = nextSelected;
+                }
+
+                function handleAvailableSelection(row, event) {
+                    const file = String(row.dataset.file || '').trim();
+                    if (!file) return;
+                    selectedActive.clear();
+                    selectionAnchorActive = '';
+                    syncActiveSelectionUi();
+
+                    if (event.shiftKey) {
+                        selectAvailableRange(file, event.ctrlKey || event.metaKey);
+                    } else if (event.ctrlKey || event.metaKey) {
+                        if (selectedAvailable.has(file)) {
+                            selectedAvailable.delete(file);
+                        } else {
+                            selectedAvailable.add(file);
+                        }
+                    } else {
+                        selectedAvailable = new Set([file]);
+                    }
+
+                    selectionAnchorAvailable = selectedAvailable.size ? file : '';
+                    syncAvailableSelectionUi();
+                }
+
+                function handleActiveSelection(row, event) {
+                    const file = String(row.dataset.file || '').trim();
+                    if (!file) return;
+                    selectedAvailable.clear();
+                    selectionAnchorAvailable = '';
+                    syncAvailableSelectionUi();
+
+                    if (event.shiftKey) {
+                        selectActiveRange(file, event.ctrlKey || event.metaKey);
+                    } else if (event.ctrlKey || event.metaKey) {
+                        if (selectedActive.has(file)) {
+                            selectedActive.delete(file);
+                        } else {
+                            selectedActive.add(file);
+                        }
+                    } else {
+                        selectedActive = new Set([file]);
+                    }
+
+                    selectionAnchorActive = selectedActive.size ? file : '';
+                    syncActiveSelectionUi();
+                }
+
+                function renderTrackRow(track, options) {
+                    const title = bandpromoAdminEscapeHtml(track.title || track.file || 'Untitled');
+                    const meta = bandpromoAdminEscapeHtml(trackMeta(track));
+                    const duration = track.deliveryReady === false ? '' : formatPlaylistDuration(track.duration);
+                    const file = bandpromoAdminEscapeHtml(track.file || '');
+                    const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo' : '';
+                    const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending' : '';
+                    const selectedClass = options.selected ? ' playlist-editor-row-selected' : '';
+                    const positionMarkup = options.showPosition
+                        ? `<span class="playlist-track-num">${options.position}</span>`
+                        : '';
+                    const removeMarkup = options.showRemove
+                        ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from playlist">✕</button>'
+                        : '';
+                    const rowClass = options.activeRow ? 'playlist-editor-row player-layout-row-active' : 'playlist-editor-row';
+                    const draggable = track.deliveryReady === false ? 'false' : 'true';
+                    const dragTitle = track.deliveryReady === false
+                        ? 'Delivery file not ready yet'
+                        : (options.activeRow ? 'Drag to reorder' : 'Drag into playlist');
+
+                    return `<li class="${rowClass}${demoClass}${pendingClass}${selectedClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
+                        <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
+                        ${positionMarkup}
+                        <span class="playlist-track-info">
+                            <strong>${title}</strong>
+                            <span class="playlist-track-meta">${meta}</span>
+                        </span>
+                        <span class="playlist-track-duration">${duration}</span>
+                        ${removeMarkup}
+                    </li>`;
+                }
+
+                function renderLists() {
+                    pruneAvailableSelection();
+                    pruneActiveSelection();
+
+                    if (!activeTracks.length) {
+                        activeEl.innerHTML = '<li class="player-layout-empty">Drag tracks here from Available tracks.</li>';
+                    } else {
+                        activeEl.innerHTML = activeTracks.map((track, index) => renderTrackRow(track, {
+                            showPosition: true,
+                            position: index + 1,
+                            showRemove: true,
+                            activeRow: true,
+                            selected: selectedActive.has(String(track.file || '')),
+                        })).join('');
+                    }
+
+                    if (!availableTracks.length) {
+                        const emptyMessage = activeTracks.length
+                            ? 'All delivery-ready tracks are already in your playlist. Use ✕ on the right to move tracks back here.'
+                            : 'No delivery-ready tracks in the pool yet. Upload audio under Files, or check Notifications for background delivery.';
+                        availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
+                    } else {
+                        availableEl.innerHTML = availableTracks.map((track) => renderTrackRow(track, {
+                            showPosition: false,
+                            showRemove: false,
+                            activeRow: false,
+                            selected: selectedAvailable.has(String(track.file || '')),
+                        })).join('');
+                    }
+
+                    if (countBadge) {
+                        countBadge.textContent = activeTracks.length ? `(${activeTracks.length})` : '';
+                    }
+
+                    saveUi?.reconcile();
+                    applyPlaylistFocus();
+                }
+
+                function applyPlaylistFocus() {
+                    if (appliedPlaylistFocusFromQuery || !pendingPlaylistFocusFromQuery) {
                         return;
                     }
 
-                    const nextSelected = preserveExisting ? new Set(selectedFiles) : new Set();
-                    const start = Math.min(anchorIndex, targetIndex);
-                    const end = Math.max(anchorIndex, targetIndex);
-                    rows.slice(start, end + 1).forEach((row) => nextSelected.add(String(row.dataset.file || '')));
-                    selectedFiles = nextSelected;
-                }
-
-                function handlePlaylistSelection(row, event) {
-                    const file = String(row.dataset.file || '').trim();
-                    if (!file) return;
-
-                    if (event.shiftKey) {
-                        selectPlaylistRange(file, event.ctrlKey || event.metaKey);
-                    } else if (event.ctrlKey || event.metaKey) {
-                        if (selectedFiles.has(file)) {
-                            selectedFiles.delete(file);
-                        } else {
-                            selectedFiles.add(file);
-                        }
-                    } else {
-                        selectedFiles = new Set([file]);
+                    const targetRow = [...getActiveRows(), ...getAvailableRows()]
+                        .find((row) => String(row.dataset.file || '') === pendingPlaylistFocusFromQuery);
+                    if (!targetRow) {
+                        return;
                     }
 
-                    selectionAnchor = selectedFiles.size ? file : '';
-                    syncPlaylistSelectionUi();
+                    appliedPlaylistFocusFromQuery = true;
+                    document.querySelectorAll('#playlistActiveList .playlist-editor-row-focus, #playlistAvailableList .playlist-editor-row-focus')
+                        .forEach((row) => row.classList.remove('playlist-editor-row-focus'));
+                    targetRow.classList.add('playlist-editor-row-focus');
+                    targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
                 }
 
-                function ensurePlaylistPlaceholder() {
+                function trackLookup() {
+                    const lookup = new Map();
+                    [...activeTracks, ...availableTracks].forEach((track) => {
+                        const file = String(track.file || '');
+                        if (file) lookup.set(file, track);
+                    });
+                    return lookup;
+                }
+
+                function syncActiveOrderFromDOM() {
+                    const files = getActiveRows().map((row) => String(row.dataset.file || '')).filter(Boolean);
+                    const lookup = trackLookup();
+                    activeTracks = files.map((file) => lookup.get(file)).filter(Boolean);
+                }
+
+                function syncAvailableOrderFromDOM() {
+                    const files = getAvailableRows().map((row) => String(row.dataset.file || '')).filter(Boolean);
+                    const lookup = trackLookup();
+                    availableTracks = files.map((file) => lookup.get(file)).filter(Boolean);
+                }
+
+                function moveTracksBetweenLists(fromList, toList, files, targetIndex) {
+                    const fileSet = new Set(files.filter(Boolean));
+                    if (!fileSet.size) return false;
+
+                    const source = fromList === 'active' ? activeTracks : availableTracks;
+                    const moving = source.filter((track) => fileSet.has(String(track.file || '')));
+                    if (!moving.length) return false;
+                    if (toList === 'active' && moving.some((track) => track.deliveryReady === false)) {
+                        return false;
+                    }
+
+                    if (fromList === 'active') {
+                        activeTracks = activeTracks.filter((track) => !fileSet.has(String(track.file || '')));
+                    } else {
+                        availableTracks = availableTracks.filter((track) => !fileSet.has(String(track.file || '')));
+                    }
+
+                    const target = toList === 'active' ? activeTracks : availableTracks;
+                    const safeIndex = Math.max(0, Math.min(targetIndex, target.length));
+                    target.splice(safeIndex, 0, ...moving.map(cloneTrack));
+
+                    if (fromList === 'active') {
+                        files.forEach((file) => selectedActive.delete(file));
+                        if (selectionAnchorActive && fileSet.has(selectionAnchorActive)) {
+                            selectionAnchorActive = '';
+                        }
+                    } else {
+                        files.forEach((file) => selectedAvailable.delete(file));
+                        if (selectionAnchorAvailable && fileSet.has(selectionAnchorAvailable)) {
+                            selectionAnchorAvailable = '';
+                        }
+                    }
+
+                    renderLists();
+                    return true;
+                }
+
+                function ensurePlaceholder() {
                     if (!dragPlaceholder) {
                         dragPlaceholder = document.createElement('li');
                         dragPlaceholder.className = 'playlist-editor-placeholder';
@@ -3604,46 +4291,260 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return dragPlaceholder;
                 }
 
-                function updatePlaylistPlaceholderHeight() {
+                function getDraggableRows(listEl) {
+                    if (!listEl) return [];
+                    return Array.from(listEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+                }
+
+                function listNameForElement(listEl) {
+                    if (listEl === activeEl) return 'active';
+                    if (listEl === availableEl) return 'available';
+                    return '';
+                }
+
+                function draggedFileSet() {
+                    return new Set(draggedRows.map((row) => String(row.dataset.file || '')).filter(Boolean));
+                }
+
+                function activeInsertIndexFromPlaceholder() {
+                    if (!dragPlaceholder?.parentNode) {
+                        return activeTracks.length;
+                    }
+                    const children = Array.from(dragPlaceholder.parentNode.children);
+                    const placeholderIndex = children.indexOf(dragPlaceholder);
+                    const movingFiles = draggedFileSet();
+                    let index = 0;
+                    for (let i = 0; i < placeholderIndex; i += 1) {
+                        const child = children[i];
+                        if (!child.classList.contains('playlist-editor-row')) continue;
+                        const file = String(child.dataset.file || '');
+                        if (movingFiles.has(file)) continue;
+                        index += 1;
+                    }
+                    return index;
+                }
+
+                function availableInsertIndexFromPlaceholder() {
+                    if (!dragPlaceholder?.parentNode) {
+                        return availableTracks.length;
+                    }
+                    const children = Array.from(dragPlaceholder.parentNode.children);
+                    const placeholderIndex = children.indexOf(dragPlaceholder);
+                    const movingFiles = draggedFileSet();
+                    let index = 0;
+                    for (let i = 0; i < placeholderIndex; i += 1) {
+                        const child = children[i];
+                        if (!child.classList.contains('playlist-editor-row')) continue;
+                        const file = String(child.dataset.file || '');
+                        if (movingFiles.has(file)) continue;
+                        index += 1;
+                    }
+                    return index;
+                }
+
+                function updatePlaceholderHeight() {
                     if (!draggedRows.length) return;
-                    const placeholder = ensurePlaylistPlaceholder();
+                    const placeholder = ensurePlaceholder();
                     const totalHeight = draggedRows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0) + Math.max(0, draggedRows.length - 1) * 6;
                     placeholder.style.height = `${Math.max(52, Math.round(totalHeight))}px`;
                 }
 
-                function movePlaylistPlaceholder(clientY) {
-                    if (!draggedRows.length) return;
-                    const placeholder = ensurePlaylistPlaceholder();
-                    updatePlaylistPlaceholderHeight();
-
-                    const candidateRows = getPlaylistRows().filter((row) => !draggedRows.includes(row));
-                    const referenceRow = candidateRows.find((row) => {
+                function movePlaceholder(listEl, clientY) {
+                    if (!draggedRows.length || !listEl) return;
+                    const placeholder = ensurePlaceholder();
+                    updatePlaceholderHeight();
+                    const rows = getDraggableRows(listEl).filter((row) => !draggedRows.includes(row));
+                    const referenceRow = rows.find((row) => {
                         const rect = row.getBoundingClientRect();
                         return clientY < rect.top + rect.height / 2;
                     });
-
                     if (referenceRow) {
-                        list.insertBefore(placeholder, referenceRow);
+                        listEl.insertBefore(placeholder, referenceRow);
                     } else {
-                        list.appendChild(placeholder);
+                        listEl.appendChild(placeholder);
                     }
                 }
 
-                function finalizePlaylistDrag() {
-                    const placeholder = ensurePlaylistPlaceholder();
-                    if (placeholder.parentNode === list && draggedRows.length) {
+                function finalizeWithinListDrag(listEl) {
+                    const placeholder = ensurePlaceholder();
+                    if (placeholder.parentNode === listEl && draggedRows.length) {
                         draggedRows.forEach((row) => {
-                            list.insertBefore(row, placeholder);
+                            listEl.insertBefore(row, placeholder);
                         });
                         placeholder.remove();
                     }
                 }
 
-                async function loadPlaylistPreview() {
-                    if (hintEl) {
-                        hintEl.textContent = 'Loading current source tracks…';
+                function finalizeDrag() {
+                    if (!draggedRows.length || !dragPlaceholder?.parentNode) {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragSrc = null;
+                        draggedRows = [];
+                        dragSourceList = '';
+                        dragPlaceholder?.remove();
+                        return;
                     }
-                    saveBtn.disabled = true;
+
+                    const targetListName = listNameForElement(dragPlaceholder.parentNode);
+                    const sourceListName = dragSourceList;
+                    const files = draggedRows.map((row) => String(row.dataset.file || '')).filter(Boolean);
+                    const insertIndex = targetListName === 'active'
+                        ? activeInsertIndexFromPlaceholder()
+                        : availableInsertIndexFromPlaceholder();
+
+                    if (!files.length || !targetListName) {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder?.remove();
+                        dragSrc = null;
+                        draggedRows = [];
+                        dragSourceList = '';
+                        renderLists();
+                        return;
+                    }
+
+                    if (sourceListName === targetListName) {
+                        if (targetListName === 'active') {
+                            finalizeWithinListDrag(activeEl);
+                            draggedRows.forEach((row) => row.classList.remove('dragging'));
+                            syncActiveOrderFromDOM();
+                            renderLists();
+                        } else {
+                            finalizeWithinListDrag(availableEl);
+                            draggedRows.forEach((row) => row.classList.remove('dragging'));
+                            syncAvailableOrderFromDOM();
+                            renderLists();
+                        }
+                    } else {
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder.remove();
+                        moveTracksBetweenLists(sourceListName, targetListName, files, insertIndex);
+                    }
+
+                    dragSrc = null;
+                    draggedRows = [];
+                    dragSourceList = '';
+                }
+
+                function collectDraggedRows(listEl) {
+                    const listName = listNameForElement(listEl);
+                    if (listName === 'available') {
+                        return getAvailableRows().filter((row) => selectedAvailable.has(String(row.dataset.file || '')));
+                    }
+                    if (listName === 'active') {
+                        return getActiveRows().filter((row) => selectedActive.has(String(row.dataset.file || '')));
+                    }
+                    return [];
+                }
+
+                function bindDragList(listEl) {
+                    listEl.addEventListener('dragstart', (event) => {
+                        const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                        if (!row || !listEl.contains(row)) return;
+                        dragSrc = row;
+                        dragSourceList = listNameForElement(listEl);
+                        const sourceFile = String(row.dataset.file || '').trim();
+
+                        if (dragSourceList === 'available') {
+                            if (sourceFile && !selectedAvailable.has(sourceFile)) {
+                                selectedAvailable = new Set([sourceFile]);
+                                selectionAnchorAvailable = sourceFile;
+                                syncAvailableSelectionUi();
+                            }
+                            draggedRows = collectDraggedRows(listEl);
+                        } else if (dragSourceList === 'active') {
+                            if (sourceFile && !selectedActive.has(sourceFile)) {
+                                selectedActive = new Set([sourceFile]);
+                                selectionAnchorActive = sourceFile;
+                                syncActiveSelectionUi();
+                            }
+                            draggedRows = collectDraggedRows(listEl);
+                        }
+
+                        if (!draggedRows.length) {
+                            draggedRows = [row];
+                        }
+
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', sourceFile);
+                        window.requestAnimationFrame(() => {
+                            if (!dragSrc || !draggedRows.length) return;
+                            updatePlaceholderHeight();
+                            listEl.insertBefore(ensurePlaceholder(), draggedRows[0]);
+                            draggedRows.forEach((dragRow) => dragRow.classList.add('dragging'));
+                        });
+                    });
+
+                    listEl.addEventListener('dragover', (event) => {
+                        if (!draggedRows.length) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        movePlaceholder(listEl, event.clientY);
+                    });
+
+                    listEl.addEventListener('drop', (event) => {
+                        if (!draggedRows.length) return;
+                        event.preventDefault();
+                        movePlaceholder(listEl, event.clientY);
+                        finalizeDrag();
+                    });
+
+                    listEl.addEventListener('dragend', () => {
+                        finalizeWithinListDrag(listEl);
+                        draggedRows.forEach((row) => row.classList.remove('dragging'));
+                        dragPlaceholder?.remove();
+                        dragSrc = null;
+                        draggedRows = [];
+                        dragSourceList = '';
+                        syncActiveOrderFromDOM();
+                        syncAvailableOrderFromDOM();
+                        syncAvailableSelectionUi();
+                        syncActiveSelectionUi();
+                        suppressNextClick = true;
+                        window.requestAnimationFrame(() => {
+                            suppressNextClick = false;
+                        });
+                    });
+                }
+
+                availableEl.addEventListener('click', (event) => {
+                    if (suppressNextClick) return;
+                    const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                    if (!row || !availableEl.contains(row)) return;
+                    handleAvailableSelection(row, event);
+                });
+
+                activeEl.addEventListener('click', (event) => {
+                    const button = event.target.closest('.player-layout-remove-btn');
+                    if (button && activeEl.contains(button)) {
+                        const row = button.closest('.playlist-editor-row');
+                        if (!row) return;
+                        const file = String(row.dataset.file || '').trim();
+                        if (!file) return;
+                        moveTracksBetweenLists('active', 'available', [file], availableTracks.length);
+                        return;
+                    }
+                    if (suppressNextClick) return;
+                    const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                    if (!row || !activeEl.contains(row)) return;
+                    handleActiveSelection(row, event);
+                });
+
+                bindDragList(activeEl);
+                bindDragList(availableEl);
+
+                function applyPreviewData(data) {
+                    const hasSplit = Array.isArray(data.activeTracks) || Array.isArray(data.availableTracks);
+                    if (hasSplit) {
+                        activeTracks = Array.isArray(data.activeTracks) ? data.activeTracks.map(cloneTrack) : [];
+                        availableTracks = Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : [];
+                    } else {
+                        activeTracks = Array.isArray(data.tracks) ? data.tracks.map(cloneTrack) : [];
+                        availableTracks = [];
+                    }
+                    renderLists();
+                }
+
+                async function reloadPlaylistPool() {
                     try {
                         const params = new URLSearchParams();
                         if (showBundledDemoAssets) {
@@ -3655,94 +4556,48 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (!resp.ok || data.error) {
                             throw new Error(data.error || 'Could not load playlist preview');
                         }
-                        renderPlaylistRows(data.tracks || []);
-                        saveBtn.disabled = false;
+
+                        const activeFiles = new Set(activeTracks.map((track) => String(track.file || '')).filter(Boolean));
+                        const available = Array.isArray(data.availableTracks) ? data.availableTracks : [];
+                        availableTracks = available
+                            .map(cloneTrack)
+                            .filter((track) => !activeFiles.has(String(track.file || '')));
+
+                        renderLists();
                     } catch (e) {
-                        list.innerHTML = '';
-                        if (hintEl) {
-                            hintEl.textContent = 'Could not load playlist preview: ' + e.message;
-                        }
+                        availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Could not refresh available tracks: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
-                list.addEventListener('click', (event) => {
-                    if (suppressNextClick) {
-                        return;
-                    }
-                    const row = event.target.closest('.playlist-editor-row');
-                    if (!row) return;
-                    handlePlaylistSelection(row, event);
-                });
-
-                list.addEventListener('dragstart', (e) => {
-                    dragSrc = e.target.closest('.playlist-editor-row');
-                    if (!dragSrc) return;
-                    const sourceFile = String(dragSrc.dataset.file || '').trim();
-                    if (sourceFile && !selectedFiles.has(sourceFile)) {
-                        selectedFiles = new Set([sourceFile]);
-                        selectionAnchor = sourceFile;
-                        syncPlaylistSelectionUi();
-                    }
-                    draggedRows = getPlaylistRows().filter((row) => selectedFiles.has(String(row.dataset.file || '')));
-                    if (!draggedRows.length) {
-                        draggedRows = [dragSrc];
-                    }
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', dragSrc.dataset.file);
-                    window.requestAnimationFrame(() => {
-                        if (!dragSrc || !draggedRows.length) {
-                            return;
+                async function loadPlaylistPreview(options = {}) {
+                    const preserveSavedState = options.preserveSavedState === true;
+                    try {
+                        const params = new URLSearchParams();
+                        if (showBundledDemoAssets) {
+                            params.set('include_bundled', '1');
                         }
-                        updatePlaylistPlaceholderHeight();
-                        list.insertBefore(ensurePlaylistPlaceholder(), draggedRows[0]);
-                        draggedRows.forEach((row) => row.classList.add('dragging'));
-                    });
-                });
-
-                list.addEventListener('dragend', () => {
-                    finalizePlaylistDrag();
-                    list.querySelectorAll('.playlist-editor-row').forEach((row) => {
-                        row.classList.remove('dragging');
-                    });
-                    dragSrc = null;
-                    draggedRows = [];
-                    renumberRows();
-                    syncPlaylistSelectionUi();
-                    suppressNextClick = true;
-                    window.requestAnimationFrame(() => {
-                        suppressNextClick = false;
-                    });
-                });
-
-                list.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    if (!dragSrc) return;
-                    movePlaylistPlaceholder(e.clientY);
-                });
-
-                list.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    if (!dragSrc) return;
-                    movePlaylistPlaceholder(e.clientY);
-                    finalizePlaylistDrag();
-                    renumberRows();
-                    syncPlaylistSelectionUi();
-                });
-
-                function renumberRows() {
-                    list.querySelectorAll('.playlist-editor-row').forEach((row, i) => {
-                        const numEl = row.querySelector('.playlist-track-num');
-                        if (numEl) numEl.textContent = i + 1;
-                    });
+                        const query = params.toString();
+                        const resp = await fetch('/biblioteca/get-playlist-preview.php' + (query ? `?${query}` : ''));
+                        const data = await resp.json();
+                        if (!resp.ok || data.error) {
+                            throw new Error(data.error || 'Could not load playlist preview');
+                        }
+                        applyPreviewData(data);
+                        if (preserveSavedState) {
+                            saveUi?.markSaved();
+                        } else {
+                            saveUi?.setBaseline();
+                        }
+                    } catch (e) {
+                        activeEl.innerHTML = '';
+                        availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Could not load playlist preview: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                    }
                 }
 
                 saveBtn.addEventListener('click', async () => {
-                    statusEl.textContent = 'Saving…';
-                    statusEl.style.color = '#aaa';
-                    const order = Array.from(list.querySelectorAll('.playlist-editor-row'))
-                        .map(r => r.dataset.file)
-                        .filter(Boolean);
+                    syncActiveOrderFromDOM();
+                    saveUi?.markSaving();
+                    const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
                     try {
                         const resp = await fetch('/biblioteca/save-playlist-order.php', {
                             method: 'POST',
@@ -3751,26 +4606,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json();
                         if (data.ok) {
-                            const warn = data.warning ? ` (${data.warning})` : '';
-                            statusEl.textContent = `✅ Saved ${data.count} track${data.count !== 1 ? 's' : ''}${warn}`;
-                            statusEl.style.color = 'var(--success, #4ade80)';
+                            if (typeof data.build_required === 'boolean' && typeof setBuildRequiredNudge === 'function') {
+                                const state = data.build_required_state || {};
+                                setBuildRequiredNudge(
+                                    data.build_required === true,
+                                    state.reasons || [],
+                                    state.action || 'none',
+                                    state.tasks || []
+                                );
+                            } else if (typeof refreshBuildRequiredState === 'function') {
+                                refreshBuildRequiredState();
+                            }
+                            await loadPlaylistPreview({ preserveSavedState: true });
                         } else {
-                            statusEl.textContent = '❌ ' + (data.error || 'Unknown error');
-                            statusEl.style.color = '#f55';
+                            saveUi?.markFailed();
                         }
                     } catch (e) {
-                        statusEl.textContent = '❌ Network error: ' + e.message;
-                        statusEl.style.color = '#f55';
+                        saveUi?.markFailed();
                     }
                 });
 
+                registerDemoFilterListener(reloadPlaylistPool);
                 loadPlaylistPreview();
-
-                const previousSetShowBundledDemoAssets = setShowBundledDemoAssets;
-                setShowBundledDemoAssets = function(nextValue) {
-                    previousSetShowBundledDemoAssets(nextValue);
-                    loadPlaylistPreview();
-                };
             })();
 
             // ── Support: link/widget branch form ────────────────────────────
@@ -4336,7 +5193,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             data.build_required_state.action || 'none',
                             data.build_required_state.tasks || []
                         );
-                        renderOperatorNotifications(data.build_required_state, latestBuildValidation, latestWelcomeState, latestPackageUpdate);
+                        renderOperatorNotifications(data.build_required_state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks);
                         refreshBuildHint();
                     }
 

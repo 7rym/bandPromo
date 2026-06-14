@@ -10,6 +10,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/media-reference-helpers.php';
+require_once __DIR__ . '/media-delivery-helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -173,6 +174,9 @@ if (is_dir($dir)) {
             if ($target === 'illustrations') {
                 $entry['cover_info'] = $entry['reference_info'];
             }
+        }
+        if (in_array($target, ['audio', 'photos', 'video'], true)) {
+            $entry['pool_ready'] = bandpromo_media_pool_ready($root, $target, $filename);
         }
         $allFiles[] = $entry;
     }

@@ -54,12 +54,37 @@ try {
         }
     }
 
+    $tabOrder = is_array($payload['tab_order'] ?? null) ? $payload['tab_order'] : [];
+    $normalizedTabOrder = [];
+    foreach ($tabOrder as $item) {
+        if (!is_string($item)) {
+            continue;
+        }
+        $item = trim($item);
+        if ($item === '') {
+            continue;
+        }
+        $normalizedTabOrder[] = $item;
+    }
+    $config['player']['tab_order'] = $normalizedTabOrder;
+
     $config['player']['modules']['playlist'] = ['enabled' => true];
     $config['player']['modules']['lyrics'] = ['enabled' => true];
 
     $encodedConfig = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if (!is_string($encodedConfig) || file_put_contents($configPath, $encodedConfig . "\n") === false) {
         throw new RuntimeException('Could not save web-config.json.');
+    }
+
+    global $config;
+    $reloadedConfig = json_decode((string) file_get_contents($configPath), true);
+    if (is_array($reloadedConfig)) {
+        if (!isset($config['player']) || !is_array($config['player'])) {
+            $config['player'] = [];
+        }
+        if (isset($reloadedConfig['player']) && is_array($reloadedConfig['player'])) {
+            $config['player'] = $reloadedConfig['player'];
+        }
     }
 
     $pageUpdates = is_array($payload['pages'] ?? null) ? $payload['pages'] : [];
@@ -82,6 +107,9 @@ try {
         if (array_key_exists('show_in_player', $pageUpdate)) {
             $changes['show_in_player'] = (bool) $pageUpdate['show_in_player'];
         }
+        if (isset($pageUpdate['sort_order'])) {
+            $changes['sort_order'] = (int) $pageUpdate['sort_order'];
+        }
 
         if ($changes !== []) {
             bandpromo_page_update_registry_entry($root, $pageId, $changes);
@@ -102,6 +130,7 @@ try {
         'modules' => bandpromo_player_modules_config(),
         'pages' => bandpromo_page_registry_entries($root),
         'tabs' => bandpromo_player_content_tabs($root),
+        'layout' => bandpromo_player_layout_admin_state($root),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);

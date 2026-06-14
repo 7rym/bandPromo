@@ -1,7 +1,128 @@
+.page-editor-layout {
+    margin-top: 0;
+}
+
+.page-editor-left-panel {
+    min-height: 380px;
+}
+
+.page-editor-left-panel:has(#pageEditorView:not([hidden])) {
+    max-height: calc(100vh - 132px);
+    overflow: hidden;
+}
+
+#pagePoolView {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.page-pool-panel-body {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.page-pool-panel-body .add-page-panel[hidden] {
+    display: none;
+}
+
+.page-pool-panel-body .add-page-panel:not([hidden]) {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+}
+
+.page-editor-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+}
+
+.page-editor-view[hidden],
+#pagePoolView[hidden] {
+    display: none !important;
+}
+
+.page-editor-view-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.page-editor-back-btn {
+    font-size: 13px;
+    padding: 6px 10px;
+}
+
+.page-editor-view-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.page-editor-meta,
+.page-editor-hint,
+.page-editor-panel-head {
+    flex: 0 0 auto;
+}
+
+.page-pool-list .page-pool-row {
+    cursor: pointer;
+}
+
+.page-pool-edit-btn {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #101010;
+    color: var(--text);
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.page-pool-edit-btn:hover {
+    border-color: var(--accent);
+    background: rgba(255, 107, 107, 0.12);
+}
+
+.page-pool-status:empty {
+    display: none;
+}
+
+.page-pool-status:not(:empty) {
+    margin-bottom: 8px;
+    min-height: 1.2em;
+}
+
+.page-editor-preview-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: none;
+}
+
+.page-editor-preview-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .page-editor-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
-    gap: 16px;
+    gap: 10px;
     align-items: start;
 }
 
@@ -10,20 +131,11 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface);
-    padding: 14px;
-}
-
-.page-editor-preview-panel {
-    position: sticky;
-    top: 10px;
-    align-self: start;
-    max-height: calc(100vh - 20px);
-    display: flex;
-    flex-direction: column;
+    padding: 0;
 }
 
 .page-editor-panel h4 {
-    margin: 0 0 12px;
+    margin: 0 0 8px;
     font-size: 14px;
     color: var(--text);
     flex: 0 0 auto;
@@ -33,10 +145,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     flex: 0 0 auto;
-    margin: -14px -14px 12px;
-    padding: 14px 14px 10px;
+    margin: 0 0 8px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border);
 }
 
@@ -57,7 +169,7 @@
 
 .page-editor-save-row .btn {
     font-size: 13px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     white-space: nowrap;
 }
 
@@ -73,38 +185,36 @@
 }
 
 .page-editor-panel-head {
-    position: sticky;
-    top: 10px;
     z-index: 25;
-    margin: -14px -14px 12px;
-    padding: 14px 14px 10px;
+    margin: 0;
+    padding: 8px 10px;
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
 }
 
-.page-editor-panel-head h4 {
-    margin-bottom: 10px;
+.page-editor-panel-head h4.player-layout-col-title {
+    margin-bottom: 6px;
 }
 
 .page-editor-toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 0;
 }
 
 .page-editor-toolbar .btn {
     font-size: 13px;
-    padding: 10px 14px;
+    padding: 7px 11px;
 }
 
 .page-word-toolbar {
     display: flex;
     flex-wrap: nowrap;
     gap: 2px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     align-items: center;
     overflow-x: auto;
 }
@@ -245,12 +355,12 @@
 .page-toolbar-glyph-align--right span:nth-child(3) { width: 12px; }
 
 .page-rich-editor {
-    min-height: 120px;
+    min-height: 100px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: #101010;
     color: var(--text);
-    padding: 10px 12px;
+    padding: 8px 10px;
     line-height: 1.55;
     font: inherit;
     text-align: left;
@@ -376,13 +486,13 @@
 .page-picture-editor {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .page-picture-top {
     display: grid;
     grid-template-columns: 120px minmax(0, 1fr);
-    gap: 10px;
+    gap: 8px;
     align-items: start;
 }
 
@@ -533,7 +643,12 @@
 .page-editor-blocks {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
 }
 
 .page-editor-empty {
@@ -547,10 +662,10 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
-    padding: 10px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .page-block-card--compact .page-block-field {
@@ -611,15 +726,16 @@
 }
 
 .page-editor-preview-frame {
-    border: 1px solid var(--border2);
-    border-radius: 12px;
+    border: none;
+    border-top: 1px solid var(--border2);
+    border-radius: 0 0 12px 12px;
     background: radial-gradient(circle at center, var(--color-surface-mid, #1e1e24) 0%, var(--color-surface-deep, #000000) 100%);
     color: #ffffff;
     flex: 1 1 auto;
-    min-height: 240px;
-    max-height: calc(100vh - 110px);
+    min-height: 220px;
+    max-height: calc(100vh - 96px);
     overflow: auto;
-    padding: 14px 10px;
+    padding: 10px 8px;
 }
 
 .page-editor-preview-frame .page-preview {
@@ -710,38 +826,17 @@
     align-items: end;
 }
 
-.page-editor-tabs {
-    margin-bottom: 14px;
-}
-
-.page-editor-tabs-action {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    align-self: stretch;
+#pageEditorRoot.card {
+    margin-bottom: 16px;
 }
 
 .page-editor-add-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
     font: inherit;
-    white-space: nowrap;
-}
-
-.page-editor-add-btn.active {
-    background: rgba(0, 0, 0, 0.32);
-}
-
-.page-editor-add-icon {
-    font-size: 15px;
-    line-height: 1;
 }
 
 .add-page-panel {
-    margin-bottom: 16px;
-    padding: 12px 14px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
@@ -773,21 +868,21 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
+    gap: 8px;
+    margin-bottom: 6px;
 }
 
 .page-editor-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 8px;
     flex: 1 1 auto;
 }
 
 .page-meta-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     flex: 1 1 200px;
     font-size: 12px;
     color: var(--muted);
@@ -799,11 +894,13 @@
 
 .page-delete-btn {
     flex: 0 0 auto;
-    margin-top: 18px;
+    margin-top: 12px;
 }
 
 .page-editor-hint {
-    margin: 0 0 14px;
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .page-block-delete-btn {
@@ -814,7 +911,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 14px;
+    margin-top: 10px;
 }
 
 .btn-danger-outline {
@@ -849,45 +946,7 @@
     margin: 0;
 }
 
-.player-module-toggles,
-.player-page-layout-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.player-module-toggle,
-.player-page-layout-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(140px, 0.8fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--card);
-}
-
-.player-module-toggle.is-locked {
-    opacity: 0.72;
-}
-
-.player-page-layout-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.player-page-show-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-}
-
 @media (max-width: 900px) {
-    .player-module-toggle,
-    .player-page-layout-row,
     .page-registry-form-grid {
         grid-template-columns: 1fr;
     }

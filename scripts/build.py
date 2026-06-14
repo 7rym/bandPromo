@@ -422,7 +422,7 @@ def main():
     sys.stdout.flush()
 
     # ── Step 1: Generate play/playlist.json ─────────────────────────────────────
-    print("── Step 1/5: Generating play/playlist.json ───────────")
+    print("── Step 1/6: Generating play/playlist.json ───────────")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'makePlaylists.py', {'FFMPEG_PATH': ffmpeg_path}):
         print("\n❌ Build failed at step 1")
@@ -430,7 +430,7 @@ def main():
         sys.exit(1)
 
     # ── Step 2: Optimize media (MP3 + optimised covers) ─────────────────────────────
-    print("\n── Step 2/5: Optimizing media (audio + image + photo optimisation) ──")
+    print("\n── Step 2/6: Optimizing media (audio + image + photo optimisation) ──")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'optimizeMedia.py', {
         'FFMPEG_PATH': ffmpeg_path,
@@ -441,7 +441,7 @@ def main():
         sys.exit(1)
 
     # ── Step 3: Build video delivery assets ──────────────────────────────────────
-    print("\n── Step 3/5: Building video delivery assets ─────────")
+    print("\n── Step 3/6: Building video delivery assets ─────────")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'optimizeVideo.py', {
         'FFMPEG_PATH': ffmpeg_path,
@@ -451,7 +451,7 @@ def main():
         sys.exit(1)
 
     # ── Step 4: Social media assets ──────────────────────────────────────────────
-    print("\n── Step 4/5: Generating social media assets ────────")
+    print("\n── Step 4/6: Generating social media assets ────────")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'makeSocial.py'):
         print("\n❌ Build failed at step 4")
@@ -459,10 +459,18 @@ def main():
         sys.exit(1)
 
     # ── Step 5: Generate PWA manifest ─────────────────────────────────────────
-    print("\n── Step 5/5: Generating PWA manifest ───────────────")
+    print("\n── Step 5/6: Generating PWA manifest ───────────────")
     sys.stdout.flush()
     if not run_script(SCRIPT_DIR / 'makePWA.py'):
         print("\n❌ Build failed at step 5")
+        sys.stdout.flush()
+        sys.exit(1)
+
+    # ── Step 6: Initial site composition (first build only) ─────────────────────
+    print("\n── Step 6/6: Composing initial playlist, gallery, and player layout ─")
+    sys.stdout.flush()
+    if not run_script(SCRIPT_DIR / 'setupCompose.py'):
+        print("\n❌ Build failed at step 6")
         sys.stdout.flush()
         sys.exit(1)
 
@@ -477,6 +485,7 @@ Output:
     media/img/optimal/    — publish-ready cover/artwork delivery files
     media/video/optimal/  — publish-ready video delivery files
   play/playlist.json — player playlist
+  data/gallery.json — initial gallery composition (first build)
     media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   site.webmanifest — PWA manifest
 """)

@@ -13,12 +13,13 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ### Admin Dashboard
 - User-friendly admin panel for managing users, files, and site content
-- **Needs attention** operator inbox modal with plain-language tasks (header bell is the primary entry point on completed installs)
+- **Notifications** operator inbox modal with plain-language tasks (header bell is the primary entry point on completed installs)
 - Quick actions on the completed-install dashboard (Analytics, Files, Content, Update site, live preview)
 - Built-in analytics for playback and user behavior
 - Guided Config forms (Basics, Theme, Support, Sharing) instead of raw JSON editing
 - **Block-based Pages editor** (v0.8 beta): Text, Picture, and List blocks; rich formatting; fraction picture widths and Flow placement; live player-styled preview; delete confirmations for pages and blocks
 - Page registry in `data/pages/registry.json`: operators can add, rename, and remove optional pages; **FAQ remains required** for login info / shared-link context
+- Content → **Playlist**, **Gallery**, **Pages**, and **Player layout** share one pool/result editor pattern: **Available content** pool on the left, active order/layout on the right, multi-select drag-and-drop, demo filter on media pools only, and amber **Save** / green **Saved** header controls
 - Content → **Playlist** and **Gallery** management (single library each today; **multiple libraries** planned in v0.8)
 - Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
 - Files panels for Audio, Photos, Video, Illustrations, and install-specific **Theme** assets (distinct from Config → Theme presentation settings)
@@ -27,6 +28,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Audio quick-edit for common tag fields plus full editor for lyrics, description, and cover work
 - Cover-art badges and compact in-use/orphan indicators on illustrations, photos, and video
 - Operator-facing validation actions and file-level metadata health badges for faster repair workflows
+- Upload-time **background delivery automation**: audio, image, and video derivatives prepare automatically after upload; Content pools list **delivery-ready** assets only; progress and failures surface in **Notifications**
 - Build actions named for operators: **Update the live site** and **Refresh photos & artwork**
 - Admin-panel **package updater** for hosted operators (immutable release packages)
 - Separate admin audit trail for management actions
@@ -43,6 +45,8 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ### Build & Delivery
 - Automated build pipeline for optimized audio and images
+- Upload-time background tasks for audio delivery, image delivery, and video delivery (`biblioteca/auto-build-tasks.php` plus focused Python runners)
+- Validation-only playlist scan after audio upload; setup full build composes initial playlist, gallery, and player layout via `scripts/setupCompose.py`
 - Automatic lightweight playlist/validation refresh after audio metadata edits
 - Original / master / delivery media workflow for safer repair and publish handling
 - Social sharing metadata and web manifest generation

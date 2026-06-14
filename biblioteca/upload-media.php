@@ -16,7 +16,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/audio-master-helpers.php';
-require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/cover-art-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
 
@@ -281,37 +281,6 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
     return '';
 }
 
-function bandpromo_maybe_run_auto_image_delivery(array $reasons, ?array $state): array {
-    $hasImageWork = in_array('media_image_upload', $reasons, true) || in_array('media_cover_upload', $reasons, true);
-    if (!$hasImageWork) {
-        return [
-            'state' => $state,
-            'auto_tasks' => [],
-            'warning' => '',
-            'task_output' => '',
-        ];
-    }
-
-    $task = bandpromo_run_light_task('scripts/optimizeMedia.py', [
-        'BANDPROMO_OPTIMIZE_MODE' => 'image-only',
-    ]);
-    if ($task['ok']) {
-        return [
-            'state' => bandpromo_clear_build_required_tasks(['image-delivery']),
-            'auto_tasks' => ['image-delivery'],
-            'warning' => '',
-            'task_output' => trim((string) ($task['output'] ?? '')),
-        ];
-    }
-
-    return [
-        'state' => $state,
-        'auto_tasks' => [],
-        'warning' => 'Automatic image refresh failed after upload.',
-        'task_output' => trim((string) ($task['output'] ?? '')),
-    ];
-}
-
 // ─── Chunked upload mode ──────────────────────────────────────────────────────
 if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $chunkIndex  = (int)$_POST['chunk_index'];
@@ -354,6 +323,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     }
 
     // All chunks received — assemble
+    @set_time_limit(0);
     $dest = resolve_upload_destination($root_dir, (string) $target_hint, $ext, $safeName);
     if ($dest === null) {
         http_response_code(400);
@@ -391,7 +361,9 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $master = $target_hint === 'special'
         ? ['attempted' => false, 'prepared' => false, 'warning' => '']
         : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
-    $videoPoster = bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
+    $videoPoster = bandpromo_is_video_extension($savedExt)
+        ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
+        : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
     $response = [
         'ok' => true,
         'status' => 'complete',
@@ -423,17 +395,25 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
 
     if ($reason !== '') {
         $state = bandpromo_mark_build_required($reason);
-        $autoImage = bandpromo_maybe_run_auto_image_delivery([$reason], $state);
-        $state = $autoImage['state'];
-        $response['build_required'] = true;
+        $auto = bandpromo_run_auto_upload_tasks([$reason], [$savedName], $state);
+        $state = $auto['state'];
         $response['build_required'] = !empty($state['required']);
         $response['build_required_state'] = $state;
-        if (!empty($autoImage['auto_tasks'])) {
-            $response['auto_tasks'] = $autoImage['auto_tasks'];
+        if (!empty($auto['auto_tasks'])) {
+            $response['auto_tasks'] = $auto['auto_tasks'];
         }
-        if ($autoImage['warning'] !== '') {
-            $response['warning'] = $autoImage['warning'];
-            $response['task_output'] = $autoImage['task_output'];
+        if (!empty($auto['delivery_prepared'])) {
+            $response['delivery_prepared'] = $auto['delivery_prepared'];
+        }
+        if (!empty($auto['delivery_missing'])) {
+            $response['delivery_missing'] = $auto['delivery_missing'];
+        }
+        if (!empty($auto['background_tasks'])) {
+            $response['background_tasks'] = $auto['background_tasks'];
+        }
+        if ($auto['warning'] !== '') {
+            $response['warning'] = $auto['warning'];
+            $response['task_output'] = $auto['task_output'];
         }
     } else {
         $response['build_required'] = false;
@@ -534,7 +514,9 @@ foreach ($files as $file) {
         $master = $target_hint === 'special'
             ? ['attempted' => false, 'prepared' => false, 'warning' => '']
             : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
-        $videoPoster = bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
+        $videoPoster = bandpromo_is_video_extension($saved_ext)
+            ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
+            : bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
         $result = ['name' => $original, 'ok' => true, 'saved_as' => $saved_name];
         if (!empty($master['attempted'])) {
             $result['master_prepared'] = !empty($master['prepared']);
@@ -589,16 +571,31 @@ if ($uploaded > 0 && !empty($upload_reasons)) {
     foreach ($upload_reasons as $reason) {
         $state = bandpromo_mark_build_required($reason);
     }
-    $autoImage = bandpromo_maybe_run_auto_image_delivery($upload_reasons, $state);
-    $state = $autoImage['state'];
+    $savedNames = [];
+    foreach ($results as $result) {
+        if (!empty($result['ok']) && !empty($result['saved_as'])) {
+            $savedNames[] = (string) $result['saved_as'];
+        }
+    }
+    $auto = bandpromo_run_auto_upload_tasks($upload_reasons, $savedNames, $state);
+    $state = $auto['state'];
     $response['build_required'] = !empty($state['required']);
     $response['build_required_state'] = $state;
-    if (!empty($autoImage['auto_tasks'])) {
-        $response['auto_tasks'] = $autoImage['auto_tasks'];
+    if (!empty($auto['auto_tasks'])) {
+        $response['auto_tasks'] = $auto['auto_tasks'];
     }
-    if ($autoImage['warning'] !== '') {
-        $response['warning'] = $autoImage['warning'];
-        $response['task_output'] = $autoImage['task_output'];
+    if (!empty($auto['delivery_prepared'])) {
+        $response['delivery_prepared'] = $auto['delivery_prepared'];
+    }
+    if (!empty($auto['delivery_missing'])) {
+        $response['delivery_missing'] = $auto['delivery_missing'];
+    }
+    if (!empty($auto['background_tasks'])) {
+        $response['background_tasks'] = $auto['background_tasks'];
+    }
+    if ($auto['warning'] !== '') {
+        $response['warning'] = $auto['warning'];
+        $response['task_output'] = $auto['task_output'];
     }
 } else {
     $response['build_required'] = false;

@@ -2,6 +2,84 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 15:00 - Checkpoint v0.7 build 286: ship unified Content editor pool/result UX (Playlist, Gallery, Pages, Player layout), upload-time background delivery automation with delivery-ready pool gates, playlist save that materializes pool tracks without requiring a full build, setup compose for initial layout, and non-blocking video delivery with Windows MOV fix.
+
+2026-06-15 14:25 - Fixed MOV/WEBM background video delivery on Windows: ffmpeg logs no longer corrupt the result JSON, subprocess output uses UTF-8, and failed jobs now surface the real delivery error instead of “failed without a result payload”.
+
+2026-06-15 14:10 - Video uploads no longer block on the final chunk: delivery and poster generation always run in a background job (including MP4), and the upload UI shows “finishing upload…” instead of stalling near 88%.
+
+2026-06-15 13:50 - Locked Content editor pool headers to Gallery dimensions (48px, 118px control slot, “Available content” label) so Playlist, Gallery, Pages, and Player tabs keep the same box positions when switching.
+
+2026-06-15 13:35 - Content editor column headers now use a fixed height and compact pool actions so Pages “Add page” matches Playlist/Gallery/Player layout and tabs no longer jump when switching editors.
+
+2026-06-15 13:20 - Content editors (Playlist, Gallery, Pages, Player) now share column header sizing and a compact save control: hidden until edits exist, amber Save while dirty, green Saved after a successful save.
+
+2026-06-15 13:00 - Removed the non-functional Include demo filter from Content → Player layout; demo filtering stays on Playlist and Gallery pools only.
+
+2026-06-15 12:45 - Include demo on the playlist editor now auto-prepares missing bundled demo delivery files and shows not-ready demo tracks in the pool until their MP3 is ready.
+
+2026-06-15 12:35 - Clarified empty pool states in Content editors (items already placed vs delivery still preparing) and fixed gallery pool staying on “Loading media…” when no delivery-ready files exist.
+
+2026-06-15 12:25 - Removed redundant playlist pool filter hint under Available tracks; the Include demo control is self-explanatory.
+
+2026-06-15 12:20 - Pages block editor keeps the add-block toolbar pinned while only the block list scrolls inside a viewport-sized left panel.
+
+2026-06-15 12:15 - Updated Pages block editor hint to mention reordering blocks and live preview while editing.
+
+2026-06-15 12:10 - Fixed Pages editor block editor leaking below the pool: `display: flex` on `.page-editor-view` no longer overrides the `hidden` attribute.
+
+2026-06-15 12:00 - Redesigned Content → Pages to match other editors: available-pages pool on the left with Add page in the header, edit icon per row opens the block editor in place, live preview stays on the right, and new pages open straight into the editor.
+
+2026-06-15 11:15 - MOV/WEBM video uploads now spawn async background delivery jobs with progress and completion surfaced in Notifications; MP4 uploads still prepare synchronously.
+
+2026-06-15 10:30 - Background delivery automation: uploads now auto-run validation scan plus audio/image/video delivery tasks, Content pools only list delivery-ready assets, the header inbox is renamed to Notifications, setup full build composes initial playlist/gallery/player layout via `scripts/setupCompose.py`, and post-setup installs no longer nudge operators toward the Build tab for routine uploads.
+
+2026-06-15 08:00 - Playlist save now validates missing optimal delivery files and runs a partial audio-delivery pass for newly added tracks (including bundled demo audio) so playback works without a full publish build.
+
+2026-06-15 07:50 - Fixed playlist/gallery/player layout reordering bouncing back by finalizing within-list drags before removing the drop placeholder.
+
+2026-06-15 07:45 - Pool demo filter no longer removes playlist or gallery items: preview keeps active entries regardless of filter, and filter changes reload only the available pool.
+
+2026-06-15 07:40 - Fixed playlist save dropping pool-only tracks (including bundled demo audio): save now materializes missing entries from source audio before writing `play/playlist.json`.
+
+2026-06-15 07:35 - Moved the demo asset control into a right-aligned pool filter on Content editors (Playlist, Gallery, Player layout), matching the Files tab filter pattern and removing the standalone Demo button.
+
+2026-06-15 07:25 - Redesigned Content → Playlist editor as a two-column pool/playlist layout with multi-select drag-and-drop, matching Gallery and Player layout. Saving now writes only the active playlist; excluded tracks stay in the pool across preview, save, and build.
+
+2026-06-15 07:15 - Player layout editor supports multi-select drag-and-drop with visible selection highlights on both pool and layout lists.
+
+2026-06-15 07:10 - Fixed Gallery order row selection highlight so multi-select styling is visible on the active list (not overridden by gallery row styles).
+
+2026-06-15 07:05 - Gallery editor supports multi-select drag-and-drop: Shift/Ctrl/Cmd-click to select multiple pool or gallery items and move them together.
+
+2026-06-15 06:55 - Redesigned Gallery editor to match Player layout: Available content pool, Gallery order panel, header save row, and cross-list drag-and-drop.
+
+2026-06-15 06:50 - Moved Player layout save button and status into the panel header, matching the Pages editor pattern.
+
+2026-06-15 06:45 - Restyled Player layout pool and list panels with bordered boxes, clearer headers, and renamed the left column to Available content.
+
+2026-06-15 06:40 - Player layout rows now show read-only page titles with icons; tab labels are edited in Pages only, and remove buttons sit inside each row like the gallery editor.
+
+2026-06-15 06:35 - Clarified Player layout column headers with proper title styling and a divider so they read as section headings, not helper text.
+
+2026-06-15 06:30 - Removed FAQ mention from Player layout help copy; FAQ is login-only and not part of this editor.
+
+2026-06-15 06:25 - Player tab bar and content panels now follow the saved `player.tab_order` layout; page visibility no longer depends on the legacy pages module toggle.
+
+2026-06-15 06:15 - Restyled Player layout editor as a two-column pool/result editor using playlist row styling, drag handles, and gallery-style layout.
+
+2026-06-15 06:00 - Rebuilt Content → Player layout editor with drag-and-drop active/available page lists, locked Playlist/Lyrics rows, FAQ excluded, persisted `player.tab_order`, and reorderable gallery/page tabs.
+
+2026-06-15 05:45 - Removed padding from page editor panels and preview panel so blocks and live preview fill the column width.
+
+2026-06-15 05:40 - Removed `#pageEditorRoot` card padding so the page editor workzone uses the full content width.
+
+2026-06-15 05:35 - Compacted page editor layout: removed `#pageEditorRoot` card bottom margin, tightened panel/block padding and gaps, and slightly increased preview viewport height.
+
+2026-06-15 05:25 - Block style switches (¶, headers, small, code) now preserve paragraph alignment; only the Clear formatting (⌫) control resets alignment back to left.
+
+2026-06-15 05:15 - Fixed page editor toolbar state tracking after rich-text changes: restored selection after block transforms, stopped consuming selection while reading toolbar state, and derive active icons from the selected blocks instead of stale `execCommand` values.
+
 2026-06-15 05:00 - Checkpoint v0.7 build 284: ship consistent page editor rich-text formatting (multi-paragraph styles, clear formatting, selection-safe toolbar, paste cleanup).
 
 2026-06-15 04:45 - Fixed page editor rich text consistency: toolbar clicks preserve selection, block styles apply to every paragraph in a multi-block selection, code/small/heading styles toggle back to normal paragraph, added Clear formatting (⌫), and paste now inserts clean paragraph blocks instead of foreign markup.

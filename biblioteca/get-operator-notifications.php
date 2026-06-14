@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/admin-api-guard.php';
 
-require_once __DIR__ . '/build-required.php';
+require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/admin-welcome-state.php';
 require_once __DIR__ . '/package-updater.php';
 
@@ -22,11 +22,13 @@ if (file_exists($validationFile)) {
 $buildState = bandpromo_get_build_required_state();
 $welcomeState = bandpromo_admin_welcome_state($rootDir);
 $packageUpdate = bandpromo_package_check_update($rootDir);
+$backgroundTasks = bandpromo_reconcile_background_tasks();
 
 echo json_encode([
     'ok' => true,
     'build_required' => !empty($buildState['required']),
     'build_required_state' => $buildState,
+    'background_tasks' => $backgroundTasks,
     'metadata_validation' => $metadataValidation,
     'welcome' => $welcomeState,
     'package_update' => [

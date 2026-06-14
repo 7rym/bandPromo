@@ -72,8 +72,19 @@ def copy_mp4(source_path: Path, target_path: Path) -> bool:
         shutil.copy2(str(source_path), str(target_path))
         return True
     except Exception as exc:
-        print(f"  ❌ Could not copy MP4 source: {exc}")
+        print(f"  ❌ Could not copy MP4 source: {exc}", file=sys.stderr)
         return False
+
+
+def _run_ffmpeg_capture(command):
+    return subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+    )
 
 
 def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
@@ -102,16 +113,16 @@ def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
         str(target_path),
     ]
     try:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        result = _run_ffmpeg_capture(command)
     except Exception as exc:
-        print(f"  ❌ Could not start ffmpeg for video transcode: {exc}")
+        print(f"  ❌ Could not start ffmpeg for video transcode: {exc}", file=sys.stderr)
         return False
 
     if result.returncode != 0:
-        print("  ❌ ffmpeg video transcode failed")
+        print("  ❌ ffmpeg video transcode failed", file=sys.stderr)
         tail = '\n'.join((result.stdout or '').splitlines()[-12:])
         if tail:
-            print(tail)
+            print(tail, file=sys.stderr)
         if target_path.exists():
             try:
                 target_path.unlink()
@@ -139,16 +150,16 @@ def ensure_video_poster(source_path: Path, poster_path: Path) -> bool:
         str(poster_path),
     ]
     try:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        result = _run_ffmpeg_capture(command)
     except Exception as exc:
-        print(f"  ⚠️  Could not start ffmpeg for poster extraction: {exc}")
+        print(f"  ⚠️  Could not start ffmpeg for poster extraction: {exc}", file=sys.stderr)
         return False
 
     if result.returncode != 0:
-        print(f"  ⚠️  Could not refresh poster for {source_path.name}")
+        print(f"  ⚠️  Could not refresh poster for {source_path.name}", file=sys.stderr)
         tail = '\n'.join((result.stdout or '').splitlines()[-8:])
         if tail:
-            print(tail)
+            print(tail, file=sys.stderr)
         if poster_path.exists():
             try:
                 poster_path.unlink()

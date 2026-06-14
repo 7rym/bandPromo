@@ -806,8 +806,9 @@ def generate_playlist():
             saved_order = []
     if saved_order and isinstance(saved_order, list):
         _order_index = {name: i for i, name in enumerate(saved_order)}
-        # Known tracks first (in saved order), then new tracks (original sort key) appended
-        files.sort(key=lambda f: (_order_index.get(f.name, len(saved_order)), get_track_number(str(f)), f.name))
+        _saved_names = set(saved_order)
+        files = [f for f in files if f.name in _saved_names]
+        files.sort(key=lambda f: (_order_index.get(f.name, len(saved_order)), get_track_number(str(f)), f.name.lower()))
 
     if not files:
         if unsupported_files:
@@ -923,5 +924,76 @@ def generate_playlist():
     if unsupported_files:
         print(f"⚠️  Unsupported source files were skipped. Current supported source formats: {', '.join(ext.upper().lstrip('.') for ext in SUPPORTED_EXTENSIONS)}")
 
+
+def generate_validation_scan():
+    """Refresh playlist validation for all visible source files without mutating playlist.json."""
+    if not AUDIO_ORIG_DIR.exists():
+        print(f"❌ Original audio directory not found at {AUDIO_ORIG_DIR}")
+        return
+
+    files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
+    files.sort(key=lambda f: (get_track_number(str(f)), f.name.lower()))
+
+    if not files:
+        if unsupported_files:
+            unsupported_names = ', '.join(file.name for file in unsupported_files)
+            print(f"❌ No supported source audio found in {AUDIO_ORIG_DIR}")
+            print(f"   Unsupported audio files present: {unsupported_names}")
+        elif hidden_bundled_files:
+            print(f"No playable source audio remains after hiding bundled demo tracks in {AUDIO_ORIG_DIR}")
+        else:
+            print(f"No supported audio files found in {AUDIO_ORIG_DIR}")
+        return
+
+    print(f"Validation scan for {len(files)} source file(s)...")
+    if hidden_bundled_files:
+        print(f"ℹ️  Hidden bundled demo tracks skipped: {', '.join(file.name for file in hidden_bundled_files)}")
+    if unsupported_files:
+        print(f"⚠️  Skipping unsupported audio source files: {', '.join(file.name for file in unsupported_files)}")
+
+    validation_entries = []
+    for filepath in files:
+        filename = filepath.name
+        working_path = resolve_audio_working_path(filename)
+        info = parse_audio_file(str(working_path))
+        metadata_warnings = build_metadata_warnings(filename, info)
+        cover_file = info['cover']
+        if cover_file:
+            cover_file = os.path.basename(cover_file)
+        else:
+            cover_file = ""
+
+        validation_entries.append({
+            'file': filename,
+            'title': info['title'],
+            'cover': cover_file,
+            'coverSource': info.get('cover_source', 'missing'),
+            'sourceTier': 'master' if working_path.parent == AUDIO_MASTER_DIR else 'original',
+            'warnings': metadata_warnings,
+        })
+
+    metadata_warning_count = sum(1 for entry in validation_entries if entry['warnings'])
+    validation_report = {
+        'supportedExtensions': list(SUPPORTED_EXTENSIONS),
+        'unsupportedSourceFiles': [file.name for file in unsupported_files],
+        'hiddenBundledSourceFiles': [file.name for file in hidden_bundled_files],
+        'summary': {
+            'totalTracks': len(validation_entries),
+            'tracksWithWarnings': metadata_warning_count,
+            'tracksWithoutWarnings': len(validation_entries) - metadata_warning_count,
+        },
+        'tracks': validation_entries,
+    }
+    write_validation_report(validation_report)
+
+    if metadata_warning_count:
+        print(f"⚠️  Metadata warnings found for {metadata_warning_count} track(s).")
+        print(f"   Validation report saved to {VALIDATION_FILE}")
+
+
 if __name__ == "__main__":
-    generate_playlist()
+    scan_mode = os.environ.get('BANDPROMO_PLAYLIST_SCAN_MODE', 'full').strip().lower()
+    if scan_mode == 'validation-only':
+        generate_validation_scan()
+    else:
+        generate_playlist()

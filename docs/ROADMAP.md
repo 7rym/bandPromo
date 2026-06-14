@@ -428,7 +428,8 @@ Closed-beta feedback (2026-06-14) locked the first three implementation prioriti
 
 1. **Package updater** — **shipped** in admin (**Dashboard → Site update**).
 2. **Page editor and presentation** — **shipped** in admin (**Content → Pages**): block JSON authoring, Width/Flow picture model, rich text toolbar, live preview, and JSON-only page storage in `data/pages/`.
-3. **Platform model** — multi-playlist, multi-gallery, page composition, module boundaries, playback/delivery architecture, and stable specs for later access and distribution work.
+3. **Content editor pool model and delivery automation** — **shipped** in admin: Playlist, Gallery, Pages, and Player layout use the shared pool/result editor; uploads auto-run delivery tasks; Content pools gate on delivery-ready assets; Notifications surfaces background video work.
+4. **Platform model** — multi-playlist, multi-gallery, page composition, module boundaries, playback/delivery architecture, and stable specs for later access and distribution work.
 
 ### What v0.8 delivers vs defines
 

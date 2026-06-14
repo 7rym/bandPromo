@@ -103,6 +103,9 @@ Scope: operator-facing editing and control surfaces. Put items here when the que
 - [x] Update build generation so existing manual playlist order is preserved and new tracks are appended at the end.
 - [x] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
 - [x] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
+- [x] Unify Content editors (Playlist, Gallery, Pages, Player layout) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls.
+- [x] Auto-run upload-time delivery tasks (audio, image, video) and gate Content pools on delivery-ready assets.
+- [x] Surface background video delivery progress and failures in Notifications instead of blocking uploads.
 
 Admin UX note: metadata repair belongs to media handling and operator readiness for policy/behavior, while this section tracks the operator-facing editor flows. The first audio-master repair surface now exists; the remaining repair work is about deeper task routing, persistent issue visibility, and broader packaging workflows.
 
