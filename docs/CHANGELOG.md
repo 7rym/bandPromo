@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 05:00 - Checkpoint v0.7 build 284: ship consistent page editor rich-text formatting (multi-paragraph styles, clear formatting, selection-safe toolbar, paste cleanup).
+
+2026-06-15 04:45 - Fixed page editor rich text consistency: toolbar clicks preserve selection, block styles apply to every paragraph in a multi-block selection, code/small/heading styles toggle back to normal paragraph, added Clear formatting (⌫), and paste now inserts clean paragraph blocks instead of foreign markup.
+
 2026-06-15 04:15 - Checkpoint v0.7 build 283: operator inbox surfaces incomplete Welcome checklist steps and available site package updates from one shared notifications endpoint.
 
 2026-06-15 04:00 - Operator inbox now includes incomplete Welcome checklist steps and available site package updates, using shared welcome-state logic in `admin-welcome-state.php` and an expanded `get-operator-notifications.php` payload.

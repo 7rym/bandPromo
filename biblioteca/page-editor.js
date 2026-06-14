@@ -261,6 +261,7 @@
                         ${renderToolbarButton(index, field, 'block', '<span class="page-toolbar-glyph page-toolbar-glyph-h3" aria-hidden="true">H</span>', 'Heading 3', ' data-block-tag="h3"')}
                         ${renderToolbarButton(index, field, 'block', '<span class="page-toolbar-glyph page-toolbar-glyph-small" aria-hidden="true">S</span>', 'Small text', ' data-block-tag="page-text-small"')}
                         ${renderToolbarButton(index, field, 'block', '<span class="page-toolbar-glyph page-toolbar-glyph-code" aria-hidden="true">&lt;/&gt;</span>', 'Code', ' data-block-tag="page-text-code"', true)}
+                        ${renderToolbarButton(index, field, 'clear-format', '<span class="page-toolbar-glyph page-toolbar-glyph-clear" aria-hidden="true">⌫</span>', 'Clear formatting')}
                     </div>
                     ${sep}
                     ${renderToolbarButton(index, field, 'bold', '<strong class="page-toolbar-glyph" aria-hidden="true">B</strong>', 'Bold')}
@@ -531,14 +532,80 @@
         const PAGE_EDITOR_BLOCK_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'PRE', 'DIV']);
         const PAGE_EDITOR_STYLE_CLASSES = ['page-text-small', 'page-text-code'];
         const PAGE_EDITOR_ALIGN_CLASSES = ['page-align-left', 'page-align-center', 'page-align-right'];
+        const editorSelectionStore = new WeakMap();
 
-        function getBlockElementAtCursor(editor) {
+        function captureEditorSelection(editor) {
             const selection = window.getSelection();
             if (!selection || selection.rangeCount === 0 || !selection.anchorNode) {
-                return editor.querySelector('p, h1, h2, h3, h4, pre');
+                return;
+            }
+            if (!editor.contains(selection.anchorNode)) {
+                return;
+            }
+            editorSelectionStore.set(editor, selection.getRangeAt(0).cloneRange());
+        }
+
+        function restoreEditorSelection(editor, range) {
+            if (!range) {
+                return;
+            }
+            editor.focus({ preventScroll: true });
+            const selection = window.getSelection();
+            if (!selection) {
+                return;
+            }
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        function consumeEditorSelection(editor) {
+            const stored = editorSelectionStore.get(editor);
+            if (stored) {
+                editorSelectionStore.delete(editor);
+                return stored.cloneRange();
             }
 
-            let node = selection.anchorNode;
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0 || !selection.anchorNode) {
+                return null;
+            }
+            if (!editor.contains(selection.anchorNode)) {
+                return null;
+            }
+
+            return selection.getRangeAt(0).cloneRange();
+        }
+
+        function blockIntersectsRange(blockEl, range) {
+            if (!(blockEl instanceof HTMLElement) || !range) {
+                return false;
+            }
+
+            try {
+                const blockRange = document.createRange();
+                blockRange.selectNodeContents(blockEl);
+                return range.compareBoundaryPoints(Range.START_TO_END, blockRange) > 0
+                    && range.compareBoundaryPoints(Range.END_TO_START, blockRange) < 0;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function getBlockElementAtCursor(editor, range = null) {
+            const selection = window.getSelection();
+            let anchorNode = null;
+
+            if (range) {
+                anchorNode = range.commonAncestorContainer;
+            } else if (selection && selection.rangeCount > 0 && selection.anchorNode) {
+                anchorNode = selection.anchorNode;
+            }
+
+            if (!anchorNode) {
+                return editor.querySelector('p, h1, h2, h3, h4, pre, div');
+            }
+
+            let node = anchorNode;
             if (node.nodeType === Node.TEXT_NODE) {
                 node = node.parentElement;
             }
@@ -552,7 +619,133 @@
                 blockEl = blockEl.parentElement;
             }
 
-            return editor.querySelector('p, h1, h2, h3, h4, pre');
+            return editor.querySelector('p, h1, h2, h3, h4, pre, div');
+        }
+
+        function getBlockElementsInSelection(editor, range = null) {
+            const workingRange = range || consumeEditorSelection(editor);
+            if (!workingRange) {
+                const fallback = getBlockElementAtCursor(editor);
+                return fallback ? [fallback] : [];
+            }
+
+            if (workingRange.collapsed) {
+                const fallback = getBlockElementAtCursor(editor, workingRange);
+                return fallback ? [fallback] : [];
+            }
+
+            const blocks = Array.from(editor.querySelectorAll('p, h1, h2, h3, h4, pre'))
+                .filter((blockEl) => blockIntersectsRange(blockEl, workingRange));
+
+            if (blocks.length > 0) {
+                return blocks;
+            }
+
+            const wrapperBlocks = Array.from(editor.querySelectorAll(':scope > div'))
+                .filter((blockEl) => blockIntersectsRange(blockEl, workingRange));
+
+            if (wrapperBlocks.length > 0) {
+                return wrapperBlocks;
+            }
+
+            const fallback = getBlockElementAtCursor(editor, workingRange);
+            return fallback ? [fallback] : [];
+        }
+
+        function stripInlineFormattingFromHtml(html) {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+
+            wrapper.querySelectorAll('span, font').forEach((element) => {
+                element.removeAttribute('style');
+                element.removeAttribute('class');
+            });
+
+            ['b', 'strong', 'i', 'em', 'u'].forEach((tagName) => {
+                wrapper.querySelectorAll(tagName).forEach((element) => {
+                    const parent = element.parentNode;
+                    if (!parent) {
+                        return;
+                    }
+                    while (element.firstChild) {
+                        parent.insertBefore(element.firstChild, element);
+                    }
+                    parent.removeChild(element);
+                });
+            });
+
+            return wrapper.innerHTML;
+        }
+
+        function createBlockElement(normalizedTag, innerHtml, sourceBlock, options = {}) {
+            const clearFormatting = options.clearFormatting === true;
+            const content = clearFormatting ? stripInlineFormattingFromHtml(innerHtml) : innerHtml;
+            let next;
+
+            if (normalizedTag === 'page-text-small') {
+                next = document.createElement('p');
+                next.className = 'page-text-small';
+            } else if (normalizedTag === 'page-text-code') {
+                next = document.createElement('pre');
+                next.className = 'page-text-code';
+            } else if (normalizedTag === 'h1' || normalizedTag === 'h2' || normalizedTag === 'h3' || normalizedTag === 'h4') {
+                next = document.createElement(normalizedTag);
+            } else {
+                next = document.createElement('p');
+            }
+
+            next.innerHTML = content;
+
+            if (clearFormatting) {
+                applyAlignmentClasses(next, 'left');
+            } else if (sourceBlock instanceof HTMLElement) {
+                copyBlockAlignment(sourceBlock, next);
+            } else {
+                applyAlignmentClasses(next, 'left');
+            }
+
+            return next;
+        }
+
+        function transformBlockElement(blockEl, normalizedTag, options = {}) {
+            if (!(blockEl instanceof HTMLElement)) {
+                return null;
+            }
+
+            const clearFormatting = options.clearFormatting === true;
+            const effectiveTag = clearFormatting ? 'p' : normalizedTag;
+            const next = createBlockElement(effectiveTag, blockEl.innerHTML, blockEl, { clearFormatting });
+            blockEl.replaceWith(next);
+            return next;
+        }
+
+        function applyBlockStyle(editor, blockTag, range = null) {
+            const normalizedTag = normalizeBlockTag(blockTag);
+            const targets = getBlockElementsInSelection(editor, range);
+            if (!targets.length) {
+                return;
+            }
+
+            const togglesOff = ['page-text-small', 'page-text-code', 'h1', 'h2', 'h3', 'h4'].includes(normalizedTag)
+                && targets.every((blockEl) => inferBlockTag(blockEl) === normalizedTag);
+
+            if (normalizedTag === 'p' || togglesOff) {
+                targets.forEach((blockEl) => {
+                    transformBlockElement(blockEl, 'p', { clearFormatting: true });
+                });
+                return;
+            }
+
+            targets.forEach((blockEl) => {
+                transformBlockElement(blockEl, normalizedTag, { clearFormatting: false });
+            });
+        }
+
+        function applyClearFormatting(editor, range = null) {
+            const targets = getBlockElementsInSelection(editor, range);
+            targets.forEach((blockEl) => {
+                transformBlockElement(blockEl, 'p', { clearFormatting: true });
+            });
         }
 
         function normalizeBlockTag(value) {
@@ -625,40 +818,6 @@
                 applyAlignmentClasses(target, 'right');
             } else {
                 applyAlignmentClasses(target, 'left');
-            }
-        }
-
-        function applyBlockStyle(editor, blockTag) {
-            const blockEl = getBlockElementAtCursor(editor);
-            if (!blockEl) return;
-
-            const content = blockEl.innerHTML;
-            const normalizedTag = normalizeBlockTag(blockTag);
-
-            if (normalizedTag === 'page-text-small') {
-                const next = document.createElement('p');
-                next.className = 'page-text-small';
-                next.innerHTML = content;
-                copyBlockAlignment(blockEl, next);
-                blockEl.replaceWith(next);
-                return;
-            }
-
-            if (normalizedTag === 'page-text-code') {
-                const next = document.createElement('pre');
-                next.className = 'page-text-code';
-                next.innerHTML = content;
-                copyBlockAlignment(blockEl, next);
-                blockEl.replaceWith(next);
-                return;
-            }
-
-            if (normalizedTag === 'h1' || normalizedTag === 'h2' || normalizedTag === 'h3' || normalizedTag === 'h4' || normalizedTag === 'p') {
-                document.execCommand('formatBlock', false, normalizedTag);
-                const updated = getBlockElementAtCursor(editor);
-                if (updated) {
-                    PAGE_EDITOR_STYLE_CLASSES.forEach((className) => updated.classList.remove(className));
-                }
             }
         }
 
@@ -817,48 +976,39 @@
             queuePreview();
         }
 
-        function applyTextAlignment(blockIndex, field, align) {
+        function applyTextAlignment(blockIndex, field, align, range = null) {
             const editor = getRichEditor(blockIndex, field);
             if (!editor) return;
-            editor.focus();
 
-            const selection = window.getSelection();
-            let node = selection?.anchorNode ?? null;
-            if (node?.nodeType === Node.TEXT_NODE) {
-                node = node.parentElement;
+            const workingRange = range || consumeEditorSelection(editor);
+            restoreEditorSelection(editor, workingRange);
+
+            const targets = getBlockElementsInSelection(editor, workingRange);
+            if (!targets.length) {
+                return;
             }
 
-            let blockEl = node instanceof HTMLElement ? node : null;
+            targets.forEach((blockEl) => {
+                applyAlignmentClasses(blockEl, align);
+                clearWrapperDivAlignment(blockEl, editor);
+            });
 
-            while (blockEl && blockEl !== editor) {
-                if (PAGE_EDITOR_BLOCK_TAGS.has(blockEl.tagName)) {
-                    applyAlignmentClasses(blockEl, align);
-                    clearWrapperDivAlignment(blockEl, editor);
-                    syncRichField(blockIndex, field, editor.innerHTML);
-                    markDirty();
-                    scheduleToolbarStateUpdate();
-                    return;
-                }
-                blockEl = blockEl.parentElement;
-            }
-
-            const fallback = editor.querySelector('p, h1, h2, h3, h4, pre');
-            if (fallback) {
-                applyAlignmentClasses(fallback, align);
-                clearWrapperDivAlignment(fallback, editor);
-                syncRichField(blockIndex, field, editor.innerHTML);
-                markDirty();
-                scheduleToolbarStateUpdate();
-            }
+            syncRichField(blockIndex, field, editor.innerHTML);
+            markDirty();
+            scheduleToolbarStateUpdate();
         }
 
         function applyRichFormat(format, blockIndex, field, blockTag) {
             const editor = getRichEditor(blockIndex, field);
             if (!editor) return;
-            editor.focus();
+
+            const workingRange = consumeEditorSelection(editor);
+            restoreEditorSelection(editor, workingRange);
 
             if (format === 'block' && blockTag) {
-                applyBlockStyle(editor, blockTag);
+                applyBlockStyle(editor, blockTag, workingRange);
+            } else if (format === 'clear-format') {
+                applyClearFormatting(editor, workingRange);
             } else if (format === 'link') {
                 const url = window.prompt('Link address (https://… or /page):');
                 if (!url) return;
@@ -872,13 +1022,13 @@
             } else if (format === 'underline') {
                 document.execCommand('underline');
             } else if (format === 'align-left') {
-                applyTextAlignment(blockIndex, field, 'left');
+                applyTextAlignment(blockIndex, field, 'left', workingRange);
                 return;
             } else if (format === 'align-center') {
-                applyTextAlignment(blockIndex, field, 'center');
+                applyTextAlignment(blockIndex, field, 'center', workingRange);
                 return;
             } else if (format === 'align-right') {
-                applyTextAlignment(blockIndex, field, 'right');
+                applyTextAlignment(blockIndex, field, 'right', workingRange);
                 return;
             }
 
@@ -1229,6 +1379,7 @@
 
             const formatBtn = rawTarget.closest('button[data-format]');
             if (formatBtn instanceof HTMLButtonElement && shell.contains(formatBtn)) {
+                event.preventDefault();
                 applyRichFormat(
                     formatBtn.dataset.format || '',
                     Number(formatBtn.dataset.blockIndex),
@@ -1361,6 +1512,61 @@
             }
         });
         document.addEventListener('click', guardAdminNavigation, true);
+
+        shell.addEventListener('paste', (event) => {
+            const rawTarget = event.target;
+            if (!(rawTarget instanceof HTMLElement)) {
+                return;
+            }
+            const editor = rawTarget.closest('[data-rich-editor="1"]');
+            if (!(editor instanceof HTMLElement) || !shell.contains(editor)) {
+                return;
+            }
+
+            const clipboard = event.clipboardData;
+            if (!clipboard) {
+                return;
+            }
+
+            event.preventDefault();
+            const plainText = clipboard.getData('text/plain').replace(/\r\n/g, '\n');
+            if (plainText === '') {
+                return;
+            }
+
+            const paragraphs = plainText.split(/\n{2,}/).map((paragraph) => {
+                const lines = paragraph.split('\n').map((line) => escapeHtml(line));
+                return `<p>${lines.join('<br />')}</p>`;
+            });
+
+            document.execCommand('insertHTML', false, paragraphs.join('') || '<p><br></p>');
+            syncRichField(
+                Number(editor.dataset.blockIndex),
+                editor.dataset.richField || 'html',
+                editor.innerHTML
+            );
+            markDirty();
+            scheduleToolbarStateUpdate();
+        });
+
+        shell.addEventListener('mousedown', (event) => {
+            const rawTarget = event.target;
+            if (!(rawTarget instanceof HTMLElement)) {
+                return;
+            }
+            const formatBtn = rawTarget.closest('.page-word-toolbar button[data-format]');
+            if (!(formatBtn instanceof HTMLButtonElement) || !shell.contains(formatBtn)) {
+                return;
+            }
+            event.preventDefault();
+            const toolbar = formatBtn.closest('.page-word-toolbar');
+            const editor = toolbar
+                ? getRichEditor(Number(toolbar.dataset.blockIndex), toolbar.dataset.richField || 'html')
+                : getActiveRichEditor();
+            if (editor) {
+                captureEditorSelection(editor);
+            }
+        });
 
         document.addEventListener('selectionchange', () => {
             const editor = getActiveRichEditor();
