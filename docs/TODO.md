@@ -17,7 +17,7 @@ Rules for this file:
 
 Current target: finish `v0.7` cleanly before opening `v0.8 beta`.
 
-Status: all `v0.7` exit-gate sections are complete. The first hosted bootstrap audit on `bandpromo.site` succeeded; published package **v0.7 build 277** is now the operator install source. Remaining beta-readiness polish is ticket-driven (help text) or explicitly deferred to `v0.8` (caching/update propagation). **v0.8 beta opens with the admin-panel package updater as the first operator-facing implementation priority.**
+Status: all `v0.7` exit-gate sections are complete. The first hosted bootstrap audit on `bandpromo.site` succeeded; published package **v0.7 build 279** is the current operator install source. **v0.8 priority 1 (admin package updater) is now shipped in admin.** Closed-beta feedback keeps the page editor/presentation overhaul as **v0.8 priority 2** before broader platform-model work begins.
 
 Reference: see `ROADMAP.md` for the full milestone and release structure.
 
@@ -198,22 +198,31 @@ Deferred to v0.8:
 
 Deferred to later refactors: split `admin.js` into modules, remove remaining `save-page.php` HTML sanitizer duplication if a shared page-save helper is introduced.
 
-### Immediate next after v0.7
+### v0.8 implementation order (2026-06-14 beta feedback)
 
-- [ ] **Priority:** ship the admin-panel package updater for hosted operators: version check against published `release-manifest.json`, plain-language update summary, download/verify/apply with runtime preservation, post-update tasks, and retry-safe failure reporting (spec already in `ROADMAP.md` and `INSTALL-UPDATE.md`).
-- [ ] Define the `v0.8` multi-release data model.
-- [ ] Define anonymous vs registered access levels.
-- [ ] Define how support/payment providers fit the future access model: keep v0.7 support links/widgets config-driven, then decide later whether Ko-fi/Patreon/Stripe/PayPal/Vipps-style APIs need a reusable provider integration layer for registered or premium access rules.
-- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access is introduced.
-- [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
-- [ ] Design the first theme/config structure.
+Priority 1 — operator delivery:
+
+- [x] **Priority 1:** ship the admin-panel package updater for hosted operators: version check against published `release-manifest.json`, plain-language update summary, download/verify/apply with runtime preservation, post-update tasks, and retry-safe failure reporting (spec already in `ROADMAP.md` and `INSTALL-UPDATE.md`).
+
+Priority 2 — page editor and presentation (beta blocker; complete before broader v0.8 platform definitions):
+
+- [ ] **Priority 2:** ship the page editor and presentation overhaul: block-based authoring, semantic image presets, player-styled live preview, and a usable image picker with thumbnails/upload instead of the current TinyMCE + filename dropdown workflow.
 - [ ] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and a narrow first-party block set.
 - [ ] Lock the first page-image presentation model for v0.8: semantic responsive presets instead of pixel sizing.
 - [ ] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
 - [ ] Define the migration path from `data/bio.html` and `data/faq.html` into JSON-backed pages, including the compatibility window.
 - [ ] Plan the page-editor replacement for v0.8 around the locked schema and block-based editing flow rather than raw HTML authoring.
-- [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
+- [ ] Design the first theme/config structure and player semantic color tokens so page presentation and future theme packs share one contract.
+
+Priority 3 — platform model (after updater + page editor):
+
+- [ ] Define the `v0.8` multi-release data model.
+- [ ] Define anonymous vs registered access levels.
+- [ ] Define how support/payment providers fit the future access model: keep v0.7 support links/widgets config-driven, then decide later whether Ko-fi/Patreon/Stripe/PayPal/Vipps-style APIs need a reusable provider integration layer for registered or premium access rules.
+- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access is introduced.
+- [ ] Define core vs module boundaries in implementation terms, not only roadmap language.
 - [ ] Replace the single-release `web-config` field names with explicit install, release, and track scopes in the future schema.
+- [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
 - [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
 - [x] Implement dual-write admin saves for transitional fields during the schema migration window.
 
@@ -232,5 +241,6 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 
 - `ROADMAP.md` is the long-term direction.
 - `TODO.md` is the short-term working list.
+- **v0.8 order (2026-06-14 beta feedback):** package updater → page editor/presentation → platform model/PWA tracks.
 - Current operator model: one branded site. Prepared internal model: separate `brand`, `theme`, and `social` concerns, with install defaults and future release overrides kept internal until multi-release is real.
 - If a task does not help finish `v0.7` or unlock `v0.8 beta`, it probably belongs in the roadmap, not here.

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-14 12:00 - Shipped the admin-panel package updater (**v0.7 build 280**): Dashboard → Site update checks `release-manifest.json`, downloads and verifies immutable release ZIPs, applies tracked app files while preserving runtime state, runs post-update tasks, logs outcomes to `log/package-updates.jsonl`, and documents the operator flow in `docs/INSTALL-UPDATE.md`.
+
+2026-06-14 10:00 - Beta polish: added semantic player link tokens and `.bio-box` link styles for readable visited links on dark backgrounds, swapped admin gear/debug icon order with borderless utility buttons, and reordered `docs/TODO.md` / `docs/ROADMAP.md` so the package updater stays v0.8 priority 1 and the page editor/presentation overhaul is priority 2 before broader platform-model work.
+
 2026-06-13 17:15 - Published operator package **v0.7 build 279** with the beta Files-tab polish batch, login splash/session redirect improvements, and synced operator documentation.
 
 2026-06-13 17:00 - Synced operator docs for the Files list header UX, demo/source filtering, login splash, session-expiry redirect, and removal of verbose Used-by row text in `docs/FEATURES.md`, `docs/MEDIA-HANDLING.md`, `docs/ROADMAP.md`, `docs/TODO.md`, and `docs/SECURITY-AUDIT.md`.

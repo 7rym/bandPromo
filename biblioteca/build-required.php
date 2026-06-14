@@ -57,6 +57,7 @@ function bandpromo_reason_tasks(string $reason): array {
         'site_config_changed' => ['manifest'],
         'social_config_changed' => ['social-assets', 'manifest'],
         'media_image_upload' => ['image-delivery'],
+        'package_update' => ['manifest'],
     ];
 
     return $map[$reason] ?? [];

@@ -417,13 +417,20 @@ Caching and update propagation (aggressive safe caching, low needless re-downloa
 
 Theme: architectural shift from a private single-release site to a reusable artist platform foundation.
 
+Closed-beta feedback (2026-06-14) locked the first three implementation priorities:
+
+1. **Package updater** — shipped in admin (**Dashboard → Site update**); hosted operators can install published immutable packages without Git, SSH, or manual repo pulls.
+2. **Page editor and presentation** — the current TinyMCE/HTML workflow and image picker are a beta blocker; block-based authoring with player-styled preview comes before broader platform-model work.
+3. **Platform model** — multi-release, access levels, modules, and the rest of the v0.8 scope follow once operators can update and edit pages reliably.
+
 Primary goals:
 
-- ship the admin-panel package updater so hosted operators can move from published release packages to a current build without Git, SSH, or manual file uploads (first v0.8 implementation priority after the successful `bandpromo.site` bootstrap audit)
+- ship the admin-panel package updater so hosted operators can move from published release packages to a current build without Git, SSH, or manual file uploads (**shipped in admin; v0.8 priority 1 complete**)
+- ship the page editor and presentation overhaul: structured block authoring, semantic image presets, player-styled preview, and a usable image picker (**v0.8 priority 2**; beta blocker)
 - define the multi-release data model
 - define anonymous vs registered access levels
 - formalize core vs modules
-- add theme architecture
+- add theme architecture and semantic player color tokens shared by page rendering and future theme packs
 - settle licensing direction
 - rewrite the audio delivery to be scalable and less resource intensive serverside
 - a solid PWA solution with strong offline support
@@ -431,12 +438,13 @@ Primary goals:
 
 Suggested scope:
 
+- admin-panel package updater workflow for hosted operators
 - artist -> releases -> tracks model
 - public/private access model
 - basic module registry or config-based enable/disable model
 - theme tokens and theme selection model
 - structured static-page content model: block JSON source with rendered HTML delivery
-- page-editor replacement plan aligned with the structured content model instead of legacy raw HTML authoring
+- page-editor replacement aligned with the structured content model instead of legacy raw HTML authoring
 - nondestructive media naming (display names/aliases) layered on immutable source-file identities
 - role-based media handling that separates gallery media from page illustrations in admin/build behavior
 - initial roadmap for registered user features

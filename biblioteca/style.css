@@ -4,13 +4,19 @@
     --bg-color: #121212;
     --text-color: #ffffff;
     --card-size: 400px; /* Default for large mobile/small tablet */
+    --color-link: var(--primary-color);
+    --color-link-hover: #5ce4ff;
+    --color-link-visited: var(--secondary-color);
+    --color-text-muted: #dddddd;
+    --color-surface-mid: #1e1e24;
+    --color-surface-deep: #000000;
 }
 
 body {
     margin: 0;
     padding: 4px 0 0 0;
     background-color: var(--bg-color);
-    background-image: radial-gradient(circle at center, #1e1e24 0%, #000000 100%);
+    background-image: radial-gradient(circle at center, var(--color-surface-mid) 0%, var(--color-surface-deep) 100%);
     color: var(--text-color);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
@@ -76,7 +82,7 @@ Breakpoints:
         gap: 0px;
         align-items: start;
         max-height: 100vh;
-        background-image: radial-gradient(circle at center, #1e1e24 0%, #000000 100%);
+        background-image: radial-gradient(circle at center, var(--color-surface-mid) 0%, var(--color-surface-deep) 100%);
         background-size: auto;
         background-position: center;
         background-attachment: scroll;
@@ -116,7 +122,7 @@ Breakpoints:
         gap: 0px;
         align-items: start;
         max-height: 100vh;
-        background-image: radial-gradient(circle at center, #1e1e24 0%, #000000 100%);
+        background-image: radial-gradient(circle at center, var(--color-surface-mid) 0%, var(--color-surface-deep) 100%);
         background-size: auto;
         background-position: center;
         background-attachment: scroll;
@@ -205,56 +211,43 @@ Breakpoints:
 }
 
 /* Developer / Admin Utility Buttons */
+#admin-btn,
 #debug-panel-btn {
     position: fixed;
     top: 15px;
-    left: 15px;
     width: 30px;
     height: 30px;
     font-size: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    background: rgba(0, 210, 255, 0.1);
-    border-radius: 50%;
-    transition: all 0.3s ease;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 500;
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(0, 210, 255, 0.25);
+    backdrop-filter: none;
     color: var(--primary-color);
     padding: 0;
+    line-height: 1;
 }
 
 #admin-btn {
-    position: fixed;
-    top: 15px;
-    left: 55px;
-    width: 30px;
-    height: 30px;
-    font-size: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    left: 15px;
     text-decoration: none;
-    background: rgba(0, 210, 255, 0.1);
-    border-radius: 50%;
-    transition: all 0.3s ease;
-    z-index: 500;
-    backdrop-filter: blur(5px);
+    cursor: pointer;
+}
+
+#debug-panel-btn {
+    left: 55px;
+    cursor: pointer;
 }
 
 @media (hover: hover) {
+    #admin-btn:hover,
     #debug-panel-btn:hover {
-        background: rgba(0, 210, 255, 0.3);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
-        transform: scale(1.1);
-    }
-    #admin-btn:hover {
-        background: rgba(0, 210, 255, 0.3);
-        box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
-        transform: scale(1.1);
+        opacity: 0.85;
+        transform: scale(1.08);
     }
 }
 
@@ -914,8 +907,27 @@ audio {
     display: none;
     font-size: 15px;
     line-height: 1.6;
-    color: #ddd;
+    color: var(--color-text-muted);
     text-align: center;
+}
+
+.bio-box a {
+    color: var(--color-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.bio-box a:hover {
+    color: var(--color-link-hover);
+}
+
+.bio-box a:visited {
+    color: var(--color-link-visited);
+}
+
+.bio-box a:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 .bio-box.active {
@@ -1188,12 +1200,12 @@ audio {
         height: 28px;
     }
 
-    #debug-panel-btn {
+    #admin-btn {
         left: 10px;
         font-size: 20px;
     }
 
-    #admin-btn {
+    #debug-panel-btn {
         left: 48px;
         font-size: 20px;
     }

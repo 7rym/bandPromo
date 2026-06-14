@@ -2544,6 +2544,75 @@ canvas { max-width: 100%; height: auto; }
     gap: 16px;
 }
 
+.package-update-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.package-update-lead {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.package-update-status {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 14px 16px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.package-update-status.is-ready {
+    border-left: 4px solid var(--success);
+}
+
+.package-update-status.is-available {
+    border-left: 4px solid #60a5fa;
+}
+
+.package-update-status.is-current {
+    border-left: 4px solid var(--success);
+}
+
+.package-update-status.is-warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.package-update-status.is-error {
+    border-left: 4px solid var(--error);
+}
+
+.package-update-checks,
+.package-update-notes {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.package-update-checks li.is-bad {
+    color: #ffb1aa;
+}
+
+.package-update-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.package-update-footnote {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
 .welcome-callout {
     background: rgba(240, 180, 41, 0.14);
     border: 1px solid rgba(240, 180, 41, 0.32);

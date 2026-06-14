@@ -1,0 +1,116 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/https.php';
+bandpromo_enforce_https();
+
+require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/csrf.php';
+require_once __DIR__ . '/admin-audit.php';
+require_once __DIR__ . '/package-updater.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'POST required.',
+        'stage' => 'request',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+$rawBody = file_get_contents('php://input');
+$payload = json_decode(is_string($rawBody) ? $rawBody : '', true);
+if (!is_array($payload)) {
+    $payload = $_POST;
+}
+
+$csrfToken = isset($payload['csrf_token']) ? (string) $payload['csrf_token'] : '';
+if (!validate_csrf_token($csrfToken)) {
+    http_response_code(403);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'Session expired or invalid request token. Refresh admin and try again.',
+        'stage' => 'csrf',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+@set_time_limit(300);
+
+$root = dirname(__DIR__);
+$stage = 'precheck';
+
+try {
+    $status = bandpromo_package_check_update($root);
+    if (empty($status['ready'])) {
+        throw new RuntimeException('This hosting setup is not ready for package updates yet. Fix the requirements shown in the update panel first.');
+    }
+    if (!empty($status['manifest_error'])) {
+        throw new RuntimeException($status['manifest_error']);
+    }
+    if (empty($status['update_available'])) {
+        throw new RuntimeException('No newer published package is available for this site.');
+    }
+
+    $manifest = bandpromo_package_load_app_release_manifest();
+    $stage = 'download';
+
+    $applyResult = bandpromo_package_apply_release($root, $manifest);
+    $stage = 'post_update';
+
+    $postUpdate = bandpromo_package_run_post_update_tasks($root, $applyResult);
+
+    $logRecord = [
+        'ok' => true,
+        'actor' => bandpromo_admin_audit_actor(),
+        'previous_version' => $applyResult['previous_version'],
+        'installed_version' => $applyResult['installed_version'],
+        'package_file' => $applyResult['package_file'],
+        'package_url' => $applyResult['package_url'],
+        'sha256' => $applyResult['sha256'],
+        'post_update' => $postUpdate,
+    ];
+    bandpromo_package_append_update_log($root, $logRecord);
+
+    bandpromo_admin_audit_log('package_update_applied', [
+        'previous_version' => $applyResult['previous_version'],
+        'installed_version' => $applyResult['installed_version'],
+        'package_file' => $applyResult['package_file'],
+    ]);
+
+    $message = 'bandPromo was updated to ' . $applyResult['installed_version'] . '.';
+    if (($postUpdate['follow_up'] ?? '') === 'open_build_tab') {
+        $message .= ' Open Build and run a build so the latest application changes reach your public site.';
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'message' => $message,
+        'previous_version' => $applyResult['previous_version'],
+        'installed_version' => $applyResult['installed_version'],
+        'post_update' => $postUpdate,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+} catch (Throwable $throwable) {
+    bandpromo_package_append_update_log($root, [
+        'ok' => false,
+        'actor' => bandpromo_admin_audit_actor(),
+        'stage' => $stage,
+        'error' => $throwable->getMessage(),
+    ]);
+
+    bandpromo_admin_audit_log('package_update_failed', [
+        'stage' => $stage,
+        'error' => $throwable->getMessage(),
+    ]);
+
+    http_response_code(500);
+    echo json_encode([
+        'ok' => false,
+        'error' => $throwable->getMessage(),
+        'stage' => $stage,
+        'retry_safe' => true,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}

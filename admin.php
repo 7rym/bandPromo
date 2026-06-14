@@ -842,7 +842,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard. Use <strong>Needs attention</strong> in the header to see open tasks, then jump to <strong>Files</strong>, <strong>Content</strong>, or <strong>Update site</strong> to fix them.
+                    This page is your dashboard. Use <strong>Needs attention</strong> in the header to see open tasks, then jump to <strong>Files</strong>, <strong>Content</strong>, or <strong>Build</strong> to fix them. Use <strong>Site update</strong> below when a newer published package is available.
                 <?php else: ?>
                     Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step: <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for Bio / FAQ and playlist shaping, <strong>Build</strong> for publish state, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
@@ -906,6 +906,26 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         </div>
                     </div>
                 <?php endif; ?>
+            </div>
+
+            <div class="card package-update-card" id="packageUpdateCard">
+                <h2>⬆️ Site update</h2>
+                <p class="package-update-lead">
+                    Check for published bandPromo packages and install a newer release without Git, SSH, or manual file uploads.
+                    Your site content stays safe: <strong>web-config.json</strong>, <strong>.env</strong>, <strong>data/</strong>, <strong>media/</strong>, and <strong>log/</strong> are preserved.
+                </p>
+
+                <div class="package-update-status" id="packageUpdateStatus">Checking for updates…</div>
+
+                <ul class="package-update-checks" id="packageUpdateChecks" hidden></ul>
+                <ul class="package-update-notes" id="packageUpdateNotes" hidden></ul>
+
+                <div class="package-update-actions">
+                    <button type="button" class="btn" id="packageUpdateRefreshBtn">Check again</button>
+                    <button type="button" class="btn btn-primary" id="packageUpdateApplyBtn" hidden>Download and install update</button>
+                </div>
+
+                <p class="package-update-footnote" id="packageUpdateFootnote" hidden></p>
             </div>
         </div>
 

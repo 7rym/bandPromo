@@ -4565,4 +4565,222 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 });
             }
+
+            (function initPackageUpdater() {
+                const card = document.getElementById('packageUpdateCard');
+                const statusEl = document.getElementById('packageUpdateStatus');
+                const checksEl = document.getElementById('packageUpdateChecks');
+                const notesEl = document.getElementById('packageUpdateNotes');
+                const footnoteEl = document.getElementById('packageUpdateFootnote');
+                const refreshBtn = document.getElementById('packageUpdateRefreshBtn');
+                const applyBtn = document.getElementById('packageUpdateApplyBtn');
+
+                if (!card || !statusEl || !refreshBtn || !applyBtn) {
+                    return;
+                }
+
+                let latestStatus = null;
+
+                function setStatusClass(className) {
+                    statusEl.className = 'package-update-status' + (className ? ' ' + className : '');
+                }
+
+                function renderChecks(checks) {
+                    if (!checksEl) {
+                        return;
+                    }
+
+                    checksEl.replaceChildren();
+                    if (!Array.isArray(checks) || checks.length === 0) {
+                        checksEl.hidden = true;
+                        return;
+                    }
+
+                    checks.forEach((check) => {
+                        const item = document.createElement('li');
+                        item.className = check && check.ok ? 'is-ok' : 'is-bad';
+                        const label = check && check.label ? check.label : 'Requirement';
+                        const detail = check && check.detail ? ` (${check.detail})` : '';
+                        item.textContent = `${check && check.ok ? '✔' : '✖'} ${label}${detail}`;
+                        checksEl.appendChild(item);
+                    });
+                    checksEl.hidden = false;
+                }
+
+                function renderNotes(notes) {
+                    if (!notesEl) {
+                        return;
+                    }
+
+                    notesEl.replaceChildren();
+                    if (!Array.isArray(notes) || notes.length === 0) {
+                        notesEl.hidden = true;
+                        return;
+                    }
+
+                    notes.forEach((note) => {
+                        const item = document.createElement('li');
+                        item.textContent = String(note);
+                        notesEl.appendChild(item);
+                    });
+                    notesEl.hidden = false;
+                }
+
+                function renderPackageUpdateStatus(data) {
+                    latestStatus = data;
+                    renderChecks(data.checks || []);
+                    renderNotes(data.release_notes || []);
+
+                    if (!data.ok) {
+                        setStatusClass('is-error');
+                        statusEl.textContent = data.error || 'Could not check for updates.';
+                        applyBtn.hidden = true;
+                        if (footnoteEl) {
+                            footnoteEl.hidden = true;
+                        }
+                        return;
+                    }
+
+                    const installed = data.installed_version || 'unknown';
+                    const remote = data.remote_version || 'unavailable';
+
+                    if (data.manifest_error) {
+                        setStatusClass('is-warning');
+                        statusEl.textContent = `Installed version: ${installed}. The published update source could not be reached: ${data.manifest_error}`;
+                        applyBtn.hidden = true;
+                    } else if (!data.ready) {
+                        setStatusClass('is-warning');
+                        statusEl.textContent = `Installed version: ${installed}. This hosting setup is not ready for package updates yet.`;
+                        applyBtn.hidden = true;
+                    } else if (data.update_available) {
+                        setStatusClass('is-available');
+                        statusEl.textContent = `Update available: ${installed} → ${remote}. Application files will be replaced while your site content stays preserved.`;
+                        applyBtn.hidden = false;
+                    } else if (data.up_to_date) {
+                        setStatusClass('is-current');
+                        statusEl.textContent = `This site is up to date on ${installed}.`;
+                        applyBtn.hidden = true;
+                    } else {
+                        setStatusClass('is-warning');
+                        statusEl.textContent = `Installed version: ${installed}. Published version: ${remote}.`;
+                        applyBtn.hidden = true;
+                    }
+
+                    if (footnoteEl) {
+                        const lastUpdate = data.last_update;
+                        if (lastUpdate && lastUpdate.installed_version) {
+                            const when = lastUpdate.logged_at_utc ? ` on ${lastUpdate.logged_at_utc}` : '';
+                            const result = lastUpdate.ok ? 'completed' : 'failed';
+                            footnoteEl.textContent = `Last update ${result}${when}: ${lastUpdate.previous_version || 'unknown'} → ${lastUpdate.installed_version || 'unknown'}.`;
+                            footnoteEl.hidden = false;
+                        } else {
+                            footnoteEl.hidden = true;
+                        }
+                    }
+                }
+
+                async function refreshPackageUpdateStatus() {
+                    refreshBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    setStatusClass('');
+                    statusEl.textContent = 'Checking for updates…';
+
+                    try {
+                        const resp = await fetch('/biblioteca/check-package-update.php', {
+                            credentials: 'same-origin',
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            renderPackageUpdateStatus({
+                                ok: false,
+                                error: (data && data.error) || 'Could not check for updates.',
+                            });
+                            return;
+                        }
+
+                        renderPackageUpdateStatus(data);
+                    } catch (error) {
+                        renderPackageUpdateStatus({
+                            ok: false,
+                            error: 'Network error: ' + error.message,
+                        });
+                    } finally {
+                        refreshBtn.disabled = false;
+                        applyBtn.disabled = false;
+                    }
+                }
+
+                async function applyPackageUpdate() {
+                    if (!latestStatus || !latestStatus.update_available) {
+                        return;
+                    }
+
+                    const remote = latestStatus.remote_version || 'the published release';
+                    const confirmed = window.confirm(
+                        `Install ${remote} now?\n\nApplication files will be replaced. web-config.json, .env, data/, media/, and log/ stay preserved.`
+                    );
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    refreshBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    setStatusClass('');
+                    statusEl.textContent = 'Downloading and installing update… This can take a minute.';
+
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const resp = await fetch('/biblioteca/apply-package-update.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ csrf_token: csrfToken }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+
+                        if (!resp.ok || !data || data.ok !== true) {
+                            setStatusClass('is-error');
+                            const stage = data && data.stage ? ` (${data.stage})` : '';
+                            statusEl.textContent = 'Update failed' + stage + ': ' + ((data && data.error) || 'Unknown error');
+                            if (data && data.retry_safe) {
+                                statusEl.textContent += ' You can safely try again.';
+                            }
+                            await refreshPackageUpdateStatus();
+                            return;
+                        }
+
+                        setStatusClass('is-ready');
+                        statusEl.textContent = data.message || 'Update completed successfully.';
+                        applyBtn.hidden = true;
+
+                        if (typeof refreshBuildRequiredState === 'function') {
+                            await refreshBuildRequiredState();
+                        }
+                        if (typeof refreshBuildHint === 'function') {
+                            refreshBuildHint();
+                        }
+
+                        window.setTimeout(() => {
+                            window.location.reload();
+                        }, 1800);
+                    } catch (error) {
+                        setStatusClass('is-error');
+                        statusEl.textContent = 'Network error: ' + error.message;
+                    } finally {
+                        refreshBtn.disabled = false;
+                        applyBtn.disabled = false;
+                    }
+                }
+
+                refreshBtn.addEventListener('click', () => {
+                    refreshPackageUpdateStatus().catch(() => {});
+                });
+                applyBtn.addEventListener('click', () => {
+                    applyPackageUpdate().catch(() => {});
+                });
+
+                refreshPackageUpdateStatus().catch(() => {});
+            })();
         })();

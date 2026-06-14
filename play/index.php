@@ -178,12 +178,11 @@ if ($supportEnabled && $supportUrl !== '') {
 <body>
     <?php
     require_once '../biblioteca/config-loader.php';
-    if ($showDebugTools):
-    ?>
-    <button type="button" id="debug-panel-btn" title="Developer debug panel" aria-label="Open developer debug panel">🐛</button>
+    if ($showAdminButton): ?>
+    <a id="admin-btn" href="/admin.php" title="Admin panel" aria-label="Open admin panel">⚙️</a>
     <?php endif; ?>
-    <?php if ($showAdminButton): ?>
-    <a id="admin-btn" href="/admin.php" title="Admin panel">⚙️</a>
+    <?php if ($showDebugTools): ?>
+    <button type="button" id="debug-panel-btn" title="Developer debug panel" aria-label="Open developer debug panel">🐛</button>
     <?php endif; ?>
 
     <div id="loading-msg">

@@ -111,21 +111,22 @@ The bootstrap flow is intended to be safe to rerun in the same folder.
 
 ## Current update status
 
-The operator-facing admin/package updater is the intended direction, but it is not the normal shipped path yet.
+The operator-facing admin/package updater is now available from **Dashboard → Site update**.
 
 That means:
 
-- bandPromo should move toward browser-based package updates from admin
+- bandPromo can check the published `release-manifest.json` from admin
+- operators can download and apply immutable release packages in the browser
 - normal operators should not be expected to use `git pull`, SSH, or hosting-panel repository tools as the long-term update path
-- until the admin updater is shipped, updates may still require a developer/manual workflow
+- failed update attempts are logged locally and are safe to retry
 
-## Future operator update flow
+## Operator update flow
 
 The intended operator update flow is:
 
 ### 1. Check for an available update in admin
 
-The future updater should:
+Open **Dashboard → Site update**. The updater will:
 
 - compare the installed version with the published release metadata
 - show the current version and available version
@@ -134,7 +135,7 @@ The future updater should:
 
 ### 2. Download the selected release package
 
-The future updater should:
+The updater will:
 
 - download the immutable release package into a temporary runtime-safe location
 - verify package integrity before applying it
@@ -142,7 +143,7 @@ The future updater should:
 
 ### 3. Apply the update safely
 
-The future updater should replace tracked application files while preserving runtime/operator-managed state.
+The updater replaces tracked application files while preserving runtime/operator-managed state.
 
 Preserved runtime/operator-managed state includes at least:
 
@@ -160,7 +161,7 @@ Operators should be warned clearly that:
 
 ### 4. Run post-update tasks
 
-Where practical, the updater should run required post-update tasks automatically, such as:
+Where practical, the updater runs required post-update tasks automatically, such as:
 
 - cache refresh
 - manifest refresh
@@ -169,7 +170,7 @@ Where practical, the updater should run required post-update tasks automatically
 
 ### 5. Report the outcome clearly
 
-The updater should report whether:
+The updater reports whether:
 
 - the update completed successfully
 - the site is ready immediately
@@ -178,12 +179,12 @@ The updater should report whether:
 
 Normal operators should not need manual cleanup just because a package apply failed.
 
-## Current operator advice until the admin updater ships
+## Manual operator fallback
 
 - Prefer published immutable release packages over repository snapshots.
 - Treat local runtime data as something that must survive updates.
 - Test the site after install and after any manual update.
-- If you rely on a developer/manual update path today, do not overwrite `web-config.json`, `.env`, `data/`, `media/`, or `log/`.
+- If you rely on a developer/manual update path, do not overwrite `web-config.json`, `.env`, `data/`, `media/`, or `log/`.
 
 ## Related documents
 
