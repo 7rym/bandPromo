@@ -1,6 +1,6 @@
 # bandPromo TODO
 
-Purpose: keep a short, practical list of what must be finished before moving from `v0.7` to `v0.8 beta`.
+Purpose: the short, practical working list for the **active v0.8 beta** milestone.
 
 Reference: See [MEDIA-HANDLING.md](MEDIA-HANDLING.md) for the current media policy, operator guidance, and source-media handling rules. If you encounter build or playback issues, check that your source files meet the current requirements described there.
 
@@ -15,13 +15,111 @@ Rules for this file:
 
 ## Current milestone
 
-Current target: **v0.8 beta** — platform model definitions and deliverables after the shipped page editor.
+**v0.8 beta (active)** — platform model definitions and core deliverables.
 
-Status: **v0.8 priority 1** (package updater) and **priority 2** (block-based page editor) are **shipped**. **Priority 3** (platform model: multi-playlist, multi-gallery, page modules, delivery architecture) is active. Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first.
+**v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v0.8 build N`** (build numbering continues from v0.7; build 287 opened the v0.8 line).
+
+| Priority | Scope | Status |
+|----------|-------|--------|
+| 1 | Admin package updater | **Shipped** |
+| 2 | Block-based page editor + presentation | **Shipped** |
+| 3a | Unified Content editors + upload-time delivery automation | **Shipped** |
+| 3b | Platform model: multi-playlist/gallery, module blocks, delivery architecture | **Active** |
+
+Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first.
 
 Reference: see `ROADMAP.md` for milestone structure and beta-tester expectations.
 
-## v0.7 exit gates
+## v0.8 active work
+
+### Implementation order (2026-06-14 beta feedback)
+
+Priority 1 — operator delivery:
+
+- [x] **Priority 1:** ship the admin-panel package updater for hosted operators: version check against published `release-manifest.json`, plain-language update summary, download/verify/apply with runtime preservation, post-update tasks, and retry-safe failure reporting (spec already in `ROADMAP.md` and `INSTALL-UPDATE.md`).
+
+Priority 2 — page editor and presentation (**complete**):
+
+- [x] **Priority 2:** ship the page editor and presentation overhaul: block-based authoring, Width/Flow picture model, rich text toolbar, player-styled live preview, and image picker with thumbnails/upload.
+- [x] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and core block types (`richtext`, `picture`, `list`).
+- [x] Lock the first page-image presentation model for v0.8: fraction widths + flow modes (not pixel sizing).
+- [x] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
+- [x] Define the JSON-only page storage contract for v0.8 beta: `data/pages/*.json` as the sole runtime source, with HTML rendered at delivery time.
+- [x] Plan and ship the page-editor replacement around the locked schema and block-based editing flow.
+- [ ] Design the first theme/config structure and player semantic color tokens so page presentation and future theme packs share one contract.
+
+Priority 3a — Content editors and delivery automation (**complete**):
+
+- [x] Unify Content editors (Playlist, Gallery, Pages, Player layout) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls.
+- [x] Auto-run upload-time delivery tasks (audio, image, video) and gate Content pools on delivery-ready assets.
+- [x] Surface background video delivery progress and failures in Notifications instead of blocking uploads.
+- [x] Playlist save materializes pool tracks without requiring a full build; `setupCompose.py` seeds initial playlist, gallery, and player layout on setup.
+
+Priority 3b — platform model (**active**):
+
+Policy and model (define before coding):
+
+- [ ] Lock the page composition model: **core blocks** vs **module blocks**; playlists/lyrics stay in the player (no page-embedded playlists).
+- [ ] Define multi-playlist libraries: playlists independent of releases; admin library UX; player **Playlists** tab selector above track list.
+- [ ] Define multi-gallery libraries: admin library UX; galleries placed via **module blocks** on pages; **remove Gallery player tab** when module blocks ship.
+- [ ] Define track deep links: page content links open player on target playlist + track.
+- [ ] Define gallery module presentation presets (grid, carousel, parallax, etc.) at product level.
+- [ ] Define FAQ/login/shared-link model: FAQ page required; shared URLs → login + FAQ; restricted anonymous entry on login page (implementation v0.9).
+- [ ] Define access-tier rules for v0.9 implementation: admin/dev (all), VIP (embargo + override), registered fan (released), anonymous (released-only + login upsell). **No fan credits in v0.8/v0.9.**
+- [ ] Define core vs module boundaries in implementation terms (module registry, enable/disable).
+- [ ] Define the multi-release data model and how releases reference playlists.
+- [ ] Define exposure/distribution architecture (Chromecast/cast targets) on top of playback delivery — **implement v0.9+**.
+
+Implementation slices (after definitions):
+
+- [ ] Implement multiple playlist libraries in admin + built `play/playlist*.json` (or successor) contract.
+- [ ] Implement playlist selector in player **Playlists** tab.
+- [ ] Implement multiple gallery libraries in admin.
+- [ ] Implement first gallery **module block** on pages (minimum: one layout preset).
+- [ ] Implement track deep links from page content into the player.
+- [ ] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.
+- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
+
+Transitional schema work (in progress):
+
+- [ ] Replace the single-release `web-config` field names with explicit install, release, and track scopes in the future schema.
+- [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
+- [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
+- [x] Implement dual-write admin saves for transitional fields during the schema migration window.
+
+Deferred to v0.9 (implement after v0.8 definitions are stable):
+
+- [ ] Implement access-tier enforcement in playback and page delivery.
+- [ ] Implement login/FAQ/shared-link + restricted anonymous entry UX.
+- [ ] Implement Chromecast/cast send on the v0.8 delivery architecture.
+
+Deferred to v1+:
+
+- [ ] Fan credits ledger and rebate/boon mechanics.
+- [ ] News module with timed release and social push.
+- [ ] Fanboard, feeds, and richer engagement modules beyond gallery.
+- [ ] Define how support/payment providers fit fan-credit and merch flows: keep v0.7 support links/widgets config-driven until a reusable provider layer is needed.
+
+### PWA offline audio caching and offline logging
+
+- [ ] Record the current v0.7 limitation explicitly in operator/developer notes: real-phone screen-off playback can still fail during background continuation or next-track handoff even after the current player and `audio.php` hardening, so this behavior is recognized but deferred to the v0.8 playback architecture track rather than treated as a v0.7 gate blocker
+- [ ] Define the protected-audio delivery model for production: PHP authorization plus web-server/static delivery handoff, signed URLs, or equivalent protected media strategy
+- [ ] Define which core services can work offline, which should degrade gracefully, and which still require online authorization/runtime support
+- [ ] Define the installed-phone success criteria: what must feel better in the PWA than in the browser, especially offline listening, startup behavior, update reliability, and media availability
+- [ ] Audit `service-worker.js` end to end: current exclusions, cache strategy, stale-asset risks, update behavior, and which legacy workarounds should be removed
+- [ ] Audit update propagation and cache invalidation for installed PWAs so phones can cache aggressively without getting stuck on stale player, config, gallery, or shell assets
+- [ ] Lock the v0.8 architecture direction now: no future playback path should keep PHP in the long-lived audio byte-delivery path
+- [ ] Move the actual delivery/caching/offline implementation work into the v0.8 scaling plan: protected delivery handoff, player contract changes, service worker audio caching, cache eviction, and offline log sync
+
+### Deferred from v0.7 (still v0.8 scope)
+
+- trial-use caching and update propagation: aggressive safe caching, low needless re-downloads, no stale generated artifacts after updates (see PWA offline audio caching above)
+- backup/restore operator flow definition
+- moved-site recovery and host-specific config repair flow
+- add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity
+- separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location
+
+## v0.7 exit gates (completed)
 
 
 ### Stability
@@ -103,9 +201,6 @@ Scope: operator-facing editing and control surfaces. Put items here when the que
 - [x] Update build generation so existing manual playlist order is preserved and new tracks are appended at the end.
 - [x] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
 - [x] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
-- [x] Unify Content editors (Playlist, Gallery, Pages, Player layout) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls.
-- [x] Auto-run upload-time delivery tasks (audio, image, video) and gate Content pools on delivery-ready assets.
-- [x] Surface background video delivery progress and failures in Notifications instead of blocking uploads.
 
 Admin UX note: metadata repair belongs to media handling and operator readiness for policy/behavior, while this section tracks the operator-facing editor flows. The first audio-master repair surface now exists; the remaining repair work is about deeper task routing, persistent issue visibility, and broader packaging workflows.
 
@@ -181,16 +276,6 @@ Scope: first real tester/operator experience. Put items here when they concern h
 - [x] Write operator-facing update guidance for the future admin/package updater so hosted users can stay current without developer/server-admin tools.
 - [x] Prepare a short tester checklist for the first closed beta.
 
-Deferred to v0.8:
-
-- trial-use caching and update propagation: aggressive safe caching, low needless re-downloads, no stale generated artifacts after updates (see Post-v0.7 planning → PWA offline audio caching)
-- backup/restore operator flow definition
-- moved-site recovery and host-specific config repair flow
-- add a nondestructive naming layer for tracks and other media so operators can work with human-facing display names and aliases while the platform still preserves immutable original filenames as the source identity
-- separate gallery media from page illustrations in the admin/build model so image behavior follows role, not only folder location
-
-## Post-v0.7 planning
-
 ### v0.7 cleanup (completed 2026-06-12)
 
 - [x] Remove dead biblioteca endpoints superseded by newer APIs
@@ -201,83 +286,12 @@ Deferred to v0.8:
 
 Deferred to later refactors: split `admin.js` into modules, remove remaining `save-page.php` HTML sanitizer duplication if a shared page-save helper is introduced.
 
-### v0.8 implementation order (2026-06-14 beta feedback)
-
-Priority 1 — operator delivery:
-
-- [x] **Priority 1:** ship the admin-panel package updater for hosted operators: version check against published `release-manifest.json`, plain-language update summary, download/verify/apply with runtime preservation, post-update tasks, and retry-safe failure reporting (spec already in `ROADMAP.md` and `INSTALL-UPDATE.md`).
-
-Priority 2 — page editor and presentation (**complete**):
-
-- [x] **Priority 2:** ship the page editor and presentation overhaul: block-based authoring, Width/Flow picture model, rich text toolbar, player-styled live preview, and image picker with thumbnails/upload.
-- [x] Lock the first static-page JSON schema for v0.8: document metadata, ordered block array, and core block types (`richtext`, `picture`, `list`).
-- [x] Lock the first page-image presentation model for v0.8: fraction widths + flow modes (not pixel sizing).
-- [x] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
-- [x] Define the JSON-only page storage contract for v0.8 beta: `data/pages/*.json` as the sole runtime source, with HTML rendered at delivery time.
-- [x] Plan and ship the page-editor replacement around the locked schema and block-based editing flow.
-- [ ] Design the first theme/config structure and player semantic color tokens so page presentation and future theme packs share one contract.
-
-Priority 3 — platform model (**v0.8 definitions + deliverables**):
-
-Policy and model (define before coding):
-
-- [ ] Lock the page composition model: **core blocks** vs **module blocks**; playlists/lyrics stay in the player (no page-embedded playlists).
-- [ ] Define multi-playlist libraries: playlists independent of releases; admin library UX; player **Playlists** tab selector above track list.
-- [ ] Define multi-gallery libraries: admin library UX; galleries placed via **module blocks** on pages; **remove Gallery player tab** when module blocks ship.
-- [ ] Define track deep links: page content links open player on target playlist + track.
-- [ ] Define gallery module presentation presets (grid, carousel, parallax, etc.) at product level.
-- [ ] Define FAQ/login/shared-link model: FAQ page required; shared URLs → login + FAQ; restricted anonymous entry on login page (implementation v0.9).
-- [ ] Define access-tier rules for v0.9 implementation: admin/dev (all), VIP (embargo + override), registered fan (released), anonymous (released-only + login upsell). **No fan credits in v0.8/v0.9.**
-- [ ] Define core vs module boundaries in implementation terms (module registry, enable/disable).
-- [ ] Define the multi-release data model and how releases reference playlists.
-- [ ] Define exposure/distribution architecture (Chromecast/cast targets) on top of playback delivery — **implement v0.9+**.
-
-Implementation slices (after definitions):
-
-- [ ] Implement multiple playlist libraries in admin + built `play/playlist*.json` (or successor) contract.
-- [ ] Implement playlist selector in player **Playlists** tab.
-- [ ] Implement multiple gallery libraries in admin.
-- [ ] Implement first gallery **module block** on pages (minimum: one layout preset).
-- [ ] Implement track deep links from page content into the player.
-- [ ] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.
-- [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
-
-Transitional schema work (in progress):
-
-- [ ] Replace the single-release `web-config` field names with explicit install, release, and track scopes in the future schema.
-- [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
-- [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
-- [x] Implement dual-write admin saves for transitional fields during the schema migration window.
-
-Deferred to v0.9 (implement after v0.8 definitions are stable):
-
-- [ ] Implement access-tier enforcement in playback and page delivery.
-- [ ] Implement login/FAQ/shared-link + restricted anonymous entry UX.
-- [ ] Implement Chromecast/cast send on the v0.8 delivery architecture.
-
-Deferred to v1+:
-
-- [ ] Fan credits ledger and rebate/boon mechanics.
-- [ ] News module with timed release and social push.
-- [ ] Fanboard, feeds, and richer engagement modules beyond gallery.
-- [ ] Define how support/payment providers fit fan-credit and merch flows: keep v0.7 support links/widgets config-driven until a reusable provider layer is needed.
-
-### PWA offline audio caching and offline logging
-
-- [ ] Record the current v0.7 limitation explicitly in operator/developer notes: real-phone screen-off playback can still fail during background continuation or next-track handoff even after the current player and `audio.php` hardening, so this behavior is recognized but deferred to the v0.8 playback architecture track rather than treated as a v0.7 gate blocker
-- [ ] Define the protected-audio delivery model for production: PHP authorization plus web-server/static delivery handoff, signed URLs, or equivalent protected media strategy
-- [ ] Define which core services can work offline, which should degrade gracefully, and which still require online authorization/runtime support
-- [ ] Define the installed-phone success criteria: what must feel better in the PWA than in the browser, especially offline listening, startup behavior, update reliability, and media availability
-- [ ] Audit `service-worker.js` end to end: current exclusions, cache strategy, stale-asset risks, update behavior, and which legacy workarounds should be removed
-- [ ] Audit update propagation and cache invalidation for installed PWAs so phones can cache aggressively without getting stuck on stale player, config, gallery, or shell assets
-- [ ] Lock the v0.8 architecture direction now: no future playback path should keep PHP in the long-lived audio byte-delivery path
-- [ ] Move the actual delivery/caching/offline implementation work into the v0.8 scaling plan: protected delivery handoff, player contract changes, service worker audio caching, cache eviction, and offline log sync
-
 ## Notes
 
 - `ROADMAP.md` is the long-term direction and includes **beta tester expectations** for what is shipped vs planned.
-- `TODO.md` is the short-term working list.
-- **v0.8 order:** package updater → page editor → platform model (multi-playlist/gallery, modules, delivery definitions).
+- `TODO.md` is the short-term working list for the **active v0.8 beta** milestone.
+- **v0.7 is complete** (exit gates passed 2026-06-15). Repository version line is **`v0.8 build N`** (continuous build numbering from v0.7).
+- **v0.8 order:** package updater → page editor → Content editors/delivery automation → platform model (multi-playlist/gallery, modules, delivery definitions).
 - **v0.9:** access-tier implementation, login/anonymous entry, Chromecast/cast implementation.
 - **v1+:** fan credits, news + social push, richer engagement modules.
 - Current operator model: one branded site, one primary playlist, one gallery — migrating to **multiple libraries** with pages as the composition surface.

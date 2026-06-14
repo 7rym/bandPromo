@@ -4,7 +4,7 @@ This document describes how bandPromo should handle source media, canonical mast
 
 It replaces the older narrow metadata-only framing. Metadata is still a core concern, but it now sits inside a broader media-handling policy that covers intake scenarios, packaging, delivery targets, and what the platform can realistically improve for non-technical operators.
 
-Current state: `v0.7`
+Current state: `v0.8`
 
 ## Why this matters
 

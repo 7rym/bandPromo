@@ -79,16 +79,34 @@ function Get-TodoSummary {
     $lines = Get-Content -LiteralPath $TodoPath -Encoding UTF8
     $currentSection = ''
     $currentSubsection = ''
-    $beforePostPlanning = $true
+    $inCurrentMilestone = $false
+    $collectOpenTasks = $false
 
     foreach ($line in $lines) {
-        if ($line -match '^Current target:\s*(.+)$') {
-            $result.CurrentTarget = $Matches[1].Trim()
+        if ($line -match '^##\s+Current milestone') {
+            $inCurrentMilestone = $true
             continue
         }
 
-        if ($line -match '^##\s+Post-v0\.7 planning') {
-            $beforePostPlanning = $false
+        if ($inCurrentMilestone -and $line -match '^\*\*(.+?)\*\*') {
+            $result.CurrentTarget = $Matches[1].Trim()
+            $inCurrentMilestone = $false
+            continue
+        }
+
+        if ($line -match '^##\s+v0\.8 active work') {
+            $collectOpenTasks = $true
+            $currentSection = 'v0.8 active work'
+            $currentSubsection = ''
+            continue
+        }
+
+        if ($line -match '^##\s+v0\.7 exit gates') {
+            break
+        }
+
+        if (-not $collectOpenTasks) {
+            continue
         }
 
         if ($line -match '^##\s+(.+)$') {
@@ -99,10 +117,6 @@ function Get-TodoSummary {
 
         if ($line -match '^###\s+(.+)$') {
             $currentSubsection = $Matches[1].Trim()
-            continue
-        }
-
-        if (-not $beforePostPlanning) {
             continue
         }
 
@@ -192,7 +206,7 @@ if ($todoSummary.CurrentTarget) {
     Write-Output ('Current target: {0}' -f $todoSummary.CurrentTarget)
 }
 
-Write-Output 'Next open v0.7 tasks'
+Write-Output 'Next open v0.8 tasks'
 if ($todoSummary.Items.Count -gt 0) {
     $todoSummary.Items | ForEach-Object {
         $scope = @($_.Section, $_.Subsection) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
@@ -225,5 +239,5 @@ if ($todoSummary.FirstOpen) {
     }
 }
 else {
-    Write-Output '  No open v0.7 tasks found in docs/TODO.md.'
+    Write-Output '  No open v0.8 tasks found in docs/TODO.md.'
 }

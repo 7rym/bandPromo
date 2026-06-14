@@ -67,7 +67,11 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 These are **directional** — betatesters should check `ROADMAP.md` → **Beta tester expectations** for what is shipped vs coming.
 
-### v0.8 (in progress after page editor)
+### v0.8 beta (active)
+
+**Shipped in v0.8 so far:** package updater; block-based Pages editor; unified Content editors with pool/result UX; upload-time background delivery; delivery-ready pool gates.
+
+**Still in progress:**
 - Multiple playlist and gallery libraries in admin
 - Playlist selector in the player **Playlists** tab
 - Gallery **module blocks** on pages (grid, carousel, parallax, etc.)

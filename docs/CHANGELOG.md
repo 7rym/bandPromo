@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 17:00 - Checkpoint v0.8 build 288: open the v0.8 beta version line with continuous build numbering, reorganize `docs/TODO.md` and `docs/ROADMAP.md` around the active v0.8 milestone, and update session-start plus planning doc version references.
+
+2026-06-15 16:30 - Renamed the repository version line to `v0.8 build 287`, continuing build numbering from v0.7 build 286 without resetting; updated planning docs and session-start tooling for the active v0.8 milestone.
+
+2026-06-15 16:00 - Reorganized `docs/TODO.md` and `docs/ROADMAP.md` to mark v0.7 exit gates complete and v0.8 beta as the active milestone; split v0.8 priority 3 into shipped Content editor/delivery automation (3a) and active platform model work (3b).
+
 2026-06-15 15:00 - Checkpoint v0.7 build 286: ship unified Content editor pool/result UX (Playlist, Gallery, Pages, Player layout), upload-time background delivery automation with delivery-ready pool gates, playlist save that materializes pool tracks without requiring a full build, setup compose for initial layout, and non-blocking video delivery with Windows MOV fix.
 
 2026-06-15 14:25 - Fixed MOV/WEBM background video delivery on Windows: ffmpeg logs no longer corrupt the result JSON, subprocess output uses UTF-8, and failed jobs now surface the real delivery error instead of “failed without a result payload”.

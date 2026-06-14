@@ -47,7 +47,7 @@ Use the fast startup path when opening the repository after a break or starting 
 - VS Code task: `bandPromo: Fast session startup`
 - VS Code chat slash prompt: `/bandpromo-session-start`
 
-The fast path is meant to replace repeated manual startup checks. It prints the active shell/runtime context, current git state, available workspace tasks, the current milestone target, the first unresolved `v0.7` tasks from `docs/TODO.md`, recent changelog entries, and one recommended next focus.
+The fast path is meant to replace repeated manual startup checks. It prints the active shell/runtime context, current git state, available workspace tasks, the current milestone target, the first unresolved v0.8 tasks from `docs/TODO.md`, recent changelog entries, and one recommended next focus.
 
 ## Release Package Notes
 

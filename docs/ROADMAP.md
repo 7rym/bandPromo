@@ -4,7 +4,7 @@ This roadmap exists to keep bandPromo focused on stability, trustworthiness, and
 
 ## Product direction
 
-bandPromo v0.7 is a reusable, self-hostable private release platform for one artist and one release.
+bandPromo **v0.7** delivered a reusable, self-hostable private release platform for one artist and one release. **v0.8 beta is the active milestone** (since 2026-06-14): platform-model definitions and core deliverables that turn bandPromo into a reusable artist-platform foundation.
 
 bandPromo v1.0 should become a releaseable self-hosted artist platform that lets artists or micro-labels run promotion, access control, playback, analytics, and fan-facing releases on their own domain.
 
@@ -28,14 +28,29 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 
 ## Version principles
 
-- v0.7 finishes the current promise before new architectural work starts.
-- v0.8 introduces the platform model changes required for scale.
-- v0.9 prepares public/beta-facing structure.
+- **v0.7 is complete** — exit gates passed 2026-06-15. Repository version line is **`v0.8 build N`** (continuous build numbering from v0.7).
+- **v0.8 beta is active** — platform model changes, multi-library foundations, delivery automation, and composition architecture.
+- v0.9 prepares public/beta-facing structure and implements access tiers defined in v0.8.
 - v1.0 is public-ready, stable, and trustworthy.
 - v1.x expands fan and artist utility without overloading the core.
 - v2+ is where advanced integrations and automation belong.
 - bandPromo should favor operator control over centralized platform behavior.
 - Core decisions should preserve self-hosting, local ownership, and predictable operator control.
+
+## Current milestone (v0.8 beta)
+
+**Status: active** — closed-beta work on platform foundations.
+
+| Track | Status |
+|-------|--------|
+| Package updater | Shipped |
+| Block-based page editor | Shipped |
+| Unified Content editors + upload-time delivery automation | Shipped |
+| Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
+| Theme tokens + semantic player colors | Planned |
+| PWA / protected delivery architecture | Defined; implementation in progress |
+
+**Next focus:** lock and implement the multi-playlist/multi-gallery model, first gallery module blocks on pages, track deep links, and the protected delivery path. Access-tier enforcement and Chromecast send remain **v0.9+**.
 
 ## Core vs modules
 
@@ -339,7 +354,9 @@ Install-shell versus release-identity split for v0.7 exit:
 
 This strategy is part of the v0.7 exit work because it defines what "usable by non-technical operators" actually means in practice.
 
-## v0.7 exit criteria
+## v0.7 exit criteria (completed)
+
+**Status: passed 2026-06-15.** v0.7 delivered the single-release private platform promise. Development continues on **v0.8 beta** (see below).
 
 v0.7 is complete when bandPromo can honestly be described as:
 
@@ -418,9 +435,9 @@ Trust-gate scope note for `v0.7`:
 
 These features must be working and accessible before this gate is considered passed
 
-Caching and update propagation (aggressive safe caching, low needless re-downloads, no stale shell/player/config artifacts after updates) are explicitly deferred to the **v0.8** PWA/service-worker architecture track rather than treated as a remaining `v0.7` blocker. See `docs/TODO.md` Post-v0.7 planning.
+Caching and update propagation (aggressive safe caching, low needless re-downloads, no stale shell/player/config artifacts after updates) were explicitly deferred to the **v0.8** PWA/service-worker architecture track rather than treated as a remaining `v0.7` blocker. See `docs/TODO.md` → v0.8 active work.
 
-## v0.8 beta goals
+## v0.8 beta goals (active)
 
 Theme: architectural shift from a private single-release site to a reusable artist platform foundation — **definitions and core deliverables first**, not every future fan feature at once.
 
@@ -435,17 +452,18 @@ Closed-beta feedback (2026-06-14) locked the first three implementation prioriti
 
 | Area | v0.8 deliverables | v0.8 definitions only (implementation later) |
 |------|-------------------|-----------------------------------------------|
-| Pages | Block-based editor, page registry, player-styled preview | Module block types (gallery layouts, news, etc.) |
-| Playlists | Multiple playlist libraries; player **Playlists** tab with selector | Access rules per tier (see v0.9) |
-| Galleries | Multiple gallery libraries; remove dedicated Gallery player tab | Gallery module blocks on pages (grid/carousel/parallax) |
-| Player | Core Playlists + Lyrics; track deep links from pages | Chromecast/cast targets |
+| Pages | Block-based editor, page registry, player-styled preview, unified pool/result Content editor UX | Module block types (gallery layouts, news, etc.) |
+| Playlists | Single-library pool/result editor with delivery-ready gates; multiple playlist libraries + player selector (in progress) | Access rules per tier (see v0.9) |
+| Galleries | Single-library pool/result editor with delivery-ready gates; multiple gallery libraries (in progress) | Gallery module blocks on pages (grid/carousel/parallax); remove Gallery player tab |
+| Player | Core Playlists + Lyrics; Player layout editor; track deep links from pages (planned) | Chromecast/cast targets |
 | Access | FAQ/login requirement; shared-link → login + FAQ copy | Tier enforcement, anonymous entry, VIP embargo |
-| Delivery/PWA | Protected delivery architecture, cache contract, offline direction | Full offline audio cache + cast send |
+| Delivery/PWA | Upload-time background delivery; delivery-ready Content pool gates (**shipped**) | Protected delivery architecture, cache contract, full offline audio cache + cast send |
 
 Primary goals:
 
 - ship the admin-panel package updater (**complete**)
 - ship the page editor and presentation overhaul (**complete**)
+- ship unified Content editors and upload-time delivery automation (**complete**)
 - **define** the multi-release / multi-playlist / multi-gallery data model and admin library UX
 - **define** core vs module block boundaries and the page composition model
 - **define** the FAQ/login + shared-link entry model (FAQ page remains required; login page adds a restricted anonymous path)
@@ -458,6 +476,8 @@ Primary goals:
 Suggested scope:
 
 - admin-panel package updater workflow for hosted operators (**shipped**)
+- unified Content editor pool/result UX across Playlist, Gallery, Pages, and Player layout (**shipped**)
+- upload-time background delivery for audio, image, and video; Content pools gate on delivery-ready assets (**shipped**)
 - artist → releases → tracks model; playlists as **independent** entities that releases can reference
 - multiple playlist libraries + playlist selector in the player **Playlists** tab
 - multiple gallery libraries + gallery **module blocks** embedded in pages (no Gallery player tab in the end state)
@@ -477,17 +497,17 @@ Not in v0.8 implementation scope (documented for later milestones):
 - news timed release + social push (**v1+**)
 - merch, chatrooms, heavy automation, many third-party integrations
 
-### Beta tester expectations (v0.8)
+### Beta tester expectations (v0.8 beta — active)
 
-Betatesters should treat current builds as **v0.8 beta: page-builder foundation**, not a finished platform:
+Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 platform:
 
-- **Shipped now:** package updater, block-based Pages editor (Text / Picture / List), improved player page presentation, delete confirmations, terminology cleanup.
-- **Coming in v0.8 (after page editor):** multiple playlists and galleries in admin, gallery module blocks on pages, playlist selector in player, track deep links, Gallery player tab removal, playback/delivery architecture.
+- **Shipped now:** package updater; block-based Pages editor (Text / Picture / List); unified Content editors (Playlist, Gallery, Pages, Player layout) with pool/result UX; upload-time background delivery; delivery-ready pool gates; Notifications for background video jobs; improved player page presentation; delete confirmations.
+- **In progress in v0.8:** multiple playlists and galleries in admin, gallery module blocks on pages, playlist selector in player, track deep links, Gallery player tab removal, playback/delivery architecture, theme semantic color tokens.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.).
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
 
-Feedback is welcome on all of the above; missing items in the “Coming” rows are usually **planned**, not forgotten.
+Feedback is welcome on all of the above; missing items in the “In progress” rows are usually **planned**, not forgotten.
 
 ### v0.8 page composition model
 
@@ -621,7 +641,7 @@ This is the right point to involve others more intentionally.
 
 ### Phase 1: very small closed beta
 
-When: as soon as the v0.7 exit gates are met and the first v0.8 architectural branch is usable.
+When: **now** — v0.7 exit gates are met and the first v0.8 deliverables (page editor, Content editors, delivery automation) are shipped.
 
 Who:
 
@@ -768,11 +788,11 @@ For each phase:
 
 ## Roadmap checkpoints
 
-Before opening v0.8 beta:
+**v0.8 beta is open** (2026-06-15):
 
 - v0.7 exit gates are met
-- package updater and block-based page editor are shipped
-- platform-model definitions (multi-playlist/gallery, modules, delivery) are underway with explicit beta-tester expectations documented
+- package updater, block-based page editor, and Content editor/delivery automation are shipped
+- platform-model definitions (multi-playlist/gallery, modules, delivery) are active with explicit beta-tester expectations documented
 
 Before opening v0.9:
 

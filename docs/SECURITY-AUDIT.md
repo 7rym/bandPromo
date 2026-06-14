@@ -1,6 +1,6 @@
 # bandPromo Security Audit Report
 
-Current review target: `v0.7`  
+Current review target: `v0.8`  
 Review date: 2026-06-12  
 Previous review: 2026-04-25
 
