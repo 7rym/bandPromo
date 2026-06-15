@@ -26,8 +26,12 @@ IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'
 OUTPUT_FILE   = ROOT_DIR / 'play' / 'playlist.json'
 VALIDATION_FILE = ROOT_DIR / 'play' / 'playlist-validation.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
+ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
+PLAYLIST_DOC_FILE = ROOT_DIR / 'data' / 'playlists' / 'main.json'
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 CONFIG_COVER_BASENAME = 'configured_release_cover'
+BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo'
+BANDPROMO_RELEASE_DEFAULT_ID = 'primary'
 
 
 def normalize_title_fallback(filename):
@@ -146,8 +150,86 @@ def has_visible_user_audio_uploads(hidden_keys):
     return False
 
 
+def load_asset_for_filename(filename):
+    safe_name = os.path.basename(str(filename or '').strip())
+    if not safe_name or not ASSET_REGISTRY_FILE.exists():
+        return None
+
+    try:
+        with open(str(ASSET_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset in assets.values():
+        if not isinstance(asset, dict):
+            continue
+        original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if safe_name in {original_name, master_name}:
+            return asset
+
+    return None
+
+
+def resolve_playlist_file_name(filename):
+    """Return the canonical playlist/build file identity (master filename when catalogued)."""
+    safe_name = os.path.basename(str(filename or '').strip())
+    if safe_name == '':
+        return ''
+
+    asset = load_asset_for_filename(safe_name)
+    if isinstance(asset, dict):
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if master_name:
+            return master_name
+
+    return safe_name
+
+
+def load_playlist_document_master_order():
+    if not PLAYLIST_DOC_FILE.exists():
+        return []
+
+    try:
+        with open(str(PLAYLIST_DOC_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return []
+
+    if not isinstance(payload, dict):
+        return []
+
+    order = []
+    entries = payload.get('entries')
+    if not isinstance(entries, list):
+        return order
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        master_name = os.path.basename(str(entry.get('master_file') or entry.get('file') or '').strip())
+        if master_name:
+            order.append(master_name)
+
+    return order
+
+
 def resolve_audio_working_path(filename):
-    stem = Path(filename).stem
+    safe_name = os.path.basename(str(filename or '').strip())
+    asset = load_asset_for_filename(safe_name)
+    if isinstance(asset, dict):
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if master_name:
+            path = AUDIO_MASTER_DIR / master_name
+            if path.exists() and path.is_file():
+                return path
+
+    stem = Path(safe_name).stem
     source_suffix = Path(filename).suffix.lower()
     preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']
     seen = set()
@@ -160,15 +242,55 @@ def resolve_audio_working_path(filename):
         if candidate.exists() and candidate.is_file():
             return candidate
 
-    return AUDIO_ORIG_DIR / filename
+    return AUDIO_ORIG_DIR / safe_name
 
 
-def collect_audio_source_files(include_bundled=False):
+def load_asset_release_map():
+    if not ASSET_REGISTRY_FILE.exists():
+        return {}
+
+    try:
+        with open(str(ASSET_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return {}
+
+    if not isinstance(payload, dict):
+        return {}
+
+    release_map = {}
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset in assets.values():
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or '').strip() != 'audio':
+            continue
+        master_filename = os.path.basename(str(asset.get('master_filename') or '').strip())
+        release_id = str(asset.get('release_id') or '').strip()
+        if master_filename and release_id:
+            release_map[master_filename] = release_id
+
+    return release_map
+
+
+def resolve_audio_release_id(filename, release_map):
+    release_id = str(release_map.get(filename) or '').strip()
+    if release_id:
+        return release_id
+    if is_bundled_placeholder(filename):
+        return BANDPROMO_RELEASE_DEMO_ID
+    return BANDPROMO_RELEASE_DEFAULT_ID
+
+
+def collect_audio_source_files(release_filter=None):
     supported = []
     unsupported = []
     hidden_bundled = []
     hidden_keys = load_hidden_media_keys()
-    suppress_bundled = has_visible_user_audio_uploads(hidden_keys) and not include_bundled
+    release_filter = str(release_filter or '').strip()
+    if release_filter in ('', 'all'):
+        release_filter = ''
+    release_map = load_asset_release_map()
 
     if not AUDIO_ORIG_DIR.exists():
         return supported, unsupported, hidden_bundled
@@ -177,7 +299,11 @@ def collect_audio_source_files(include_bundled=False):
         if not entry.is_file():
             continue
 
-        if is_bundled_placeholder(entry.name) and not include_bundled and (f'audio/{entry.name}' in hidden_keys or suppress_bundled):
+        release_id = resolve_audio_release_id(entry.name, release_map)
+        if release_filter and release_id != release_filter:
+            continue
+
+        if is_bundled_placeholder(entry.name) and f'audio/{entry.name}' in hidden_keys:
             hidden_bundled.append(entry)
             continue
 
@@ -200,13 +326,17 @@ def build_metadata_warnings(filename, info):
     lyrics = str(info.get('lyrics') or '')
     cover = str(info.get('cover') or '').strip()
 
-    if not title or title == filename or title == title_fallback:
+    if not title:
+        warnings.append('missing_title_tag')
+    elif not info.get('title_from_tag') and (title == filename or title == title_fallback):
         warnings.append('missing_title_tag')
     if not artist or artist == 'Unknown Artist':
-        warnings.append('missing_artist_tag')
+        if not info.get('artist_from_tag'):
+            warnings.append('missing_artist_tag')
     if not album or album == 'Unknown Album':
-        warnings.append('missing_album_tag')
-    if track == 999:
+        if not info.get('album_from_tag'):
+            warnings.append('missing_album_tag')
+    if track == 999 and not info.get('track_from_tag'):
         warnings.append('missing_track_number')
     if not lyrics.strip():
         warnings.append('missing_lyrics')
@@ -217,6 +347,9 @@ def build_metadata_warnings(filename, info):
 
 
 def write_validation_report(report):
+    if not isinstance(report, dict):
+        report = {}
+    report['generated_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+00:00')
     try:
         with open(str(VALIDATION_FILE), 'w', encoding='utf-8') as f:
             json.dump(report, f, indent=4, ensure_ascii=False)
@@ -644,7 +777,11 @@ def parse_audio_file(filename):
         'description': '',
         'track': 999,
         'cover': None,
-        'cover_source': 'missing'
+        'cover_source': 'missing',
+        'title_from_tag': False,
+        'artist_from_tag': False,
+        'album_from_tag': False,
+        'track_from_tag': False,
     }
 
     # Base filename for cover extraction
@@ -670,18 +807,24 @@ def parse_audio_file(filename):
             # title/artist/album (Vorbis / FLAC)
             if 'TITLE' in tags and tags['TITLE']:
                 info['title'] = tags['TITLE'][0]
+                info['title_from_tag'] = True
             if 'ARTIST' in tags and tags['ARTIST']:
                 info['artist'] = tags['ARTIST'][0]
+                info['artist_from_tag'] = True
             if 'ALBUM' in tags and tags['ALBUM']:
                 info['album'] = tags['ALBUM'][0]
+                info['album_from_tag'] = True
 
             # MP3 ID3 frames
             if 'TIT2' in tags:
                 info['title'] = str(tags['TIT2'])
+                info['title_from_tag'] = True
             if 'TPE1' in tags:
                 info['artist'] = str(tags['TPE1'])
+                info['artist_from_tag'] = True
             if 'TALB' in tags:
                 info['album'] = str(tags['TALB'])
+                info['album_from_tag'] = True
 
             # track number
             if 'TRACKNUMBER' in tags and tags['TRACKNUMBER']:
@@ -696,6 +839,8 @@ def parse_audio_file(filename):
                     if '/' in track:
                         track = track.split('/')[0]
                     info['track'] = int(track) if str(track).isdigit() else 999
+                    if info['track'] != 999:
+                        info['track_from_tag'] = True
                 except Exception:
                     info['track'] = 999
 
@@ -788,29 +933,67 @@ def generate_playlist():
     IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    # Collect supported source files and flag known-but-unsupported ones.
-    files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
-    
-    # Sort by track number, then filename as tiebreaker (default order)
-    files.sort(key=lambda f: (get_track_number(str(f)), f.name))
+    # Collect playlist work items from the playlist document when available.
+    unsupported_files = []
+    hidden_bundled_files = []
+    work_items = []
+    document_order = load_playlist_document_master_order()
 
-    # Apply saved admin order if data/playlist-order.json exists
-    ORDER_FILE = ROOT_DIR / 'data' / 'playlist-order.json'
-    saved_order = []
-    if ORDER_FILE.exists():
-        try:
-            with open(str(ORDER_FILE), 'r', encoding='utf-8') as _f:
-                saved_order = json.load(_f)
-        except Exception as _e:
-            print(f"⚠️  Could not read playlist order file, using default sort: {_e}")
-            saved_order = []
-    if saved_order and isinstance(saved_order, list):
-        _order_index = {name: i for i, name in enumerate(saved_order)}
-        _saved_names = set(saved_order)
-        files = [f for f in files if f.name in _saved_names]
-        files.sort(key=lambda f: (_order_index.get(f.name, len(saved_order)), get_track_number(str(f)), f.name.lower()))
+    if document_order:
+        print(f"Using playlist document order for {len(document_order)} track(s)...")
+        for playlist_file in document_order:
+            working_path = resolve_audio_working_path(playlist_file)
+            if not working_path.exists() or not working_path.is_file():
+                print(f"⚠️  Skipping missing playlist track: {playlist_file}")
+                continue
+            work_items.append({
+                'playlist_file': playlist_file,
+                'working_path': working_path,
+                'source_label': playlist_file,
+            })
+    else:
+        files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
+        files.sort(key=lambda f: (get_track_number(str(f)), f.name.lower()))
 
-    if not files:
+        ORDER_FILE = ROOT_DIR / 'data' / 'playlist-order.json'
+        saved_order = []
+        if ORDER_FILE.exists():
+            try:
+                with open(str(ORDER_FILE), 'r', encoding='utf-8') as _f:
+                    saved_order = json.load(_f)
+            except Exception as _e:
+                print(f"⚠️  Could not read playlist order file, using default sort: {_e}")
+                saved_order = []
+
+        if saved_order and isinstance(saved_order, list):
+            saved_set = {str(name) for name in saved_order}
+            expanded_set = set(saved_set)
+            for name in saved_set:
+                expanded_set.add(resolve_playlist_file_name(name))
+            files = [
+                f for f in files
+                if f.name in expanded_set or resolve_playlist_file_name(f.name) in expanded_set
+            ]
+            order_index = {}
+            for index, name in enumerate(saved_order):
+                order_index[str(name)] = index
+                canonical = resolve_playlist_file_name(name)
+                if canonical:
+                    order_index[canonical] = index
+            files.sort(key=lambda f: (
+                order_index.get(f.name, order_index.get(resolve_playlist_file_name(f.name), len(saved_order))),
+                get_track_number(str(f)),
+                f.name.lower(),
+            ))
+
+        for filepath in files:
+            work_items.append({
+                'playlist_file': resolve_playlist_file_name(filepath.name),
+                'working_path': resolve_audio_working_path(filepath.name),
+                'source_label': filepath.name,
+            })
+
+    if not work_items:
         if unsupported_files:
             unsupported_names = ', '.join(file.name for file in unsupported_files)
             print(f"❌ No supported source audio found in {AUDIO_ORIG_DIR}")
@@ -819,20 +1002,21 @@ def generate_playlist():
         elif hidden_bundled_files:
             print(f"No playable source audio remains after hiding bundled demo tracks in {AUDIO_ORIG_DIR}")
         else:
-            print(f"No .flac or .mp3 files found in {AUDIO_ORIG_DIR}")
+            print(f"No playable playlist tracks found in {AUDIO_ORIG_DIR}")
         return
 
-    print(f"Found {len(files)} files. Generating playlist...")
+    print(f"Found {len(work_items)} playlist track(s). Generating playlist...")
     if hidden_bundled_files:
         print(f"ℹ️  Hidden bundled demo tracks skipped: {', '.join(file.name for file in hidden_bundled_files)}")
     if unsupported_files:
         print(f"⚠️  Skipping unsupported audio source files: {', '.join(file.name for file in unsupported_files)}")
 
-    for filepath in files:
-        filename = filepath.name
-        working_path = resolve_audio_working_path(filename)
+    for item in work_items:
+        playlist_file = item['playlist_file']
+        working_path = item['working_path']
+        source_label = item['source_label']
         info = parse_audio_file(str(working_path))
-        metadata_warnings = build_metadata_warnings(filename, info)
+        metadata_warnings = build_metadata_warnings(source_label, info)
         
         # Ensure cover is just the filename, not full path
         cover_file = info['cover']
@@ -842,7 +1026,7 @@ def generate_playlist():
             cover_file = ""
         
         entry = {
-            "file": filename,
+            "file": playlist_file,
             "title": info['title'],
             "artist": info['artist'],
             "album": info['album'],
@@ -853,7 +1037,7 @@ def generate_playlist():
         }
         playlist.append(entry)
         validation_entries.append({
-            'file': filename,
+            'file': playlist_file,
             'title': info['title'],
             'cover': cover_file,
             'coverSource': info.get('cover_source', 'missing'),
@@ -875,7 +1059,7 @@ def generate_playlist():
                     cover_file,
                     'track-cover',
                     'build-extracted',
-                    linked_audio=filename,
+                    linked_audio=playlist_file,
                 )
 
         disp_track = str(info['track']) if info['track'] != 999 else "-"
@@ -954,6 +1138,7 @@ def generate_validation_scan():
     validation_entries = []
     for filepath in files:
         filename = filepath.name
+        playlist_file = resolve_playlist_file_name(filename)
         working_path = resolve_audio_working_path(filename)
         info = parse_audio_file(str(working_path))
         metadata_warnings = build_metadata_warnings(filename, info)
@@ -964,7 +1149,7 @@ def generate_validation_scan():
             cover_file = ""
 
         validation_entries.append({
-            'file': filename,
+            'file': playlist_file,
             'title': info['title'],
             'cover': cover_file,
             'coverSource': info.get('cover_source', 'missing'),

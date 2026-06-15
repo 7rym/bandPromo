@@ -50,7 +50,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Theme tokens + semantic player colors | Shipped (Content → Themes editor) |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Priority 3b slices per [PLATFORM-MODEL.md](PLATFORM-MODEL.md): **Release editor** (`container.release` operator UI), then remaining config-schema migration and v0.9 prep.
+**Next focus:** Priority 3b slices per [PLATFORM-MODEL.md](PLATFORM-MODEL.md): **audio delivery alignment** (`ast_{ULID}` delivery files + playlist-driven build), **demo git hygiene**, then **Release editor** (`container.release` operator UI), then remaining config-schema migration and v0.9 prep.
 
 ## Core vs modules
 

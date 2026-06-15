@@ -602,7 +602,18 @@ Reason:
 So the current mapping is:
 
 - current `original` folder -> `original` tier
-- current `optimal` folder -> temporary legacy `delivery` bucket
+- current `master` folder -> `master` tier (`ast_{ULID}` filenames)
+- current `optimal` folder -> temporary legacy `delivery` bucket (MP3 playback files; names should match master stems, e.g. `ast_{ULID}.mp3`)
+
+Operator-facing summary:
+
+- **original/** — your upload filename, never rewritten
+- **master/** — internal canonical file (`ast_…`); admin metadata edits target this tier
+- **optimal/** — generated MP3s the player serves by default; not meant for manual browsing
+
+Files that exist only in **original/** (for example a test upload not yet on a playlist) are not playable until publish generates a matching **optimal/** delivery file.
+
+Bundled demo audio is **not** git-tracked. It arrives via the setup starter pack as locked release `bandpromo-demo` and is built into the normal three-tier layout on the host.
 
 It is not:
 
@@ -1030,13 +1041,16 @@ If the panel later grows to include truly technical install assets, the naming c
 
 bandPromo should stop forcing operators to work directly with raw source filenames as the main visible identity for tracks and media.
 
-The intended future rule is:
+**Locked rule (v0.8):** see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) for the full contract.
 
-- the original uploaded filename remains preserved as the immutable source identity
-- operator-facing display names and aliases may change without losing that original source identity
-- future master and delivery naming may follow those operator-facing names, but only through an explicit runtime mapping layer rather than by forgetting the original source anchor
+- on-disk master and delivery files use stable IDs: `ast_{ULID}` (for example `ast_01HY8K3M2P9XQ4R5S6T7V8W.flac`)
+- `data/assets` registry holds display fields, tags, slugs, release membership, and `original_filename`
+- operators see titles and metadata in pools; they do not manage path names
+- public URLs use per-release track slugs, not filenames
+- human-readable names for distributor export ZIPs are generated at export time, not used as storage paths
+- the original upload name remains recorded in the registry for trust and recovery
 
-This keeps recovery and trust simple while letting the UI move away from exposing filesystem-style names and file extensions in normal operator workflows.
+Playlist reorder must not rename files or rewrite embedded track numbers; release track numbers live in the release container only.
 
 ## Current metadata contract
 

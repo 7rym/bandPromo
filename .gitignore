@@ -6,8 +6,8 @@ Thumbs.db
 # - Keep operator-owned runtime state out of git so package installs/updates never overwrite it.
 # - The main preserved runtime roots are /data and /media.
 # - Local site config and environment files must also stay outside git.
-# - Some bundled demo media under /media remains intentionally tracked as install seed content,
-#   so the patterns below mix broad ignores with explicit keep-rules for shipped placeholders.
+# - Bundled demo audio is delivered via the setup starter pack (locked release `bandpromo-demo`),
+#   not tracked in git. Operator uploads and generated tiers stay outside git.
 
 # Google Drive sync artifacts (Windows + Google Drive File Sync creates these everywhere)
 # These MUST be ignored or they corrupt .git/refs/ when committed
@@ -93,14 +93,12 @@ media/icons/*
 # Keep track of what should be excluded
 # but add exceptions for important config
 !biblioteca/quizbase-*.json
-# bandPromo_* files are generic/placeholder assets bundled with the project
-# and should always be tracked regardless of extension or location under media/
+# Runtime media stays local. Demo content is installed from the setup starter pack, not git.
 !media/audio/original/
 !media/photo/original/
 !media/video/original/
 media/special/*
-!media/**/bandPromo_*
-# Special media dir itself must be tracked for the above rule to work
+# Special media dir itself must be tracked for structure only
 !media/special/
 
 # Optimal/processed outputs are generated locally — never commit them

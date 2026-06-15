@@ -86,6 +86,8 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Split `picture` (plain caption) and `picture_richtext` page blocks.
 - [x] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.
 - [x] Restructure admin IA: **Settings** (Basics, Theme, Support, Sharing), **System** (Publish + Audit); legacy `?tab=config|build|audit` redirects; notification-first publish nudging (no Build tab pulse).
+- [x] **Audio delivery alignment** — `media/audio/optimal/` uses `ast_{ULID}.mp3` delivery names keyed off `master_filename`; `makePlaylists.py` / delivery scripts read playlist `master_file` order from `data/playlists/` (not `original/` scan); publish pass prunes orphaned legacy-name delivery files.
+- [x] **Demo media git hygiene** — remove tracked `bandPromo_*` originals from git; bundled demo ships only via setup starter pack (`bandpromo-demo` locked release); document in `MEDIA-HANDLING.md` and `INSTALL-UPDATE.md`.
 - [ ] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
 - [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
 
@@ -265,6 +267,7 @@ Implementation follow-up after policy:
 - [x] Refactor build modes and UI wording so operators see task-specific actions instead of the ambiguous `Optimize Media` / `Full Build` pairing.
 - [x] Break build-required tracking into concrete tasks instead of the current coarse `full` vs `optimize` split; pending work now records task units and can clear targeted work such as `image-delivery` independently.
 - [x] Split the current optimizer into source-aware tasks; MP3 sources are now copied to delivery without unnecessary re-encoding, while FLAC/WAV sources still take the transcode path.
+- [x] Finish audio delivery alignment: `optimal/` MP3s use `ast_{ULID}` names matching masters; build/playlist scripts use registry + playlist `master_file` (see Priority 3b slice above).
 - [x] Video upload post-processing: generate thumbnail/poster frame from first frame (e.g. via ffmpeg) for gallery preview and lightbox cover
 - [x] Video transcoding: add a separate build task that converts queued `.mov` / `.webm` sources into `.mp4` delivery assets with visible operator progress, instead of doing that heavy work during upload
 - [x] Cover art (`media/img/`) management: distinguish build-generated covers from manually uploaded ones; prevent orphan accumulation; expose in admin file manager

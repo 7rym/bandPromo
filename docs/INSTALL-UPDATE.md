@@ -73,7 +73,7 @@ Preserved runtime paths include at least:
 - `media/`
 - `log/`
 
-Bundled install-seed assets shipped inside the package, such as the default icon bundle and tracked `bandPromo_*` demo media, should still be copied into a fresh install even though the broader `media/` tree is treated as preserved runtime state on updates.
+Bundled demo content (locked release `bandpromo-demo`) is installed from the setup starter pack and first publish build on the host. It is not tracked in git; only runtime folders such as `media/audio/original/` are preserved across updates.
 
 ### 6. Continue into setup
 
@@ -87,7 +87,7 @@ Setup should then:
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 
-The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. The bootstrap installs the application itself; the setup build step is responsible for ensuring the required default-theme asset package is present before the first build runs.
+The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Demo audio/media are delivered by the setup starter pack and publish build — not copied from git-tracked files in the repository.
 
 ## If the bootstrap stops
 
@@ -191,5 +191,6 @@ Normal operators should not need manual cleanup just because a package apply fai
 
 - `README.md` for the quick-start overview
 - `docs/ROADMAP.md` for the install/update product contract
+- `docs/PORTABILITY.md` for full backup vs data export/import and moved-site recovery
 - `docs/OPERATOR-RESPONSIBILITY.md` for operator boundaries
 - `docs/SUPPORT.md` for support expectations

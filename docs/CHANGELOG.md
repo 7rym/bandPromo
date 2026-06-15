@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 18:00 - Audio delivery alignment: `makePlaylists.py` now writes `play/playlist.json` with `ast_{ULID}` master filenames from `data/playlists/main.json`, so publish regenerates `media/audio/optimal/ast_*.mp3` and prunes legacy human-name MP3s; added operator folder-tier summary to `MEDIA-HANDLING.md`. Demo git hygiene: stopped tracking `bandPromo_*` audio originals (demo ships via setup starter pack); updated `.gitignore`, `INSTALL-UPDATE.md`, and TODO/ROADMAP scheduling.
+
 2026-06-15 17:00 - Admin IA restructure: **Settings** (Basics, Theme, Support, Sharing) replaces Config; **System** combines Publish (former Build tab) and Audit; legacy `?tab=config|build|audit` URLs redirect; welcome dashboard drops the Build quick link; notifications are the primary publish nudge (bell pulses on urgent items; Build tab pulse removed).
 
 2026-06-15 16:15 - Theme duplicate now allocates short unique ids (`theme-copy-{hex}`) instead of appending to the source id, so copying a copy no longer collides at the 48-character id limit.
