@@ -150,6 +150,7 @@ Scope: runtime sturdiness and safe delivery. Put items here only when they affec
 - [x] Enforce strict setup seeding for required runtime files (`web-config.json`, `data/gallery.json`, and `data/pages/*.json`) from tracked templates.
 - [x] Remove silent runtime fallbacks for required content/config files and fail with actionable errors.
 - [x] Remove quiz from the required core player flow so non-core features cannot destabilize playback.
+- [ ] Add a pre-publish release guard: verify every `require_once` / `require` target in `admin.php` and other shipped entrypoints (`index.php`, `play/index.php`, `setup.php`) resolves to a **git-tracked** file before **Publish release package** runs (would have blocked builds 290–291 blank-admin incident).
 
 ### Trust
 
