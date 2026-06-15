@@ -16,6 +16,9 @@ require_once 'biblioteca/page-storage.php';
 require_once 'biblioteca/page-registry.php';
 require_once 'biblioteca/player-modules.php';
 require_once 'biblioteca/admin-welcome-state.php';
+require_once 'biblioteca/theme-storage.php';
+require_once 'biblioteca/playlist-storage.php';
+require_once 'biblioteca/gallery-storage.php';
 
 function bandpromo_admin_files_permanent_warning_line(bool $include_metadata_edits = false): string
 {
@@ -84,11 +87,6 @@ $welcomeDashboardLinks = [
         'description' => 'Edit pages, playlist order, and gallery items.',
     ],
     [
-        'label' => 'Build',
-        'href' => '?tab=build',
-        'description' => 'Check publish status and run build tasks when needed.',
-    ],
-    [
         'label' => 'Open public site',
         'href' => $siteUrl !== '' ? $siteUrl : '../',
         'description' => 'Preview the live site as visitors see it.',
@@ -103,9 +101,6 @@ $welcomeDashboardLinks = [
 
 if ($welcomeSetupComplete) {
     $welcomePrimaryNotice = '';
-    if (!empty($buildRequiredState['required'])) {
-        $welcomePrimaryNotice = bandpromo_admin_welcome_build_status($buildRequiredState);
-    }
 } else {
     $welcomePrimaryNotice = $welcomeCompletedChecks . ' of ' . $welcomeTotalChecks . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
 }
@@ -402,9 +397,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $users = getAllUsers();
 $currentUserRole = getUserRole($_SESSION['username'] ?? '');
 
+// Legacy tab redirects
+$requestedTab = isset($_GET['tab']) ? (string) $_GET['tab'] : '';
+if (in_array($requestedTab, ['config', 'build', 'audit'], true)) {
+    $redirectQuery = $_GET;
+    if ($requestedTab === 'config') {
+        $redirectQuery['tab'] = 'settings';
+    } else {
+        $redirectQuery['tab'] = 'system';
+        $redirectQuery['stab'] = $requestedTab === 'audit' ? 'audit' : 'publish';
+    }
+    header('Location: /admin.php?' . http_build_query($redirectQuery));
+    exit;
+}
+
 // Primary tab
 $tab = $_GET['tab'] ?? 'welcome';
-if (!in_array($tab, ['welcome', 'analytics', 'audit', 'users', 'files', 'content', 'config', 'build', 'docs'])) {
+if (!in_array($tab, ['welcome', 'analytics', 'users', 'files', 'content', 'settings', 'system', 'docs'], true)) {
     $tab = 'welcome';
 }
 
@@ -431,11 +440,38 @@ $contentTab = $_GET['cntab'] ?? 'playlist';
 if ($contentTab === 'bio') {
     $contentTab = 'pages';
 }
-if (!in_array($contentTab, ['playlist', 'gallery', 'pages', 'player'], true)) {
+if (!in_array($contentTab, ['playlist', 'gallery', 'pages', 'themes', 'player'], true)) {
     $contentTab = 'playlist';
 }
 
 $pageTabEntries = bandpromo_page_admin_tab_entries(__DIR__);
+$contentTheme = isset($_GET['theme']) ? bandpromo_theme_normalize_id((string) $_GET['theme']) : '';
+if ($contentTheme === '') {
+    try {
+        bandpromo_theme_ensure_seeded(__DIR__);
+        $contentTheme = bandpromo_theme_active_id(__DIR__);
+    } catch (Throwable $throwable) {
+        $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
+    }
+}
+$contentPlaylist = isset($_GET['playlist']) ? bandpromo_playlist_normalize_id((string) $_GET['playlist']) : '';
+if ($contentPlaylist === '') {
+    try {
+        bandpromo_playlist_ensure_seeded(__DIR__);
+        $contentPlaylist = BANDPROMO_PLAYLIST_DEFAULT_ID;
+    } catch (Throwable $throwable) {
+        $contentPlaylist = BANDPROMO_PLAYLIST_DEFAULT_ID;
+    }
+}
+$contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((string) $_GET['gallery']) : '';
+if ($contentGallery === '') {
+    try {
+        bandpromo_gallery_ensure_seeded(__DIR__);
+        $contentGallery = BANDPROMO_GALLERY_DEFAULT_ID;
+    } catch (Throwable $throwable) {
+        $contentGallery = BANDPROMO_GALLERY_DEFAULT_ID;
+    }
+}
 $contentPage = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'faq';
 if (!is_string($contentPage) || !array_key_exists($contentPage, $editablePages)) {
     $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
@@ -444,10 +480,16 @@ $activeContentPage = $editablePages[$contentPage];
 $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
 $playerLayoutState = bandpromo_player_layout_admin_state(__DIR__);
 
-// Config sub-tab
+// Settings sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
-if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'])) {
+if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'], true)) {
     $configTab = 'basics';
+}
+
+// System sub-tab
+$systemTab = $_GET['stab'] ?? 'publish';
+if (!in_array($systemTab, ['publish', 'audit'], true)) {
+    $systemTab = 'publish';
 }
 
 // Date range
@@ -463,7 +505,7 @@ $auditActors = [];
 $documentationScope = 'operator';
 $documentationCatalog = [];
 $documentationView = null;
-if ($tab === 'audit') {
+if ($tab === 'system' && $systemTab === 'audit') {
     $auditEntries = bandpromo_admin_audit_read_entries($dateStart, $dateEnd, $auditActionFilter, $auditUserFilter, 200, 0);
     $auditActions = bandpromo_admin_audit_get_action_types($dateStart, $dateEnd);
     $auditActors = bandpromo_admin_audit_get_actors($dateStart, $dateEnd);
@@ -487,12 +529,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
+    <?php echo bandpromo_theme_render_css(__DIR__); ?>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player'], true)): ?>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player', 'playlist', 'gallery', 'themes'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-content.css'); ?>">
     <?php endif; ?>
-    <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'playlist', 'gallery', 'themes'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-editor.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.css'); ?>">
+    <?php endif; ?>
+    <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
+    <link rel="stylesheet" href="biblioteca/theme-editor.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-editor.css'); ?>">
     <?php endif; ?>
     <script src="biblioteca/lightbox.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/lightbox.js'); ?>"></script>
 </head>
@@ -526,12 +572,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <div class="tabs primary-tabs">
             <?php renderTabLink('welcome',   $tab, $welcomeSetupComplete ? '📊' : '🌍', $welcomeSetupComplete ? 'Dashboard' : 'Welcome'); ?>
             <?php renderTabLink('analytics', $tab, '📊', 'Analytics'); ?>
-            <?php renderTabLink('audit',     $tab, '🛡️', 'Audit'); ?>
             <?php renderTabLink('users',     $tab, '👥', 'Users'); ?>
             <?php renderTabLink('files',     $tab, '📁', 'Files'); ?>
             <?php renderTabLink('content',   $tab, '📄', 'Content'); ?>
-            <?php renderTabLink('config',    $tab, '⚙️', 'Config'); ?>
-            <?php renderTabLink('build',     $tab, '🔨', 'Build'); ?>
+            <?php renderTabLink('settings',  $tab, '⚙️', 'Settings'); ?>
+            <?php renderTabLink('system',    $tab, '🛠️', 'System'); ?>
             <?php renderTabLink('docs',      $tab, '📚', 'Documentation'); ?>
         </div>
 
@@ -547,7 +592,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <?php if ($welcomeSetupComplete): ?>
                     This page is your dashboard. Use <strong>Notifications</strong> in the header for open tasks and background activity, then jump to <strong>Files</strong> or <strong>Content</strong> to work on them. Use <strong>Site update</strong> below when a newer published package is available.
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Config</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>Build</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Publish</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
             </div>
 
@@ -611,6 +656,20 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <?php endif; ?>
             </div>
 
+            <div class="card content-autofix-card" id="contentAutofixCard">
+                <h2>🛠️ Content model upgrade</h2>
+                <p class="card-note">
+                    One-click migration for older installs: register audio assets, link playlists to <code>asset_id</code> entries,
+                    rename masters to <code>ast_{ULID}</code> filenames, sync release membership, refresh validation, and queue Build if anything changed.
+                </p>
+                <div class="content-autofix-status status-text" id="contentAutofixStatus">Not checked yet.</div>
+                <ul class="content-autofix-report" id="contentAutofixReport" hidden></ul>
+                <div class="content-autofix-actions">
+                    <button type="button" class="btn" id="contentAutofixPreviewBtn">Preview upgrade</button>
+                    <button type="button" class="btn btn-primary" id="contentAutofixApplyBtn" hidden>Run upgrade</button>
+                </div>
+            </div>
+
             <div class="card package-update-card" id="packageUpdateCard">
                 <h2>⬆️ Site update</h2>
                 <p class="package-update-lead">
@@ -630,94 +689,6 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <p class="package-update-footnote" id="packageUpdateFootnote" hidden></p>
             </div>
-        </div>
-
-        <!-- ===================== AUDIT TAB ===================== -->
-        <div class="tab-content <?php echo $tab === 'audit' ? 'active' : ''; ?>">
-            <div class="tabs sub-tabs">
-                <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
-            </div>
-            <div class="admin-help-box collapsed" id="help-audit">
-                Separate admin audit trail for management actions only. Use this to trace who changed users, content, config, files, and builds, without mixing those records into listener activity analytics.
-            </div>
-
-            <form method="GET" class="filter-bar">
-                <input type="hidden" name="tab" value="audit">
-                <label>Start</label>
-                <input type="date" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>">
-                <label>End</label>
-                <input type="date" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>">
-                <label>Action</label>
-                <select name="audit_action" onchange="this.form.submit()">
-                    <option value="">All actions</option>
-                    <?php foreach ($auditActions as $auditAction): ?>
-                    <option value="<?php echo htmlspecialchars($auditAction); ?>" <?php echo $auditActionFilter === $auditAction ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($auditAction); ?>
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-                <label>User</label>
-                <select name="audit_user" onchange="this.form.submit()">
-                    <option value="">All admins</option>
-                    <?php foreach ($auditActors as $auditActor): ?>
-                    <option value="<?php echo htmlspecialchars($auditActor); ?>" <?php echo $auditUserFilter === $auditActor ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($auditActor); ?>
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-                <span class="text-muted">
-                    <?php echo $auditEntries['total'] > 200 ? 'Showing 200 of ' . number_format($auditEntries['total']) : number_format($auditEntries['total']); ?> records
-                </span>
-            </form>
-
-            <?php if (empty($auditEntries['entries'])): ?>
-                <p class="empty-msg">No admin audit records found for the selected filters.</p>
-            <?php else: ?>
-            <div class="table-scroll">
-                <table style="font-size:13px;">
-                    <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Status</th><th>Detail</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($auditEntries['entries'] as $entry): ?>
-                        <tr>
-                            <td class="text-muted nowrap"><?php echo htmlspecialchars($entry['timestamp'] ?? ''); ?></td>
-                            <td><strong><?php echo htmlspecialchars($entry['actor'] ?? ''); ?></strong></td>
-                            <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['action'] ?? ''); ?></span></td>
-                            <td>
-                                <?php
-                                    $targetType = trim((string) ($entry['target_type'] ?? ''));
-                                    $targetId = trim((string) ($entry['target_id'] ?? ''));
-                                    echo htmlspecialchars($targetType !== '' ? $targetType : '—');
-                                    if ($targetId !== '') {
-                                        echo '<span style="color:#999;font-size:11px;"> · ' . htmlspecialchars($targetId) . '</span>';
-                                    }
-                                ?>
-                            </td>
-                            <td>
-                                <?php
-                                    $status = trim((string) ($entry['status'] ?? ''));
-                                    $statusKey = strtolower($status);
-                                    $statusClass = 'status-neutral';
-                                    if (in_array($statusKey, ['ok', 'success'], true)) {
-                                        $statusClass = 'status-ok';
-                                    } elseif (in_array($statusKey, ['error', 'failed', 'failure'], true)) {
-                                        $statusClass = 'status-error';
-                                    } elseif (in_array($statusKey, ['denied', 'warning'], true)) {
-                                        $statusClass = 'status-warning';
-                                    }
-                                ?>
-                                <span class="badge audit-status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status !== '' ? $status : '—'); ?></span>
-                            </td>
-                            <td class="text-muted">
-                                <?php
-                                    echo htmlspecialchars(bandpromo_admin_audit_format_detail($entry));
-                                ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <?php endif; ?>
         </div>
 
         <!-- ===================== ANALYTICS TAB ===================== -->
@@ -1094,10 +1065,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </select>
                             </label>
                             <label class="media-filter-label">
-                                <span class="visually-hidden">Filter demo assets</span>
-                                <select class="media-filter-select" data-media-demo-filter aria-label="Filter demo assets">
-                                    <option value="hide">User files</option>
-                                    <option value="show">Include demo</option>
+                                <span class="visually-hidden">Filter by release</span>
+                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
+                                    <option value="all">All releases</option>
                                 </select>
                             </label>
                         </div>
@@ -1139,10 +1109,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </select>
                             </label>
                             <label class="media-filter-label">
-                                <span class="visually-hidden">Filter demo assets</span>
-                                <select class="media-filter-select" data-media-demo-filter aria-label="Filter demo assets">
-                                    <option value="hide">User files</option>
-                                    <option value="show">Include demo</option>
+                                <span class="visually-hidden">Filter by release</span>
+                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
+                                    <option value="all">All releases</option>
                                 </select>
                             </label>
                         </div>
@@ -1185,10 +1154,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </select>
                             </label>
                             <label class="media-filter-label">
-                                <span class="visually-hidden">Filter demo assets</span>
-                                <select class="media-filter-select" data-media-demo-filter aria-label="Filter demo assets">
-                                    <option value="hide">User files</option>
-                                    <option value="show">Include demo</option>
+                                <span class="visually-hidden">Filter by release</span>
+                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
+                                    <option value="all">All releases</option>
                                 </select>
                             </label>
                         </div>
@@ -1230,10 +1198,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </select>
                             </label>
                             <label class="media-filter-label">
-                                <span class="visually-hidden">Filter demo assets</span>
-                                <select class="media-filter-select" data-media-demo-filter aria-label="Filter demo assets">
-                                    <option value="hide">User files</option>
-                                    <option value="show">Include demo</option>
+                                <span class="visually-hidden">Filter by release</span>
+                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
+                                    <option value="all">All releases</option>
                                 </select>
                             </label>
                         </div>
@@ -1267,10 +1234,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         <span class="media-file-list-header-thumb" aria-hidden="true"></span>
                         <div class="media-file-list-header-filters">
                             <label class="media-filter-label">
-                                <span class="visually-hidden">Filter demo assets</span>
-                                <select class="media-filter-select" data-media-demo-filter aria-label="Filter demo assets">
-                                    <option value="hide">User files</option>
-                                    <option value="show">Include demo</option>
+                                <span class="visually-hidden">Filter by release</span>
+                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
+                                    <option value="all">All releases</option>
                                 </select>
                             </label>
                         </div>
@@ -1330,6 +1296,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     'playlist' => ['🎵', 'Playlist'],
                     'gallery'  => ['🖼️', 'Gallery'],
                     'pages'    => ['📝', 'Pages'],
+                    'themes'   => ['🎨', 'Themes'],
                     'player'   => ['🎛️', 'Player'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
@@ -1337,6 +1304,15 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     $url = '?tab=content&cntab=' . urlencode($ct);
                     if ($ct === 'pages') {
                         $url .= '&page=' . urlencode($contentPage);
+                    }
+                    if ($ct === 'themes') {
+                        $url .= '&theme=' . urlencode($contentTheme);
+                    }
+                    if ($ct === 'playlist') {
+                        $url .= '&playlist=' . urlencode($contentPlaylist);
+                    }
+                    if ($ct === 'gallery') {
+                        $url .= '&gallery=' . urlencode($contentGallery);
                     }
                 ?>
                 <a href="<?php echo $url; ?>" class="tab-link <?php echo $active; ?>">
@@ -1347,23 +1323,24 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-content">
                 <?php if ($contentTab === 'playlist'): ?>
-                    Your playlist is built from your audio files and their ID3 tags (title, artist, album). Drag tracks between Available tracks and Playlist like the gallery editor. Upload audio via <a href="?tab=files&fpanel=audio">Files → Audio</a>, then run a <a href="?tab=build">Build</a> when needed.
+                    Pick a playlist from the pool to preview its track order on the right. Click edit to open the track pool and reorder. Add new playlists from the pool header.
                 <?php elseif ($contentTab === 'gallery'): ?>
-                    Drag photos and videos from the pool into the gallery order. Reorder on the right and edit name/alt inline. No build required.
+                    Pick a gallery from the pool to preview its content order on the right. Click edit to open the media pool and reorder. Add new galleries from the pool header.
                 <?php elseif ($contentTab === 'pages'): ?>
                     Use the page pool on the left to pick a page, preview it on the right, and click Edit to open the block editor. Add new pages from the pool header.
+                <?php elseif ($contentTab === 'themes'): ?>
+                    Pick a theme from the pool to preview it on the right. Click edit to open the token editor on the left. Duplicate Setup Default to create an editable copy.
                 <?php elseif ($contentTab === 'player'): ?>
                     Drag content from the pool into the player layout on the right. Reorder optional items like the playlist editor. Playlist and Lyrics always stay first.
                 <?php endif; ?>
             </div>
 
             <?php
-            $poolDemoFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
+            $poolReleaseFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
                 . '<label class="media-filter-label player-layout-pool-filter-label">'
-                . '<span class="visually-hidden">Filter demo assets</span>'
-                . '<select class="media-filter-select player-layout-pool-filter" data-pool-demo-filter aria-label="Filter demo assets">'
-                . '<option value="hide">User files</option>'
-                . '<option value="show">Include demo</option>'
+                . '<span class="visually-hidden">Filter by release</span>'
+                . '<select class="media-filter-select player-layout-pool-filter" data-pool-release-filter aria-label="Filter by release">'
+                . '<option value="all">All releases</option>'
                 . '</select>'
                 . '</label>'
                 . '</div>';
@@ -1372,27 +1349,75 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
             <!-- ── PLAYLIST ─────────────────────────────────────────────── -->
             <?php if ($contentTab === 'playlist'): ?>
-            <div class="card content-editor-card" id="playlistEditorCard">
+            <div class="card content-editor-card" id="playlistEditorCard"
+                 data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎵 Playlist</h3>
                 <p class="card-note">
-                    Drag tracks from the pool into the playlist, or back to hide them. Reorder tracks on the right.
-                    Use Shift-click or Ctrl/Cmd-click to select multiple tracks and move them together.
-                    Saving updates the live playlist immediately and preserves the order for future builds.
+                    Pick a playlist from the pool to preview its track order on the right. Use the edit button to open the track pool and reorder.
+                    Use Shift-click or Ctrl/Cmd-click to select multiple tracks. Saving updates the selected playlist immediately.
                 </p>
-                <div class="player-layout-editor" id="playlistLayoutEditor">
+
+                <div class="player-layout-editor playlist-editor-layout" id="playlistEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--pool">
-                                <h4 class="player-layout-col-title">Available content</h4>
-                                <?php echo $poolDemoFilterHtml; ?>
+                        <div class="player-layout-panel playlist-editor-left-panel">
+                            <div id="playlistPoolView">
+                                <div class="player-layout-col-head player-layout-col-head--pool">
+                                    <h4 class="player-layout-col-title">Available content</h4>
+                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
+                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddPlaylistBtn" aria-expanded="false" aria-label="Add playlist" title="Add playlist">
+                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                            <span>Add playlist</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body">
+                                    <div class="add-page-panel" id="addPlaylistPanel" hidden>
+                                        <form id="addPlaylistForm" class="add-page-form">
+                                            <label class="add-page-field">
+                                                <span>Playlist name</span>
+                                                <input type="text" name="title" placeholder="Summer singles" required>
+                                            </label>
+                                            <div class="add-page-actions">
+                                                <button type="submit" class="btn btn-primary">Create playlist</button>
+                                                <button type="button" class="btn" id="cancelAddPlaylistBtn">Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <p id="playlistRegistryStatus" class="status-text page-pool-status"></p>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="playlistPoolList" aria-label="Playlists"></ol>
+                                </div>
                             </div>
-                            <div class="player-layout-panel-body">
-                                <ol class="playlist-editor player-layout-list player-layout-pool-list" id="playlistAvailableList" aria-label="Available content">
-                                    <li class="player-layout-empty">Loading tracks…</li>
-                                </ol>
+
+                            <div id="playlistTracksPoolView" class="page-editor-view" hidden>
+                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Playlists</button>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body">
+                                    <div class="playlist-settings-panel" id="playlistSettingsPanel">
+                                        <div class="playlist-settings-fields">
+                                            <label class="playlist-settings-field">
+                                                <span>Playlist name</span>
+                                                <input type="text" id="playlistSettingsTitle" maxlength="120" autocomplete="off">
+                                            </label>
+                                            <label class="playlist-settings-field">
+                                                <span>Publish date</span>
+                                                <input type="text" id="playlistSettingsPublishDate" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off">
+                                            </label>
+                                        </div>
+                                        <span class="status-text playlist-settings-status" id="playlistSettingsStatus"></span>
+                                    </div>
+                                    <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
+                                        <h4 class="player-layout-col-title">Available content</h4>
+                                        <?php echo $poolReleaseFilterHtml; ?>
+                                    </div>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list" id="playlistAvailableList" aria-label="Available tracks">
+                                        <li class="player-layout-empty">Loading tracks…</li>
+                                    </ol>
+                                </div>
                             </div>
                         </div>
                     </div>
+
                     <div class="player-layout-col player-layout-col--active">
                         <div class="player-layout-panel">
                             <div class="player-layout-col-head player-layout-col-head--active">
@@ -1404,8 +1429,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </div>
                             </div>
                             <div class="player-layout-panel-body">
-                                <p class="hint player-layout-hint">Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available tracks to remove them from the playlist.</p>
-                                <ol class="playlist-editor player-layout-list" id="playlistActiveList" aria-label="Playlist order"></ol>
+                                <p class="hint player-layout-hint" id="playlistEditorHint">Select a playlist from the pool, then click edit to change its track order.</p>
+                                <ol class="playlist-editor player-layout-list" id="playlistActiveList" aria-label="Playlist order">
+                                    <li class="player-layout-empty">No playlist selected.</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
@@ -1415,22 +1442,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- ── GALLERY ────────────────────────────────────────────────── -->
             <?php elseif ($contentTab === 'gallery'): ?>
             <?php
-                $gf = __DIR__ . '/data/gallery.json';
+                require_once __DIR__ . '/biblioteca/gallery-helpers.php';
+                require_once __DIR__ . '/biblioteca/gallery-storage.php';
                 $galleryError = null;
-                $galleryItems = [];
-                if (!file_exists($gf)) {
-                    $galleryError = 'Missing required runtime file: data/gallery.json. Run setup to seed templates.';
-                } else {
-                    $raw = file_get_contents($gf);
-                    if ($raw === false) {
-                        $galleryError = 'Could not read data/gallery.json.';
-                    } else {
-                        $galleryItems = json_decode($raw, true);
-                        if (!is_array($galleryItems)) {
-                            $galleryError = 'data/gallery.json is not a valid JSON array.';
-                            $galleryItems = [];
-                        }
-                    }
+                try {
+                    bandpromo_gallery_ensure_seeded(__DIR__);
+                } catch (Throwable $throwable) {
+                    $galleryError = $throwable->getMessage();
                 }
             ?>
             <?php if ($galleryError): ?>
@@ -1438,28 +1456,71 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <p class="card-note" style="color:#f87171"><?php echo htmlspecialchars($galleryError); ?></p>
             </div>
             <?php else: ?>
-            <div class="card content-editor-card" id="galleryEditorCard">
+            <div class="card content-editor-card" id="galleryEditorCard"
+                 data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🖼️ Gallery</h3>
                 <p class="card-note">
-                    Drag content from the pool into the gallery order, or back to hide it. Reorder items on the right.
-                    Use Shift-click or Ctrl/Cmd-click to select multiple items and move them together.
-                    Name and alt text can be edited inline. Changes apply immediately — no build required.
+                    Pick a gallery from the pool to preview its content order on the right. Use the edit button to open the media pool and reorder.
+                    Use Shift-click or Ctrl/Cmd-click to select multiple items. Name and alt text can be edited inline in edit mode. No build required.
                 </p>
-                <div class="player-layout-editor" id="galleryEditor"
-                     data-initial="<?php echo htmlspecialchars(json_encode($galleryItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>">
+
+                <div class="player-layout-editor playlist-editor-layout" id="galleryEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--pool">
-                                <h4 class="player-layout-col-title">Available content</h4>
-                                <?php echo $poolDemoFilterHtml; ?>
+                        <div class="player-layout-panel playlist-editor-left-panel">
+                            <div id="galleryPoolView">
+                                <div class="player-layout-col-head player-layout-col-head--pool">
+                                    <h4 class="player-layout-col-title">Available content</h4>
+                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
+                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddGalleryBtn" aria-expanded="false" aria-label="Add gallery" title="Add gallery">
+                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                            <span>Add gallery</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body">
+                                    <div class="add-page-panel" id="addGalleryPanel" hidden>
+                                        <form id="addGalleryForm" class="add-page-form">
+                                            <label class="add-page-field">
+                                                <span>Gallery name</span>
+                                                <input type="text" name="title" placeholder="Live photos" required>
+                                            </label>
+                                            <div class="add-page-actions">
+                                                <button type="submit" class="btn btn-primary">Create gallery</button>
+                                                <button type="button" class="btn" id="cancelAddGalleryBtn">Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <p id="galleryRegistryStatus" class="status-text page-pool-status"></p>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="galleryPoolList" aria-label="Galleries"></ol>
+                                </div>
                             </div>
-                            <div class="player-layout-panel-body">
-                                <ol class="playlist-editor player-layout-list gallery-pool-list" id="galleryAvailableList" aria-label="Available content">
-                                    <li class="player-layout-empty">Loading media…</li>
-                                </ol>
+
+                            <div id="galleryItemsPoolView" class="page-editor-view" hidden>
+                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Galleries</button>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body">
+                                    <div class="playlist-settings-panel" id="gallerySettingsPanel">
+                                        <div class="playlist-settings-fields">
+                                            <label class="playlist-settings-field">
+                                                <span>Gallery name</span>
+                                                <input type="text" id="gallerySettingsTitle" maxlength="120" autocomplete="off">
+                                            </label>
+                                        </div>
+                                        <span class="status-text playlist-settings-status" id="gallerySettingsStatus"></span>
+                                    </div>
+                                    <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
+                                        <h4 class="player-layout-col-title">Available content</h4>
+                                        <?php echo $poolReleaseFilterHtml; ?>
+                                    </div>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list gallery-pool-list" id="galleryAvailableList" aria-label="Available content">
+                                        <li class="player-layout-empty">Loading media…</li>
+                                    </ol>
+                                </div>
                             </div>
                         </div>
                     </div>
+
                     <div class="player-layout-col player-layout-col--active">
                         <div class="player-layout-panel">
                             <div class="player-layout-col-head player-layout-col-head--active">
@@ -1471,8 +1532,10 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </div>
                             </div>
                             <div class="player-layout-panel-body">
-                                <p class="hint player-layout-hint">Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple items. Move selections back to Available content to remove them from the gallery.</p>
-                                <ol class="playlist-editor player-layout-list gallery-active-list" id="galleryActiveList" aria-label="Gallery order"></ol>
+                                <p class="hint player-layout-hint" id="galleryEditorHint">Select a gallery from the pool, then click edit to change its content order.</p>
+                                <ol class="playlist-editor player-layout-list gallery-active-list" id="galleryActiveList" aria-label="Gallery order">
+                                    <li class="player-layout-empty">No gallery selected.</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
@@ -1564,6 +1627,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                         <div class="page-editor-toolbar">
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
+                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture_richtext">+ Picture + text</button>
+                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="gallery">+ Gallery</button>
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
                                         </div>
                                     </div>
@@ -1640,6 +1705,66 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 </div>
             </div>
 
+            <?php elseif ($contentTab === 'themes'): ?>
+            <div class="card content-editor-card" id="themeEditorRoot"
+                 data-initial-theme="<?php echo htmlspecialchars($contentTheme, ENT_QUOTES, 'UTF-8'); ?>">
+                <h3>🎨 Themes</h3>
+                <p class="card-note">
+                    Pick a theme from the pool to preview how its tokens look on the right. Use the edit button to change colors, typography, and layout variables.
+                    Setup Default stays locked; duplicate it to create an editable copy. Brand asset paths still live under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during migration.
+                </p>
+
+                <div class="player-layout-editor theme-editor-layout playlist-editor-layout" id="themeEditorLayout">
+                    <div class="player-layout-col player-layout-col--pool">
+                        <div class="player-layout-panel playlist-editor-left-panel">
+                            <div id="themePoolView">
+                                <div class="player-layout-col-head player-layout-col-head--pool">
+                                    <h4 class="player-layout-col-title">Available content</h4>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body">
+                                    <p id="themeRegistryStatus" class="status-text page-pool-status"></p>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list theme-pool-list" id="themePoolList" aria-label="Themes"></ol>
+                                </div>
+                            </div>
+
+                            <div id="themeEditorView" class="page-editor-view" hidden>
+                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head theme-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn" id="themeEditorBackBtn" title="Back to theme list">← Themes</button>
+                                    <div class="theme-editor-head-name">
+                                        <input type="text" class="theme-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Theme name" aria-label="Theme name">
+                                        <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
+                                    </div>
+                                    <span class="status-text theme-editor-name-status" id="themeSettingsStatus"></span>
+                                </div>
+                                <div class="player-layout-panel-body page-pool-panel-body theme-editor-view-body">
+                                    <div class="theme-editor-form" id="themeEditorForm">
+                                        <p class="theme-editor-locked-note">Loading theme…</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="player-layout-col player-layout-col--active">
+                        <div class="player-layout-panel theme-editor-preview-panel">
+                            <div class="player-layout-col-head player-layout-col-head--active">
+                                <h4 class="player-layout-col-title">Live preview</h4>
+                                <div class="player-layout-save-row theme-editor-actions">
+                                    <button type="button" id="themeSetActiveBtn" class="btn" hidden>★ Set active</button>
+                                    <button type="button" id="themeSaveBtn" class="btn" hidden>💾 Save theme</button>
+                                </div>
+                            </div>
+                            <div class="player-layout-panel-body theme-editor-preview-body">
+                                <p class="hint player-layout-hint" id="themeEditorHint">Select a theme from the pool, then click edit to change its tokens.</p>
+                                <div class="theme-editor-preview-frame" id="themeEditorPreview">
+                                    <p class="theme-editor-empty">No theme selected.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <?php elseif ($contentTab === 'player'): ?>
             <div class="card content-editor-card" id="playerLayoutCard"
                  data-layout="<?php echo htmlspecialchars(json_encode($playerLayoutState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
@@ -1683,12 +1808,45 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
 
             <?php endif; ?>
+
+            <div class="modal-overlay" id="playlistDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="playlistDeleteModalTitle">
+                    <h3 id="playlistDeleteModalTitle">Delete playlist?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="playlistDeleteModalName"></strong>. Its track order will be lost. This cannot be undone.</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary icon-btn danger" id="playlistDeleteConfirmBtn">Delete playlist</button>
+                        <button type="button" class="btn" id="playlistDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="galleryDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="galleryDeleteModalTitle">
+                    <h3 id="galleryDeleteModalTitle">Delete gallery?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="galleryDeleteModalName"></strong>. Its content order will be lost. This cannot be undone.</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary icon-btn danger" id="galleryDeleteConfirmBtn">Delete gallery</button>
+                        <button type="button" class="btn" id="galleryDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="themeDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="themeDeleteModalTitle">
+                    <h3 id="themeDeleteModalTitle">Delete theme?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="themeDeleteModalName"></strong>. Its color and typography settings will be lost. This cannot be undone.</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary icon-btn danger" id="themeDeleteConfirmBtn">Delete theme</button>
+                        <button type="button" class="btn" id="themeDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- ===================== CONFIG TAB ===================== -->
-        <div class="tab-content <?php echo $tab === 'config' ? 'active' : ''; ?>">
+        <!-- ===================== SETTINGS TAB ===================== -->
+        <div class="tab-content <?php echo $tab === 'settings' ? 'active' : ''; ?>">
 
-            <!-- Config sub-tab navigation -->
+            <!-- Settings sub-tab navigation -->
             <div class="tabs sub-tabs">
                 <?php
                 $cfgTabs = [
@@ -1699,15 +1857,15 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 ];
                 foreach ($cfgTabs as $ct => [$emoji, $label]):
                     $active = $ct === $configTab ? 'active' : '';
-                    $url = '?tab=config&ctab=' . urlencode($ct);
+                    $url = '?tab=settings&ctab=' . urlencode($ct);
                 ?>
                 <a href="<?php echo $url; ?>" class="tab-link <?php echo $active; ?>">
                     <?php echo htmlspecialchars($emoji . ' ' . $label); ?>
                 </a>
                 <?php endforeach; ?>
-                <button class="help-toggle-btn collapsed" id="helpBtn-config" onclick="toggleHelp('config')" title="Show/hide help">ⓘ</button>
+                <button class="help-toggle-btn collapsed" id="helpBtn-settings" onclick="toggleHelp('settings')" title="Show/hide help">ⓘ</button>
             </div>
-            <div class="admin-help-box collapsed" id="help-config">
+            <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
                     Basics is the place for your public site title, URL, description, language, and author details. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
                 <?php elseif ($configTab === 'theme'): ?>
@@ -1736,7 +1894,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div style="background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.35);color:#f87171;
                         border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:13px;">
                 ⚠️ <strong>Incomplete config:</strong> one or more internal config sections are missing.
-                <a href="?tab=config&amp;ctab=basics&amp;repair=1" style="color:#f87171;text-decoration:underline;">Repair now</a>
+                <a href="?tab=settings&amp;ctab=basics&amp;repair=1" style="color:#f87171;text-decoration:underline;">Repair now</a>
             </div>
             <?php endif; ?>
             <?php
@@ -1745,7 +1903,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 $cfgRepaired = bandpromo_deep_merge($cfgExample, $cfgCurrent);
                 bandpromo_sync_scoped_config_fields($cfgRepaired, ['site', 'social', 'media']);
                 file_put_contents($cfgCurrentPath, json_encode($cfgRepaired, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-                header('Location: ?tab=config&ctab=basics'); exit;
+                header('Location: ?tab=settings&ctab=basics'); exit;
             }
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSite = $cfgFull['site'] ?? [];
@@ -2077,14 +2235,22 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
         </div>
 
-        <!-- ===================== BUILD TAB ===================== -->
-        <div id="tab-build" class="tab-content <?php echo $tab === 'build' ? 'active' : ''; ?>">
+        <!-- ===================== SYSTEM TAB ===================== -->
+        <div id="tab-system" class="tab-content <?php echo $tab === 'system' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
+                <a href="?tab=system&amp;stab=publish" class="tab-link <?php echo $systemTab === 'publish' ? 'active' : ''; ?>">🚀 Publish</a>
+                <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
+                <?php if ($systemTab === 'publish'): ?>
                 <button id="buildBtn" class="subtab-action">▶️ Run Publish Build</button>
                 <button id="optimizeBtn" class="subtab-action">🖼️ Refresh Image Files</button>
                 <button id="recommendedBuildBtn" class="subtab-action" style="display:none"></button>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
+                <?php else: ?>
+                <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
+                <?php endif; ?>
             </div>
+
+            <?php if ($systemTab === 'publish'): ?>
             <div class="admin-help-box collapsed" id="help-build">
                 Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> when audio, validation, playlist, manifest, or other heavier publish steps are still pending. Jobs continue in the background while this log updates.
             </div>
@@ -2108,6 +2274,90 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 </div>
                 <pre id="buildLog" class="build-log">No build output yet.</pre>
             </div>
+            <?php else: ?>
+            <div class="admin-help-box collapsed" id="help-audit">
+                Separate admin audit trail for management actions only. Use this to trace who changed users, content, settings, files, and publish runs, without mixing those records into listener activity analytics.
+            </div>
+
+            <form method="GET" class="filter-bar">
+                <input type="hidden" name="tab" value="system">
+                <input type="hidden" name="stab" value="audit">
+                <label>Start</label>
+                <input type="date" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>">
+                <label>End</label>
+                <input type="date" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>">
+                <label>Action</label>
+                <select name="audit_action" onchange="this.form.submit()">
+                    <option value="">All actions</option>
+                    <?php foreach ($auditActions as $auditAction): ?>
+                    <option value="<?php echo htmlspecialchars($auditAction); ?>" <?php echo $auditActionFilter === $auditAction ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($auditAction); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <label>User</label>
+                <select name="audit_user" onchange="this.form.submit()">
+                    <option value="">All admins</option>
+                    <?php foreach ($auditActors as $auditActor): ?>
+                    <option value="<?php echo htmlspecialchars($auditActor); ?>" <?php echo $auditUserFilter === $auditActor ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($auditActor); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <span class="text-muted">
+                    <?php echo $auditEntries['total'] > 200 ? 'Showing 200 of ' . number_format($auditEntries['total']) : number_format($auditEntries['total']); ?> records
+                </span>
+            </form>
+
+            <?php if (empty($auditEntries['entries'])): ?>
+                <p class="empty-msg">No admin audit records found for the selected filters.</p>
+            <?php else: ?>
+            <div class="table-scroll">
+                <table style="font-size:13px;">
+                    <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Status</th><th>Detail</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($auditEntries['entries'] as $entry): ?>
+                        <tr>
+                            <td class="text-muted nowrap"><?php echo htmlspecialchars($entry['timestamp'] ?? ''); ?></td>
+                            <td><strong><?php echo htmlspecialchars($entry['actor'] ?? ''); ?></strong></td>
+                            <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['action'] ?? ''); ?></span></td>
+                            <td>
+                                <?php
+                                    $targetType = trim((string) ($entry['target_type'] ?? ''));
+                                    $targetId = trim((string) ($entry['target_id'] ?? ''));
+                                    echo htmlspecialchars($targetType !== '' ? $targetType : '—');
+                                    if ($targetId !== '') {
+                                        echo '<span style="color:#999;font-size:11px;"> · ' . htmlspecialchars($targetId) . '</span>';
+                                    }
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                    $status = trim((string) ($entry['status'] ?? ''));
+                                    $statusKey = strtolower($status);
+                                    $statusClass = 'status-neutral';
+                                    if (in_array($statusKey, ['ok', 'success'], true)) {
+                                        $statusClass = 'status-ok';
+                                    } elseif (in_array($statusKey, ['error', 'failed', 'failure'], true)) {
+                                        $statusClass = 'status-error';
+                                    } elseif (in_array($statusKey, ['denied', 'warning'], true)) {
+                                        $statusClass = 'status-warning';
+                                    }
+                                ?>
+                                <span class="badge audit-status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status !== '' ? $status : '—'); ?></span>
+                            </td>
+                            <td class="text-muted">
+                                <?php
+                                    echo htmlspecialchars(bandpromo_admin_audit_format_detail($entry));
+                                ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
         </div>
 
         <!-- ===================== DOCUMENTATION TAB ===================== -->
@@ -2342,6 +2592,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
+    <?php endif; ?>
+    <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
+    <script src="biblioteca/theme-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-editor.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player'], true)): ?>
     <script src="biblioteca/content-admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-admin.js'); ?>"></script>

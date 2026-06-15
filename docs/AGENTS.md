@@ -35,7 +35,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 ## Build/Test Commands
 
-- Preferred build path: Admin panel -> Build tab.
+- Preferred build path: Admin panel -> System -> Publish.
 - CLI build: `python scripts/build.py`
 - PHP syntax check: `php -l <file>`
 - Before committing, validate touched PHP and JSON/template files.
@@ -45,6 +45,10 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - [README.md](README.md)
 - [docs/TODO.md](TODO.md)
 - [docs/ROADMAP.md](ROADMAP.md)
+- [docs/PLATFORM-MODEL.md](PLATFORM-MODEL.md)
+- [docs/ACCESS-MODEL.md](ACCESS-MODEL.md)
+- [docs/DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md)
+- [docs/PORTABILITY.md](PORTABILITY.md)
 - [docs/FEATURES.md](FEATURES.md)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)
 

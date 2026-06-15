@@ -287,7 +287,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 });
 
 // =============================================================================
-// Tab panel logic — Files, Config, Build
+// Tab panel logic — Files, Settings, System
 // (data vars injected by admin.php: adminActivePanel, adminDateStart, adminDateEnd)
 // =============================================================================
         (function () {
@@ -301,7 +301,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 special:        { accept: '.mp3,.mp4,.png,.jpg,.jpeg,.webp,.svg', target: 'special' },
             };
             window.activeMediaPanel = adminActivePanel;
-            const buildTabLink = document.querySelector('.primary-tabs .tab-link[href*="tab=build"]');
+            function isPublishViewActive() {
+                const systemTab = document.getElementById('tab-system');
+                if (!systemTab?.classList.contains('active')) {
+                    return false;
+                }
+                const stab = new URLSearchParams(window.location.search).get('stab') || 'publish';
+                return stab !== 'audit';
+            }
+
+            const systemTabLink = document.querySelector('.primary-tabs .tab-link[href*="tab=system"]');
             const recommendedBuildBtn = document.getElementById('recommendedBuildBtn');
             const operatorNotificationsToggle = document.getElementById('operatorNotificationsToggle');
             const operatorNotificationsCount = document.getElementById('operatorNotificationsCount');
@@ -321,11 +330,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
-            let showBundledDemoAssets = false;
-            const demoFilterListeners = [];
-            function registerDemoFilterListener(listener) {
+            let poolReleaseFilter = 'all';
+            let releasesCatalog = [];
+            const releaseFilterListeners = [];
+            function registerReleaseFilterListener(listener) {
                 if (typeof listener === 'function') {
-                    demoFilterListeners.push(listener);
+                    releaseFilterListeners.push(listener);
                 }
             }
             let illustrationsCoverFilter = 'all';
@@ -440,11 +450,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function buildBuildTabUrl() {
-                return `${buildAdminUrl({ tab: 'build' })}#build-log-card`;
+                return `${buildAdminUrl({ tab: 'system', stab: 'publish' })}#build-log-card`;
             }
 
             function buildRecommendedRunUrl() {
-                return `${buildAdminUrl({ tab: 'build', run_recommended: '1' })}#build-log-card`;
+                return `${buildAdminUrl({ tab: 'system', stab: 'publish', run_recommended: '1' })}#build-log-card`;
             }
 
             function formatBuildTaskLabel(task) {
@@ -569,16 +579,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : [{ text: formatBuildTaskSummary(buildState) }];
 
                 if (setupComplete) {
+                    const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
+                    const taskIntro = taskDetails.length
+                        ? `Pending: ${taskDetails.join('; ')}.`
+                        : formatBuildTaskSummary(buildState);
+
                     return {
                         severity: 'recommended-fix',
-                        title: 'Some publish preparation is still pending',
+                        title: 'Publish preparation did not finish automatically',
                         file: '',
+                        checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'bandPromo could not finish every delivery step automatically after your latest change.' },
-                            ...summaryDetails,
+                            { text: 'Your change was saved, but bandPromo still needs a build step before visitors get the updated files.' },
+                            { text: taskIntro },
+                            { text: 'Use System → Publish to run the pending step. Opening Files alone will not regenerate delivery files.' },
                         ],
                         actions: [
-                            { label: 'Open Files', href: '?tab=files' },
+                            { label: getBuildActionLabel(action), action: 'run-recommended-build' },
+                            { label: 'Go to Publish', href: buildBuildTabUrl() },
                         ],
                     };
                 }
@@ -592,10 +610,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     severity: 'build-step',
                     title: action === 'optimize' ? 'New images are not live yet' : 'Your site is not up to date',
                     file: '',
+                    checkedAt: String(buildState.updated_at || '').trim(),
                     details: [introDetail, ...summaryDetails],
                     actions: [
                         { label: getBuildActionLabel(action), action: 'run-recommended-build' },
-                        { label: 'Go to Build', href: buildBuildTabUrl() },
+                        { label: 'Go to Publish', href: buildBuildTabUrl() },
                     ],
                 };
             }
@@ -613,6 +632,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     severity,
                     title: item.label,
                     file: '',
+                    checkedAt: String(item.updated_at || item.checked_at || '').trim(),
                     details: [
                         { text: String(item.next || item.detail || '').trim() },
                     ].filter((detail) => detail.text !== ''),
@@ -634,6 +654,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     severity: 'package-update',
                     title: `Site update available (${installed} → ${remote})`,
                     file: '',
+                    checkedAt: String(packageUpdate.last_update || '').trim(),
                     details: [
                         { text: 'A newer bandPromo package is published. Application files can be updated while web-config.json, .env, data/, media/, and log/ stay preserved.' },
                     ],
@@ -663,6 +684,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             severity: 'background-running',
                             title: 'Preparing video delivery',
                             file: '',
+                            checkedAt: String(item.started_at || item.updated_at || '').trim(),
                             details: [
                                 { text: `bandPromo is preparing ${fileLine} in the background. This can take a few minutes for large uploads.` },
                             ],
@@ -676,6 +698,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             severity: 'background-done',
                             title: 'Video delivery finished',
                             file: '',
+                            checkedAt: String(item.finished_at || item.updated_at || '').trim(),
                             details: [
                                 { text: `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for the gallery pool.` },
                             ],
@@ -687,15 +710,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     if (status === 'failed') {
+                        const focusFile = files[0] || '';
+                        const taskId = String(item.id || '').trim();
                         notifications.push({
                             severity: 'recommended-fix',
                             title: 'Video delivery failed',
-                            file: files[0] || '',
+                            file: focusFile,
+                            taskId,
+                            checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
                             details: [
                                 { text: String(item.error || 'bandPromo could not prepare the publish-ready video file.').trim() },
+                                { text: 'Go to System → Publish and run the recommended update to retry video preparation. If it fails again, re-upload the source file or remove it from Files → Video.' },
                             ],
                             actions: [
-                                { label: 'Open Files', href: '?tab=files&files=video' },
+                                { label: 'Go to Publish', href: buildBuildTabUrl() },
+                                ...(focusFile
+                                    ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'video', focus_file: focusFile }) }]
+                                    : [{ label: 'Open Files', href: '?tab=files&fpanel=video' }]),
+                                ...(taskId ? [{ label: 'Dismiss', action: 'dismiss-background-task', taskId }] : []),
                             ],
                         });
                     }
@@ -727,7 +759,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }, 4000);
             }
 
-            function buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks) {
+            function buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks, uncataloguedAudioFailures) {
                 const attention = [];
                 const recommended = [];
                 const background = [];
@@ -762,6 +794,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const validationModel = buildValidationSummaryModel(validation);
+                const validationCheckedAt = String(
+                    validation?.generated_at || validation?.checked_at || ''
+                ).trim();
                 if (validationModel && Array.isArray(validationModel.items)) {
                     validationModel.items.forEach(item => {
                         const relevantIssues = [item.primary, ...(Array.isArray(item.extras) ? item.extras : [])]
@@ -776,6 +811,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             severity: relevantIssues[0].severity,
                             title: item.title,
                             file: item.file,
+                            checkedAt: validationCheckedAt,
                             details: relevantIssues.map(issue => ({
                                 label: validationSeverityConfig[issue.severity]?.label || 'Needs attention',
                                 text: issue.action,
@@ -801,6 +837,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 });
 
+                if (Array.isArray(uncataloguedAudioFailures)) {
+                    uncataloguedAudioFailures.forEach((entry) => {
+                        const filename = String(entry?.filename || '').trim();
+                        if (!filename) {
+                            return;
+                        }
+                        const title = String(entry?.display_title || filename).trim() || filename;
+                        const error = String(entry?.error || 'bandPromo could not register this upload automatically.').trim();
+                        attention.push({
+                            severity: 'recommended-fix',
+                            title,
+                            file: filename,
+                            details: [
+                                { text: error },
+                                { text: 'bandPromo will retry automatic registration when you open Files or refresh notifications. If this keeps appearing, check the original file format or re-upload it.' },
+                            ],
+                            actions: [
+                                { label: 'Open Files', href: buildAdminUrl({ tab: 'files', fpanel: 'audio', focus_file: filename }) },
+                            ],
+                        });
+                    });
+                }
+
                 return {
                     attention,
                     recommended,
@@ -813,6 +872,30 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
+            function formatOperatorNotificationAge(isoString) {
+                const raw = String(isoString || '').trim();
+                if (!raw) {
+                    return '';
+                }
+                const date = new Date(raw);
+                if (Number.isNaN(date.getTime())) {
+                    return '';
+                }
+                const diffMs = Math.max(0, Date.now() - date.getTime());
+                const diffMinutes = Math.floor(diffMs / 60000);
+                if (diffMinutes < 1) {
+                    return 'Checked just now';
+                }
+                if (diffMinutes < 60) {
+                    return `Checked ${diffMinutes} min ago`;
+                }
+                const diffHours = Math.floor(diffMinutes / 60);
+                if (diffHours < 48) {
+                    return `Checked ${diffHours} h ago`;
+                }
+                return `Checked ${date.toLocaleString()}`;
+            }
+
             function renderOperatorNotificationItem(item) {
                 const severityConfig = operatorNotificationSeverityConfig[item.severity] || operatorNotificationSeverityConfig['recommended-fix'];
                 const badgeConfig = validationSeverityConfig[item.severity] || {
@@ -821,6 +904,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
                 const fileLine = item.file && item.file !== item.title
                     ? `<div class="operator-notifications-item-file">File: ${bandpromoAdminEscapeHtml(item.file)}</div>`
+                    : '';
+                const ageLine = item.checkedAt
+                    ? `<div class="operator-notifications-item-age">${bandpromoAdminEscapeHtml(formatOperatorNotificationAge(item.checkedAt))}</div>`
                     : '';
                 const detailsHtml = Array.isArray(item.details) && item.details.length
                     ? `<ul class="operator-notifications-item-list">${item.details.map(detail => {
@@ -831,9 +917,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const actionsHtml = Array.isArray(item.actions) && item.actions.length
                     ? `<div class="operator-notifications-actions">${item.actions.map(action => {
                         if (action && action.action) {
-                            return `<button type="button" class="operator-notifications-action" data-operator-action="${bandpromoAdminEscapeHtml(action.action)}">${bandpromoAdminEscapeHtml(action.label)}</button>`;
+                            const taskAttr = action.taskId
+                                ? ` data-operator-task-id="${bandpromoAdminEscapeHtml(action.taskId)}"`
+                                : '';
+                            return `<button type="button" class="operator-notifications-action" data-operator-action="${bandpromoAdminEscapeHtml(action.action)}"${taskAttr}>${bandpromoAdminEscapeHtml(action.label)}</button>`;
                         }
-                        return `<a class="operator-notifications-action" href="${bandpromoAdminEscapeHtml(action.href || '?')}">${bandpromoAdminEscapeHtml(action.label || 'Open')}</a>`;
+                        const href = String(action?.href || '?').trim() || '?';
+                        return `<a class="operator-notifications-action" href="${bandpromoAdminEscapeHtml(href)}" data-operator-href="${bandpromoAdminEscapeHtml(href)}">${bandpromoAdminEscapeHtml(action.label || 'Open')}</a>`;
                     }).join('')}</div>`
                     : '';
 
@@ -843,6 +933,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             <div>
                                 <div class="operator-notifications-item-title">${bandpromoAdminEscapeHtml(item.title)}</div>
                                 ${fileLine}
+                                ${ageLine}
                             </div>
                             <span class="badge audit-status-badge ${badgeConfig.statusClass}">${bandpromoAdminEscapeHtml(badgeConfig.label)}</span>
                         </div>
@@ -874,8 +965,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 `).join('');
             }
 
-            function renderOperatorNotifications(buildState, validation, welcome, packageUpdate, backgroundTasks) {
-                const model = buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks);
+            function renderOperatorNotifications(buildState, validation, welcome, packageUpdate, backgroundTasks, uncataloguedAudioFailures) {
+                const model = buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks, uncataloguedAudioFailures);
                 const html = renderOperatorNotificationSections(model);
 
                 if (operatorNotificationsModalBody) {
@@ -893,6 +984,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         operatorNotificationsCount.classList.add('is-attention');
                     }
                 }
+
+                if (operatorNotificationsToggle) {
+                    operatorNotificationsToggle.classList.toggle(
+                        'operator-notifications-urgent',
+                        model.hasCritical || model.attentionCount > 0
+                    );
+                }
             }
 
             if (operatorNotificationsToggle && operatorNotificationsModal) {
@@ -906,6 +1004,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             document.addEventListener('click', (event) => {
+                const actionLink = event.target.closest('a.operator-notifications-action[data-operator-href]');
+                if (actionLink && operatorNotificationsModal && operatorNotificationsModal.contains(actionLink)) {
+                    const href = String(actionLink.dataset.operatorHref || actionLink.getAttribute('href') || '').trim();
+                    if (href && href !== '?' && href !== '#') {
+                        event.preventDefault();
+                        closeOperatorNotifications();
+                        window.location.assign(href);
+                        return;
+                    }
+                }
+
                 const actionButton = event.target.closest('[data-operator-action]');
                 if (!actionButton) {
                     return;
@@ -915,14 +1024,41 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (action === 'run-recommended-build') {
                     event.preventDefault();
                     closeOperatorNotifications();
-                    const buildTabActive = document.getElementById('tab-build')?.classList.contains('active');
-                    if (!buildTabActive) {
+                    const publishViewActive = isPublishViewActive();
+                    if (!publishViewActive) {
                         window.location.href = buildRecommendedRunUrl();
                         return;
                     }
                     runRecommendedAction();
+                    return;
+                }
+
+                if (action === 'dismiss-background-task') {
+                    event.preventDefault();
+                    const taskId = String(actionButton.dataset.operatorTaskId || '').trim();
+                    if (!taskId) {
+                        return;
+                    }
+                    dismissOperatorNotification('background-task', taskId);
                 }
             });
+
+            async function dismissOperatorNotification(type, id) {
+                try {
+                    const resp = await fetch('/biblioteca/dismiss-operator-notification.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type, id }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) {
+                        throw new Error(data.error || 'Could not dismiss notification');
+                    }
+                    await refreshBuildRequiredState();
+                } catch (error) {
+                    window.alert(error.message || 'Could not dismiss notification');
+                }
+            }
 
             document.addEventListener('keydown', (event) => {
                 if (event.key !== 'Escape' || !operatorNotificationsModal || operatorNotificationsModal.style.display === 'none') {
@@ -971,8 +1107,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const master = file.audio_master || {};
                 const badges = [];
 
+                if (file.in_catalog === false) {
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="bandPromo is still registering this upload. Refresh the page in a moment or open Build if it stays here.">Registering…</span>');
+                }
+
                 if (audioDisplayMode === 'master' && !master.exists) {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Master file is not available for this upload yet">Master pending</span>');
+                    const warning = String(master.prepare_warning || '').trim();
+                    const title = warning !== ''
+                        ? warning
+                        : 'Master file is not available for this upload yet';
+                    badges.push(`<span class="badge audit-status-badge status-warning media-file-badge" title="${bandpromoAdminEscapeHtml(title)}">Master pending</span>`);
                 }
 
                 badges.push(formatAudioMetadataHealthBadges(file));
@@ -1101,21 +1245,49 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function getDisplayedMediaInfo(type, file) {
                 const mediaFile = file || {};
-                if (type === 'audio' && audioDisplayMode === 'master' && mediaFile.audio_master && mediaFile.audio_master.exists) {
+                if (type === 'audio') {
+                    const displayTitle = String(mediaFile.display_title || '').trim();
+                    const displaySubtitle = String(mediaFile.display_subtitle || mediaFile.name || '').trim();
+                    const friendlyName = displayTitle !== '' ? displayTitle : String(mediaFile.name || '');
+                    if (audioDisplayMode === 'master' && mediaFile.audio_master && mediaFile.audio_master.exists) {
+                        return {
+                            name: friendlyName,
+                            subtitle: displaySubtitle !== friendlyName ? displaySubtitle : '',
+                            size: Number(mediaFile.audio_master.size) || Number(mediaFile.size) || 0,
+                            downloadVariant: 'master',
+                            downloadAvailable: true,
+                        };
+                    }
+
                     return {
-                        name: String(mediaFile.audio_master.filename || mediaFile.name || ''),
-                        size: Number(mediaFile.audio_master.size) || Number(mediaFile.size) || 0,
-                        downloadVariant: 'master',
+                        name: friendlyName,
+                        subtitle: displaySubtitle !== friendlyName ? displaySubtitle : '',
+                        size: Number(mediaFile.size) || 0,
+                        downloadVariant: 'original',
                         downloadAvailable: true,
                     };
                 }
 
                 return {
                     name: String(mediaFile.name || ''),
+                    subtitle: '',
                     size: Number(mediaFile.size) || 0,
                     downloadVariant: 'original',
                     downloadAvailable: true,
                 };
+            }
+
+            function audioRowIsEditable(file) {
+                const master = file && file.audio_master ? file.audio_master : {};
+                return !!(master.editable || master.needs_materialize);
+            }
+
+            function buildAudioNameCell(display, file, type) {
+                const subtitle = String(display.subtitle || '').trim();
+                const subtitleMarkup = subtitle !== ''
+                    ? `<span class="media-file-name-subtitle">${bandpromoAdminEscapeHtml(subtitle)}</span>`
+                    : '';
+                return `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || file.name)}</span>${subtitleMarkup}<span class="media-file-meta">${formatAudioMasterBadges(file)}</span></span>`;
             }
 
             async function fetchAudioMasterDetailData(filename) {
@@ -1221,32 +1393,54 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             const audioQuickEditFields = [
-                { key: 'artist', label: 'Artist', health: 'artist', inputType: 'text', read: (detail) => String(detail.artist || '').trim() },
-                { key: 'title', label: 'Title', health: 'title', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').title || detail.title || '').trim() },
-                { key: 'version', label: 'Version', health: '', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').version || '').trim() },
-                { key: 'album', label: 'Release', health: 'release', inputType: 'text', read: (detail) => String(detail.album || '').trim() },
-                { key: 'tracknumber', label: 'Track', health: '', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.suggested_tracknumber || detail.playlist_tracknumber || '').trim() },
-                { key: 'date', label: 'Release date', health: '', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.date || '').trim() },
-                { key: 'genre', label: 'Genre', health: '', inputType: 'text', read: (detail) => String(detail.genre || '').trim() },
-                { key: 'bpm', label: 'BPM', health: '', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.bpm || '').trim() },
-                { key: 'initialkey', label: 'Key', health: '', inputType: 'text', read: (detail) => String(detail.initialkey || '').trim() },
+                { key: 'artist', label: 'Artist', health: 'artist', requirement: 'required', inputType: 'text', read: (detail) => String(detail.artist || '').trim() },
+                { key: 'title', label: 'Title', health: 'title', requirement: 'required', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').title || detail.title || '').trim() },
+                { key: 'version', label: 'Version', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').version || '').trim() },
+                { key: 'album', label: 'Release', health: 'release', requirement: 'improvable', inputType: 'text', read: (detail) => String(detail.album || '').trim() },
+                { key: 'tracknumber', label: 'Track', health: 'track', requirement: 'improvable', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.suggested_tracknumber || detail.release_tracknumber || detail.tracknumber || '').trim() },
+                { key: 'date', label: 'Release date', health: '', requirement: 'optional', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.date || '').trim() },
+                { key: 'genre', label: 'Genre', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(detail.genre || '').trim() },
+                { key: 'bpm', label: 'BPM', health: '', requirement: 'optional', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.bpm || '').trim() },
+                { key: 'initialkey', label: 'Key', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(detail.initialkey || '').trim() },
             ];
+
+            function quickEditChipDisplayValue(field, rawValue) {
+                if (String(rawValue || '').trim() !== '') {
+                    return rawValue;
+                }
+                if (field.requirement === 'optional') {
+                    return 'Optional';
+                }
+                if (field.requirement === 'improvable') {
+                    return 'Recommended';
+                }
+                return 'Missing';
+            }
+
+            function resolveQuickEditChipTone(field, rawValue, healthFields) {
+                const hasValue = String(rawValue || '').trim() !== '';
+                if (hasValue) {
+                    return 'media-file-inline-chip-good';
+                }
+
+                const healthState = field.health && healthFields[field.health]
+                    ? String(healthFields[field.health].state || '').toLowerCase()
+                    : '';
+                if (healthState === 'required' || field.requirement === 'required') {
+                    return 'media-file-inline-chip-danger';
+                }
+
+                return 'media-file-inline-chip-amber';
+            }
 
             function renderAudioQuickEditChip(filename, field, detail, healthFields, isSaving) {
                 const safeName = filename.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 const rawValue = field.read(detail);
-                const value = rawValue || 'Missing';
-                const isMissing = rawValue === '';
+                const value = quickEditChipDisplayValue(field, rawValue);
+                const tone = resolveQuickEditChipTone(field, rawValue, healthFields);
                 const isEditing = activeAudioQuickEdit
                     && activeAudioQuickEdit.filename === filename
                     && activeAudioQuickEdit.field === field.key;
-                const state = field.health && healthFields[field.health] ? healthFields[field.health].state : '';
-                let tone = 'media-file-inline-chip-good';
-                if (state === 'required' || isMissing) {
-                    tone = 'media-file-inline-chip-danger';
-                } else if (state === 'improvable') {
-                    tone = 'media-file-inline-chip-amber';
-                }
 
                 if (isEditing) {
                     const inputMode = field.inputMode ? ` inputmode="${bandpromoAdminEscapeHtml(field.inputMode)}"` : '';
@@ -1280,7 +1474,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const safeName = filename.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 const isSaving = audioInlineDetailSaving.has(filename);
-                const health = buildAudioMetadataHealthFromDetail(detail || {});
+                const health = buildAudioMetadataHealthFromDetail(detail || {}, filename);
                 const healthFields = health && health.fields ? health.fields : {};
                 const chips = audioQuickEditFields
                     .map((field) => renderAudioQuickEditChip(filename, field, detail, healthFields, isSaving))
@@ -1328,20 +1522,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             };
 
             function maybeOpenAudioDetailFromQuery(files) {
-                if (openedAudioDetailFromQuery || !pendingAudioDetailFromQuery || activeMediaPanel !== 'audio') {
+                if (openedAudioDetailFromQuery || !pendingAudioDetailFromQuery) {
                     return;
                 }
                 const rows = Array.isArray(files) ? files : [];
                 const match = rows.find((file) => String(file.name || '') === pendingAudioDetailFromQuery);
-                if (!match || !match.audio_master || match.audio_master.editable !== true) {
+                if (!match) {
                     return;
                 }
                 openedAudioDetailFromQuery = true;
-                if (pendingAudioDetailModeFromQuery === 'full') {
-                    window.openAudioMasterModal(pendingAudioDetailFromQuery);
-                } else {
-                    window.toggleAudioFileDetails(pendingAudioDetailFromQuery);
+                maybeApplyMediaFocusFromQuery('audio');
+
+                if (match.audio_master && audioRowIsEditable(match)) {
+                    if (pendingAudioDetailModeFromQuery === 'full') {
+                        window.openAudioMasterModal(pendingAudioDetailFromQuery);
+                    } else {
+                        window.toggleAudioFileDetails(pendingAudioDetailFromQuery);
+                    }
+                    return;
                 }
+
+                showAdminToast('This audio file is listed, but its master copy is not ready for quick-edit yet. Use the full editor or upload a FLAC/MP3 master.', 'warning');
             }
 
             function maybeApplyMediaFocusFromQuery(type) {
@@ -1401,11 +1602,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const params = new URLSearchParams();
                 params.set('target', type);
 
-                const includeBundled = options.includeBundled === true;
-                const includeHidden = options.includeHidden === true;
-                if (includeBundled) {
-                    params.set('include_bundled', '1');
+                const release = String(options.release || poolReleaseFilter || 'all').trim();
+                if (release && release !== 'all') {
+                    params.set('release', release);
                 }
+
+                const includeHidden = options.includeHidden === true;
                 if (includeHidden) {
                     params.set('include_hidden', '1');
                 }
@@ -1413,16 +1615,49 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return '/biblioteca/list-media.php?' + params.toString();
             }
 
-            function syncBundledToggleUi() {
-                document.querySelectorAll('[data-media-demo-filter], [data-pool-demo-filter]').forEach((select) => {
-                    select.value = showBundledDemoAssets ? 'show' : 'hide';
+            function releaseFilterOptionsHtml() {
+                const releases = Array.isArray(releasesCatalog) ? releasesCatalog : [];
+                let html = '<option value="all">All releases</option>';
+                releases.forEach((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    if (!id) return;
+                    const title = bandpromoAdminEscapeHtml(String(entry.title || id));
+                    html += `<option value="${bandpromoAdminEscapeHtml(id)}">${title}</option>`;
+                });
+                return html;
+            }
+
+            function populateReleaseFilterSelects() {
+                const html = releaseFilterOptionsHtml();
+                document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
+                    const current = String(select.value || poolReleaseFilter || 'all');
+                    select.innerHTML = html;
+                    select.value = current;
+                    if (select.value !== current) {
+                        select.value = 'all';
+                    }
                 });
             }
 
+            function syncReleaseFilterUi() {
+                document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
+                    select.value = poolReleaseFilter;
+                });
+            }
+
+            async function loadReleasesCatalog() {
+                const resp = await fetch('/biblioteca/get-releases.php', { credentials: 'same-origin' });
+                const data = await resp.json();
+                if (!resp.ok || !data || data.ok !== true) {
+                    throw new Error(data?.error || 'Could not load releases');
+                }
+                releasesCatalog = Array.isArray(data.releases) ? data.releases : [];
+                populateReleaseFilterSelects();
+                syncReleaseFilterUi();
+            }
+
             async function fetchMediaFiles(type, options = {}) {
-                const includeBundled = options.includeBundled === true || showBundledDemoAssets === true;
-                const includeHidden = options.includeHidden === true || showBundledDemoAssets === true;
-                const resp = await fetch(mediaListUrl(type, { includeBundled, includeHidden }));
+                const resp = await fetch(mediaListUrl(type, options));
                 const data = await resp.json();
                 if (!resp.ok || data.error) {
                     throw new Error(data.error || ('Request failed: ' + resp.status));
@@ -1437,12 +1672,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 window._adminPreviewIdx = -1;
             }
 
-            if (buildTabLink) {
-                buildTabLink.addEventListener('click', (event) => {
+            if (systemTabLink) {
+                systemTabLink.addEventListener('click', (event) => {
                     if (!currentBuildRequired) return;
 
-                    const buildTabActive = document.getElementById('tab-build')?.classList.contains('active');
-                    if (buildTabActive) {
+                    if (isPublishViewActive()) {
                         event.preventDefault();
                         const logCard = document.getElementById('build-log-card');
                         if (logCard) {
@@ -1452,7 +1686,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     event.preventDefault();
-                    window.location.href = '?tab=build#build-log-card';
+                    window.location.href = buildBuildTabUrl();
                 });
             }
 
@@ -1461,27 +1695,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 currentBuildAction = typeof action === 'string' ? action : 'none';
                 currentBuildReasons = Array.isArray(reasons) ? reasons : [];
                 currentBuildTasks = Array.isArray(tasks) ? tasks : [];
-                const suppressBuildTabNudge = !!(latestWelcomeState && latestWelcomeState.setup_complete === true);
-                const showBuildTabNudge = currentBuildRequired && !suppressBuildTabNudge;
-                if (!buildTabLink) return;
-
-                buildTabLink.classList.toggle('build-required-nudge', showBuildTabNudge);
-                buildTabLink.classList.toggle('build-required-pulse', showBuildTabNudge);
-
-                if (showBuildTabNudge) {
-                    const suffix = currentBuildTasks.length
-                        ? ` (${currentBuildTasks.join(', ')})`
-                        : (currentBuildReasons.length ? ` (${currentBuildReasons.join(', ')})` : '');
-                    const actionLabel = getBuildActionLabel(currentBuildAction);
-                    buildTabLink.title = `${actionLabel} is recommended for the current pending work` + suffix;
-                } else {
-                    buildTabLink.removeAttribute('title');
-                }
 
                 refreshBuildActionCopy();
 
                 if (!recommendedBuildBtn) return;
-                if (!showBuildTabNudge) {
+                if (!currentBuildRequired) {
                     recommendedBuildBtn.style.display = 'none';
                     recommendedBuildBtn.textContent = '';
                     return;
@@ -1505,7 +1723,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     latestPackageUpdate = data.package_update || null;
                     latestBackgroundTasks = data.background_tasks || null;
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
-                    renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks);
+                    renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks, data.uncatalogued_audio_failures || []);
                     updateBackgroundTaskPolling(latestBackgroundTasks);
                     renderBuildValidationSummary(latestBuildValidation);
 
@@ -1866,14 +2084,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const preview = isPreviewable(f.name)
                             ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
                             : '';
-                        const rowIsEditableAudio = type === 'audio' && f.audio_master && f.audio_master.editable;
+                        const rowIsEditableAudio = type === 'audio' && audioRowIsEditable(f);
                         const editAction = rowIsEditableAudio
                             ? `<button class="icon-btn media-action-btn media-action-good" title="Open full metadata editor" onclick="event.stopPropagation(); openAudioMasterModal('${safeName}')">✎</button>`
                             : '';
                         const downloadDisabled = type === 'audio' && display.downloadVariant === 'master' && (!f.audio_master || !f.audio_master.exists);
                         const downloadAction = `<button class="icon-btn media-action-btn media-action-good" title="Download this file" ${downloadDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); submitMediaDownloadRequest('${type}', '${display.downloadVariant}', ['${safeName}'])">⬇</button>`;
                         const nameCell = type === 'audio'
-                            ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatAudioMasterBadges(f)}</span></span>`
+                            ? buildAudioNameCell(display, f, type)
                             : mediaReferenceFilterTypes.has(type)
                                 ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span></span>`
                                 : `<span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span>`;
@@ -1932,9 +2150,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
-            function setShowBundledDemoAssets(nextValue) {
-                showBundledDemoAssets = nextValue === true;
-                syncBundledToggleUi();
+            function setPoolReleaseFilter(nextValue) {
+                poolReleaseFilter = String(nextValue || 'all').trim() || 'all';
+                syncReleaseFilterUi();
 
                 if (activeMediaPanel) {
                     loadMediaList(activeMediaPanel);
@@ -1942,12 +2160,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (mediaPickerState) {
                     renderMediaPickerList(mediaPickerState.activeTarget);
                 }
-                demoFilterListeners.forEach((listener) => listener());
+                releaseFilterListeners.forEach((listener) => listener());
             }
 
-            document.querySelectorAll('[data-media-demo-filter], [data-pool-demo-filter]').forEach((select) => {
+            document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
                 select.addEventListener('change', () => {
-                    setShowBundledDemoAssets(String(select.value || 'hide') === 'show');
+                    setPoolReleaseFilter(String(select.value || 'all'));
                 });
             });
 
@@ -1968,9 +2186,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
-            syncBundledToggleUi();
+            syncReleaseFilterUi();
             syncMediaReferenceFilterUi();
             syncAudioDisplayToggleUi();
+            loadReleasesCatalog().catch(() => {
+                populateReleaseFilterSelects();
+            });
 
             document.querySelectorAll('.media-file-select-all').forEach((checkbox) => {
                 checkbox.addEventListener('change', () => {
@@ -2553,9 +2774,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 audioMasterDescriptionCount.textContent = String((audioMasterFields.comment.value || '').length);
             }
 
-            function buildAudioMetadataHealthFromDetail(detail) {
+            function buildAudioMetadataHealthFromDetail(detail, filename = '') {
                 const hasText = (value) => String(value || '').trim() !== '';
                 const hasCover = Boolean((detail && detail.sidecar_cover) || (detail && detail.embedded_cover_present) || (detail && detail.current_cover));
+                const hasTrack = hasText(detail && (detail.tracknumber || detail.suggested_tracknumber || detail.release_tracknumber));
+                const totalTracks = Number(latestBuildValidation?.summary?.totalTracks || 0);
+
                 return {
                     inspected: true,
                     source: 'audio_master_detail',
@@ -2564,6 +2788,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         artist: { label: 'Artist', state: hasText(detail && detail.artist) ? 'good' : 'required' },
                         title: { label: 'Title', state: hasText(detail && detail.title) ? 'good' : 'required' },
                         release: { label: 'Release', state: hasText(detail && detail.album) ? 'good' : 'improvable' },
+                        track: { label: 'Track', state: hasTrack ? 'good' : (totalTracks > 1 ? 'required' : 'improvable') },
                         description: { label: 'Description', state: hasText(detail && detail.comment) ? 'good' : 'improvable' },
                         lyrics: { label: 'Lyrics', state: hasText(detail && detail.lyrics) ? 'good' : 'improvable' },
                     },
@@ -2588,7 +2813,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         editable: true,
                         format: detail && detail.format ? detail.format : String(filename).split('.').pop() || '',
                     },
-                    audio_metadata_health: buildAudioMetadataHealthFromDetail(detail || {}),
+                    audio_metadata_health: buildAudioMetadataHealthFromDetail(detail || {}, filename),
                 });
             }
 
@@ -2643,7 +2868,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function setAudioMasterSummary(detail) {
                 activeAudioMasterDetail = detail || {};
                 if (audioMasterTracknumber) {
-                    const tracknumber = String(detail.playlist_tracknumber || detail.suggested_tracknumber || '').trim();
+                    const tracknumber = String(detail.suggested_tracknumber || detail.release_tracknumber || '').trim();
                     audioMasterTracknumber.textContent = tracknumber || '—';
                 }
                 if (audioMasterFormat) audioMasterFormat.textContent = String(detail.format || '—').toUpperCase();
@@ -3331,12 +3556,480 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             (function () {
-                const editorEl    = document.getElementById('galleryEditor');
+                const editorCard = document.getElementById('galleryEditorCard');
+                const poolView = document.getElementById('galleryPoolView');
+                const itemsPoolView = document.getElementById('galleryItemsPoolView');
+                const poolList = document.getElementById('galleryPoolList');
                 const availableEl = document.getElementById('galleryAvailableList');
-                const activeEl    = document.getElementById('galleryActiveList');
-                const countBadge  = document.getElementById('galleryActiveCount');
-                const saveBtn     = document.getElementById('gallerySaveBtn');
-                if (!editorEl || !saveBtn || !availableEl || !activeEl) return;
+                const activeEl = document.getElementById('galleryActiveList');
+                const countBadge = document.getElementById('galleryActiveCount');
+                const saveBtn = document.getElementById('gallerySaveBtn');
+                const editorHint = document.getElementById('galleryEditorHint');
+                const backBtn = document.getElementById('galleryEditorBackBtn');
+                const toggleAddGalleryBtn = document.getElementById('toggleAddGalleryBtn');
+                const addGalleryPanel = document.getElementById('addGalleryPanel');
+                const addGalleryForm = document.getElementById('addGalleryForm');
+                const cancelAddGalleryBtn = document.getElementById('cancelAddGalleryBtn');
+                const galleryRegistryStatus = document.getElementById('galleryRegistryStatus');
+                if (!poolList || !availableEl || !activeEl || !saveBtn) return;
+
+                let galleries = [];
+                let selectedGalleryId = String(editorCard?.dataset.initialGallery || 'main');
+                let isEditing = false;
+                let pendingGalleryDeleteId = '';
+
+                const galleryDeleteModal = document.getElementById('galleryDeleteModal');
+                const galleryDeleteModalName = document.getElementById('galleryDeleteModalName');
+                const galleryDeleteConfirmBtn = document.getElementById('galleryDeleteConfirmBtn');
+                const galleryDeleteCancelBtn = document.getElementById('galleryDeleteCancelBtn');
+                const gallerySettingsTitle = document.getElementById('gallerySettingsTitle');
+                const gallerySettingsStatus = document.getElementById('gallerySettingsStatus');
+                let gallerySettingsBaseline = { title: '' };
+                let gallerySettingsSaving = false;
+
+                function galleryEntry(galleryId) {
+                    return galleries.find((entry) => entry && entry.id === galleryId) || null;
+                }
+
+                function galleryCanDelete(entry) {
+                    return entry && String(entry.id || '') !== 'main';
+                }
+
+                function galleryMetaLine(entry) {
+                    if (!entry) return '';
+                    const kind = String(entry.kind || 'system');
+                    const parts = [String(entry.id || '')];
+                    if (kind === 'system') parts.push('system');
+                    return parts.join(' · ');
+                }
+
+                function gallerySettingsDirty() {
+                    const title = gallerySettingsTitle instanceof HTMLInputElement
+                        ? String(gallerySettingsTitle.value || '').trim()
+                        : '';
+                    return title !== gallerySettingsBaseline.title;
+                }
+
+                function syncGallerySettingsPanel(galleryId) {
+                    const entry = galleryEntry(galleryId);
+                    const title = String(entry?.title || galleryId || '');
+                    gallerySettingsBaseline = { title };
+                    if (gallerySettingsTitle instanceof HTMLInputElement) {
+                        gallerySettingsTitle.value = title;
+                    }
+                    if (gallerySettingsStatus) {
+                        gallerySettingsStatus.textContent = '';
+                    }
+                }
+
+                async function saveGallerySettings({ silent = false } = {}) {
+                    if (gallerySettingsSaving) {
+                        return true;
+                    }
+                    if (!(gallerySettingsTitle instanceof HTMLInputElement)) {
+                        return true;
+                    }
+
+                    const title = String(gallerySettingsTitle.value || '').trim();
+                    if (!title) {
+                        if (!silent && gallerySettingsStatus) {
+                            gallerySettingsStatus.textContent = 'Gallery name is required.';
+                        }
+                        return false;
+                    }
+
+                    if (!gallerySettingsDirty()) {
+                        if (!silent && gallerySettingsStatus) {
+                            gallerySettingsStatus.textContent = '';
+                        }
+                        return true;
+                    }
+
+                    gallerySettingsSaving = true;
+                    if (!silent && gallerySettingsStatus) {
+                        gallerySettingsStatus.textContent = 'Saving…';
+                    }
+
+                    try {
+                        const resp = await fetch('/biblioteca/manage-gallery.php?gallery=' + encodeURIComponent(selectedGalleryId), {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ title }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || 'Could not save gallery details');
+                        }
+                        galleries = Array.isArray(data.galleries) ? data.galleries : galleries;
+                        gallerySettingsBaseline = { title };
+                        if (!silent && gallerySettingsStatus) {
+                            gallerySettingsStatus.textContent = 'Saved.';
+                        }
+                        renderGalleryPoolList();
+                        return true;
+                    } catch (error) {
+                        if (!silent && gallerySettingsStatus) {
+                            gallerySettingsStatus.textContent = error.message || 'Could not save gallery details';
+                        }
+                        return false;
+                    } finally {
+                        gallerySettingsSaving = false;
+                    }
+                }
+
+                function closeGalleryDeleteModal() {
+                    pendingGalleryDeleteId = '';
+                    if (galleryDeleteModal) {
+                        galleryDeleteModal.style.display = 'none';
+                        galleryDeleteModal.setAttribute('aria-hidden', 'true');
+                    }
+                }
+
+                function openGalleryDeleteModal(galleryId) {
+                    const entry = galleryEntry(galleryId);
+                    if (!entry || !galleryCanDelete(entry)) {
+                        return;
+                    }
+                    const title = String(entry.title || galleryId);
+                    if (!galleryDeleteModal) {
+                        if (!window.confirm(`Delete gallery "${title}"? Its content order will be lost. This cannot be undone.`)) {
+                            return;
+                        }
+                        deleteGallery(galleryId).catch((error) => alert(error.message || 'Could not delete gallery'));
+                        return;
+                    }
+                    pendingGalleryDeleteId = galleryId;
+                    if (galleryDeleteModalName) {
+                        galleryDeleteModalName.textContent = title;
+                    }
+                    galleryDeleteModal.style.display = 'flex';
+                    galleryDeleteModal.setAttribute('aria-hidden', 'false');
+                    galleryDeleteConfirmBtn?.focus();
+                }
+
+                function syncGalleryUrl(galleryId, editing = isEditing) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'content');
+                    url.searchParams.set('cntab', 'gallery');
+                    url.searchParams.set('gallery', galleryId);
+                    if (editing) {
+                        url.searchParams.set('edit', '1');
+                    } else {
+                        url.searchParams.delete('edit');
+                    }
+                    window.history.replaceState({}, '', url.toString());
+                }
+
+                function setAddGalleryPanelOpen(open) {
+                    if (!addGalleryPanel || !toggleAddGalleryBtn) return;
+                    addGalleryPanel.hidden = !open;
+                    toggleAddGalleryBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    toggleAddGalleryBtn.classList.toggle('active', open);
+                    if (open) {
+                        const titleInput = addGalleryForm?.querySelector('input[name="title"]');
+                        if (titleInput instanceof HTMLInputElement) {
+                            titleInput.focus();
+                        }
+                    } else if (galleryRegistryStatus) {
+                        galleryRegistryStatus.textContent = '';
+                    }
+                }
+
+                function showPoolView() {
+                    isEditing = false;
+                    if (poolView) poolView.hidden = false;
+                    if (itemsPoolView) itemsPoolView.hidden = true;
+                    if (saveBtn) saveBtn.hidden = true;
+                    if (editorHint) {
+                        editorHint.textContent = 'Select a gallery from the pool, then click edit to change its content order.';
+                    }
+                    renderGalleryPoolList();
+                }
+
+                function showEditView(galleryId) {
+                    isEditing = true;
+                    selectedGalleryId = galleryId;
+                    if (poolView) poolView.hidden = true;
+                    if (itemsPoolView) itemsPoolView.hidden = false;
+                    if (saveBtn) saveBtn.hidden = false;
+                    syncGalleryUrl(galleryId, true);
+                    syncGallerySettingsPanel(galleryId);
+                    if (editorHint) {
+                        editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple items. Move selections back to Available content to remove them from the gallery.';
+                    }
+                    renderGalleryPoolList();
+                }
+
+                function renderGalleryPoolList() {
+                    if (!poolList) return;
+                    if (!galleries.length) {
+                        poolList.innerHTML = '<li class="player-layout-empty">No galleries available yet.</li>';
+                        return;
+                    }
+                    poolList.innerHTML = galleries.map((entry) => {
+                        const id = String(entry.id || '');
+                        const selectedClass = id === selectedGalleryId ? ' playlist-editor-row-selected' : '';
+                        const title = bandpromoAdminEscapeHtml(entry.title || id);
+                        const deleteBtn = galleryCanDelete(entry)
+                            ? `<button type="button" class="page-pool-delete-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Delete gallery" aria-label="Delete ${title}">🗑️</button>`
+                            : '';
+                        return `<li class="playlist-editor-row gallery-pool-row page-pool-row${selectedClass}" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedGalleryId ? 'true' : 'false'}">
+                            <span class="playlist-track-info">
+                                <strong>🖼️ ${title}</strong>
+                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(galleryMetaLine(entry))}</span>
+                            </span>
+                            <span class="page-pool-row-actions">
+                                <button type="button" class="page-pool-edit-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Edit gallery" aria-label="Edit ${title}">✏️</button>
+                                ${deleteBtn}
+                            </span>
+                        </li>`;
+                    }).join('');
+                }
+
+                async function loadGalleryRegistry() {
+                    const resp = await fetch('/biblioteca/get-galleries.php', { credentials: 'same-origin' });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data.ok) {
+                        throw new Error(data.error || 'Could not load galleries');
+                    }
+                    galleries = Array.isArray(data.galleries) ? data.galleries : [];
+                    renderGalleryPoolList();
+                }
+
+                async function loadGalleryPreview(options = {}) {
+                    const preserveSavedState = options.preserveSavedState === true;
+                    if (!selectedGalleryId) {
+                        activeItems = [];
+                        renderGalleryLists();
+                        return;
+                    }
+                    try {
+                        const resp = await fetch(`/biblioteca/get-gallery.php?gallery=${encodeURIComponent(selectedGalleryId)}`, {
+                            credentials: 'same-origin',
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || 'Could not load gallery');
+                        }
+                        activeItems = Array.isArray(data.items) ? data.items : [];
+                        selectedActive.clear();
+                        selectionAnchorActive = '';
+                        selectedAvailable.clear();
+                        selectionAnchorAvailable = '';
+                        renderGalleryLists();
+                        if (preserveSavedState) {
+                            saveUi?.markSaved();
+                        } else {
+                            saveUi?.setBaseline();
+                        }
+                    } catch (e) {
+                        activeEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Could not load gallery: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                    }
+                }
+
+                async function requestCloseEditor() {
+                    if (gallerySettingsDirty()) {
+                        const saved = await saveGallerySettings();
+                        if (!saved) {
+                            return false;
+                        }
+                    }
+                    if (saveBtn.classList.contains('btn-amber')) {
+                        const proceed = window.confirm('You have unsaved gallery changes. Leave edit mode without saving?');
+                        if (!proceed) return false;
+                    }
+                    showPoolView();
+                    syncGalleryUrl(selectedGalleryId, false);
+                    await loadGalleryPreview({ preserveSavedState: true });
+                    return true;
+                }
+
+                async function openGalleryEditor(galleryId) {
+                    if (!galleryId) return;
+                    if (isEditing && galleryId !== selectedGalleryId) {
+                        if (gallerySettingsDirty()) {
+                            const saved = await saveGallerySettings();
+                            if (!saved) {
+                                return;
+                            }
+                        }
+                        if (saveBtn.classList.contains('btn-amber')) {
+                            const proceed = window.confirm('You have unsaved gallery changes. Switch galleries without saving?');
+                            if (!proceed) return;
+                        }
+                    }
+                    selectedGalleryId = galleryId;
+                    showEditView(galleryId);
+                    await loadGalleryPreview();
+                    await reloadGalleryPool();
+                }
+
+                async function selectGalleryForPreview(galleryId) {
+                    if (!galleryId || (galleryId === selectedGalleryId && !isEditing)) {
+                        return;
+                    }
+                    if (isEditing) {
+                        await openGalleryEditor(galleryId);
+                        return;
+                    }
+                    if (saveBtn.classList.contains('btn-amber')) {
+                        const proceed = window.confirm('You have unsaved gallery changes. Switch galleries without saving?');
+                        if (!proceed) return;
+                    }
+                    selectedGalleryId = galleryId;
+                    syncGalleryUrl(galleryId, false);
+                    renderGalleryPoolList();
+                    await loadGalleryPreview({ preserveSavedState: true });
+                }
+
+                async function deleteGallery(galleryId) {
+                    const entry = galleryEntry(galleryId);
+                    if (!entry || !galleryCanDelete(entry)) return;
+                    const resp = await fetch(`/biblioteca/manage-gallery.php?gallery=${encodeURIComponent(galleryId)}`, {
+                        method: 'DELETE',
+                        credentials: 'same-origin',
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data.ok) {
+                        throw new Error(data.error || 'Could not delete gallery');
+                    }
+                    galleries = Array.isArray(data.galleries) ? data.galleries : [];
+                    if (selectedGalleryId === galleryId) {
+                        selectedGalleryId = galleries[0]?.id || 'main';
+                        showPoolView();
+                        syncGalleryUrl(selectedGalleryId, false);
+                        await loadGalleryPreview({ preserveSavedState: true });
+                    } else {
+                        renderGalleryPoolList();
+                    }
+                }
+
+                galleryDeleteCancelBtn?.addEventListener('click', closeGalleryDeleteModal);
+                galleryDeleteModal?.addEventListener('click', (event) => {
+                    if (event.target === galleryDeleteModal) {
+                        closeGalleryDeleteModal();
+                    }
+                });
+                galleryDeleteConfirmBtn?.addEventListener('click', async () => {
+                    const galleryId = pendingGalleryDeleteId;
+                    if (!galleryId) {
+                        return;
+                    }
+                    closeGalleryDeleteModal();
+                    try {
+                        galleryDeleteConfirmBtn.disabled = true;
+                        await deleteGallery(galleryId);
+                    } catch (error) {
+                        alert(error.message || 'Could not delete gallery');
+                    } finally {
+                        galleryDeleteConfirmBtn.disabled = false;
+                    }
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Escape' || !galleryDeleteModal || galleryDeleteModal.style.display !== 'flex') {
+                        return;
+                    }
+                    closeGalleryDeleteModal();
+                });
+
+                poolList.addEventListener('click', (event) => {
+                    const deleteBtn = event.target instanceof HTMLElement
+                        ? event.target.closest('.page-pool-delete-btn')
+                        : null;
+                    if (deleteBtn) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const galleryId = deleteBtn.getAttribute('data-gallery-id') || '';
+                        openGalleryDeleteModal(galleryId);
+                        return;
+                    }
+
+                    const editBtn = event.target instanceof HTMLElement
+                        ? event.target.closest('.page-pool-edit-btn')
+                        : null;
+                    if (editBtn) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const galleryId = editBtn.getAttribute('data-gallery-id') || '';
+                        openGalleryEditor(galleryId);
+                        return;
+                    }
+
+                    const row = event.target instanceof HTMLElement
+                        ? event.target.closest('.gallery-pool-row')
+                        : null;
+                    if (!row || !poolList.contains(row)) return;
+                    const galleryId = row.getAttribute('data-gallery-id') || '';
+                    if (!galleryId) return;
+                    selectGalleryForPreview(galleryId);
+                });
+
+                backBtn?.addEventListener('click', () => {
+                    requestCloseEditor();
+                });
+
+                gallerySettingsTitle?.addEventListener('blur', () => {
+                    saveGallerySettings();
+                });
+                gallerySettingsTitle?.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        gallerySettingsTitle.blur();
+                    }
+                });
+
+                toggleAddGalleryBtn?.addEventListener('click', () => {
+                    setAddGalleryPanelOpen(addGalleryPanel?.hidden !== false);
+                });
+
+                cancelAddGalleryBtn?.addEventListener('click', () => {
+                    addGalleryForm?.reset();
+                    setAddGalleryPanelOpen(false);
+                });
+
+                if (addGalleryForm) {
+                    addGalleryForm.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const formData = new FormData(addGalleryForm);
+                        const title = String(formData.get('title') || '').trim();
+                        if (!title) {
+                            if (galleryRegistryStatus) {
+                                galleryRegistryStatus.textContent = 'Gallery name is required.';
+                                galleryRegistryStatus.style.color = '#f87171';
+                            }
+                            return;
+                        }
+                        try {
+                            if (galleryRegistryStatus) {
+                                galleryRegistryStatus.textContent = 'Creating gallery…';
+                                galleryRegistryStatus.style.color = '';
+                            }
+                            const resp = await fetch('/biblioteca/manage-gallery.php', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                                body: JSON.stringify({ title }),
+                            });
+                            const data = await resp.json().catch(() => ({}));
+                            if (!resp.ok || !data.ok) {
+                                throw new Error(data.error || 'Could not create gallery');
+                            }
+                            galleries = Array.isArray(data.galleries) ? data.galleries : galleries;
+                            const newId = data.gallery?.id || '';
+                            addGalleryForm.reset();
+                            setAddGalleryPanelOpen(false);
+                            if (newId) {
+                                await openGalleryEditor(newId);
+                            }
+                        } catch (error) {
+                            if (galleryRegistryStatus) {
+                                galleryRegistryStatus.textContent = '❌ ' + error.message;
+                                galleryRegistryStatus.style.color = '#f87171';
+                            }
+                        }
+                    });
+                }
 
                 const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
                     saveLabel: '💾 Save gallery',
@@ -3355,8 +4048,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 let activeItems = [];
-                try { activeItems = JSON.parse(editorEl.dataset.initial || '[]'); } catch (e) { activeItems = []; }
-
                 let allFiles = [];
                 let dragSrc = null;
                 let draggedRows = [];
@@ -3573,11 +4264,47 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }).join('');
                 }
 
+                function renderGalleryLists() {
+                    if (!selectedGalleryId) {
+                        activeEl.innerHTML = '<li class="player-layout-empty">No gallery selected.</li>';
+                        if (countBadge) countBadge.textContent = '';
+                        saveUi?.reconcile();
+                        return;
+                    }
+                    renderActive();
+                    if (isEditing) {
+                        renderAvailable();
+                    }
+                    if (saveBtn) saveBtn.hidden = !isEditing;
+                }
+
                 function renderActive() {
                     pruneActiveSelection();
                     if (!activeItems.length) {
-                        activeEl.innerHTML = '<li class="player-layout-empty">Drag content here from Available content.</li>';
+                        activeEl.innerHTML = isEditing
+                            ? '<li class="player-layout-empty">Drag content here from Available content.</li>'
+                            : '<li class="player-layout-empty">This gallery has no content yet. Click edit to add photos and videos.</li>';
                         if (countBadge) countBadge.textContent = '';
+                        saveUi?.reconcile();
+                        return;
+                    }
+
+                    if (!isEditing) {
+                        activeEl.innerHTML = activeItems.map((item, index) => {
+                            const name = item.name || prettifyName(item.src);
+                            const alt = String(item.alt || '').trim();
+                            const meta = [mediaTypeLabel(item.type)];
+                            if (alt) meta.push(alt);
+                            return `<li class="playlist-editor-row gallery-preview-row">
+                                <span class="playlist-track-num">${index + 1}</span>
+                                ${renderThumbMarkup(item, true)}
+                                <span class="playlist-track-info">
+                                    <strong>${bandpromoAdminEscapeHtml(name)}</strong>
+                                    <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(meta.join(' · '))}</span>
+                                </span>
+                            </li>`;
+                        }).join('');
+                        if (countBadge) countBadge.textContent = activeItems.length ? `(${activeItems.length})` : '';
                         saveUi?.reconcile();
                         return;
                     }
@@ -3791,6 +4518,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function bindDragList(listEl) {
                     listEl.addEventListener('dragstart', (event) => {
+                        if (!isEditing) {
+                            event.preventDefault();
+                            return;
+                        }
                         const row = event.target.closest('.gallery-pool-row[draggable="true"], .gallery-active-row[draggable="true"]');
                         if (!row || !listEl.contains(row)) return;
                         dragSrc = row;
@@ -3859,13 +4590,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 availableEl.addEventListener('click', (event) => {
-                    if (suppressNextClick) return;
+                    if (!isEditing || suppressNextClick) return;
                     const row = event.target.closest('.gallery-pool-row');
                     if (!row || !availableEl.contains(row)) return;
                     handleAvailableSelection(row, event);
                 });
 
                 activeEl.addEventListener('click', (event) => {
+                    if (!isEditing) return;
                     const button = event.target.closest('.gallery-remove-btn');
                     if (button && activeEl.contains(button)) {
                         const row = button.closest('.gallery-active-row');
@@ -3887,7 +4619,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     syncFromDOM();
                     saveUi?.markSaving();
                     try {
-                        const resp = await fetch('/biblioteca/save-gallery.php', {
+                        const resp = await fetch(`/biblioteca/save-gallery.php?gallery=${encodeURIComponent(selectedGalleryId)}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(activeItems),
@@ -3911,6 +4643,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
 
                 async function reloadGalleryPool() {
+                    if (!isEditing) return;
                     try {
                         const [photoFiles, videoFiles] = await Promise.all([
                             fetchMediaFiles('photos'),
@@ -3936,23 +4669,525 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     renderAvailable();
                 }
 
-                async function initGalleryEditor() {
-                    await reloadGalleryPool();
-                    renderActive();
-                    saveUi?.setBaseline();
-                }
+                registerReleaseFilterListener(reloadGalleryPool);
 
-                registerDemoFilterListener(reloadGalleryPool);
-                initGalleryEditor();
+                const urlParams = new URLSearchParams(window.location.search);
+                const startInEdit = urlParams.get('edit') === '1';
+
+                loadGalleryRegistry()
+                    .catch((e) => {
+                        if (poolList) {
+                            poolList.innerHTML = '<li class="player-layout-empty" style="color:#f87171">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        }
+                    })
+                    .finally(async () => {
+                        if (startInEdit) {
+                            await openGalleryEditor(selectedGalleryId);
+                        } else {
+                            showPoolView();
+                            syncGalleryUrl(selectedGalleryId, false);
+                            await loadGalleryPreview({ preserveSavedState: true });
+                        }
+                    });
             })();
 
             // ── Playlist editor ───────────────────────────────────────────────
             (function () {
+                const editorCard  = document.getElementById('playlistEditorCard');
+                const poolView    = document.getElementById('playlistPoolView');
+                const tracksPoolView = document.getElementById('playlistTracksPoolView');
+                const poolList    = document.getElementById('playlistPoolList');
                 const availableEl = document.getElementById('playlistAvailableList');
                 const activeEl    = document.getElementById('playlistActiveList');
                 const countBadge  = document.getElementById('playlistActiveCount');
                 const saveBtn     = document.getElementById('playlistSaveBtn');
-                if (!availableEl || !activeEl || !saveBtn) return;
+                const editorHint  = document.getElementById('playlistEditorHint');
+                const backBtn     = document.getElementById('playlistEditorBackBtn');
+                const toggleAddPlaylistBtn = document.getElementById('toggleAddPlaylistBtn');
+                const addPlaylistPanel = document.getElementById('addPlaylistPanel');
+                const addPlaylistForm = document.getElementById('addPlaylistForm');
+                const cancelAddPlaylistBtn = document.getElementById('cancelAddPlaylistBtn');
+                const playlistRegistryStatus = document.getElementById('playlistRegistryStatus');
+                if (!poolList || !availableEl || !activeEl || !saveBtn) return;
+
+                let playlists = [];
+                let selectedPlaylistId = String(editorCard?.dataset.initialPlaylist || 'main');
+                let isEditing = false;
+                let pendingPlaylistDeleteId = '';
+
+                const playlistDeleteModal = document.getElementById('playlistDeleteModal');
+                const playlistDeleteModalName = document.getElementById('playlistDeleteModalName');
+                const playlistDeleteConfirmBtn = document.getElementById('playlistDeleteConfirmBtn');
+                const playlistDeleteCancelBtn = document.getElementById('playlistDeleteCancelBtn');
+                const playlistSettingsTitle = document.getElementById('playlistSettingsTitle');
+                const playlistSettingsPublishDate = document.getElementById('playlistSettingsPublishDate');
+                const playlistSettingsStatus = document.getElementById('playlistSettingsStatus');
+                let playlistSettingsBaseline = { title: '', publish_date: '' };
+                let playlistSettingsSaving = false;
+
+                function validatePlaylistPublishDate(value) {
+                    const trimmed = String(value || '').trim();
+                    if (trimmed === '') {
+                        return 'Publish date is required.';
+                    }
+                    if (!/^\d{4}(?:-\d{2}-\d{2})?$/.test(trimmed)) {
+                        return 'Publish date must use YYYY or YYYY-MM-DD.';
+                    }
+                    return '';
+                }
+
+                function playlistSettingsDirty() {
+                    const title = playlistSettingsTitle instanceof HTMLInputElement
+                        ? String(playlistSettingsTitle.value || '').trim()
+                        : '';
+                    const publish = playlistSettingsPublishDate instanceof HTMLInputElement
+                        ? String(playlistSettingsPublishDate.value || '').trim()
+                        : '';
+                    return title !== playlistSettingsBaseline.title || publish !== playlistSettingsBaseline.publish_date;
+                }
+
+                function syncPlaylistSettingsPanel(playlistId) {
+                    const entry = playlistEntry(playlistId);
+                    const title = String(entry?.title || playlistId || '');
+                    const publish = String(entry?.publish_date || '').trim();
+                    playlistSettingsBaseline = { title, publish_date: publish };
+                    if (playlistSettingsTitle instanceof HTMLInputElement) {
+                        playlistSettingsTitle.value = title;
+                    }
+                    if (playlistSettingsPublishDate instanceof HTMLInputElement) {
+                        playlistSettingsPublishDate.value = publish;
+                    }
+                    if (playlistSettingsStatus) {
+                        playlistSettingsStatus.textContent = '';
+                    }
+                }
+
+                async function savePlaylistSettings({ silent = false } = {}) {
+                    if (playlistSettingsSaving) {
+                        return true;
+                    }
+                    if (!(playlistSettingsTitle instanceof HTMLInputElement) || !(playlistSettingsPublishDate instanceof HTMLInputElement)) {
+                        return true;
+                    }
+
+                    const title = String(playlistSettingsTitle.value || '').trim();
+                    const publishDate = String(playlistSettingsPublishDate.value || '').trim();
+                    if (!title) {
+                        if (!silent && playlistSettingsStatus) {
+                            playlistSettingsStatus.textContent = 'Playlist name is required.';
+                        }
+                        return false;
+                    }
+
+                    const dateError = validatePlaylistPublishDate(publishDate);
+                    if (dateError) {
+                        if (!silent && playlistSettingsStatus) {
+                            playlistSettingsStatus.textContent = dateError;
+                        }
+                        return false;
+                    }
+
+                    if (!playlistSettingsDirty()) {
+                        if (!silent && playlistSettingsStatus) {
+                            playlistSettingsStatus.textContent = '';
+                        }
+                        return true;
+                    }
+
+                    playlistSettingsSaving = true;
+                    if (!silent && playlistSettingsStatus) {
+                        playlistSettingsStatus.textContent = 'Saving…';
+                    }
+
+                    try {
+                        const resp = await fetch('/biblioteca/manage-playlist.php?playlist=' + encodeURIComponent(selectedPlaylistId), {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ title, publish_date: publishDate }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || 'Could not save playlist details');
+                        }
+                        playlists = Array.isArray(data.playlists) ? data.playlists : playlists;
+                        playlistSettingsBaseline = { title, publish_date: publishDate };
+                        if (!silent && playlistSettingsStatus) {
+                            playlistSettingsStatus.textContent = 'Saved.';
+                        }
+                        renderPlaylistPoolList();
+                        return true;
+                    } catch (error) {
+                        if (!silent && playlistSettingsStatus) {
+                            playlistSettingsStatus.textContent = error.message || 'Could not save playlist details';
+                        }
+                        return false;
+                    } finally {
+                        playlistSettingsSaving = false;
+                    }
+                }
+
+                function closePlaylistDeleteModal() {
+                    pendingPlaylistDeleteId = '';
+                    if (playlistDeleteModal) {
+                        playlistDeleteModal.style.display = 'none';
+                        playlistDeleteModal.setAttribute('aria-hidden', 'true');
+                    }
+                }
+
+                function openPlaylistDeleteModal(playlistId) {
+                    const entry = playlistEntry(playlistId);
+                    if (!entry || !playlistCanDelete(entry)) {
+                        return;
+                    }
+                    const title = String(entry.title || playlistId);
+                    if (!playlistDeleteModal) {
+                        if (!window.confirm(`Delete playlist "${title}"? Its track order will be lost. This cannot be undone.`)) {
+                            return;
+                        }
+                        deletePlaylist(playlistId).catch((error) => alert(error.message || 'Could not delete playlist'));
+                        return;
+                    }
+                    pendingPlaylistDeleteId = playlistId;
+                    if (playlistDeleteModalName) {
+                        playlistDeleteModalName.textContent = title;
+                    }
+                    playlistDeleteModal.style.display = 'flex';
+                    playlistDeleteModal.setAttribute('aria-hidden', 'false');
+                    playlistDeleteConfirmBtn?.focus();
+                }
+
+                function playlistEntry(playlistId) {
+                    return playlists.find((entry) => entry && entry.id === playlistId) || null;
+                }
+
+                function playlistCanDelete(entry) {
+                    return entry && String(entry.id || '') !== 'main';
+                }
+
+                function playlistMetaLine(entry) {
+                    if (!entry) return '';
+                    const kind = String(entry.kind || 'system');
+                    const publish = String(entry.publish_date || '').trim();
+                    const parts = [String(entry.id || '')];
+                    if (kind === 'system') parts.push('system');
+                    if (publish) parts.push(publish);
+                    return parts.join(' · ');
+                }
+
+                function syncPlaylistUrl(playlistId, editing = isEditing) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'content');
+                    url.searchParams.set('cntab', 'playlist');
+                    url.searchParams.set('playlist', playlistId);
+                    if (editing) {
+                        url.searchParams.set('edit', '1');
+                    } else {
+                        url.searchParams.delete('edit');
+                    }
+                    window.history.replaceState({}, '', url.toString());
+                }
+
+                function setAddPlaylistPanelOpen(open) {
+                    if (!addPlaylistPanel || !toggleAddPlaylistBtn) return;
+                    addPlaylistPanel.hidden = !open;
+                    toggleAddPlaylistBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    toggleAddPlaylistBtn.classList.toggle('active', open);
+                    if (open) {
+                        const titleInput = addPlaylistForm?.querySelector('input[name="title"]');
+                        if (titleInput instanceof HTMLInputElement) {
+                            titleInput.focus();
+                        }
+                    } else if (playlistRegistryStatus) {
+                        playlistRegistryStatus.textContent = '';
+                    }
+                }
+
+                function showPoolView() {
+                    isEditing = false;
+                    if (poolView) poolView.hidden = false;
+                    if (tracksPoolView) tracksPoolView.hidden = true;
+                    if (saveBtn) saveBtn.hidden = true;
+                    if (editorHint) {
+                        editorHint.textContent = 'Select a playlist from the pool, then click edit to change its track order.';
+                    }
+                    renderPlaylistPoolList();
+                }
+
+                function showEditView(playlistId) {
+                    isEditing = true;
+                    selectedPlaylistId = playlistId;
+                    if (poolView) poolView.hidden = true;
+                    if (tracksPoolView) tracksPoolView.hidden = false;
+                    syncPlaylistUrl(playlistId, true);
+                    syncPlaylistSettingsPanel(playlistId);
+                    if (editorHint) {
+                        editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available content to remove them from the playlist.';
+                    }
+                    renderPlaylistPoolList();
+                }
+
+                function renderPlaylistPoolList() {
+                    if (!poolList) return;
+                    if (!playlists.length) {
+                        poolList.innerHTML = '<li class="player-layout-empty">No playlists available yet.</li>';
+                        return;
+                    }
+                    poolList.innerHTML = playlists.map((entry) => {
+                        const id = String(entry.id || '');
+                        const selectedClass = id === selectedPlaylistId ? ' playlist-editor-row-selected' : '';
+                        const title = bandpromoAdminEscapeHtml(entry.title || id);
+                        const deleteBtn = playlistCanDelete(entry)
+                            ? `<button type="button" class="page-pool-delete-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Delete playlist" aria-label="Delete ${title}">🗑️</button>`
+                            : '';
+                        return `<li class="playlist-editor-row playlist-pool-row page-pool-row${selectedClass}" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedPlaylistId ? 'true' : 'false'}">
+                            <span class="playlist-track-info">
+                                <strong>🎵 ${title}</strong>
+                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(playlistMetaLine(entry))}</span>
+                            </span>
+                            <span class="page-pool-row-actions">
+                                <button type="button" class="page-pool-edit-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Edit playlist" aria-label="Edit ${title}">✏️</button>
+                                ${deleteBtn}
+                            </span>
+                        </li>`;
+                    }).join('');
+                }
+
+                async function loadPlaylistRegistry() {
+                    const resp = await fetch('/biblioteca/get-playlists.php', { credentials: 'same-origin' });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data.ok) {
+                        throw new Error(data.error || 'Could not load playlists');
+                    }
+                    playlists = Array.isArray(data.playlists) ? data.playlists : [];
+                    renderPlaylistPoolList();
+                }
+
+                async function requestCloseEditor() {
+                    if (playlistSettingsDirty()) {
+                        const saved = await savePlaylistSettings();
+                        if (!saved) {
+                            return false;
+                        }
+                    }
+                    if (saveBtn.classList.contains('btn-amber')) {
+                        const proceed = window.confirm('You have unsaved playlist changes. Leave edit mode without saving?');
+                        if (!proceed) return false;
+                    }
+                    showPoolView();
+                    syncPlaylistUrl(selectedPlaylistId, false);
+                    await loadPlaylistPreview({ preserveSavedState: true });
+                    return true;
+                }
+
+                async function openPlaylistEditor(playlistId) {
+                    if (!playlistId) return;
+                    if (isEditing && playlistId !== selectedPlaylistId) {
+                        if (playlistSettingsDirty()) {
+                            const saved = await savePlaylistSettings();
+                            if (!saved) {
+                                return;
+                            }
+                        }
+                        if (saveBtn.classList.contains('btn-amber')) {
+                            const proceed = window.confirm('You have unsaved playlist changes. Switch playlists without saving?');
+                            if (!proceed) return;
+                        }
+                    }
+                    selectedPlaylistId = playlistId;
+                    showEditView(playlistId);
+                    await loadPlaylistPreview();
+                }
+
+                async function selectPlaylistForPreview(playlistId) {
+                    if (!playlistId || (playlistId === selectedPlaylistId && !isEditing)) {
+                        return;
+                    }
+                    if (isEditing) {
+                        await openPlaylistEditor(playlistId);
+                        return;
+                    }
+                    if (saveBtn.classList.contains('btn-amber')) {
+                        const proceed = window.confirm('You have unsaved playlist changes. Switch playlists without saving?');
+                        if (!proceed) return;
+                    }
+                    selectedPlaylistId = playlistId;
+                    syncPlaylistUrl(playlistId, false);
+                    renderPlaylistPoolList();
+                    await loadPlaylistPreview({ preserveSavedState: true });
+                }
+
+                async function deletePlaylist(playlistId) {
+                    const entry = playlistEntry(playlistId);
+                    if (!entry || !playlistCanDelete(entry)) return;
+                    const resp = await fetch(`/biblioteca/manage-playlist.php?playlist=${encodeURIComponent(playlistId)}`, {
+                        method: 'DELETE',
+                        credentials: 'same-origin',
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data.ok) {
+                        throw new Error(data.error || 'Could not delete playlist');
+                    }
+                    playlists = Array.isArray(data.playlists) ? data.playlists : [];
+                    if (selectedPlaylistId === playlistId) {
+                        selectedPlaylistId = playlists[0]?.id || 'main';
+                        showPoolView();
+                        syncPlaylistUrl(selectedPlaylistId, false);
+                        await loadPlaylistPreview({ preserveSavedState: true });
+                    } else {
+                        renderPlaylistPoolList();
+                    }
+                }
+
+                playlistDeleteCancelBtn?.addEventListener('click', closePlaylistDeleteModal);
+                playlistDeleteModal?.addEventListener('click', (event) => {
+                    if (event.target === playlistDeleteModal) {
+                        closePlaylistDeleteModal();
+                    }
+                });
+                playlistDeleteConfirmBtn?.addEventListener('click', async () => {
+                    const playlistId = pendingPlaylistDeleteId;
+                    if (!playlistId) {
+                        return;
+                    }
+                    closePlaylistDeleteModal();
+                    try {
+                        playlistDeleteConfirmBtn.disabled = true;
+                        await deletePlaylist(playlistId);
+                    } catch (error) {
+                        alert(error.message || 'Could not delete playlist');
+                    } finally {
+                        playlistDeleteConfirmBtn.disabled = false;
+                    }
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Escape' || !playlistDeleteModal || playlistDeleteModal.style.display !== 'flex') {
+                        return;
+                    }
+                    closePlaylistDeleteModal();
+                });
+
+                poolList.addEventListener('click', (event) => {
+                    const deleteBtn = event.target instanceof HTMLElement
+                        ? event.target.closest('.page-pool-delete-btn')
+                        : null;
+                    if (deleteBtn) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const playlistId = deleteBtn.getAttribute('data-playlist-id') || '';
+                        openPlaylistDeleteModal(playlistId);
+                        return;
+                    }
+
+                    const editBtn = event.target instanceof HTMLElement
+                        ? event.target.closest('.page-pool-edit-btn')
+                        : null;
+                    if (editBtn) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const playlistId = editBtn.getAttribute('data-playlist-id') || '';
+                        openPlaylistEditor(playlistId);
+                        return;
+                    }
+
+                    const row = event.target instanceof HTMLElement
+                        ? event.target.closest('.playlist-pool-row')
+                        : null;
+                    if (!row || !poolList.contains(row)) return;
+                    const playlistId = row.getAttribute('data-playlist-id') || '';
+                    if (!playlistId) return;
+                    selectPlaylistForPreview(playlistId);
+                });
+
+                backBtn?.addEventListener('click', () => {
+                    requestCloseEditor();
+                });
+
+                playlistSettingsTitle?.addEventListener('blur', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsPublishDate?.addEventListener('blur', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsTitle?.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        playlistSettingsTitle.blur();
+                    }
+                });
+                playlistSettingsPublishDate?.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        playlistSettingsPublishDate.blur();
+                    }
+                });
+
+                toggleAddPlaylistBtn?.addEventListener('click', () => {
+                    setAddPlaylistPanelOpen(addPlaylistPanel?.hidden !== false);
+                });
+
+                cancelAddPlaylistBtn?.addEventListener('click', () => {
+                    addPlaylistForm?.reset();
+                    setAddPlaylistPanelOpen(false);
+                });
+
+                if (addPlaylistForm) {
+                    addPlaylistForm.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const formData = new FormData(addPlaylistForm);
+                        const title = String(formData.get('title') || '').trim();
+                        if (!title) {
+                            if (playlistRegistryStatus) {
+                                playlistRegistryStatus.textContent = 'Playlist name is required.';
+                                playlistRegistryStatus.style.color = '#f87171';
+                            }
+                            return;
+                        }
+                        try {
+                            if (playlistRegistryStatus) {
+                                playlistRegistryStatus.textContent = 'Creating playlist…';
+                                playlistRegistryStatus.style.color = '';
+                            }
+                            const resp = await fetch('/biblioteca/manage-playlist.php', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                                body: JSON.stringify({ title }),
+                            });
+                            const data = await resp.json().catch(() => ({}));
+                            if (!resp.ok || !data.ok) {
+                                throw new Error(data.error || 'Could not create playlist');
+                            }
+                            playlists = Array.isArray(data.playlists) ? data.playlists : playlists;
+                            const newId = data.playlist?.id || '';
+                            addPlaylistForm.reset();
+                            setAddPlaylistPanelOpen(false);
+                            if (newId) {
+                                await openPlaylistEditor(newId);
+                            }
+                        } catch (error) {
+                            if (playlistRegistryStatus) {
+                                playlistRegistryStatus.textContent = '❌ ' + error.message;
+                                playlistRegistryStatus.style.color = '#f87171';
+                            }
+                        }
+                    });
+                }
+
+                function playlistPreviewParams(extraParams) {
+                    const params = new URLSearchParams(extraParams || {});
+                    if (poolReleaseFilter && poolReleaseFilter !== 'all') {
+                        params.set('release', poolReleaseFilter);
+                    }
+                    return params;
+                }
+
+                function playlistQueryString(extraParams) {
+                    const params = playlistPreviewParams(extraParams);
+                    params.set('playlist', selectedPlaylistId);
+                    const query = params.toString();
+                    return query ? `?${query}` : '';
+                }
 
                 const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
                     saveLabel: '💾 Save playlist',
@@ -4152,12 +5387,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from playlist">✕</button>'
                         : '';
                     const rowClass = options.activeRow ? 'playlist-editor-row player-layout-row-active' : 'playlist-editor-row';
-                    const draggable = track.deliveryReady === false ? 'false' : 'true';
-                    const dragTitle = track.deliveryReady === false
-                        ? 'Delivery file not ready yet'
-                        : (options.activeRow ? 'Drag to reorder' : 'Drag into playlist');
+                    const readonlyClass = !isEditing ? ' playlist-editor-row-readonly' : '';
+                    const draggable = isEditing && track.deliveryReady !== false ? 'true' : 'false';
+                    const dragTitle = !isEditing
+                        ? 'Preview only — click edit to reorder'
+                        : (track.deliveryReady === false
+                            ? 'Delivery file not ready yet'
+                            : (options.activeRow ? 'Drag to reorder' : 'Drag into playlist'));
 
-                    return `<li class="${rowClass}${demoClass}${pendingClass}${selectedClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
+                    return `<li class="${rowClass}${demoClass}${pendingClass}${selectedClass}${readonlyClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
                         <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
                         ${positionMarkup}
                         <span class="playlist-track-info">
@@ -4173,16 +5411,32 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pruneAvailableSelection();
                     pruneActiveSelection();
 
+                    if (!selectedPlaylistId) {
+                        activeEl.innerHTML = '<li class="player-layout-empty">No playlist selected.</li>';
+                        if (countBadge) countBadge.textContent = '';
+                        return;
+                    }
+
                     if (!activeTracks.length) {
-                        activeEl.innerHTML = '<li class="player-layout-empty">Drag tracks here from Available tracks.</li>';
+                        activeEl.innerHTML = isEditing
+                            ? '<li class="player-layout-empty">Drag tracks here from Available content.</li>'
+                            : '<li class="player-layout-empty">This playlist has no tracks yet. Click edit to add tracks.</li>';
                     } else {
                         activeEl.innerHTML = activeTracks.map((track, index) => renderTrackRow(track, {
                             showPosition: true,
                             position: index + 1,
-                            showRemove: true,
+                            showRemove: isEditing,
                             activeRow: true,
                             selected: selectedActive.has(String(track.file || '')),
                         })).join('');
+                    }
+
+                    if (!isEditing) {
+                        if (countBadge) {
+                            countBadge.textContent = activeTracks.length ? `(${activeTracks.length})` : '';
+                        }
+                        saveUi?.reconcile();
+                        return;
                     }
 
                     if (!availableTracks.length) {
@@ -4546,12 +5800,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 async function reloadPlaylistPool() {
                     try {
-                        const params = new URLSearchParams();
-                        if (showBundledDemoAssets) {
-                            params.set('include_bundled', '1');
-                        }
-                        const query = params.toString();
-                        const resp = await fetch('/biblioteca/get-playlist-preview.php' + (query ? `?${query}` : ''));
+                        const query = playlistQueryString();
+                        const resp = await fetch('/biblioteca/get-playlist-preview.php' + query);
                         const data = await resp.json();
                         if (!resp.ok || data.error) {
                             throw new Error(data.error || 'Could not load playlist preview');
@@ -4572,12 +5822,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function loadPlaylistPreview(options = {}) {
                     const preserveSavedState = options.preserveSavedState === true;
                     try {
-                        const params = new URLSearchParams();
-                        if (showBundledDemoAssets) {
-                            params.set('include_bundled', '1');
-                        }
-                        const query = params.toString();
-                        const resp = await fetch('/biblioteca/get-playlist-preview.php' + (query ? `?${query}` : ''));
+                        const query = playlistQueryString();
+                        const resp = await fetch('/biblioteca/get-playlist-preview.php' + query);
                         const data = await resp.json();
                         if (!resp.ok || data.error) {
                             throw new Error(data.error || 'Could not load playlist preview');
@@ -4599,7 +5845,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     saveUi?.markSaving();
                     const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
                     try {
-                        const resp = await fetch('/biblioteca/save-playlist-order.php', {
+                        const resp = await fetch('/biblioteca/save-playlist-order.php' + playlistQueryString(), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(order),
@@ -4626,8 +5872,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 });
 
-                registerDemoFilterListener(reloadPlaylistPool);
-                loadPlaylistPreview();
+                registerReleaseFilterListener(reloadPlaylistPool);
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const startInEdit = urlParams.get('edit') === '1';
+
+                loadPlaylistRegistry()
+                    .catch((e) => {
+                        if (poolList) {
+                            poolList.innerHTML = '<li class="player-layout-empty" style="color:#f87171">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        }
+                    })
+                    .finally(async () => {
+                        if (startInEdit) {
+                            await openPlaylistEditor(selectedPlaylistId);
+                        } else {
+                            showPoolView();
+                            syncPlaylistUrl(selectedPlaylistId, false);
+                            await loadPlaylistPreview({ preserveSavedState: true });
+                        }
+                    });
             })();
 
             // ── Support: link/widget branch form ────────────────────────────
@@ -4877,13 +6141,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     case 'missing_artist_tag':
                         return { severity: 'fix-before-publish', action: 'Add the artist name' };
                     case 'missing_album_tag':
-                        return { severity: 'recommended-fix', action: 'Add the album or release name (helpful for fans)' };
+                        return { severity: 'recommended-fix', action: 'Add a release name in song metadata (your catalog release until a Releases editor ships)' };
                     case 'missing_track_number':
                         return {
                             severity: totalTracks > 1 ? 'fix-before-publish' : 'recommended-fix',
                             action: totalTracks > 1
-                                ? 'Set the track number so the playlist stays in the right order'
-                                : 'Set the track number if this song belongs to a numbered release',
+                                ? 'Set the track number in song metadata so multi-track releases keep the right order'
+                                : 'Set the track number in song metadata if this song belongs to a numbered release',
                         };
                     case 'missing_lyrics':
                         return { severity: 'recommended-fix', action: 'Add lyrics if you want them to show on the site' };
@@ -4960,16 +6224,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             case 'missing_title_tag':
                             case 'missing_artist_tag':
                             case 'missing_album_tag':
+                            case 'missing_track_number':
                                 action = {
                                     key: 'metadata',
                                     label: 'Fix song info',
-                                    href: buildAudioMetadataUrl(String(track.file || '')),
-                                };
-                                break;
-                            case 'missing_track_number':
-                                action = {
-                                    key: 'metadata-track',
-                                    label: 'Set track order',
                                     href: buildAudioMetadataUrl(String(track.file || '')),
                                 };
                                 break;
@@ -5330,6 +6588,87 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 });
             }
+
+            (function initContentAutofix() {
+                const statusEl = document.getElementById('contentAutofixStatus');
+                const reportEl = document.getElementById('contentAutofixReport');
+                const previewBtn = document.getElementById('contentAutofixPreviewBtn');
+                const applyBtn = document.getElementById('contentAutofixApplyBtn');
+                if (!statusEl || !previewBtn || !applyBtn) {
+                    return;
+                }
+
+                let latestPreview = null;
+
+                function renderAutofixReport(report) {
+                    if (!reportEl) {
+                        return;
+                    }
+                    reportEl.replaceChildren();
+                    const steps = Array.isArray(report?.steps) ? report.steps : [];
+                    if (!steps.length) {
+                        reportEl.hidden = true;
+                        return;
+                    }
+                    steps.forEach((step) => {
+                        const item = document.createElement('li');
+                        const changed = Number(step.changed || 0);
+                        const skipped = Number(step.skipped || 0);
+                        const errors = Array.isArray(step.errors) ? step.errors.length : 0;
+                        const suffix = errors > 0
+                            ? ` · ${errors} error${errors === 1 ? '' : 's'}`
+                            : changed > 0
+                                ? ` · ${changed} change${changed === 1 ? '' : 's'}`
+                                : skipped > 0
+                                    ? ' · already up to date'
+                                    : '';
+                        item.textContent = `${step.label || step.id || 'Step'}${suffix}`;
+                        reportEl.appendChild(item);
+                    });
+                    reportEl.hidden = false;
+                }
+
+                async function runContentAutofix(dryRun) {
+                    previewBtn.disabled = true;
+                    applyBtn.disabled = true;
+                    statusEl.textContent = dryRun ? 'Checking what would change…' : 'Upgrading content model…';
+                    if (reportEl) {
+                        reportEl.hidden = true;
+                    }
+                    try {
+                        const resp = await fetch('/biblioteca/content-autofix.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ dry_run: dryRun }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || data.error) {
+                            throw new Error(data.error || 'Content upgrade failed');
+                        }
+                        latestPreview = data;
+                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Upgrade complete.');
+                        renderAutofixReport(data);
+                        applyBtn.hidden = dryRun ? Number(data.changed_total || 0) === 0 : true;
+                        if (!dryRun && data.recommend_build) {
+                            await refreshBuildRequiredState();
+                        }
+                    } catch (error) {
+                        statusEl.textContent = error.message || 'Content upgrade failed';
+                    } finally {
+                        previewBtn.disabled = false;
+                        applyBtn.disabled = false;
+                    }
+                }
+
+                previewBtn.addEventListener('click', () => runContentAutofix(true));
+                applyBtn.addEventListener('click', () => {
+                    if (!latestPreview || Number(latestPreview.changed_total || 0) === 0) {
+                        return;
+                    }
+                    runContentAutofix(false);
+                });
+            })();
 
             (function initPackageUpdater() {
                 const card = document.getElementById('packageUpdateCard');

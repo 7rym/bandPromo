@@ -198,8 +198,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'severity' => 'blocking',
             'complete' => $starterPackInstalled,
             'detail' => $starterPackDetail,
-            'href' => '?tab=build',
-            'next' => 'Open Build and run a full build so bandPromo can install the starter design files.',
+            'href' => '?tab=system&stab=publish',
+            'next' => 'Open System → Publish and run a full build so bandPromo can install the starter design files.',
         ],
         [
             'label' => 'Installation personalized',
@@ -209,8 +209,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'detail' => $installationPersonalized
                 ? 'The site identity or theme has been changed away from the shipped starter defaults.'
                 : 'The site is still using the shipped demo identity or default branding values.',
-            'href' => '?tab=config',
-            'next' => 'Open Config and replace the starter name, description, branding, or support details with your own.',
+            'href' => '?tab=settings',
+            'next' => 'Open Settings and replace the starter name, description, branding, or support details with your own.',
         ],
         [
             'label' => 'Your own media content is present',
@@ -242,8 +242,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'detail' => $fullBuildSucceeded
                 ? 'The latest full build finished successfully.'
                 : 'No successful full build has been recorded yet, or the last full build failed.',
-            'href' => '?tab=build',
-            'next' => 'Open Build and run a full build until it completes successfully.',
+            'href' => '?tab=system&stab=publish',
+            'next' => 'Open System → Publish and run a full build until it completes successfully.',
         ],
         [
             'label' => 'This installation is up and running',

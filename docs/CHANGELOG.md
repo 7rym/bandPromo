@@ -2,6 +2,104 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-15 17:00 - Admin IA restructure: **Settings** (Basics, Theme, Support, Sharing) replaces Config; **System** combines Publish (former Build tab) and Audit; legacy `?tab=config|build|audit` URLs redirect; welcome dashboard drops the Build quick link; notifications are the primary publish nudge (bell pulses on urgent items; Build tab pulse removed).
+
+2026-06-15 16:15 - Theme duplicate now allocates short unique ids (`theme-copy-{hex}`) instead of appending to the source id, so copying a copy no longer collides at the 48-character id limit.
+
+2026-06-15 16:00 - Fixed theme pool list not refreshing after deleting the currently selected theme.
+
+2026-06-15 15:45 - Theme pool polish: locked Setup Default has no edit button, and active themes no longer use a green title (dot/meta/badge remain).
+
+2026-06-15 15:30 - Removed the media player hover dim (`opacity: 0.9` on `#mediaplayer:hover`) on the public player page.
+
+2026-06-15 15:15 - Removed the theme editor preview status line; success is shown by UI chips/buttons and rare errors use admin toasts.
+
+2026-06-15 15:00 - Removed Media player / cover art size from the theme editor; player layout stays responsive via `style.css` breakpoints and themes no longer inject `--card-size`.
+
+2026-06-15 14:45 - Fixed theme pool selection: clicking a theme now refreshes the pool highlight and uses the shared page-pool row selector.
+
+2026-06-15 14:30 - Theme pool rows can delete non-active, unlocked themes via a confirmation modal; active themes now use green OK styling in the pool list, edit header badge, and Set active control.
+
+2026-06-15 14:15 - Theme pool rows now carry edit and per-item duplicate actions (no header duplicate), and the save button no longer sticks on Saved after returning to the pool list.
+
+2026-06-15 14:00 - Moved theme rename into the edit-view header: an inline editable name sits to the right of ← Themes, with compact active/locked badges and save status beside it; removed the separate theme name settings panel.
+
+2026-06-15 13:50 - Compacted the theme name settings panel: status now sits top-right in the box and active/locked badges share the label row.
+
+2026-06-15 13:45 - Removed the redundant theme title intro block from the theme editor live preview to reclaim vertical space.
+
+2026-06-15 13:30 - Theme editor UX pass: rename themes from edit mode, compact color swatches, operator-friendly font/size presets, typography above media player settings, and live preview showing all page-editor text styles (H1–H3, paragraph, small, code) plus a clearer Media player section.
+
+2026-06-15 13:00 - Content → Themes now matches the other editors: theme pool with edit button on the left, token editor in edit mode, and a live preview panel on the right that renders typography, player card, buttons, surfaces, links, palette, and brand assets with the selected theme tokens.
+
+2026-06-15 12:45 - Unified Content editor “Add playlist/gallery/page” buttons to the compact Gallery header style by removing a `font: inherit` override on Pages/Playlist and locking shared sizing in `admin.css`.
+
+2026-06-15 12:30 - Page editor live preview now re-renders through `preview-page-document.php`, so gallery block source and layout changes update the preview immediately without saving.
+
+2026-06-15 12:15 - Page editor gallery block dropdown now lists all galleries from the registry (including user-created ones), not only system galleries.
+
+2026-06-15 12:00 - Gallery editor now matches the playlist editor UX: pool list with add/edit/delete on the left, read-only preview on the right, and edit mode with gallery name settings, available media pool, drag-and-drop ordering, and save. Added `manage-gallery.php` plus create/update/delete helpers in `gallery-storage.php`.
+
+2026-06-16 08:45 - Uncatalogued audio uploads now self-heal: opening Files or refreshing notifications auto-registers originals into the asset catalog, syncs primary release membership, and queues Build; operators only see a notification when automatic registration fails.
+
+2026-06-16 08:15 - `optimizeMedia.py` now resolves audio delivery sources through the asset registry (same as `makePlaylists.py`), so `ast_{ULID}` masters are used for MP3 delivery instead of falling back to originals when master filenames no longer match upload stems.
+
+2026-06-16 08:00 - Fixed Windows full-build failure in `setupCompose.py` by decoding `makePlaylists.py` subprocess output as UTF-8, added `scripts/run-local-cleanup.php` for local asset/playlist reconciliation, and cleaned this install: removed duplicate salsa FLAC asset, linked salsa playlist entries, cleared stale background tasks, and completed a full build.
+
+2026-06-16 07:50 - Removed inaccurate publish-date helper text from the playlist settings panel in edit mode.
+
+2026-06-16 07:45 - Fixed Content → Playlist not loading after the settings panel change: removed a duplicate `playlistDeleteCancelBtn` declaration that broke `admin.js` parsing.
+
+2026-06-16 07:30 - Playlist edit mode now includes a compact settings panel above Available content for playlist name and publish date, with PATCH support in `manage-playlist.php` and registry/document sync in `playlist-storage.php`.
+
+2026-06-16 07:15 - Fixed playlist delete doing nothing on Content → Playlist: the confirmation modal was only rendered on the Pages sub-tab, so it is now shared across all Content views with a confirm() fallback.
+
+2026-06-16 07:00 - Added Welcome → Content model upgrade tool (`content-autofix.php`) to batch-migrate legacy installs: seed containers, materialize/link audio masters, rename masters to `ast_{ULID}` filenames, sync playlist `asset_id` links and release membership, refresh validation, and queue Build. Playlist delete now uses a proper confirmation modal instead of an instant delete.
+
+2026-06-16 06:35 - Fixed playlist validation false positives when a saved title tag matches the filename stem (e.g. Salsa guacamole), taught makePlaylists to read ULID masters from the asset registry, and saved track 1 metadata on Salsa_guacamole.mp3.
+
+2026-06-16 06:20 - Audio quick-edit chips now match real publish rules: only Artist and Title show red when missing, Release and Track use amber unless the catalog has multiple tracks (then empty Track is red), and Version/BPM/Key/Release date/Genre show amber "Optional" or "Recommended" instead of alarming red "Missing".
+
+2026-06-16 06:00 - Fixed broken audio operator workflow for ULID masters: asset IDs now validate at the generated 20-character length (registry was silently empty), orphan ast_* masters reconcile to their original upload, duplicate master copies are pruned, Files → Audio shows friendly track titles with disk names as subtitles, mp3/flac/wav rows stay editable even while a master is pending, delete removes registry-linked masters, failed video notifications can be dismissed, and stale validation items for missing originals are filtered out.
+
+2026-06-16 05:15 - Fixed Files → Audio edit lock for ULID-based masters: asset lookup now resolves original filenames like Salsa_guacamole.mp3 to ast_* master files, materializes missing masters for existing assets, and teaches audioMasterMetadata.py to use the asset registry.
+
+2026-06-16 04:45 - Retuned operator notifications for current tooling: metadata issues use one Fix song info action with track-number wording that matches song tags (not playlist order), pending publish prep points to Build instead of Files, and failed video delivery explains retry via Build or re-upload.
+
+2026-06-16 04:15 - Operator notifications now show when each item was last checked, and inbox action links (for example Fix song info) close the modal and navigate reliably to Files with the audio quick-edit panel opened when possible.
+
+2026-06-16 03:45 - Declared bundled demo content as locked release `bandpromo-demo` ("bandPromo demo"): seeded registry/document templates, asset migration assigns demo masters to that release, replaced User files/Include demo filters with All releases + release-name pool filters in Files and Content editors, and removed auto-suppressed demo pool behaviour.
+
+2026-06-16 03:00 - Fixed playlist editor preview to be container-first: new playlists start with an empty active list and the full audio pool in Available content, instead of inheriting legacy global order or auto-filling every track.
+
+2026-06-16 02:30 - Reworked Content → Playlist to match the Pages two-column pattern: playlist pool with add/edit/delete on the left, track pool only in edit mode, read-only track preview on the right, plus `manage-playlist.php` for create/delete.
+
+2026-06-16 02:00 - Split page `picture` (plain caption only) and `picture_richtext` (image + rich body) blocks with migration on save/load, updated bio template, and separate + Picture / + Picture + text editor actions.
+
+2026-06-16 01:45 - Removed the Gallery player tab now that galleries ship as page module blocks: gallery module defaults off, tab-order keys strip `module:gallery`, player layout editor no longer surfaces it, and play shell drops gallery.js/INITIAL_GALLERY_ITEMS.
+
+2026-06-16 01:20 - Added Content → Playlist and Content → Gallery container pool sidebars (registry on the left, drag editor on the right) with `?playlist=` / `?gallery=` URL state and admin APIs `get-playlists.php`, `get-galleries.php`, `get-gallery.php`.
+
+2026-06-16 01:00 - Implemented platform model slice 7 (themes): `biblioteca/theme-storage.php` with `data/themes/` registry, setup-default protected seed, duplicate + active pointer in `web-config.json`, CSS variable injection on login/player/admin shells, admin APIs (`get-themes`, `get-theme`, `save-theme`, `duplicate-theme`, `set-active-theme`), and Content → Themes pool editor with token form.
+
+2026-06-16 00:15 - Fixed deep-link player URLs (`/play/{playlist}/{release}/{track}`) loading CSS/JS from wrong paths by switching play shell assets to root-absolute `/biblioteca/...` URLs.
+
+2026-06-16 00:05 - Clarified the player file:// error screen with bandPromo-specific PHP dev-server instructions and hide the broken player chrome when playlist load fails.
+
+2026-06-15 23:55 - Page gallery blocks now open images and videos in the player lightbox (same behavior as the Gallery tab), with a play overlay on video thumbnails.
+
+2026-06-15 23:45 - Fixed page gallery blocks not showing demo photos: gallery image delivery resolution now maps `original/*.png` sources to existing `optimal/*.jpg` delivery files (matching the player gallery tab) instead of broken `.png` optimal URLs.
+
+2026-06-15 23:30 - Implemented platform model slice 3 (galleries): `biblioteca/gallery-storage.php` with `data/galleries/` registry and migration from legacy `data/gallery.json`, dual-write save path, page `gallery` module block with grid preset rendering, admin/page-editor gallery block support, and template bootstrap seeding.
+
+2026-06-15 23:00 - Implemented platform model slice 2: `biblioteca/playlist-storage.php` with `data/playlists/` registry and migration from legacy `play/playlist.json`, authenticated `get-player-playlist.php` endpoint, player path deep links via `play/.htaccess`, playlist selector UI, embargoed tracks shown as locked/non-playable, admin preview fallback from playlist containers, and template bootstrap seeding for playlists.
+
+2026-06-15 22:00 - Implemented platform model slice 1: `biblioteca/asset-registry.php` with `ast_{ULID}` IDs and legacy master migration, `biblioteca/release-storage.php` with seeded `data/releases/primary.json` and lock guards, ULID-based audio master intake on upload, removed playlist-save master tag sync, and release-based track number suggestions in audio metadata saves.
+
+2026-06-15 21:00 - Completed v0.8 policy definitions: added `docs/ACCESS-MODEL.md` (tiers, VIP per-track overrides, login/FAQ/shared links), `docs/DELIVERY-ARCHITECTURE.md` (protected delivery, PWA, full-media cast scope), and `docs/PORTABILITY.md` (full backup vs data export/import, moved-site repair); expanded `docs/PLATFORM-MODEL.md` with theme semantic tokens, module registry, and `web-config` target shape; updated `docs/TODO.md` to mark policy complete and leave implementation slices only.
+
+2026-06-15 20:00 - Locked the v0.8 platform model in `docs/PLATFORM-MODEL.md`: releases as catalog anchor, `ast_{ULID}` asset registry, `data/` containers for playlists/galleries/themes, per-release track slugs with path URLs (`/play/{playlist}/{release-slug}/{track-slug}`), release locking, unified media pools, legacy playlist→master tag sync removal, and updated `docs/TODO.md`, `docs/ROADMAP.md`, and `docs/MEDIA-HANDLING.md` to match.
+
 2026-06-15 18:30 - Checkpoint v0.8 build 289: fix Site update to detect prerelease packages via GitHub Releases API so v0.8 beta builds are offered over older stable v0.7 releases.
 
 2026-06-15 18:00 - Fixed Site update not detecting v0.8 prereleases: GitHub `releases/latest` skips prerelease assets, so the updater now resolves the newest published release tag (including beta prereleases) via the GitHub Releases API before loading `release-manifest.json`.

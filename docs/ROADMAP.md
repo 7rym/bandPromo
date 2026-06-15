@@ -47,10 +47,10 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Block-based page editor | Shipped |
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
-| Theme tokens + semantic player colors | Planned |
+| Theme tokens + semantic player colors | Shipped (Content → Themes editor) |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** lock and implement the multi-playlist/multi-gallery model, first gallery module blocks on pages, track deep links, and the protected delivery path. Access-tier enforcement and Chromecast send remain **v0.9+**.
+**Next focus:** Priority 3b slices per [PLATFORM-MODEL.md](PLATFORM-MODEL.md): **Release editor** (`container.release` operator UI), then remaining config-schema migration and v0.9 prep.
 
 ## Core vs modules
 
