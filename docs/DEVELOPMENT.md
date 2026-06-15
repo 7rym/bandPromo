@@ -53,13 +53,38 @@ The fast path is meant to replace repeated manual startup checks. It prints the 
 
 Distributable install packages are intentional release artifacts, not something every build should emit automatically.
 
+**Pushing to `main` does not update Site update.** The admin package updater checks the newest published GitHub Release manifest, not the branch tip.
+
+### Tester / operator publish checklist
+
+When shipping a checkpoint to hosted testers:
+
+1. Bump `VERSION`, commit, push to `main`.
+2. Publish the immutable GitHub Release package (workflow below).
+3. Verify the release tag, assets, and `release-manifest.json` on GitHub.
+4. Open **Dashboard → Site update** on a test install and confirm the new build is offered.
+
+Tag naming: `v0.8 build 291` in `VERSION` → release tag `v0.8-build-291`.
+
 Available paths:
 
-- Run `python scripts/build_release_package.py --clean` locally.
-- Trigger `Build release package artifact` for a private/manual artifact build.
-- Trigger `Publish release package` when a build should become the latest operator-facing immutable GitHub Release package.
+- Run `python scripts/build_release_package.py --clean` locally for a quick package/manifest sanity check.
+- Trigger **Build release package artifact** for a private/manual artifact build (no public release).
+- Trigger **Publish release package** when a build should become the latest operator-facing immutable GitHub Release package.
 
-The bootstrap installer now relies on the published `release-manifest.json` asset and the immutable package URL declared there. Mutable branch snapshots are acceptable for ad-hoc developer testing, but they are no longer part of the normal operator install path.
+Example publish command (GitHub CLI):
+
+```powershell
+gh workflow run "Publish release package" `
+  -f tag_name=v0.8-build-291 `
+  -f release_name="bandPromo v0.8 build 291 — short summary" `
+  -f prerelease=true `
+  -f draft=false
+```
+
+Use `prerelease=true` for v0.8 beta builds unless you intentionally publish a stable release.
+
+The bootstrap installer and admin **Site update** both rely on the published `release-manifest.json` asset and the immutable package URLs declared there. Mutable branch snapshots are acceptable for ad-hoc developer testing, but they are no longer part of the normal operator install path.
 
 ## First-Time Runtime Seeding
 

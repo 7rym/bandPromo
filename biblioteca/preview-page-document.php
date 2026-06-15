@@ -32,7 +32,7 @@ try {
     }
 
     $normalized = bandpromo_page_normalize_document($payload['document'], $pageKey);
-    $html = bandpromo_page_render_document($normalized);
+    $html = bandpromo_page_render_document($normalized, $root);
 
     echo json_encode([
         'ok' => true,

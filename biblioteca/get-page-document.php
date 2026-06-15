@@ -6,6 +6,7 @@ bandpromo_enforce_https();
 
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/page-storage.php';
+require_once __DIR__ . '/gallery-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -19,8 +20,9 @@ try {
 
     $document = bandpromo_page_load_document($root, $pageKey);
     $document = bandpromo_page_editor_document($document, $root);
-    $html = bandpromo_page_render_document($document);
+    $html = bandpromo_page_render_document($document, $root);
     $registryEntry = bandpromo_page_registry_entry($root, $pageKey);
+    bandpromo_gallery_ensure_seeded($root);
 
     echo json_encode([
         'ok' => true,
@@ -37,6 +39,8 @@ try {
         'image_presets' => BANDPROMO_PAGE_IMAGE_PRESETS,
         'image_layouts' => bandpromo_page_operator_image_layouts(),
         'picture_styles' => bandpromo_page_operator_picture_styles(),
+        'gallery_presets' => BANDPROMO_PAGE_GALLERY_PRESETS,
+        'galleries' => bandpromo_gallery_registry_entries($root),
         'block_types' => BANDPROMO_PAGE_BLOCK_TYPES,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (InvalidArgumentException $exception) {

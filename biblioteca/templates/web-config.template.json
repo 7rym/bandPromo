@@ -79,7 +79,7 @@
     "modules": {
       "playlist": { "enabled": true },
       "lyrics": { "enabled": true },
-      "gallery": { "enabled": true },
+      "gallery": { "enabled": false },
       "pages": { "enabled": true }
     }
   }

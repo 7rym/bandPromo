@@ -11,9 +11,22 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 
 // Load playlist
 $configFile = __DIR__ . '/playlist.json';
+require_once __DIR__ . '/../biblioteca/playlist-storage.php';
+
+$playerRoot = dirname(__DIR__);
+bandpromo_playlist_ensure_seeded($playerRoot);
+
+$requestedPlaylistId = bandpromo_playlist_normalize_id((string) ($_GET['playlist'] ?? ''));
+$activePlaylistId = $requestedPlaylistId !== '' ? $requestedPlaylistId : bandpromo_playlist_default_active_id($playerRoot);
+try {
+    bandpromo_playlist_load_document($playerRoot, $activePlaylistId);
+} catch (Throwable $throwable) {
+    $activePlaylistId = bandpromo_playlist_default_active_id($playerRoot);
+}
 
 // Redirect to root if setup hasn't been completed (no playlist yet)
-if (!file_exists($configFile)) {
+$playlistDocPath = $playerRoot . '/data/playlists/' . $activePlaylistId . '.json';
+if (!file_exists($playlistDocPath) && !file_exists($configFile)) {
     header('Location: /');
     exit;
 }
@@ -35,7 +48,10 @@ if (!is_array($siteCfg)) {
 }
 
 require_once '../biblioteca/config-loader.php';
-require_once '../biblioteca/gallery-helpers.php';
+
+$deepLinkReleaseSlug = strtolower(trim((string) ($_GET['release'] ?? '')));
+$deepLinkTrackSlug = strtolower(trim((string) ($_GET['track'] ?? '')));
+$playlistCatalog = bandpromo_playlist_system_entries($playerRoot);
 
 function bandpromo_support_parse_kofi_page_id(string $value): string {
     $trimmed = trim($value);
@@ -71,9 +87,6 @@ $ogUrl         = $baseUrl;
 
 $json = file_get_contents($configFile);
 $playlistConfig = json_decode($json, true) ?: [];
-
-$galleryItems = [];
-$galleryItems = bandpromo_load_gallery_items(dirname(__DIR__));
 
 $appVersion = 'dev';
 $versionFile = dirname(__DIR__) . '/VERSION';
@@ -173,8 +186,12 @@ if ($supportEnabled && $supportUrl !== '') {
     <!-- Manifest & Theme -->
     <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
     <meta name="theme-color" content="#121212">
-    <link rel="stylesheet" href="../biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
-    <link rel="stylesheet" href="../biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <link rel="stylesheet" href="/biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <?php
+    require_once __DIR__ . '/../biblioteca/theme-storage.php';
+    echo bandpromo_theme_render_css(dirname(__DIR__));
+    ?>
 </head>
 <body>
     <?php
@@ -187,9 +204,9 @@ if ($supportEnabled && $supportUrl !== '') {
     <?php endif; ?>
 
     <div id="loading-msg">
-        <h2>Cannot load config</h2>
-        <p>If you are running this file directly from your hard drive, browsers block external files for security (CORS).</p>
-        <p>Please use a local web server (like Live Server in VS Code) to run this.</p>
+        <h2>Cannot load player</h2>
+        <p>The playlist could not be loaded. Check that you are logged in and the PHP dev server is running.</p>
+        <p>Local dev: <code>php -S localhost:8000</code> then open <a href="/play/">/play/</a>.</p>
     </div>
 
     <div id="mediaplayer">
@@ -264,11 +281,19 @@ if ($supportEnabled && $supportUrl !== '') {
         ?>
         <div class="lyrics-box<?php echo $isActive; ?>" id="lyricsBox" data-content-box="lyrics">Loading lyrics...</div>
         <?php elseif ($view === 'playlist'): ?>
-        <div class="playlist-box<?php echo $isActive; ?>" id="playlistBox" data-content-box="playlist">Loading playlist...</div>
-        <?php elseif ($view === 'gallery'): ?>
-        <div class="gallery-box<?php echo $isActive; ?>" id="galleryBox" data-content-box="gallery">
-            <div class="visuals-gallery" id="visualsGallery"></div>
+        <?php if (count($playlistCatalog) > 1): ?>
+        <div class="playlist-selector" id="playlistSelectorWrap">
+            <label for="playlistSelector">Playlist</label>
+            <select id="playlistSelector" aria-label="Choose playlist">
+                <?php foreach ($playlistCatalog as $playlistEntry): ?>
+                <option value="<?php echo htmlspecialchars((string) ($playlistEntry['id'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"<?php echo (($playlistEntry['id'] ?? '') === $activePlaylistId) ? ' selected' : ''; ?>>
+                    <?php echo htmlspecialchars((string) ($playlistEntry['title'] ?? $playlistEntry['id'] ?? 'Playlist'), ENT_QUOTES, 'UTF-8'); ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
         </div>
+        <?php endif; ?>
+        <div class="playlist-box<?php echo $isActive; ?>" id="playlistBox" data-content-box="playlist">Loading playlist...</div>
         <?php elseif (str_starts_with($view, 'page-')):
             $pageId = (string) ($playerTab['page_id'] ?? substr($view, 5));
         ?>
@@ -320,12 +345,17 @@ if ($supportEnabled && $supportUrl !== '') {
     <script>
         window.BANDPROMO_PLAYER_TABS = <?php echo json_encode($playerTabs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEFAULT_PLAYER_VIEW = <?php echo json_encode($defaultPlayerView, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-        window.CONFIG_URL       = '/play/playlist.json';
+        window.BANDPROMO_PLAYLIST_ID = <?php echo json_encode($activePlaylistId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_PLAYLIST_CATALOG = <?php echo json_encode($playlistCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_DEEP_LINK = <?php echo json_encode([
+            'release' => $deepLinkReleaseSlug,
+            'track' => $deepLinkTrackSlug,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'main');
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
-        window.INITIAL_GALLERY_ITEMS = <?php echo json_encode($galleryItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         window.BANDPROMO_DEBUG_INFO = <?php echo json_encode($debugInfo, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         <?php
         require_once '../biblioteca/csrf.php';
@@ -342,10 +372,9 @@ if ($supportEnabled && $supportUrl !== '') {
             pingIntervalMs: 300000,
         };
     </script>
-    <script src="../biblioteca/session-auth.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
-    <script src="../biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
-    <script src="../biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
-    <script src="../biblioteca/gallery.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
+    <script src="/biblioteca/session-auth.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
+    <script src="/biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
+    <script src="/biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <?php if ($supportEnabled && $supportMode === 'floating_widget' && $supportKofiPageId !== ''): ?>
     <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
     <script>

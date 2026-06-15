@@ -1,0 +1,12 @@
+{
+    "version": 1,
+    "themes": [
+        {
+            "id": "setup-default",
+            "title": "Setup Default",
+            "system": true,
+            "locked": true,
+            "sort_order": 10
+        }
+    ]
+}

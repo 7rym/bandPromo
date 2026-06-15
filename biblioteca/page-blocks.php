@@ -196,10 +196,19 @@ const BANDPROMO_PAGE_IMAGE_PRESETS = [
     'float-right',
 ];
 
+const BANDPROMO_PAGE_GALLERY_PRESETS = [
+    'grid',
+    'list',
+    'carousel',
+    'parallax',
+];
+
 const BANDPROMO_PAGE_BLOCK_TYPES = [
     'richtext',
     'picture',
+    'picture_richtext',
     'list',
+    'gallery',
     'heading',
     'paragraph',
     'quote',
@@ -358,10 +367,14 @@ function bandpromo_page_plain_fragment_to_html(array $block): string {
     return '';
 }
 
+function bandpromo_page_is_picture_family(string $type): bool {
+    return in_array($type, ['picture', 'picture_richtext'], true);
+}
+
 function bandpromo_page_is_modern_block(array $block): bool {
     $type = (string) ($block['type'] ?? '');
 
-    return in_array($type, ['richtext', 'picture', 'list'], true);
+    return in_array($type, ['richtext', 'picture', 'picture_richtext', 'list', 'gallery'], true);
 }
 
 function bandpromo_page_is_text_fragment_block(array $block): bool {
@@ -441,12 +454,13 @@ function bandpromo_page_migrate_blocks(array $blocks): array {
                 $index++;
             }
 
+            $bodyHtml = implode('', $bodyParts);
             $migrated[] = [
-                'type' => 'picture',
+                'type' => $bodyHtml !== '' ? 'picture_richtext' : 'picture',
                 'src' => (string) ($block['src'] ?? ''),
                 'alt' => (string) ($block['alt'] ?? 'Picture'),
                 'layout' => $layout,
-                'body' => implode('', $bodyParts),
+                'body' => $bodyHtml,
                 'caption' => (string) ($block['caption'] ?? ''),
             ];
             continue;
@@ -499,7 +513,7 @@ function bandpromo_page_normalize_block(array $block): ?array {
         ];
     }
 
-    if ($type === 'picture') {
+    if ($type === 'picture' || $type === 'picture_richtext') {
         $src = bandpromo_page_normalize_url((string) ($block['src'] ?? ''));
         if (!bandpromo_page_is_allowed_image_src($src)) {
             return null;
@@ -512,23 +526,24 @@ function bandpromo_page_normalize_block(array $block): ?array {
         }
 
         $body = bandpromo_page_sanitize_document_html((string) ($block['body'] ?? ''));
-        if ($body === '' && $style['width_num'] === $style['width_den'] && $style['flow'] === 'row') {
-            // Allow picture-only blocks.
-        }
+        $resolvedType = $type === 'picture_richtext' || $body !== '' ? 'picture_richtext' : 'picture';
 
         $normalized = [
-            'type' => 'picture',
+            'type' => $resolvedType,
             'src' => $src,
             'alt' => $alt,
             'width_num' => $style['width_num'],
             'width_den' => $style['width_den'],
             'flow' => $style['flow'],
-            'body' => $body,
         ];
 
-        $caption = bandpromo_page_normalize_text((string) ($block['caption'] ?? ''), 500);
-        if ($caption !== '') {
-            $normalized['caption'] = $caption;
+        if ($resolvedType === 'picture_richtext') {
+            $normalized['body'] = $body;
+        } else {
+            $caption = bandpromo_page_normalize_text((string) ($block['caption'] ?? ''), 500);
+            if ($caption !== '') {
+                $normalized['caption'] = $caption;
+            }
         }
 
         return $normalized;
@@ -558,6 +573,25 @@ function bandpromo_page_normalize_block(array $block): ?array {
             'type' => 'list',
             'style' => $style,
             'items' => $items,
+        ];
+    }
+
+    if ($type === 'gallery') {
+        require_once __DIR__ . '/gallery-storage.php';
+        $galleryId = bandpromo_gallery_normalize_id((string) ($block['gallery_id'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
+        if ($galleryId === '') {
+            $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
+        }
+
+        $preset = strtolower(trim((string) ($block['preset'] ?? 'grid')));
+        if (!in_array($preset, BANDPROMO_PAGE_GALLERY_PRESETS, true)) {
+            $preset = 'grid';
+        }
+
+        return [
+            'type' => 'gallery',
+            'gallery_id' => $galleryId,
+            'preset' => $preset,
         ];
     }
 

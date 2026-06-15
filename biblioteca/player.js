@@ -91,6 +91,7 @@ const lyricsBox = document.getElementById('lyricsBox');
 const cardWrapper = document.getElementById('cardWrapper');
 const playBtn = document.getElementById('playBtn');
 const loadingMsg = document.getElementById('loading-msg');
+const mediaPlayerEl = document.getElementById('mediaplayer');
 const lightbox = document.getElementById('lightbox');
 const lightboxImage = document.getElementById('lightboxImage');
 const debugPanelButton = document.getElementById('debug-panel-btn');
@@ -889,22 +890,108 @@ function scheduleAnalyticsSessionEnd() {
     }, ANALYTICS_INACTIVITY_TIMEOUT_MS);
 }
 
-// Get track number from URL parameter
+// Resolve track index from path deep link, legacy ?t=, or default 0
 function getTrackFromUrl() {
+    const deepLink = window.BANDPROMO_DEEP_LINK || {};
+    const releaseSlug = String(deepLink.release || '').trim().toLowerCase();
+    const trackSlug = String(deepLink.track || '').trim().toLowerCase();
+    if (releaseSlug && trackSlug && Array.isArray(playList) && playList.length > 0) {
+        const matchedIndex = playList.findIndex((song) => {
+            return String(song.release_slug || '').toLowerCase() === releaseSlug
+                && String(song.track_slug || '').toLowerCase() === trackSlug;
+        });
+        if (matchedIndex >= 0) {
+            return matchedIndex;
+        }
+    }
+
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const playIndex = pathParts.indexOf('play');
+    if (playIndex >= 0 && pathParts.length >= playIndex + 4) {
+        const pathRelease = String(pathParts[playIndex + 2] || '').toLowerCase();
+        const pathTrack = String(pathParts[playIndex + 3] || '').toLowerCase();
+        const matchedIndex = playList.findIndex((song) => {
+            return String(song.release_slug || '').toLowerCase() === pathRelease
+                && String(song.track_slug || '').toLowerCase() === pathTrack;
+        });
+        if (matchedIndex >= 0) {
+            return matchedIndex;
+        }
+    }
+
     const params = new URLSearchParams(window.location.search);
     const track = params.get('t');
     if (track !== null) {
         const trackNum = parseInt(track, 10);
         if (!isNaN(trackNum) && trackNum > 0) {
-            return trackNum - 1; // Convert to 0-based index (t=1 means index 0)
+            return trackNum - 1;
         }
     }
-    return 0; // Default to first track
+    return 0;
+}
+
+function getActivePlaylistId() {
+    return String(window.BANDPROMO_PLAYLIST_ID || 'main');
+}
+
+function buildPlaylistPlayerUrl(playlistId, song) {
+    const playlist = encodeURIComponent(playlistId || 'main');
+    if (!song || !song.release_slug || !song.track_slug) {
+        return `/play/${playlist}`;
+    }
+    return `/play/${playlist}/${encodeURIComponent(song.release_slug)}/${encodeURIComponent(song.track_slug)}`;
+}
+
+function updatePlaylistHistory(song) {
+    if (!song || !history.replaceState) {
+        return;
+    }
+    const nextUrl = buildPlaylistPlayerUrl(getActivePlaylistId(), song);
+    history.replaceState(null, '', nextUrl);
+}
+
+function bindPlaylistSelector() {
+    const selector = document.getElementById('playlistSelector');
+    if (!selector || selector.dataset.bound === '1') {
+        return;
+    }
+    selector.dataset.bound = '1';
+    selector.addEventListener('change', async () => {
+        const playlistId = String(selector.value || '').trim();
+        if (!playlistId || playlistId === getActivePlaylistId()) {
+            return;
+        }
+        window.BANDPROMO_PLAYLIST_ID = playlistId;
+        window.CONFIG_URL = `/biblioteca/get-player-playlist.php?playlist=${encodeURIComponent(playlistId)}`;
+        window.BANDPROMO_DEEP_LINK = { release: '', track: '' };
+        if (history.replaceState) {
+            history.replaceState(null, '', `/play/${encodeURIComponent(playlistId)}`);
+        }
+        await loadConfig();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 }
 
 // Test Download Speed and Select Quality Variant
 
+function showPlayerLoadError(message) {
+    if (loadingMsg) {
+        loadingMsg.style.display = 'block';
+    }
+    if (mediaPlayerEl) {
+        mediaPlayerEl.style.display = 'none';
+    }
+    if (songTitle) songTitle.innerText = 'Error';
+    if (artistName) artistName.innerText = 'Check setup';
+    if (lyricsBox) lyricsBox.innerText = message || 'Could not load playlist.';
+}
+
 async function loadConfig() {
+    if (window.location.protocol === 'file:') {
+        showPlayerLoadError('Open http://localhost:8000/play/ after starting the PHP dev server.');
+        return;
+    }
+
     try {
         const configUrl = window.CONFIG_URL || `../${PATH_VARIANT}/playlist.json`;
         const response = await fetch(configUrl);
@@ -912,26 +999,32 @@ async function loadConfig() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        playList = data;
+        playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
+        if (data.playlist_id) {
+            window.BANDPROMO_PLAYLIST_ID = data.playlist_id;
+        }
         
         // Start player if we got data
         if (playList.length > 0) {
-            currentIndex = getTrackFromUrl(); // Get track from URL or default to 0
-            // Ensure the index is valid
+            currentIndex = getTrackFromUrl();
             if (currentIndex >= playList.length) {
-                currentIndex = 0;
+                currentIndex = playList.findIndex((song) => song.playable !== false);
+                if (currentIndex < 0) {
+                    currentIndex = 0;
+                }
             }
             initPlayer(currentIndex);
-            renderPlaylist(); // Initialize playlist view
+            renderPlaylist();
+            if (playList[currentIndex]) {
+                updatePlaylistHistory(playList[currentIndex]);
+            }
+            bindPlaylistSelector();
         } else {
             alert("Config file is empty!");
         }
     } catch (e) {
         console.error("Failed to load playlist.json:", e);
-        loadingMsg.style.display = "block";
-        songTitle.innerText = "Error";
-        artistName.innerText = "Check Console";
-        lyricsBox.innerText = "Could not load playlist.";
+        showPlayerLoadError('Could not load playlist. Is the PHP dev server running on http://localhost:8000 ?');
     }
 }
 
@@ -1138,10 +1231,32 @@ function setAudioSrc(filename) {
     }
 }
 
+function findNextPlayableIndex(startIndex, direction) {
+    const len = playList.length;
+    if (len === 0) {
+        return -1;
+    }
+    for (let step = 1; step <= len; step += 1) {
+        const idx = direction === 'next'
+            ? (startIndex + step) % len
+            : (startIndex - step + len) % len;
+        if (playList[idx] && playList[idx].playable !== false) {
+            return idx;
+        }
+    }
+    return startIndex;
+}
+
 // Function to init first song (no animation)
 function initPlayer(index) {
     updateVisuals(index);
-    setAudioSrc(playList[index].file);
+    const song = playList[index];
+    if (song && song.playable !== false && song.file) {
+        setAudioSrc(song.file);
+    } else {
+        audioPlayer.removeAttribute('src');
+        audioPlayer.pause();
+    }
 }
 
 // Update visuals (Text, Images, Side-covers)
@@ -1184,9 +1299,14 @@ function updateVisuals(index) {
 let isChangingSong = false;
 
 function applySongChange(newIndex, direction) {
+    const song = playList[newIndex];
+    if (!song || song.playable === false) {
+        isChangingSong = false;
+        return;
+    }
     currentIndex = newIndex;
     audioPlayer.autoplay = true;
-    setAudioSrc(playList[currentIndex].file);
+    setAudioSrc(song.file);
     pendingPlayActionSource = pendingPlayActionSource || (direction === 'next' ? 'auto_next' : 'auto_prev');
     currentTrackChangeSource = pendingPlayActionSource;
 
@@ -1202,6 +1322,7 @@ function applySongChange(newIndex, direction) {
     audioPlayer.play().catch(() => {
         // Hidden/background transitions can still be blocked by the browser.
     });
+    updatePlaylistHistory(playList[currentIndex]);
     isChangingSong = false;
 }
 
@@ -1211,12 +1332,16 @@ function triggerSongChange(direction) {
     // 1. Pause current song immediately
     audioPlayer.pause();
 
-    // 2. Calculate next index
+    // 2. Calculate next index (skip embargoed / locked tracks)
     let newIndex;
     if (direction === 'next') {
-        newIndex = (currentIndex + 1) % playList.length;
+        newIndex = findNextPlayableIndex(currentIndex, 'next');
     } else {
-        newIndex = (currentIndex - 1 + playList.length) % playList.length;
+        newIndex = findNextPlayableIndex(currentIndex, 'prev');
+    }
+    if (newIndex < 0 || playList[newIndex]?.playable === false) {
+        isChangingSong = false;
+        return;
     }
 
     if (document.hidden && direction === 'next') {
@@ -1268,6 +1393,17 @@ function prevSong() {
 
 function togglePlay() {
     if (playList.length === 0) return;
+    const song = playList[currentIndex];
+    if (!song || song.playable === false) {
+        const playableIndex = findNextPlayableIndex(currentIndex, 'next');
+        if (playableIndex >= 0 && playList[playableIndex]?.playable !== false) {
+            currentIndex = playableIndex;
+            initPlayer(currentIndex);
+            renderPlaylist();
+            updatePlaylistHistory(playList[currentIndex]);
+        }
+        return;
+    }
     if (audioPlayer.paused) {
         pendingPlayActionSource = 'button';
         resumeAfterVisibilityPause = false;
@@ -1289,7 +1425,6 @@ function togglePlay() {
 function toggleView(view) {
     const lyricsBox = document.getElementById('lyricsBox');
     const playlistBox = document.getElementById('playlistBox');
-    const galleryBox = document.getElementById('galleryBox');
     const buttons = document.querySelectorAll('.content-toggle button[data-view]');
     const contentBoxes = document.querySelectorAll('[data-content-box]');
 
@@ -1299,7 +1434,6 @@ function toggleView(view) {
 
     if (lyricsBox) lyricsBox.classList.remove('active');
     if (playlistBox) playlistBox.classList.remove('active');
-    if (galleryBox) galleryBox.classList.remove('active');
     contentBoxes.forEach((box) => box.classList.remove('active'));
     buttons.forEach((btn) => btn.classList.remove('active'));
 
@@ -1315,10 +1449,6 @@ function toggleView(view) {
 
     if (view === 'playlist') {
         renderPlaylist();
-    } else if (view === 'gallery' && galleryBox) {
-        if (document.getElementById('visualsGallery')?.children.length === 0) {
-            loadVisualsGallery();
-        }
     }
 }
 
@@ -1333,6 +1463,8 @@ function renderPlaylist() {
     let html = '<div class="playlist-tracks">';
     playList.forEach((song, index) => {
         const isCurrentTrack = index === currentIndex ? 'current' : '';
+        const isLocked = song.playable === false ? 'playlist-item--locked' : '';
+        const lockLabel = song.playable === false ? '<span class="playlist-track-lock">Not available yet</span>' : '';
         
         // Build cover path
         const coverPath = buildCoverUrl(song.cover);
@@ -1343,11 +1475,11 @@ function renderPlaylist() {
         const taleName = titleParts[1] || '';
         
         html += `
-            <div class="playlist-item ${isCurrentTrack}" onclick="playTrackFromPlaylist(${index})">
+            <div class="playlist-item ${isCurrentTrack} ${isLocked}" onclick="playTrackFromPlaylist(${index})">
                 <img src="${coverPath}" alt="${mainTitle}" class="playlist-track-cover">
                 <div class="playlist-track-content">
                     <h5 class="playlist-track-title">${mainTitle} <span class="playlist-track-tale">${taleName}</span></h5>
-                    <p class="playlist-track-description">${song.description || ''}</p>
+                    <p class="playlist-track-description">${song.description || ''}${lockLabel}</p>
                 </div>
             </div>
         `;
@@ -1358,6 +1490,13 @@ function renderPlaylist() {
 
 // Play a track from the playlist
 function playTrackFromPlaylist(index) {
+    const song = playList[index];
+    if (!song) {
+        return;
+    }
+    if (song.playable === false) {
+        return;
+    }
     if (index === currentIndex) {
         // If clicking the current track, just toggle play/pause
         togglePlay();
@@ -1377,6 +1516,7 @@ function playTrackFromPlaylist(index) {
             ...getCurrentTrackSnapshot({ actionSource: 'playlist' })
         });
     }
+    updatePlaylistHistory(playList[currentIndex]);
     // Update the playlist view to show which track is now current
     renderPlaylist();
 
@@ -1419,7 +1559,80 @@ function openAlbumCoverLightbox() {
     openLightbox(buildCoverUrl(playList[currentIndex].cover), 'Album Cover');
 }
 
+function bindPageGalleryLightboxes() {
+    document.querySelectorAll('.page-gallery').forEach((gallerySection) => {
+        if (gallerySection.dataset.lightboxBound === 'true') {
+            return;
+        }
+
+        gallerySection.dataset.lightboxBound = 'true';
+        const items = [];
+
+        gallerySection.querySelectorAll('.page-gallery-item').forEach((figure) => {
+            const isVideo = figure.classList.contains('page-gallery-item--video');
+            const video = figure.querySelector('video');
+            const img = figure.querySelector('img');
+            const caption = figure.querySelector('figcaption');
+            const label = caption?.textContent?.trim() || '';
+
+            if (isVideo && video) {
+                const src = video.getAttribute('src') || '';
+                if (!src) {
+                    return;
+                }
+                items.push({
+                    src,
+                    type: 'video',
+                    poster: video.getAttribute('poster') || '',
+                    name: label,
+                    alt: label,
+                });
+                return;
+            }
+
+            if (img) {
+                const src = img.getAttribute('src') || '';
+                if (!src) {
+                    return;
+                }
+                items.push({
+                    src,
+                    type: 'image',
+                    name: label || img.getAttribute('alt') || 'Gallery image',
+                    alt: img.getAttribute('alt') || label || 'Gallery image',
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            return;
+        }
+
+        gallerySection.querySelectorAll('.page-gallery-item').forEach((figure, index) => {
+            if (!items[index]) {
+                return;
+            }
+
+            figure.style.cursor = 'pointer';
+            const openItem = () => {
+                _lb.setItems(items);
+                _lb.openAt(index);
+            };
+
+            figure.addEventListener('click', openItem);
+            figure.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openItem();
+                }
+            });
+        });
+    });
+}
+
 function bindPageLightboxes() {
+    bindPageGalleryLightboxes();
+
     document.querySelectorAll('[data-page-id]').forEach((pageBox) => {
         if (pageBox.dataset.lightboxBound === 'true') {
             return;
@@ -1429,6 +1642,10 @@ function bindPageLightboxes() {
         pageBox.addEventListener('click', (event) => {
             const target = event.target;
             if (!(target instanceof HTMLImageElement)) {
+                return;
+            }
+
+            if (target.closest('.page-gallery-item')) {
                 return;
             }
 

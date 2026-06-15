@@ -120,9 +120,11 @@ def split_active_available(pool_track_map, saved_order, playlist_by_file):
 
 def main():
     payload = read_payload()
-    include_bundled = payload.get('includeBundled') is True
+    release_filter = str(payload.get('release') or payload.get('releaseId') or '').strip()
+    if release_filter in ('', 'all'):
+        release_filter = ''
 
-    files, unsupported_files, hidden_bundled_files = makePlaylists.collect_audio_source_files(include_bundled=include_bundled)
+    files, unsupported_files, hidden_bundled_files = makePlaylists.collect_audio_source_files(release_filter=release_filter)
     files.sort(key=lambda item: (makePlaylists.get_track_number(str(item)), item.name.lower()))
 
     saved_order = load_saved_order()
@@ -130,23 +132,26 @@ def main():
         order_index = {name: idx for idx, name in enumerate(saved_order)}
         files.sort(key=lambda item: (order_index.get(item.name, len(saved_order)), makePlaylists.get_track_number(str(item)), item.name.lower()))
 
+    release_map = makePlaylists.load_asset_release_map()
     pool_track_map = {}
     for filepath in files:
         filename = filepath.name
         ready = audio_delivery_ready(filename)
-        if not ready and not (include_bundled and makePlaylists.is_bundled_placeholder(filename)):
+        if not ready and not makePlaylists.is_bundled_placeholder(filename):
             continue
         working_path = makePlaylists.resolve_audio_working_path(filename)
         info = makePlaylists.parse_audio_file(str(working_path))
+        release_id = makePlaylists.resolve_audio_release_id(filename, release_map)
         pool_track_map[filename] = {
             'file': filename,
             'title': info.get('title') or filename,
             'artist': info.get('artist') or '',
             'album': info.get('album') or '',
             'duration': int(info.get('duration') or 0),
-            'origin': 'bundled-placeholder' if makePlaylists.is_bundled_placeholder(filename) else 'user-upload',
+            'origin': 'bundled-placeholder' if release_id == makePlaylists.BANDPROMO_RELEASE_DEMO_ID else 'user-upload',
             'sourceTier': 'master' if Path(working_path).parent == makePlaylists.AUDIO_MASTER_DIR else 'original',
             'deliveryReady': ready,
+            'release_id': release_id,
         }
 
     playlist_by_file = load_playlist_by_file()
@@ -159,7 +164,7 @@ def main():
         'availableTracks': available_tracks,
         'hiddenBundledSourceFiles': [entry.name for entry in hidden_bundled_files],
         'unsupportedSourceFiles': [entry.name for entry in unsupported_files],
-        'includeBundled': include_bundled,
+        'release_filter': release_filter or 'all',
     }, ensure_ascii=False))
 
 

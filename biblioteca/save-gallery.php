@@ -1,11 +1,12 @@
 <?php
 /**
- * Save runtime gallery content (data/gallery.json).
+ * Save gallery container content (data/galleries/{id}.json).
  * Accepts a JSON array via POST body. Admin-only.
  */
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
-session_write_close(); // release lock before file I/O
+require_once __DIR__ . '/gallery-storage.php';
+session_write_close();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -21,13 +22,12 @@ if ($body === false) {
     exit;
 }
 
-// Validate JSON and ensure it's an array
 $decoded = json_decode($body, true);
 if ($decoded === null) {
     http_response_code(400);
     bandpromo_admin_audit_log('gallery_saved', [
         'target_type' => 'gallery',
-        'target_id' => 'data/gallery.json',
+        'target_id' => 'data/galleries',
         'status' => 'error',
         'data' => ['error' => 'Invalid JSON: ' . json_last_error_msg()],
     ]);
@@ -36,27 +36,15 @@ if ($decoded === null) {
 }
 if (!is_array($decoded)) {
     http_response_code(400);
-    echo json_encode(['error' => 'gallery.json must be a JSON array']);
+    echo json_encode(['error' => 'Gallery payload must be a JSON array']);
     exit;
 }
 
-function bandpromo_gallery_video_poster_from_src(string $root, string $src): ?string {
-    $path = parse_url($src, PHP_URL_PATH);
-    if (!is_string($path) || $path === '') {
-        $path = $src;
-    }
-    $path = str_replace('\\', '/', $path);
-    $filename = basename($path);
-    if ($filename === '' || !preg_match('/\.(mp4|webm|mov)$/i', $filename)) {
-        return null;
-    }
-
-    $poster = '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-    return is_file($root . $poster) ? $poster : null;
-}
-
-$gallery_file = dirname(__DIR__) . '/data/gallery.json';
 $root = dirname(__DIR__);
+$galleryId = bandpromo_gallery_normalize_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
+if ($galleryId === '') {
+    $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
+}
 
 foreach ($decoded as $index => $item) {
     if (!is_array($item)) {
@@ -77,28 +65,46 @@ foreach ($decoded as $index => $item) {
     unset($decoded[$index]['poster']);
 }
 
-// Ensure data dir exists
-if (!is_dir(dirname($gallery_file))) {
-    mkdir(dirname($gallery_file), 0750, true);
+function bandpromo_gallery_video_poster_from_src(string $root, string $src): ?string
+{
+    $path = parse_url($src, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        $path = $src;
+    }
+    $path = str_replace('\\', '/', $path);
+    $filename = basename($path);
+    if ($filename === '' || !preg_match('/\.(mp4|webm|mov)$/i', $filename)) {
+        return null;
+    }
+
+    $poster = '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
+
+    return is_file($root . $poster) ? $poster : null;
 }
 
-$pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-if (file_put_contents($gallery_file, $pretty) === false) {
+try {
+    bandpromo_gallery_ensure_seeded($root);
+    $result = bandpromo_gallery_save_items($root, $galleryId, $decoded);
+
     bandpromo_admin_audit_log('gallery_saved', [
         'target_type' => 'gallery',
-        'target_id' => 'data/gallery.json',
-        'status' => 'error',
-        'data' => ['error' => 'Write failed'],
+        'target_id' => 'data/galleries/' . $galleryId . '.json',
+        'status' => 'ok',
+        'data' => ['count' => $result['count'], 'gallery_id' => $galleryId],
     ]);
-    echo json_encode(['error' => 'Could not write data/gallery.json — check file permissions']);
-    exit;
+
+    echo json_encode([
+        'ok' => true,
+        'count' => $result['count'],
+        'gallery_id' => $galleryId,
+    ]);
+} catch (Throwable $throwable) {
+    bandpromo_admin_audit_log('gallery_saved', [
+        'target_type' => 'gallery',
+        'target_id' => 'data/galleries/' . $galleryId . '.json',
+        'status' => 'error',
+        'data' => ['error' => $throwable->getMessage()],
+    ]);
+    http_response_code(500);
+    echo json_encode(['error' => $throwable->getMessage()]);
 }
-
-bandpromo_admin_audit_log('gallery_saved', [
-    'target_type' => 'gallery',
-    'target_id' => 'data/gallery.json',
-    'status' => 'ok',
-    'data' => ['count' => count($decoded)],
-]);
-
-echo json_encode(['ok' => true, 'count' => count($decoded)]);

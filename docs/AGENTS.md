@@ -15,7 +15,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - At the start of every session, check the active environment context first: OS, current shell, workspace root, available tasks, and language runtimes relevant to the task.
 - Default to the fast startup path first: run `scripts/session-start.ps1` or the workspace task `bandPromo: Fast session startup` to gather the standard environment/worktree/backlog summary, then widen into deeper docs only when the task needs more context.
 - Choose commands and tooling that match the active session environment. On Windows + PowerShell sessions, prefer PowerShell-native commands and repo tasks/scripts; do not probe Bash/Linux command variants first unless the environment explicitly provides them or the task requires them.
-- Treat an unqualified "checkpoint" request as a publishable checkpoint unless the user explicitly asks for status-only: summarize progress against the current milestone/checkpoint docs, run focused validation for the touched work, bump `VERSION`, commit the checkpoint, push it, and then verify local/remote sync with the repository's pull-after-push workflow.
+- Treat an unqualified "checkpoint" request as a publishable checkpoint unless the user explicitly asks for status-only: summarize progress against the current milestone/checkpoint docs, run focused validation for the touched work, bump `VERSION`, commit the checkpoint, push it, **publish the GitHub Release package** (see below), and then verify local/remote sync with the repository's pull-after-push workflow.
 - Do not add runtime fallbacks that silently use example/template files in production paths.
 - Runtime files are required and should fail loudly with actionable messages when missing.
 - Keep local-only files out of git (for example web-config.json, data files, .env, icons, manifests).
@@ -32,6 +32,29 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Commit the VERSION change together with the work being pushed so local and remote stay aligned.
 - CI validates the VERSION format on push, but it does not create a follow-up bot commit anymore.
 - Do not batch unrelated manual VERSION edits into feature commits unless explicitly requested.
+
+### Tester-facing checkpoint (push is not enough)
+
+Hosted operators and closed-beta testers use **Dashboard → Site update**, which reads the published GitHub Release (`release-manifest.json` + ZIP assets), **not** `main` alone.
+
+After pushing a checkpoint meant for testers, also publish the release package:
+
+1. Read `VERSION` (for example `v0.8 build 291`) and derive the release tag: `v0.8-build-291` (lowercase, spaces → hyphens).
+2. Trigger the GitHub Actions workflow **Publish release package** (`.github/workflows/publish-release-package.yml`).
+3. Confirm the new tag appears on GitHub Releases with `bandpromo-*.zip`, `bandpromo-default-theme-*.zip`, and `release-manifest.json`.
+4. Sanity-check that **Site update** on a test install offers the new build.
+
+Example (GitHub CLI):
+
+```powershell
+gh workflow run "Publish release package" `
+  -f tag_name=v0.8-build-291 `
+  -f release_name="bandPromo v0.8 build 291 — short summary" `
+  -f prerelease=true `
+  -f draft=false
+```
+
+Use `prerelease=true` for v0.8 beta builds. Local-only validation can use `python scripts/build_release_package.py --clean`, but testers still need the published GitHub Release.
 
 ## Build/Test Commands
 

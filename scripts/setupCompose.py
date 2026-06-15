@@ -71,7 +71,8 @@ def run_make_playlists():
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        universal_newlines=True,
+        encoding='utf-8',
+        errors='replace',
     )
     if result.stdout:
         print(result.stdout)

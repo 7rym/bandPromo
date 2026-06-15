@@ -1,0 +1,10 @@
+{
+    "version": 1,
+    "id": "bandpromo-demo",
+    "slug": "bandpromo-demo",
+    "title": "bandPromo demo",
+    "release_date": "2020-01-01",
+    "locked": true,
+    "vip_early_days": 0,
+    "tracks": []
+}

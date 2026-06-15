@@ -378,6 +378,9 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         if (!empty($master['master_format'])) {
             $response['master_format'] = $master['master_format'];
         }
+        if (!empty($master['asset_id'])) {
+            $response['asset_id'] = $master['asset_id'];
+        }
         if (!empty($master['warning'])) {
             $response['master_warning'] = $master['warning'];
         }
@@ -525,6 +528,9 @@ foreach ($files as $file) {
             }
             if (!empty($master['master_format'])) {
                 $result['master_format'] = $master['master_format'];
+            }
+            if (!empty($master['asset_id'])) {
+                $result['asset_id'] = $master['asset_id'];
             }
             if (!empty($master['prepared'])) {
                 $masterPreparedCount++;

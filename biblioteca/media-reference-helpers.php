@@ -75,7 +75,45 @@ function bandpromo_media_reference_gallery_matches_target(string $target, string
 
 function bandpromo_media_reference_collect_gallery_references(string $root, string $target, string $filename): array
 {
+    require_once __DIR__ . '/gallery-storage.php';
     $references = [];
+
+    try {
+        bandpromo_gallery_ensure_seeded($root);
+    } catch (Throwable $throwable) {
+        return $references;
+    }
+
+    foreach (bandpromo_gallery_registry_entries($root) as $registryEntry) {
+        $galleryId = (string) ($registryEntry['id'] ?? '');
+        if ($galleryId === '') {
+            continue;
+        }
+
+        try {
+            $items = bandpromo_gallery_materialize_items($root, $galleryId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        foreach ($items as $item) {
+            if (!is_array($item) || !bandpromo_media_reference_gallery_matches_target($target, $filename, $item)) {
+                continue;
+            }
+
+            $references[] = [
+                'scope' => 'gallery',
+                'kind' => 'gallery-item',
+                'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
+                'gallery_id' => $galleryId,
+            ];
+        }
+    }
+
+    if ($references !== []) {
+        return $references;
+    }
+
     $gallery_file = $root . '/data/gallery.json';
     if (!is_file($gallery_file)) {
         return $references;

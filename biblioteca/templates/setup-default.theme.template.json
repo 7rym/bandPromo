@@ -1,0 +1,36 @@
+{
+    "version": 1,
+    "id": "setup-default",
+    "title": "Setup Default",
+    "system": true,
+    "locked": true,
+    "tokens": {
+        "color": {
+            "primary": "#00d2ff",
+            "secondary": "#3a7bd5",
+            "background": "#121212",
+            "text": "#ffffff",
+            "text_muted": "#dddddd",
+            "surface_mid": "#1e1e24",
+            "surface_deep": "#000000",
+            "link": "#00d2ff",
+            "link_hover": "#5ce4ff",
+            "link_visited": "#3a7bd5"
+        },
+        "layout": {
+            "card_size_base": "400px"
+        },
+        "typography": {
+            "font_family_base": "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            "font_family_heading": ""
+        }
+    },
+    "assets": {
+        "logo": "/media/special/bandPromo_logo.png",
+        "poster": "/media/special/bandPromo_cover.png",
+        "background_image": "/media/special/bandPromo_background.png",
+        "background_video": "/media/special/bandPromo_background.mp4",
+        "welcome_audio": "/media/special/bandPromo_welcome.flac",
+        "loggedin_audio": "/media/special/bandPromo_loggedin.flac"
+    }
+}

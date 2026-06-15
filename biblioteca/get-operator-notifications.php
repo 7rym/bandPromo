@@ -4,10 +4,56 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/admin-welcome-state.php';
 require_once __DIR__ . '/package-updater.php';
+require_once __DIR__ . '/asset-registry.php';
 
 $rootDir = dirname(__DIR__);
 $validationFile = $rootDir . '/play/playlist-validation.json';
 $metadataValidation = null;
+
+function bandpromo_filter_metadata_validation_for_notifications(string $rootDir, ?array $validation): ?array
+{
+    if (!is_array($validation)) {
+        return null;
+    }
+
+    $tracks = is_array($validation['tracks'] ?? null) ? $validation['tracks'] : [];
+    $filteredTracks = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+
+        $file = basename(trim((string) ($track['file'] ?? '')));
+        if ($file === '') {
+            continue;
+        }
+
+        $originalPath = $rootDir . '/media/audio/original/' . $file;
+        if (!is_file($originalPath)) {
+            continue;
+        }
+
+        $filteredTracks[] = $track;
+    }
+
+    $validation['tracks'] = $filteredTracks;
+    $summary = is_array($validation['summary'] ?? null) ? $validation['summary'] : [];
+    $tracksWithWarnings = 0;
+    foreach ($filteredTracks as $track) {
+        $warnings = is_array($track['warnings'] ?? null) ? $track['warnings'] : [];
+        if ($warnings !== []) {
+            $tracksWithWarnings++;
+        }
+    }
+
+    $validation['summary'] = array_merge($summary, [
+        'totalTracks' => count($filteredTracks),
+        'tracksWithWarnings' => $tracksWithWarnings,
+        'tracksWithoutWarnings' => max(0, count($filteredTracks) - $tracksWithWarnings),
+    ]);
+
+    return $validation;
+}
 
 if (file_exists($validationFile)) {
     $validationJson = file_get_contents($validationFile);
@@ -15,8 +61,22 @@ if (file_exists($validationFile)) {
         $decoded = json_decode($validationJson, true);
         if (is_array($decoded)) {
             $metadataValidation = $decoded;
+            if (!isset($metadataValidation['generated_at']) && !isset($metadataValidation['checked_at'])) {
+                $mtime = filemtime($validationFile);
+                if ($mtime !== false) {
+                    $metadataValidation['checked_at'] = gmdate('c', $mtime);
+                }
+            }
         }
     }
+}
+
+$metadataValidation = bandpromo_filter_metadata_validation_for_notifications($rootDir, $metadataValidation);
+
+$uncataloguedAudioFailures = [];
+$uncataloguedReconcile = bandpromo_reconcile_uncatalogued_audio_originals($rootDir);
+if (!empty($uncataloguedReconcile['failed']) && is_array($uncataloguedReconcile['failed'])) {
+    $uncataloguedAudioFailures = $uncataloguedReconcile['failed'];
 }
 
 $buildState = bandpromo_get_build_required_state();
@@ -30,6 +90,7 @@ echo json_encode([
     'build_required_state' => $buildState,
     'background_tasks' => $backgroundTasks,
     'metadata_validation' => $metadataValidation,
+    'uncatalogued_audio_failures' => $uncataloguedAudioFailures,
     'welcome' => $welcomeState,
     'package_update' => [
         'installed_version' => $packageUpdate['installed_version'] ?? null,

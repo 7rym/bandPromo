@@ -9,12 +9,16 @@ require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/audio-master-helpers.php';
+require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
+bandpromo_asset_registry_ensure_migrated($root);
+bandpromo_release_ensure_seeded($root);
 $dirs = [
     'audio'         => bandpromo_media_target_dir('audio'),
     'illustrations' => bandpromo_media_target_dir('illustrations'),
@@ -29,8 +33,8 @@ if (!isset($dirs[$target])) {
     exit;
 }
 
-$includeBundled = isset($_GET['include_bundled']) && $_GET['include_bundled'] === '1';
 $includeHidden = isset($_GET['include_hidden']) && $_GET['include_hidden'] === '1';
+$releaseFilter = bandpromo_release_normalize_pool_filter((string) ($_GET['release'] ?? 'all'));
 
 $dir = $dirs[$target];
 $files = [];
@@ -109,6 +113,7 @@ function bandpromo_load_audio_validation_map(string $root): array {
         $default[$file] = [
             'inspected' => true,
             'source' => 'latest_build_validation',
+            'display_title' => trim(str_replace(["\r\n", "\r", "\n"], ' ', (string) ($track['title'] ?? ''))),
             'fields' => [
                 'cover' => ['label' => 'Cover', 'state' => isset($warning_set['missing_cover_art']) ? 'required' : 'good'],
                 'artist' => ['label' => 'Artist', 'state' => isset($warning_set['missing_artist_tag']) ? 'required' : 'good'],
@@ -125,6 +130,49 @@ function bandpromo_load_audio_validation_map(string $root): array {
 
 function bandpromo_audio_metadata_health(string $filename, array $validation_map): array {
     return $validation_map[$filename] ?? bandpromo_default_audio_metadata_health();
+}
+
+function bandpromo_audio_metadata_health_for_listing(string $root, string $filename, array $validation_map): array
+{
+    if (isset($validation_map[$filename])) {
+        return bandpromo_audio_metadata_health($filename, $validation_map);
+    }
+
+    if (!bandpromo_audio_is_catalogued($root, $filename)) {
+        return bandpromo_default_audio_metadata_health();
+    }
+
+    $label = bandpromo_audio_display_label($filename, $validation_map);
+
+    return [
+        'inspected' => true,
+        'source' => 'auto_registered',
+        'display_title' => (string) ($label['display_title'] ?? ''),
+        'fields' => [
+            'cover' => ['label' => 'Cover', 'state' => 'good'],
+            'artist' => ['label' => 'Artist', 'state' => 'good'],
+            'title' => ['label' => 'Title', 'state' => 'good'],
+            'release' => ['label' => 'Release', 'state' => 'good'],
+            'description' => ['label' => 'Description', 'state' => 'improvable'],
+            'lyrics' => ['label' => 'Lyrics', 'state' => 'improvable'],
+        ],
+    ];
+}
+
+function bandpromo_audio_display_label(string $filename, array $validation_map): array {
+    $filename = basename(trim($filename));
+    $displayTitle = '';
+    if (isset($validation_map[$filename]['display_title'])) {
+        $displayTitle = trim((string) $validation_map[$filename]['display_title']);
+    }
+
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    $fallback = ucwords(str_replace(['_', '-'], ' ', $stem));
+
+    return [
+        'display_title' => $displayTitle !== '' ? $displayTitle : $fallback,
+        'display_subtitle' => $filename,
+    ];
 }
 
 function bandpromo_audio_master_info(string $root, string $filename): array {
@@ -147,10 +195,26 @@ function bandpromo_audio_master_info(string $root, string $filename): array {
         return $master;
     }
 
+    if (!$master['exists'] && !empty($prepared['warning'])) {
+        $master['prepare_warning'] = (string) $prepared['warning'];
+    }
+
+    $originalExt = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+    if (in_array($originalExt, ['flac', 'mp3', 'wav'], true)) {
+        $master['editable'] = true;
+        if (!$master['exists']) {
+            $master['needs_materialize'] = true;
+        }
+    }
+
     return $master;
 }
 
 if (is_dir($dir)) {
+    if ($target === 'audio') {
+        bandpromo_reconcile_uncatalogued_audio_originals($root);
+    }
+
     $audio_validation_map = $target === 'audio' ? bandpromo_load_audio_validation_map($root) : [];
     $allFiles = [];
     foreach (new DirectoryIterator($dir) as $f) {
@@ -164,11 +228,16 @@ if (is_dir($dir)) {
             'size'     => $f->getSize(),
             'modified' => $f->getMTime(),
             'origin'   => bandpromo_media_origin($filename),
+            'release_id' => bandpromo_release_id_for_media_file($root, $target, $filename),
             'hidden'   => bandpromo_media_is_hidden_for_install($target, $filename),
             'original_format' => strtolower((string) pathinfo($filename, PATHINFO_EXTENSION)),
             'audio_master' => $target === 'audio' ? bandpromo_audio_master_info($root, $filename) : null,
-            'audio_metadata_health' => $target === 'audio' ? bandpromo_audio_metadata_health($filename, $audio_validation_map) : null,
+            'audio_metadata_health' => $target === 'audio' ? bandpromo_audio_metadata_health_for_listing($root, $filename, $audio_validation_map) : null,
         ];
+        if ($target === 'audio') {
+            $entry = array_merge($entry, bandpromo_audio_display_label($filename, $audio_validation_map));
+            $entry['in_catalog'] = bandpromo_audio_is_catalogued($root, $filename);
+        }
         if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
             $entry['reference_info'] = bandpromo_media_reference_describe_file($root, $target, $filename);
             if ($target === 'illustrations') {
@@ -186,7 +255,7 @@ if (is_dir($dir)) {
             continue;
         }
 
-        if ($entry['origin'] === 'bundled-placeholder' && !$includeBundled && bandpromo_media_is_effectively_hidden_for_install($target, $entry['name'])) {
+        if ($releaseFilter !== 'all' && (string) ($entry['release_id'] ?? '') !== $releaseFilter) {
             continue;
         }
 

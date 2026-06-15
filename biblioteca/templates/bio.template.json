@@ -9,7 +9,7 @@
             "html": "<h2 class=\"page-align-center\">bandPromo brings your band to your fans!</h2><p class=\"page-align-center\">So who are the members of this band?</p><p class=\"page-align-center\">Meet the talented individuals behind the <b>🎶</b> you <b>❤️</b></p>"
         },
         {
-            "type": "picture",
+            "type": "picture_richtext",
             "src": "/media/img/optimal/bandPromo_vocalist.jpg",
             "alt": "Vocalist",
             "width_num": 1,
@@ -18,7 +18,7 @@
             "body": "<h4 class=\"page-align-center\">Vocals: Roger Raspy</h4><p class=\"page-text-small page-align-center\">The guy that sings the words you love.</p>"
         },
         {
-            "type": "picture",
+            "type": "picture_richtext",
             "src": "/media/img/optimal/bandPromo_guitar.jpg",
             "alt": "Guitarist",
             "width_num": 1,
@@ -27,7 +27,7 @@
             "body": "<h4 class=\"page-align-center\">Guitar: Sam Shredding</h4><p class=\"page-text-small page-align-center\">The person shredding the riffs and solos that make your ears happy.</p>"
         },
         {
-            "type": "picture",
+            "type": "picture_richtext",
             "src": "/media/img/optimal/bandPromo_drummer.jpg",
             "alt": "Drummer",
             "width_num": 1,
@@ -36,7 +36,7 @@
             "body": "<h4 class=\"page-align-center\">Drums: Tom Thunder</h4><p class=\"page-text-small page-align-center\">The person keeping the beat and driving the rhythm.</p>"
         },
         {
-            "type": "picture",
+            "type": "picture_richtext",
             "src": "/media/img/optimal/bandPromo_keyboard.jpg",
             "alt": "Keyboardist",
             "width_num": 1,

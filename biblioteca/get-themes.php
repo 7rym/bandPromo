@@ -1,0 +1,28 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/https.php';
+require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/theme-storage.php';
+
+bandpromo_enforce_https();
+session_write_close();
+
+header('Content-Type: application/json; charset=utf-8');
+
+$root = dirname(__DIR__);
+
+try {
+    bandpromo_theme_ensure_seeded($root);
+    $themes = bandpromo_theme_registry_entries($root);
+    $activeId = bandpromo_theme_active_id($root);
+
+    echo json_encode([
+        'ok' => true,
+        'active_theme_id' => $activeId,
+        'themes' => $themes,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+} catch (Throwable $throwable) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => $throwable->getMessage()]);
+}

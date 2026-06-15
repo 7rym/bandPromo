@@ -8,7 +8,7 @@ function bandpromo_player_module_defaults(): array {
     return [
         'playlist' => ['enabled' => true, 'required' => true, 'label' => 'Playlist'],
         'lyrics' => ['enabled' => true, 'required' => true, 'label' => 'Lyrics'],
-        'gallery' => ['enabled' => true, 'required' => false, 'label' => 'Gallery'],
+        'gallery' => ['enabled' => false, 'required' => false, 'label' => 'Gallery'],
         'pages' => ['enabled' => true, 'required' => false, 'label' => 'Pages'],
     ];
 }
@@ -64,19 +64,15 @@ function bandpromo_player_default_optional_tab_keys(string $root): array {
         $keys[] = 'page:' . $entry['id'];
     }
 
-    if (bandpromo_player_module_enabled('gallery')) {
-        $keys[] = 'module:gallery';
-    }
-
     return $keys;
+}
+
+function bandpromo_player_strip_gallery_tab_keys(array $keys): array {
+    return array_values(array_filter($keys, static fn(string $key): bool => $key !== 'module:gallery'));
 }
 
 function bandpromo_player_valid_optional_tab_key_set(string $root): array {
     $valid = [];
-
-    if (bandpromo_player_module_enabled('gallery')) {
-        $valid['module:gallery'] = true;
-    }
 
     foreach (bandpromo_page_registry_entries($root) as $entry) {
         if (empty($entry['show_in_player'])) {
@@ -130,22 +126,14 @@ function bandpromo_player_tab_order_keys(string $root): array {
         $seen[$key] = true;
     }
 
-    return $resolved;
+    return bandpromo_player_strip_gallery_tab_keys($resolved);
 }
 
 function bandpromo_player_tab_from_key(string $root, string $key): ?array {
     $modules = bandpromo_player_modules_config();
 
     if ($key === 'module:gallery') {
-        if (empty($modules['gallery']['enabled'])) {
-            return null;
-        }
-
-        return [
-            'view' => 'gallery',
-            'label' => (string) ($modules['gallery']['label'] ?? 'Gallery'),
-            'kind' => 'module',
-        ];
+        return null;
     }
 
     if (!str_starts_with($key, 'page:')) {
@@ -185,18 +173,6 @@ function bandpromo_player_layout_admin_state(string $root): array {
     $activeKeys = [];
     foreach (bandpromo_player_tab_order_keys($root) as $key) {
         if ($key === 'module:gallery') {
-            if (empty($modules['gallery']['enabled'])) {
-                continue;
-            }
-            $active[] = [
-                'key' => $key,
-                'kind' => 'module',
-                'id' => 'gallery',
-                'title' => 'Gallery',
-                'label' => (string) ($modules['gallery']['label'] ?? 'Gallery'),
-                'emoji' => '🖼️',
-            ];
-            $activeKeys[$key] = true;
             continue;
         }
 
@@ -277,33 +253,7 @@ function bandpromo_player_layout_admin_state(string $root): array {
         ];
     }
 
-    $galleryInActive = false;
-    foreach ($active as $item) {
-        if (($item['id'] ?? '') === 'gallery') {
-            $galleryInActive = true;
-            break;
-        }
-    }
-
-    if (!$galleryInActive) {
-        $available[] = [
-            'key' => 'module:gallery',
-            'kind' => 'module',
-            'id' => 'gallery',
-            'title' => 'Gallery',
-            'label' => (string) ($modules['gallery']['label'] ?? 'Gallery'),
-            'emoji' => '🖼️',
-            'sort_order' => 0,
-        ];
-    }
-
     usort($available, static function (array $a, array $b): int {
-        $aModule = ($a['kind'] ?? '') === 'module' ? 0 : 1;
-        $bModule = ($b['kind'] ?? '') === 'module' ? 0 : 1;
-        if ($aModule !== $bModule) {
-            return $aModule <=> $bModule;
-        }
-
         return ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0);
     });
 

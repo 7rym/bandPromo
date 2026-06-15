@@ -172,7 +172,6 @@
             saveLabel: '💾 Save player layout',
             readFingerprint() {
                 const tabOrder = activeItems.map((item) => item.key);
-                const hasGallery = activeItems.some((item) => item.id === 'gallery');
                 const hasPages = activeItems.some((item) => item.kind === 'page');
                 const pages = [];
                 let pageSort = 10;
@@ -198,7 +197,6 @@
                 return JSON.stringify({
                     tab_order: tabOrder,
                     modules: {
-                        gallery: { enabled: hasGallery },
                         pages: { enabled: hasPages },
                     },
                     pages,
@@ -240,8 +238,12 @@
 
         function loadLayoutState(layout) {
             lockedItems = Array.isArray(layout.locked) ? layout.locked.map(cloneItem) : [];
-            activeItems = Array.isArray(layout.active) ? layout.active.map(cloneItem) : [];
-            availableItems = Array.isArray(layout.available) ? layout.available.map(cloneItem) : [];
+            activeItems = Array.isArray(layout.active)
+                ? layout.active.map(cloneItem).filter((item) => item.id !== 'gallery')
+                : [];
+            availableItems = Array.isArray(layout.available)
+                ? layout.available.map(cloneItem).filter((item) => item.id !== 'gallery')
+                : [];
         }
 
         function itemTitle(item) {
@@ -249,9 +251,6 @@
         }
 
         function itemMeta(item) {
-            if (item.id === 'gallery') {
-                return 'Photo and video gallery';
-            }
             if (item.id === 'playlist') {
                 return 'Always first tab';
             }
@@ -265,9 +264,6 @@
         }
 
         function itemTabMeta(item) {
-            if (item.id === 'gallery') {
-                return 'Photo and video gallery';
-            }
             if (item.kind === 'page') {
                 const label = String(item.label || '').trim();
                 return label ? `Tab: ${label}` : 'Static page tab';
@@ -798,7 +794,6 @@
         if (savePlayerLayoutBtn) {
             savePlayerLayoutBtn.addEventListener('click', async () => {
                 const tabOrder = activeItems.map((item) => item.key);
-                const hasGallery = activeItems.some((item) => item.id === 'gallery');
                 const hasPages = activeItems.some((item) => item.kind === 'page');
                 const pages = [];
                 let pageSort = 10;
@@ -826,7 +821,6 @@
                     const data = await postJson('/biblioteca/save-player-layout.php', {
                         tab_order: tabOrder,
                         modules: {
-                            gallery: { enabled: hasGallery },
                             pages: { enabled: hasPages },
                         },
                         pages,

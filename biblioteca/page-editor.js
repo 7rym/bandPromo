@@ -276,10 +276,42 @@
                 { value: 'beside-right', label: 'Beside right' },
             ],
         };
+        let galleryCatalog = [{ id: 'main', title: 'Main Gallery' }];
+        let galleryPresets = ['grid', 'list', 'carousel', 'parallax'];
+
+        function galleryTitle(galleryId) {
+            const entry = galleryCatalog.find((item) => item.id === galleryId);
+            return entry?.title || galleryId || 'main';
+        }
+
+        function renderGalleryEditor(block, index) {
+            const galleryOptions = galleryCatalog.map((entry) => {
+                const id = String(entry.id || 'main');
+                const selected = (block.gallery_id || 'main') === id ? ' selected' : '';
+                return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(entry.title || id)}</option>`;
+            }).join('');
+            const presetOptions = galleryPresets.map((preset) => {
+                const selected = (block.preset || 'grid') === preset ? ' selected' : '';
+                return `<option value="${escapeHtml(preset)}"${selected}>${escapeHtml(preset)}</option>`;
+            }).join('');
+            return `
+                <div class="page-block-field">
+                    <label>Gallery</label>
+                    <select data-field="gallery_id" data-block-index="${index}">${galleryOptions}</select>
+                </div>
+                <div class="page-block-field">
+                    <label>Layout preset</label>
+                    <select data-field="preset" data-block-index="${index}">${presetOptions}</select>
+                </div>
+                <p class="hint">Embeds the selected gallery on this page. Edit items in Content → Gallery.</p>
+            `;
+        }
+
         let flatImages = [];
         let imagePickerTargetIndex = null;
         let imagePickerSelected = null;
         let previewTimer = null;
+        let previewRequestId = 0;
         let isDirtyState = false;
         let pendingNavHref = '';
         let allowUnloadWithoutSave = false;
@@ -465,9 +497,15 @@
         }
 
         function blockLabel(block) {
-            if (block?.type === 'picture') return 'Picture + text';
+            if (block?.type === 'picture') return 'Picture';
+            if (block?.type === 'picture_richtext') return 'Picture + text';
+            if (block?.type === 'gallery') return 'Gallery';
             if (block?.type === 'list') return 'List';
             return 'Text';
+        }
+
+        function isPictureFamilyBlock(block) {
+            return block?.type === 'picture' || block?.type === 'picture_richtext';
         }
 
         function renderToolbarButton(index, field, format, iconHtml, title, extraAttrs = '', wide = false) {
@@ -638,6 +676,20 @@
                 ? `<img src="${escapeHtml(block.src)}" alt="" class="page-picture-thumb">`
                 : '<div class="page-picture-empty">No picture</div>';
 
+            const captionField = `
+                <div class="page-block-field">
+                    <label for="page-picture-caption-${index}">Caption (plain text)</label>
+                    <input type="text" id="page-picture-caption-${index}" data-field="caption" data-block-index="${index}" value="${escapeHtml(block.caption || '')}" maxlength="500" placeholder="Optional short caption">
+                </div>
+            `;
+
+            const richField = `
+                <div class="page-block-field">
+                    <label>Text with this picture</label>
+                    ${renderRichEditor(index, 'body', block.body || '', true)}
+                </div>
+            `;
+
             return `
                 <div class="page-picture-editor">
                     <div class="page-picture-top">
@@ -647,10 +699,7 @@
                             ${renderPictureStyleBar(block, index)}
                         </div>
                     </div>
-                    <div class="page-block-field">
-                        <label>Text with this picture</label>
-                        ${renderRichEditor(index, 'body', block.body || '', true)}
-                    </div>
+                    ${block.type === 'picture_richtext' ? richField : captionField}
                 </div>
             `;
         }
@@ -676,13 +725,16 @@
             if (block.type === 'richtext') {
                 return `<div class="page-block-field">${renderRichEditor(index, 'html', block.html || '', false)}</div>`;
             }
-            if (block.type === 'picture') {
+            if (isPictureFamilyBlock(block)) {
                 return renderPictureEditor(block, index);
             }
             if (block.type === 'list') {
                 return renderListEditor(block, index);
             }
-            return '<p class="hint">Unsupported block type. Remove it and add Text, Picture, or List.</p>';
+            if (block.type === 'gallery') {
+                return renderGalleryEditor(block, index);
+            }
+            return '<p class="hint">Unsupported block type. Remove it and add Text, Picture, Gallery, or List.</p>';
         }
 
         function renderBlockPreview(block) {
@@ -690,12 +742,14 @@
                 const html = renderRichContent(block.html);
                 return html ? `<div class="page-richtext">${html}</div>` : '';
             }
-            if (block.type === 'picture') {
+            if (isPictureFamilyBlock(block)) {
                 if (!block.src) return '';
                 const style = resolvePictureStyle(block);
                 const attrs = pictureStyleAttrs(style);
-                const body = renderRichContent(block.body);
-                const caption = block.caption ? `<figcaption class="page-caption">${escapeHtml(block.caption)}</figcaption>` : '';
+                const caption = block.type === 'picture' && block.caption
+                    ? `<figcaption class="page-caption">${escapeHtml(block.caption)}</figcaption>`
+                    : '';
+                const body = block.type === 'picture_richtext' ? renderRichContent(block.body) : '';
                 return `
                     <section class="page-picture ${attrs.className}" style="${attrs.styleAttr}">
                         <figure class="page-picture-media">
@@ -711,6 +765,12 @@
                 const items = Array.isArray(block.items) ? block.items : [];
                 const rendered = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
                 return rendered ? `<${tag} class="page-list page-list--${escapeHtml(block.style || 'unordered')}">${rendered}</${tag}>` : '';
+            }
+            if (block.type === 'gallery') {
+                const galleryId = escapeHtml(block.gallery_id || 'main');
+                const preset = escapeHtml(block.preset || 'grid');
+                const title = escapeHtml(galleryTitle(block.gallery_id || 'main'));
+                return `<section class="page-gallery page-gallery--${preset}" data-gallery-id="${galleryId}"><p class="page-gallery-preview-hint">Gallery: ${title} (${preset} layout)</p></section>`;
             }
             return '';
         }
@@ -1253,7 +1313,7 @@
                 const field = editor.dataset.richField || 'html';
                 const block = documentState.blocks[blockIndex];
                 if (!block) return;
-                if (field === 'body' && block.type === 'picture') {
+                if (field === 'body' && block.type === 'picture_richtext') {
                     block.body = editor.innerHTML;
                 } else if (field === 'html' && block.type === 'richtext') {
                     block.html = editor.innerHTML;
@@ -1264,7 +1324,7 @@
         function syncRichField(index, field, html) {
             const block = documentState?.blocks?.[index];
             if (!block) return;
-            if (field === 'body' && block.type === 'picture') {
+            if (field === 'body' && block.type === 'picture_richtext') {
                 block.body = html;
             } else if (field === 'html' && block.type === 'richtext') {
                 block.html = html;
@@ -1345,7 +1405,7 @@
             }
 
             if (blocks.length === 0) {
-                blocksEl.innerHTML = '<p class="page-editor-empty">Start with + Text, + Picture, or + List.</p>';
+                blocksEl.innerHTML = '<p class="page-editor-empty">Start with + Text, + Picture, + Picture + text, or + List.</p>';
                 queuePreview();
                 if (options.silent) {
                     window.requestAnimationFrame(() => {
@@ -1382,17 +1442,46 @@
         function queuePreview() {
             if (!previewEl || !documentState) return;
             window.clearTimeout(previewTimer);
-            previewTimer = window.setTimeout(() => {
-                previewEl.innerHTML = renderPreviewHtml(documentState);
-            }, 80);
+            previewTimer = window.setTimeout(async () => {
+                syncRichEditors();
+                const requestId = ++previewRequestId;
+                try {
+                    const resp = await fetch(`/biblioteca/preview-page-document.php?page=${encodeURIComponent(currentPageKey)}`, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                        body: JSON.stringify({ document: documentState }),
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (requestId !== previewRequestId) {
+                        return;
+                    }
+                    if (!resp.ok || !data.ok || typeof data.html !== 'string') {
+                        previewEl.innerHTML = renderPreviewHtml(documentState);
+                        return;
+                    }
+                    previewEl.innerHTML = data.html;
+                } catch (error) {
+                    if (requestId !== previewRequestId) {
+                        return;
+                    }
+                    previewEl.innerHTML = renderPreviewHtml(documentState);
+                }
+            }, 200);
         }
 
         function defaultBlock(type) {
             if (type === 'picture' || type === 'image') {
-                return { type: 'picture', src: '', alt: 'Picture', width_num: 1, width_den: 2, flow: 'row', body: '<p><br></p>' };
+                return { type: 'picture', src: '', alt: 'Picture', width_num: 1, width_den: 2, flow: 'row', caption: '' };
+            }
+            if (type === 'picture_richtext') {
+                return { type: 'picture_richtext', src: '', alt: 'Picture', width_num: 1, width_den: 2, flow: 'row', body: '<p>Write text with this picture.</p>' };
             }
             if (type === 'list') {
                 return { type: 'list', style: 'unordered', items: ['First item'] };
+            }
+            if (type === 'gallery') {
+                return { type: 'gallery', gallery_id: 'main', preset: 'grid' };
             }
             return { type: 'richtext', html: '<p>Write your text here.</p>' };
         }
@@ -1480,7 +1569,7 @@
 
         function updatePictureStyleBar(index) {
             const block = documentState?.blocks?.[index];
-            if (!block || block.type !== 'picture') return;
+            if (!block || !isPictureFamilyBlock(block)) return;
 
             const card = blocksEl?.querySelector(`.page-block-card[data-block-index="${index}"]`);
             const styleBar = card?.querySelector('.page-picture-style-bar');
@@ -1498,7 +1587,7 @@
 
         function setPictureWidth(index, part, rawValue) {
             const block = documentState?.blocks?.[index];
-            if (!block || block.type !== 'picture') return;
+            if (!block || !isPictureFamilyBlock(block)) return;
 
             const style = resolvePictureStyle(block);
             const next = normalizePictureFraction(
@@ -1513,7 +1602,7 @@
 
         function setPictureFlow(index, rawValue) {
             const block = documentState?.blocks?.[index];
-            if (!block || block.type !== 'picture') return;
+            if (!block || !isPictureFamilyBlock(block)) return;
 
             const style = resolvePictureStyle(block);
             const flow = PICTURE_FLOWS.includes(rawValue) ? rawValue : PICTURE_STYLE_DEFAULTS.flow;
@@ -1554,7 +1643,7 @@
         function applySelectedImage() {
             if (imagePickerTargetIndex === null || !imagePickerSelected) return;
             const block = documentState?.blocks?.[imagePickerTargetIndex];
-            if (!block || block.type !== 'picture') return;
+            if (!block || !isPictureFamilyBlock(block)) return;
             const selected = flatImages.find((item) => item.value === imagePickerSelected);
             block.src = imagePickerSelected;
             block.alt = selected?.title || 'Picture';
@@ -1611,6 +1700,12 @@
                         }))
                         : pictureStyleMeta.flows,
                 };
+            }
+            if (Array.isArray(data.galleries) && data.galleries.length > 0) {
+                galleryCatalog = data.galleries;
+            }
+            if (Array.isArray(data.gallery_presets) && data.gallery_presets.length > 0) {
+                galleryPresets = data.gallery_presets.map((preset) => String(preset));
             }
             syncMetaFromRegistry(data.registry);
             renderBlocks({ silent: true });

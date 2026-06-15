@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/page-blocks.php';
 require_once __DIR__ . '/page-text-sanitize.php';
+require_once __DIR__ . '/gallery-storage.php';
 
 function bandpromo_page_escape(string $value): string {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -21,7 +22,7 @@ function bandpromo_page_render_text_content(string $text): string {
     return nl2br(bandpromo_page_escape($text), false);
 }
 
-function bandpromo_page_render_block(array $block): string {
+function bandpromo_page_render_block(array $block, ?string $root = null): string {
     $type = (string) ($block['type'] ?? '');
 
     if ($type === 'richtext') {
@@ -33,7 +34,7 @@ function bandpromo_page_render_block(array $block): string {
         return '<div class="page-richtext">' . $html . '</div>';
     }
 
-    if ($type === 'picture') {
+    if ($type === 'picture' || $type === 'picture_richtext') {
         $src = bandpromo_page_escape((string) ($block['src'] ?? ''));
         if ($src === '') {
             return '';
@@ -41,21 +42,87 @@ function bandpromo_page_render_block(array $block): string {
 
         $style = bandpromo_page_resolve_picture_style($block);
         $alt = bandpromo_page_escape((string) ($block['alt'] ?? 'Picture'));
-        $body = bandpromo_page_render_text_content((string) ($block['body'] ?? ''));
-        $caption = trim((string) ($block['caption'] ?? ''));
         $classes = bandpromo_page_picture_style_classes($style);
         $inlineStyle = bandpromo_page_picture_style_inline($style);
 
         $html = '<section class="page-picture ' . $classes . '" style="' . bandpromo_page_escape($inlineStyle) . '">';
         $html .= '<figure class="page-picture-media"><img src="' . $src . '" alt="' . $alt . '" loading="lazy" decoding="async">';
-        if ($caption !== '') {
-            $html .= '<figcaption class="page-caption">' . bandpromo_page_escape($caption) . '</figcaption>';
+        if ($type === 'picture') {
+            $caption = trim((string) ($block['caption'] ?? ''));
+            if ($caption !== '') {
+                $html .= '<figcaption class="page-caption">' . bandpromo_page_escape($caption) . '</figcaption>';
+            }
         }
         $html .= '</figure>';
-        if ($body !== '') {
-            $html .= '<div class="page-picture-body">' . $body . '</div>';
+        if ($type === 'picture_richtext') {
+            $body = bandpromo_page_render_text_content((string) ($block['body'] ?? ''));
+            if ($body !== '') {
+                $html .= '<div class="page-picture-body">' . $body . '</div>';
+            }
         }
         $html .= '</section>';
+
+        return $html;
+    }
+
+    if ($type === 'gallery') {
+        if ($root === null || $root === '') {
+            return '';
+        }
+
+        $galleryId = bandpromo_gallery_normalize_id((string) ($block['gallery_id'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
+        if ($galleryId === '') {
+            $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
+        }
+
+        $preset = strtolower(trim((string) ($block['preset'] ?? 'grid')));
+        if (!in_array($preset, BANDPROMO_PAGE_GALLERY_PRESETS, true)) {
+            $preset = 'grid';
+        }
+
+        try {
+            bandpromo_gallery_ensure_seeded($root);
+            $items = bandpromo_gallery_materialize_items($root, $galleryId);
+        } catch (Throwable $throwable) {
+            return '';
+        }
+
+        if ($items === []) {
+            return '';
+        }
+
+        $presetClass = bandpromo_page_escape($preset);
+        $html = '<section class="page-gallery page-gallery--' . $presetClass . '" data-gallery-id="' . bandpromo_page_escape($galleryId) . '">';
+        $html .= '<div class="page-gallery-grid">';
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $alt = bandpromo_page_escape((string) ($item['alt'] ?? $item['name'] ?? 'Gallery item'));
+            $itemType = (string) ($item['type'] ?? 'image');
+            if ($itemType === 'video') {
+                $src = bandpromo_page_escape((string) ($item['src'] ?? ''));
+                $poster = bandpromo_page_escape((string) ($item['poster'] ?? ''));
+                if ($src === '') {
+                    continue;
+                }
+                $posterAttr = $poster !== '' ? ' poster="' . $poster . '"' : '';
+                $html .= '<figure class="page-gallery-item page-gallery-item--video" role="button" tabindex="0">';
+                $html .= '<video src="' . $src . '"' . $posterAttr . ' preload="metadata" muted playsinline style="pointer-events:none;"></video>';
+                $html .= '<div class="page-gallery-video-play" aria-hidden="true">&#9654;</div>';
+                $html .= '<figcaption>' . $alt . '</figcaption></figure>';
+                continue;
+            }
+
+            $src = bandpromo_page_escape(bandpromo_gallery_resolve_image_src($root, (string) ($item['src'] ?? '')));
+            if ($src === '') {
+                continue;
+            }
+            $html .= '<figure class="page-gallery-item page-gallery-item--image" role="button" tabindex="0">';
+            $html .= '<img src="' . $src . '" alt="' . $alt . '" loading="lazy" decoding="async">';
+            $html .= '<figcaption>' . $alt . '</figcaption></figure>';
+        }
+        $html .= '</div></section>';
 
         return $html;
     }
@@ -150,7 +217,7 @@ function bandpromo_page_render_block(array $block): string {
     return '';
 }
 
-function bandpromo_page_render_document(array $document): string {
+function bandpromo_page_render_document(array $document, ?string $root = null): string {
     $blocks = isset($document['blocks']) && is_array($document['blocks']) ? $document['blocks'] : [];
     $parts = ['<div class="page-content">'];
 
@@ -158,7 +225,7 @@ function bandpromo_page_render_document(array $document): string {
         if (!is_array($block)) {
             continue;
         }
-        $html = bandpromo_page_render_block($block);
+        $html = bandpromo_page_render_block($block, $root);
         if ($html !== '') {
             $parts[] = $html;
         }

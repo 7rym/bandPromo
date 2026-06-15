@@ -42,6 +42,7 @@
                 markSaved() {},
                 markDirty() {},
                 markFailed() {},
+                reset() {},
             };
         }
 
@@ -83,6 +84,11 @@
             },
             markFailed() {
                 reconcile();
+            },
+            reset() {
+                sessionSaved = false;
+                baseline = readFingerprint();
+                applyButtonState(btn, 'hidden', labels);
             },
         };
     }

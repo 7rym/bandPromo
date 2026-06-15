@@ -11,6 +11,8 @@ require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/audio-master-helpers.php';
+require_once __DIR__ . '/asset-registry.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -27,6 +29,7 @@ if (!is_array($body)) {
 }
 
 $root = dirname(__DIR__);
+bandpromo_asset_registry_ensure_migrated($root);
 $dirs = [
     'audio'         => $root . '/media/audio/original',
     'illustrations' => $root . '/media/img/original',
@@ -57,27 +60,11 @@ if ($requestedFiles === []) {
 }
 
 function bandpromo_audio_master_paths(string $root, string $filename): array {
-    $master_dir = $root . '/media/audio/master';
-    $stem = pathinfo($filename, PATHINFO_FILENAME);
-    foreach (['flac', 'mp3', 'wav'] as $ext) {
-        $path = $master_dir . '/' . $stem . '.' . $ext;
-        if (is_file($path)) {
-            $paths[] = $path;
-        }
-    }
-
-    return $paths ?? [];
+    return bandpromo_audio_master_paths_for_original($root, $filename);
 }
 
 function bandpromo_audio_delivery_paths(string $root, string $filename): array {
-    $optimal_dir = $root . '/media/audio/optimal';
-    $stem = pathinfo($filename, PATHINFO_FILENAME);
-    $paths = [];
-    $candidate = $optimal_dir . '/' . $stem . '.mp3';
-    if (is_file($candidate)) {
-        $paths[] = $candidate;
-    }
-    return $paths;
+    return bandpromo_audio_delivery_paths_for_original($root, $filename);
 }
 
 function bandpromo_video_delivery_path(string $root, string $filename): string {
@@ -198,6 +185,14 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
     }
 
     if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+        require_once __DIR__ . '/gallery-storage.php';
+        try {
+            bandpromo_gallery_ensure_seeded($root);
+            $cleanup['gallery_items_removed'] += bandpromo_gallery_detach_media($root, $target, $filename);
+        } catch (Throwable $throwable) {
+            $cleanup['warnings'][] = 'Could not update gallery containers: ' . $throwable->getMessage();
+        }
+
         $gallery_file = $root . '/data/gallery.json';
         $gallery = bandpromo_json_read_array_file($gallery_file);
         if (is_array($gallery)) {
@@ -315,6 +310,7 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
                 $audio_delivery_deleted = true;
             }
         }
+        bandpromo_asset_unregister_by_original_filename($root, $safe);
     } elseif ($target === 'video') {
         $poster_path = bandpromo_gallery_video_poster_absolute_path($root, $safe);
         if (is_file($poster_path) && @unlink($poster_path)) {

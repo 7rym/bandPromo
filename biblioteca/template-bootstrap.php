@@ -7,6 +7,11 @@
  */
 
 require_once __DIR__ . '/page-storage.php';
+require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/gallery-storage.php';
+require_once __DIR__ . '/theme-storage.php';
 
 function bandpromo_template_map(): array {
     $root = dirname(__DIR__);
@@ -79,6 +84,16 @@ function bandpromo_ensure_runtime_files_seeded(): array {
     }
 
     $errors = array_merge($errors, bandpromo_page_seed_all_if_missing($root));
+
+    try {
+        bandpromo_asset_registry_ensure_migrated($root);
+        bandpromo_release_ensure_seeded($root);
+        bandpromo_playlist_ensure_seeded($root);
+        bandpromo_gallery_ensure_seeded($root);
+        bandpromo_theme_ensure_seeded($root);
+    } catch (Throwable $throwable) {
+        $errors[] = $throwable->getMessage();
+    }
 
     return $errors;
 }

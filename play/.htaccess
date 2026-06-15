@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteBase /play/
+
+RewriteRule ^$ index.php [L,QSA]
+RewriteRule ^([a-z][a-z0-9-]*)/([a-z0-9-]+)/([a-z0-9-]+)/?$ index.php?playlist=$1&release=$2&track=$3 [L,QSA]
+RewriteRule ^([a-z][a-z0-9-]*)/?$ index.php?playlist=$1 [L,QSA]

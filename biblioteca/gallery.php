@@ -1,44 +1,39 @@
 <?php
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/gallery-helpers.php';
+require_once __DIR__ . '/gallery-storage.php';
 bandpromo_enforce_https();
 
 session_start();
 
-// Check if user is authenticated
 if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     http_response_code(401);
     exit('Unauthorized');
 }
 
-// Load gallery data
 $root_dir = dirname(__DIR__);
-$galleryFile = bandpromo_gallery_file_path($root_dir);
-
-if (!file_exists($galleryFile)) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Missing runtime file data/gallery.json. Run setup.']);
-    exit;
+$galleryId = bandpromo_gallery_normalize_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
+if ($galleryId === '') {
+    $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
 }
 
-$galleryRaw = file_get_contents($galleryFile);
-$galleryData = $galleryRaw !== false ? json_decode($galleryRaw, true) : null;
-
-if (!is_array($galleryData)) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Invalid gallery data']);
-    exit;
+try {
+    bandpromo_gallery_ensure_seeded($root_dir);
+    $galleryData = bandpromo_gallery_materialize_items($root_dir, $galleryId);
+} catch (Throwable $throwable) {
+    $galleryData = bandpromo_load_gallery_items($root_dir, $galleryId);
+    if ($galleryData === []) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Could not load gallery: ' . $throwable->getMessage()]);
+        exit;
+    }
 }
 
-$galleryData = bandpromo_gallery_normalize_items($root_dir, $galleryData);
-
-// Return gallery data as JSON
 header('Content-Type: application/json');
 echo json_encode([
     'success' => true,
+    'gallery_id' => $galleryId,
     'images' => $galleryData,
-    'totalImages' => count($galleryData)
-]);
-?>
+    'totalImages' => count($galleryData),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

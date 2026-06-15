@@ -1,0 +1,12 @@
+{
+    "version": 1,
+    "playlists": [
+        {
+            "id": "main",
+            "title": "Main Playlist",
+            "kind": "system",
+            "publish_date": "2026-01-01",
+            "sort_order": 10
+        }
+    ]
+}

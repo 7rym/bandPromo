@@ -97,6 +97,99 @@
     background: rgba(255, 107, 107, 0.12);
 }
 
+.page-pool-delete-btn {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #101010;
+    color: #f87171;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.page-pool-delete-btn:hover {
+    border-color: #f87171;
+    background: rgba(248, 113, 113, 0.12);
+}
+
+.page-pool-duplicate-btn {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #101010;
+    color: var(--text);
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.page-pool-duplicate-btn:hover {
+    border-color: var(--accent);
+    background: rgba(255, 107, 107, 0.12);
+}
+
+.page-pool-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.playlist-editor-layout {
+    margin-top: 0;
+}
+
+.playlist-editor-left-panel {
+    min-height: 380px;
+}
+
+#playlistPoolView {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#galleryPoolView {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#playlistTracksPoolView[hidden],
+#playlistPoolView[hidden],
+#galleryItemsPoolView[hidden],
+#galleryPoolView[hidden],
+#themeEditorView[hidden],
+#themePoolView[hidden] {
+    display: none !important;
+}
+
+.playlist-pool-row {
+    cursor: pointer;
+}
+
+.playlist-pool-row.playlist-editor-row {
+    cursor: pointer;
+}
+
+.playlist-editor-row-readonly .playlist-drag-handle,
+.playlist-editor-row-readonly .player-layout-remove-btn {
+    visibility: hidden;
+}
+
 .page-pool-status:empty {
     display: none;
 }
@@ -830,10 +923,6 @@
     margin-bottom: 16px;
 }
 
-.page-editor-add-btn {
-    font: inherit;
-}
-
 .add-page-panel {
     margin-bottom: 8px;
     padding: 8px 10px;
@@ -890,6 +979,70 @@
 
 .page-meta-field input {
     font-size: 14px;
+}
+
+.playlist-settings-panel {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.playlist-settings-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.playlist-settings-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.playlist-settings-label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+}
+
+.playlist-settings-status--head {
+    margin-top: 0;
+    min-height: 0;
+    flex: 0 0 auto;
+    text-align: right;
+    font-size: 12px;
+    line-height: 1.3;
+    max-width: 42%;
+}
+
+.playlist-settings-status--head:empty {
+    display: none;
+}
+
+.playlist-settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 180px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.playlist-settings-field input {
+    font-size: 14px;
+}
+
+.playlist-settings-status {
+    display: block;
+    margin-top: 4px;
+    min-height: 1.2em;
 }
 
 .page-delete-btn {

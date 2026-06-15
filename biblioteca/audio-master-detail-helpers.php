@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/cover-art-helpers.php';
+require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/playlist-storage.php';
 
 function bandpromo_audio_master_playlist_map(string $root): array
 {
@@ -9,6 +11,28 @@ function bandpromo_audio_master_playlist_map(string $root): array
 
     if (isset($cache[$root])) {
         return $cache[$root];
+    }
+
+    if (is_file(bandpromo_playlist_document_path($root, BANDPROMO_PLAYLIST_DEFAULT_ID))) {
+        try {
+            $document = bandpromo_playlist_load_document($root, BANDPROMO_PLAYLIST_DEFAULT_ID);
+            $tracks = bandpromo_playlist_build_track_list($root, $document);
+            $map = [];
+            foreach ($tracks as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $file = trim((string) ($entry['file'] ?? ''));
+                if ($file === '') {
+                    continue;
+                }
+                $map[$file] = $entry;
+            }
+
+            return $cache[$root] = $map;
+        } catch (Throwable $throwable) {
+            // Fall through to legacy built playlist.
+        }
     }
 
     $playlistFile = $root . '/play/playlist.json';
@@ -35,7 +59,6 @@ function bandpromo_audio_master_playlist_map(string $root): array
         if ($file === '') {
             continue;
         }
-        $entry['playlist_tracknumber'] = (string) ($index + 1);
         $map[$file] = $entry;
     }
 
@@ -70,13 +93,15 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
 {
     $playlistMap = bandpromo_audio_master_playlist_map($root);
     $playlistEntry = is_array($playlistMap[$filename] ?? null) ? $playlistMap[$filename] : [];
-    $playlistTracknumber = trim((string) ($playlistEntry['playlist_tracknumber'] ?? ''));
     $currentCover = trim((string) ($playlistEntry['cover'] ?? ''));
+    $releaseTracknumber = bandpromo_release_find_track_number_for_master($root, $filename);
+    $embeddedTracknumber = trim((string) ($detail['tracknumber'] ?? ''));
 
-    $detail['playlist_tracknumber'] = $playlistTracknumber;
-    $detail['suggested_tracknumber'] = trim((string) ($detail['tracknumber'] ?? '')) !== ''
-        ? trim((string) $detail['tracknumber'])
-        : $playlistTracknumber;
+    $detail['release_tracknumber'] = $releaseTracknumber;
+    $detail['suggested_tracknumber'] = $embeddedTracknumber !== ''
+        ? $embeddedTracknumber
+        : $releaseTracknumber;
+    $detail['release_locked'] = bandpromo_release_is_master_locked($root, $filename);
     $detail['current_cover'] = $currentCover;
     $detail['current_cover_url'] = bandpromo_audio_master_resolve_current_cover_url($currentCover);
     $detail['sidecar_cover_url'] = bandpromo_audio_master_resolve_sidecar_cover_url($root, $detail['sidecar_cover'] ?? '');

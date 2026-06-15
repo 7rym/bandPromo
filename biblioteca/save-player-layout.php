@@ -45,7 +45,7 @@ try {
     }
 
     $modules = is_array($payload['modules'] ?? null) ? $payload['modules'] : [];
-    foreach (['gallery', 'pages'] as $optionalModule) {
+    foreach (['pages'] as $optionalModule) {
         if (array_key_exists($optionalModule, $modules)) {
             if (!isset($config['player']['modules'][$optionalModule]) || !is_array($config['player']['modules'][$optionalModule])) {
                 $config['player']['modules'][$optionalModule] = [];
@@ -61,7 +61,7 @@ try {
             continue;
         }
         $item = trim($item);
-        if ($item === '') {
+        if ($item === '' || $item === 'module:gallery') {
             continue;
         }
         $normalizedTabOrder[] = $item;
@@ -70,6 +70,10 @@ try {
 
     $config['player']['modules']['playlist'] = ['enabled' => true];
     $config['player']['modules']['lyrics'] = ['enabled' => true];
+    if (!isset($config['player']['modules']['gallery']) || !is_array($config['player']['modules']['gallery'])) {
+        $config['player']['modules']['gallery'] = [];
+    }
+    $config['player']['modules']['gallery']['enabled'] = false;
 
     $encodedConfig = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if (!is_string($encodedConfig) || file_put_contents($configPath, $encodedConfig . "\n") === false) {

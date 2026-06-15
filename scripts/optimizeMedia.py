@@ -40,6 +40,7 @@ IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
 PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
 PHOTO_OPT_DIR  = ROOT_DIR / 'media' / 'photo' / 'optimal'
 PLAY_CONFIG  = ROOT_DIR / 'play' / 'playlist.json'
+ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
 
@@ -142,7 +143,41 @@ def get_ffmpeg_path():
     return os.environ.get('FFMPEG_PATH', 'ffmpeg')
 
 
+def load_asset_for_filename(filename):
+    safe_name = os.path.basename(str(filename or '').strip())
+    if not safe_name or not ASSET_REGISTRY_FILE.exists():
+        return None
+
+    try:
+        with open(str(ASSET_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset in assets.values():
+        if not isinstance(asset, dict):
+            continue
+        original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if safe_name in {original_name, master_name}:
+            return asset
+
+    return None
+
+
 def resolve_audio_working_path(filename):
+    asset = load_asset_for_filename(filename)
+    if isinstance(asset, dict):
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if master_name:
+            path = AUDIO_MASTER_DIR / master_name
+            if path.exists() and path.is_file():
+                return path, 'master'
+
     stem = Path(filename).stem
     source_suffix = Path(filename).suffix.lower()
     preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']

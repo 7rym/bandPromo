@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "galleries": [
+        {
+            "id": "main",
+            "title": "Main Gallery",
+            "kind": "system",
+            "sort_order": 10
+        }
+    ]
+}

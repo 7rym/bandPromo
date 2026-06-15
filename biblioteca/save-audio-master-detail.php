@@ -5,6 +5,7 @@ require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/audio-master-detail-helpers.php';
+require_once __DIR__ . '/release-storage.php';
 bandpromo_enforce_https();
 
 function bandpromo_text_length(string $value): int {
@@ -116,17 +117,25 @@ if (!in_array($cover_mode, ['preserve', 'set', 'clear'], true)) {
 session_write_close();
 
 $root = dirname(__DIR__);
+
+try {
+    bandpromo_release_assert_master_editable($root, $filename);
+} catch (RuntimeException $exception) {
+    http_response_code(409);
+    echo json_encode(['error' => $exception->getMessage()]);
+    exit;
+}
+
 $inspect_result = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', [
     'action' => 'inspect',
     'filename' => $filename,
 ]);
 $inspect_data = is_array($inspect_result['data'] ?? null) ? $inspect_result['data'] : null;
 $existing_tracknumber = is_array($inspect_data) ? trim((string) ($inspect_data['tracknumber'] ?? '')) : '';
-$playlist_map = bandpromo_audio_master_playlist_map($root);
-$playlist_entry = is_array($playlist_map[$filename] ?? null) ? $playlist_map[$filename] : [];
-$playlist_tracknumber = trim((string) ($playlist_entry['playlist_tracknumber'] ?? ''));
 if ($normalized_fields['tracknumber'] === '') {
-    $normalized_fields['tracknumber'] = $existing_tracknumber !== '' ? $existing_tracknumber : $playlist_tracknumber;
+    $normalized_fields['tracknumber'] = $existing_tracknumber !== ''
+        ? $existing_tracknumber
+        : bandpromo_release_find_track_number_for_master($root, $filename);
 }
 
 $current_fields = [];

@@ -2,161 +2,60 @@
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/auto-build-tasks.php';
+require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/release-storage.php';
 bandpromo_enforce_https();
 
 require_once __DIR__ . '/admin-api-guard.php';
 
-$includeBundled = isset($_GET['include_bundled']) && $_GET['include_bundled'] === '1';
+$releaseFilter = bandpromo_playlist_normalize_release_filter((string) ($_GET['release'] ?? 'all'));
 session_write_close();
 
-if ($includeBundled) {
-    bandpromo_ensure_bundled_demo_audio_delivery(dirname(__DIR__));
+$root = dirname(__DIR__);
+$playlistId = bandpromo_playlist_normalize_id((string) ($_GET['playlist'] ?? BANDPROMO_PLAYLIST_DEFAULT_ID));
+if ($playlistId === '') {
+    $playlistId = BANDPROMO_PLAYLIST_DEFAULT_ID;
 }
 
-function bandpromo_playlist_preview_load_saved_order(string $file): array
-{
-    if (!file_exists($file)) {
-        return [];
-    }
+bandpromo_ensure_bundled_demo_audio_delivery($root);
 
-    $raw = file_get_contents($file);
-    if ($raw === false) {
-        return [];
-    }
-
-    $decoded = json_decode($raw, true);
-    if (!is_array($decoded)) {
-        return [];
-    }
-
-    return array_values(array_filter($decoded, static function ($entry) {
-        return is_string($entry) && $entry !== '';
-    }));
-}
-
-function bandpromo_playlist_preview_from_built_playlist(bool $includeBundled): ?array
-{
-    $root = dirname(__DIR__);
-    $playlistFile = $root . '/play/playlist.json';
-    if (!file_exists($playlistFile)) {
-        return null;
-    }
-
-    $raw = file_get_contents($playlistFile);
-    if ($raw === false) {
-        return null;
-    }
-
-    $playlist = json_decode($raw, true);
-    if (!is_array($playlist)) {
-        return null;
-    }
-
-    $savedOrder = bandpromo_playlist_preview_load_saved_order($root . '/data/playlist-order.json');
-    if ($savedOrder) {
-        $orderIndex = [];
-        foreach ($savedOrder as $index => $name) {
-            $orderIndex[$name] = $index;
-        }
-
-        usort($playlist, static function ($left, $right) use ($orderIndex) {
-            $leftFile = (string) ($left['file'] ?? '');
-            $rightFile = (string) ($right['file'] ?? '');
-            $leftIndex = $orderIndex[$leftFile] ?? PHP_INT_MAX;
-            $rightIndex = $orderIndex[$rightFile] ?? PHP_INT_MAX;
-            if ($leftIndex === $rightIndex) {
-                return strcasecmp($leftFile, $rightFile);
-            }
-            return $leftIndex <=> $rightIndex;
-        });
-    }
-
-    $playlistByFile = [];
-    $poolTrackMap = [];
-    $hiddenBundled = [];
-    foreach ($playlist as $track) {
-        if (!is_array($track)) {
-            continue;
-        }
-
-        $file = trim((string) ($track['file'] ?? ''));
-        if ($file === '') {
-            continue;
-        }
-
-        $isBundled = strncmp($file, 'bandPromo_', 10) === 0;
-        $entry = [
-            'file' => $file,
-            'title' => (string) ($track['title'] ?? $file),
-            'artist' => (string) ($track['artist'] ?? ''),
-            'album' => (string) ($track['album'] ?? ''),
-            'duration' => (int) ($track['duration'] ?? 0),
-            'origin' => $isBundled ? 'bundled-placeholder' : 'user-upload',
-            'sourceTier' => 'built-playlist',
-        ];
-        $playlistByFile[$file] = $entry;
-
-        if ($isBundled && !$includeBundled) {
-            $hiddenBundled[] = $file;
-            continue;
-        }
-
-        $poolTrackMap[$file] = $entry;
-    }
-
-    $savedOrder = bandpromo_playlist_preview_load_saved_order($root . '/data/playlist-order.json');
-
-    if ($savedOrder) {
-        $activeFiles = array_values(array_filter($savedOrder, static fn($name) => is_string($name) && $name !== ''));
-    } else {
-        $activeFiles = array_keys($playlistByFile);
-    }
-
-    $activeSet = array_fill_keys($activeFiles, true);
-    $activeTracks = [];
-    foreach ($activeFiles as $file) {
-        if (isset($playlistByFile[$file])) {
-            $activeTracks[] = $playlistByFile[$file];
-        }
-    }
-
-    $availableTracks = [];
-    foreach ($poolTrackMap as $file => $entry) {
-        if (!isset($activeSet[$file])) {
-            $availableTracks[] = $entry;
-        }
-    }
-
-    return [
-        'ok' => true,
-        'tracks' => $activeTracks,
-        'activeTracks' => $activeTracks,
-        'availableTracks' => $availableTracks,
-        'hiddenBundledSourceFiles' => $hiddenBundled,
-        'unsupportedSourceFiles' => [],
-        'includeBundled' => $includeBundled,
-        'previewSource' => 'built-playlist',
-    ];
-}
-
-$result = bandpromo_run_light_json_task('scripts/playlistPreview.py', [
-    'includeBundled' => $includeBundled,
-]);
-
-$data = is_array($result['data'] ?? null) ? $result['data'] : null;
-if (!$result['ok'] || !is_array($data) || empty($data['ok'])) {
-    $fallback = bandpromo_playlist_preview_from_built_playlist($includeBundled);
-    if (is_array($fallback)) {
-        echo json_encode($fallback, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        exit;
-    }
-
-    $error = is_array($data) ? (string) ($data['error'] ?? '') : '';
-    $output = trim((string) ($result['output'] ?? ''));
-    $message = $error !== '' ? $error : ($output !== '' ? $output : 'Could not load playlist preview');
+try {
+    bandpromo_playlist_ensure_seeded($root);
+    bandpromo_release_ensure_seeded($root);
+} catch (Throwable $throwable) {
     http_response_code(500);
-    echo json_encode(['error' => $message]);
+    echo json_encode(['error' => $throwable->getMessage()]);
     exit;
 }
 
-echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$result = bandpromo_run_light_json_task('scripts/playlistPreview.py', [
+    'release' => $releaseFilter,
+]);
+
+$data = is_array($result['data'] ?? null) ? $result['data'] : null;
+$poolByFile = [];
+$meta = [
+    'previewSource' => 'audio-pool',
+    'unsupportedSourceFiles' => [],
+    'hiddenBundledSourceFiles' => [],
+];
+
+if ($result['ok'] && is_array($data) && !empty($data['ok'])) {
+    $poolTracks = array_merge(
+        is_array($data['activeTracks'] ?? null) ? $data['activeTracks'] : [],
+        is_array($data['availableTracks'] ?? null) ? $data['availableTracks'] : [],
+        is_array($data['tracks'] ?? null) ? $data['tracks'] : []
+    );
+    $poolByFile = bandpromo_playlist_pool_map_from_preview_tracks($poolTracks);
+    $meta['unsupportedSourceFiles'] = is_array($data['unsupportedSourceFiles'] ?? null)
+        ? $data['unsupportedSourceFiles']
+        : [];
+    $meta['hiddenBundledSourceFiles'] = is_array($data['hiddenBundledSourceFiles'] ?? null)
+        ? $data['hiddenBundledSourceFiles']
+        : [];
+} else {
+    $meta['previewSource'] = 'playlist-container';
+}
+
+$response = bandpromo_playlist_admin_editor_state($root, $playlistId, $releaseFilter, $poolByFile, $meta);
+echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

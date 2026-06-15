@@ -1,0 +1,10 @@
+{
+    "version": 1,
+    "id": "primary",
+    "slug": "primary",
+    "title": "Primary Release",
+    "release_date": "2026-01-01",
+    "locked": false,
+    "vip_early_days": 7,
+    "tracks": []
+}
