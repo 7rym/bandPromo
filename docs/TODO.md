@@ -17,6 +17,8 @@ Rules for this file:
 
 **v0.8 beta (active)** — platform model definitions and core deliverables.
 
+**v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance (config auto-repair, content-model checks folded into Publish), playlist `kind` fix, Content editor UX parity, release/playlist marketing metadata definitions, backup/export MVP, and Release editor. See **v0.8.3 active slice** below. All betatesters are on the latest build; **no legacy HTML page import** (closed).
+
 **v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v0.8 build N`** (build numbering continues from v0.7; build 287 opened the v0.8 line).
 
 | Priority | Scope | Status |
@@ -29,6 +31,43 @@ Rules for this file:
 Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first.
 
 Reference: see `ROADMAP.md` for milestone structure and beta-tester expectations.
+
+## v0.8.3 active slice (2026-06-16 beta feedback)
+
+Policy and operator messaging — **lock before implementation**:
+
+- [x] Close legacy `data/bio.html` / `data/faq.html` import scope: all betatesters on current JSON pages; recovery is manual copy only if old files exist on host backups.
+- [ ] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; one follow-up **Update the live site** (Publish) is normal after every package update — not a failure state.
+- [ ] Lock **invisible maintenance** contract: config structure auto-repair and content-model preparation run automatically before Publish; no separate operator-facing “content model upgrade” card in normal workflow.
+- [ ] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+- [ ] Lock **v0.8 playlist kind rule**: operator-created playlists are **`system`** until user/VIP playlists ship in v0.9+; fix current bug that creates `kind: "user"` (invisible to player).
+
+Implementation order (v0.8.3):
+
+Trust and operator calm:
+
+- [ ] **Config auto-repair** — silently deep-merge missing `web-config.json` sections from template on admin load (same as Settings → Repair today); audit-log only; remove scary “Incomplete config” banner for operators.
+- [ ] **Publish preflight** — before build tasks, run content-model preparation (`content-autofix` pipeline); apply when needed; plain-language Publish status only; hide Dashboard **Content model upgrade** card once integrated.
+- [ ] **Post-update notification copy** — after Site update, nudge **Update the live site** once with success-first wording (not “Publish prep did not finish automatically”).
+- [ ] **Backup/export MVP** — first operator-facing full backup or data export per [PORTABILITY.md](PORTABILITY.md) (betatesters need a safety net before big releases).
+
+Platform fixes:
+
+- [ ] **Playlist `kind` bug** — create/save operator playlists as `kind: "system"`; migrate existing `user` playlists on existing installs during Publish preflight; player selector appears when **two or more system playlists** exist.
+- [ ] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
+- [ ] **Container marketing metadata** — add `description` + `poster_asset_id` fields to playlist and page containers; sketch then implement release EPK fields (press blurb, credits, genre, contact, streaming links).
+
+Content editor UX (match Themes pattern):
+
+- [ ] **Edit header pattern** — inline editable name in header; **← Back** aligned right on Playlist, Gallery, and Pages edit views (Themes already ships this).
+- [ ] **Pages richtext toolbar** — pin toolbar outside the scrolling text area (sticky header or split block chrome) so long blocks remain editable.
+- [ ] **Pages delete control** — move page delete to pool rows (like Playlist/Gallery); remove delete from edit header.
+
+Deferred (documented, not v0.8.3):
+
+- [ ] Rich share cards and player playlist presentation on mobile (after metadata fields + Release editor).
+- [ ] News/tour archive module (v1+); pages + galleries cover interim tour content.
+- [ ] User/VIP-authored playlists (`kind: "user"`) — v0.9+ after access model implementation.
 
 ## v0.8 active work
 
@@ -78,7 +117,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement `data/releases` + required track membership + release `locked` guards.
 - [x] Remove playlist-save → master tag sync (`bandpromo_sync_playlist_order_to_audio_masters`) and `playlist_tracknumber` metadata fallbacks.
 - [x] Implement `data/playlists` + registry; migrate off `play/playlist.json` and `data/playlist-order.json`.
-- [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`.
+- [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`. *(Selector renders only when two or more `kind: "system"` playlists exist; operator create currently wrongly sets `kind: "user"` — fix in v0.8.3.)*
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
 - [x] Implement first gallery **module block** on pages (minimum: `grid` preset).

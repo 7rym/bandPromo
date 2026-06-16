@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-16 12:00 - Checkpoint v0.8.3 docs (build 293): captured closed-beta feedback after build 292 — v0.8.3 slice in `TODO.md` (operator trust, config auto-repair, Publish-integrated content preparation, playlist `kind: system` fix, Content editor UX, Release editor + EPK metadata, backup/export MVP); expanded beta-tester update/workflow guidance in `ROADMAP.md` and `INSTALL-UPDATE.md`; container presentation fields and playlist kind bug note in `PLATFORM-MODEL.md`; closed legacy HTML page import scope (all testers on JSON pages).
+
 2026-06-15 22:00 - Added TODO follow-up: pre-publish guard to ensure shipped PHP entrypoints only require git-tracked files before release packages are published.
 
 2026-06-15 21:00 - Hotfix v0.8 build 292: ship platform storage/API files (`theme-storage.php`, `playlist-storage.php`, `gallery-storage.php`, `asset-registry.php`, `release-storage.php`, and related endpoints) that were required by `admin.php` since build 290 but had never been committed, which caused a blank admin panel after Site update on hosted installs.

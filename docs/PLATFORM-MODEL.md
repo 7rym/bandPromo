@@ -127,7 +127,20 @@ Playlists are **containers** of track references. They are independent of releas
 - Playlist has its own `publish_date` for marketing / default-selection eligibility.
 - Playlist is shown **in full**; embargoed tracks appear but are **not playable** for the current user tier.
 - Analytics bind plays to **track → release**, not to playlist.
-- v0.8: **system playlists only** (`kind: "system"`). User/VIP playlists later.
+- v0.8: **system playlists only** (`kind: "system"`). User/VIP playlists later (v0.9+).
+- Operator-created playlists in admin must use `kind: "system"` until user playlists ship. *(Known v0.8.3 bug: create path currently writes `kind: "user"`, which excludes the playlist from the player selector and default-playlist logic.)*
+- Player playlist selector appears only when **two or more** system playlists exist in the registry.
+
+### Presentation metadata (v0.8.3+)
+
+Shareable containers should carry operator-authored marketing fields in addition to title and dates:
+
+| Field | Playlists | Pages | Releases |
+|-------|-----------|-------|----------|
+| `description` | Campaign blurb for share cards | Share/summary text | Press / EPK blurb |
+| `poster_asset_id` | Share/OG image | Share/OG image (fallback: first image block) | Release poster / press art |
+
+**Release EPK (extended metadata, v0.8.3+):** releases are the catalog and press hub — tagline, genre, credits, contact/press email, external streaming/store links, and optional press photo set references. Playlists remain listening campaigns; releases hold long-lived catalog and EPK truth.
 
 ### Default playlist
 

@@ -2,7 +2,7 @@
 
 Source of truth for operator backup, data export/import, and host migration.
 
-**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** v0.8+ operator feature (after core `data/` model lands).
+**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** v0.8+ operator feature (after core `data/` model lands). **v0.8.3 priority:** betatesters need in-app backup before trusting large updates — see [TODO.md](TODO.md) → v0.8.3.
 
 Related: [INSTALL-UPDATE.md](INSTALL-UPDATE.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
 

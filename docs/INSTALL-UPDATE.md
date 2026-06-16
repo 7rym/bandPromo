@@ -180,6 +180,26 @@ The updater reports whether:
 
 Normal operators should not need manual cleanup just because a package apply failed.
 
+## After a successful Site update
+
+Package update **preserves** your content. It replaces application PHP/JS only. These paths stay on disk:
+
+- `web-config.json`, `.env`, `data/`, `media/`, `log/`
+
+**What to do next (normal workflow):**
+
+1. Open **Notifications** or **System → Publish**.
+2. Run **Update the live site** once. After every package update, bandPromo marks publish work as pending — this refreshes delivery files and the site manifest. It is expected, not an error.
+3. Smoke-test admin and playback.
+
+**What Site update does not do today (v0.8.3 will improve this):**
+
+- It does **not** wipe or replace your pages, playlists, media, or config.
+- Content-model preparation (linking playlists to `asset_id`, syncing release membership) is currently a separate Dashboard card. **v0.8.3** folds this into **Update the live site** automatically so operators never see a separate migration tool.
+- **v0.8.3** also auto-repairs missing internal `web-config.json` sections silently instead of showing a red Settings banner.
+
+**Interim safety on large installs:** until Admin → backup ships, download a ZIP of `data/`, `media/`, and `web-config.json` from your hosting panel before updating if you want an extra safety copy.
+
 ## Manual operator fallback
 
 - Prefer published immutable release packages over repository snapshots.

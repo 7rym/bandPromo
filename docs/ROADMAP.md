@@ -50,7 +50,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Theme tokens + semantic player colors | Shipped (Content → Themes editor) |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Priority 3b slices per [PLATFORM-MODEL.md](PLATFORM-MODEL.md): **audio delivery alignment** (`ast_{ULID}` delivery files + playlist-driven build), **demo git hygiene**, then **Release editor** (`container.release` operator UI), then remaining config-schema migration and v0.9 prep.
+**Next focus (v0.8.3):** operator trust and invisible maintenance — config auto-repair, Publish-integrated content preparation, post-update messaging, backup/export MVP, playlist `kind: system` fix, Content editor header UX parity, Release editor + container marketing/EPK metadata. See [TODO.md](TODO.md) → v0.8.3 active slice.
 
 ## Core vs modules
 
@@ -499,11 +499,29 @@ Not in v0.8 implementation scope (documented for later milestones):
 
 ### Beta tester expectations (v0.8 beta — active)
 
-Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 platform:
+Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 platform.
 
-- **Shipped now:** package updater; block-based Pages editor (Text / Picture / List); unified Content editors (Playlist, Gallery, Pages, Player layout) with pool/result UX; upload-time background delivery; delivery-ready pool gates; Notifications for background video jobs; improved player page presentation; delete confirmations.
-- **In progress in v0.8:** multiple playlists and galleries in admin, gallery module blocks on pages, playlist selector in player, track deep links, Gallery player tab removal, playback/delivery architecture, theme semantic color tokens.
-- **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.).
+**Checkpoint 2026-06-16 (v0.8.3 docs):** all betatesters are on the latest build (292+). Legacy HTML pages (`data/bio.html`, `data/faq.html`) are **not** imported automatically — content lives in `data/pages/*.json` only. If you still have old HTML files on the host from backups, copy text into the Pages editor manually.
+
+**Updating safely:**
+
+1. **Site update** (Dashboard) replaces application code only. Your `web-config.json`, `.env`, `data/`, `media/`, and `log/` are preserved.
+2. After every successful Site update, run **Update the live site** once (System → Publish). This is **normal**, not a sign that something failed.
+3. Soon (v0.8.3): Publish will also prepare your content links automatically — you will not need a separate “content model upgrade” step.
+4. Before large updates on heavy installs: download a ZIP backup of `data/`, `media/`, and `web-config.json` via your host until in-app backup ships.
+
+**Release and tour workflow (target model):**
+
+- **Releases** = catalog truth (singles, EP, album) with `release_date`, track membership, and future EPK/press metadata.
+- **Playlists** = listening campaigns (“Single 1 promo”, “Album launch”, “Tour 2026”) with their own `publish_date`; latest public system playlist opens by default in the player.
+- **Pages + gallery blocks** = story, bio, tour recaps, show photos — permanent on your site; social posts link **in**, not the other way around.
+- **News module** (v1+) = dated tour/diary posts that archive forever; pages + galleries cover this pattern until then.
+- **Sharing** (playlist `/play/{id}`, track deep links, page `/pages/{id}`) gets richer cards after description + poster fields ship — not before core trust work.
+
+- **Shipped now:** package updater; block-based Pages editor; unified Content editors (Playlist, Gallery, Pages, Player layout) with pool/result UX; upload-time background delivery; delivery-ready pool gates; Notifications for background video jobs; improved player page presentation; delete confirmations; platform storage/API hotfix (build 292).
+- **In progress in v0.8.3:** invisible maintenance (auto-repair + Publish preflight), playlist `kind` fix, Release editor, backup/export, Content editor UX parity, container marketing metadata.
+- **In progress in v0.8:** gallery module blocks on pages, track deep links, playback/delivery architecture, theme semantic color tokens.
+- **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
 
@@ -560,8 +578,8 @@ Future core block types may extend the editor; **module blocks** reference galle
 
 Migration direction:
 
-- beta rollout assumes fresh installs or package updates onto builds that already ship the JSON page editor
-- legacy `data/bio.html` and `data/faq.html` are not read, imported, or dual-written
+- all v0.8 betatesters are on JSON pages (`data/pages/*.json`); **legacy HTML import is closed** — no automatic import from `data/bio.html` / `data/faq.html`
+- legacy HTML files on disk are ignored; operators copy content manually if recovery is needed from host backups
 - HTML is generated at render/save time only; JSON remains the sole source of truth
 
 Illustrative document shape (simplified; shipped editor uses `richtext` / `picture` / `list`):

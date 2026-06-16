@@ -21,7 +21,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - **Block-based Pages editor** (v0.8 beta): Text, Picture, and List blocks; rich formatting; fraction picture widths and Flow placement; live player-styled preview; delete confirmations for pages and blocks
 - Page registry in `data/pages/registry.json`: operators can add, rename, and remove optional pages; **FAQ remains required** for login info / shared-link context
 - Content → **Playlist**, **Gallery**, **Pages**, and **Player layout** share one pool/result editor pattern: **Available content** pool on the left, active order/layout on the right, multi-select drag-and-drop, demo filter on media pools only, and amber **Save** / green **Saved** header controls
-- Content → **Playlist** and **Gallery** management (single library each today; **multiple libraries** planned in v0.8)
+- Content → **Playlist** and **Gallery** management (multiple libraries in admin; player playlist selector when two or more **system** playlists exist)
 - Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
 - Files panels for Audio, Photos, Video, Illustrations, and install-specific **Theme** assets (distinct from Settings → Theme brand paths)
 - Files list header row aligned with file items: master select-all checkbox, compact filter dropdowns (`All` / usage filters plus `User files` / `Include demo`), and labeled **Upload**, **Download**, and **Delete** bulk actions
@@ -70,7 +70,9 @@ These are **directional** — betatesters should check `ROADMAP.md` → **Beta t
 
 ### v0.8 beta (active)
 
-**Shipped in v0.8 so far:** package updater; block-based Pages editor; unified Content editors with pool/result UX; upload-time background delivery; delivery-ready pool gates.
+**Shipped in v0.8 so far:** package updater; block-based Pages editor; unified Content editors with pool/result UX; upload-time background delivery; delivery-ready pool gates; platform `data/` containers (assets, releases, playlists, galleries, themes).
+
+**v0.8.3 (next):** invisible maintenance (config auto-repair, content preparation inside Publish), backup/export, playlist `kind` fix, Release editor, container marketing metadata, Content editor header UX parity.
 
 **Still in progress (implementation only — policy complete):**
 - Asset registry (`ast_{ULID}`) and `data/` containers for releases, playlists, galleries, themes
