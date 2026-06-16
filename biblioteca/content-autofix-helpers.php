@@ -155,6 +155,56 @@ function bandpromo_content_autofix_resolve_pool_asset(string $root, string $pool
     return null;
 }
 
+function bandpromo_content_autofix_normalize_playlist_kind(string $root, bool $dryRun): array
+{
+    $step = bandpromo_content_autofix_step_result('playlist_kind', 'Use system playlists in admin and player');
+    bandpromo_playlist_ensure_seeded($root);
+    $registry = bandpromo_playlist_load_registry($root);
+    $registryChanged = false;
+
+    foreach ($registry['playlists'] as $index => $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $kind = strtolower(trim((string) ($entry['kind'] ?? 'system')));
+        if ($kind === 'system') {
+            $step['skipped']++;
+            continue;
+        }
+
+        $playlistId = trim((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+
+        $step['changed']++;
+        $step['items'][] = ['playlist' => $playlistId, 'from' => $kind, 'to' => 'system'];
+
+        if ($dryRun) {
+            continue;
+        }
+
+        $registry['playlists'][$index]['kind'] = 'system';
+        $registryChanged = true;
+
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+            if (strtolower(trim((string) ($document['kind'] ?? 'system'))) !== 'system') {
+                $document['kind'] = 'system';
+                bandpromo_playlist_write_document($root, $document);
+            }
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $playlistId . ': ' . $throwable->getMessage();
+        }
+    }
+
+    if ($registryChanged && !$dryRun) {
+        bandpromo_playlist_write_registry($root, $registry);
+    }
+
+    return $step;
+}
+
 function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dryRun): array
 {
     $step = bandpromo_content_autofix_step_result('playlist_links', 'Link playlist entries to asset registry');
@@ -423,6 +473,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
     $pipeline = [
         'bandpromo_content_autofix_materialize_audio_masters',
         'bandpromo_content_autofix_canonicalize_master_filenames',
+        'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_releases',
         'bandpromo_content_autofix_sync_config_scope',

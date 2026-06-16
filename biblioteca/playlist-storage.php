@@ -916,7 +916,7 @@ function bandpromo_playlist_create(string $root, string $title, string $preferre
     $registry['playlists'][] = [
         'id' => $id,
         'title' => $title,
-        'kind' => 'user',
+        'kind' => 'system',
         'publish_date' => gmdate('Y-m-d'),
         'sort_order' => $maxOrder + 10,
     ];
@@ -925,7 +925,7 @@ function bandpromo_playlist_create(string $root, string $title, string $preferre
     $document = bandpromo_playlist_default_document();
     $document['id'] = $id;
     $document['title'] = $title;
-    $document['kind'] = 'user';
+    $document['kind'] = 'system';
     $document['publish_date'] = gmdate('Y-m-d');
     $document['entries'] = [];
     bandpromo_playlist_write_document($root, $document);

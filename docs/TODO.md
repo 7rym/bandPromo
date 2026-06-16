@@ -19,6 +19,8 @@ Rules for this file:
 
 **v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance (config auto-repair, content-model checks folded into Publish), playlist `kind` fix, Content editor UX parity, release/playlist marketing metadata definitions, backup/export MVP, and Release editor. See **v0.8.3 active slice** below. All betatesters are on the latest build; **no legacy HTML page import** (closed).
 
+**v0.8.4 planning (2026-06-16):** visual media rework — unified Visual pool (collapse Illustrations/Photos/Video), `ast_{ULID}` naming for all visual assets, format-by-content and context-sized multi-variant delivery. Audio stays a separate family. See **v0.8.4 active slice** below and [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
+
 **v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v0.8 build N`** (build numbering continues from v0.7; build 287 opened the v0.8 line).
 
 | Priority | Scope | Status |
@@ -37,37 +39,59 @@ Reference: see `ROADMAP.md` for milestone structure and beta-tester expectations
 Policy and operator messaging — **lock before implementation**:
 
 - [x] Close legacy `data/bio.html` / `data/faq.html` import scope: all betatesters on current JSON pages; recovery is manual copy only if old files exist on host backups.
-- [ ] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; one follow-up **Update the live site** (Publish) is normal after every package update — not a failure state.
-- [ ] Lock **invisible maintenance** contract: config structure auto-repair and content-model preparation run automatically before Publish; no separate operator-facing “content model upgrade” card in normal workflow.
+- [x] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; one follow-up **Update the live site** (Publish) is normal after every package update — not a failure state.
+- [x] Lock **invisible maintenance** contract: config structure auto-repair and content-model preparation run automatically before Publish; no separate operator-facing “content model upgrade” card in normal workflow.
 - [ ] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
-- [ ] Lock **v0.8 playlist kind rule**: operator-created playlists are **`system`** until user/VIP playlists ship in v0.9+; fix current bug that creates `kind: "user"` (invisible to player).
+- [x] Lock **v0.8 playlist kind rule**: operator-created playlists are **`system`** until user/VIP playlists ship in v0.9+; fix current bug that creates `kind: "user"` (invisible to player).
 
 Implementation order (v0.8.3):
 
 Trust and operator calm:
 
-- [ ] **Config auto-repair** — silently deep-merge missing `web-config.json` sections from template on admin load (same as Settings → Repair today); audit-log only; remove scary “Incomplete config” banner for operators.
-- [ ] **Publish preflight** — before build tasks, run content-model preparation (`content-autofix` pipeline); apply when needed; plain-language Publish status only; hide Dashboard **Content model upgrade** card once integrated.
-- [ ] **Post-update notification copy** — after Site update, nudge **Update the live site** once with success-first wording (not “Publish prep did not finish automatically”).
+- [x] **Config auto-repair** — silently deep-merge missing `web-config.json` sections from template on admin load (same as Settings → Repair today); audit-log only; remove scary “Incomplete config” banner for operators.
+- [x] **Publish preflight** — before build tasks, run content-model preparation (`content-autofix` pipeline); apply when needed; plain-language Publish status only; hide Dashboard **Content model upgrade** card once integrated.
+- [x] **Post-update notification copy** — after Site update, nudge **Update the live site** once with success-first wording (not “Publish prep did not finish automatically”).
 - [ ] **Backup/export MVP** — first operator-facing full backup or data export per [PORTABILITY.md](PORTABILITY.md) (betatesters need a safety net before big releases).
 
 Platform fixes:
 
-- [ ] **Playlist `kind` bug** — create/save operator playlists as `kind: "system"`; migrate existing `user` playlists on existing installs during Publish preflight; player selector appears when **two or more system playlists** exist.
+- [x] **Playlist `kind` bug** — create/save operator playlists as `kind: "system"`; migrate existing `user` playlists on existing installs during Publish preflight; player selector appears when **two or more system playlists** exist.
 - [ ] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
 - [ ] **Container marketing metadata** — add `description` + `poster_asset_id` fields to playlist and page containers; sketch then implement release EPK fields (press blurb, credits, genre, contact, streaming links).
 
 Content editor UX (match Themes pattern):
 
-- [ ] **Edit header pattern** — inline editable name in header; **← Back** aligned right on Playlist, Gallery, and Pages edit views (Themes already ships this).
-- [ ] **Pages richtext toolbar** — pin toolbar outside the scrolling text area (sticky header or split block chrome) so long blocks remain editable.
-- [ ] **Pages delete control** — move page delete to pool rows (like Playlist/Gallery); remove delete from edit header.
+- [x] **Edit header pattern** — inline editable name in header; **← Back** aligned right on Playlist, Gallery, and Pages edit views (Themes already ships this).
+- [x] **Pages richtext toolbar** — pin toolbar outside the scrolling text area (sticky header or split block chrome) so long blocks remain editable.
+- [x] **Pages delete control** — move page delete to pool rows (like Playlist/Gallery); remove delete from edit header.
 
 Deferred (documented, not v0.8.3):
 
 - [ ] Rich share cards and player playlist presentation on mobile (after metadata fields + Release editor).
 - [ ] News/tour archive module (v1+); pages + galleries cover interim tour content.
 - [ ] User/VIP-authored playlists (`kind: "user"`) — v0.9+ after access model implementation.
+
+## v0.8.4 active slice (visual media — delivery + unified pool)
+
+Scheduled after v0.8.3 trust/UX items. Fits v0.8 platform adaptation work (scaling, asset identity, pool model) — **not a hotfix**.
+
+Policy — **lock before implementation**:
+
+- [ ] Lock **two media families**: `audio` (unchanged) and `visual` (images + video). Retire Illustrations / Photos / Video as product categories.
+- [ ] Lock **visual `ast_{ULID}` identity**: extend `data/assets/registry.json` to all visual uploads; containers reference `asset_id`, not legacy folder paths.
+- [ ] Lock **tags-over-folders**: `media_type`, `has_alpha`, `origin`, delivery-ready facets; role from container references (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+- [ ] Lock **picker filter contract** per admin context (track cover, gallery, page picture, theme logo, background video, share source).
+- [ ] Lock **format-by-content** rule: delivery codec follows alpha and role requirements; no global JPEG flattening (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
+- [ ] Lock **dimension-by-context** rule: delivery pixels target real UI surfaces (+ retina margin), not source upload dimensions.
+- [ ] Complete **display-context audit**: verify seed matrix (logo 320px, playlist thumb 70px, card 320px, gallery grid 160px, lightbox, share crops) on phone/tablet/desktop; publish delivery context registry.
+- [ ] Lock **variant set per role**: which of `thumb` / `card` / `lightbox` / `share` / video `poster` / `standard-stream` each reference context requires.
+
+Implementation order (v0.8.4):
+
+- [ ] **Phase 0b — registry + migration design**: visual asset registration at upload; autofix backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility layer.
+- [ ] **Phase 1 — format-aware delivery**: preserve alpha (PNG/WebP); sanity max dimensions per role; stop white-background flatten.
+- [ ] **Phase 2 — multi-variant storage**: `media/visual/delivery/{asset_id}/{variant}`; migrate off flat `optimal/*.jpg` and stem-based video paths.
+- [ ] **Phase 3 — admin + pickers**: Files → Visual tab; context-filtered pickers; pool gating and validation on variant manifest.
 
 ## v0.8 active work
 

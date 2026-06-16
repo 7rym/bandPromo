@@ -345,22 +345,6 @@
     gap: 10px;
 }
 
-.theme-editor-head-name {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.theme-editor-name-input {
-    flex: 1 1 auto;
-    min-width: 120px;
-    max-width: 280px;
-    font-size: 14px;
-    padding: 6px 8px;
-}
-
 .theme-editor-head-badges {
     display: inline-flex;
     align-items: center;
@@ -374,7 +358,8 @@
 }
 
 .theme-editor-name-status {
-    margin-left: auto;
+    flex: 0 1 auto;
+    min-width: 0;
     font-size: 12px;
     white-space: nowrap;
 }

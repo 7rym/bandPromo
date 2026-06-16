@@ -34,9 +34,11 @@ Operators must not depend on raw filenames. Disk names are stable IDs; human mea
 
 | Layer | Purpose | On-disk name | Operator-visible |
 |-------|---------|--------------|------------------|
-| **Original** | Trust, recovery, audit | `ast_{ULID}` (+ `original_filename` in registry) | Upload history only |
+| **Original** | Trust, recovery, audit | upload filename preserved; registry holds `original_filename` | Upload history only |
 | **Master** | Canonical packaged file | `ast_{ULID}.{ext}` | No |
-| **Delivery** | Playback/display derivatives | `ast_{ULID}.{ext}` | No |
+| **Delivery** | Playback/display derivatives | `ast_{ULID}` + variant (e.g. `/thumb.webp`, `/standard-stream.mp4`) | No |
+
+Applies to **audio and visual** assets. Legacy visual files may still use human stems under `media/img/`, `media/photo/`, and `media/video/` until v0.8.4 migration completes.
 
 ### Asset ID format
 
@@ -62,9 +64,56 @@ Human-readable export names (for future distributor handover ZIPs) are generated
 
 ### Unified media pools
 
-One logical library per media family (audio; images+video; theme-linked assets). Operators filter by type, tags, release, delivery-ready, and usage references. Derivatives stay in server folders; pools hide the file maze.
+Two **media families** at the platform level — because intake, packaging, and delivery pipelines differ materially:
 
-Asset **role** (page illustration, gallery item, track cover, theme logo) comes from **references** in containers/blocks, not from folder location.
+| Family | Contents | Operator pool |
+|--------|----------|-----------------|
+| **Audio** | Music, spoken word, theme welcome audio | Files → Audio; playlist/release references |
+| **Visual** | Still images **and** video | Files → Visual (single pool); gallery/page/theme references |
+
+**Scheduled v0.8.4:** collapse today's constructed split — **Illustrations** (`media/img/`), **Photos** (`media/photo/`), and **Video** (`media/video/`) — into one **Visual** library. The old folder names are legacy intake buckets, not product categories. Anything visual can share one pool as long as assets are tagged and pickers apply context filters.
+
+**Audio stays separate** — masters, metadata repair, playlist coupling, and MP3 delivery are a different pipeline from visual scaling and transcode.
+
+### Asset identity applies to visual media too
+
+Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visual assets should follow the same contract in v0.8.4:
+
+- **Original** preserved under the upload name (audit/recovery) with `original_filename` in registry
+- **Master** stored as `ast_{ULID}.{ext}` (canonical regeneration source)
+- **Delivery** variants under `ast_{ULID}/` or `ast_{ULID}_{variant}.{ext}` — not human upload stems
+
+Containers, galleries, pages, themes, and track covers reference **`asset_id`**, not `/media/img/original/my-logo.png`.
+
+### Tags and roles (not folders)
+
+Registry **`tags`** and derived facets replace folder location as the operator/filter model:
+
+| Facet | Purpose | Examples |
+|-------|---------|----------|
+| `media_type` | Intake/delivery pipeline branch | `image`, `video` |
+| `has_alpha` | Format/delivery policy | `true` for logos, overlays |
+| `origin` | Bundled vs operator content | `user-upload`, `bundled-placeholder`, `generated` |
+| `delivery_ready` | Pool gating | computed from variant manifest |
+
+**Role** (track cover, gallery item, page picture, theme logo, share source) comes from **references** in containers/blocks/config — not from which legacy folder the file was uploaded to.
+
+### Picker and admin filter contract
+
+Media pickers declare a **context**; the backend returns assets from the Visual pool filtered for that context:
+
+| Picker context | Typical filters |
+|----------------|-----------------|
+| Track cover | `media_type=image`, delivery-ready, square-friendly |
+| Gallery item | `media_type` image or video, delivery-ready |
+| Page picture | `media_type=image`, delivery-ready |
+| Theme logo | `media_type=image`, prefer `has_alpha` |
+| Background video | `media_type=video`, delivery-ready |
+| Share / poster source | `media_type=image`, large enough for share variant |
+
+Admin **Files → Visual** exposes the same pool with operator filters: type (image/video), in-use/orphan, alpha, delivery-ready, references — replacing separate Illustrations/Photos/Video tabs.
+
+`media/special/` install identity assets (**logos, share sources**) migrate into the Visual pool with tags such as `theme-identity` during v0.8.4; until then they remain a workaround path that bypasses the JPEG optimizer.
 
 ## Releases
 

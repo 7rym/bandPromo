@@ -86,7 +86,6 @@
         });
     }
 
-    const deleteCurrentPageBtn = document.getElementById('deleteCurrentPageBtn');
     const pageDeleteModal = document.getElementById('pageDeleteModal');
     const pageDeleteModalName = document.getElementById('pageDeleteModalName');
     const pageDeleteConfirmBtn = document.getElementById('pageDeleteConfirmBtn');
@@ -105,21 +104,14 @@
         pageDeleteConfirmBtn?.focus();
     }
 
+    window.bandpromoOpenPageDeleteModal = openPageDeleteModal;
+
     function closePageDeleteModal() {
         pendingDeletePageId = '';
         if (pageDeleteModal) {
             pageDeleteModal.style.display = 'none';
             pageDeleteModal.setAttribute('aria-hidden', 'true');
         }
-    }
-
-    if (deleteCurrentPageBtn) {
-        deleteCurrentPageBtn.addEventListener('click', () => {
-            const pageId = deleteCurrentPageBtn.dataset.pageId || '';
-            const pageTitle = deleteCurrentPageBtn.dataset.pageTitle || 'this page';
-            if (!pageId) return;
-            openPageDeleteModal(pageId, pageTitle);
-        });
     }
 
     pageDeleteCancelBtn?.addEventListener('click', closePageDeleteModal);
@@ -133,14 +125,14 @@
         if (!pageId) return;
 
         try {
-            pageDeleteConfirmBtn.disabled = true;
-            deleteCurrentPageBtn.disabled = true;
+            if (pageDeleteConfirmBtn) {
+                pageDeleteConfirmBtn.disabled = true;
+            }
             await deletePage(pageId);
             window.location.href = '?tab=content&cntab=pages&page=faq';
         } catch (error) {
-            pageDeleteConfirmBtn.disabled = false;
-            if (deleteCurrentPageBtn) {
-                deleteCurrentPageBtn.disabled = false;
+            if (pageDeleteConfirmBtn) {
+                pageDeleteConfirmBtn.disabled = false;
             }
             alert(error.message);
         }

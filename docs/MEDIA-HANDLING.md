@@ -635,18 +635,18 @@ bandPromo should unify the operator mental model, not force audio, image, and vi
 
 The long-term filesystem/build direction should move from:
 
-- `media/<type>/original/`
-- `media/<type>/optimal/`
+- `media/audio/…` (unchanged family)
+- legacy visual split: `media/img/`, `media/photo/`, `media/video/`, `media/special/`
+- flat `media/*/optimal/` delivery buckets
 
 to something conceptually closer to:
 
-- `media/<type>/original/`
-- `media/<type>/master/`
-- `media/<type>/delivery/<variant>/`
+- `media/audio/original/`, `media/audio/master/`, `media/audio/delivery/<variant>/`
+- `media/visual/original/`, `media/visual/master/`, `media/visual/delivery/<asset-id>/<variant>/` — **one visual family** for stills and video; filenames are `ast_{ULID}` tiers, not upload stems
 
-Where `<type>` may include `audio`, `img`, `photo`, `video`, and later other explicit media-role families.
+Where `<type>` at the top level is **`audio`** and **`visual`** only. Legacy `img` / `photo` / `video` folder names remain as migration sources until autofix/backfill completes.
 
-The important rule is not the exact folder spelling yet. The important rule is that `master` and `delivery` must become separate product concepts in both code and storage.
+The important rule is not the exact folder spelling yet. The important rule is that `master` and `delivery` must become separate product concepts in both code and storage, and that **visual identity is registry + tags**, not three parallel upload trees.
 
 ### Delivery naming guidance by media type
 
@@ -910,8 +910,106 @@ Initial target buckets should be explicit:
 Guidance:
 
 - do not serve 2048px PNGs when the UI never presents them near that size
-- default to high-quality JPEG or WebP for non-transparent delivery assets
+- choose delivery **format by content need**, not by habit: opaque photos and track artwork may use high-quality JPEG or WebP; assets with alpha (logos, icons, overlays) must keep transparency (PNG or WebP with alpha) — never flatten to white without operator consent
+- choose delivery **dimensions by display context**, not by source upload size: resize and compress to the largest size each UI surface actually needs, plus a sensible retina margin
 - keep the original upload and any corrected master artwork separately from delivery derivatives
+
+### Current implementation gap (beta feedback, 2026-06)
+
+Closed-beta feedback is valid: today's build pipeline does **not** yet follow the guidance above.
+
+What actually ships today:
+
+- `scripts/optimizeMedia.py` writes **one** delivery file per image: `media/img/optimal/{stem}.jpg` and `media/photo/optimal/{stem}.jpg`
+- conversion always uses `convert_cover_to_jpeg()`, which flattens RGBA/alpha to a **white background** before saving JPEG
+- delivery files are **not resized** to UI dimensions — a 4000×4000 upload becomes a 4000×4000 JPEG unless the source was already smaller
+- `media/special/` theme assets (logos, share sources) are **not** run through the image optimizer; they are referenced directly from config paths — but any logo or artwork picked from Illustrations/Photos pools still lands in the JPG-only `optimal/` pipeline
+
+Operator impact:
+
+- a PNG logo saved for transparency is destroyed when it flows through Illustrations → Publish
+- even opaque photos are heavier than necessary because the player, gallery, and admin thumbs never render anywhere near full source resolution
+- the product docs already describe multi-variant delivery (`thumb`, `card`, `lightbox`, `share`), but the codebase still implements a single legacy `optimal/` bucket
+
+This gap is **documented policy vs implementation debt**, not intentional product behavior. Fix belongs in the **v0.8.4 visual media slice** (delivery scaling + unified pool + `ast_{ULID}` naming — see [TODO.md](TODO.md)).
+
+### Visual media rework plan (v0.8.4)
+
+Goal: (1) optimize **size and dimensions** for real UI contexts; (2) pick **codec/format** from content requirements; (3) extend **`ast_{ULID}` asset identity** to all visual uploads; (4) **unify** Illustrations, Photos, and Video into one Visual pool with tags and picker filters. Audio remains a separate family.
+
+#### Phase 0 — display-context audit (policy, before coding)
+
+Before changing the optimizer, inventory every surface that loads a delivery image and record the **maximum rendered width/height** at common breakpoints (phone portrait, phone landscape/PWA, tablet, desktop).
+
+Seed matrix from current CSS (to be verified on real devices and updated in this doc):
+
+| Context | Where | Approx max display (CSS) | Notes |
+|---------|--------|--------------------------|-------|
+| `logo` | Player header `.content-logo-img` | 320px wide (+ 2× retina → ~640px delivery cap) | Often PNG with alpha; theme asset |
+| `thumb` | Playlist row `.playlist-track-cover`, bio track list `.track-cover` | 70×70px (+ 2× → 140px) | Square crop |
+| `card` | Player flip cover `.cover-art` inside `--card-size` | 320×320px (+ 2× → 640px) | Square; primary artwork view |
+| `card` | Admin/media file list `.media-file-thumb` | ~48–64px (verify) | Admin-only; low priority |
+| `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
+| `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
+| `lightbox` | Player/page lightbox enlarged view | largest practical overlay (measure; likely ≤1200px wide) | Do not default to full source resolution |
+| `share` | `makeSocial.py` Facebook/Twitter crops | fixed aspect targets (1.91:1 etc.) | Separate from in-player artwork |
+
+Deliverable: a checked-in **delivery context registry** (JSON or markdown table) that maps each context → max pixel box → default variant name. All future resizers read from this registry, not ad hoc magic numbers in Python.
+
+#### Phase 0b — unified visual pool policy (lock before coding)
+
+Lock alongside the display-context audit:
+
+- **Two families only:** `audio` and `visual` (images + video). Drop the product distinction between Illustrations, Photos, and Video — those become legacy intake paths, not operator mental models.
+- **Registry for all visual uploads:** assign `ast_{ULID}` at intake; store `media_type`, `has_alpha`, `original_filename`, master/delivery paths in `data/assets/registry.json` (same registry as audio, discriminated by type).
+- **Role from references:** track cover vs gallery item vs page picture vs theme logo is determined by container/config references, not upload folder.
+- **Picker filter contract:** each admin picker declares allowed `media_type`, delivery-ready requirement, and optional facets (alpha, square); document in [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
+- **Migration rule:** dual-read legacy paths (`/media/img/original/…`, `/media/photo/original/…`, `/media/video/original/…`, `/media/special/…`) during transition; Publish/autofix registers existing files and generates new-tier delivery; retire folder split after backfill.
+
+#### Phase 1 — format-aware single delivery (quick win)
+
+Stop harming transparency while multi-variant work is in progress:
+
+- detect alpha / palette transparency in source; when present, emit PNG or WebP-with-alpha delivery instead of JPEG
+- for opaque sources, keep JPEG or WebP without alpha
+- apply a **sanity max dimension** per asset role (logo vs track cover vs gallery photo) even before full multi-variant lands — better one correctly sized PNG than one oversized JPG
+
+Theme/logos: prefer Visual pool assets tagged for theme identity; until migration, `media/special/` direct references remain a valid workaround.
+
+#### Phase 2 — multi-variant delivery + visual storage migration
+
+Replace flat `media/*/optimal/{stem}.jpg` (and parallel video optimal trees) with explicit variants keyed by **`asset_id`**, e.g.:
+
+- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/thumb.webp`
+- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/card.webp`
+- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/lightbox.webp`
+- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/poster.jpg` (video)
+- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/standard-stream.mp4` (video)
+
+Consolidate intake under `media/visual/original/` and masters under `media/visual/master/` as migration completes.
+
+Rules:
+
+- generate only the variants contexts require for that asset **role** (track cover needs `thumb` + `card` + `lightbox`; a page grid photo may skip `card`)
+- store width/height/format in a small delivery manifest keyed by asset id (extends asset registry direction)
+- resolver helpers in PHP/JS choose variant URL for each render site; later: `srcset`/`sizes` for responsive markup
+
+Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regenerates variants; autofix/backfill pass queues missing variants.
+
+#### Phase 3 — resolver + UI wiring
+
+- extend asset registry helpers and `media-delivery-helpers.php` for visual `asset_id` + variant resolution
+- replace Files → Illustrations / Photos / Video with **Files → Visual** (filters for image/video, orphan, alpha, references)
+- update Content pickers to query the Visual pool with context filters instead of hard-coded `data-targets="illustrations,photos,special"`
+- Content pools gate on **required variants present**, not merely “some file in optimal/”
+- validation messages name the missing variant (“card delivery missing for track cover”) not “run Build”
+
+#### Non-goals for v0.8.4
+
+- merging **audio** into the Visual pool (families stay separate)
+- arbitrary operator-chosen export formats (ZIP of masters remains separate)
+- on-the-fly dynamic resizing CDN (all variants remain pre-generated publish artifacts for predictable hosting)
+- new intake formats beyond current PNG/JPG/WebP/MOV/MP4 until master/delivery contract is stable
 
 ### Audio delivery targets
 

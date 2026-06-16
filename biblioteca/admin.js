@@ -577,31 +577,49 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const summaryDetails = taskDetails.length
                     ? taskDetails.map(text => ({ text }))
                     : [{ text: formatBuildTaskSummary(buildState) }];
+                const reasons = Array.isArray(buildState.reasons) ? buildState.reasons : [];
+                const afterPackageUpdate = reasons.includes('package_update');
+                const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
+                const actionLabel = getBuildActionLabel(action);
+
+                if (setupComplete && afterPackageUpdate) {
+                    return {
+                        severity: 'recommended-fix',
+                        title: 'Site update installed — refresh your public site',
+                        file: '',
+                        checkedAt: String(buildState.updated_at || '').trim(),
+                        details: [
+                            { text: 'Your content and settings were preserved. Run Update the live site once so delivery files and the site manifest match the new version.' },
+                            ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
+                        ],
+                        actions: [
+                            { label: actionLabel, action: 'run-recommended-build' },
+                            { label: 'Go to Publish', href: buildBuildTabUrl() },
+                        ],
+                    };
+                }
 
                 if (setupComplete) {
-                    const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
                     const taskIntro = taskDetails.length
                         ? `Pending: ${taskDetails.join('; ')}.`
                         : formatBuildTaskSummary(buildState);
 
                     return {
                         severity: 'recommended-fix',
-                        title: 'Publish preparation did not finish automatically',
+                        title: 'Saved changes are not live yet',
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your change was saved, but bandPromo still needs a build step before visitors get the updated files.' },
+                            { text: 'Your edits are saved in admin. Update the live site when you are ready for visitors to get the latest files.' },
                             { text: taskIntro },
-                            { text: 'Use System → Publish to run the pending step. Opening Files alone will not regenerate delivery files.' },
                         ],
                         actions: [
-                            { label: getBuildActionLabel(action), action: 'run-recommended-build' },
+                            { label: actionLabel, action: 'run-recommended-build' },
                             { label: 'Go to Publish', href: buildBuildTabUrl() },
                         ],
                     };
                 }
 
-                const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
                 const introDetail = action === 'optimize'
                     ? { text: 'You changed photos or artwork. Visitors will not see the new versions until you refresh them.' }
                     : { text: 'You made changes that are saved in admin but not yet on the website fans visit.' };
@@ -613,7 +631,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     checkedAt: String(buildState.updated_at || '').trim(),
                     details: [introDetail, ...summaryDetails],
                     actions: [
-                        { label: getBuildActionLabel(action), action: 'run-recommended-build' },
+                        { label: actionLabel, action: 'run-recommended-build' },
                         { label: 'Go to Publish', href: buildBuildTabUrl() },
                     ],
                 };
@@ -3239,7 +3257,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             deleteConfirmBtn.disabled = false;
                         }
                     } catch(e) {
-                        deleteStatusEl.innerHTML = `<span class="text-error">❌ Network error</span>`;
+                        deleteStatusEl.innerHTML = `<span class="text-error">❌ Network error: ${bandpromoAdminEscapeHtml(e && e.message ? e.message : 'Request failed')}</span>`;
                         deleteConfirmBtn.disabled = false;
                     }
                 });

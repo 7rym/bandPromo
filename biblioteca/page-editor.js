@@ -10,7 +10,6 @@
         const editorView = document.getElementById('pageEditorView');
         const poolList = document.getElementById('pagePoolList');
         const backBtn = document.getElementById('pageEditorBackBtn');
-        const deleteCurrentPageBtn = document.getElementById('deleteCurrentPageBtn');
         const pageLabelFieldWrap = document.getElementById('pageLabelFieldWrap');
 
         let pages = [];
@@ -54,18 +53,6 @@
             window.history.replaceState({}, '', url.toString());
         }
 
-        function updateDeleteButton(pageId) {
-            if (!deleteCurrentPageBtn) return;
-            const entry = pageEntry(pageId);
-            const canDelete = entry && !entry.required;
-            deleteCurrentPageBtn.hidden = !canDelete || !isEditing;
-            if (!canDelete) {
-                return;
-            }
-            deleteCurrentPageBtn.dataset.pageId = pageId;
-            deleteCurrentPageBtn.dataset.pageTitle = entry.title || entry.label || pageId;
-        }
-
         function updateLabelFieldVisibility(pageId) {
             const entry = pageEntry(pageId);
             const isLoginOnly = entry && entry.surface === 'login';
@@ -84,12 +71,18 @@
             poolList.innerHTML = pages.map((entry) => {
                 const selectedClass = entry.id === selectedPageId ? ' playlist-editor-row-selected' : '';
                 const title = `${entry.emoji || '📝'} ${entry.title || entry.label || entry.id}`.trim();
+                const deleteBtn = !entry.required
+                    ? `<button type="button" class="page-pool-delete-btn" data-page-id="${escapeHtml(entry.id)}" data-page-title="${escapeHtml(entry.title || entry.label || entry.id)}" title="Delete page" aria-label="Delete ${escapeHtml(entry.title || entry.label || entry.id)}">🗑️</button>`
+                    : '';
                 return `<li class="playlist-editor-row page-pool-row${selectedClass}" data-page-id="${escapeHtml(entry.id)}" aria-selected="${entry.id === selectedPageId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>${escapeHtml(title)}</strong>
                         <span class="playlist-track-meta">${escapeHtml(pageMetaLine(entry))}</span>
                     </span>
-                    <button type="button" class="page-pool-edit-btn" data-page-id="${escapeHtml(entry.id)}" title="Edit page" aria-label="Edit ${escapeHtml(entry.title || entry.label || entry.id)}">✏️</button>
+                    <span class="page-pool-row-actions">
+                        <button type="button" class="page-pool-edit-btn" data-page-id="${escapeHtml(entry.id)}" title="Edit page" aria-label="Edit ${escapeHtml(entry.title || entry.label || entry.id)}">✏️</button>
+                        ${deleteBtn}
+                    </span>
                 </li>`;
             }).join('');
         }
@@ -101,7 +94,6 @@
             if (saveBtn) {
                 saveBtn.hidden = true;
             }
-            updateDeleteButton(currentPageKey);
             renderPoolList();
         }
 
@@ -112,7 +104,6 @@
             if (poolView) poolView.hidden = true;
             if (editorView) editorView.hidden = false;
             syncPageUrl(pageId);
-            updateDeleteButton(pageId);
             updateLabelFieldVisibility(pageId);
             renderPoolList();
         }
@@ -186,6 +177,20 @@
         }
 
         poolList?.addEventListener('click', (event) => {
+            const deleteBtn = event.target instanceof HTMLElement
+                ? event.target.closest('.page-pool-delete-btn')
+                : null;
+            if (deleteBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                const pageId = deleteBtn.getAttribute('data-page-id') || '';
+                const pageTitle = deleteBtn.getAttribute('data-page-title') || 'this page';
+                if (pageId && typeof window.bandpromoOpenPageDeleteModal === 'function') {
+                    window.bandpromoOpenPageDeleteModal(pageId, pageTitle);
+                }
+                return;
+            }
+
             const editBtn = event.target instanceof HTMLElement
                 ? event.target.closest('.page-pool-edit-btn')
                 : null;
@@ -548,8 +553,10 @@
         function renderRichEditor(index, field, value, compact) {
             const minClass = compact ? ' page-rich-editor--compact' : '';
             return `
-                ${renderWordToolbar(index, field)}
-                <div class="page-rich-editor${minClass}" contenteditable="true" data-rich-editor="1" data-block-index="${index}" data-rich-field="${field}" spellcheck="true">${richHtmlForEditor(value)}</div>
+                <div class="page-rich-editor-shell">
+                    <div class="page-rich-toolbar-sticky">${renderWordToolbar(index, field)}</div>
+                    <div class="page-rich-editor${minClass}" contenteditable="true" data-rich-editor="1" data-block-index="${index}" data-rich-field="${field}" spellcheck="true">${richHtmlForEditor(value)}</div>
+                </div>
             `;
         }
 

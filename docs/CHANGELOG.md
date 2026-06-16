@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-06-16 18:00 - Checkpoint v0.8 build 295: ships v0.8.3 trust/UX (config auto-repair, Publish preflight, playlist `kind: system`, Content editor header/toolbar/delete UX, post-update copy); hotfix media delete network error; documents v0.8.4 unified Visual pool and delivery scaling plan.
+
+2026-06-16 17:00 - Expanded v0.8.4 visual media plan: unified Visual pool (collapse Illustrations/Photos/Video), extend `ast_{ULID}` registry to all visual assets, tags + picker filters instead of folder categories; audio stays separate. Updated `MEDIA-HANDLING.md`, `PLATFORM-MODEL.md`, `TODO.md`, `ROADMAP.md`, `FEATURES.md`.
+
+2026-06-16 16:00 - Documented v0.8.4 image delivery plan from beta feedback: stop forced JPEG deliverables and alpha flattening; audit real UI display sizes; multi-variant delivery (`thumb`, `card`, `lightbox`, `share`) sized and encoded by content need. Updated `MEDIA-HANDLING.md`, `TODO.md`, `ROADMAP.md`, and `FEATURES.md`.
+
+2026-06-16 15:30 - Hotfix v0.8 build 295: fixed Files tab delete failing with "Network error" for all media types — `delete-media.php` redeclared `bandpromo_video_delivery_path()` already loaded via `gallery-helpers.php`, causing a PHP fatal before JSON could be returned.
+
+2026-06-16 14:00 - v0.8.3 implementation: silent `web-config.json` structure auto-repair on admin load; Publish preflight runs config repair + content preparation before full builds; removed Dashboard content-model upgrade card; improved post-update notification copy; fixed operator playlists to `kind: system` with migration on publish; Content editor header UX parity (inline name, back right) for Playlist/Gallery/Pages/Themes; sticky richtext toolbars; page delete on pool rows.
+
 2026-06-16 12:00 - Checkpoint v0.8.3 docs (build 293): captured closed-beta feedback after build 292 — v0.8.3 slice in `TODO.md` (operator trust, config auto-repair, Publish-integrated content preparation, playlist `kind: system` fix, Content editor UX, Release editor + EPK metadata, backup/export MVP); expanded beta-tester update/workflow guidance in `ROADMAP.md` and `INSTALL-UPDATE.md`; container presentation fields and playlist kind bug note in `PLATFORM-MODEL.md`; closed legacy HTML page import scope (all testers on JSON pages).
 
 2026-06-15 22:00 - Added TODO follow-up: pre-publish guard to ensure shipped PHP entrypoints only require git-tracked files before release packages are published.

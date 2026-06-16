@@ -226,6 +226,42 @@ function bandpromo_load_runtime_config_raw(?string $configPath = null): array {
     return is_array($decoded) ? $decoded : [];
 }
 
+function bandpromo_reload_runtime_config(?string $configPath = null): void {
+    global $config, $config_file;
+
+    $path = $configPath ?: dirname(__DIR__) . '/web-config.json';
+    $config_file = $path;
+    $config = bandpromo_load_runtime_config_raw($path);
+
+    if (!isset($config['site']) || !is_array($config['site'])) {
+        $config['site'] = [];
+    }
+
+    $config['site'] = array_merge([
+        'name' => 'My Site',
+        'short_name' => 'Site',
+        'description' => 'A web application',
+        'url' => 'https://example.com',
+        'language' => 'en',
+        'author' => 'Author Name',
+    ], $config['site']);
+
+    if (!isset($config['social']) || !is_array($config['social'])) {
+        $config['social'] = [];
+    }
+
+    $config['social'] = array_merge([
+        'twitter' => '@YourHandle',
+        'facebook' => 'YourFacebook',
+        'instagram' => 'YourInstagram',
+        'categories' => ['entertainment'],
+        'keywords' => 'website',
+        'share_image' => '/media/special/bandPromo_share.png',
+        'share_image_width' => 1200,
+        'share_image_height' => 630,
+    ], $config['social']);
+}
+
 function bandpromo_sync_scoped_config_fields(array &$target, array $legacyRoots = ['site', 'social', 'media']): void {
     $legacyRoots = array_values(array_unique($legacyRoots));
     $syncMap = [

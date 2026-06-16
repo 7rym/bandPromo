@@ -232,6 +232,25 @@ if ($authenticated) {
     }
 }
 
+require_once __DIR__ . '/biblioteca/config-repair-helpers.php';
+if ($authenticated) {
+    try {
+        $configRepairResult = bandpromo_config_repair_structure(__DIR__);
+        if (!empty($configRepairResult['repaired'])) {
+            bandpromo_admin_audit_log('config_structure_repaired', [
+                'target_type' => 'config',
+                'target_id' => 'web-config.json',
+                'status' => 'ok',
+                'data' => [
+                    'added_sections' => $configRepairResult['added_sections'] ?? [],
+                ],
+            ]);
+        }
+    } catch (Throwable $throwable) {
+        error_log('Config auto-repair failed: ' . $throwable->getMessage());
+    }
+}
+
 // If not authenticated, show login form
 if (!$authenticated) {
     ?>
@@ -654,20 +673,6 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         </div>
                     </div>
                 <?php endif; ?>
-            </div>
-
-            <div class="card content-autofix-card" id="contentAutofixCard">
-                <h2>🛠️ Content model upgrade</h2>
-                <p class="card-note">
-                    One-click migration for older installs: register audio assets, link playlists to <code>asset_id</code> entries,
-                    rename masters to <code>ast_{ULID}</code> filenames, sync release membership, refresh validation, and queue Build if anything changed.
-                </p>
-                <div class="content-autofix-status status-text" id="contentAutofixStatus">Not checked yet.</div>
-                <ul class="content-autofix-report" id="contentAutofixReport" hidden></ul>
-                <div class="content-autofix-actions">
-                    <button type="button" class="btn" id="contentAutofixPreviewBtn">Preview upgrade</button>
-                    <button type="button" class="btn btn-primary" id="contentAutofixApplyBtn" hidden>Run upgrade</button>
-                </div>
             </div>
 
             <div class="card package-update-card" id="packageUpdateCard">
@@ -1389,22 +1394,21 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             </div>
 
                             <div id="playlistTracksPoolView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Playlists</button>
+                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                    <div class="content-editor-head-name">
+                                        <input type="text" class="content-editor-name-input" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
+                                    </div>
+                                    <span class="status-text playlist-settings-status content-editor-name-status" id="playlistSettingsStatus"></span>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Playlists</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <div class="playlist-settings-panel" id="playlistSettingsPanel">
                                         <div class="playlist-settings-fields">
                                             <label class="playlist-settings-field">
-                                                <span>Playlist name</span>
-                                                <input type="text" id="playlistSettingsTitle" maxlength="120" autocomplete="off">
-                                            </label>
-                                            <label class="playlist-settings-field">
                                                 <span>Publish date</span>
                                                 <input type="text" id="playlistSettingsPublishDate" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off">
                                             </label>
                                         </div>
-                                        <span class="status-text playlist-settings-status" id="playlistSettingsStatus"></span>
                                     </div>
                                     <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
                                         <h4 class="player-layout-col-title">Available content</h4>
@@ -1496,19 +1500,14 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             </div>
 
                             <div id="galleryItemsPoolView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Galleries</button>
+                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                    <div class="content-editor-head-name">
+                                        <input type="text" class="content-editor-name-input" id="gallerySettingsTitle" maxlength="120" autocomplete="off" placeholder="Gallery name" aria-label="Gallery name">
+                                    </div>
+                                    <span class="status-text playlist-settings-status content-editor-name-status" id="gallerySettingsStatus"></span>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Galleries</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
-                                    <div class="playlist-settings-panel" id="gallerySettingsPanel">
-                                        <div class="playlist-settings-fields">
-                                            <label class="playlist-settings-field">
-                                                <span>Gallery name</span>
-                                                <input type="text" id="gallerySettingsTitle" maxlength="120" autocomplete="off">
-                                            </label>
-                                        </div>
-                                        <span class="status-text playlist-settings-status" id="gallerySettingsStatus"></span>
-                                    </div>
                                     <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
                                         <h4 class="player-layout-col-title">Available content</h4>
                                         <?php echo $poolReleaseFilterHtml; ?>
@@ -1605,17 +1604,14 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             </div>
 
                             <div id="pageEditorView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head page-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn" id="pageEditorBackBtn" title="Back to page list">← Pages</button>
-                                    <button type="button" class="icon-btn danger page-delete-btn" id="deleteCurrentPageBtn" hidden
-                                            title="Delete page" aria-label="Delete page">🗑️</button>
+                                <div class="player-layout-col-head page-editor-view-head content-editor-view-head">
+                                    <div class="content-editor-head-name">
+                                        <input type="text" class="content-editor-name-input" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120" placeholder="Page name" aria-label="Page name">
+                                    </div>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="pageEditorBackBtn" title="Back to page list">← Pages</button>
                                 </div>
                                 <div class="player-layout-panel-body page-editor-view-body">
                                     <div class="page-editor-meta">
-                                        <label class="page-meta-field">
-                                            <span>Page name</span>
-                                            <input type="text" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120">
-                                        </label>
                                         <label class="page-meta-field" id="pageLabelFieldWrap"<?php echo $activePageIsLoginOnly ? ' hidden' : ''; ?>>
                                             <span>Player tab</span>
                                             <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
@@ -1728,13 +1724,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             </div>
 
                             <div id="themeEditorView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head theme-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn" id="themeEditorBackBtn" title="Back to theme list">← Themes</button>
-                                    <div class="theme-editor-head-name">
-                                        <input type="text" class="theme-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Theme name" aria-label="Theme name">
+                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head theme-editor-view-head content-editor-view-head">
+                                    <div class="theme-editor-head-name content-editor-head-name">
+                                        <input type="text" class="theme-editor-name-input content-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Theme name" aria-label="Theme name">
                                         <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
                                     </div>
-                                    <span class="status-text theme-editor-name-status" id="themeSettingsStatus"></span>
+                                    <span class="status-text theme-editor-name-status content-editor-name-status" id="themeSettingsStatus"></span>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to theme list">← Themes</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body theme-editor-view-body">
                                     <div class="theme-editor-form" id="themeEditorForm">
@@ -1880,31 +1876,6 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <!-- ── BASICS ──────────────────────────────────────────────────── -->
             <?php if ($configTab === 'basics'): ?>
             <?php
-            $cfgExamplePath = __DIR__ . '/biblioteca/templates/web-config.template.json';
-            $cfgCurrentPath = __DIR__ . '/web-config.json';
-            if (file_exists($cfgExamplePath) && file_exists($cfgCurrentPath)) {
-                $cfgExample = json_decode(file_get_contents($cfgExamplePath), true) ?? [];
-                $cfgCurrent = json_decode(file_get_contents($cfgCurrentPath), true) ?? [];
-                $missingSections = array_diff(array_keys($cfgExample), array_keys($cfgCurrent));
-            } else {
-                $missingSections = [];
-            }
-            ?>
-            <?php if (!empty($missingSections)): ?>
-            <div style="background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.35);color:#f87171;
-                        border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:13px;">
-                ⚠️ <strong>Incomplete config:</strong> one or more internal config sections are missing.
-                <a href="?tab=settings&amp;ctab=basics&amp;repair=1" style="color:#f87171;text-decoration:underline;">Repair now</a>
-            </div>
-            <?php endif; ?>
-            <?php
-            // Repair action: deep-merge example into current config
-            if (isset($_GET['repair']) && !empty($cfgExample) && !empty($cfgCurrent)) {
-                $cfgRepaired = bandpromo_deep_merge($cfgExample, $cfgCurrent);
-                bandpromo_sync_scoped_config_fields($cfgRepaired, ['site', 'social', 'media']);
-                file_put_contents($cfgCurrentPath, json_encode($cfgRepaired, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-                header('Location: ?tab=settings&ctab=basics'); exit;
-            }
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSite = $cfgFull['site'] ?? [];
             ?>

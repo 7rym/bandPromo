@@ -10,6 +10,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/release-package.php';
+require_once __DIR__ . '/publish-preflight-helpers.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $log_dir   = $root_dir . '/log';
@@ -143,7 +144,15 @@ if (!is_dir($log_dir)) {
     mkdir($log_dir, 0750, true);
 }
 file_put_contents($log_file, '');
-file_put_contents($log_file, "[setup] Preparing your first build...\n", FILE_APPEND);
+file_put_contents($log_file, "[setup] Preparing your site for publish...\n", FILE_APPEND);
+
+if ($mode === 'full') {
+    bandpromo_run_publish_preflight($root_dir, static function (string $line) use ($log_file): void {
+        file_put_contents($log_file, $line, FILE_APPEND);
+    });
+}
+
+file_put_contents($log_file, "[setup] Starting publish build...\n", FILE_APPEND);
 
 try {
     $debug['default_theme_package'] = bandpromo_ensure_default_theme_package(

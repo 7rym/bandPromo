@@ -503,6 +503,8 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 **Checkpoint 2026-06-16 (v0.8.3 docs):** all betatesters are on the latest build (292+). Legacy HTML pages (`data/bio.html`, `data/faq.html`) are **not** imported automatically — content lives in `data/pages/*.json` only. If you still have old HTML files on the host from backups, copy text into the Pages editor manually.
 
+**Image delivery (v0.8.4):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Planned in the same slice:** unify Illustrations/Photos/Video into one Visual pool with `ast_{ULID}` naming (audio stays separate); format and dimensions follow content and UI context. Policy in [MEDIA-HANDLING.md](MEDIA-HANDLING.md) and [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Workaround until v0.8.4: store transparent logos in **Theme Assets** (`media/special/`).
+
 **Updating safely:**
 
 1. **Site update** (Dashboard) replaces application code only. Your `web-config.json`, `.env`, `data/`, `media/`, and `log/` are preserved.
@@ -520,6 +522,7 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 - **Shipped now:** package updater; block-based Pages editor; unified Content editors (Playlist, Gallery, Pages, Player layout) with pool/result UX; upload-time background delivery; delivery-ready pool gates; Notifications for background video jobs; improved player page presentation; delete confirmations; platform storage/API hotfix (build 292).
 - **In progress in v0.8.3:** invisible maintenance (auto-repair + Publish preflight), playlist `kind` fix, Release editor, backup/export, Content editor UX parity, container marketing metadata.
+- **Planned v0.8.4:** visual media rework — unified Visual pool (`ast_{ULID}`), format/dimension-aware multi-variant delivery, collapse Illustrations/Photos/Video admin split.
 - **In progress in v0.8:** gallery module blocks on pages, track deep links, playback/delivery architecture, theme semantic color tokens.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).

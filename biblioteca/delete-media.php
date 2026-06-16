@@ -59,23 +59,6 @@ if ($requestedFiles === []) {
     exit;
 }
 
-function bandpromo_audio_master_paths(string $root, string $filename): array {
-    return bandpromo_audio_master_paths_for_original($root, $filename);
-}
-
-function bandpromo_audio_delivery_paths(string $root, string $filename): array {
-    return bandpromo_audio_delivery_paths_for_original($root, $filename);
-}
-
-function bandpromo_video_delivery_path(string $root, string $filename): string {
-    return $root . '/media/video/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.mp4';
-}
-
-function bandpromo_image_delivery_path(string $root, string $target, string $filename): string {
-    $subdir = $target === 'photos' ? 'photo' : 'img';
-    return $root . '/media/' . $subdir . '/optimal/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-}
-
 function bandpromo_collect_media_references(string $root, string $target, string $filename): array {
     if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
         return bandpromo_media_reference_collect_references($root, $target, $filename);
@@ -298,14 +281,14 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
     $video_delivery_deleted = false;
     $image_delivery_deleted = false;
     if ($target === 'audio') {
-        foreach (bandpromo_audio_master_paths($root, $safe) as $master_path) {
+        foreach (bandpromo_audio_master_paths_for_original($root, $safe) as $master_path) {
             if (@unlink($master_path)) {
                 $master_deleted = true;
             } else {
                 $master_warning = 'Audio original was deleted, but one or more matching master files could not be removed';
             }
         }
-        foreach (bandpromo_audio_delivery_paths($root, $safe) as $delivery_path) {
+        foreach (bandpromo_audio_delivery_paths_for_original($root, $safe) as $delivery_path) {
             if (@unlink($delivery_path)) {
                 $audio_delivery_deleted = true;
             }
@@ -321,7 +304,9 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             $video_delivery_deleted = true;
         }
     } elseif (in_array($target, ['illustrations', 'photos'], true)) {
-        $delivery_path = bandpromo_image_delivery_path($root, $target, $safe);
+        $delivery_path = $target === 'photos'
+            ? bandpromo_photo_delivery_path($root, $safe)
+            : $root . '/media/img/optimal/' . pathinfo($safe, PATHINFO_FILENAME) . '.jpg';
         if (is_file($delivery_path) && @unlink($delivery_path)) {
             $image_delivery_deleted = true;
         }

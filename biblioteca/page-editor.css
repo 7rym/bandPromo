@@ -48,8 +48,38 @@
 .page-editor-view-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
+}
+
+.content-editor-view-head {
+    justify-content: flex-start;
+}
+
+.content-editor-head-name {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.content-editor-name-input {
+    flex: 1 1 auto;
+    min-width: 120px;
+    max-width: 280px;
+    font-size: 14px;
+    padding: 6px 8px;
+}
+
+.content-editor-name-status {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.content-editor-back-btn {
+    margin-left: auto;
+    flex: 0 0 auto;
 }
 
 .page-editor-back-btn {
@@ -307,9 +337,28 @@
     display: flex;
     flex-wrap: nowrap;
     gap: 2px;
-    margin-bottom: 4px;
+    margin-bottom: 0;
     align-items: center;
     overflow-x: auto;
+}
+
+.page-rich-editor-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.page-rich-toolbar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    background: var(--card);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.page-rich-toolbar-sticky .page-word-toolbar {
+    margin-bottom: 0;
 }
 
 .page-toolbar-style-group {
