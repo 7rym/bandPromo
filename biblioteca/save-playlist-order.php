@@ -120,10 +120,7 @@ foreach ($order as $entry) {
 }
 
 $root = dirname(__DIR__);
-$playlistId = bandpromo_playlist_normalize_id((string) ($_GET['playlist'] ?? BANDPROMO_PLAYLIST_DEFAULT_ID));
-if ($playlistId === '') {
-    $playlistId = BANDPROMO_PLAYLIST_DEFAULT_ID;
-}
+$playlistId = bandpromo_playlist_resolve_id($root, (string) ($_GET['playlist'] ?? ''));
 
 try {
     $saved = bandpromo_playlist_save_order($root, $playlistId, $order);

@@ -17,7 +17,10 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 }
 
 $root = dirname(__DIR__);
-$playlistId = bandpromo_playlist_normalize_id((string) ($_GET['playlist'] ?? ''));
+$requestedSegment = trim((string) ($_GET['playlist'] ?? ''));
+$playlistId = $requestedSegment !== ''
+    ? bandpromo_playlist_resolve_route_id($root, $requestedSegment)
+    : '';
 if ($playlistId === '') {
     $playlistId = bandpromo_playlist_default_active_id($root);
 }
@@ -38,9 +41,10 @@ try {
 
     echo json_encode([
         'playlist_id' => $playlistId,
+        'playlist_slug' => bandpromo_playlist_public_slug($root, $playlistId),
         'playlist_title' => (string) ($registryEntry['title'] ?? $playlistId),
         'tracks' => $tracks,
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $throwable) {
     http_response_code(500);
     echo json_encode(['error' => $throwable->getMessage()]);

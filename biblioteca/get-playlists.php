@@ -14,12 +14,15 @@ $root = dirname(__DIR__);
 
 try {
     bandpromo_playlist_ensure_seeded($root);
-    $playlists = bandpromo_playlist_registry_entries($root);
-    $defaultId = BANDPROMO_PLAYLIST_DEFAULT_ID;
+    $playlists = bandpromo_playlist_admin_registry_entries($root);
+    $defaultId = bandpromo_playlist_default_active_id($root);
+    $activeId = $defaultId;
 
     echo json_encode([
         'ok' => true,
         'default_playlist_id' => $defaultId,
+        'demo_playlist_id' => BANDPROMO_PLAYLIST_DEMO_ID,
+        'active_playlist_id' => $activeId,
         'playlists' => $playlists,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {

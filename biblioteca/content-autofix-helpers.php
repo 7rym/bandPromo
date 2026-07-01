@@ -7,6 +7,7 @@ require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/page-storage.php';
+require_once __DIR__ . '/release-storage.php';
 
 function bandpromo_content_autofix_step_result(string $id, string $label, array $details = []): array
 {
@@ -276,10 +277,8 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
         if ($changed && !$dryRun) {
             $document['entries'] = $entries;
             bandpromo_playlist_write_document($root, $document);
-            if ($playlistId === BANDPROMO_PLAYLIST_DEFAULT_ID) {
-                $tracks = bandpromo_playlist_build_track_list($root, $document);
-                bandpromo_playlist_sync_legacy_artifacts($root, $playlistId, $tracks);
-            }
+            $tracks = bandpromo_playlist_build_track_list($root, $document);
+            bandpromo_playlist_sync_legacy_artifacts($root, $playlistId, $tracks);
         }
     }
 
@@ -374,6 +373,40 @@ function bandpromo_content_autofix_sync_config_scope(string $root, bool $dryRun)
     return $step;
 }
 
+function bandpromo_content_autofix_sync_audio_display(string $root, bool $dryRun): array
+{
+    $step = bandpromo_content_autofix_step_result(
+        'audio_display_cache',
+        'Refresh asset registry display cache from master tags'
+    );
+
+    if ($dryRun) {
+        $registry = bandpromo_asset_load_registry($root);
+        $pending = 0;
+        foreach ($registry['assets'] as $asset) {
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+                continue;
+            }
+            $display = bandpromo_asset_read_audio_display($asset);
+            if (!bandpromo_asset_audio_display_is_complete($display)) {
+                $pending++;
+            }
+        }
+        $step['changed'] = $pending;
+        if ($pending > 0) {
+            $step['items'][] = ['pending' => $pending];
+        }
+
+        return $step;
+    }
+
+    $result = bandpromo_asset_refresh_all_audio_displays($root);
+    $step['changed'] = (int) ($result['changed'] ?? 0);
+    $step['items'] = is_array($result['items'] ?? null) ? $result['items'] : [];
+
+    return $step;
+}
+
 function bandpromo_content_autofix_refresh_validation(string $root, bool $dryRun): array
 {
     $step = bandpromo_content_autofix_step_result('validation_refresh', 'Refresh playlist validation report');
@@ -447,6 +480,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_releases',
+        'bandpromo_content_autofix_sync_audio_display',
         'bandpromo_content_autofix_sync_config_scope',
         'bandpromo_content_autofix_refresh_validation',
     ];

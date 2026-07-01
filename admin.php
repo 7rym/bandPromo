@@ -477,9 +477,9 @@ $contentPlaylist = isset($_GET['playlist']) ? bandpromo_playlist_normalize_id((s
 if ($contentPlaylist === '') {
     try {
         bandpromo_playlist_ensure_seeded(__DIR__);
-        $contentPlaylist = BANDPROMO_PLAYLIST_DEFAULT_ID;
+        $contentPlaylist = bandpromo_playlist_default_active_id(__DIR__);
     } catch (Throwable $throwable) {
-        $contentPlaylist = BANDPROMO_PLAYLIST_DEFAULT_ID;
+        $contentPlaylist = BANDPROMO_PLAYLIST_DEMO_ID;
     }
 }
 $contentRelease = isset($_GET['release']) ? bandpromo_release_normalize_id((string) $_GET['release']) : '';
@@ -1463,11 +1463,11 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                             </label>
                                             <div class="playlist-settings-field playlist-settings-field--wide release-enjoy-fields">
                                                 <h4 class="release-epk-heading release-enjoy-heading">Enjoy here</h4>
-                                                <p class="hint release-enjoy-hint">Links to your <strong>player playlist</strong> (not the site homepage, and not a release-only queue — releases are catalog/EPK). Default is <code>/play/main</code>; point at a campaign playlist if you created one for this release. Social profiles come from <a href="?tab=settings&amp;ctab=sharing">Settings → Sharing</a>.</p>
+                                                <p class="hint release-enjoy-hint">Links to your <strong>player playlist</strong> (not the site homepage, and not a release-only queue — releases are catalog/EPK). Default is the active player playlist (<code>/play/{playlist-id}</code>); point at a campaign playlist if you created one for this release. Social profiles come from <a href="?tab=settings&amp;ctab=sharing">Settings → Sharing</a>.</p>
                                                 <div class="release-streaming-grid">
                                                     <label class="playlist-settings-field">
                                                         <span id="releaseSettingsStreamBandpromoLabel">bandPromo</span>
-                                                        <input type="text" id="releaseSettingsStreamBandpromo" inputmode="url" placeholder="https://yoursite.com/play/main" autocomplete="off">
+                                                        <input type="text" id="releaseSettingsStreamBandpromo" inputmode="url" placeholder="https://yoursite.com/play/bandpromo-demo" autocomplete="off">
                                                     </label>
                                                     <label class="playlist-settings-field">
                                                         <span>Spotify</span>
@@ -1521,9 +1521,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                             <h4 class="release-cover-heading">Release cover</h4>
                                             <p class="hint">Album, EP, or single artwork. Press photos stay in the metadata column.</p>
                                             <div class="release-cover-actions">
-                                                <button type="button" class="btn media-picker-open" data-field="releaseSettingsPosterAssetId" data-title="Choose release cover" data-targets="illustrations,photos,special">Choose file</button>
-                                                <button type="button" class="btn" id="releaseCoverUploadBtn">Upload</button>
-                                                <button type="button" class="btn media-picker-clear" data-field="releaseSettingsPosterAssetId">Clear</button>
+                                                <button type="button" class="btn" id="releaseCreatePlaylistBtn">Create playlist from release</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1598,20 +1596,32 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <div class="playlist-settings-panel" id="playlistSettingsPanel">
-                                        <div class="playlist-settings-fields">
-                                            <label class="playlist-settings-field">
+                                        <div class="playlist-settings-fields release-catalog-meta-fields">
+                                            <label class="playlist-settings-field release-catalog-meta-field--date">
                                                 <span>Publish date</span>
-                                                <input type="text" id="playlistSettingsPublishDate" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off">
+                                                <div class="date-input-shell">
+                                                    <span class="date-input-icon" aria-hidden="true">📅</span>
+                                                    <input type="date" id="playlistSettingsPublishDate" autocomplete="off">
+                                                </div>
+                                            </label>
+                                            <label class="playlist-settings-field release-catalog-meta-field--id">
+                                                <span>Slug</span>
+                                                <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
+                                            </label>
+                                            <p class="hint release-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>
+                                        </div>
+                                        <div class="playlist-settings-fields">
+                                            <label class="playlist-settings-field playlist-settings-field--wide">
+                                                <span>Description</span>
+                                                <textarea id="playlistSettingsDescription" rows="3" maxlength="4000" placeholder="Campaign summary or listening notes" autocomplete="off"></textarea>
+                                            </label>
+                                            <label class="playlist-settings-field playlist-settings-field--wide">
+                                                <span>Short description</span>
+                                                <textarea id="playlistSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
+                                                <div class="field-note release-short-description-note"><span id="playlistSettingsShortDescriptionCount">0</span>/300 characters</div>
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
-                                        <h4 class="player-layout-col-title">Available content</h4>
-                                        <?php echo $poolReleaseFilterHtml; ?>
-                                    </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list" id="playlistAvailableList" aria-label="Available tracks">
-                                        <li class="player-layout-empty">Loading tracks…</li>
-                                    </ol>
                                 </div>
                             </div>
                         </div>
@@ -1627,11 +1637,40 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                     <button type="button" id="playlistSaveBtn" class="btn" hidden>💾 Save playlist</button>
                                 </div>
                             </div>
-                            <div class="player-layout-panel-body">
+                            <div class="player-layout-panel-body playlist-editor-active-body">
+                                <div id="playlistCoverPanel" class="release-cover-panel" hidden>
+                                    <input type="hidden" id="playlistSettingsPosterAssetId" data-empty-label="No cover selected">
+                                    <span id="playlistSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
+                                    <div class="audio-master-cover-layout release-cover-layout">
+                                        <div class="audio-master-cover-preview-shell">
+                                            <div class="audio-master-cover-preview" id="playlistCoverPreviewShell">
+                                                <div class="audio-master-cover-overlay-actions" id="playlistCoverOverlayActions">
+                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="playlistSettingsPosterAssetId" data-title="Choose playlist cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose playlist cover">✎</button>
+                                                    <button type="button" class="icon-btn audio-master-cover-action" id="playlistCoverClearBtn" title="Clear cover" aria-label="Clear cover">↺</button>
+                                                </div>
+                                                <img id="playlistCoverPreview" alt="Playlist cover preview" style="display:none;">
+                                                <span id="playlistCoverPlaceholder">No cover selected</span>
+                                            </div>
+                                        </div>
+                                        <div class="release-cover-meta">
+                                            <h4 class="release-cover-heading">Playlist cover</h4>
+                                            <p class="hint">Artwork shown on the player playlist view and share cards.</p>
+                                        </div>
+                                    </div>
+                                </div>
                                 <p class="hint player-layout-hint" id="playlistEditorHint">Select a playlist from the pool, then click edit to change its track order.</p>
                                 <ol class="playlist-editor player-layout-list" id="playlistActiveList" aria-label="Playlist order">
                                     <li class="player-layout-empty">No playlist selected.</li>
                                 </ol>
+                                <div id="playlistAvailableSection" class="release-available-section" hidden>
+                                    <div class="player-layout-col-head player-layout-col-head--pool release-available-head">
+                                        <h4 class="player-layout-col-title">Available content</h4>
+                                        <?php echo $poolReleaseFilterHtml; ?>
+                                    </div>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list release-available-list" id="playlistAvailableList" aria-label="Available tracks">
+                                        <li class="player-layout-empty">Loading tracks…</li>
+                                    </ol>
+                                </div>
                             </div>
                         </div>
                     </div>

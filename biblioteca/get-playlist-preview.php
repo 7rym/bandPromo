@@ -12,10 +12,7 @@ $releaseFilter = bandpromo_playlist_normalize_release_filter((string) ($_GET['re
 session_write_close();
 
 $root = dirname(__DIR__);
-$playlistId = bandpromo_playlist_normalize_id((string) ($_GET['playlist'] ?? BANDPROMO_PLAYLIST_DEFAULT_ID));
-if ($playlistId === '') {
-    $playlistId = BANDPROMO_PLAYLIST_DEFAULT_ID;
-}
+$playlistId = bandpromo_playlist_resolve_id($root, (string) ($_GET['playlist'] ?? ''));
 
 bandpromo_ensure_bundled_demo_audio_delivery($root);
 
@@ -29,7 +26,7 @@ try {
 }
 
 $result = bandpromo_run_light_json_task('scripts/playlistPreview.py', [
-    'release' => $releaseFilter,
+    'release' => 'all',
 ]);
 
 $data = is_array($result['data'] ?? null) ? $result['data'] : null;
@@ -47,6 +44,10 @@ if ($result['ok'] && is_array($data) && !empty($data['ok'])) {
         is_array($data['tracks'] ?? null) ? $data['tracks'] : []
     );
     $poolByFile = bandpromo_playlist_pool_map_from_preview_tracks($poolTracks);
+    $poolByFile = bandpromo_release_pool_map_canonical($root, $poolByFile);
+    $poolByFile = bandpromo_playlist_enrich_pool_release_ids($root, $poolByFile);
+    $poolByFile = bandpromo_playlist_enrich_pool_delivery_ready($root, $poolByFile);
+    $poolByFile = bandpromo_playlist_pool_dedupe_master_files($poolByFile);
     $meta['unsupportedSourceFiles'] = is_array($data['unsupportedSourceFiles'] ?? null)
         ? $data['unsupportedSourceFiles']
         : [];

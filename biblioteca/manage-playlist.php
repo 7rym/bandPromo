@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/release-storage.php';
 
 session_write_close();
 
@@ -20,6 +21,28 @@ try {
             throw new InvalidArgumentException('Invalid JSON payload.');
         }
 
+        $fromReleaseId = bandpromo_release_normalize_id((string) ($payload['from_release_id'] ?? ''));
+        if ($fromReleaseId !== '') {
+            $entry = bandpromo_playlist_create_from_release($root, $fromReleaseId);
+
+            bandpromo_admin_audit_log('playlist_created', [
+                'target_type' => 'playlist',
+                'target_id' => (string) ($entry['id'] ?? ''),
+                'status' => 'ok',
+                'data' => [
+                    'title' => (string) ($entry['title'] ?? ''),
+                    'from_release_id' => $fromReleaseId,
+                ],
+            ]);
+
+            echo json_encode([
+                'ok' => true,
+                'playlist' => $entry,
+                'playlists' => bandpromo_playlist_admin_registry_entries($root),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+
         $title = (string) ($payload['title'] ?? '');
         $preferredId = (string) ($payload['id'] ?? '');
         $entry = bandpromo_playlist_create($root, $title, $preferredId);
@@ -34,7 +57,7 @@ try {
         echo json_encode([
             'ok' => true,
             'playlist' => $entry,
-            'playlists' => bandpromo_playlist_registry_entries($root),
+            'playlists' => bandpromo_playlist_admin_registry_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
@@ -51,9 +74,7 @@ try {
             throw new InvalidArgumentException('Playlist id is required.');
         }
 
-        $title = (string) ($payload['title'] ?? '');
-        $publishDate = (string) ($payload['publish_date'] ?? '');
-        $entry = bandpromo_playlist_update_details($root, $playlistId, $title, $publishDate);
+        $entry = bandpromo_playlist_update_details($root, $playlistId, $payload);
 
         bandpromo_admin_audit_log('playlist_updated', [
             'target_type' => 'playlist',
@@ -62,13 +83,14 @@ try {
             'data' => [
                 'title' => (string) ($entry['title'] ?? ''),
                 'publish_date' => (string) ($entry['publish_date'] ?? ''),
+                'slug' => (string) ($entry['slug'] ?? ''),
             ],
         ]);
 
         echo json_encode([
             'ok' => true,
             'playlist' => $entry,
-            'playlists' => bandpromo_playlist_registry_entries($root),
+            'playlists' => bandpromo_playlist_admin_registry_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
@@ -90,7 +112,7 @@ try {
         echo json_encode([
             'ok' => true,
             'deleted' => $playlistId,
-            'playlists' => bandpromo_playlist_registry_entries($root),
+            'playlists' => bandpromo_playlist_admin_registry_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }

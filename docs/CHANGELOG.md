@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 46:00 - Checkpoint v0.8 build 299: multi-playlist/release editor slice — playlist metadata and slug URLs, release editor pool/create-from-release, registry-backed playlist pool, remove legacy `main` playlist, player slug track links.
+
+2026-07-01 45:30 - Player URLs use playlist slug (not internal id) and shorten track links to `/play/{playlist-slug}/{track-slug}`; legacy 3-segment release paths still resolve. Create-from-release no longer copies release id as playlist id.
+
+2026-07-01 45:00 - Playlist editor metadata: cover panel, slug (public `/play/{slug}` URL), date picker, description and short description; move available track pool under active playlist (release drill-down layout).
+
+2026-07-01 44:30 - Release editor: remove redundant cover action buttons; add Create playlist from release (new playlist, release track order, opens playlist editor).
+
+2026-07-01 44:00 - Playlist editor available pool: show track versions in titles and sort by release document track order when filtering by release.
+
+2026-07-01 43:30 - Playlist editor pool: merge asset registry like release editor (canonical pool + release-document filter); registry-backed tracks draggable in admin; demo delivery prep uses demo release masters.
+
+2026-07-01 43:00 - Remove legacy `main` playlist: seed `bandpromo-demo` as the system playlist, drop playlist migration from `play/playlist.json`/`playlist-order.json`, migrate existing `main` into demo when empty, default player/admin URLs use active playlist id.
+
+2026-07-01 42:30 - Demo playlist content lives in `main` (remove separate `bandpromo-demo` playlist); migrate legacy demo playlist into empty main on seed.
+
+2026-07-01 42:15 - Playlist editor: drop playlist id from pool meta; seed system-owned demo playlist on clean install; player default playlist = latest publish date not under embargo; release drill-down filter uses release document membership (not asset release_id).
+
+2026-07-01 42:00 - Playlist editor pool: match release meta line (`7 tracks released 2026-07-01 as main`); ownership `system` (main) vs `operator`; track count from documents; track # left of drag handle.
+
+2026-07-01 41:45 - Catalog release pool meta: `7 tracks released 2026-11-20 as WP-2026` (catalog id bold at end).
+
+2026-07-01 41:30 - Catalog release pool row meta: bold catalog id, then "7 tracks released on 2026-11-20" (no dot separators).
+
+2026-07-01 41:15 - Catalog release track list: track number left of drag handle for more title space.
+
+2026-07-01 41:00 - Fix release cover preview after save: resolve `poster_asset_id` (ast_* or media path) to `poster_preview_url` on the server so autosave no longer clears the cover image.
+
+2026-07-01 40:45 - Media picker grid: drop filename labels under tiles; 2% scale-up on hover (filename stays in title/aria-label).
+
+2026-07-01 40:30 - Media picker (release cover etc.): thumbnail grid instead of tall file rows; click a tile to select, hover for preview.
+
+2026-07-01 40:15 - Fix release cover media picker: remove stray `syncBundledToggleUi()` call that threw before tabs/files loaded.
+
+2026-07-01 40:00 - Admin UI read path uses asset registry `display` cache (title, version, artist, album, duration) instead of per-row Python inspect; sync on audio save and Repair catalog backfill.
+
+2026-07-01 39:30 - Fix track title polish when song title matches release name (e.g. Winter Party [Original Club Mix] on release Winter Party).
+
+2026-07-01 39:15 - Fix Catalog release editor version display: preserve `version` in cloneTrack and always read title/version from master tags when enriching tracks.
+
+2026-07-01 39:00 - Catalog release editor: split track title/version from master tags (same rules as Files → Audio); inspect messy titles and show `Title [Version]` with artist on the meta line.
+
+2026-07-01 38:45 - Fix Files → Audio orphan detection: require release document track membership (ignore asset release_id defaulting to primary).
+
+2026-07-01 38:30 - Files → Audio: show `{release date} on {release name}` after metadata chips; mark unassigned or undated tracks as Orphan; add Orphaned files release filter.
+
+2026-07-01 38:15 - Files → Audio: move bold release date from row title to after the C/A/T/R/D/L metadata chips.
+
+2026-07-01 38:00 - Files → Audio row label includes version in brackets: `{date} {artist} - {title} [{version}] ({duration})`.
+
+2026-07-01 37:45 - Files → Audio row label: use base title only (strip `[version]` and DJ key/BPM suffixes); inspect master tags when pool title is messy so rows match quick-edit chips.
+
+2026-07-01 37:30 - Files → Audio row label: bold release date without colon (`2026-07-01 7rym - Title (3:42)`); fill missing artist/duration from master tag inspect when catalog pool is stale.
+
+2026-07-01 37:15 - Files → Audio row label: single line `{release date}: {artist} - {title} ({duration})` from catalog metadata (pool, asset registry, release date); no filename in the name cell.
+
+2026-07-01 37:00 - Files → Audio list: sort tracks by release date (newest first), show title + artist per row, and drop filename subtitles from the list UI.
+
 2026-07-01 36:30 - Catalog editor available pool: only tracks registered to the current release (excludes demo and other releases per one-track-one-release model).
 
 2026-07-01 36:15 - Fix Catalog editor right column overlap: release active/available track lists use content height instead of flex-fill + overflow spill.

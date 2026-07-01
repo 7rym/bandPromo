@@ -1139,6 +1139,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 badges.push(formatAudioMetadataHealthBadges(file));
 
+                const releaseContextMarkup = formatAudioReleaseContextMarkup(file);
+                if (releaseContextMarkup !== '') {
+                    badges.push(releaseContextMarkup);
+                }
+
                 return badges.join(' ');
             }
 
@@ -1261,16 +1266,142 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
+            function formatAudioTrackDuration(seconds) {
+                const duration = Math.max(0, Number(seconds) || 0);
+                if (!duration) {
+                    return '';
+                }
+                return `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`;
+            }
+
+            function formatAudioListTitleLabel(title, version) {
+                return combineAudioTitleParts(
+                    String(title || '').trim() || 'Untitled',
+                    String(version || '').trim()
+                );
+            }
+
+            function formatAudioListRowBody(mediaFile) {
+                const artist = String(mediaFile?.display_artist || '').trim();
+                const titleLabel = formatAudioListTitleLabel(
+                    mediaFile?.display_title,
+                    mediaFile?.display_version
+                );
+                const duration = formatAudioTrackDuration(mediaFile?.display_duration);
+
+                let body = artist !== '' ? `${artist} - ${titleLabel}` : titleLabel;
+                if (duration !== '') {
+                    body += ` (${duration})`;
+                }
+
+                return body;
+            }
+
+            function formatAudioListRowLabel(mediaFile) {
+                const body = formatAudioListRowBody(mediaFile);
+                const releaseContext = formatAudioReleaseContextPlain(mediaFile);
+                if (releaseContext !== '') {
+                    return `${body} ${releaseContext}`;
+                }
+
+                return body;
+            }
+
+            function buildAudioListRowLabelHtml(mediaFile) {
+                return bandpromoAdminEscapeHtml(formatAudioListRowBody(mediaFile));
+            }
+
+            function formatAudioReleaseContextMarkup(file) {
+                if (file?.release_orphan === true) {
+                    const releaseTitle = String(file?.release_title || '').trim();
+                    const orphanBadge = '<span class="badge audit-status-badge status-warning media-file-badge" title="Registered in catalog but not on any release track list yet">Orphan</span>';
+                    if (releaseTitle !== '' && file?.on_release === true) {
+                        return `${orphanBadge}<span class="media-file-release-context"><span class="media-file-release-name">on ${bandpromoAdminEscapeHtml(releaseTitle)}</span></span>`;
+                    }
+                    return orphanBadge;
+                }
+
+                const releaseDate = String(file?.release_date || '').trim();
+                const releaseTitle = String(file?.release_title || '').trim();
+                if (releaseDate === '' && releaseTitle === '') {
+                    return '';
+                }
+
+                if (releaseDate !== '' && releaseTitle !== '') {
+                    return `<span class="media-file-release-context" title="Release"><strong class="media-file-release-date">${bandpromoAdminEscapeHtml(releaseDate)}</strong> on ${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                }
+
+                if (releaseTitle !== '') {
+                    return `<span class="media-file-release-context">${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                }
+
+                return `<strong class="media-file-release-date" title="Release date">${bandpromoAdminEscapeHtml(releaseDate)}</strong>`;
+            }
+
+            function formatAudioReleaseContextPlain(file) {
+                if (file?.release_orphan === true) {
+                    const releaseTitle = String(file?.release_title || '').trim();
+                    if (releaseTitle !== '' && file?.on_release === true) {
+                        return `Orphan on ${releaseTitle}`;
+                    }
+                    return 'Orphan';
+                }
+
+                const releaseDate = String(file?.release_date || '').trim();
+                const releaseTitle = String(file?.release_title || '').trim();
+                if (releaseDate !== '' && releaseTitle !== '') {
+                    return `${releaseDate} on ${releaseTitle}`;
+                }
+                if (releaseTitle !== '') {
+                    return releaseTitle;
+                }
+                return releaseDate;
+            }
+
+            function audioFileForDisplay(file) {
+                if (!file || typeof file !== 'object') {
+                    return file;
+                }
+                const filename = String(file.name || '').trim();
+                if (!filename) {
+                    return file;
+                }
+
+                const cached = audioInlineDetailCache.get(filename);
+                if (!cached) {
+                    return file;
+                }
+
+                const merged = { ...file };
+                if (!String(merged.display_artist || '').trim() && String(cached.artist || '').trim()) {
+                    merged.display_artist = String(cached.artist).trim();
+                }
+                if (!Number(merged.display_duration) && Number(cached.duration_seconds) > 0) {
+                    merged.display_duration = Number(cached.duration_seconds);
+                }
+                if (String(cached.title || '').trim()) {
+                    const parts = splitAudioTitleParts(String(cached.title || '').trim());
+                    const baseTitle = String(parts.title || '').trim();
+                    const version = String(parts.version || '').trim();
+                    if (baseTitle !== '') {
+                        merged.display_title = baseTitle;
+                    }
+                    if (version !== '') {
+                        merged.display_version = version;
+                    }
+                }
+
+                return merged;
+            }
+
             function getDisplayedMediaInfo(type, file) {
                 const mediaFile = file || {};
                 if (type === 'audio') {
-                    const displayTitle = String(mediaFile.display_title || '').trim();
-                    const displaySubtitle = String(mediaFile.display_subtitle || mediaFile.name || '').trim();
-                    const friendlyName = displayTitle !== '' ? displayTitle : String(mediaFile.name || '');
+                    const label = formatAudioListRowLabel(mediaFile);
                     if (audioDisplayMode === 'master' && mediaFile.audio_master && mediaFile.audio_master.exists) {
                         return {
-                            name: friendlyName,
-                            subtitle: displaySubtitle !== friendlyName ? displaySubtitle : '',
+                            name: label,
+                            subtitle: '',
                             size: Number(mediaFile.audio_master.size) || Number(mediaFile.size) || 0,
                             downloadVariant: 'master',
                             downloadAvailable: true,
@@ -1278,8 +1409,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     return {
-                        name: friendlyName,
-                        subtitle: displaySubtitle !== friendlyName ? displaySubtitle : '',
+                        name: label,
+                        subtitle: '',
                         size: Number(mediaFile.size) || 0,
                         downloadVariant: 'original',
                         downloadAvailable: true,
@@ -1301,11 +1432,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function buildAudioNameCell(display, file, type) {
-                const subtitle = String(display.subtitle || '').trim();
-                const subtitleMarkup = subtitle !== ''
-                    ? `<span class="media-file-name-subtitle">${bandpromoAdminEscapeHtml(subtitle)}</span>`
-                    : '';
-                return `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || file.name)}</span>${subtitleMarkup}<span class="media-file-meta">${formatAudioMasterBadges(file)}</span></span>`;
+                const source = audioFileForDisplay(file);
+                const labelHtml = buildAudioListRowLabelHtml(source);
+                return `<span class="media-file-name-wrap"><span class="media-file-name">${labelHtml}</span><span class="media-file-meta">${formatAudioMasterBadges(source)}</span></span>`;
             }
 
             async function fetchAudioMasterDetailData(filename) {
@@ -1633,9 +1762,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return '/biblioteca/list-media.php?' + params.toString();
             }
 
-            function releaseFilterOptionsHtml() {
+            function releaseFilterOptionsHtml(includeOrphans = false) {
                 const releases = Array.isArray(releasesCatalog) ? releasesCatalog : [];
                 let html = '<option value="all">All releases</option>';
+                if (includeOrphans) {
+                    html += '<option value="orphans">Orphaned files</option>';
+                }
                 releases.forEach((entry) => {
                     const id = String(entry?.id || '').trim();
                     if (!id) return;
@@ -1646,8 +1778,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function populateReleaseFilterSelects() {
-                const html = releaseFilterOptionsHtml();
                 document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
+                    const includeOrphans = select.closest('#panel-audio') !== null;
+                    const html = releaseFilterOptionsHtml(includeOrphans);
                     const current = String(select.value || poolReleaseFilter || 'all');
                     select.innerHTML = html;
                     select.value = current;
@@ -2089,8 +2222,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     listEl.innerHTML = files.map(f => {
                         const safeName = f.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                         const url = buildMediaUrl(type, f.name);
-                        const display = getDisplayedMediaInfo(type, f);
+                        const displaySource = type === 'audio' ? audioFileForDisplay(f) : f;
+                        const display = getDisplayedMediaInfo(type, displaySource);
                         const selected = selection.selected.has(f.name);
+                        const rowLabel = type === 'audio'
+                            ? formatAudioListRowLabel(displaySource)
+                            : String(display.name || f.name);
                         let thumb;
                         if (isImage(f.name)) {
                             thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
@@ -2109,7 +2246,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const downloadDisabled = type === 'audio' && display.downloadVariant === 'master' && (!f.audio_master || !f.audio_master.exists);
                         const downloadAction = `<button class="icon-btn media-action-btn media-action-good" title="Download this file" ${downloadDisabled ? 'disabled' : ''} onclick="event.stopPropagation(); submitMediaDownloadRequest('${type}', '${display.downloadVariant}', ['${safeName}'])">⬇</button>`;
                         const nameCell = type === 'audio'
-                            ? buildAudioNameCell(display, f, type)
+                            ? buildAudioNameCell(display, displaySource, type)
                             : mediaReferenceFilterTypes.has(type)
                                 ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span></span>`
                                 : `<span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span>`;
@@ -2124,7 +2261,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return `<div class="${rowClassName}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${rowAttributes}>
                             <div class="media-file-row-main">
                                 <label class="media-file-select-wrap" title="Select for deletion" onclick="event.stopPropagation()">
-                                    <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(type)}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${selected ? 'checked' : ''} aria-label="Select ${bandpromoAdminEscapeHtml(f.name)} for deletion">
+                                    <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(type)}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${selected ? 'checked' : ''} aria-label="Select ${bandpromoAdminEscapeHtml(rowLabel)} for deletion">
                                 </label>
                                 ${thumb}
                                 ${nameCell}
@@ -2291,33 +2428,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
 
-                    mediaPickerStatus.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}.`;
-                    mediaPickerList.innerHTML = files.map((file) => {
+                    mediaPickerStatus.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}. Click a thumbnail to use it.`;
+                    mediaPickerList.innerHTML = `<div class="media-picker-grid">${files.map((file) => {
                         const encodedName = encodeURIComponent(file.name);
                         const safeName = bandpromoAdminEscapeHtml(file.name);
                         const url = buildMediaUrl(target, file.name);
-                        let thumb;
+                        let mediaMarkup;
 
                         if (isImage(file.name)) {
-                            thumb = `<img class="media-file-thumb media-picker-preview" src="${url}" alt="" loading="lazy" data-picker-target="${target}" data-filename="${encodedName}">`;
+                            mediaMarkup = `<img src="${url}" alt="" loading="lazy">`;
                         } else if (isVideo(file.name)) {
-                            thumb = `<video class="media-file-thumb media-picker-preview" src="${url}" preload="metadata" muted data-picker-target="${target}" data-filename="${encodedName}"></video>`;
+                            mediaMarkup = `<video src="${url}" preload="metadata" muted></video><span class="media-picker-tile-badge" aria-hidden="true">▶</span>`;
                         } else {
-                            thumb = `<span class="media-file-icon">${extIcon(file.name)}</span>`;
+                            mediaMarkup = `<span class="media-picker-tile-icon">${extIcon(file.name)}</span>`;
                         }
 
-                        const preview = isPreviewable(file.name)
-                            ? `<button type="button" class="icon-btn media-picker-preview" data-picker-target="${target}" data-filename="${encodedName}">👁️</button>`
+                        const previewBtn = isPreviewable(file.name)
+                            ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${target}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeName}">👁️</button>`
                             : '';
 
-                        return `<div class="media-file-row media-picker-row">
-                            ${thumb}
-                            <span class="media-file-name">${safeName}</span>
-                            <span class="media-file-size">${fmtSize(file.size)}</span>
-                            ${preview}
-                            <button type="button" class="icon-btn media-picker-select" data-picker-target="${target}" data-filename="${encodedName}">Use this</button>
-                        </div>`;
-                    }).join('');
+                        return `<button type="button" class="media-picker-tile" data-picker-target="${target}" data-filename="${encodedName}" title="${safeName}" aria-label="${safeName}">
+                            <span class="media-picker-tile-media">${mediaMarkup}${previewBtn}</span>
+                        </button>`;
+                    }).join('')}</div>`;
                     mediaPickerStatus.style.color = '#aaa';
                 } catch (error) {
                     mediaPickerList.innerHTML = `<span class="text-error">${bandpromoAdminEscapeHtml(error.message)}</span>`;
@@ -2344,7 +2477,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 mediaPickerTitle.textContent = mediaPickerState.title;
                 mediaPickerModal.style.display = 'flex';
-                syncBundledToggleUi();
                 renderMediaPickerTabs();
                 renderMediaPickerList(mediaPickerState.activeTarget);
             };
@@ -2386,20 +2518,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             if (mediaPickerList) {
                 mediaPickerList.addEventListener('click', (event) => {
-                    const selectBtn = event.target.closest('.media-picker-select');
+                    const previewTrigger = event.target.closest('.media-picker-preview');
+                    if (previewTrigger) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const target = previewTrigger.dataset.pickerTarget;
+                        const filename = decodeURIComponent(previewTrigger.dataset.filename || '');
+                        openAdminPreview(buildMediaPath(target, filename), filename);
+                        return;
+                    }
+
+                    const selectBtn = event.target.closest('.media-picker-select, .media-picker-tile');
                     if (selectBtn && mediaPickerState) {
                         const target = selectBtn.dataset.pickerTarget;
                         const filename = decodeURIComponent(selectBtn.dataset.filename || '');
                         setPickerFieldValue(mediaPickerState.fieldId, buildMediaPath(target, filename));
                         closeMediaPickerModal();
-                        return;
-                    }
-
-                    const previewTrigger = event.target.closest('.media-picker-preview');
-                    if (previewTrigger) {
-                        const target = previewTrigger.dataset.pickerTarget;
-                        const filename = decodeURIComponent(previewTrigger.dataset.filename || '');
-                        openAdminPreview(buildMediaPath(target, filename), filename);
                     }
                 });
             }
@@ -4813,7 +4947,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!poolList || !availableEl || !activeEl || !saveBtn) return;
 
                 let playlists = [];
-                let selectedPlaylistId = String(editorCard?.dataset.initialPlaylist || 'main');
+                let selectedPlaylistId = String(editorCard?.dataset.initialPlaylist || '');
+                let defaultPlaylistId = 'bandpromo-demo';
                 let isEditing = false;
                 let pendingPlaylistDeleteId = '';
 
@@ -4821,11 +4956,91 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistDeleteModalName = document.getElementById('playlistDeleteModalName');
                 const playlistDeleteConfirmBtn = document.getElementById('playlistDeleteConfirmBtn');
                 const playlistDeleteCancelBtn = document.getElementById('playlistDeleteCancelBtn');
+                const playlistAvailableSection = document.getElementById('playlistAvailableSection');
                 const playlistSettingsTitle = document.getElementById('playlistSettingsTitle');
                 const playlistSettingsPublishDate = document.getElementById('playlistSettingsPublishDate');
+                const playlistSettingsSlug = document.getElementById('playlistSettingsSlug');
+                const playlistSettingsSlugPreview = document.getElementById('playlistSettingsSlugPreview');
+                const playlistSettingsDescription = document.getElementById('playlistSettingsDescription');
+                const playlistSettingsShortDescription = document.getElementById('playlistSettingsShortDescription');
+                const playlistSettingsShortDescriptionCount = document.getElementById('playlistSettingsShortDescriptionCount');
+                const playlistSettingsPosterAssetId = document.getElementById('playlistSettingsPosterAssetId');
                 const playlistSettingsStatus = document.getElementById('playlistSettingsStatus');
-                let playlistSettingsBaseline = { title: '', publish_date: '' };
+                const playlistCoverPanel = document.getElementById('playlistCoverPanel');
+                const playlistCoverPreview = document.getElementById('playlistCoverPreview');
+                const playlistCoverPlaceholder = document.getElementById('playlistCoverPlaceholder');
+                const playlistCoverPreviewShell = document.getElementById('playlistCoverPreviewShell');
+                const playlistCoverClearBtn = document.getElementById('playlistCoverClearBtn');
+                let playlistSettingsBaseline = {
+                    title: '',
+                    publish_date: '',
+                    slug: '',
+                    description: '',
+                    short_description: '',
+                    poster_asset_id: '',
+                };
                 let playlistSettingsSaving = false;
+
+                function normalizePlaylistDateForInput(value) {
+                    const trimmed = String(value || '').trim();
+                    if (!trimmed) {
+                        return '';
+                    }
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+                        return trimmed;
+                    }
+                    if (/^\d{4}$/.test(trimmed)) {
+                        return `${trimmed}-01-01`;
+                    }
+                    return '';
+                }
+
+                function updatePlaylistShortDescriptionCount() {
+                    if (!(playlistSettingsShortDescription instanceof HTMLTextAreaElement) || !playlistSettingsShortDescriptionCount) {
+                        return;
+                    }
+                    playlistSettingsShortDescriptionCount.textContent = String(playlistSettingsShortDescription.value.length);
+                }
+
+                function updatePlaylistSlugPreview() {
+                    const slug = playlistSettingsSlug instanceof HTMLInputElement
+                        ? String(playlistSettingsSlug.value || '').trim()
+                        : '';
+                    if (playlistSettingsSlugPreview) {
+                        playlistSettingsSlugPreview.textContent = slug || 'your-slug';
+                    }
+                }
+
+                function readPlaylistSettingsFromForm() {
+                    const entry = playlistEntry(selectedPlaylistId);
+                    const title = playlistSettingsTitle instanceof HTMLInputElement
+                        ? String(playlistSettingsTitle.value || '').trim()
+                        : String(entry?.title || '').trim();
+                    const publishDate = playlistSettingsPublishDate instanceof HTMLInputElement
+                        ? String(playlistSettingsPublishDate.value || '').trim()
+                        : normalizePlaylistDateForInput(entry?.publish_date);
+                    const slug = playlistSettingsSlug instanceof HTMLInputElement
+                        ? String(playlistSettingsSlug.value || '').trim()
+                        : String(entry?.slug || entry?.id || '').trim();
+                    const description = playlistSettingsDescription instanceof HTMLTextAreaElement
+                        ? String(playlistSettingsDescription.value || '').trim()
+                        : String(entry?.description || '').trim();
+                    const shortDescription = playlistSettingsShortDescription instanceof HTMLTextAreaElement
+                        ? String(playlistSettingsShortDescription.value || '').trim()
+                        : String(entry?.short_description || '').trim();
+                    const posterAssetId = playlistSettingsPosterAssetId instanceof HTMLInputElement
+                        ? String(playlistSettingsPosterAssetId.value || '').trim()
+                        : String(entry?.poster_asset_id || '').trim();
+
+                    return {
+                        title,
+                        publish_date: publishDate,
+                        slug,
+                        description,
+                        short_description: shortDescription,
+                        poster_asset_id: posterAssetId,
+                    };
+                }
 
                 function validatePlaylistPublishDate(value) {
                     const trimmed = String(value || '').trim();
@@ -4838,27 +5053,152 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '';
                 }
 
+                function validatePlaylistSlug(value) {
+                    const trimmed = String(value || '').trim();
+                    if (trimmed === '') {
+                        return 'Slug is required.';
+                    }
+                    if (!/^[a-z][a-z0-9-]{0,47}$/.test(trimmed)) {
+                        return 'Slug must start with a letter and use lowercase letters, numbers, and hyphens.';
+                    }
+                    return '';
+                }
+
                 function playlistSettingsDirty() {
-                    const title = playlistSettingsTitle instanceof HTMLInputElement
-                        ? String(playlistSettingsTitle.value || '').trim()
+                    return JSON.stringify(readPlaylistSettingsFromForm()) !== JSON.stringify(playlistSettingsBaseline);
+                }
+
+                function playlistCoverPreviewUrl(rawValue, entryRef) {
+                    const raw = String(rawValue || '').trim();
+                    if (!raw) {
+                        return '';
+                    }
+                    if (entryRef) {
+                        const entryUrl = String(entryRef.poster_preview_url || '').trim();
+                        if (entryUrl && String(entryRef.poster_asset_id || '').trim() === raw) {
+                            return entryUrl;
+                        }
+                    }
+                    const cached = playlistEntry(selectedPlaylistId);
+                    if (cached && String(cached.poster_asset_id || '').trim() === raw) {
+                        const cachedUrl = String(cached.poster_preview_url || '').trim();
+                        if (cachedUrl) {
+                            return cachedUrl;
+                        }
+                    }
+                    return '';
+                }
+
+                function updatePlaylistCoverPreview() {
+                    const entry = playlistEntry(selectedPlaylistId);
+                    const rawValue = playlistSettingsPosterAssetId instanceof HTMLInputElement
+                        ? String(playlistSettingsPosterAssetId.value || '').trim()
                         : '';
-                    const publish = playlistSettingsPublishDate instanceof HTMLInputElement
-                        ? String(playlistSettingsPublishDate.value || '').trim()
-                        : '';
-                    return title !== playlistSettingsBaseline.title || publish !== playlistSettingsBaseline.publish_date;
+                    const previewUrl = playlistCoverPreviewUrl(rawValue, entry);
+
+                    if (playlistCoverPreview instanceof HTMLImageElement) {
+                        if (previewUrl) {
+                            playlistCoverPreview.src = previewUrl;
+                            playlistCoverPreview.style.display = 'block';
+                        } else {
+                            playlistCoverPreview.removeAttribute('src');
+                            playlistCoverPreview.style.display = 'none';
+                        }
+                    }
+                    if (playlistCoverPlaceholder) {
+                        playlistCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
+                    }
+                    if (playlistCoverPreviewShell instanceof HTMLElement) {
+                        playlistCoverPreviewShell.title = rawValue || 'No cover selected';
+                    }
+                }
+
+                function setPlaylistCoverValue(value) {
+                    if (!(playlistSettingsPosterAssetId instanceof HTMLInputElement)) {
+                        return;
+                    }
+                    playlistSettingsPosterAssetId.value = String(value || '').trim();
+                    playlistSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                function updatePlaylistCoverPanel() {
+                    const entry = playlistEntry(selectedPlaylistId);
+                    if (playlistCoverPanel) {
+                        playlistCoverPanel.hidden = !entry;
+                    }
+                    if (entry && playlistSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
+                        playlistSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
+                    }
+                    updatePlaylistCoverPreview();
+                }
+
+                function initPlaylistCoverPicker() {
+                    if (!playlistCoverPanel) {
+                        return;
+                    }
+
+                    playlistCoverPanel.querySelectorAll('.media-picker-open').forEach((button) => {
+                        button.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (typeof window.openMediaPicker !== 'function') {
+                                if (playlistSettingsStatus) {
+                                    playlistSettingsStatus.textContent = 'Media picker is not available. Reload the page.';
+                                }
+                                return;
+                            }
+                            window.openMediaPicker(
+                                button.dataset.field || 'playlistSettingsPosterAssetId',
+                                button.dataset.title || 'Choose playlist cover',
+                                button.dataset.targets || 'illustrations,photos,special'
+                            );
+                        });
+                    });
+
+                    playlistCoverClearBtn?.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        setPlaylistCoverValue('');
+                        savePlaylistSettings();
+                    });
+
+                    playlistSettingsPosterAssetId?.addEventListener('input', () => {
+                        updatePlaylistCoverPreview();
+                        savePlaylistSettings();
+                    });
                 }
 
                 function syncPlaylistSettingsPanel(playlistId) {
                     const entry = playlistEntry(playlistId);
                     const title = String(entry?.title || playlistId || '');
-                    const publish = String(entry?.publish_date || '').trim();
-                    playlistSettingsBaseline = { title, publish_date: publish };
+                    const publish = normalizePlaylistDateForInput(entry?.publish_date);
+                    const slug = String(entry?.slug || entry?.id || playlistId || '').trim();
+                    const description = String(entry?.description || '').trim();
+                    const shortDescription = String(entry?.short_description || '').trim();
+                    const posterAssetId = String(entry?.poster_asset_id || '').trim();
+
                     if (playlistSettingsTitle instanceof HTMLInputElement) {
                         playlistSettingsTitle.value = title;
                     }
                     if (playlistSettingsPublishDate instanceof HTMLInputElement) {
                         playlistSettingsPublishDate.value = publish;
                     }
+                    if (playlistSettingsSlug instanceof HTMLInputElement) {
+                        playlistSettingsSlug.value = slug;
+                    }
+                    if (playlistSettingsDescription instanceof HTMLTextAreaElement) {
+                        playlistSettingsDescription.value = description;
+                    }
+                    if (playlistSettingsShortDescription instanceof HTMLTextAreaElement) {
+                        playlistSettingsShortDescription.value = shortDescription;
+                        updatePlaylistShortDescriptionCount();
+                    }
+                    if (playlistSettingsPosterAssetId instanceof HTMLInputElement) {
+                        playlistSettingsPosterAssetId.value = posterAssetId;
+                    }
+
+                    playlistSettingsBaseline = readPlaylistSettingsFromForm();
+                    updatePlaylistSlugPreview();
+                    updatePlaylistCoverPanel();
                     if (playlistSettingsStatus) {
                         playlistSettingsStatus.textContent = '';
                     }
@@ -4872,8 +5212,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return true;
                     }
 
-                    const title = String(playlistSettingsTitle.value || '').trim();
-                    const publishDate = String(playlistSettingsPublishDate.value || '').trim();
+                    const settings = readPlaylistSettingsFromForm();
+                    const { title, publish_date: publishDate, slug, description, short_description: shortDescription, poster_asset_id: posterAssetId } = settings;
+
                     if (!title) {
                         if (!silent && playlistSettingsStatus) {
                             playlistSettingsStatus.textContent = 'Playlist name is required.';
@@ -4885,6 +5226,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (dateError) {
                         if (!silent && playlistSettingsStatus) {
                             playlistSettingsStatus.textContent = dateError;
+                        }
+                        return false;
+                    }
+
+                    const slugError = validatePlaylistSlug(slug);
+                    if (slugError) {
+                        if (!silent && playlistSettingsStatus) {
+                            playlistSettingsStatus.textContent = slugError;
                         }
                         return false;
                     }
@@ -4906,14 +5255,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             credentials: 'same-origin',
-                            body: JSON.stringify({ title, publish_date: publishDate }),
+                            body: JSON.stringify({
+                                title,
+                                publish_date: publishDate,
+                                slug,
+                                description,
+                                short_description: shortDescription,
+                                poster_asset_id: posterAssetId,
+                            }),
                         });
                         const data = await resp.json().catch(() => ({}));
                         if (!resp.ok || !data.ok) {
                             throw new Error(data.error || 'Could not save playlist details');
                         }
                         playlists = Array.isArray(data.playlists) ? data.playlists : playlists;
-                        playlistSettingsBaseline = { title, publish_date: publishDate };
+                        playlistSettingsBaseline = readPlaylistSettingsFromForm();
+                        updatePlaylistCoverPanel();
                         if (!silent && playlistSettingsStatus) {
                             playlistSettingsStatus.textContent = 'Saved.';
                         }
@@ -4964,17 +5321,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function playlistCanDelete(entry) {
-                    return entry && String(entry.id || '') !== 'main';
+                    return entry && String(entry.ownership || '') === 'operator';
                 }
 
-                function playlistMetaLine(entry) {
-                    if (!entry) return '';
-                    const kind = String(entry.kind || 'system');
-                    const publish = String(entry.publish_date || '').trim();
-                    const parts = [String(entry.id || '')];
-                    if (kind === 'system') parts.push('system');
-                    if (publish) parts.push(publish);
-                    return parts.join(' · ');
+                function playlistPoolMetaHtml(entry) {
+                    if (!entry) {
+                        return '';
+                    }
+
+                    const trackCount = Number(entry.track_count || 0);
+                    const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
+                    const publishDate = bandpromoAdminEscapeHtml(String(entry.publish_date || '').trim());
+
+                    let line = bandpromoAdminEscapeHtml(tracksLabel);
+                    if (publishDate) {
+                        line += ` released ${publishDate}`;
+                    }
+
+                    return line;
                 }
 
                 function syncPlaylistUrl(playlistId, editing = isEditing) {
@@ -5009,10 +5373,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     isEditing = false;
                     if (poolView) poolView.hidden = false;
                     if (tracksPoolView) tracksPoolView.hidden = true;
+                    if (playlistAvailableSection) playlistAvailableSection.hidden = true;
                     if (saveBtn) saveBtn.hidden = true;
                     if (editorHint) {
                         editorHint.textContent = 'Select a playlist from the pool, then click edit to change its track order.';
                     }
+                    updatePlaylistCoverPanel();
                     renderPlaylistPoolList();
                 }
 
@@ -5021,11 +5387,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     selectedPlaylistId = playlistId;
                     if (poolView) poolView.hidden = true;
                     if (tracksPoolView) tracksPoolView.hidden = false;
+                    if (playlistAvailableSection) playlistAvailableSection.hidden = false;
                     syncPlaylistUrl(playlistId, true);
                     syncPlaylistSettingsPanel(playlistId);
                     if (editorHint) {
                         editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available content to remove them from the playlist.';
                     }
+                    updatePlaylistCoverPanel();
                     renderPlaylistPoolList();
                 }
 
@@ -5045,7 +5413,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return `<li class="playlist-editor-row playlist-pool-row page-pool-row${selectedClass}" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedPlaylistId ? 'true' : 'false'}">
                             <span class="playlist-track-info">
                                 <strong>🎵 ${title}</strong>
-                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(playlistMetaLine(entry))}</span>
+                                <span class="playlist-track-meta">${playlistPoolMetaHtml(entry)}</span>
                             </span>
                             <span class="page-pool-row-actions">
                                 <button type="button" class="page-pool-edit-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Edit playlist" aria-label="Edit ${title}">✏️</button>
@@ -5062,6 +5430,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         throw new Error(data.error || 'Could not load playlists');
                     }
                     playlists = Array.isArray(data.playlists) ? data.playlists : [];
+                    defaultPlaylistId = String(data.active_playlist_id || data.demo_playlist_id || playlists[0]?.id || 'bandpromo-demo');
+                    if (!selectedPlaylistId || !playlists.some((entry) => String(entry.id || '') === selectedPlaylistId)) {
+                        selectedPlaylistId = defaultPlaylistId;
+                    }
                     renderPlaylistPoolList();
                 }
 
@@ -5132,7 +5504,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     playlists = Array.isArray(data.playlists) ? data.playlists : [];
                     if (selectedPlaylistId === playlistId) {
-                        selectedPlaylistId = playlists[0]?.id || 'main';
+                        selectedPlaylistId = playlists[0]?.id || defaultPlaylistId;
                         showPoolView();
                         syncPlaylistUrl(selectedPlaylistId, false);
                         await loadPlaylistPreview({ preserveSavedState: true });
@@ -5210,6 +5582,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
                 playlistSettingsPublishDate?.addEventListener('blur', () => {
                     savePlaylistSettings();
+                });
+                playlistSettingsSlug?.addEventListener('blur', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsDescription?.addEventListener('blur', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsShortDescription?.addEventListener('blur', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsShortDescription?.addEventListener('input', () => {
+                    updatePlaylistShortDescriptionCount();
+                });
+                playlistSettingsSlug?.addEventListener('input', () => {
+                    updatePlaylistSlugPreview();
                 });
                 playlistSettingsTitle?.addEventListener('keydown', (event) => {
                     if (event.key === 'Enter') {
@@ -5320,8 +5707,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return {
                         file: track.file,
                         title: track.title,
+                        version: track.version,
                         artist: track.artist,
                         album: track.album,
+                        release_title: track.release_title,
                         duration: track.duration,
                         origin: track.origin,
                         sourceTier: track.sourceTier,
@@ -5329,13 +5718,51 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     };
                 }
 
+                function splitPlaylistTrackTitleParts(value) {
+                    const combined = String(value || '').trim();
+                    if (!combined) {
+                        return { title: '', version: '' };
+                    }
+                    const match = combined.match(/^(.+?)\s+\[(.+)\]$/);
+                    if (!match) {
+                        return { title: combined, version: '' };
+                    }
+                    const baseTitle = String(match[1] || '').trim();
+                    const version = String(match[2] || '').trim();
+                    if (!baseTitle || !version) {
+                        return { title: combined, version: '' };
+                    }
+                    return { title: baseTitle, version };
+                }
+
+                function combinePlaylistTrackTitleParts(title, version) {
+                    const normalizedTitle = String(title || '').trim();
+                    const normalizedVersion = String(version || '').trim();
+                    if (!normalizedVersion) {
+                        return normalizedTitle;
+                    }
+                    return `${normalizedTitle} [${normalizedVersion}]`;
+                }
+
+                function displayPlaylistTrackTitle(track) {
+                    const rawTitle = String(track?.title || track?.file || 'Untitled').trim();
+                    const versionFromField = String(track?.version || '').trim();
+                    const parts = splitPlaylistTrackTitleParts(rawTitle);
+                    let title = String(parts.title || rawTitle || 'Untitled').trim();
+                    title = title.replace(/^\d+\.\s+/, '').replace(/^\d{1,2}\s+(?=[A-Za-z])/, '');
+                    const version = versionFromField || String(parts.version || '').trim();
+                    return combinePlaylistTrackTitleParts(title, version) || 'Untitled';
+                }
+
                 function trackMeta(track) {
                     if (track.deliveryReady === false) {
                         return 'Preparing delivery file — wait a moment and refresh the pool';
                     }
-                    const artist = String(track.artist || '').trim();
-                    const album = String(track.album || '').trim();
-                    return album ? `${artist} — ${album}` : artist;
+                    const releaseTitle = String(track.release_title || '').trim();
+                    if (releaseTitle) {
+                        return `from the release ${releaseTitle}`;
+                    }
+                    return '';
                 }
 
                 function pruneAvailableSelection() {
@@ -5475,7 +5902,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function renderTrackRow(track, options) {
-                    const title = bandpromoAdminEscapeHtml(track.title || track.file || 'Untitled');
+                    const title = bandpromoAdminEscapeHtml(displayPlaylistTrackTitle(track));
                     const meta = bandpromoAdminEscapeHtml(trackMeta(track));
                     const duration = track.deliveryReady === false ? '' : formatPlaylistDuration(track.duration);
                     const file = bandpromoAdminEscapeHtml(track.file || '');
@@ -5498,8 +5925,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : (options.activeRow ? 'Drag to reorder' : 'Drag into playlist'));
 
                     return `<li class="${rowClass}${demoClass}${pendingClass}${selectedClass}${readonlyClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
-                        <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
                         ${positionMarkup}
+                        <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
                         <span class="playlist-track-info">
                             <strong>${title}</strong>
                             <span class="playlist-track-meta">${meta}</span>
@@ -5975,6 +6402,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
 
                 registerReleaseFilterListener(reloadPlaylistPool);
+
+                initPlaylistCoverPicker();
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const startInEdit = urlParams.get('edit') === '1';

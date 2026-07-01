@@ -286,7 +286,8 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
         }
     }
     if (isset($changes['display']) && is_array($changes['display'])) {
-        $entry['display'] = $changes['display'];
+        $existingDisplay = is_array($entry['display'] ?? null) ? $entry['display'] : [];
+        $entry['display'] = array_merge($existingDisplay, $changes['display']);
     }
     if (isset($changes['tags']) && is_array($changes['tags'])) {
         $entry['tags'] = array_values($changes['tags']);
@@ -302,6 +303,38 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     bandpromo_asset_write_registry($root, $registry);
 
     return $normalized;
+}
+
+function bandpromo_asset_read_audio_display(?array $asset): array
+{
+    if (!is_array($asset)) {
+        return [
+            'title' => '',
+            'version' => '',
+            'artist' => '',
+            'album' => '',
+            'duration' => 0,
+            'synced_at' => '',
+        ];
+    }
+
+    $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+
+    return [
+        'title' => trim((string) ($display['title'] ?? '')),
+        'version' => trim((string) ($display['version'] ?? '')),
+        'artist' => trim((string) ($display['artist'] ?? '')),
+        'album' => trim((string) ($display['album'] ?? '')),
+        'duration' => max(0, (int) ($display['duration'] ?? 0)),
+        'synced_at' => trim((string) ($display['synced_at'] ?? '')),
+    ];
+}
+
+function bandpromo_asset_audio_display_is_complete(array $display): bool
+{
+    return trim((string) ($display['title'] ?? '')) !== ''
+        && trim((string) ($display['artist'] ?? '')) !== ''
+        && (int) ($display['duration'] ?? 0) > 0;
 }
 
 function bandpromo_asset_master_filename_for_ulid(string $assetId, string $format): string

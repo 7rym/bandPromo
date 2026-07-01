@@ -7,7 +7,8 @@ require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/light-build-tasks.php';
 
 const BANDPROMO_PLAYLIST_REGISTRY_VERSION = 1;
-const BANDPROMO_PLAYLIST_DEFAULT_ID = 'main';
+const BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo';
+const BANDPROMO_PLAYLIST_LEGACY_MAIN_ID = 'main';
 
 function bandpromo_playlist_storage_root(string $root): string
 {
@@ -56,6 +57,113 @@ function bandpromo_playlist_validate_date(string $value): bool
     return $date instanceof DateTimeImmutable && $date->format('Y-m-d') === $value;
 }
 
+function bandpromo_playlist_route_slug(array $document, string $fallbackId = ''): string
+{
+    $slug = bandpromo_playlist_normalize_id((string) ($document['slug'] ?? ''));
+    if ($slug !== '') {
+        return $slug;
+    }
+
+    return bandpromo_playlist_normalize_id($fallbackId);
+}
+
+function bandpromo_playlist_normalize_slug(string $slug, string $fallbackId = ''): string
+{
+    $normalized = bandpromo_playlist_normalize_id($slug);
+    if ($normalized === '' && $fallbackId !== '') {
+        $normalized = bandpromo_playlist_normalize_id($fallbackId);
+    }
+    if ($normalized === '' || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $normalized)) {
+        throw new InvalidArgumentException('Playlist slug must use lowercase letters, numbers, and hyphens.');
+    }
+
+    return $normalized;
+}
+
+function bandpromo_playlist_find_id_by_slug(string $root, string $slug, string $excludePlaylistId = ''): string
+{
+    $slug = bandpromo_playlist_normalize_id($slug);
+    $excludePlaylistId = bandpromo_playlist_normalize_id($excludePlaylistId);
+    if ($slug === '') {
+        return '';
+    }
+
+    foreach (bandpromo_playlist_registry_entries($root) as $registryEntry) {
+        $playlistId = bandpromo_playlist_normalize_id((string) ($registryEntry['id'] ?? ''));
+        if ($playlistId === '' || ($excludePlaylistId !== '' && $playlistId === $excludePlaylistId)) {
+            continue;
+        }
+        if ($playlistId === $slug) {
+            return $playlistId;
+        }
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (bandpromo_playlist_route_slug($document, $playlistId) === $slug) {
+            return $playlistId;
+        }
+    }
+
+    return '';
+}
+
+function bandpromo_playlist_assert_slug_available(string $root, string $slug, string $excludePlaylistId = ''): void
+{
+    $existingId = bandpromo_playlist_find_id_by_slug($root, $slug, $excludePlaylistId);
+    if ($existingId !== '') {
+        throw new InvalidArgumentException('That playlist slug is already in use.');
+    }
+}
+
+function bandpromo_playlist_resolve_route_id(string $root, string $segment): string
+{
+    $segment = bandpromo_playlist_normalize_id(trim($segment));
+    if ($segment === '') {
+        return '';
+    }
+
+    return bandpromo_playlist_find_id_by_slug($root, $segment);
+}
+
+function bandpromo_playlist_public_slug(string $root, string $playlistId): string
+{
+    $playlistId = bandpromo_playlist_normalize_id($playlistId);
+    if ($playlistId === '') {
+        return '';
+    }
+
+    try {
+        $document = bandpromo_playlist_load_document($root, $playlistId);
+
+        return bandpromo_playlist_route_slug($document, $playlistId);
+    } catch (Throwable $throwable) {
+        return $playlistId;
+    }
+}
+
+function bandpromo_playlist_player_catalog_entries(string $root): array
+{
+    $entries = [];
+    foreach (bandpromo_playlist_system_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $id = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($id === '') {
+            continue;
+        }
+        $entries[] = [
+            'id' => $id,
+            'title' => (string) ($entry['title'] ?? $id),
+            'slug' => bandpromo_playlist_public_slug($root, $id),
+        ];
+    }
+
+    return $entries;
+}
+
 function bandpromo_playlist_normalize_entry(array $entry): ?array
 {
     $masterFile = basename(trim((string) ($entry['master_file'] ?? $entry['file'] ?? '')));
@@ -77,7 +185,7 @@ function bandpromo_playlist_normalize_entry(array $entry): ?array
     ];
 }
 
-function bandpromo_playlist_normalize_document(array $input, ?string $expectedId = null): array
+function bandpromo_playlist_normalize_document(array $input, ?string $expectedId = null, ?string $root = null): array
 {
     $id = bandpromo_playlist_normalize_id((string) ($input['id'] ?? $expectedId ?? ''));
     if ($id === '' || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $id)) {
@@ -102,6 +210,8 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
         throw new InvalidArgumentException('Playlist publish_date must use YYYY or YYYY-MM-DD.');
     }
 
+    $slug = bandpromo_playlist_normalize_slug((string) ($input['slug'] ?? ''), $id);
+
     $entries = [];
     if (isset($input['entries']) && is_array($input['entries'])) {
         foreach ($input['entries'] as $entry) {
@@ -118,9 +228,15 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
     return [
         'version' => BANDPROMO_PLAYLIST_REGISTRY_VERSION,
         'id' => $id,
+        'slug' => $slug,
         'title' => $title,
         'kind' => $kind,
         'publish_date' => $publishDate,
+        'description' => bandpromo_release_normalize_text_field($input['description'] ?? '', 4000),
+        'short_description' => bandpromo_release_normalize_text_field($input['short_description'] ?? '', 300),
+        'poster_asset_id' => $root !== null
+            ? bandpromo_release_normalize_poster_asset_id($root, $input['poster_asset_id'] ?? '')
+            : trim((string) ($input['poster_asset_id'] ?? '')),
         'entries' => $entries,
     ];
 }
@@ -131,8 +247,8 @@ function bandpromo_playlist_default_registry(): array
         'version' => BANDPROMO_PLAYLIST_REGISTRY_VERSION,
         'playlists' => [
             [
-                'id' => BANDPROMO_PLAYLIST_DEFAULT_ID,
-                'title' => 'Main Playlist',
+                'id' => BANDPROMO_PLAYLIST_DEMO_ID,
+                'title' => 'bandPromo demo',
                 'kind' => 'system',
                 'publish_date' => gmdate('Y-m-d'),
                 'sort_order' => 10,
@@ -141,14 +257,23 @@ function bandpromo_playlist_default_registry(): array
     ];
 }
 
-function bandpromo_playlist_default_document(): array
+function bandpromo_playlist_new_document(string $id, string $title): array
 {
+    $id = bandpromo_playlist_normalize_id($id);
+    if ($id === '') {
+        throw new InvalidArgumentException('Playlist id is required.');
+    }
+
     return [
         'version' => BANDPROMO_PLAYLIST_REGISTRY_VERSION,
-        'id' => BANDPROMO_PLAYLIST_DEFAULT_ID,
-        'title' => 'Main Playlist',
+        'id' => $id,
+        'slug' => $id,
+        'title' => trim($title) !== '' ? trim($title) : ucfirst(str_replace('-', ' ', $id)),
         'kind' => 'system',
         'publish_date' => gmdate('Y-m-d'),
+        'description' => '',
+        'short_description' => '',
+        'poster_asset_id' => '',
         'entries' => [],
     ];
 }
@@ -204,7 +329,7 @@ function bandpromo_playlist_write_registry(string $root, array $registry): void
 function bandpromo_playlist_write_document(string $root, array $document): void
 {
     bandpromo_playlist_registry_ensure_dir($root);
-    $normalized = bandpromo_playlist_normalize_document($document);
+    $normalized = bandpromo_playlist_normalize_document($document, null, $root);
     if (!bandpromo_json_write_file(bandpromo_playlist_document_path($root, $normalized['id']), $normalized)) {
         throw new RuntimeException('Could not write playlist document.');
     }
@@ -235,7 +360,7 @@ function bandpromo_playlist_load_document(string $root, string $playlistId): arr
         throw new RuntimeException('Invalid playlist document: data/playlists/' . $playlistId . '.json');
     }
 
-    return bandpromo_playlist_normalize_document($decoded, $playlistId);
+    return bandpromo_playlist_normalize_document($decoded, $playlistId, $root);
 }
 
 function bandpromo_playlist_registry_entries(string $root): array
@@ -267,29 +392,38 @@ function bandpromo_playlist_default_active_id(string $root): string
 {
     $now = (int) gmdate('Ymd');
     $candidates = [];
-    foreach (bandpromo_playlist_system_entries($root) as $entry) {
+    foreach (bandpromo_playlist_admin_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
         $publishValue = bandpromo_playlist_publish_date_sort_value((string) ($entry['publish_date'] ?? ''));
-        if ($publishValue > $now) {
+        if ($publishValue <= 0 || $publishValue > $now) {
+            continue;
+        }
+        $id = trim((string) ($entry['id'] ?? ''));
+        if ($id === '') {
             continue;
         }
         $candidates[] = [
-            'id' => (string) ($entry['id'] ?? ''),
+            'id' => $id,
             'publish_value' => $publishValue,
         ];
     }
 
     if ($candidates === []) {
-        return BANDPROMO_PLAYLIST_DEFAULT_ID;
+        return BANDPROMO_PLAYLIST_DEMO_ID;
     }
 
     usort($candidates, static fn(array $a, array $b): int => $b['publish_value'] <=> $a['publish_value']);
 
-    return $candidates[0]['id'] !== '' ? $candidates[0]['id'] : BANDPROMO_PLAYLIST_DEFAULT_ID;
+    return $candidates[0]['id'] !== '' ? $candidates[0]['id'] : BANDPROMO_PLAYLIST_DEMO_ID;
 }
 
-function bandpromo_playlist_legacy_order_path(string $root): string
+function bandpromo_playlist_resolve_id(string $root, string $requestedId = ''): string
 {
-    return $root . '/data/playlist-order.json';
+    $requestedId = bandpromo_playlist_normalize_id($requestedId);
+
+    return $requestedId !== '' ? $requestedId : bandpromo_playlist_default_active_id($root);
 }
 
 function bandpromo_playlist_built_path(string $root): string
@@ -297,14 +431,9 @@ function bandpromo_playlist_built_path(string $root): string
     return $root . '/play/playlist.json';
 }
 
-function bandpromo_playlist_load_legacy_order(string $root): array
+function bandpromo_playlist_legacy_order_path(string $root): string
 {
-    $decoded = bandpromo_json_read_array_file(bandpromo_playlist_legacy_order_path($root));
-    if ($decoded === null) {
-        return [];
-    }
-
-    return array_values(array_filter($decoded, static fn($entry): bool => is_string($entry) && $entry !== ''));
+    return $root . '/data/playlist-order.json';
 }
 
 function bandpromo_playlist_load_built_tracks(string $root): array
@@ -328,37 +457,8 @@ function bandpromo_playlist_load_built_tracks(string $root): array
     return $tracks;
 }
 
-function bandpromo_playlist_migrate_from_legacy(string $root): void
+function bandpromo_playlist_seed_from_template(string $root): void
 {
-    $mainPath = bandpromo_playlist_document_path($root, BANDPROMO_PLAYLIST_DEFAULT_ID);
-    if (is_file($mainPath)) {
-        return;
-    }
-
-    $builtTracks = bandpromo_playlist_load_built_tracks($root);
-    $order = bandpromo_playlist_load_legacy_order($root);
-    if ($order === [] && $builtTracks !== []) {
-        $order = array_keys($builtTracks);
-    }
-
-    $entries = [];
-    foreach ($order as $masterFile) {
-        $masterFile = basename((string) $masterFile);
-        if ($masterFile === '') {
-            continue;
-        }
-        $asset = bandpromo_asset_lookup_by_master_filename($root, $masterFile);
-        $entries[] = [
-            'master_file' => $masterFile,
-            'asset_id' => (string) ($asset['id'] ?? ''),
-            'release_id' => (string) ($asset['release_id'] ?? ''),
-        ];
-    }
-
-    $document = bandpromo_playlist_default_document();
-    $document['entries'] = $entries;
-    bandpromo_playlist_write_document($root, $document);
-
     $registry = bandpromo_playlist_default_registry();
     $templateRegistry = $root . '/biblioteca/templates/playlists.registry.template.json';
     if (is_file($templateRegistry)) {
@@ -367,22 +467,196 @@ function bandpromo_playlist_migrate_from_legacy(string $root): void
             $registry = bandpromo_playlist_normalize_registry($decoded);
         }
     }
+
     bandpromo_playlist_write_registry($root, $registry);
+
+    foreach ($registry['playlists'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        $path = bandpromo_playlist_document_path($root, $playlistId);
+        if (is_file($path)) {
+            continue;
+        }
+        bandpromo_playlist_write_document(
+            $root,
+            bandpromo_playlist_new_document($playlistId, (string) ($entry['title'] ?? $playlistId))
+        );
+    }
 }
 
 function bandpromo_playlist_ensure_seeded(string $root): void
 {
-    bandpromo_asset_registry_ensure_migrated($root);
-    bandpromo_release_ensure_seeded($root);
-    bandpromo_playlist_registry_ensure_dir($root);
+    static $running = [];
+    if (!empty($running[$root])) {
+        return;
+    }
+    $running[$root] = true;
 
-    if (!is_file(bandpromo_playlist_registry_path($root))) {
-        bandpromo_playlist_migrate_from_legacy($root);
+    try {
+        bandpromo_asset_registry_ensure_migrated($root);
+        bandpromo_release_ensure_seeded($root);
+        bandpromo_playlist_registry_ensure_dir($root);
+
+        if (!is_file(bandpromo_playlist_registry_path($root))) {
+            bandpromo_playlist_seed_from_template($root);
+        }
+
+        bandpromo_playlist_remove_legacy_main_playlist($root);
+        bandpromo_playlist_ensure_demo_playlist($root);
+    } finally {
+        unset($running[$root]);
+    }
+}
+
+function bandpromo_playlist_remove_legacy_main_playlist(string $root): void
+{
+    $legacyId = BANDPROMO_PLAYLIST_LEGACY_MAIN_ID;
+    $registryPath = bandpromo_playlist_registry_path($root);
+    if (!is_file($registryPath)) {
+        return;
     }
 
-    if (!is_file(bandpromo_playlist_document_path($root, BANDPROMO_PLAYLIST_DEFAULT_ID))) {
-        bandpromo_playlist_migrate_from_legacy($root);
+    $decoded = bandpromo_json_read_array_file($registryPath);
+    if ($decoded === null) {
+        return;
     }
+
+    $registry = bandpromo_playlist_normalize_registry($decoded);
+    $hadLegacyRegistry = false;
+    foreach ($registry['playlists'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if ((string) ($entry['id'] ?? '') === $legacyId) {
+            $hadLegacyRegistry = true;
+            break;
+        }
+    }
+
+    $legacyPath = bandpromo_playlist_document_path($root, $legacyId);
+    $legacyExists = is_file($legacyPath);
+    if (!$hadLegacyRegistry && !$legacyExists) {
+        return;
+    }
+
+    if ($legacyExists) {
+        $legacyDoc = bandpromo_json_read_array_file($legacyPath);
+        $legacyEntries = is_array($legacyDoc) && is_array($legacyDoc['entries'] ?? null)
+            ? $legacyDoc['entries']
+            : [];
+        if ($legacyEntries !== [] && bandpromo_playlist_document_is_empty($root, BANDPROMO_PLAYLIST_DEMO_ID)) {
+            try {
+                $document = bandpromo_playlist_load_document($root, BANDPROMO_PLAYLIST_DEMO_ID);
+            } catch (Throwable $throwable) {
+                $document = bandpromo_playlist_new_document(BANDPROMO_PLAYLIST_DEMO_ID, 'bandPromo demo');
+            }
+            $document['entries'] = $legacyEntries;
+            bandpromo_playlist_write_document($root, $document);
+        }
+    }
+
+    if ($hadLegacyRegistry) {
+        $registry['playlists'] = array_values(array_filter(
+            $registry['playlists'],
+            static fn($entry): bool => is_array($entry) && (string) ($entry['id'] ?? '') !== $legacyId
+        ));
+        bandpromo_playlist_write_registry($root, $registry);
+    }
+
+    if ($legacyExists) {
+        @unlink($legacyPath);
+    }
+}
+
+function bandpromo_playlist_document_is_empty(string $root, string $playlistId): bool
+{
+    try {
+        $document = bandpromo_playlist_load_document($root, $playlistId);
+    } catch (Throwable $throwable) {
+        return true;
+    }
+
+    return bandpromo_playlist_entry_master_files($document) === [];
+}
+
+function bandpromo_playlist_ensure_demo_playlist(string $root): void
+{
+    bandpromo_release_ensure_demo_release($root);
+
+    $registry = bandpromo_playlist_load_registry($root);
+    $hasDemo = false;
+    foreach ($registry['playlists'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if ((string) ($entry['id'] ?? '') === BANDPROMO_PLAYLIST_DEMO_ID) {
+            $hasDemo = true;
+            break;
+        }
+    }
+
+    if (!$hasDemo) {
+        $registry['playlists'][] = [
+            'id' => BANDPROMO_PLAYLIST_DEMO_ID,
+            'title' => 'bandPromo demo',
+            'kind' => 'system',
+            'publish_date' => gmdate('Y-m-d'),
+            'sort_order' => 10,
+        ];
+        bandpromo_playlist_write_registry($root, $registry);
+    }
+
+    bandpromo_playlist_sync_demo_playlist($root);
+}
+
+function bandpromo_playlist_sync_demo_playlist(string $root): void
+{
+    if (!bandpromo_playlist_document_is_empty($root, BANDPROMO_PLAYLIST_DEMO_ID)) {
+        return;
+    }
+
+    try {
+        $release = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+    } catch (Throwable $throwable) {
+        return;
+    }
+
+    try {
+        $document = bandpromo_playlist_load_document($root, BANDPROMO_PLAYLIST_DEMO_ID);
+    } catch (Throwable $throwable) {
+        $document = bandpromo_playlist_new_document(BANDPROMO_PLAYLIST_DEMO_ID, 'bandPromo demo');
+    }
+
+    $entries = [];
+    foreach ($release['tracks'] as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $assetId = trim((string) ($track['asset_id'] ?? ''));
+        $masterFile = bandpromo_release_track_master_filename($root, $assetId);
+        if ($masterFile === '') {
+            continue;
+        }
+        $entries[] = [
+            'master_file' => $masterFile,
+            'asset_id' => $assetId,
+            'release_id' => BANDPROMO_RELEASE_DEMO_ID,
+        ];
+    }
+
+    $document['id'] = BANDPROMO_PLAYLIST_DEMO_ID;
+    $document['title'] = 'bandPromo demo';
+    $document['kind'] = 'system';
+    if (trim((string) ($document['publish_date'] ?? '')) === '') {
+        $document['publish_date'] = trim((string) ($release['release_date'] ?? '')) ?: gmdate('Y-m-d');
+    }
+    $document['entries'] = $entries;
+    bandpromo_playlist_write_document($root, $document);
 }
 
 function bandpromo_playlist_materialize_entries(array $filenames): array
@@ -690,6 +964,43 @@ function bandpromo_playlist_resolve_track_index(array $tracks, string $releaseSl
     return -1;
 }
 
+function bandpromo_playlist_resolve_track_index_by_track_slug(array $tracks, string $trackSlug): int
+{
+    $trackSlug = strtolower(trim($trackSlug));
+    if ($trackSlug === '') {
+        return -1;
+    }
+
+    foreach ($tracks as $index => $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        if (strtolower((string) ($track['track_slug'] ?? '')) === $trackSlug) {
+            return (int) $index;
+        }
+    }
+
+    return -1;
+}
+
+function bandpromo_playlist_resolve_player_track_index(
+    array $tracks,
+    string $releaseSlug,
+    string $trackSlug
+): int {
+    $releaseSlug = strtolower(trim($releaseSlug));
+    $trackSlug = strtolower(trim($trackSlug));
+    if ($trackSlug === '') {
+        return -1;
+    }
+
+    if ($releaseSlug !== '') {
+        return bandpromo_playlist_resolve_track_index($tracks, $releaseSlug, $trackSlug);
+    }
+
+    return bandpromo_playlist_resolve_track_index_by_track_slug($tracks, $trackSlug);
+}
+
 function bandpromo_playlist_entry_master_files(array $document): array
 {
     $files = [];
@@ -721,6 +1032,122 @@ function bandpromo_playlist_pool_map_from_preview_tracks(array $tracks): array
     }
 
     return $map;
+}
+
+function bandpromo_playlist_enrich_track_release_meta(string $root, array $row): array
+{
+    $file = trim((string) ($row['file'] ?? ''));
+    if ($file === '') {
+        return $row;
+    }
+
+    $meta = bandpromo_release_audio_listing_meta($root, $file);
+    $releaseTitle = trim((string) ($meta['release_title'] ?? ''));
+    if ($releaseTitle !== '') {
+        $row['release_title'] = $releaseTitle;
+    }
+    if (trim((string) ($row['release_id'] ?? '')) === '') {
+        $releaseId = bandpromo_release_normalize_id(trim((string) ($meta['release_id'] ?? '')));
+        if ($releaseId !== '') {
+            $row['release_id'] = $releaseId;
+        }
+    }
+
+    return $row;
+}
+
+function bandpromo_playlist_release_track_order_map(string $root, string $releaseId): array
+{
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    if ($releaseId === '') {
+        return [];
+    }
+
+    try {
+        $document = bandpromo_release_load_document($root, $releaseId);
+    } catch (Throwable $throwable) {
+        return [];
+    }
+
+    $order = [];
+    foreach ($document['tracks'] as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $masterFile = bandpromo_release_track_master_filename($root, (string) ($track['asset_id'] ?? ''));
+        if ($masterFile === '') {
+            continue;
+        }
+        $order[$masterFile] = (int) ($track['track_number'] ?? 0);
+    }
+
+    return $order;
+}
+
+function bandpromo_playlist_release_title(string $root, string $releaseId): string
+{
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    if ($releaseId === '') {
+        return '';
+    }
+
+    try {
+        $document = bandpromo_release_load_document($root, $releaseId);
+    } catch (Throwable $throwable) {
+        return '';
+    }
+
+    return trim((string) ($document['title'] ?? ''));
+}
+
+function bandpromo_playlist_build_pool_track_row(string $root, array $track, string $masterFile): array
+{
+    $masterFile = basename(trim($masterFile));
+    $releaseId = bandpromo_release_id_for_master_filename($root, $masterFile);
+    $releaseTitle = bandpromo_playlist_release_title($root, $releaseId);
+
+    $row = bandpromo_release_enrich_track_row_labels(
+        $root,
+        bandpromo_release_track_row_from_pool($track, $releaseId),
+        $releaseTitle
+    );
+
+    return bandpromo_playlist_enrich_track_release_meta($root, $row);
+}
+
+function bandpromo_playlist_sort_available_tracks(string $root, string $releaseFilter, array $tracks): array
+{
+    $releaseFilter = bandpromo_playlist_normalize_release_filter($releaseFilter);
+    if ($releaseFilter !== 'all' && $releaseFilter !== 'orphans') {
+        $orderMap = bandpromo_playlist_release_track_order_map($root, $releaseFilter);
+        usort($tracks, static function (array $left, array $right) use ($orderMap): int {
+            $leftFile = (string) ($left['file'] ?? '');
+            $rightFile = (string) ($right['file'] ?? '');
+            $leftOrder = $orderMap[$leftFile] ?? 9999;
+            $rightOrder = $orderMap[$rightFile] ?? 9999;
+            if ($leftOrder !== $rightOrder) {
+                return $leftOrder <=> $rightOrder;
+            }
+
+            return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+        });
+
+        return $tracks;
+    }
+
+    usort($tracks, static function (array $left, array $right): int {
+        $releaseCompare = strcasecmp(
+            (string) ($left['release_title'] ?? $left['release_id'] ?? ''),
+            (string) ($right['release_title'] ?? $right['release_id'] ?? '')
+        );
+        if ($releaseCompare !== 0) {
+            return $releaseCompare;
+        }
+
+        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+    });
+
+    return $tracks;
 }
 
 function bandpromo_playlist_track_row_from_pool(array $track, string $releaseId = ''): array
@@ -768,6 +1195,87 @@ function bandpromo_playlist_normalize_release_filter(string $value): string
     return bandpromo_release_normalize_pool_filter($value);
 }
 
+function bandpromo_playlist_track_matches_release_filter(
+    string $root,
+    string $masterFile,
+    string $releaseFilter
+): bool {
+    $releaseFilter = bandpromo_playlist_normalize_release_filter($releaseFilter);
+    if ($releaseFilter === 'all') {
+        return true;
+    }
+
+    $meta = bandpromo_release_audio_listing_meta($root, $masterFile);
+    if ($releaseFilter === 'orphans') {
+        return !empty($meta['release_orphan']);
+    }
+
+    return bandpromo_release_normalize_id((string) ($meta['release_id'] ?? '')) === $releaseFilter;
+}
+
+function bandpromo_playlist_enrich_pool_release_ids(string $root, array $poolByFile): array
+{
+    foreach ($poolByFile as $file => $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $masterFile = basename(trim((string) ($track['file'] ?? $file)));
+        if ($masterFile === '') {
+            continue;
+        }
+        $track['file'] = $masterFile;
+        $track['release_id'] = bandpromo_release_id_for_master_filename($root, $masterFile);
+        $poolByFile[$file] = $track;
+    }
+
+    return bandpromo_playlist_pool_dedupe_master_files($poolByFile);
+}
+
+function bandpromo_playlist_pool_dedupe_master_files(array $poolByFile): array
+{
+    $deduped = [];
+    foreach ($poolByFile as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $masterFile = basename(trim((string) ($track['file'] ?? '')));
+        if ($masterFile === '') {
+            continue;
+        }
+        $track['file'] = $masterFile;
+        $deduped[$masterFile] = $track;
+    }
+
+    return $deduped;
+}
+
+function bandpromo_playlist_enrich_pool_delivery_ready(string $root, array $poolByFile): array
+{
+require_once __DIR__ . '/publish-status-helpers.php';
+
+    foreach ($poolByFile as $file => $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $masterFile = basename(trim((string) ($track['file'] ?? $file)));
+        if ($masterFile === '') {
+            continue;
+        }
+
+        if (($track['sourceTier'] ?? '') === 'release-container') {
+            $track['deliveryReady'] = true;
+        } elseif (bandpromo_asset_lookup_by_master_filename($root, $masterFile) !== null) {
+            $track['deliveryReady'] = true;
+        } else {
+            $track['deliveryReady'] = bandpromo_asset_audio_delivery_ready($root, $masterFile);
+        }
+
+        $poolByFile[$file] = $track;
+    }
+
+    return $poolByFile;
+}
+
 function bandpromo_playlist_admin_editor_state(
     string $root,
     string $playlistId,
@@ -775,10 +1283,7 @@ function bandpromo_playlist_admin_editor_state(
     array $poolByFile,
     array $meta = []
 ): array {
-    $playlistId = bandpromo_playlist_normalize_id($playlistId);
-    if ($playlistId === '') {
-        $playlistId = BANDPROMO_PLAYLIST_DEFAULT_ID;
-    }
+    $playlistId = bandpromo_playlist_resolve_id($root, $playlistId);
     $releaseFilter = bandpromo_playlist_normalize_release_filter($releaseFilter);
 
     $document = bandpromo_playlist_load_document($root, $playlistId);
@@ -798,9 +1303,8 @@ function bandpromo_playlist_admin_editor_state(
 
     $activeTracks = [];
     foreach ($activeFiles as $file) {
-        $releaseId = bandpromo_release_id_for_master_filename($root, $file);
         if (isset($poolByFile[$file])) {
-            $activeTracks[] = bandpromo_playlist_track_row_from_pool($poolByFile[$file], $releaseId);
+            $activeTracks[] = bandpromo_playlist_build_pool_track_row($root, $poolByFile[$file], $file);
             continue;
         }
 
@@ -808,7 +1312,13 @@ function bandpromo_playlist_admin_editor_state(
             continue;
         }
 
-        $activeTracks[] = bandpromo_playlist_track_row_from_built($builtByFile[$file], $releaseId);
+        $releaseId = bandpromo_release_id_for_master_filename($root, $file);
+        $row = bandpromo_release_enrich_track_row_labels(
+            $root,
+            bandpromo_playlist_track_row_from_built($builtByFile[$file], $releaseId),
+            bandpromo_playlist_release_title($root, $releaseId)
+        );
+        $activeTracks[] = bandpromo_playlist_enrich_track_release_meta($root, $row);
     }
 
     $availableTracks = [];
@@ -816,16 +1326,12 @@ function bandpromo_playlist_admin_editor_state(
         if (isset($activeSet[$file])) {
             continue;
         }
-        $releaseId = bandpromo_release_id_for_master_filename($root, $file);
-        $row = bandpromo_playlist_track_row_from_pool($track, $releaseId);
-        if ($releaseFilter !== 'all' && ($row['release_id'] ?? '') !== $releaseFilter) {
+        if (!bandpromo_playlist_track_matches_release_filter($root, $file, $releaseFilter)) {
             continue;
         }
-        $availableTracks[] = $row;
+        $availableTracks[] = bandpromo_playlist_build_pool_track_row($root, $track, $file);
     }
-    usort($availableTracks, static function (array $left, array $right): int {
-        return strcasecmp((string) ($left['file'] ?? ''), (string) ($right['file'] ?? ''));
-    });
+    $availableTracks = bandpromo_playlist_sort_available_tracks($root, $releaseFilter, $availableTracks);
 
     return [
         'ok' => true,
@@ -877,9 +1383,71 @@ function bandpromo_playlist_registry_entry(string $root, string $playlistId): ?a
     return null;
 }
 
+function bandpromo_playlist_admin_registry_entry(string $root, array $registryEntry): array
+{
+    $playlistId = bandpromo_playlist_normalize_id((string) ($registryEntry['id'] ?? ''));
+    $entry = $registryEntry;
+    $entry['track_count'] = 0;
+    $entry['ownership'] = bandpromo_playlist_is_system_owned($playlistId) ? 'system' : 'operator';
+
+    try {
+        $document = bandpromo_playlist_load_document($root, $playlistId);
+        $entry['title'] = (string) ($document['title'] ?? $entry['title'] ?? $playlistId);
+        $entry['publish_date'] = (string) ($document['publish_date'] ?? $entry['publish_date'] ?? '');
+        $entry['slug'] = bandpromo_playlist_route_slug($document, $playlistId);
+        $entry['description'] = (string) ($document['description'] ?? '');
+        $entry['short_description'] = (string) ($document['short_description'] ?? '');
+        $entry['poster_asset_id'] = (string) ($document['poster_asset_id'] ?? '');
+        $entry['poster_preview_url'] = bandpromo_release_resolve_poster_preview_url(
+            $root,
+            $entry['poster_asset_id']
+        );
+        $entry['kind'] = strtolower((string) ($document['kind'] ?? $entry['kind'] ?? 'system')) === 'user'
+            ? 'user'
+            : 'system';
+        $entry['track_count'] = count($document['entries'] ?? []);
+    } catch (Throwable $throwable) {
+        // Keep registry-only fields when the document is missing.
+        $entry['slug'] = (string) ($entry['slug'] ?? $playlistId);
+    }
+
+    return $entry;
+}
+
+function bandpromo_playlist_admin_registry_entries(string $root): array
+{
+    $entries = [];
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $entries[] = bandpromo_playlist_admin_registry_entry($root, $entry);
+    }
+
+    usort($entries, static function (array $left, array $right): int {
+        $leftDate = (string) ($left['publish_date'] ?? '');
+        $rightDate = (string) ($right['publish_date'] ?? '');
+        $dateCompare = strcmp($rightDate, $leftDate);
+        if ($dateCompare !== 0) {
+            return $dateCompare;
+        }
+
+        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+    });
+
+    return $entries;
+}
+
+function bandpromo_playlist_is_system_owned(string $playlistId): bool
+{
+    $playlistId = bandpromo_playlist_normalize_id($playlistId);
+
+    return bandpromo_playlist_normalize_id($playlistId) === BANDPROMO_PLAYLIST_DEMO_ID;
+}
+
 function bandpromo_playlist_is_protected_id(string $playlistId): bool
 {
-    return bandpromo_playlist_normalize_id($playlistId) === BANDPROMO_PLAYLIST_DEFAULT_ID;
+    return bandpromo_playlist_is_system_owned($playlistId);
 }
 
 function bandpromo_playlist_create(string $root, string $title, string $preferredId = ''): array
@@ -922,30 +1490,97 @@ function bandpromo_playlist_create(string $root, string $title, string $preferre
     ];
     bandpromo_playlist_write_registry($root, $registry);
 
-    $document = bandpromo_playlist_default_document();
-    $document['id'] = $id;
-    $document['title'] = $title;
-    $document['kind'] = 'system';
-    $document['publish_date'] = gmdate('Y-m-d');
-    $document['entries'] = [];
+    $document = bandpromo_playlist_new_document($id, $title);
     bandpromo_playlist_write_document($root, $document);
 
-    return bandpromo_playlist_registry_entry($root, $id) ?? [];
+    return bandpromo_playlist_admin_registry_entry(
+        $root,
+        bandpromo_playlist_registry_entry($root, $id) ?? ['id' => $id]
+    );
 }
 
-function bandpromo_playlist_update_details(string $root, string $playlistId, string $title, string $publishDate): array
+function bandpromo_playlist_create_from_release(string $root, string $releaseId): array
+{
+    require_once __DIR__ . '/release-storage.php';
+
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    if ($releaseId === '') {
+        throw new InvalidArgumentException('Release id is required.');
+    }
+
+    $document = bandpromo_release_load_document($root, $releaseId);
+    $title = trim((string) ($document['title'] ?? ''));
+    if ($title === '') {
+        throw new InvalidArgumentException('Release title is required to create a playlist.');
+    }
+
+    $entries = [];
+    foreach ($document['tracks'] as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $assetId = trim((string) ($track['asset_id'] ?? ''));
+        $masterFile = bandpromo_release_track_master_filename($root, $assetId);
+        if ($masterFile === '') {
+            continue;
+        }
+        $entries[] = [
+            'master_file' => $masterFile,
+            'asset_id' => $assetId,
+            'release_id' => $releaseId,
+        ];
+    }
+
+    if ($entries === []) {
+        throw new InvalidArgumentException('Add tracks to the release before creating a playlist.');
+    }
+
+    $preferredId = bandpromo_playlist_slug_from_title($title);
+
+    $entry = bandpromo_playlist_create($root, $title, $preferredId);
+    $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+    if ($playlistId === '') {
+        throw new RuntimeException('Could not create playlist.');
+    }
+
+    $publishDate = trim((string) ($document['release_date'] ?? ''));
+    if ($publishDate === '' || !bandpromo_playlist_validate_date($publishDate)) {
+        $publishDate = gmdate('Y-m-d');
+    }
+
+    bandpromo_playlist_update_details($root, $playlistId, [
+        'title' => $title,
+        'publish_date' => $publishDate,
+        'description' => (string) ($document['description'] ?? ''),
+        'short_description' => (string) ($document['short_description'] ?? ''),
+        'poster_asset_id' => (string) ($document['poster_asset_id'] ?? ''),
+    ]);
+
+    $playlistDocument = bandpromo_playlist_load_document($root, $playlistId);
+    $playlistDocument['entries'] = $entries;
+    bandpromo_playlist_write_document($root, $playlistDocument);
+
+    $updated = bandpromo_playlist_registry_entry($root, $playlistId);
+    if ($updated === null) {
+        throw new RuntimeException('Could not load created playlist.');
+    }
+
+    return bandpromo_playlist_admin_registry_entry($root, $updated);
+}
+
+function bandpromo_playlist_update_details(string $root, string $playlistId, array $fields): array
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);
     if ($playlistId === '') {
         throw new InvalidArgumentException('Playlist id is required.');
     }
 
-    $title = trim($title);
+    $title = trim((string) ($fields['title'] ?? ''));
     if ($title === '') {
         throw new InvalidArgumentException('Playlist name is required.');
     }
 
-    $publishDate = trim($publishDate);
+    $publishDate = trim((string) ($fields['publish_date'] ?? ''));
     if (!bandpromo_playlist_validate_date($publishDate)) {
         throw new InvalidArgumentException('Publish date must use YYYY or YYYY-MM-DD.');
     }
@@ -969,6 +1604,20 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, str
     $document = bandpromo_playlist_load_document($root, $playlistId);
     $document['title'] = $title;
     $document['publish_date'] = $publishDate;
+    if (array_key_exists('slug', $fields)) {
+        $slug = bandpromo_playlist_normalize_slug((string) $fields['slug'], $playlistId);
+        bandpromo_playlist_assert_slug_available($root, $slug, $playlistId);
+        $document['slug'] = $slug;
+    }
+    if (array_key_exists('short_description', $fields)) {
+        $document['short_description'] = bandpromo_release_normalize_text_field($fields['short_description'], 300);
+    }
+    if (array_key_exists('description', $fields)) {
+        $document['description'] = bandpromo_release_normalize_text_field($fields['description'], 4000);
+    }
+    if (array_key_exists('poster_asset_id', $fields)) {
+        $document['poster_asset_id'] = bandpromo_release_normalize_poster_asset_id($root, $fields['poster_asset_id']);
+    }
     bandpromo_playlist_write_document($root, $document);
 
     $updated = bandpromo_playlist_registry_entry($root, $playlistId);
@@ -976,14 +1625,14 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, str
         throw new RuntimeException('Could not load updated playlist.');
     }
 
-    return $updated;
+    return bandpromo_playlist_admin_registry_entry($root, $updated);
 }
 
 function bandpromo_playlist_delete(string $root, string $playlistId): void
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);
     if (bandpromo_playlist_is_protected_id($playlistId)) {
-        throw new InvalidArgumentException('The main playlist cannot be deleted.');
+        throw new InvalidArgumentException('The bandPromo demo playlist cannot be deleted.');
     }
 
     $registry = bandpromo_playlist_load_registry($root);

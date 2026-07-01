@@ -13,26 +13,37 @@ function bandpromo_audio_master_playlist_map(string $root): array
         return $cache[$root];
     }
 
-    if (is_file(bandpromo_playlist_document_path($root, BANDPROMO_PLAYLIST_DEFAULT_ID))) {
-        try {
-            $document = bandpromo_playlist_load_document($root, BANDPROMO_PLAYLIST_DEFAULT_ID);
-            $tracks = bandpromo_playlist_build_track_list($root, $document);
-            $map = [];
-            foreach ($tracks as $entry) {
-                if (!is_array($entry)) {
-                    continue;
-                }
-                $file = trim((string) ($entry['file'] ?? ''));
-                if ($file === '') {
-                    continue;
-                }
-                $map[$file] = $entry;
+    $map = [];
+    try {
+        foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+            if (!is_array($entry)) {
+                continue;
             }
-
-            return $cache[$root] = $map;
-        } catch (Throwable $throwable) {
-            // Fall through to legacy built playlist.
+            $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+            if ($playlistId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_playlist_load_document($root, $playlistId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            foreach (bandpromo_playlist_build_track_list($root, $document) as $track) {
+                if (!is_array($track)) {
+                    continue;
+                }
+                $file = trim((string) ($track['file'] ?? ''));
+                if ($file !== '') {
+                    $map[$file] = $track;
+                }
+            }
         }
+    } catch (Throwable $throwable) {
+        // Fall through to built playlist artifact.
+    }
+
+    if ($map !== []) {
+        return $cache[$root] = $map;
     }
 
     $playlistFile = $root . '/play/playlist.json';
@@ -87,6 +98,180 @@ function bandpromo_audio_master_resolve_sidecar_cover_url(string $root, ?string 
     $version = is_file($path) ? (string) filemtime($path) : (string) time();
 
     return '/media/img/original/' . rawurlencode($filename) . '?v=' . rawurlencode($version);
+}
+
+function bandpromo_audio_files_listing_context(string $root): array
+{
+    static $cache = [];
+
+    if (isset($cache[$root])) {
+        return $cache[$root];
+    }
+
+    $playlistMap = bandpromo_audio_master_playlist_map($root);
+    $poolMap = bandpromo_release_pool_map_canonical($root, $playlistMap);
+    $releaseDates = [];
+    foreach (bandpromo_release_admin_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $id = trim((string) ($entry['id'] ?? ''));
+        if ($id === '') {
+            continue;
+        }
+        $releaseDates[$id] = trim((string) ($entry['release_date'] ?? ''));
+    }
+
+    return $cache[$root] = [
+        'pool' => $poolMap,
+        'release_dates' => $releaseDates,
+    ];
+}
+
+function bandpromo_audio_split_title_parts(string $value): array
+{
+    return bandpromo_release_split_audio_title_parts($value);
+}
+
+function bandpromo_audio_listing_title_parts(string $title, string $artist = '', string $album = ''): array
+{
+    $title = bandpromo_release_polish_track_title($title, $artist, $album);
+
+    return bandpromo_release_split_audio_title_parts($title);
+}
+
+function bandpromo_audio_listing_title_looks_messy(string $title, string $filename): bool
+{
+    return bandpromo_release_track_title_looks_messy($title, $filename);
+}
+
+function bandpromo_audio_display_label_for_listing(
+    string $root,
+    string $filename,
+    array $validation_map,
+    array $context
+): array {
+    $filename = basename(trim($filename));
+    $pool = is_array($context['pool'] ?? null) ? $context['pool'] : [];
+
+    $row = is_array($pool[$filename] ?? null) ? $pool[$filename] : [];
+    $artist = trim((string) ($row['artist'] ?? ''));
+    $album = trim((string) ($row['album'] ?? ''));
+    $title = trim(str_replace(["\r\n", "\r", "\n"], ' ', (string) ($row['title'] ?? '')));
+
+    if ($title === '' && isset($validation_map[$filename]['display_title'])) {
+        $title = trim((string) $validation_map[$filename]['display_title']);
+    }
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+    $display = bandpromo_asset_read_audio_display($asset);
+
+    if ($display['artist'] !== '') {
+        $artist = $display['artist'];
+    } elseif ($title !== '') {
+        $title = bandpromo_release_polish_track_title($title, $artist, $album);
+    }
+
+    if ($display['album'] !== '' && $album === '') {
+        $album = $display['album'];
+    }
+
+    $duration = (int) ($row['duration'] ?? 0);
+    if ($display['duration'] > 0) {
+        $duration = $display['duration'];
+    }
+
+    $version = '';
+    if ($display['title'] !== '') {
+        $title = $display['title'];
+        $version = $display['version'];
+    } else {
+        if ($title !== '') {
+            $title = bandpromo_release_polish_track_title($title, $artist, $album);
+        }
+        if ($title === '' || bandpromo_release_title_looks_like_asset_id($title, $filename)) {
+            if ($asset !== null) {
+                $labels = bandpromo_release_track_display_from_asset($asset, $filename);
+                if ($artist === '') {
+                    $artist = trim((string) ($labels['artist'] ?? ''));
+                }
+                if ($title === '' || bandpromo_release_title_looks_like_asset_id($title, $filename)) {
+                    $title = trim((string) ($labels['title'] ?? ''));
+                }
+                if ($duration <= 0) {
+                    $duration = (int) ($labels['duration'] ?? 0);
+                }
+                if ($version === '' && trim((string) ($labels['version'] ?? '')) !== '') {
+                    $version = trim((string) ($labels['version'] ?? ''));
+                }
+            }
+        }
+
+        $resolved = bandpromo_release_resolve_track_display_labels($title, $artist, $album);
+        $title = $resolved['title'];
+        if ($version === '') {
+            $version = trim((string) ($resolved['version'] ?? ''));
+        }
+    }
+
+    if ($title === '') {
+        $title = 'Untitled';
+    }
+
+    $releaseMeta = bandpromo_release_audio_listing_meta($root, $filename);
+    $releaseId = (string) ($releaseMeta['release_id'] ?? '');
+    $releaseDate = trim((string) ($releaseMeta['release_date'] ?? ''));
+    $trackNumber = (int) bandpromo_release_find_track_number_for_master($root, $filename);
+
+    return [
+        'display_title' => $title,
+        'display_version' => $version,
+        'display_artist' => $artist,
+        'display_subtitle' => '',
+        'display_duration' => max(0, $duration),
+        'release_id' => $releaseId,
+        'release_title' => trim((string) ($releaseMeta['release_title'] ?? '')),
+        'release_date' => $releaseDate,
+        'release_orphan' => !empty($releaseMeta['release_orphan']),
+        'on_release' => !empty($releaseMeta['on_release']),
+        'track_number' => max(0, $trackNumber),
+    ];
+}
+
+function bandpromo_audio_files_listing_sort(array $left, array $right): int
+{
+    $leftDate = trim((string) ($left['release_date'] ?? ''));
+    $rightDate = trim((string) ($right['release_date'] ?? ''));
+
+    if ($leftDate !== '' && $rightDate !== '') {
+        $dateCompare = strcmp($rightDate, $leftDate);
+        if ($dateCompare !== 0) {
+            return $dateCompare;
+        }
+    } elseif ($leftDate !== '' || $rightDate !== '') {
+        return $leftDate !== '' ? -1 : 1;
+    }
+
+    $leftTrack = (int) ($left['track_number'] ?? 0);
+    $rightTrack = (int) ($right['track_number'] ?? 0);
+    if ($leftTrack > 0 || $rightTrack > 0) {
+        $leftTrackSort = $leftTrack > 0 ? $leftTrack : PHP_INT_MAX;
+        $rightTrackSort = $rightTrack > 0 ? $rightTrack : PHP_INT_MAX;
+        if ($leftTrackSort !== $rightTrackSort) {
+            return $leftTrackSort <=> $rightTrackSort;
+        }
+    }
+
+    $titleCompare = strcasecmp(
+        (string) ($left['display_title'] ?? ''),
+        (string) ($right['display_title'] ?? '')
+    );
+    if ($titleCompare !== 0) {
+        return $titleCompare;
+    }
+
+    return strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
 }
 
 function bandpromo_audio_master_enrich_detail(string $root, string $filename, array $detail): array

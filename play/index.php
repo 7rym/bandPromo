@@ -16,8 +16,13 @@ require_once __DIR__ . '/../biblioteca/playlist-storage.php';
 $playerRoot = dirname(__DIR__);
 bandpromo_playlist_ensure_seeded($playerRoot);
 
-$requestedPlaylistId = bandpromo_playlist_normalize_id((string) ($_GET['playlist'] ?? ''));
-$activePlaylistId = $requestedPlaylistId !== '' ? $requestedPlaylistId : bandpromo_playlist_default_active_id($playerRoot);
+$requestedSegment = trim((string) ($_GET['playlist'] ?? ''));
+$resolvedPlaylistId = $requestedSegment !== ''
+    ? bandpromo_playlist_resolve_route_id($playerRoot, $requestedSegment)
+    : '';
+$activePlaylistId = $resolvedPlaylistId !== ''
+    ? $resolvedPlaylistId
+    : bandpromo_playlist_default_active_id($playerRoot);
 try {
     bandpromo_playlist_load_document($playerRoot, $activePlaylistId);
 } catch (Throwable $throwable) {
@@ -51,7 +56,8 @@ require_once '../biblioteca/config-loader.php';
 
 $deepLinkReleaseSlug = strtolower(trim((string) ($_GET['release'] ?? '')));
 $deepLinkTrackSlug = strtolower(trim((string) ($_GET['track'] ?? '')));
-$playlistCatalog = bandpromo_playlist_system_entries($playerRoot);
+$playlistCatalog = bandpromo_playlist_player_catalog_entries($playerRoot);
+$activePlaylistSlug = bandpromo_playlist_public_slug($playerRoot, $activePlaylistId);
 
 function bandpromo_support_parse_kofi_page_id(string $value): string {
     $trimmed = trim($value);
@@ -346,12 +352,13 @@ if ($supportEnabled && $supportUrl !== '') {
         window.BANDPROMO_PLAYER_TABS = <?php echo json_encode($playerTabs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEFAULT_PLAYER_VIEW = <?php echo json_encode($defaultPlayerView, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_ID = <?php echo json_encode($activePlaylistId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_PLAYLIST_SLUG = <?php echo json_encode($activePlaylistSlug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_CATALOG = <?php echo json_encode($playlistCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEEP_LINK = <?php echo json_encode([
             'release' => $deepLinkReleaseSlug,
             'track' => $deepLinkTrackSlug,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-        window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'main');
+        window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo');
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;

@@ -526,32 +526,53 @@ function bandpromo_run_audio_source_delivery(array $filenames): array
 function bandpromo_list_missing_bundled_demo_audio_delivery(string $root): array
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
-
-    $dir = $root . '/media/audio/original';
-    if (!is_dir($dir)) {
-        return [];
-    }
+    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/publish-status-helpers.php';
 
     $missing = [];
-    foreach (scandir($dir) as $filename) {
-        if ($filename === '.' || $filename === '..') {
-            continue;
+
+    try {
+        bandpromo_release_ensure_demo_release($root);
+        $release = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+        foreach ($release['tracks'] as $track) {
+            if (!is_array($track)) {
+                continue;
+            }
+            $masterFile = bandpromo_release_track_master_filename($root, (string) ($track['asset_id'] ?? ''));
+            if ($masterFile === '') {
+                continue;
+            }
+            if (!bandpromo_asset_audio_delivery_ready($root, $masterFile)) {
+                $missing[] = $masterFile;
+            }
         }
-        if (strcasecmp($filename, 'desktop.ini') === 0) {
-            continue;
-        }
-        if (strncmp($filename, 'bandPromo_', 10) !== 0) {
-            continue;
-        }
-        $path = $dir . '/' . $filename;
-        if (!is_file($path)) {
-            continue;
-        }
-        if (!bandpromo_audio_delivery_ready($root, $filename)) {
-            $missing[] = $filename;
+    } catch (Throwable $throwable) {
+        // Fall back to legacy bundled originals scan below.
+    }
+
+    $dir = $root . '/media/audio/original';
+    if (is_dir($dir)) {
+        foreach (scandir($dir) as $filename) {
+            if ($filename === '.' || $filename === '..') {
+                continue;
+            }
+            if (strcasecmp($filename, 'desktop.ini') === 0) {
+                continue;
+            }
+            if (strncmp($filename, 'bandPromo_', 10) !== 0) {
+                continue;
+            }
+            $path = $dir . '/' . $filename;
+            if (!is_file($path)) {
+                continue;
+            }
+            if (!bandpromo_audio_delivery_ready($root, $filename)) {
+                $missing[] = $filename;
+            }
         }
     }
 
+    $missing = array_values(array_unique($missing));
     sort($missing, SORT_NATURAL | SORT_FLAG_CASE);
 
     return $missing;

@@ -32,7 +32,7 @@
         const releaseCoverPreview = document.getElementById('releaseCoverPreview');
         const releaseCoverPlaceholder = document.getElementById('releaseCoverPlaceholder');
         const releaseCoverClearBtn = document.getElementById('releaseCoverClearBtn');
-        const releaseCoverUploadBtn = document.getElementById('releaseCoverUploadBtn');
+        const releaseCreatePlaylistBtn = document.getElementById('releaseCreatePlaylistBtn');
         const releaseSettingsTagline = document.getElementById('releaseSettingsTagline');
         const releaseSettingsGenre = document.getElementById('releaseSettingsGenre');
         const releaseSettingsCredits = document.getElementById('releaseSettingsCredits');
@@ -101,6 +101,7 @@
 
         let releases = [];
         let selectedReleaseId = String(editorCard.dataset.initialRelease || 'primary');
+        let creatingPlaylistFromRelease = false;
         let isEditing = false;
         let pendingReleaseDeleteId = '';
         let releaseSettingsSaving = false;
@@ -123,11 +124,11 @@
             return name || 'bandPromo';
         }
 
-        const DEFAULT_PLAYER_PLAYLIST_ID = 'main';
+        let defaultPlayerPlaylistId = 'bandpromo-demo';
 
         function defaultBandpromoListenUrl() {
             const base = String(siteSharing.siteUrl || '').trim().replace(/\/+$/, '');
-            const playlistSegment = encodeURIComponent(DEFAULT_PLAYER_PLAYLIST_ID);
+            const playlistSegment = encodeURIComponent(defaultPlayerPlaylistId);
             return base ? `${base}/play/${playlistSegment}` : `/play/${playlistSegment}`;
         }
 
@@ -181,12 +182,30 @@
                     facebook: String(social.facebook || '').trim(),
                     instagram: String(social.instagram || '').trim(),
                 };
+                try {
+                    const playlistResponse = await fetch('/biblioteca/get-playlists.php', {
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    });
+                    if (playlistResponse.ok) {
+                        const playlistData = await playlistResponse.json();
+                        if (playlistData?.ok) {
+                            defaultPlayerPlaylistId = String(
+                                playlistData.active_playlist_id
+                                || playlistData.demo_playlist_id
+                                || 'bandpromo-demo'
+                            );
+                        }
+                    }
+                } catch (playlistError) {
+                    // Keep default playlist id when registry is unavailable.
+                }
             } catch (error) {
                 // Keep defaults when config is unavailable.
             }
         }
 
-        function releaseCoverPreviewUrl(value) {
+        function releaseCoverPreviewUrl(value, entry = null) {
             const raw = String(value || '').trim();
             if (!raw) {
                 return '';
@@ -194,14 +213,31 @@
             if (/^https?:\/\//i.test(raw) || raw.startsWith('/media/')) {
                 return raw;
             }
+
+            const entryRef = entry && String(entry.poster_asset_id || '').trim() === raw
+                ? String(entry.poster_preview_url || '').trim()
+                : '';
+            if (entryRef) {
+                return entryRef;
+            }
+
+            const cached = releaseEntry(selectedReleaseId);
+            if (cached && String(cached.poster_asset_id || '').trim() === raw) {
+                const cachedUrl = String(cached.poster_preview_url || '').trim();
+                if (cachedUrl) {
+                    return cachedUrl;
+                }
+            }
+
             return '';
         }
 
         function updateReleaseCoverPreview() {
+            const entry = releaseEntry(selectedReleaseId);
             const rawValue = releaseSettingsPosterAssetId instanceof HTMLInputElement
                 ? String(releaseSettingsPosterAssetId.value || '').trim()
                 : '';
-            const previewUrl = releaseCoverPreviewUrl(rawValue);
+            const previewUrl = releaseCoverPreviewUrl(rawValue, entry);
 
             if (releaseCoverPreview instanceof HTMLImageElement) {
                 if (previewUrl) {
@@ -238,15 +274,69 @@
                 releaseSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
             }
             const canEditCover = !!(entry && !releaseIsSystemManaged(entry) && !entry.locked);
-            const actionButtons = releaseCoverPanel
-                ? releaseCoverPanel.querySelectorAll('button')
+            const coverEditButtons = releaseCoverPanel
+                ? releaseCoverPanel.querySelectorAll('.audio-master-cover-overlay-actions button')
                 : [];
-            actionButtons.forEach((button) => {
+            coverEditButtons.forEach((button) => {
                 if (button instanceof HTMLButtonElement) {
                     button.disabled = !canEditCover;
                 }
             });
+            updateReleaseCreatePlaylistButton();
             updateReleaseCoverPreview();
+        }
+
+        function releaseTrackCount(entry) {
+            if (!entry) {
+                return 0;
+            }
+            const fromEntry = Number(entry.track_count || 0);
+            if (fromEntry > 0) {
+                return fromEntry;
+            }
+            return Array.isArray(activeTracks) ? activeTracks.length : 0;
+        }
+
+        function updateReleaseCreatePlaylistButton() {
+            if (!(releaseCreatePlaylistBtn instanceof HTMLButtonElement)) {
+                return;
+            }
+            const entry = releaseEntry(selectedReleaseId);
+            const hasTracks = releaseTrackCount(entry) > 0;
+            releaseCreatePlaylistBtn.disabled = !entry || !hasTracks || creatingPlaylistFromRelease;
+            releaseCreatePlaylistBtn.textContent = creatingPlaylistFromRelease
+                ? 'Creating playlist…'
+                : 'Create playlist from release';
+        }
+
+        async function createPlaylistFromRelease() {
+            const entry = releaseEntry(selectedReleaseId);
+            if (!entry || releaseTrackCount(entry) <= 0) {
+                showReleaseToast('Add tracks to the release before creating a playlist.');
+                return;
+            }
+
+            creatingPlaylistFromRelease = true;
+            updateReleaseCreatePlaylistButton();
+            try {
+                const data = await fetchJson('/biblioteca/manage-playlist.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from_release_id: selectedReleaseId }),
+                });
+                if (!data.ok) {
+                    throw new Error(data.error || 'Could not create playlist');
+                }
+                const playlistId = String(data.playlist?.id || '').trim();
+                if (!playlistId) {
+                    throw new Error('Playlist was created but its id is missing.');
+                }
+                window.location.href = `?tab=content&cntab=playlist&playlist=${encodeURIComponent(playlistId)}&edit=1`;
+            } catch (error) {
+                showReleaseToast(error.message || 'Could not create playlist', 'error');
+                creatingPlaylistFromRelease = false;
+                updateReleaseCreatePlaylistButton();
+            }
         }
 
         function initReleaseCoverPicker() {
@@ -270,28 +360,15 @@
                 });
             });
 
-            releaseCoverPanel.querySelectorAll('.media-picker-clear').forEach((button) => {
-                button.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setReleaseCoverValue('');
-                });
-            });
-
             releaseCoverClearBtn?.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 setReleaseCoverValue('');
             });
 
-            releaseCoverUploadBtn?.addEventListener('click', (event) => {
+            releaseCreatePlaylistBtn?.addEventListener('click', (event) => {
                 event.preventDefault();
-                event.stopPropagation();
-                if (typeof window.openUploadModal !== 'function') {
-                    showReleaseToast('Upload is not available. Reload the page.');
-                    return;
-                }
-                window.openUploadModal('illustrations');
+                createPlaylistFromRelease();
             });
         }
 
@@ -543,6 +620,7 @@
                 file: track.file,
                 asset_id: track.asset_id,
                 title: track.title,
+                version: track.version,
                 artist: track.artist,
                 album: track.album,
                 duration: track.duration,
@@ -592,10 +670,40 @@
             return `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`;
         }
 
+        function splitTrackTitleParts(value) {
+            const combined = String(value || '').trim();
+            if (!combined) {
+                return { title: '', version: '' };
+            }
+            const match = combined.match(/^(.*?)(?:\s*\[([^\[\]]+)\])$/);
+            if (!match) {
+                return { title: combined, version: '' };
+            }
+            const baseTitle = String(match[1] || '').trim();
+            const version = String(match[2] || '').trim();
+            if (!baseTitle || !version) {
+                return { title: combined, version: '' };
+            }
+            return { title: baseTitle, version };
+        }
+
+        function combineTrackTitleParts(title, version) {
+            const normalizedTitle = String(title || '').trim();
+            const normalizedVersion = String(version || '').trim();
+            if (!normalizedVersion) {
+                return normalizedTitle;
+            }
+            return `${normalizedTitle} [${normalizedVersion}]`;
+        }
+
         function displayTrackTitle(track) {
-            let title = String(track?.title || track?.file || 'Untitled').trim();
+            const rawTitle = String(track?.title || track?.file || 'Untitled').trim();
+            const versionFromField = String(track?.version || '').trim();
+            const parts = splitTrackTitleParts(rawTitle);
+            let title = String(parts.title || rawTitle || 'Untitled').trim();
             title = title.replace(/^\d+\.\s+/, '').replace(/^\d{1,2}\s+(?=[A-Za-z])/, '');
-            return title || 'Untitled';
+            const version = versionFromField || String(parts.version || '').trim();
+            return combineTrackTitleParts(title, version) || 'Untitled';
         }
 
         function trackMeta(track) {
@@ -617,24 +725,34 @@
             return parts.join(' · ');
         }
 
-        function releaseMetaLine(entry) {
+        function releasePoolMetaHtml(entry) {
             if (!entry) {
                 return '';
             }
-            const parts = [];
+
+            const chunks = [];
             if (releaseIsSystemManaged(entry)) {
-                parts.push('demo');
+                chunks.push('demo');
             }
-            const catalogId = String(entry.catalog_id || '').trim();
-            if (catalogId) {
-                parts.push(catalogId);
-            }
-            if (entry.release_date) {
-                parts.push(String(entry.release_date));
-            }
+
+            const catalogId = escapeHtml(String(entry.catalog_id || '').trim());
             const trackCount = Number(entry.track_count || 0);
-            parts.push(trackCount === 1 ? '1 track' : `${trackCount} tracks`);
-            return parts.join(' · ');
+            const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
+            const releaseDate = escapeHtml(String(entry.release_date || '').trim());
+
+            let line = escapeHtml(tracksLabel);
+            if (releaseDate) {
+                line += ` released ${releaseDate}`;
+            }
+            if (catalogId) {
+                line += ` as <strong class="pool-container-ref">${catalogId}</strong>`;
+            }
+
+            if (chunks.length) {
+                return `${escapeHtml(chunks.join(' '))} ${line}`.trim();
+            }
+
+            return line;
         }
 
         function sortReleaseEntries(list) {
@@ -990,7 +1108,7 @@
                 return `<li class="playlist-editor-row release-pool-row page-pool-row${selectedClass}" data-release-id="${escapeHtml(id)}" aria-selected="${id === selectedReleaseId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>💿 ${title}</strong>
-                        <span class="playlist-track-meta">${escapeHtml(releaseMetaLine(entry))}</span>
+                        <span class="playlist-track-meta">${releasePoolMetaHtml(entry)}</span>
                     </span>
                     <span class="page-pool-row-actions">
                         ${lockControl}
@@ -1326,8 +1444,8 @@
                     : (options.activeRow ? 'Drag to reorder' : 'Drag into release'));
 
             return `<li class="${rowClass}${pendingClass}${demoClass}${selectedClass}${readonlyClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
-                <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
                 ${positionMarkup}
+                <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
                 <span class="playlist-track-info">
                     <strong>${title}</strong>
                     <span class="playlist-track-meta">${meta}</span>

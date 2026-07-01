@@ -149,6 +149,11 @@ $cover_changed = ($cover_mode === 'clear' && $sidecar_cover !== '') || $cover_mo
 
 if (!$metadata_changed && !$cover_changed) {
     $data = is_array($inspect_data) ? $inspect_data : [];
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename);
+    $display = bandpromo_asset_read_audio_display($asset);
+    if (!bandpromo_asset_audio_display_is_complete($display)) {
+        bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, $data);
+    }
     $data = bandpromo_audio_master_enrich_detail($root, $filename, $data);
     $build_state = bandpromo_get_build_required_state();
 
@@ -210,6 +215,8 @@ $updatedSidecarCover = array_key_exists('sidecar_cover', $cover_result)
     ? (string) ($cover_result['sidecar_cover'] ?? '')
     : (string) ($data['sidecar_cover'] ?? '');
 $data['sidecar_cover'] = $updatedSidecarCover;
+
+bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, is_array($data) ? $data : []);
 
 $playlist_scan = bandpromo_run_light_task('scripts/makePlaylists.py');
 

@@ -918,6 +918,15 @@ function getTrackFromUrl() {
             return matchedIndex;
         }
     }
+    if (playIndex >= 0 && pathParts.length === playIndex + 3) {
+        const pathTrack = String(pathParts[playIndex + 2] || '').toLowerCase();
+        const matchedIndex = playList.findIndex((song) => {
+            return String(song.track_slug || '').toLowerCase() === pathTrack;
+        });
+        if (matchedIndex >= 0) {
+            return matchedIndex;
+        }
+    }
 
     const params = new URLSearchParams(window.location.search);
     const track = params.get('t');
@@ -931,15 +940,29 @@ function getTrackFromUrl() {
 }
 
 function getActivePlaylistId() {
-    return String(window.BANDPROMO_PLAYLIST_ID || 'main');
+    return String(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo');
 }
 
-function buildPlaylistPlayerUrl(playlistId, song) {
-    const playlist = encodeURIComponent(playlistId || 'main');
-    if (!song || !song.release_slug || !song.track_slug) {
+function getActivePlaylistSlug() {
+    return String(window.BANDPROMO_PLAYLIST_SLUG || getActivePlaylistId() || 'bandpromo-demo');
+}
+
+function playlistSlugForId(playlistId) {
+    const id = String(playlistId || '').trim();
+    if (!id) {
+        return getActivePlaylistSlug();
+    }
+    const catalog = Array.isArray(window.BANDPROMO_PLAYLIST_CATALOG) ? window.BANDPROMO_PLAYLIST_CATALOG : [];
+    const match = catalog.find((entry) => String(entry?.id || '') === id);
+    return String(match?.slug || id);
+}
+
+function buildPlaylistPlayerUrl(_playlistId, song) {
+    const playlist = encodeURIComponent(getActivePlaylistSlug());
+    if (!song || !song.track_slug) {
         return `/play/${playlist}`;
     }
-    return `/play/${playlist}/${encodeURIComponent(song.release_slug)}/${encodeURIComponent(song.track_slug)}`;
+    return `/play/${playlist}/${encodeURIComponent(song.track_slug)}`;
 }
 
 function updatePlaylistHistory(song) {
@@ -962,10 +985,11 @@ function bindPlaylistSelector() {
             return;
         }
         window.BANDPROMO_PLAYLIST_ID = playlistId;
+        window.BANDPROMO_PLAYLIST_SLUG = playlistSlugForId(playlistId);
         window.CONFIG_URL = `/biblioteca/get-player-playlist.php?playlist=${encodeURIComponent(playlistId)}`;
         window.BANDPROMO_DEEP_LINK = { release: '', track: '' };
         if (history.replaceState) {
-            history.replaceState(null, '', `/play/${encodeURIComponent(playlistId)}`);
+            history.replaceState(null, '', `/play/${encodeURIComponent(getActivePlaylistSlug())}`);
         }
         await loadConfig();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1002,6 +1026,9 @@ async function loadConfig() {
         playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
         if (data.playlist_id) {
             window.BANDPROMO_PLAYLIST_ID = data.playlist_id;
+        }
+        if (data.playlist_slug) {
+            window.BANDPROMO_PLAYLIST_SLUG = data.playlist_slug;
         }
         
         // Start player if we got data

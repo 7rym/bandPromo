@@ -106,6 +106,12 @@
     cursor: pointer;
 }
 
+.release-pool-row .pool-container-ref,
+.playlist-pool-row .pool-container-ref {
+    color: var(--fg);
+    font-weight: 600;
+}
+
 .page-pool-edit-btn {
     flex: 0 0 auto;
     border: 1px solid var(--border);
@@ -272,6 +278,34 @@
 }
 
 /* Release editor: stack active + available lists by content height (no overlap). */
+#playlistEditorLayout .player-layout-col--active .player-layout-panel {
+    min-height: 0;
+    overflow: visible;
+}
+
+#playlistEditorLayout .player-layout-col--active .player-layout-panel-body,
+#playlistEditorLayout .playlist-editor-active-body,
+#playlistEditorLayout .release-available-section {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+#playlistEditorLayout .player-layout-col--active .player-layout-list,
+#playlistEditorLayout #playlistAvailableList {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
+    min-height: 0;
+}
+
+.playlist-editor-active-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+}
+
 #releaseEditorLayout .player-layout-col--active .player-layout-panel {
     min-height: 0;
     overflow: visible;
@@ -299,18 +333,30 @@
     overflow: visible;
 }
 
-#releaseEditorLayout .playlist-editor-row {
+#releaseEditorLayout .playlist-editor-row,
+#playlistEditorLayout .playlist-editor-row {
     align-items: flex-start;
+    gap: 8px;
 }
 
-#releaseEditorLayout .playlist-track-duration {
+#releaseEditorLayout .playlist-track-duration,
+#playlistEditorLayout .playlist-track-duration {
     margin-top: 2px;
 }
 
 #releaseEditorLayout .playlist-drag-handle,
 #releaseEditorLayout .playlist-track-num,
-#releaseEditorLayout .player-layout-remove-btn {
+#releaseEditorLayout .player-layout-remove-btn,
+#playlistEditorLayout .playlist-drag-handle,
+#playlistEditorLayout .playlist-track-num,
+#playlistEditorLayout .player-layout-remove-btn {
     margin-top: 2px;
+}
+
+#releaseEditorLayout .playlist-track-num,
+#playlistEditorLayout .playlist-track-num {
+    min-width: 18px;
+    text-align: left;
 }
 
 #releaseEditorLayout .playlist-track-info strong,

@@ -137,8 +137,6 @@ def main():
     for filepath in files:
         filename = filepath.name
         ready = audio_delivery_ready(filename)
-        if not ready and not makePlaylists.is_bundled_placeholder(filename):
-            continue
         working_path = makePlaylists.resolve_audio_working_path(filename)
         info = makePlaylists.parse_audio_file(str(working_path))
         release_id = makePlaylists.resolve_audio_release_id(filename, release_map)
@@ -150,7 +148,7 @@ def main():
             'duration': int(info.get('duration') or 0),
             'origin': 'bundled-placeholder' if release_id == makePlaylists.BANDPROMO_RELEASE_DEMO_ID else 'user-upload',
             'sourceTier': 'master' if Path(working_path).parent == makePlaylists.AUDIO_MASTER_DIR else 'original',
-            'deliveryReady': ready,
+            'deliveryReady': ready or makePlaylists.is_bundled_placeholder(filename),
             'release_id': release_id,
         }
 

@@ -211,7 +211,7 @@ Shareable containers should carry operator-authored marketing fields in addition
 
 ### Default playlist
 
-Among system playlists where `publish_date <= now`, select the one with the **latest** `publish_date`. Player opens that playlist on first visit.
+Among system playlists where `publish_date <= now`, select the one with the **latest** `publish_date`. Player opens that playlist on first visit. There is no special `main` playlist id — clean installs seed the system playlist `bandpromo-demo` (demo release tracks); operator campaigns use their own ids.
 
 ### Storage
 
