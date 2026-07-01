@@ -471,6 +471,9 @@ def run_publish_stage(stage, ffmpeg_path, index, total):
         return False
 
     log_stage_boundary(stage_id)
+    group = str(stage.get('group') or '').strip()
+    if group:
+        print('STAGE_GROUP:' + group)
     print('── Stage {}/{}: {} ──'.format(index, total, label))
     sys.stdout.flush()
 

@@ -3,9 +3,9 @@
   "profiles": {
     "full": [
       "catalog",
-      "playlist-artifacts",
       "deliverables-media",
       "video-delivery",
+      "playlist-artifacts",
       "social-assets",
       "pwa-manifest"
     ],
@@ -24,19 +24,14 @@
     {
       "id": "catalog",
       "label": "Prepare asset catalog and audio masters",
+      "group": "catalog",
       "script": "buildCatalog.py",
-      "skippable": true
-    },
-    {
-      "id": "playlist-artifacts",
-      "label": "Generate play/playlist.json",
-      "script": "makePlaylists.py",
-      "requires_ffmpeg": true,
       "skippable": true
     },
     {
       "id": "deliverables-media",
       "label": "Optimize media (audio + image + photo)",
+      "group": "deliverables",
       "script": "optimizeMedia.py",
       "requires_ffmpeg": true,
       "env": {
@@ -47,19 +42,29 @@
     {
       "id": "video-delivery",
       "label": "Build video delivery assets",
+      "group": "deliverables",
       "script": "optimizeVideo.py",
       "requires_ffmpeg": true,
       "skippable": true
     },
     {
+      "id": "playlist-artifacts",
+      "label": "Export play/playlist.json and validation",
+      "group": "artifacts",
+      "script": "makePlaylists.py",
+      "skippable": true
+    },
+    {
       "id": "social-assets",
       "label": "Generate social media assets",
+      "group": "artifacts",
       "script": "makeSocial.py",
       "skippable": true
     },
     {
       "id": "pwa-manifest",
       "label": "Generate PWA manifest",
+      "group": "artifacts",
       "script": "makePWA.py",
       "skippable": true
     }

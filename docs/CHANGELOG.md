@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 32:30 - Build pipeline Phase E: reorder publish stages — deliverables before artifacts (`makePlaylists` after `optimizeMedia`/`optimizeVideo`); stage `group` metadata in manifest.
+
 2026-07-01 32:00 - Build pipeline Phase D: registry-scoped audio delivery in `optimizeMedia.py`; playlist used only for cover linkage; `playlistAudioDelivery.py` resolves registered assets.
 
 2026-07-01 31:30 - Checkpoint v0.8 build 298: build pipeline Phase C (catalog stage, log timestamps).

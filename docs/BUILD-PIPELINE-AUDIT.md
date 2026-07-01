@@ -148,17 +148,18 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 | Theme pack | `bandpromo_ensure_default_theme_package` | OK for empty installs; should be Stage 0/1 |
 | Launch | `build-runner.php` → `build.py` | OK |
 
-### Python `build.py` today (fixed chain)
+### Python `build.py` today (stage manifest)
 
-| Order | Script | Scope | Problem vs target |
-|-------|--------|-------|-------------------|
-| Preflight | inline | tools + “any audio original exists” | Does not verify masters for all uploads |
-| **1** | `makePlaylists.py` | playlist document → `play/playlist.json` | **Before delivery**; defines audio scope for step 2 |
-| **2** | `optimizeMedia.py` full | reads `play/playlist.json` for audio + covers | **Playlist-scoped** audio; deletes non-playlist MP3s |
-| **3** | `optimizeVideo.py` | video pool / jobs | OK as delivery sub-stage |
-| **4** | `makeSocial.py` | config | Should be Stage 4 after media deliverables |
-| **5** | `makePWA.py` | manifest | Should be Stage 1/4 before or after media per inputs |
-| *(setup only)* | `setupCompose.py` via `run-layout-seed.php` | folder scan bootstrap | **Not** in publish chain; setup + disaster recovery |
+| Order | Script | Group | Notes |
+|-------|--------|-------|-------|
+| Preflight | inline | preflight | tools + runtime templates |
+| 1 | `buildCatalog.py` | catalog | register + masters |
+| 2 | `optimizeMedia.py` full | deliverables | registry-scoped audio delivery |
+| 3 | `optimizeVideo.py` | deliverables | video delivery |
+| 4 | `makePlaylists.py` | artifacts | playlist export + validation |
+| 5 | `makeSocial.py` | artifacts | share crops after deliverables |
+| 6 | `makePWA.py` | artifacts | manifest |
+| *(setup only)* | `setupCompose.py` via `run-layout-seed.php` | layout seed | not in publish chain |
 
 ### Side channels (not the main publish button)
 
@@ -172,14 +173,16 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 
 These **helpers** assume playlist-first truth and fight a corrected build order.
 
-## Gap summary (#1 findings)
+## Gap summary (remaining)
 
-1. **Wrong order:** playlist artifacts before media deliverables.
-2. **Wrong audio scope:** deliverables driven by playlist, not registry/pool.
-3. **Autofix inside publish:** silent release/playlist rewrites (`bandpromo_release_sync_primary_audio_assets`, etc.).
-4. **No stage isolation:** cannot run catalog-only or deliverables-only.
-5. **Compose mislabeled:** bundled as publish step 6 though it is first-run layout seed.
-6. **Validation UX:** “N tracks checked” reads as “build processed N uploads” — it is playlist validation only.
+1. ~~**Wrong order:** playlist artifacts before media deliverables.~~ **Fixed (Phase E).**
+2. ~~**Wrong audio scope:** deliverables driven by playlist, not registry/pool.~~ **Fixed (Phase D).**
+3. ~~**Autofix inside publish:** silent release/playlist rewrites.~~ **Fixed (Phase A).**
+4. ~~**No stage isolation:** cannot run catalog-only or deliverables-only.~~ **Fixed (Phase B profiles).**
+5. ~~**Compose mislabeled:** bundled as publish step 6.~~ **Fixed (Phase F).**
+6. ~~**Validation UX:** playlist-only card under System.~~ **Fixed (Publish status card).**
+7. **Site shell stage:** theme/config/social prerequisites still split between PHP preflight and artifact stages (no dedicated Stage 1 runner yet).
+8. **Visual deliverables:** still folder-based; registry-scoped visual delivery is v0.8.4 work.
 
 ## Recommended refactor sequence
 
@@ -210,8 +213,9 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase E — Artifacts stage
 
-- [ ] `makePlaylists.py` runs **after** deliverables; only exports playlist documents.
-- [ ] Move `makeSocial.py` / `makePWA.py` to Stage 1/4 per dependency audit (theme deliverables ready before share crops).
+- [x] Reorder publish stages: deliverables (`optimizeMedia`, `optimizeVideo`) before artifacts (`makePlaylists`, `makeSocial`, `makePWA`).
+- [x] `makePlaylists.py` runs after deliverables; exports playlist documents and validation only (no ffmpeg dependency on that stage).
+- [x] Social and PWA generation remain in the artifacts group after media deliverables (share crops read delivery-ready sources).
 
 ### Phase F — Compose
 

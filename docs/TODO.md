@@ -89,7 +89,7 @@ Implementation order:
 - [x] Phase B — stage runner skeleton (skippable stages, structured log).
 - [x] Phase C — catalog stage (masters for all originals).
 - [x] Phase D — registry-scoped deliverables (`optimizeMedia.py` decoupled from playlist scope).
-- [ ] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
+- [x] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
 - [x] Phase F — demote `setupCompose.py` to setup-only (`run-layout-seed.php`; removed from `build.py`).
 
 ## v0.8.4 active slice (visual media — delivery + unified pool)
