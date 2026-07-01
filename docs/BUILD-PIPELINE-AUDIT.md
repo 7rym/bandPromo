@@ -199,8 +199,8 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase C — Catalog stage (master-first)
 
-- [ ] New `scripts/buildCatalog.py` (or PHP stage): register + materialize + canonicalize for **all** catalogued originals.
-- [ ] Upload path calls catalog stage for single asset (replaces scattered materialize helpers).
+- [x] New `scripts/buildCatalog.py` + `biblioteca/build-catalog-helpers.php`: register + materialize + canonicalize for **all** catalogued originals (no playlist/release rewrites).
+- [x] Upload path calls catalog finalize after audio master preparation (`bandpromo_build_catalog_finalize_audio_upload`).
 
 ### Phase D — Deliverables stage (registry-scoped)
 

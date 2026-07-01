@@ -23,6 +23,7 @@ import json
 import platform
 import urllib.request
 import stat
+from datetime import datetime, timezone
 from pathlib import Path
 
 import zipfile
@@ -535,6 +536,9 @@ def run_preflight():
 
 
 def main():
+    started_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    print('LOG_STARTED:' + started_at)
+    print('[' + started_at.replace('T', ' ').replace('Z', ' UTC') + '] Python publish pipeline starting')
     print("\n=== bandPromo Build Pipeline ===")
     print(f"Root: {ROOT_DIR}\n")
     sys.stdout.flush()

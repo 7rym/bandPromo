@@ -19,6 +19,7 @@ require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/cover-art-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
+require_once __DIR__ . '/build-catalog-helpers.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -361,6 +362,9 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $master = $target_hint === 'special'
         ? ['attempted' => false, 'prepared' => false, 'warning' => '']
         : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
+    if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
+        bandpromo_build_catalog_finalize_audio_upload($root_dir, $savedName);
+    }
     $videoPoster = bandpromo_is_video_extension($savedExt)
         ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
         : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
@@ -517,6 +521,9 @@ foreach ($files as $file) {
         $master = $target_hint === 'special'
             ? ['attempted' => false, 'prepared' => false, 'warning' => '']
             : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
+        if ($target_hint === 'audio' && in_array($saved_ext, ['flac', 'mp3', 'wav'], true)) {
+            bandpromo_build_catalog_finalize_audio_upload($root_dir, $saved_name);
+        }
         $videoPoster = bandpromo_is_video_extension($saved_ext)
             ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
             : bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);

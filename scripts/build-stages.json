@@ -2,6 +2,7 @@
   "version": 1,
   "profiles": {
     "full": [
+      "catalog",
       "playlist-artifacts",
       "deliverables-media",
       "video-delivery",
@@ -9,6 +10,7 @@
       "pwa-manifest"
     ],
     "deliverables-only": [
+      "catalog",
       "deliverables-media",
       "video-delivery"
     ],
@@ -19,6 +21,12 @@
     ]
   },
   "stages": [
+    {
+      "id": "catalog",
+      "label": "Prepare asset catalog and audio masters",
+      "script": "buildCatalog.py",
+      "skippable": true
+    },
     {
       "id": "playlist-artifacts",
       "label": "Generate play/playlist.json",

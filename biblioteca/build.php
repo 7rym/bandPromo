@@ -14,6 +14,7 @@ require_once __DIR__ . '/publish-preflight-helpers.php';
 require_once __DIR__ . '/build-lock.php';
 require_once __DIR__ . '/build-launcher.php';
 require_once __DIR__ . '/build-stages.php';
+require_once __DIR__ . '/build-log-helpers.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $log_dir   = $root_dir . '/log';
@@ -158,6 +159,7 @@ if (!is_dir($log_dir)) {
     mkdir($log_dir, 0750, true);
 }
 file_put_contents($log_file, '');
+file_put_contents($log_file, bandpromo_build_log_started_lines($mode), FILE_APPEND);
 file_put_contents($log_file, "[setup] Preparing your site for publish...\n", FILE_APPEND);
 
 if ($mode === 'full') {
