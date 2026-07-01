@@ -14,6 +14,7 @@ require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
+require_once __DIR__ . '/playlist-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -58,25 +59,7 @@ function bandpromo_default_audio_metadata_health(): array {
 function bandpromo_load_audio_validation_map(string $root): array {
     $default = [];
     $validation_file = $root . '/play/playlist-validation.json';
-    $playlist_map = [];
-
-    $playlist_file = $root . '/play/playlist.json';
-    if (is_file($playlist_file)) {
-        $playlist_raw = file_get_contents($playlist_file);
-        $playlist_decoded = $playlist_raw !== false ? json_decode($playlist_raw, true) : null;
-        if (is_array($playlist_decoded)) {
-            foreach ($playlist_decoded as $entry) {
-                if (!is_array($entry)) {
-                    continue;
-                }
-                $file = trim((string) ($entry['file'] ?? ''));
-                if ($file === '') {
-                    continue;
-                }
-                $playlist_map[$file] = $entry;
-            }
-        }
-    }
+    $playlist_map = bandpromo_playlist_merged_built_track_map($root);
 
     if (!is_file($validation_file)) {
         return $default;

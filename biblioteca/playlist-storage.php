@@ -758,6 +758,7 @@ function bandpromo_playlist_build_track_list(string $root, array $document, arra
 
 function bandpromo_playlist_sync_legacy_artifacts(string $root, string $playlistId, array $tracks): void
 {
+    // Publish/build only — do not call from admin save paths.
     $playlistId = bandpromo_playlist_normalize_id($playlistId);
     $order = [];
     foreach ($tracks as $track) {
@@ -840,8 +841,6 @@ function bandpromo_playlist_save_order(string $root, string $playlistId, array $
             $tracks[] = $builtTracks[$masterFile];
         }
     }
-
-    bandpromo_playlist_sync_legacy_artifacts($root, $playlistId, $tracks);
 
     return [
         'tracks' => $tracks,
@@ -966,14 +965,54 @@ function bandpromo_playlist_remove_audio_reference(string $root, string $filenam
         $document['entries'] = $entries;
         bandpromo_playlist_write_document($root, $document);
 
-        $tracks = bandpromo_playlist_build_track_list($root, $document);
-        bandpromo_playlist_sync_legacy_artifacts($root, $playlistId, $tracks);
-
         $summary['playlists_updated']++;
         $summary['entries_removed'] += ($before - $after);
     }
 
     return $summary;
+}
+
+function bandpromo_playlist_merged_built_track_map(string $root): array
+{
+    static $cache = [];
+
+    if (isset($cache[$root])) {
+        return $cache[$root];
+    }
+
+    $map = [];
+    bandpromo_playlist_ensure_seeded($root);
+
+    foreach (bandpromo_playlist_registry_entries($root) as $registryEntry) {
+        if (!is_array($registryEntry)) {
+            continue;
+        }
+
+        $playlistId = bandpromo_playlist_normalize_id((string) ($registryEntry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        foreach (bandpromo_playlist_build_track_list($root, $document) as $track) {
+            if (!is_array($track)) {
+                continue;
+            }
+            $file = trim((string) ($track['file'] ?? ''));
+            if ($file !== '') {
+                $map[$file] = $track;
+            }
+        }
+    }
+
+    $cache[$root] = $map;
+
+    return $map;
 }
 
 function bandpromo_playlist_release_date_is_public(string $releaseDate, bool $operatorBypass): bool

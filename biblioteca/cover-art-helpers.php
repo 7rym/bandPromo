@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/config-loader.php';
+require_once __DIR__ . '/playlist-storage.php';
 
 function bandpromo_cover_art_configured_basename(): string
 {
@@ -77,16 +78,6 @@ function bandpromo_cover_art_load_playlist_context(string $root): array
         'configured_in_use' => false,
     ];
 
-    $playlist = $root . '/play/playlist.json';
-    if (!is_file($playlist)) {
-        return $context;
-    }
-
-    $decoded = json_decode(file_get_contents($playlist) ?: '[]', true);
-    if (!is_array($decoded)) {
-        return $context;
-    }
-
     $validation_file = $root . '/play/playlist-validation.json';
     $validation_map = [];
     if (is_file($validation_file)) {
@@ -105,12 +96,11 @@ function bandpromo_cover_art_load_playlist_context(string $root): array
         }
     }
 
-    foreach ($decoded as $track) {
+    foreach (bandpromo_playlist_merged_built_track_map($root) as $audioFile => $track) {
         if (!is_array($track)) {
             continue;
         }
 
-        $audioFile = trim((string) ($track['file'] ?? ''));
         $label = trim((string) ($track['title'] ?? $audioFile));
         $coverBasename = bandpromo_cover_art_normalize_img_basename((string) ($track['cover'] ?? ''));
         if ($coverBasename === '') {

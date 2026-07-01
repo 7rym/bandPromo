@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 48:00 - Checkpoint v0.8 build 301: legacy cleanup Phase B — container-first admin reads, no save-time play/playlist.json sync.
+
+2026-07-01 47:30 - Legacy cleanup Phase B: stop syncing play/playlist.json on admin save; player OG tags and media helpers read playlist containers.
+
 2026-07-01 47:00 - Checkpoint v0.8 build 300: legacy cleanup Phase A — registry-driven makePlaylists, container-aware delete-media, playlist preview by playlist id, release Enjoy-here slug URLs.
 
 2026-07-01 46:30 - Legacy cleanup Phase A: registry-driven makePlaylists.py, playlist container delete-media updates, playlistPreview respects selected playlist id, release Enjoy-here URLs use playlist slug.

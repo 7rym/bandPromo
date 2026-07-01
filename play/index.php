@@ -10,7 +10,6 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 }
 
 // Load playlist
-$configFile = __DIR__ . '/playlist.json';
 require_once __DIR__ . '/../biblioteca/playlist-storage.php';
 
 $playerRoot = dirname(__DIR__);
@@ -29,13 +28,11 @@ try {
     $activePlaylistId = bandpromo_playlist_default_active_id($playerRoot);
 }
 
-// Redirect to root if setup hasn't been completed (no playlist yet)
-$playlistDocPath = $playerRoot . '/data/playlists/' . $activePlaylistId . '.json';
-if (!file_exists($playlistDocPath) && !file_exists($configFile)) {
+// Redirect to root if setup hasn't been completed (no playlist registry yet)
+if (bandpromo_playlist_registry_entries($playerRoot) === []) {
     header('Location: /');
     exit;
 }
-$playlistConfig = [];
 
 // Load site config for OG defaults
 $siteCfgFile = dirname(__DIR__) . '/web-config.json';
@@ -83,16 +80,55 @@ function bandpromo_preferred_audio_variant(?string $quality): string {
 $origin = bandpromo_current_origin();
 $baseUrl = $origin . '/play/';
 
+$playlistTracks = [];
+try {
+    $playlistTracks = bandpromo_playlist_materialize_for_player($playerRoot, $activePlaylistId, false);
+} catch (Throwable $throwable) {
+    $playlistTracks = [];
+}
+
 // Default meta tags
 $ogTitle       = get_config('release.identity.title', 'Twisted Chronicles');
 $ogDescription = get_config('release.identity.description', 'A private music experience');
 $ogImage       = $origin . get_config('release.brand.poster', '/media/special/bandPromo_share.png');
 $ogImageWidth  = get_config('release.brand.poster_width', 1200);
 $ogImageHeight = get_config('release.brand.poster_height', 630);
-$ogUrl         = $baseUrl;
+$ogUrl         = $baseUrl . rawurlencode($activePlaylistSlug);
 
-$json = file_get_contents($configFile);
-$playlistConfig = json_decode($json, true) ?: [];
+$song = null;
+if ($deepLinkTrackSlug !== '') {
+    $trackIndex = bandpromo_playlist_resolve_player_track_index(
+        $playlistTracks,
+        $deepLinkReleaseSlug,
+        $deepLinkTrackSlug
+    );
+    if ($trackIndex >= 0 && isset($playlistTracks[$trackIndex])) {
+        $song = $playlistTracks[$trackIndex];
+        $ogUrl = $baseUrl . rawurlencode($activePlaylistSlug) . '/' . rawurlencode($deepLinkTrackSlug);
+    }
+} elseif (isset($_GET['t'])) {
+    $track = max(1, (int) $_GET['t']);
+    $index = $track - 1;
+    if ($index >= count($playlistTracks)) {
+        $index = 0;
+    }
+    if (isset($playlistTracks[$index])) {
+        $song = $playlistTracks[$index];
+        $ogUrl = $baseUrl . rawurlencode($activePlaylistSlug) . '?t=' . $track;
+    }
+}
+
+if (is_array($song)) {
+    $ogTitle = htmlspecialchars(preg_replace('/\s+/', ' ', (string) ($song['title'] ?? '')), ENT_QUOTES, 'UTF-8');
+    $ogDescription = htmlspecialchars((string) ($song['artist'] ?? ''), ENT_QUOTES, 'UTF-8');
+
+    if (!empty($song['cover'])) {
+        $coverFilename = basename(str_replace('\\', '/', (string) $song['cover']));
+        $ogImage       = $origin . '/media/img/original/' . rawurlencode($coverFilename);
+        $ogImageWidth  = 600;
+        $ogImageHeight = 600;
+    }
+}
 
 $appVersion = 'dev';
 $versionFile = dirname(__DIR__) . '/VERSION';
@@ -101,26 +137,6 @@ if (file_exists($versionFile)) {
     if ($rawVersion !== '') {
         $appVersion = $rawVersion;
     }
-}
-
-if (isset($_GET['t'])) {
-    $track = intval($_GET['t']);
-    $index = max(0, $track - 1);
-    if ($index >= count($playlistConfig)) $index = 0;
-
-    $song = $playlistConfig[$index];
-
-    $ogTitle = htmlspecialchars(preg_replace('/\s+/', ' ', $song['title']), ENT_QUOTES, 'UTF-8');
-    $ogDescription = htmlspecialchars($song['artist'], ENT_QUOTES, 'UTF-8');
-
-    if (!empty($song['cover'])) {
-        $coverFilename = basename(str_replace('\\', '/', $song['cover']));
-        $ogImage       = $origin . '/media/img/original/' . rawurlencode($coverFilename);
-        $ogImageWidth  = 600;
-        $ogImageHeight = 600;
-    }
-
-    $ogUrl = $baseUrl . '?t=' . intval($track);
 }
 
 $supportEnabled = (bool) get_config('support.enabled', false);

@@ -7,74 +7,7 @@ require_once __DIR__ . '/playlist-storage.php';
 
 function bandpromo_audio_master_playlist_map(string $root): array
 {
-    static $cache = [];
-
-    if (isset($cache[$root])) {
-        return $cache[$root];
-    }
-
-    $map = [];
-    try {
-        foreach (bandpromo_playlist_registry_entries($root) as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-            $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
-            if ($playlistId === '') {
-                continue;
-            }
-            try {
-                $document = bandpromo_playlist_load_document($root, $playlistId);
-            } catch (Throwable $throwable) {
-                continue;
-            }
-            foreach (bandpromo_playlist_build_track_list($root, $document) as $track) {
-                if (!is_array($track)) {
-                    continue;
-                }
-                $file = trim((string) ($track['file'] ?? ''));
-                if ($file !== '') {
-                    $map[$file] = $track;
-                }
-            }
-        }
-    } catch (Throwable $throwable) {
-        // Fall through to built playlist artifact.
-    }
-
-    if ($map !== []) {
-        return $cache[$root] = $map;
-    }
-
-    $playlistFile = $root . '/play/playlist.json';
-    if (!is_file($playlistFile)) {
-        return $cache[$root] = [];
-    }
-
-    $raw = file_get_contents($playlistFile);
-    if ($raw === false) {
-        return $cache[$root] = [];
-    }
-
-    $decoded = json_decode($raw, true);
-    if (!is_array($decoded)) {
-        return $cache[$root] = [];
-    }
-
-    $map = [];
-    foreach (array_values($decoded) as $index => $entry) {
-        if (!is_array($entry)) {
-            continue;
-        }
-        $file = trim((string) ($entry['file'] ?? ''));
-        if ($file === '') {
-            continue;
-        }
-        $map[$file] = $entry;
-    }
-
-    $cache[$root] = $map;
-    return $map;
+    return bandpromo_playlist_merged_built_track_map($root);
 }
 
 function bandpromo_audio_master_resolve_current_cover_url(?string $cover): string
