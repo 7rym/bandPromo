@@ -516,8 +516,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function getBuildActionLabel(action) {
                 return String(action || 'full').toLowerCase() === 'optimize'
-                    ? 'Refresh photos & artwork'
-                    : 'Update the live site';
+                    ? 'Refresh Image Files'
+                    : 'Run Publish Build';
             }
 
             function formatBuildHintMessage(state) {
@@ -1723,7 +1723,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
-                recommendedBuildBtn.style.display = 'inline-block';
+                recommendedBuildBtn.style.display = '';
                 recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel(currentBuildAction)}`;
             }
 
@@ -1743,7 +1743,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
                     renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks, data.uncatalogued_audio_failures || []);
                     updateBackgroundTaskPolling(latestBackgroundTasks);
-                    renderBuildValidationSummary(latestBuildValidation);
+                    renderPublishStatusSummary(data.publish_status || null);
 
                     if (typeof renderPackageUpdateStatus === 'function' && data.package_update) {
                         renderPackageUpdateStatus({
@@ -2357,16 +2357,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 mediaPickerState = null;
             };
 
-            document.querySelectorAll('.media-picker-open').forEach((button) => {
-                button.addEventListener('click', () => {
-                    openMediaPicker(button.dataset.field, button.dataset.title, button.dataset.targets || 'special');
-                });
-            });
+            document.addEventListener('click', (event) => {
+                const openBtn = event.target instanceof Element
+                    ? event.target.closest('.media-picker-open')
+                    : null;
+                if (openBtn && openBtn.dataset.field) {
+                    event.preventDefault();
+                    window.openMediaPicker(openBtn.dataset.field, openBtn.dataset.title, openBtn.dataset.targets || 'special');
+                    return;
+                }
 
-            document.querySelectorAll('.media-picker-clear').forEach((button) => {
-                button.addEventListener('click', () => {
-                    setPickerFieldValue(button.dataset.field, '');
-                });
+                const clearBtn = event.target instanceof Element
+                    ? event.target.closest('.media-picker-clear')
+                    : null;
+                if (clearBtn && clearBtn.dataset.field) {
+                    event.preventDefault();
+                    setPickerFieldValue(clearBtn.dataset.field, '');
+                }
             });
 
             if (mediaPickerTabs) {
@@ -3463,6 +3470,64 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const cfgBasicsFullSource = document.getElementById('cfgBasicsFullSource');
             const cfgBasicsSaveBtn = document.getElementById('cfgBasicsSaveBtn');
             const cfgBasicsStatus = document.getElementById('cfgBasicsStatus');
+            const cfgSiteAuthorInput = document.getElementById('cfg_site_author');
+            const cfgSiteUrlInput = document.getElementById('cfg_site_url');
+            const cfgSiteEmailInput = document.getElementById('cfg_site_email');
+            const cfgSiteEmailAutoInput = document.getElementById('cfg_site_email_auto');
+
+            function cfgSiteEmailAutoEnabled() {
+                return cfgSiteEmailAutoInput?.value !== '0';
+            }
+
+            function setCfgSiteEmailAuto(enabled) {
+                if (cfgSiteEmailAutoInput) {
+                    cfgSiteEmailAutoInput.value = enabled ? '1' : '0';
+                }
+            }
+
+    function refreshCfgSiteSuggestedContact() {
+        if (!cfgSiteEmailAutoEnabled() || typeof window.bandpromoSiteContactDerive !== 'function') {
+            return;
+        }
+        if (!(cfgSiteEmailInput instanceof HTMLInputElement)
+            || !(cfgSiteAuthorInput instanceof HTMLInputElement)
+            || !(cfgSiteUrlInput instanceof HTMLInputElement)) {
+            return;
+        }
+        cfgSiteEmailInput.value = window.bandpromoSiteContactDerive(
+            cfgSiteAuthorInput.value,
+            cfgSiteUrlInput.value
+        );
+    }
+
+    function canonicalizeCfgSiteContactInput() {
+        if (!(cfgSiteEmailInput instanceof HTMLInputElement)
+            || typeof window.bandpromoSiteContactNormalize !== 'function') {
+            return;
+        }
+        const raw = cfgSiteEmailInput.value.trim();
+        if (!raw) {
+            return;
+        }
+        const normalized = window.bandpromoSiteContactNormalize(raw);
+        if (normalized) {
+            cfgSiteEmailInput.value = normalized;
+        }
+    }
+
+            if (cfgSiteAuthorInput) {
+                cfgSiteAuthorInput.addEventListener('input', refreshCfgSiteSuggestedContact);
+            }
+            if (cfgSiteUrlInput) {
+                cfgSiteUrlInput.addEventListener('input', refreshCfgSiteSuggestedContact);
+            }
+            if (cfgSiteEmailInput) {
+                cfgSiteEmailInput.addEventListener('input', () => {
+                    setCfgSiteEmailAuto(false);
+                });
+                cfgSiteEmailInput.addEventListener('blur', canonicalizeCfgSiteContactInput);
+            }
+
             if (cfgBasicsSaveBtn) {
                 cfgBasicsSaveBtn.addEventListener('click', async () => {
                     cfgBasicsStatus.textContent = 'Saving…';
@@ -3477,13 +3542,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
 
+                    const contactValue = (cfgSiteEmailInput?.value || '').trim();
+                    if (contactValue !== '' && typeof window.bandpromoSiteContactIsValid === 'function'
+                        && !window.bandpromoSiteContactIsValid(contactValue)) {
+                        cfgBasicsStatus.textContent = '❌ ' + (window.bandpromoSiteContactInvalidMessage?.() || 'Invalid contact format.');
+                        cfgBasicsStatus.style.color = '#f55';
+                        return;
+                    }
+                    const contactStored = contactValue !== '' && typeof window.bandpromoSiteContactNormalize === 'function'
+                        ? (window.bandpromoSiteContactNormalize(contactValue) || contactValue)
+                        : contactValue;
+
                     fullConfig.site = assignConfigFields(fullConfig.site, {
                         name: (document.getElementById('cfg_site_name')?.value || '').trim(),
                         short_name: (document.getElementById('cfg_site_short_name')?.value || '').trim(),
                         description: (document.getElementById('cfg_site_description')?.value || '').trim(),
-                        url: (document.getElementById('cfg_site_url')?.value || '').trim(),
-                        language: (document.getElementById('cfg_site_language')?.value || '').trim(),
-                        author: (document.getElementById('cfg_site_author')?.value || '').trim(),
+                        url: (cfgSiteUrlInput?.value || '').trim(),
+                        language: (document.getElementById('cfg_site_language')?.value || 'en').trim() || 'en',
+                        author: (cfgSiteAuthorInput?.value || '').trim(),
+                        email: contactStored,
+                        email_auto: cfgSiteEmailAutoEnabled(),
                     });
 
                     try {
@@ -3496,6 +3574,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const data = await resp.json();
                         if (data.ok) {
                             cfgBasicsFullSource.value = payload;
+                            if (fullConfig.site && typeof fullConfig.site.email_auto === 'boolean') {
+                                setCfgSiteEmailAuto(fullConfig.site.email_auto);
+                            }
+                            if (cfgSiteEmailAutoEnabled()) {
+                                refreshCfgSiteSuggestedContact();
+                            }
                             cfgBasicsStatus.textContent = Array.isArray(data.auto_tasks) && data.auto_tasks.includes('manifest') ? '✅ Saved and manifest updated' : '✅ Saved';
                             cfgBasicsStatus.style.color = 'var(--success, #4ade80)';
                             const reasons = (data.build_required_state && data.build_required_state.reasons) || ['site_config_changed'];
@@ -6051,9 +6135,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const optimizeSpinner = document.getElementById('optimizeSpinner');
             const buildLog     = document.getElementById('buildLog');
             const buildStatus  = document.getElementById('buildStatus');
-            const buildValidationCard = document.getElementById('buildValidationCard');
-            const buildValidationSummary = document.getElementById('buildValidationSummary');
-            const buildValidationOverall = document.getElementById('buildValidationOverall');
+            const publishStatusCard = document.getElementById('publishStatusCard');
+            const publishStatusSummary = document.getElementById('publishStatusSummary');
+            const publishStatusOverall = document.getElementById('publishStatusOverall');
             let pollTimer      = null;
             let currentRunMode = 'full';
             let currentBuildTasks = [];
@@ -6078,7 +6162,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 clearRecommendedRunQuery();
 
                 const logCard = document.getElementById('build-log-card');
-                if (logCard) {
+                const actionsCard = document.getElementById('publishActionsCard');
+                if (actionsCard) {
+                    actionsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (logCard) {
                     logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
@@ -6107,7 +6194,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : 'Pending now: bandPromo still has publish work to finish.';
                         buildHelpBox.innerHTML = `${actionLabel} is the recommended next step for the current pending work. ${taskLine} Jobs continue in the background while this log updates.`;
                     } else {
-                        buildHelpBox.innerHTML = 'Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> when audio, video, validation, playlist, manifest, or other heavier publish steps are still pending. Jobs continue in the background while this log updates.';
+                        buildHelpBox.innerHTML = 'Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> for delivery files and player artifacts. Use <strong>Repair catalog</strong> when uploads need masters or registry fixes — not during every publish.';
                     }
                 }
             }
@@ -6136,9 +6223,47 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (buildLog) buildLog.scrollTop = buildLog.scrollHeight;
             }
 
-            function setBuildValidationVisibility(visible) {
-                if (!buildValidationCard) return;
-                buildValidationCard.style.display = visible ? '' : 'none';
+            function renderPublishStatusSummary(status) {
+                if (!publishStatusSummary || !publishStatusOverall) {
+                    return;
+                }
+
+                if (!status || typeof status !== 'object') {
+                    publishStatusOverall.textContent = 'Unavailable';
+                    publishStatusOverall.className = 'badge audit-status-badge status-neutral';
+                    publishStatusSummary.innerHTML = '<p class="publish-status-empty">Publish status is not available right now.</p>';
+                    return;
+                }
+
+                const ok = status.ok === true;
+                publishStatusOverall.textContent = ok ? 'All clear' : 'Needs attention';
+                publishStatusOverall.className = `badge audit-status-badge ${ok ? 'status-ok' : 'status-warning'}`;
+
+                const summary = status.summary || {};
+                const metrics = [
+                    `<span class="publish-status-metric">${Number(summary.registered_audio || 0)} registered audio</span>`,
+                    `<span class="publish-status-metric">${Number(summary.uncatalogued_uploads || 0)} uncatalogued uploads</span>`,
+                    `<span class="publish-status-metric">${Number(summary.missing_delivery || 0)} missing delivery</span>`,
+                ];
+
+                const checks = Array.isArray(status.checks) ? status.checks : [];
+                let checksHtml = '';
+                if (checks.length) {
+                    checksHtml = checks.map((check) => `
+                        <article class="publish-status-check">
+                            <strong>${bandpromoAdminEscapeHtml(check.label || check.id || 'Issue')} (${Number(check.count || 0)})</strong>
+                            <p>${bandpromoAdminEscapeHtml(check.detail || '')}</p>
+                            <p>${bandpromoAdminEscapeHtml(check.action || '')}</p>
+                        </article>
+                    `).join('');
+                } else {
+                    checksHtml = '<p class="publish-status-empty">Catalog and delivery look ready for publish. Run Publish Build whenever you want to refresh site output.</p>';
+                }
+
+                publishStatusSummary.innerHTML = `
+                    <div class="publish-status-metrics">${metrics.join('')}</div>
+                    ${checksHtml}
+                `;
             }
 
             function humanizeValidationCode(code) {
@@ -6301,83 +6426,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
-            function renderBuildValidationSummary(validation) {
-                if (!buildValidationSummary || !buildValidationOverall) {
-                    return;
-                }
-
-                const model = buildValidationSummaryModel(validation);
-                if (!model) {
-                    setBuildValidationVisibility(false);
-                    buildValidationSummary.innerHTML = '';
-                    buildValidationOverall.textContent = 'No validation data';
-                    buildValidationOverall.className = 'badge audit-status-badge status-neutral';
-                    return;
-                }
-
-                setBuildValidationVisibility(true);
-
-                const overallConfig = model.items.length
-                    ? validationSeverityConfig[model.overallSeverity]
-                    : { label: 'No validation issues', statusClass: 'status-ok' };
-                buildValidationOverall.textContent = overallConfig.label;
-                buildValidationOverall.className = `badge audit-status-badge ${overallConfig.statusClass}`;
-
-                const metrics = [
-                    `<span class="build-validation-metric">${model.totalTracks} tracks checked</span>`,
-                    `<span class="build-validation-metric">${model.tracksWithWarnings} tracks need attention</span>`,
-                    `<span class="build-validation-metric">${model.tracksWithoutWarnings} tracks clear</span>`,
-                ];
-
-                Object.entries(validationSeverityConfig).forEach(([key, config]) => {
-                    if (model.counts[key] > 0) {
-                        metrics.push(`<span class="build-validation-metric">${bandpromoAdminEscapeHtml(config.label)}: ${model.counts[key]}</span>`);
-                    }
-                });
-
-                if (!model.items.length) {
-                    buildValidationSummary.innerHTML = `
-                        <div class="build-validation-metrics">${metrics.join('')}</div>
-                        <p class="build-validation-empty">No current metadata validation issues were found in the checked tracks.</p>
-                    `;
-                    return;
-                }
-
-                const listHtml = model.items.map(item => {
-                    const primaryConfig = validationSeverityConfig[item.primary.severity] || validationSeverityConfig['recommended-fix'];
-                    const actions = [item.primary, ...item.extras].map(issue => {
-                        const config = validationSeverityConfig[issue.severity] || validationSeverityConfig['recommended-fix'];
-                        return `<li><strong>${bandpromoAdminEscapeHtml(config.label)}:</strong> ${bandpromoAdminEscapeHtml(issue.action)}</li>`;
-                    }).join('');
-
-                    const fileLine = item.file && item.file !== item.title
-                        ? `<div class="build-validation-item-file">${bandpromoAdminEscapeHtml(item.file)}</div>`
-                        : '';
-                    const actionLinks = Array.isArray(item.actions) && item.actions.length
-                        ? `<div class="build-validation-item-links">${item.actions.map(action => `<a class="build-validation-link" href="${bandpromoAdminEscapeHtml(action.href)}">${bandpromoAdminEscapeHtml(action.label)}</a>`).join('')}</div>`
-                        : '';
-
-                    return `
-                        <article class="build-validation-item">
-                            <div class="build-validation-item-head">
-                                <div>
-                                    <div class="build-validation-item-title">${bandpromoAdminEscapeHtml(item.title)}</div>
-                                    ${fileLine}
-                                </div>
-                                <span class="badge audit-status-badge ${primaryConfig.statusClass}">${bandpromoAdminEscapeHtml(primaryConfig.label)}</span>
-                            </div>
-                            <ul class="build-validation-item-actions">${actions}</ul>
-                            ${actionLinks}
-                        </article>
-                    `;
-                }).join('');
-
-                buildValidationSummary.innerHTML = `
-                    <div class="build-validation-metrics">${metrics.join('')}</div>
-                    <div class="build-validation-list">${listHtml}</div>
-                `;
-            }
-
             function stopPolling(success) {
                 if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
                 if (buildBtn) buildBtn.disabled = false;
@@ -6394,45 +6442,46 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 refreshBuildHint();
             }
 
-            function renderMetadataValidation(validation) {
-                if (!validation || typeof validation !== 'object') {
-                    return '';
+            function beginBuildPolling(mode = currentRunMode) {
+                currentRunMode = mode === 'optimize' ? 'optimize' : 'full';
+                if (pollTimer) {
+                    return;
                 }
-
-                const summary = validation.summary || {};
-                const tracks = Array.isArray(validation.tracks) ? validation.tracks : [];
-                const lines = [];
-
-                lines.push('');
-                lines.push('--- Metadata Validation ---');
-                lines.push(`Total tracks: ${summary.totalTracks ?? tracks.length}`);
-                lines.push(`Tracks with warnings: ${summary.tracksWithWarnings ?? 0}`);
-                lines.push(`Tracks without warnings: ${summary.tracksWithoutWarnings ?? 0}`);
-
-                const unsupported = Array.isArray(validation.unsupportedSourceFiles) ? validation.unsupportedSourceFiles : [];
-                if (unsupported.length) {
-                    lines.push(`Unsupported source files: ${unsupported.join(', ')}`);
+                if (buildBtn) buildBtn.disabled = true;
+                if (optimizeBtn) optimizeBtn.disabled = true;
+                if (currentRunMode === 'optimize') {
+                    if (optimizeSpinner) optimizeSpinner.style.display = 'inline';
+                    if (buildSpinner) buildSpinner.style.display = 'none';
+                } else {
+                    if (buildSpinner) buildSpinner.style.display = 'inline';
+                    if (optimizeSpinner) optimizeSpinner.style.display = 'none';
                 }
-
-                if (tracks.length) {
-                    lines.push('');
-                    lines.push('Per-track details:');
-                    tracks.forEach(track => {
-                        const name = track.file || track.title || '(unknown)';
-                        const coverSource = track.coverSource || 'missing';
-                        const warnings = Array.isArray(track.warnings) && track.warnings.length
-                            ? track.warnings.join(', ')
-                            : 'none';
-                        lines.push(`- ${name}`);
-                        lines.push(`  cover: ${coverSource}${track.cover ? ` (${track.cover})` : ''}`);
-                        lines.push(`  warnings: ${warnings}`);
-                    });
-                }
-
-                return lines.join('\n');
+                pollTimer = setInterval(pollLog, 1000);
+                pollLog();
             }
 
-            refreshBuildRequiredState();
+            function attachBuildLogIfRunning() {
+                if (!buildLog || pollTimer) {
+                    return;
+                }
+                fetch('/biblioteca/get-build-log.php?mode=full')
+                    .then((resp) => resp.json())
+                    .then((data) => {
+                        if (!data || typeof data !== 'object') {
+                            return;
+                        }
+                        if (data.content !== undefined && buildLog) {
+                            buildLog.textContent = data.content || '(empty)';
+                            scrollLog();
+                        }
+                        if (data.is_running) {
+                            beginBuildPolling(data.mode || 'full');
+                        }
+                    })
+                    .catch(() => {
+                        // Ignore — publish tab can still start builds manually.
+                    });
+            }
 
             async function pollLog() {
                 try {
@@ -6444,22 +6493,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         is_running: data.is_running,
                         success: data.success,
                         exit_code: data.exit_code,
-                        has_validation: !!data.metadata_validation,
+                        has_publish_status: !!data.publish_status,
                     });
                     if (data.content !== undefined && buildLog) {
-                        let output = data.content || '(empty)';
-                        if (!data.is_running && data.metadata_validation) {
-                            output += renderMetadataValidation(data.metadata_validation);
-                        }
-                        buildLog.textContent = output;
+                        buildLog.textContent = data.content || '(empty)';
                         scrollLog();
                     }
 
-                    if (data.is_running) {
-                        setBuildValidationVisibility(false);
-                    } else {
-                        latestBuildValidation = data.metadata_validation || null;
-                        renderBuildValidationSummary(data.metadata_validation);
+                    if (data.publish_status) {
+                        renderPublishStatusSummary(data.publish_status);
                     }
 
                     if (data.build_required_state) {
@@ -6525,6 +6567,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
 
                         if (data.error) {
+                            if (data.running) {
+                                if (data.content && buildLog) {
+                                    buildLog.textContent = data.content;
+                                    scrollLog();
+                                }
+                                beginBuildPolling(data.mode || currentRunMode);
+                                console.groupEnd();
+                                return;
+                            }
                             buildLog.textContent = '❌ ' + data.error;
                             if (data.debug) {
                                 console.error('[build] launcher failure debug', data.debug);
@@ -6533,7 +6584,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             console.groupEnd();
                             return;
                         }
-                        pollTimer = setInterval(pollLog, 1000);
+                        beginBuildPolling('full');
                         console.groupEnd();
                     } catch (e) {
                         console.error('[build] network/launch error', e);
@@ -6588,6 +6639,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
 
                         if (data.error) {
+                            if (data.running) {
+                                if (data.content && buildLog) {
+                                    buildLog.textContent = data.content;
+                                    scrollLog();
+                                }
+                                beginBuildPolling(data.mode || 'optimize');
+                                console.groupEnd();
+                                return;
+                            }
                             buildLog.textContent = '❌ ' + data.error;
                             if (data.debug) {
                                 console.error('[optimize] launcher failure debug', data.debug);
@@ -6596,7 +6656,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             console.groupEnd();
                             return;
                         }
-                        pollTimer = setInterval(pollLog, 1000);
+                        beginBuildPolling('optimize');
                         console.groupEnd();
                     } catch (e) {
                         console.error('[optimize] network/launch error', e);
@@ -6606,6 +6666,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 });
             }
+
+            attachBuildLogIfRunning();
+            refreshBuildRequiredState();
 
             (function initContentAutofix() {
                 const statusEl = document.getElementById('contentAutofixStatus');
@@ -6649,7 +6712,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function runContentAutofix(dryRun) {
                     previewBtn.disabled = true;
                     applyBtn.disabled = true;
-                    statusEl.textContent = dryRun ? 'Checking what would change…' : 'Upgrading content model…';
+                    statusEl.textContent = dryRun ? 'Checking catalog…' : 'Repairing catalog…';
                     if (reportEl) {
                         reportEl.hidden = true;
                     }
@@ -6662,17 +6725,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json().catch(() => ({}));
                         if (!resp.ok || data.error) {
-                            throw new Error(data.error || 'Content upgrade failed');
+                            throw new Error(data.error || 'Catalog repair failed');
                         }
                         latestPreview = data;
-                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Upgrade complete.');
+                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Catalog repair complete.');
                         renderAutofixReport(data);
                         applyBtn.hidden = dryRun ? Number(data.changed_total || 0) === 0 : true;
                         if (!dryRun && data.recommend_build) {
                             await refreshBuildRequiredState();
                         }
                     } catch (error) {
-                        statusEl.textContent = error.message || 'Content upgrade failed';
+                        statusEl.textContent = error.message || 'Catalog repair failed';
                     } finally {
                         previewBtn.disabled = false;
                         applyBtn.disabled = false;

@@ -17,9 +17,9 @@ Rules for this file:
 
 **v0.8 beta (active)** — platform model definitions and core deliverables.
 
-**v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance (config auto-repair, content-model checks folded into Publish), playlist `kind` fix, Content editor UX parity, release/playlist marketing metadata definitions, backup/export MVP, and Release editor. See **v0.8.3 active slice** below. All betatesters are on the latest build; **no legacy HTML page import** (closed).
+**v0.8.4 working slice (session 4 — 2026-07-01):** rolls remaining v0.8.3 items into this session and starts visual media rework. **Shipped this session so far:** Release editor (Content → Release). **Still open from v0.8.3:** backup/export MVP, container marketing metadata. See **v0.8.4 active slice** below.
 
-**v0.8.4 planning (2026-06-16):** visual media rework — unified Visual pool (collapse Illustrations/Photos/Video), `ast_{ULID}` naming for all visual assets, format-by-content and context-sized multi-variant delivery. Audio stays a separate family. See **v0.8.4 active slice** below and [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
+**v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance (config auto-repair, content-model checks folded into Publish), playlist `kind` fix, Content editor UX parity, release/playlist marketing metadata definitions, backup/export MVP, and Release editor. Most trust/UX items shipped in build 295; Release editor shipped session 4.
 
 **v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v0.8 build N`** (build numbering continues from v0.7; build 287 opened the v0.8 line).
 
@@ -41,7 +41,7 @@ Policy and operator messaging — **lock before implementation**:
 - [x] Close legacy `data/bio.html` / `data/faq.html` import scope: all betatesters on current JSON pages; recovery is manual copy only if old files exist on host backups.
 - [x] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; one follow-up **Update the live site** (Publish) is normal after every package update — not a failure state.
 - [x] Lock **invisible maintenance** contract: config structure auto-repair and content-model preparation run automatically before Publish; no separate operator-facing “content model upgrade” card in normal workflow.
-- [ ] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+- [ ] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)). *(Release EPK fields implemented in editor + storage; playlist/page fields still open.)*
 - [x] Lock **v0.8 playlist kind rule**: operator-created playlists are **`system`** until user/VIP playlists ship in v0.9+; fix current bug that creates `kind: "user"` (invisible to player).
 
 Implementation order (v0.8.3):
@@ -56,7 +56,7 @@ Trust and operator calm:
 Platform fixes:
 
 - [x] **Playlist `kind` bug** — create/save operator playlists as `kind: "system"`; migrate existing `user` playlists on existing installs during Publish preflight; player selector appears when **two or more system playlists** exist.
-- [ ] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
+- [x] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
 - [ ] **Container marketing metadata** — add `description` + `poster_asset_id` fields to playlist and page containers; sketch then implement release EPK fields (press blurb, credits, genre, contact, streaming links).
 
 Content editor UX (match Themes pattern):
@@ -70,6 +70,27 @@ Deferred (documented, not v0.8.3):
 - [ ] Rich share cards and player playlist presentation on mobile (after metadata fields + Release editor).
 - [ ] News/tour archive module (v1+); pages + galleries cover interim tour content.
 - [ ] User/VIP-authored playlists (`kind: "user"`) — v0.9+ after access model implementation.
+
+## Build pipeline rework (2026-07-01 — policy before code)
+
+Reference: [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md).
+
+Policy — **lock before implementation**:
+
+- [x] Lock **target stage order**: preflight (tools) → site shell (theme/config/social/PWA inputs) → catalog (masters/registry) → deliverables (from registry) → artifacts (playlist.json, share crops, manifest) → initial layout seed (setup/recovery only).
+- [x] Lock **deliverable scope**: **every registered asset**, independent of release/playlist membership.
+- [x] Lock **prune rule**: deliverables removed **only on asset delete**, not on playlist/release membership change.
+- [x] Lock **publish must not mutate catalog**: move `content-autofix` out of publish preflight; explicit **Repair catalog** action with dry-run.
+- [x] Lock **initial layout seed** (formerly “compose”): **setup** + explicit **recover layout from disk** only; never routine publish; rename in UI/docs.
+
+Implementation order:
+
+- [x] Phase A — stop the bleeding (remove autofix from publish, fix validation UX labels).
+- [ ] Phase B — stage runner skeleton (skippable stages, structured log).
+- [ ] Phase C — catalog stage (masters for all originals).
+- [ ] Phase D — registry-scoped deliverables (decouple `optimizeMedia.py` from playlist scope).
+- [ ] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
+- [x] Phase F — demote `setupCompose.py` to setup-only (`run-layout-seed.php`; removed from `build.py`).
 
 ## v0.8.4 active slice (visual media — delivery + unified pool)
 
@@ -151,7 +172,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Restructure admin IA: **Settings** (Basics, Theme, Support, Sharing), **System** (Publish + Audit); legacy `?tab=config|build|audit` redirects; notification-first publish nudging (no Build tab pulse).
 - [x] **Audio delivery alignment** — `media/audio/optimal/` uses `ast_{ULID}.mp3` delivery names keyed off `master_filename`; `makePlaylists.py` / delivery scripts read playlist `master_file` order from `data/playlists/` (not `original/` scan); publish pass prunes orphaned legacy-name delivery files.
 - [x] **Demo media git hygiene** — remove tracked `bandPromo_*` originals from git; bundled demo ships only via setup starter pack (`bandpromo-demo` locked release); document in `MEDIA-HANDLING.md` and `INSTALL-UPDATE.md`.
-- [ ] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
+- [x] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
 - [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
 
 Transitional schema work (in progress):

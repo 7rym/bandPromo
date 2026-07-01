@@ -11,6 +11,8 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/release-package.php';
 require_once __DIR__ . '/publish-preflight-helpers.php';
+require_once __DIR__ . '/build-lock.php';
+require_once __DIR__ . '/build-launcher.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $log_dir   = $root_dir . '/log';
@@ -44,7 +46,7 @@ $build_user_agent = bandpromo_admin_audit_user_agent();
 $debug = [
     'mode' => $mode,
     'os' => PHP_OS_FAMILY,
-    'launcher' => $is_windows ? 'windows-powershell-start-process' : 'unix-nohup-sh',
+    'launcher' => 'php-proc-runner',
     'python' => null,
     'default_theme_package' => null,
     'script' => $script,
@@ -110,14 +112,7 @@ function resolve_python_interpreter(): string {
 }
 
 function build_has_exit_code(string $log_file): bool {
-    if (!file_exists($log_file)) {
-        return false;
-    }
-    $content = file_get_contents($log_file);
-    if ($content === false) {
-        return false;
-    }
-    return preg_match('/\nEXITCODE:\-?\d+\s*$/', $content) === 1;
+    return bandpromo_build_log_has_exit_code(bandpromo_build_read_log_tail($log_file));
 }
 
 // Only allow POST
@@ -128,12 +123,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Prevent concurrent builds
-if (file_exists($lock_file)) {
-    if (!build_has_exit_code($log_file)) {
-        echo json_encode(['error' => 'Build already in progress', 'running' => true]);
-        exit;
-    }
-    unlink($lock_file);
+if (bandpromo_build_lock_active($root_dir, $mode)) {
+    echo json_encode([
+        'error' => 'Build already in progress',
+        'running' => true,
+        'mode' => $mode,
+        'content' => bandpromo_build_read_log_tail($log_file),
+    ]);
+    exit;
 }
 
 // Lock immediately so package preparation also counts as in-progress work.
@@ -205,43 +202,14 @@ file_put_contents($lock_file, 'running');
 
 $started = false;
 
-if ($is_windows) {
-    $runner_bat = $log_dir . '/run-build.bat';
-    $bat = [];
-    $bat[] = '@echo off';
-    $bat[] = '"' . str_replace('"', '""', $python) . '" -u "' . str_replace('"', '""', $script) . '" >> "' . str_replace('"', '""', $log_file) . '" 2>&1';
-    $bat[] = 'echo EXITCODE:%ERRORLEVEL%>>"' . str_replace('"', '""', $log_file) . '"';
-    $bat[] = 'del /f /q "' . str_replace('"', '""', $lock_file) . '" >nul 2>&1';
-    file_put_contents($runner_bat, implode("\r\n", $bat) . "\r\n");
-
-    $ps_command = "Start-Process -FilePath '" . str_replace("'", "''", $runner_bat) . "' -WindowStyle Hidden";
-    $launch_cmd = 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ' . escapeshellarg($ps_command);
-    $debug['launch_command'] = $launch_cmd;
-    $out = [];
-    $rc = 1;
-    exec($launch_cmd . ' 2>&1', $out, $rc);
-    $debug['launch_exit_code'] = $rc;
-    $debug['launch_output_tail'] = implode("\n", array_slice($out, -8));
-    if ($rc === 0) {
-        $started = true;
-    }
-} else {
-    // Build the command — wrap in sh so we can capture exit code in background
-    // Uses nohup to detach; exit code is appended as EXITCODE:N when done
-    $inner_cmd = escapeshellarg($python) . ' -u ' . escapeshellarg($script)
-               . ' >> ' . escapeshellarg($log_file) . ' 2>&1'
-               . '; echo "EXITCODE:$?" >> ' . escapeshellarg($log_file)
-               . '; rm -f ' . escapeshellarg($lock_file);
-
-    $bg_cmd = 'nohup sh -c ' . escapeshellarg($inner_cmd) . ' > /dev/null 2>&1 & echo $!';
-    $debug['launch_command'] = $bg_cmd;
-    $pid = trim((string) shell_exec($bg_cmd));
-    if ($pid !== '' && is_numeric($pid)) {
-        $started = true;
-        file_put_contents($lock_file, $pid);
-        $debug['launch_exit_code'] = 0;
-    } else {
-        $debug['launch_exit_code'] = 1;
+$launch = bandpromo_build_launch_background($python, $script, $log_file, $lock_file, $build_run_id, $is_windows);
+$debug['launch_command'] = $launch['launch_command'] ?? null;
+$debug['launch_exit_code'] = $launch['launch_exit_code'] ?? null;
+$debug['launch_output_tail'] = $launch['launch_output_tail'] ?? null;
+if ($launch['started'] ?? false) {
+    $started = true;
+    if (!$is_windows && !empty($launch['pid'])) {
+        file_put_contents($lock_file, (string) $launch['pid']);
     }
 }
 

@@ -67,6 +67,7 @@ if (!class_exists('ZipArchive')) {
 }
 
 require_once __DIR__ . '/biblioteca/config-loader.php';
+require_once __DIR__ . '/biblioteca/site-contact.php';
 
 $hasSetupErrors = !empty($setupErrors);
 
@@ -161,6 +162,15 @@ $siteShortName   = htmlspecialchars($prefill['short_name'] !== '' ? $prefill['sh
 $siteDescription = htmlspecialchars($prefill['description']);
 $siteUrl         = htmlspecialchars($prefill['url'] !== '' ? $prefill['url'] : $derivedUrl);
 $siteAuthor      = htmlspecialchars($prefill['author']);
+$siteEmailAuto   = !isset($config['site']['email_auto']) || $config['site']['email_auto'] !== false;
+$siteContact     = trim((string) bandpromo_config_get_nonempty_value($config, 'site.email', ''));
+if ($siteContact === '' || $siteEmailAuto) {
+  $siteContact = bandpromo_site_contact_derive(
+    $prefill['author'],
+    $prefill['url'] !== '' ? $prefill['url'] : $derivedUrl
+  );
+}
+$siteContactHtml = htmlspecialchars($siteContact);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -643,14 +653,18 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
     <p class="subtitle">Confirm your site details — pre-filled from your domain.</p>
     <div class="msg error" id="s2-error"></div>
 
+    <div class="field">
+      <label>Site name</label>
+      <input type="text" id="s2-name" value="<?= $siteName ?>" placeholder="My Music Site" />
+    </div>
     <div class="row2">
-      <div class="field">
-        <label>Site name</label>
-        <input type="text" id="s2-name" value="<?= $siteName ?>" placeholder="My Music Site" />
-      </div>
       <div class="field">
         <label>Author / band name</label>
         <input type="text" id="s2-author" value="<?= $siteAuthor ?>" placeholder="Your name" />
+      </div>
+      <div class="field">
+        <label>Contact</label>
+        <input type="text" id="s2-contact" value="<?= $siteContactHtml ?>" placeholder="7rym &lt;7rym@7rym.net&gt;" />
       </div>
     </div>
     <div class="field">
@@ -661,6 +675,7 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
       <label>Site URL</label>
       <input type="url" id="s2-url" value="<?= $siteUrl ?>" placeholder="https://example.com" />
     </div>
+    <p class="setup-fineprint">Contact is suggested from author and site URL in RFC 5322 format until you edit it manually.</p>
 
     <div class="actions">
       <button class="btn btn-ghost" id="s2-back">Back</button>
@@ -724,9 +739,11 @@ $siteAuthor      = htmlspecialchars($prefill['author']);
   </div>
 </div>
 
+<script src="/biblioteca/site-contact.js"></script>
 <script>
 const STEPS = 3;
 let currentStep = 1;
+let setupContactAuto = <?php echo $siteEmailAuto ? 'true' : 'false'; ?>;
 const modalShell = document.getElementById('setup-modal');
 const modalTitle = document.getElementById('setup-modal-title');
 const modalBody = document.getElementById('setup-modal-body');
@@ -881,14 +898,57 @@ document.getElementById('s1-next').addEventListener('click', async () => {
 // ─── STEP 2: Site config ──────────────────────────────────────────────────────
 document.getElementById('s2-back').addEventListener('click', () => setStepUI(1));
 
+function refreshSetupSuggestedContact() {
+  if (!setupContactAuto || typeof window.bandpromoSiteContactDerive !== 'function') {
+    return;
+  }
+  const authorInput = document.getElementById('s2-author');
+  const urlInput = document.getElementById('s2-url');
+  const contactInput = document.getElementById('s2-contact');
+  if (!(authorInput instanceof HTMLInputElement)
+    || !(urlInput instanceof HTMLInputElement)
+    || !(contactInput instanceof HTMLInputElement)) {
+    return;
+  }
+  contactInput.value = window.bandpromoSiteContactDerive(authorInput.value, urlInput.value);
+}
+
+document.getElementById('s2-author').addEventListener('input', refreshSetupSuggestedContact);
+document.getElementById('s2-url').addEventListener('input', refreshSetupSuggestedContact);
+document.getElementById('s2-contact').addEventListener('input', () => {
+  setupContactAuto = false;
+});
+document.getElementById('s2-contact').addEventListener('blur', () => {
+  const contactInput = document.getElementById('s2-contact');
+  if (!(contactInput instanceof HTMLInputElement) || typeof window.bandpromoSiteContactNormalize !== 'function') {
+    return;
+  }
+  const raw = contactInput.value.trim();
+  if (!raw) {
+    return;
+  }
+  const normalized = window.bandpromoSiteContactNormalize(raw);
+  if (normalized) {
+    contactInput.value = normalized;
+  }
+});
+
 document.getElementById('s2-next').addEventListener('click', async () => {
   hideMsg('s2-error');
-  const name   = document.getElementById('s2-name').value.trim();
-  const desc   = document.getElementById('s2-desc').value.trim();
-  const url    = document.getElementById('s2-url').value.trim();
-  const author = document.getElementById('s2-author').value.trim();
+  const name    = document.getElementById('s2-name').value.trim();
+  const desc    = document.getElementById('s2-desc').value.trim();
+  const url     = document.getElementById('s2-url').value.trim();
+  const author  = document.getElementById('s2-author').value.trim();
+  const contact = document.getElementById('s2-contact').value.trim();
 
   if (!name) return showMsg('s2-error', 'Site name is required.', 'error');
+  if (contact !== '' && typeof window.bandpromoSiteContactIsValid === 'function'
+    && !window.bandpromoSiteContactIsValid(contact)) {
+    return showMsg('s2-error', window.bandpromoSiteContactInvalidMessage?.() || 'Invalid contact format.', 'error');
+  }
+  const contactStored = contact !== '' && typeof window.bandpromoSiteContactNormalize === 'function'
+    ? (window.bandpromoSiteContactNormalize(contact) || contact)
+    : contact;
 
   setDisabled('s2-next', true);
   setSpin('s2-spin', true);
@@ -898,7 +958,16 @@ document.getElementById('s2-next').addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        site: { name, short_name: name, description: desc, url, author },
+        site: {
+          name,
+          short_name: name,
+          description: desc,
+          url,
+          author,
+          email: contactStored,
+          email_auto: setupContactAuto,
+          language: 'en',
+        },
       }),
     });
     const data = await res.json();
@@ -966,12 +1035,44 @@ async function pollLog() {
       setDisabled('s3-build', false);
 
       const success = data.success === true;
-      status.textContent = success ? 'Build complete!' : 'Build failed.';
-      status.style.color = success ? 'var(--success)' : 'var(--error)';
-      if (success) {
+      if (!success) {
+        status.textContent = 'Build failed.';
+        status.style.color = 'var(--error)';
+        document.getElementById('s3-build').style.display = 'inline-flex';
+        return;
+      }
+
+      status.textContent = 'Seeding initial layout\u2026';
+      status.style.color = '#60a5fa';
+      try {
+        const seedRes = await fetch('/biblioteca/run-layout-seed.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        const seedData = await seedRes.json().catch(() => ({}));
+        if (!seedRes.ok || seedData.ok === false) {
+          appendLog(seedData.error || seedData.message || 'Initial layout seed failed.');
+          status.textContent = 'Build finished but layout seed failed.';
+          status.style.color = 'var(--error)';
+          document.getElementById('s3-build').style.display = 'inline-flex';
+          return;
+        }
+        if (seedData.output) {
+          seedData.output.split('\n').forEach(line => {
+            if (line !== '') appendLog(line);
+          });
+        }
+        appendLog(seedData.message || (seedData.skipped ? 'Initial layout already recorded.' : 'Initial layout seed finished.'));
+        status.textContent = 'Setup build complete!';
+        status.style.color = 'var(--success)';
         document.getElementById('s3-build').style.display = 'none';
         document.getElementById('s3-next').style.display = 'inline-flex';
-      } else {
+      } catch (seedError) {
+        console.error('Layout seed error', seedError);
+        appendLog('Initial layout seed failed: network error.');
+        status.textContent = 'Build finished but layout seed failed.';
+        status.style.color = 'var(--error)';
         document.getElementById('s3-build').style.display = 'inline-flex';
       }
     }

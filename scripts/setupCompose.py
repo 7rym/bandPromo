@@ -1,5 +1,8 @@
 """
-setupCompose — one-time initial site composition during the first full build.
+setupCompose — initial site layout seed (setup + disaster recovery only).
+
+Not part of routine publish. Invoked via biblioteca/run-layout-seed.php after the
+first setup build, or explicitly when recovering layout from files on disk.
 
 Creates:
 - playlist-order.json with all visible source tracks

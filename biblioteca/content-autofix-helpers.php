@@ -509,9 +509,9 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'errors' => $errors,
         'has_warnings' => $errors !== [],
         'message' => $dryRun
-            ? 'Preview complete. Run the upgrade to apply these changes.'
+            ? 'Preview complete. Apply repairs only if you intend to change catalog or container links.'
             : ($changedTotal > 0
-                ? 'Content model upgrade finished. Run Build to publish the updated files.'
-                : 'Everything already matches the current content model.'),
+                ? 'Catalog repair finished. Run Publish Build when you are ready to regenerate delivery files.'
+                : 'Catalog already matches the current registry and container links.'),
     ];
 }

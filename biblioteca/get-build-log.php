@@ -10,6 +10,8 @@ require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/admin-audit.php';
+require_once __DIR__ . '/build-lock.php';
+require_once __DIR__ . '/publish-status-helpers.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $mode = isset($_GET['mode']) ? strtolower(trim((string) $_GET['mode'])) : 'full';
@@ -21,10 +23,9 @@ $log_file  = $root_dir . '/log/' . ($mode === 'optimize' ? 'optimize.log' : 'bui
 $lock_file = $root_dir . '/log/' . ($mode === 'optimize' ? 'optimize.lock' : 'build.lock');
 $meta_file = $root_dir . '/log/' . ($mode === 'optimize' ? 'optimize.meta.json' : 'build.meta.json');
 $audit_state_file = $root_dir . '/log/admin-audit/' . ($mode === 'optimize' ? 'state-optimize-build.json' : 'state-full-build.json');
-$validation_file = $root_dir . '/play/playlist-validation.json';
 
-$content    = '';
-$metadata_validation = null;
+$content = '';
+$publish_status = bandpromo_publish_status_summary($root_dir);
 
 function bandpromo_build_poller_load_json(string $file): array
 {
@@ -54,16 +55,6 @@ if (file_exists($log_file)) {
     }
 }
 
-if (file_exists($validation_file)) {
-    $validation_json = file_get_contents($validation_file);
-    if ($validation_json !== false) {
-        $parsed = json_decode($validation_json, true);
-        if (is_array($parsed)) {
-            $metadata_validation = $parsed;
-        }
-    }
-}
-
 $build_meta = bandpromo_build_poller_load_json($meta_file);
 $build_run_id = trim((string) ($build_meta['run_id'] ?? ''));
 
@@ -80,20 +71,16 @@ if ($build_run_id === '') {
 
 $content = preg_replace('/^RUN_ID:[^\r\n]+\r?\n?/mi', '', $content, 1);
 
+bandpromo_build_clear_stale_lock($root_dir, $mode);
+
 // Determine running state:
 // - Primary: lock file exists AND no EXITCODE yet → still running
-// - Secondary: try /proc/$pid as extra confirmation
-if (file_exists($lock_file)) {
-    if ($exit_code === null) {
-        // No EXITCODE in log yet → must still be running
-        $is_running = true;
-    } else {
-        // EXITCODE written → done; clean up lock file
+if (bandpromo_build_lock_active($root_dir, $mode)) {
+    $is_running = $exit_code === null;
+    if (!$is_running) {
         @unlink($lock_file);
-        $is_running = false;
     }
 } else {
-    // No lock file
     $is_running = false;
 }
 
@@ -148,7 +135,7 @@ echo json_encode([
     'mode' => $mode,
     'exit_code'  => $exit_code,
     'success'    => $success,
-    'metadata_validation' => $metadata_validation,
+    'publish_status' => $publish_status,
     'build_required' => !empty($build_required_state['required']),
     'build_required_state' => $build_required_state,
 ], JSON_UNESCAPED_UNICODE);

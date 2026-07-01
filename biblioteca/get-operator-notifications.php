@@ -5,6 +5,7 @@ require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/admin-welcome-state.php';
 require_once __DIR__ . '/package-updater.php';
 require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/publish-status-helpers.php';
 
 $rootDir = dirname(__DIR__);
 $validationFile = $rootDir . '/play/playlist-validation.json';
@@ -72,6 +73,7 @@ if (file_exists($validationFile)) {
 }
 
 $metadataValidation = bandpromo_filter_metadata_validation_for_notifications($rootDir, $metadataValidation);
+$publishStatus = bandpromo_publish_status_summary($rootDir);
 
 $uncataloguedAudioFailures = [];
 $uncataloguedReconcile = bandpromo_reconcile_uncatalogued_audio_originals($rootDir);
@@ -90,6 +92,7 @@ echo json_encode([
     'build_required_state' => $buildState,
     'background_tasks' => $backgroundTasks,
     'metadata_validation' => $metadataValidation,
+    'publish_status' => $publishStatus,
     'uncatalogued_audio_failures' => $uncataloguedAudioFailures,
     'welcome' => $welcomeState,
     'package_update' => [

@@ -400,6 +400,8 @@ label {
 input[type="text"],
 input[type="date"],
 input[type="password"],
+input[type="url"],
+input[type="email"],
 textarea,
 select {
     width: 100%;
@@ -415,6 +417,8 @@ select {
 input[type="text"]:focus,
 input[type="date"]:focus,
 input[type="password"]:focus,
+input[type="url"]:focus,
+input[type="email"]:focus,
 textarea:focus,
 select:focus {
     outline: none;
@@ -2640,6 +2644,79 @@ canvas { max-width: 100%; height: auto; }
 
 .content-autofix-card {
     margin-top: 1rem;
+}
+
+.publish-actions-card {
+    margin-top: 0;
+    margin-bottom: 14px;
+}
+
+.publish-actions-card .build-validation-head {
+    margin-bottom: 10px;
+}
+
+.publish-actions-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.publish-action-status {
+    margin: 8px 0 0;
+    min-height: 0;
+}
+
+.publish-action-status:empty {
+    display: none;
+}
+
+.publish-status-card {
+    margin-top: 1rem;
+    margin-bottom: 14px;
+}
+
+.publish-status-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.publish-status-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.publish-status-metric {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.publish-status-check {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.publish-status-check strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.publish-status-check p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.publish-status-empty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
 }
 
 .content-autofix-actions {

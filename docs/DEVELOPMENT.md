@@ -26,6 +26,17 @@ These paths are runtime-managed and should not be committed back into git:
 
 Tracked application updates must preserve that runtime state.
 
+## Local PHP Dev Server
+
+`scripts/start-dev-server.ps1` runs PHP's built-in server for local admin and site testing. It spawns PHP as a detached background process and exits immediately (no long-lived terminal). Request output goes to `log/dev-server.log`; stop it with `scripts/stop-dev-server.ps1`. It does **not** read Apache `.htaccess` rules.
+
+That is acceptable for local work:
+
+- **Publish build** launches `scripts/build.py` through PHP (`biblioteca/build.php` → `build-runner.php`) using `proc_open` only (`php.exe` → `python.exe`). No `cmd.exe`, PowerShell, or `.bat` files.
+- **Production** Apache/nginx installs deny direct HTTP access to `log/` through tracked `log/.htaccess` (and `data/.htaccess`).
+
+Do not add a PHP router script to mimic `.htaccess` in dev — it duplicates production policy, triggers false-positive antivirus heuristics, and treats a symptom of web-root runner files that the launcher already prevents.
+
 ## Common Commands
 
 - Bump version before pushing to `main`:
@@ -98,6 +109,7 @@ First-time setup depends on tracked templates and examples being copied into run
 
 ## Related Docs
 
+- [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md) — publish stage order, gaps, refactor plan
 - [INSTALL-UPDATE.md](INSTALL-UPDATE.md)
 - [MEDIA-HANDLING.md](MEDIA-HANDLING.md)
 - [ROADMAP.md](ROADMAP.md)

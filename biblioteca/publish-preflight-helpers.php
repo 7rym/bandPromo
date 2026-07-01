@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config-repair-helpers.php';
-require_once __DIR__ . '/content-autofix-helpers.php';
 
 function bandpromo_publish_preflight_log_line(string $message, ?callable $logger = null): void
 {
@@ -17,7 +16,6 @@ function bandpromo_run_publish_preflight(string $root, ?callable $logger = null)
     $summary = [
         'ok' => true,
         'config' => [],
-        'autofix' => [],
         'errors' => [],
     ];
 
@@ -37,31 +35,17 @@ function bandpromo_run_publish_preflight(string $root, ?callable $logger = null)
         $summary['errors'][] = $throwable->getMessage();
     }
 
-    try {
-        $autofix = bandpromo_content_autofix_run($root, false);
-        $summary['autofix'] = $autofix;
-        if ((int) ($autofix['changed_total'] ?? 0) > 0) {
-            bandpromo_publish_preflight_log_line(
-                '[preflight] Prepared content links and catalog entries (' . (int) $autofix['changed_total'] . ' updates).',
-                $logger
-            );
-        }
-        if (!empty($autofix['errors']) && is_array($autofix['errors'])) {
-            foreach ($autofix['errors'] as $error) {
-                $summary['errors'][] = (string) $error;
-            }
-        }
-    } catch (Throwable $throwable) {
-        $summary['errors'][] = $throwable->getMessage();
-    }
-
     if ($summary['errors'] !== []) {
         $summary['ok'] = false;
         foreach ($summary['errors'] as $error) {
             bandpromo_publish_preflight_log_line('[preflight] Warning: ' . $error, $logger);
         }
     } else {
-        bandpromo_publish_preflight_log_line('[preflight] Site content is ready for publish.', $logger);
+        bandpromo_publish_preflight_log_line('[preflight] Site settings check passed.', $logger);
+        bandpromo_publish_preflight_log_line(
+            '[preflight] Catalog repair is not run automatically. Use Repair catalog on the Publish tab if uploads need registry or master fixes.',
+            $logger
+        );
     }
 
     return $summary;

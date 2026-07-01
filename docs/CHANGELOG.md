@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 30:00 - Checkpoint v0.8 build 296: build pipeline Phase A/F (no autofix on publish, layout seed on setup, stage-ready publish UX) and System → Publish compact actions + site-wide Publish status.
+
+2026-07-01 29:15 - Publish tab layout: **Publish status** card first; all publish action buttons on one row.
+
+2026-07-01 29:00 - Publish tab: **Publish status** card replaces playlist-only validation with site-wide catalog/delivery/pending checks (`publish-status-helpers.php`); Repair catalog button uses 🛠️ icon.
+
+2026-07-01 28:30 - Publish **Repair catalog** button label (preview-first flow); removed redundant row label.
+
+2026-07-01 28:15 - Publish actions card: compact toolbar layout with consistent `btn` styling for build, image refresh, and catalog repair.
+
+2026-07-01 28:00 - Publish tab UX: moved Run Publish Build, Refresh Image Files, and Repair catalog into a single **Publish actions** card; System sub-tabs are navigation-only (like Content editors).
+
+2026-07-01 27:15 - Build pipeline Phase A + F: removed `content-autofix` from publish preflight (config repair only); added Publish tab **Repair catalog** card wired to `content-autofix.php`; renamed validation UI to **Playlist validation**; removed `setupCompose.py` from `build.py` (5-step publish); added `biblioteca/run-layout-seed.php` and setup wizard post-build layout seed call.
+
+2026-07-01 26:30 - Locked build pipeline policy: deliverables for every registered asset; prune on asset delete only; initial layout seed (setupCompose) limited to setup + explicit disaster recovery, not publish.
+2026-07-01 26:00 - Added build pipeline rework section to `docs/TODO.md` (policy + phases linked to `BUILD-PIPELINE-AUDIT.md`).
+2026-07-01 26:00 - Added `docs/BUILD-PIPELINE-AUDIT.md`: target build order (preflight → site shell → catalog/masters → deliverables → artifacts; compose defined as first-run layout only), current-gap analysis, and refactor phases.
+2026-07-01 25:35 - Publish build launcher: shell-free `proc_open` chain (`php.exe` → `build-runner.php` → `python.exe`); no cmd/PowerShell/.bat (AV-friendly).
+2026-07-01 25:20 - Publish build launcher: removed Windows `.bat` runner (detached PowerShell only); build log only appends validation after a successful run; publish hints use the same labels as the action buttons.
+2026-07-01 25:00 - Dev server start script spawns detached PHP (no long-lived terminal); output goes to `log/dev-server.log`.
+2026-07-01 24:45 - Dropped `router.php` dev-server workaround. Publish-build fix is launcher-only: Windows runners live in temp (never under web root); production log access stays denied via `log/.htaccess` on Apache.
+2026-07-01 24:15 - Publish build launcher: Windows runner `.bat` moved to temp dir (not web-served `log/`).
+
+2026-07-01 24:00 - Publish build: detect/clear stale `build.lock`, attach log polling when a build is already running, and return log content on duplicate-start.
+
+2026-07-01 23:45 - Clarify playback model: player exposes playlists only; release Enjoy here defaults to `/play/main`, not release-native URLs.
+
+2026-07-01 23:30 - Contact examples use `7rym <7rym@7rym.net>`; release Enjoy here links default to `/play/main`; admin `url`/`email` inputs match theme.
+
+2026-07-01 23:00 - Contact handling hardened for future mail: canonical RFC 5322 normalize on save, stricter addr-spec checks, empty derive on localhost; `bandpromo_site_contact_mailbox()` for future mailto/SMTP; policy noted in `PLATFORM-MODEL.md`.
+
+2026-07-01 22:00 - Site contact (`site.email` + `site.email_auto`): RFC 5322 validation, install/setup step 2 field, auto-suggest from author + URL, hidden `site.language=en`; shared `site-contact.php` / `site-contact.js`.
+
+2026-07-01 21:00 - Added `site.email` to web config (Settings → Basics); Release editor prefills empty press contact from `site.author` + `site.email` in RFC 5322 `Name <email>` form.
+
+2026-07-01 20:00 - Release cover moved to column two with audio-master-style preview/picker; explicit `window.openMediaPicker` wiring; RFC 5322 press contact example.
+
+2026-07-01 19:00 - Release EPK layout: short description under full description, tagline full-width (160 chars), compact Enjoy here links grid, press contact hint for named email formats.
+
+2026-07-01 18:00 - Release editor fixes: native date picker styling on release date, release cover picker (media modal moved before admin.js + delegated picker clicks), cover above description, new `short_description` field (300 chars).
+
+2026-07-01 17:00 - Release editor UX: ISO date picker, release cover file picker (`poster_asset_id`), bandPromo-first streaming links (Bandcamp removed), social profiles imported from Sharing settings, metadata column + available tracks under active list in column two.
+
+2026-07-01 16:00 - Release pool lock control uses 🔒/🔓 icon buttons (active/inactive) instead of labeled checkboxes.
+
+2026-07-01 15:30 - Release lock control moved to the release pool list (per-row Lock checkbox); removed from drill-down settings. Lock still blocks unsaved track edits when toggled while editing.
+
+2026-07-01 15:00 - Release EPK metadata: `data/releases/{id}.json` now stores `description`, `poster_asset_id`, and nested `epk` (tagline, genre, credits, press contact, streaming links, press photo asset refs); Content → Release editor fields PATCH via `manage-release.php`; schema locked in `PLATFORM-MODEL.md`.
+
+2026-07-01 14:00 - Fix Release editor: show edit/delete actions on operator releases (only `bandpromo-demo` is system-managed), resolve track titles via audio pool aliases for `ast_{ULID}` masters, and accept original filenames on save.
+
+2026-07-01 13:30 - Session 4 / v0.8.4: ship Release editor — Content → Release tab with pool/result UX, `manage-release.php` / `get-release-preview.php` / `save-release-tracks.php`, release CRUD + track membership in `release-storage.php`, and `biblioteca/release-editor.js`.
+
+2026-07-01 13:00 - Added standalone `biblioteca/release-editor.js` for Content → Release: release pool with add/delete actions, playlist-style multi-select drag/drop assignment between Available content and Release tracks, PATCH-saved release settings, locked/demo preview safeguards, and shared content-save button state handling.
+
 2026-06-16 18:00 - Checkpoint v0.8 build 295: ships v0.8.3 trust/UX (config auto-repair, Publish preflight, playlist `kind: system`, Content editor header/toolbar/delete UX, post-update copy); hotfix media delete network error; documents v0.8.4 unified Visual pool and delivery scaling plan.
 
 2026-06-16 17:00 - Expanded v0.8.4 visual media plan: unified Visual pool (collapse Illustrations/Photos/Video), extend `ast_{ULID}` registry to all visual assets, tags + picker filters instead of folder categories; audio stays separate. Updated `MEDIA-HANDLING.md`, `PLATFORM-MODEL.md`, `TODO.md`, `ROADMAP.md`, `FEATURES.md`.
