@@ -88,7 +88,7 @@ Implementation order:
 - [x] Phase A — stop the bleeding (remove autofix from publish, fix validation UX labels).
 - [x] Phase B — stage runner skeleton (skippable stages, structured log).
 - [x] Phase C — catalog stage (masters for all originals).
-- [ ] Phase D — registry-scoped deliverables (decouple `optimizeMedia.py` from playlist scope).
+- [x] Phase D — registry-scoped deliverables (`optimizeMedia.py` decoupled from playlist scope).
 - [ ] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
 - [x] Phase F — demote `setupCompose.py` to setup-only (`run-layout-seed.php`; removed from `build.py`).
 

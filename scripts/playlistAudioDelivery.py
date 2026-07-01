@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,51 +25,32 @@ def load_playlist_entries():
     return loaded if isinstance(loaded, list) else []
 
 
-def needs_ffmpeg(entries):
-    for entry in entries:
-        filename = entry.get('file')
-        if not filename:
-            continue
-        source_path, _source_tier = om.resolve_audio_working_path(filename)
+def resolve_master_filename(name):
+    safe_name = os.path.basename(str(name or '').strip())
+    if not safe_name:
+        return ''
+
+    asset = om.load_asset_for_filename(safe_name)
+    if isinstance(asset, dict):
+        master = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if master:
+            return master
+
+    master_path = om.AUDIO_MASTER_DIR / safe_name
+    if master_path.is_file():
+        return safe_name
+
+    return safe_name
+
+
+def needs_ffmpeg_for_masters(master_filenames):
+    for master_filename in master_filenames:
+        source_path, _source_tier = om.resolve_audio_working_path(master_filename)
         if not Path(source_path).exists():
             continue
         if om.audio_delivery_mode(source_path) == 'transcode':
             return True
     return False
-
-
-def process_entry(entry):
-    filename = str(entry.get('file') or '').strip()
-    if not filename:
-        return False, 'missing_filename'
-
-    source_path, source_tier = om.resolve_audio_working_path(filename)
-    source = Path(source_path)
-    if not source.exists() or not source.is_file():
-        return False, 'source_audio_not_found'
-
-    mp3_filename = Path(filename).stem + '.mp3'
-    mp3_path = om.AUDIO_OPT_DIR / mp3_filename
-    delivery_mode = om.audio_delivery_mode(source_path)
-
-    tags = om.get_audio_tags(str(source_path))
-    if delivery_mode == 'copy':
-        converted_ok = om.copy_audio_to_mp3(str(source_path), str(mp3_path))
-    else:
-        converted_ok = om.convert_audio_to_mp3(str(source_path), str(mp3_path))
-
-    if not converted_ok:
-        return False, 'delivery_conversion_failed'
-
-    om.set_id3_tags(str(mp3_path), tags)
-
-    orig_cover = entry.get('cover')
-    if orig_cover:
-        orig_cover_path = om.IMG_ORIG_DIR / orig_cover
-        lq_cover_path = om.IMG_OPT_DIR / (Path(orig_cover).stem + '.jpg')
-        om.convert_cover_to_jpeg(str(orig_cover_path), str(lq_cover_path), quality=75)
-
-    return True, source_tier
 
 
 def main():
@@ -92,21 +74,30 @@ def main():
         return
 
     playlist = load_playlist_entries()
-    by_file = {}
-    for entry in playlist:
-        if not isinstance(entry, dict):
-            continue
-        file_name = str(entry.get('file') or '').strip()
-        if file_name:
-            by_file[file_name] = entry
+    cover_lookup = om.build_playlist_cover_lookup(playlist)
 
-    entries = [by_file[name] for name in requested if name in by_file]
-    missing_playlist = [name for name in requested if name not in by_file]
+    targets = []
+    missing_registry = []
+    for name in requested:
+        master_filename = resolve_master_filename(name)
+        if not master_filename:
+            missing_registry.append({'file': name, 'error': 'missing_master_filename'})
+            continue
+        asset = om.load_asset_for_filename(name)
+        if not isinstance(asset, dict):
+            missing_registry.append({'file': name, 'error': 'asset_not_registered'})
+            continue
+        targets.append({
+            'requested': name,
+            'master_filename': master_filename,
+            'cover': cover_lookup.get(master_filename) or cover_lookup.get(Path(master_filename).stem),
+        })
 
     om.AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
     om.IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
 
-    if needs_ffmpeg(entries) and not om.check_ffmpeg():
+    master_filenames = [item['master_filename'] for item in targets]
+    if needs_ffmpeg_for_masters(master_filenames) and not om.check_ffmpeg():
         print(json.dumps({
             'ok': False,
             'error': 'ffmpeg is required to prepare delivery files for one or more tracks',
@@ -114,30 +105,27 @@ def main():
         return
 
     prepared = []
-    failed = []
+    failed = list(missing_registry)
 
-    for name in missing_playlist:
-        failed.append({'file': name, 'error': 'track_not_in_playlist'})
-
-    for entry in entries:
-        filename = str(entry.get('file') or '').strip()
-        ok, detail = process_entry(entry)
+    for item in targets:
+        master_filename = item['master_filename']
+        ok = om.process_audio_delivery(master_filename, item.get('cover'))
         if ok:
-            prepared.append(filename)
+            prepared.append(item['requested'])
         else:
-            failed.append({'file': filename, 'error': detail})
+            failed.append({'file': item['requested'], 'error': 'delivery_preparation_failed'})
 
     still_missing = []
-    for name in requested:
-        delivery_name = Path(name).stem + '.mp3'
+    for item in targets:
+        delivery_name = Path(item['master_filename']).stem + '.mp3'
         if not (om.AUDIO_OPT_DIR / delivery_name).is_file():
-            still_missing.append(name)
+            still_missing.append(item['requested'])
 
     print(json.dumps({
-        'ok': len(still_missing) == 0 and not any(item['error'] == 'track_not_in_playlist' for item in failed),
-        'prepared' => prepared,
-        'failed' => failed,
-        'still_missing' => still_missing,
+        'ok': len(still_missing) == 0 and not failed,
+        'prepared': prepared,
+        'failed': failed,
+        'still_missing': still_missing,
     }, ensure_ascii=False))
 
 

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 32:00 - Build pipeline Phase D: registry-scoped audio delivery in `optimizeMedia.py`; playlist used only for cover linkage; `playlistAudioDelivery.py` resolves registered assets.
+
 2026-07-01 31:30 - Checkpoint v0.8 build 298: build pipeline Phase C (catalog stage, log timestamps).
 
 2026-07-01 31:00 - Build pipeline Phase C: catalog stage (`buildCatalog.py` / `build-catalog-helpers.php`) before deliverables; audio uploads finalize catalog masters. Build logs start with `LOG_STARTED` timestamp lines.

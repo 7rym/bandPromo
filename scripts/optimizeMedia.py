@@ -7,7 +7,8 @@ Converts source content into bandwidth-efficient web variants:
 - Covers → JPEG (optimized quality) for bandwidth savings
 - Photos → JPEG (optimized quality) for bandwidth savings
 
-Reads from play/playlist.json to know which tracks and covers exist.
+Reads registered audio assets from data/assets/registry.json for delivery scope.
+play/playlist.json is used only for track-cover linkage, not which tracks get MP3 deliverables.
 Social/OG share image is defined in web-config.json (social.share_image).
 """
 
@@ -141,6 +142,64 @@ def check_ffmpeg():
 def get_ffmpeg_path():
     """Return the ffmpeg executable path from env or default."""
     return os.environ.get('FFMPEG_PATH', 'ffmpeg')
+
+
+def load_asset_registry():
+    if not ASSET_REGISTRY_FILE.exists():
+        return {}
+
+    try:
+        with open(str(ASSET_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return {}
+
+    return payload if isinstance(payload, dict) else {}
+
+
+def load_registry_audio_delivery_queue():
+    """Return registered audio assets queued for delivery file generation."""
+    payload = load_asset_registry()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    queue = []
+
+    for asset_id, asset in assets.items():
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or 'audio').strip().lower() != 'audio':
+            continue
+
+        master_filename = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if not master_filename:
+            continue
+
+        queue.append({
+            'asset_id': str(asset_id),
+            'master_filename': master_filename,
+            'original_filename': os.path.basename(str(asset.get('original_filename') or '').strip()),
+            'delivery_filename': Path(master_filename).stem + '.mp3',
+        })
+
+    queue.sort(key=lambda item: str(item.get('master_filename') or '').lower())
+    return queue
+
+
+def build_playlist_cover_lookup(playlist_entries):
+    """Map playlist master filenames to cover artwork filenames."""
+    lookup = {}
+    for entry in playlist_entries:
+        if not isinstance(entry, dict):
+            continue
+
+        file_name = os.path.basename(str(entry.get('file') or '').strip())
+        cover = entry.get('cover')
+        if not file_name:
+            continue
+
+        lookup[file_name] = cover
+        lookup[Path(file_name).stem] = cover
+
+    return lookup
 
 
 def load_asset_for_filename(filename):
@@ -380,6 +439,70 @@ def playlist_needs_ffmpeg(orig_config):
     return False
 
 
+def delivery_queue_needs_ffmpeg(queue):
+    """Only require ffmpeg when at least one registry asset needs transcoding."""
+    for item in queue:
+        master_filename = item.get('master_filename')
+        if not master_filename:
+            continue
+        source_path, _source_tier = resolve_audio_working_path(master_filename)
+        if not Path(source_path).exists():
+            continue
+        if audio_delivery_mode(source_path) == 'transcode':
+            return True
+    return False
+
+
+def process_track_cover(cover_filename):
+    if not cover_filename:
+        return
+
+    orig_cover_path = IMG_ORIG_DIR / cover_filename
+    lq_cover_path = IMG_OPT_DIR / (Path(cover_filename).stem + '.jpg')
+    print(f"  → Processing cover: {cover_filename}")
+    convert_cover_to_jpeg(str(orig_cover_path), str(lq_cover_path), quality=75)
+
+
+def process_audio_delivery(master_filename, cover_filename=None):
+    """Convert one registry audio asset to a delivery MP3."""
+    source_path, source_tier = resolve_audio_working_path(master_filename)
+    source = Path(source_path)
+    if not source.exists() or not source.is_file():
+        print(f"  ❌ Source audio not found for {master_filename}")
+        return False
+
+    mp3_filename = Path(master_filename).stem + '.mp3'
+    mp3_path = AUDIO_OPT_DIR / mp3_filename
+    delivery_mode = audio_delivery_mode(source_path)
+
+    print(f"\n🎵 Processing: {master_filename}")
+    print(f"  → Source tier: {source_tier}")
+    print(f"  → Delivery route: {'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'}")
+    print("  → Reading source audio tags...")
+    tags = get_audio_tags(str(source_path))
+
+    if delivery_mode == 'copy':
+        print("  → Copying MP3 source to delivery tier...")
+        converted_ok = copy_audio_to_mp3(str(source_path), str(mp3_path))
+    else:
+        print("  → Converting to MP3 (320kbps)...")
+        converted_ok = convert_audio_to_mp3(str(source_path), str(mp3_path))
+
+    if not converted_ok:
+        print("  ❌ Failed to convert audio")
+        return False
+
+    print("  → Applying ID3 tags...")
+    set_id3_tags(str(mp3_path), tags)
+
+    if cover_filename:
+        process_track_cover(cover_filename)
+    else:
+        print("  → No playlist-linked cover for this asset")
+
+    return True
+
+
 def main():
     """Main media optimization function."""
     # Verify source directories exist
@@ -411,82 +534,62 @@ def main():
         print("ℹ️  This image-only pass refreshes track covers, photos, and illustrations.")
         print("ℹ️  Theme/share assets in media/special are used directly; social share variants are generated by makeSocial.py.")
 
-    # Load play/playlist.json when needed for track-cover refresh.
-    print("\n📖 Loading play/playlist.json...")
+    audio_queue = []
+    cover_lookup = {}
+    orig_config = load_orig_config_if_present()
+
     if include_audio:
-        orig_config = load_orig_config()
-        if not orig_config:
-            print("❌ play/playlist.json is empty")
+        print("\n📖 Loading asset registry for audio delivery...")
+        audio_queue = load_registry_audio_delivery_queue()
+        if not audio_queue:
+            print("❌ No registered audio assets found in data/assets/registry.json")
+            print("   Run Repair catalog or upload audio via Files first.")
             sys.exit(1)
-        print(f"✓ Found {len(orig_config)} tracks")
-    else:
-        orig_config = load_orig_config_if_present()
+        print(f"✓ Found {len(audio_queue)} registered audio assets")
+
         if orig_config:
+            cover_lookup = build_playlist_cover_lookup(orig_config)
+            print(f"✓ Playlist cover linkage available for {len(orig_config)} tracks")
+        else:
+            print("ℹ️  No play/playlist.json — audio delivery continues without playlist cover linkage")
+    else:
+        print("\n📖 Loading play/playlist.json for cover refresh...")
+        if orig_config:
+            cover_lookup = build_playlist_cover_lookup(orig_config)
             print(f"✓ Found {len(orig_config)} tracks for cover refresh")
         else:
             print("ℹ️  No playlist data found; image-only refresh will skip track-cover-specific work and continue with photos/illustrations.")
     print("=" * 70)
 
-    # Check ffmpeg only when this run actually needs transcoding.
-    if include_audio and playlist_needs_ffmpeg(orig_config):
+    if include_audio and delivery_queue_needs_ffmpeg(audio_queue):
         if not check_ffmpeg():
             ffmpeg_name = os.environ.get('FFMPEG_PATH', 'ffmpeg')
             print(f"\n❌ Error: ffmpeg not found ({ffmpeg_name})")
             print("   Run build.py to auto-install ffmpeg, or install manually.")
             sys.exit(1)
 
-    print("\n🖼️  Processing track cover images...")
-
     converted = 0
-    failed    = 0
+    failed = 0
 
-    for entry in orig_config:
-        filename = entry.get('file')
-        if not filename:
-            continue
-
-        if include_audio:
-            source_path, source_tier = resolve_audio_working_path(filename)
-            mp3_filename = Path(filename).stem + '.mp3'
-            mp3_path     = AUDIO_OPT_DIR / mp3_filename
-            delivery_mode = audio_delivery_mode(source_path)
-
-            print(f"\n🎵 Processing: {filename}")
-            print(f"  → Source tier: {source_tier}")
-            print(f"  → Delivery route: {'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'}")
-            print("  → Reading source audio tags...")
-            tags = get_audio_tags(str(source_path))
-
-            if delivery_mode == 'copy':
-                print("  → Copying MP3 source to delivery tier...")
-                converted_ok = copy_audio_to_mp3(str(source_path), str(mp3_path))
+    if include_audio:
+        print("\n🎵 Processing registered audio delivery...")
+        for item in audio_queue:
+            master_filename = item.get('master_filename')
+            cover_filename = cover_lookup.get(master_filename) or cover_lookup.get(Path(master_filename).stem)
+            if process_audio_delivery(master_filename, cover_filename):
+                converted += 1
             else:
-                print("  → Converting to MP3 (320kbps)...")
-                converted_ok = convert_audio_to_mp3(str(source_path), str(mp3_path))
-
-            if converted_ok:
-                print("  → Applying ID3 tags...")
-                set_id3_tags(str(mp3_path), tags)
-            else:
-                print("  ❌ Failed to convert audio")
                 failed += 1
+    elif orig_config:
+        print("\n🖼️  Processing track cover images from playlist...")
+        for entry in orig_config:
+            filename = entry.get('file')
+            if not filename:
                 continue
-        else:
             print(f"\n🖼️  Track artwork pass: {filename}")
-
-        orig_cover = entry.get('cover')
-        if orig_cover:
-            orig_cover_path = IMG_ORIG_DIR / orig_cover
-            lq_cover_path = IMG_OPT_DIR / (Path(orig_cover).stem + '.jpg')
-            print(f"  → Processing cover: {orig_cover}")
-            convert_cover_to_jpeg(str(orig_cover_path), str(lq_cover_path), quality=75)
-        else:
-            print("  → No cover assigned for this track")
-
-        if include_audio:
-            converted += 1
-
-    if not orig_config:
+            process_track_cover(entry.get('cover'))
+    else:
+        print("\n🖼️  Processing track cover images...")
         print("  ✓ No track-cover-specific work queued")
 
     # ── Photos ──────────────────────────────────────────────────────────────────────
@@ -529,8 +632,7 @@ def main():
 
     removed = 0
     if include_audio:
-        allowed_audio = {optimized_audio_name(e.get('file', ''))
-                         for e in orig_config if e.get('file')}
+        allowed_audio = {item['delivery_filename'] for item in audio_queue if item.get('delivery_filename')}
         for item in AUDIO_OPT_DIR.iterdir():
             if item.is_file() and item.name not in allowed_audio:
                 try:

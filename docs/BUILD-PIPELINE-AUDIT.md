@@ -204,8 +204,9 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase D — Deliverables stage (registry-scoped)
 
-- [ ] Refactor `optimizeMedia.py` / `audioSourceDelivery.py` to take asset IDs or registry query, not `play/playlist.json`.
-- [ ] Playlist JSON becomes input only for **cover linkage**, not “which tracks exist”.
+- [x] Refactor `optimizeMedia.py` full-mode audio delivery to use the asset registry queue, not `play/playlist.json` scope.
+- [x] Playlist JSON used only for track-cover linkage during delivery; `playlistAudioDelivery.py` resolves registry assets instead of requiring playlist membership.
+- [ ] `audioSourceDelivery.py` per-upload path already filename/registry-based; keep aligned as registry helpers evolve.
 
 ### Phase E — Artifacts stage
 
