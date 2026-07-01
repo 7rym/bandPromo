@@ -370,26 +370,137 @@ def run_script(script_path, env_extras=None):
         return False
 
 
+def load_build_meta():
+    meta_path = ROOT_DIR / 'log' / 'build.meta.json'
+    if not meta_path.exists():
+        return {}
+    try:
+        loaded = json.loads(meta_path.read_text(encoding='utf-8'))
+        return loaded if isinstance(loaded, dict) else {}
+    except Exception as exc:
+        print('Warning: Could not read build.meta.json: ' + str(exc))
+        return {}
 
-def main():
-    print("\n=== bandPromo Build Pipeline ===")
-    print(f"Root: {ROOT_DIR}\n")
+
+def load_stage_manifest():
+    manifest_path = SCRIPT_DIR / 'build-stages.json'
+    if not manifest_path.exists():
+        print('FAILED Build stage manifest not found: ' + str(manifest_path))
+        sys.stdout.flush()
+        return None
+    try:
+        loaded = json.loads(manifest_path.read_text(encoding='utf-8'))
+        if not isinstance(loaded, dict):
+            raise ValueError('manifest root must be an object')
+        return loaded
+    except Exception as exc:
+        print('FAILED Could not load build stage manifest: ' + str(exc))
+        sys.stdout.flush()
+        return None
+
+
+def resolve_stage_ids(manifest, meta):
+    requested = meta.get('stages') if isinstance(meta, dict) else None
+    if isinstance(requested, list) and requested:
+        allowed = {
+            str(stage.get('id', '')).strip()
+            for stage in manifest.get('stages', [])
+            if isinstance(stage, dict) and str(stage.get('id', '')).strip()
+        }
+        resolved = []
+        for stage_id in requested:
+            stage_id = str(stage_id).strip()
+            if stage_id and stage_id in allowed and stage_id not in resolved:
+                resolved.append(stage_id)
+        if resolved:
+            return resolved
+
+    profile = 'full'
+    if isinstance(meta, dict):
+        profile = str(meta.get('profile') or 'full').strip() or 'full'
+    profiles = manifest.get('profiles', {})
+    if not isinstance(profiles, dict):
+        profiles = {}
+    profile_stages = profiles.get(profile)
+    if not isinstance(profile_stages, list) or not profile_stages:
+        profile_stages = profiles.get('full', [])
+    if not isinstance(profile_stages, list):
+        return []
+
+    allowed = {
+        str(stage.get('id', '')).strip()
+        for stage in manifest.get('stages', [])
+        if isinstance(stage, dict) and str(stage.get('id', '')).strip()
+    }
+    resolved = []
+    for stage_id in profile_stages:
+        stage_id = str(stage_id).strip()
+        if stage_id and stage_id in allowed and stage_id not in resolved:
+            resolved.append(stage_id)
+    return resolved
+
+
+def stage_lookup(manifest):
+    lookup = {}
+    for stage in manifest.get('stages', []):
+        if not isinstance(stage, dict):
+            continue
+        stage_id = str(stage.get('id', '')).strip()
+        if stage_id:
+            lookup[stage_id] = stage
+    return lookup
+
+
+def log_stage_boundary(stage_id, exit_code=None):
+    if exit_code is None:
+        print('STAGE_START:' + stage_id)
+    else:
+        print('STAGE_END:' + stage_id + ':' + str(exit_code))
     sys.stdout.flush()
 
-    # -- Preflight --------------------------------------------------------
+
+def run_publish_stage(stage, ffmpeg_path, index, total):
+    stage_id = str(stage.get('id', '')).strip()
+    label = str(stage.get('label') or stage_id or 'stage').strip()
+    script_name = str(stage.get('script', '')).strip()
+    if not stage_id or not script_name:
+        print('FAILED Invalid stage definition: ' + repr(stage_id))
+        sys.stdout.flush()
+        log_stage_boundary(stage_id or 'unknown', 1)
+        return False
+
+    log_stage_boundary(stage_id)
+    print('── Stage {}/{}: {} ──'.format(index, total, label))
+    sys.stdout.flush()
+
+    env_extras = {}
+    stage_env = stage.get('env')
+    if isinstance(stage_env, dict):
+        env_extras.update({str(k): str(v) for k, v in stage_env.items()})
+    if stage.get('requires_ffmpeg'):
+        env_extras['FFMPEG_PATH'] = ffmpeg_path
+
+    ok = run_script(SCRIPT_DIR / script_name, env_extras)
+    log_stage_boundary(stage_id, 0 if ok else 1)
+    if not ok:
+        print('\n❌ Build failed at stage: ' + stage_id)
+        sys.stdout.flush()
+    return ok
+
+
+def run_preflight():
     print("-- Preflight -------------------------------")
     if not ensure_runtime_files_seeded():
-        sys.exit(1)
+        return None
 
     if not seed_page_runtime_files():
-        sys.exit(1)
+        return None
 
     if not install_pip_dependencies():
-        sys.exit(1)
+        return None
 
     ffmpeg_path = ensure_ffmpeg()
 
-    # Ensure icons are present
     print("-- Checking icons in media/icons --")
     ensure_icons()
 
@@ -413,58 +524,58 @@ def main():
             print("   Current supported source formats: FLAC, MP3, and WAV")
         print("   Upload your source files via Admin → Files first.")
         sys.stdout.flush()
-        sys.exit(1)
+        return None
 
     if unsupported_audio:
         print("⚠️  Unsupported source audio will be skipped: " + ', '.join(sorted(unsupported_audio)))
 
     print("\n✅ Preflight passed\n")
     sys.stdout.flush()
+    return ffmpeg_path
 
-    # ── Step 1: Generate play/playlist.json ─────────────────────────────────────
-    print("── Step 1/5: Generating play/playlist.json ───────────")
-    sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'makePlaylists.py', {'FFMPEG_PATH': ffmpeg_path}):
-        print("\n❌ Build failed at step 1")
-        sys.stdout.flush()
-        sys.exit(1)
 
-    # ── Step 2: Optimize media (MP3 + optimised covers) ─────────────────────────────
-    print("\n── Step 2/5: Optimizing media (audio + image + photo optimisation) ──")
+def main():
+    print("\n=== bandPromo Build Pipeline ===")
+    print(f"Root: {ROOT_DIR}\n")
     sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'optimizeMedia.py', {
-        'FFMPEG_PATH': ffmpeg_path,
-        'BANDPROMO_OPTIMIZE_MODE': 'full',
-    }):
-        print("\n❌ Build failed at step 2")
-        sys.stdout.flush()
-        sys.exit(1)
 
-    # ── Step 3: Build video delivery assets ──────────────────────────────────────
-    print("\n── Step 3/5: Building video delivery assets ─────────")
-    sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'optimizeVideo.py', {
-        'FFMPEG_PATH': ffmpeg_path,
-    }):
-        print("\n❌ Build failed at step 3")
-        sys.stdout.flush()
-        sys.exit(1)
+    log_stage_boundary('preflight')
+    ffmpeg_path = run_preflight()
+    if not ffmpeg_path:
+        log_stage_boundary('preflight', 1)
+        return 1
+    log_stage_boundary('preflight', 0)
 
-    # ── Step 4: Social media assets ──────────────────────────────────────────────
-    print("\n── Step 4/5: Generating social media assets ────────")
-    sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'makeSocial.py'):
-        print("\n❌ Build failed at step 4")
-        sys.stdout.flush()
-        sys.exit(1)
+    manifest = load_stage_manifest()
+    if manifest is None:
+        return 1
 
-    # ── Step 5: Generate PWA manifest ─────────────────────────────────────────
-    print("\n── Step 5/5: Generating PWA manifest ───────────────")
-    sys.stdout.flush()
-    if not run_script(SCRIPT_DIR / 'makePWA.py'):
-        print("\n❌ Build failed at step 5")
+    meta = load_build_meta()
+    stage_ids = resolve_stage_ids(manifest, meta)
+    if not stage_ids:
+        print('FAILED No publish stages resolved for this build run.')
         sys.stdout.flush()
-        sys.exit(1)
+        return 1
+
+    profile = 'full'
+    if isinstance(meta, dict):
+        profile = str(meta.get('profile') or 'full').strip() or 'full'
+
+    print('PROFILE:' + profile)
+    print('STAGES:' + ','.join(stage_ids))
+    sys.stdout.flush()
+
+    stages_by_id = stage_lookup(manifest)
+    total = len(stage_ids)
+    for index, stage_id in enumerate(stage_ids, start=1):
+        stage = stages_by_id.get(stage_id)
+        if not isinstance(stage, dict):
+            print('FAILED Unknown stage id: ' + stage_id)
+            sys.stdout.flush()
+            log_stage_boundary(stage_id, 1)
+            return 1
+        if not run_publish_stage(stage, ffmpeg_path, index, total):
+            return 1
 
     print("""
 ╔══════════════════════════════════════════════════╗

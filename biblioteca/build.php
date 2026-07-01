@@ -13,6 +13,7 @@ require_once __DIR__ . '/release-package.php';
 require_once __DIR__ . '/publish-preflight-helpers.php';
 require_once __DIR__ . '/build-lock.php';
 require_once __DIR__ . '/build-launcher.php';
+require_once __DIR__ . '/build-stages.php';
 
 $root_dir  = dirname(dirname(__FILE__));
 $log_dir   = $root_dir . '/log';
@@ -32,6 +33,22 @@ if (!is_string($mode)) {
 $mode = strtolower(trim($mode));
 if (!in_array($mode, ['full', 'optimize'], true)) {
     $mode = 'full';
+}
+
+$build_profile = 'full';
+$build_stage_ids = [];
+if ($mode === 'full') {
+    $raw_profile = $request_data['profile'] ?? 'full';
+    if (is_string($raw_profile) && bandpromo_build_profile_is_valid($raw_profile)) {
+        $build_profile = $raw_profile;
+    }
+    $requested_stages = $request_data['stages'] ?? null;
+    if (is_array($requested_stages)) {
+        $build_stage_ids = bandpromo_build_filter_stage_ids($requested_stages);
+    }
+    if ($build_stage_ids === []) {
+        $build_stage_ids = bandpromo_build_resolve_stage_ids($build_profile, null);
+    }
 }
 
 $log_file  = $log_dir  . ($mode === 'optimize' ? '/optimize.log' : '/build.log');
@@ -172,6 +189,10 @@ try {
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Mode: " . $mode . "\n", FILE_APPEND);
+if ($mode === 'full') {
+    file_put_contents($log_file, "DEBUG Profile: " . $build_profile . "\n", FILE_APPEND);
+    file_put_contents($log_file, "DEBUG Stages: " . implode(', ', $build_stage_ids) . "\n", FILE_APPEND);
+}
 if (is_array($debug['default_theme_package'])) {
     $themePackage = $debug['default_theme_package'];
     $themeState = !empty($themePackage['installed']) ? 'downloaded' : 'already present';
@@ -180,6 +201,8 @@ if (is_array($debug['default_theme_package'])) {
 file_put_contents($meta_file, json_encode([
     'run_id' => $build_run_id,
     'mode' => $mode,
+    'profile' => $build_profile,
+    'stages' => $build_stage_ids,
     'actor' => $build_actor,
     'ip' => $build_ip,
     'user_agent' => $build_user_agent,

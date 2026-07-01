@@ -86,7 +86,7 @@ Policy — **lock before implementation**:
 Implementation order:
 
 - [x] Phase A — stop the bleeding (remove autofix from publish, fix validation UX labels).
-- [ ] Phase B — stage runner skeleton (skippable stages, structured log).
+- [x] Phase B — stage runner skeleton (skippable stages, structured log).
 - [ ] Phase C — catalog stage (masters for all originals).
 - [ ] Phase D — registry-scoped deliverables (decouple `optimizeMedia.py` from playlist scope).
 - [ ] Phase E — artifacts stage (`makePlaylists.py` after deliverables).

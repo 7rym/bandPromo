@@ -193,9 +193,9 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase B — Stage runner skeleton
 
-- [ ] Replace monolithic `build.py` with a stage manifest (JSON or PHP registry): id, label, script, `requires`, `skippable`.
-- [ ] Log each stage start/end + exit code in `log/build.log`.
-- [ ] `build.php` accepts `stages[]` or preset profiles: `full`, `deliverables-only`, `artifacts-only`.
+- [x] Replace monolithic `build.py` with a stage manifest (`scripts/build-stages.json` + `biblioteca/build-stages.php`): id, label, script, `requires_ffmpeg`, `skippable`.
+- [x] Log each stage start/end + exit code in `log/build.log` (`STAGE_START:` / `STAGE_END:` lines).
+- [x] `build.php` accepts `profile` or `stages[]` presets: `full`, `deliverables-only`, `artifacts-only` (written to `log/build.meta.json`).
 
 ### Phase C — Catalog stage (master-first)
 

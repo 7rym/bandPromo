@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "profiles": {
+    "full": [
+      "playlist-artifacts",
+      "deliverables-media",
+      "video-delivery",
+      "social-assets",
+      "pwa-manifest"
+    ],
+    "deliverables-only": [
+      "deliverables-media",
+      "video-delivery"
+    ],
+    "artifacts-only": [
+      "playlist-artifacts",
+      "social-assets",
+      "pwa-manifest"
+    ]
+  },
+  "stages": [
+    {
+      "id": "playlist-artifacts",
+      "label": "Generate play/playlist.json",
+      "script": "makePlaylists.py",
+      "requires_ffmpeg": true,
+      "skippable": true
+    },
+    {
+      "id": "deliverables-media",
+      "label": "Optimize media (audio + image + photo)",
+      "script": "optimizeMedia.py",
+      "requires_ffmpeg": true,
+      "env": {
+        "BANDPROMO_OPTIMIZE_MODE": "full"
+      },
+      "skippable": true
+    },
+    {
+      "id": "video-delivery",
+      "label": "Build video delivery assets",
+      "script": "optimizeVideo.py",
+      "requires_ffmpeg": true,
+      "skippable": true
+    },
+    {
+      "id": "social-assets",
+      "label": "Generate social media assets",
+      "script": "makeSocial.py",
+      "skippable": true
+    },
+    {
+      "id": "pwa-manifest",
+      "label": "Generate PWA manifest",
+      "script": "makePWA.py",
+      "skippable": true
+    }
+  ]
+}

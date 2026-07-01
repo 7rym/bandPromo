@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 30:30 - Build pipeline Phase B: `scripts/build-stages.json` stage manifest, structured `STAGE_START`/`STAGE_END` logging in `build.py`, and `build.php` profile/`stages[]` support via `build.meta.json`.
+
 2026-07-01 30:00 - Checkpoint v0.8 build 296: build pipeline Phase A/F (no autofix on publish, layout seed on setup, stage-ready publish UX) and System → Publish compact actions + site-wide Publish status.
 
 2026-07-01 29:15 - Publish tab layout: **Publish status** card first; all publish action buttons on one row.
