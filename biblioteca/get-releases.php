@@ -14,7 +14,7 @@ $root = dirname(__DIR__);
 
 try {
     bandpromo_release_ensure_seeded($root);
-    $releases = bandpromo_release_registry_entries($root);
+    $releases = bandpromo_release_admin_registry_entries($root);
 
     echo json_encode([
         'ok' => true,

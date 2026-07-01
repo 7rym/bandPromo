@@ -12,6 +12,7 @@ require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/site-contact.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -57,6 +58,14 @@ if ($branch === 'site') {
 }
 if (!empty($syncRoots)) {
     bandpromo_sync_scoped_config_fields($decoded_array, $syncRoots);
+}
+if ($branch === 'site' && isset($decoded_array['site']) && is_array($decoded_array['site'])) {
+    $contactError = bandpromo_site_prepare_contact_fields($decoded_array['site']);
+    if ($contactError !== null) {
+        http_response_code(400);
+        echo json_encode(['error' => $contactError]);
+        exit;
+    }
 }
 
 $pretty = json_encode($decoded_array, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

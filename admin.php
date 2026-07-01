@@ -1307,9 +1307,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <div class="tabs sub-tabs">
                 <?php
                 $cntTabs = [
-                    'release'  => ['💿', 'Release'],
-                    'playlist' => ['🎵', 'Playlist'],
-                    'gallery'  => ['🖼️', 'Gallery'],
+                    'release'  => ['💿', 'Catalog'],
+                    'playlist' => ['🎵', 'Playlists'],
+                    'gallery'  => ['🖼️', 'Galleries'],
                     'pages'    => ['📝', 'Pages'],
                     'themes'   => ['🎨', 'Themes'],
                     'player'   => ['🎛️', 'Player'],
@@ -1371,7 +1371,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php if ($contentTab === 'release'): ?>
             <div class="card content-editor-card" id="releaseEditorCard"
                  data-initial-release="<?php echo htmlspecialchars($contentRelease, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>💿 Release</h3>
+                <h3>💿 Catalog</h3>
                 <p class="card-note">
                     Pick a release from the pool to preview its catalog tracks. Use the edit button to open metadata and track assignment.
                     Available tracks appear below the release track list while editing. Use Shift-click or Ctrl/Cmd-click to select multiple tracks.
@@ -1414,18 +1414,23 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                         <input type="text" class="content-editor-name-input" id="releaseSettingsTitle" maxlength="120" autocomplete="off" placeholder="Release name" aria-label="Release name">
                                     </div>
                                     <span class="status-text release-settings-status content-editor-name-status" id="releaseSettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="releaseEditorBackBtn" title="Back to release list">← Releases</button>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalog">← Catalog</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <div class="playlist-settings-panel" id="releaseSettingsPanel">
-                                        <div class="playlist-settings-fields">
-                                            <label class="playlist-settings-field">
+                                        <div class="playlist-settings-fields release-catalog-meta-fields">
+                                            <label class="playlist-settings-field release-catalog-meta-field--date">
                                                 <span>Release date</span>
                                                 <div class="date-input-shell">
                                                     <span class="date-input-icon" aria-hidden="true">📅</span>
                                                     <input type="date" id="releaseSettingsDate" autocomplete="off">
                                                 </div>
                                             </label>
+                                            <label class="playlist-settings-field release-catalog-meta-field--id">
+                                                <span>Catalog ID</span>
+                                                <input type="text" id="releaseSettingsCatalogId" maxlength="80" autocomplete="off" placeholder="CD001, EP002, CD Mute 142…" aria-label="Catalog ID">
+                                            </label>
+                                            <p class="hint release-catalog-meta-hint">Your own release reference — any scheme you use in physical or digital catalogs.</p>
                                         </div>
                                         <div class="playlist-settings-fields release-epk-fields">
                                             <h4 class="release-epk-heading">Catalog &amp; press (EPK)</h4>
@@ -1546,7 +1551,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php elseif ($contentTab === 'playlist'): ?>
             <div class="card content-editor-card" id="playlistEditorCard"
                  data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🎵 Playlist</h3>
+                <h3>🎵 Playlists</h3>
                 <p class="card-note">
                     Pick a playlist from the pool to preview its track order on the right. Use the edit button to open the track pool and reorder.
                     Use Shift-click or Ctrl/Cmd-click to select multiple tracks. Saving updates the selected playlist immediately.
@@ -1652,7 +1657,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php else: ?>
             <div class="card content-editor-card" id="galleryEditorCard"
                  data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🖼️ Gallery</h3>
+                <h3>🖼️ Galleries</h3>
                 <p class="card-note">
                     Pick a gallery from the pool to preview its content order on the right. Use the edit button to open the media pool and reorder.
                     Use Shift-click or Ctrl/Cmd-click to select multiple items. Name and alt text can be edited inline in edit mode. No build required.
@@ -2420,7 +2425,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php if ($systemTab === 'publish'): ?>
             <div class="admin-help-box collapsed" id="help-build">
                 <strong>Run Publish Build</strong> regenerates delivery files and player artifacts from your current Content setup. It checks site settings first, then runs the Python publish pipeline. It does <strong>not</strong> repair the asset catalog automatically — use <strong>Repair catalog</strong> in Publish actions when uploads need masters or registry fixes.<br><br>
-                <strong>Publish status</strong> is site-wide: catalog registration, delivery coverage for registered audio, and pending publish work. Track metadata quality for a specific playlist belongs in Content → Playlist or Files → Audio.<br><br>
+                <strong>Publish status</strong> is site-wide: catalog registration, delivery coverage for registered audio, and pending publish work. Track metadata quality for a specific playlist belongs in Content → Playlists or Files → Audio.<br><br>
                 Use <strong>Refresh Image Files</strong> when only publish-ready photos, illustrations, or theme images need to be regenerated.
             </div>
 

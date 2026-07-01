@@ -286,10 +286,9 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
     return $step;
 }
 
-function bandpromo_release_sync_primary_audio_assets(string $root): void
+function bandpromo_release_assign_default_release_ids(string $root): void
 {
     $registry = bandpromo_asset_load_registry($root);
-    $primaryAssets = [];
     $registryChanged = false;
 
     foreach ($registry['assets'] as $assetId => $asset) {
@@ -297,54 +296,26 @@ function bandpromo_release_sync_primary_audio_assets(string $root): void
             continue;
         }
         $releaseId = trim((string) ($asset['release_id'] ?? ''));
-        if ($releaseId === '') {
-            $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
-            $registry['assets'][$assetId]['release_id'] = $releaseId;
-            $registryChanged = true;
-        }
-        if ($releaseId !== BANDPROMO_RELEASE_DEFAULT_ID) {
+        if ($releaseId !== '') {
             continue;
         }
-        $primaryAssets[] = $registry['assets'][$assetId];
+        $registry['assets'][$assetId]['release_id'] = BANDPROMO_RELEASE_DEFAULT_ID;
+        $registryChanged = true;
     }
 
     if ($registryChanged) {
         bandpromo_asset_write_registry($root, $registry);
     }
+}
 
-    usort($primaryAssets, static fn(array $left, array $right): int => strnatcasecmp(
-        (string) ($left['original_filename'] ?? $left['master_filename'] ?? ''),
-        (string) ($right['original_filename'] ?? $right['master_filename'] ?? '')
-    ));
-
-    $tracks = [];
-    $trackNumber = 1;
-    foreach ($primaryAssets as $asset) {
-        $tracks[] = [
-            'asset_id' => (string) ($asset['id'] ?? ''),
-            'slug' => trim((string) ($asset['slug'] ?? '')),
-            'track_number' => $trackNumber,
-        ];
-        $trackNumber++;
-    }
-
-    try {
-        $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEFAULT_ID);
-    } catch (Throwable $throwable) {
-        return;
-    }
-
-    if (!empty($document['locked'])) {
-        return;
-    }
-
-    $document['tracks'] = $tracks;
-    bandpromo_release_write_document($root, $document);
+function bandpromo_release_sync_primary_audio_assets(string $root): void
+{
+    bandpromo_release_assign_default_release_ids($root);
 }
 
 function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): array
 {
-    $step = bandpromo_content_autofix_step_result('release_membership', 'Sync release track membership from assets');
+    $step = bandpromo_content_autofix_step_result('release_membership', 'Assign default catalog release on audio assets');
     if ($dryRun) {
         $registry = bandpromo_asset_load_registry($root);
         $primaryCount = 0;

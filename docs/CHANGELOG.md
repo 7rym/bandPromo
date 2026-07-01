@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 36:30 - Catalog editor available pool: only tracks registered to the current release (excludes demo and other releases per one-track-one-release model).
+
+2026-07-01 36:15 - Fix Catalog editor right column overlap: release active/available track lists use content height instead of flex-fill + overflow spill.
+
+2026-07-01 36:00 - Catalog track lists: grow with content (no fixed scroll height), show title + artist + duration (drop album subtitle in release editor), normalize filename-style titles, enrich from master metadata when needed; saving release tracks or metadata syncs album/date/track-number tags on member audio files.
+
+2026-07-01 35:15 - Catalog editor: align release date and catalog ID fields on a shared grid row; hint spans full width below.
+
+2026-07-01 35:00 - Release `catalog_id` field: optional operator-defined catalog reference (CD001, EP002, label schemes) on release documents, Catalog editor, PATCH via `manage-release.php`; documented in `PLATFORM-MODEL.md`.
+
+2026-07-01 34:30 - Remove confusing "default catalog" operator copy from Catalog editor (pool meta shows date and track count only; demo labeled "demo").
+
+2026-07-01 34:00 - Catalog editor polish: fix misleading `system` pool label (only bandPromo demo is system-managed; primary shows as default catalog), sort releases by release date descending, stop auto-adding uploaded audio to release track lists (assign `release_id` only), improve ast_* master title resolution, enable release cover picker in preview mode.
+
+2026-07-01 33:00 - Content navigation labels: Release → Catalog, Playlist → Playlists, Gallery → Galleries (URLs unchanged); aligned editor card titles, catalog back button, Publish hint, and page-editor gallery hint.
+
 2026-07-01 32:30 - Build pipeline Phase E: reorder publish stages — deliverables before artifacts (`makePlaylists` after `optimizeMedia`/`optimizeVideo`); stage `group` metadata in manifest.
 
 2026-07-01 32:00 - Build pipeline Phase D: registry-scoped audio delivery in `optimizeMedia.py`; playlist used only for cover linkage; `playlistAudioDelivery.py` resolves registered assets.

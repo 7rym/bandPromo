@@ -5,7 +5,9 @@
     "description": "Site description for manifest and meta tags",
     "url": "https://example.com",
     "language": "en",
-    "author": "Your Name"
+    "author": "Your Name",
+    "email": "",
+    "email_auto": true
   },
   "social": {
     "twitter": "@YourHandle",
@@ -40,7 +42,8 @@
     "site": {
       "url": "https://example.com",
       "language": "en",
-      "author": "Your Name"
+      "author": "Your Name",
+      "email": ""
     },
     "social": {
       "twitter": "@YourHandle",

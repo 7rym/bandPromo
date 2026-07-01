@@ -127,6 +127,35 @@
     background: rgba(255, 107, 107, 0.12);
 }
 
+.page-pool-lock-btn {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #101010;
+    color: var(--muted);
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    box-sizing: border-box;
+    padding: 0;
+}
+
+.page-pool-lock-btn:hover {
+    border-color: var(--accent);
+    background: rgba(255, 107, 107, 0.12);
+    color: var(--text);
+}
+
+.page-pool-lock-btn--active {
+    border-color: var(--accent);
+    background: rgba(255, 107, 107, 0.12);
+    color: var(--text);
+}
+
 .page-pool-delete-btn {
     flex: 0 0 auto;
     border: 1px solid var(--border);
@@ -172,8 +201,208 @@
 .page-pool-row-actions {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     flex: 0 0 auto;
+}
+
+.release-available-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    flex: 1 1 auto;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.release-available-section[hidden] {
+    display: none !important;
+}
+
+.release-available-head {
+    height: auto;
+    min-height: 0;
+    padding-top: 0;
+}
+
+.release-available-list {
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: 42vh;
+    overflow: auto;
+}
+
+.release-cover-panel {
+    flex: 0 0 auto;
+}
+
+.release-cover-panel[hidden] {
+    display: none !important;
+}
+
+.release-cover-layout {
+    margin-bottom: 4px;
+}
+
+.release-cover-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    justify-content: center;
+}
+
+.release-cover-heading {
+    margin: 0;
+    font-size: 14px;
+}
+
+.release-cover-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.release-editor-active-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+}
+
+/* Release editor: stack active + available lists by content height (no overlap). */
+#releaseEditorLayout .player-layout-col--active .player-layout-panel {
+    min-height: 0;
+    overflow: visible;
+}
+
+#releaseEditorLayout .player-layout-col--active .player-layout-panel-body,
+#releaseEditorLayout .release-editor-active-body,
+#releaseEditorLayout .release-available-section {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+#releaseEditorLayout .player-layout-col--active .player-layout-list,
+#releaseEditorLayout #releaseAvailableList {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
+    min-height: 0;
+}
+
+#releaseEditorLayout .release-available-list {
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+}
+
+#releaseEditorLayout .playlist-editor-row {
+    align-items: flex-start;
+}
+
+#releaseEditorLayout .playlist-track-duration {
+    margin-top: 2px;
+}
+
+#releaseEditorLayout .playlist-drag-handle,
+#releaseEditorLayout .playlist-track-num,
+#releaseEditorLayout .player-layout-remove-btn {
+    margin-top: 2px;
+}
+
+#releaseEditorLayout .playlist-track-info strong,
+#releaseEditorLayout .playlist-track-meta {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    word-break: break-word;
+}
+
+.release-streaming-fields {
+    gap: 10px;
+}
+
+.release-enjoy-fields {
+    gap: 8px;
+}
+
+.release-enjoy-heading {
+    margin-bottom: 0;
+}
+
+.release-enjoy-hint {
+    flex: 1 1 100%;
+    margin: 0 0 4px;
+    font-size: 12px;
+}
+
+.release-streaming-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.release-streaming-grid .playlist-settings-field {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .release-streaming-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.release-streaming-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.release-streaming-field input {
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.release-social-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.release-social-inline-label {
+    color: var(--muted);
+}
+
+.release-social-inline-links a {
+    color: var(--accent);
+}
+
+.release-social-inline-sep {
+    color: var(--border);
+}
+
+.release-social-import-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+}
+
+.release-social-import-list a {
+    color: var(--accent);
 }
 
 .playlist-editor-layout {
@@ -1086,6 +1315,82 @@
 
 .playlist-settings-field input {
     font-size: 14px;
+}
+
+.playlist-settings-field textarea {
+    font-size: 14px;
+    min-height: 72px;
+    resize: vertical;
+}
+
+.playlist-settings-field--wide {
+    flex: 1 1 100%;
+}
+
+.release-catalog-meta-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+    gap: 10px 12px;
+    align-items: start;
+}
+
+.release-catalog-meta-field--date,
+.release-catalog-meta-field--id {
+    flex: unset;
+    min-width: 0;
+}
+
+.release-catalog-meta-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 12px;
+}
+
+.release-epk-fields {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.release-epk-heading {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.release-epk-hint {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 12px;
+}
+
+.release-short-description-note {
+    text-align: right;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.playlist-settings-field .date-input-shell {
+    width: 100%;
+}
+
+.playlist-settings-field .date-input-shell input[type="date"] {
+    width: 100%;
+    padding-left: 34px;
+    color-scheme: dark;
+    box-sizing: border-box;
+}
+
+.playlist-settings-field .date-input-shell input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
 }
 
 .playlist-settings-status {

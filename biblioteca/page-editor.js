@@ -308,7 +308,7 @@
                     <label>Layout preset</label>
                     <select data-field="preset" data-block-index="${index}">${presetOptions}</select>
                 </div>
-                <p class="hint">Embeds the selected gallery on this page. Edit items in Content → Gallery.</p>
+                <p class="hint">Embeds the selected gallery on this page. Edit items in Content → Galleries.</p>
             `;
         }
 

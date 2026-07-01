@@ -123,7 +123,8 @@ A release is a traditional album/EP/single release: recorded tracks, marketing p
 
 - Every audio track must belong to **exactly one** release (explicit `release_id` **and** required album/release tag on the master for builds).
 - `release_date` is the primary availability threshold (soft by user role in v0.9; operators always bypass).
-- ISRC / ISWC: not in v0.8; reserve fields for future distributor handover.
+- ISRC / ISWC: not in v0.8; reserve per-track fields for future distributor handover.
+- **`catalog_id`**: optional operator-defined release reference (for example `CD001`, `EP002`, `CD Mute 142`) — your internal or label catalog scheme, not a distributor ISRC.
 - Future **distribution handoff lock**: master immutable for long-term preservation after handover to external distributors.
 
 ### Storage
@@ -143,6 +144,20 @@ Release document (sketch):
   "title": "Twisted Chronicles (EP)",
   "release_date": "2026-09-01",
   "locked": false,
+  "catalog_id": "EP002",
+  "short_description": "One-line summary for cards and previews.",
+  "description": "Press-ready blurb for this release.",
+  "poster_asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
+  "epk": {
+    "tagline": "Short hook for press kits",
+    "genre": "Alternative rock",
+    "credits": "Produced by …",
+    "press_contact": "7rym <7rym@7rym.net>",
+    "streaming_links": [
+      { "label": "Spotify", "url": "https://open.spotify.com/album/…" }
+    ],
+    "press_photo_asset_ids": ["ast_01HY8K3M2P9XQ4R5S6T7V8X"]
+  },
   "tracks": [
     {
       "asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
@@ -186,10 +201,13 @@ Shareable containers should carry operator-authored marketing fields in addition
 
 | Field | Playlists | Pages | Releases |
 |-------|-----------|-------|----------|
+| `catalog_id` | — | — | Operator catalog reference (for example `CD001`, `CD Mute 142`) |
 | `description` | Campaign blurb for share cards | Share/summary text | Press / EPK blurb |
-| `poster_asset_id` | Share/OG image | Share/OG image (fallback: first image block) | Release poster / press art |
+| `poster_asset_id` | Share/OG image | Share/OG image (fallback: first image block) | Release cover (album/EP/single art) |
 
 **Release EPK (extended metadata, v0.8.3+):** releases are the catalog and press hub — tagline, genre, credits, contact/press email, external streaming/store links, and optional press photo set references. Playlists remain listening campaigns; releases hold long-lived catalog and EPK truth.
+
+**Contact / email storage (v0.8.4+):** operator and release contacts use RFC 5322 strings (for example `7rym <7rym@7rym.net>`). Values are validated and canonicalized on save: control characters stripped, mailbox domains lowercased, display names trimmed. Empty contact is allowed when no valid mailbox can be derived (for example localhost dev installs). Outbound mail is not implemented in v0.8; this layer prepares consistent contact data for future press-reply and notification features and improves deliverability hygiene before any SMTP work lands.
 
 ### Default playlist
 
