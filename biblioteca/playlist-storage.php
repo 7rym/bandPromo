@@ -850,6 +850,132 @@ function bandpromo_playlist_save_order(string $root, string $playlistId, array $
     ];
 }
 
+function bandpromo_playlist_entry_matches_audio_filename(string $root, array $entry, string $filename): bool
+{
+    if (!is_array($entry)) {
+        return false;
+    }
+
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return false;
+    }
+
+    $masterFile = basename(trim((string) ($entry['master_file'] ?? '')));
+    if ($masterFile !== '' && $masterFile === $filename) {
+        return true;
+    }
+
+    $assetId = trim((string) ($entry['asset_id'] ?? ''));
+    if ($assetId === '') {
+        return false;
+    }
+
+    $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+    if ($asset === null) {
+        return false;
+    }
+
+    $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
+    $masterFromAsset = basename(trim((string) ($asset['master_filename'] ?? '')));
+
+    return $filename === $originalFilename || $filename === $masterFromAsset;
+}
+
+function bandpromo_playlist_collect_audio_references(string $root, string $filename): array
+{
+    $references = [];
+    bandpromo_playlist_ensure_seeded($root);
+
+    foreach (bandpromo_playlist_registry_entries($root) as $registryEntry) {
+        if (!is_array($registryEntry)) {
+            continue;
+        }
+
+        $playlistId = bandpromo_playlist_normalize_id((string) ($registryEntry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $playlistTitle = trim((string) ($registryEntry['title'] ?? $playlistId));
+        foreach ($document['entries'] ?? [] as $entry) {
+            if (!bandpromo_playlist_entry_matches_audio_filename($root, $entry, $filename)) {
+                continue;
+            }
+
+            $references[] = [
+                'scope' => 'playlist',
+                'kind' => 'playlist-track',
+                'label' => $playlistTitle !== '' ? $playlistTitle : $playlistId,
+                'playlist_id' => $playlistId,
+            ];
+        }
+    }
+
+    return $references;
+}
+
+function bandpromo_playlist_remove_audio_reference(string $root, string $filename): array
+{
+    $summary = [
+        'playlists_updated' => 0,
+        'entries_removed' => 0,
+    ];
+
+    bandpromo_playlist_ensure_seeded($root);
+
+    foreach (bandpromo_playlist_registry_entries($root) as $registryEntry) {
+        if (!is_array($registryEntry)) {
+            continue;
+        }
+
+        $playlistId = bandpromo_playlist_normalize_id((string) ($registryEntry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $before = count($document['entries'] ?? []);
+        $entries = [];
+        foreach ($document['entries'] ?? [] as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            if (bandpromo_playlist_entry_matches_audio_filename($root, $entry, $filename)) {
+                continue;
+            }
+            $entries[] = $entry;
+        }
+
+        $after = count($entries);
+        if ($after === $before) {
+            continue;
+        }
+
+        $document['entries'] = $entries;
+        bandpromo_playlist_write_document($root, $document);
+
+        $tracks = bandpromo_playlist_build_track_list($root, $document);
+        bandpromo_playlist_sync_legacy_artifacts($root, $playlistId, $tracks);
+
+        $summary['playlists_updated']++;
+        $summary['entries_removed'] += ($before - $after);
+    }
+
+    return $summary;
+}
+
 function bandpromo_playlist_release_date_is_public(string $releaseDate, bool $operatorBypass): bool
 {
     if ($operatorBypass) {

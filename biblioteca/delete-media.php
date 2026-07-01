@@ -13,6 +13,7 @@ require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/playlist-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -67,22 +68,7 @@ function bandpromo_collect_media_references(string $root, string $target, string
     $references = [];
 
     if ($target === 'audio') {
-        $playlist = bandpromo_json_read_array_file($root . '/play/playlist.json');
-        if (is_array($playlist)) {
-            foreach ($playlist as $track) {
-                if (!is_array($track)) {
-                    continue;
-                }
-                $label = trim((string) ($track['title'] ?? $track['file'] ?? ''));
-                if (trim((string) ($track['file'] ?? '')) === $filename) {
-                    $references[] = [
-                        'scope' => 'playlist',
-                        'kind' => 'playlist-track',
-                        'label' => $label !== '' ? $label : $filename,
-                    ];
-                }
-            }
-        }
+        $references = array_merge($references, bandpromo_playlist_collect_audio_references($root, $filename));
     }
 
     return $references;
@@ -125,6 +111,11 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
         'warnings' => [],
     ];
 
+    if ($target === 'audio') {
+        $containerCleanup = bandpromo_playlist_remove_audio_reference($root, $filename);
+        $cleanup['playlist_tracks_removed'] += (int) ($containerCleanup['entries_removed'] ?? 0);
+    }
+
     if ($target === 'audio' || $target === 'illustrations') {
         $playlist_file = $root . '/play/playlist.json';
         $playlist = bandpromo_json_read_array_file($playlist_file);
@@ -137,7 +128,6 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
                     continue;
                 }
                 if ($target === 'audio' && trim((string) ($track['file'] ?? '')) === $filename) {
-                    $cleanup['playlist_tracks_removed']++;
                     $changed = true;
                     continue;
                 }

@@ -27,6 +27,7 @@ try {
 
 $result = bandpromo_run_light_json_task('scripts/playlistPreview.py', [
     'release' => 'all',
+    'playlistId' => $playlistId,
 ]);
 
 $data = is_array($result['data'] ?? null) ? $result['data'] : null;

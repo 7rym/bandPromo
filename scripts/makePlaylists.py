@@ -9,6 +9,7 @@ else:
 
 import os
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from mutagen import File
@@ -27,11 +28,86 @@ OUTPUT_FILE   = ROOT_DIR / 'play' / 'playlist.json'
 VALIDATION_FILE = ROOT_DIR / 'play' / 'playlist-validation.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
-PLAYLIST_DOC_FILE = ROOT_DIR / 'data' / 'playlists' / 'main.json'
+PLAYLIST_REGISTRY_FILE = ROOT_DIR / 'data' / 'playlists' / 'registry.json'
+PLAYLISTS_DIR = ROOT_DIR / 'data' / 'playlists'
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 CONFIG_COVER_BASENAME = 'configured_release_cover'
 BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo'
 BANDPROMO_RELEASE_DEFAULT_ID = 'primary'
+BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo'
+
+
+def normalize_playlist_id(value):
+    slug = str(value or '').strip().lower().replace('_', '-')
+    if not slug or not slug[0].isalpha():
+        return ''
+    if not re.match(r'^[a-z][a-z0-9-]{0,47}$', slug):
+        return ''
+    return slug
+
+
+def load_playlist_registry():
+    if not PLAYLIST_REGISTRY_FILE.exists():
+        return []
+
+    try:
+        with open(str(PLAYLIST_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return []
+
+    playlists = payload.get('playlists') if isinstance(payload, dict) else None
+    if not isinstance(playlists, list):
+        return []
+
+    return [entry for entry in playlists if isinstance(entry, dict)]
+
+
+def publish_date_sort_value(publish_date):
+    publish_date = str(publish_date or '').strip()
+    if re.match(r'^\d{4}$', publish_date):
+        return int(publish_date + '0101')
+
+    try:
+        parsed = datetime.strptime(publish_date, '%Y-%m-%d')
+        return int(parsed.strftime('%Y%m%d'))
+    except Exception:
+        return 0
+
+
+def resolve_build_playlist_id():
+    env_id = normalize_playlist_id(os.environ.get('BANDPROMO_PLAYLIST_ID', ''))
+    if env_id:
+        return env_id
+
+    now = int(datetime.now(timezone.utc).strftime('%Y%m%d'))
+    candidates = []
+    for entry in load_playlist_registry():
+        playlist_id = normalize_playlist_id(entry.get('id'))
+        if not playlist_id:
+            continue
+        publish_value = publish_date_sort_value(entry.get('publish_date'))
+        if publish_value <= 0 or publish_value > now:
+            continue
+        candidates.append((publish_value, playlist_id))
+
+    if candidates:
+        candidates.sort(reverse=True)
+        return candidates[0][1]
+
+    for entry in load_playlist_registry():
+        playlist_id = normalize_playlist_id(entry.get('id'))
+        if playlist_id:
+            return playlist_id
+
+    return BANDPROMO_PLAYLIST_DEMO_ID
+
+
+def playlist_document_path(playlist_id):
+    normalized = normalize_playlist_id(playlist_id)
+    if not normalized:
+        return None
+    return PLAYLISTS_DIR / f'{normalized}.json'
 
 
 def normalize_title_fallback(filename):
@@ -191,12 +267,14 @@ def resolve_playlist_file_name(filename):
     return safe_name
 
 
-def load_playlist_document_master_order():
-    if not PLAYLIST_DOC_FILE.exists():
+def load_playlist_document_master_order(playlist_id=None):
+    playlist_id = normalize_playlist_id(playlist_id) or resolve_build_playlist_id()
+    doc_path = playlist_document_path(playlist_id)
+    if doc_path is None or not doc_path.exists():
         return []
 
     try:
-        with open(str(PLAYLIST_DOC_FILE), 'r', encoding='utf-8') as handle:
+        with open(str(doc_path), 'r', encoding='utf-8') as handle:
             payload = json.load(handle)
     except Exception:
         return []
@@ -940,7 +1018,8 @@ def generate_playlist():
     document_order = load_playlist_document_master_order()
 
     if document_order:
-        print(f"Using playlist document order for {len(document_order)} track(s)...")
+        build_playlist_id = resolve_build_playlist_id()
+        print(f"Using playlist document order for {build_playlist_id} ({len(document_order)} track(s))...")
         for playlist_file in document_order:
             working_path = resolve_audio_working_path(playlist_file)
             if not working_path.exists() or not working_path.is_file():

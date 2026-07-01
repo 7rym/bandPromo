@@ -8,6 +8,7 @@ import makePlaylists
 ROOT_DIR = Path(__file__).parent.parent
 ORDER_FILE = ROOT_DIR / 'data' / 'playlist-order.json'
 AUDIO_OPT_DIR = ROOT_DIR / 'media' / 'audio' / 'optimal'
+PLAYLISTS_DIR = ROOT_DIR / 'data' / 'playlists'
 
 
 def audio_delivery_ready(filename):
@@ -32,6 +33,41 @@ def load_saved_order():
     except Exception:
         return []
     return payload if isinstance(payload, list) else []
+
+
+def load_playlist_document_active_files(playlist_id):
+    playlist_id = makePlaylists.normalize_playlist_id(playlist_id)
+    if not playlist_id:
+        return []
+
+    doc_path = PLAYLISTS_DIR / f'{playlist_id}.json'
+    if not doc_path.exists():
+        return []
+
+    try:
+        with open(str(doc_path), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return []
+
+    if not isinstance(payload, dict):
+        return []
+
+    active_files = []
+    entries = payload.get('entries')
+    if not isinstance(entries, list):
+        return active_files
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        filename = makePlaylists.resolve_playlist_file_name(
+            str(entry.get('master_file') or entry.get('file') or '').strip()
+        )
+        if filename:
+            active_files.append(filename)
+
+    return active_files
 
 
 def load_playlist_by_file():
@@ -92,8 +128,10 @@ def track_for_active(filename, pool_track_map, playlist_by_file):
     return build_track_entry(filename)
 
 
-def split_active_available(pool_track_map, saved_order, playlist_by_file):
-    if saved_order:
+def split_active_available(pool_track_map, saved_order, playlist_by_file, document_active_files):
+    if document_active_files:
+        active_files = [name for name in document_active_files if isinstance(name, str) and name]
+    elif saved_order:
         active_files = [name for name in saved_order if isinstance(name, str) and name]
     elif playlist_by_file:
         active_files = list(playlist_by_file.keys())
@@ -120,6 +158,7 @@ def split_active_available(pool_track_map, saved_order, playlist_by_file):
 
 def main():
     payload = read_payload()
+    playlist_id = str(payload.get('playlistId') or payload.get('playlist_id') or '').strip()
     release_filter = str(payload.get('release') or payload.get('releaseId') or '').strip()
     if release_filter in ('', 'all'):
         release_filter = ''
@@ -128,7 +167,7 @@ def main():
     files.sort(key=lambda item: (makePlaylists.get_track_number(str(item)), item.name.lower()))
 
     saved_order = load_saved_order()
-    if saved_order:
+    if saved_order and not playlist_id:
         order_index = {name: idx for idx, name in enumerate(saved_order)}
         files.sort(key=lambda item: (order_index.get(item.name, len(saved_order)), makePlaylists.get_track_number(str(item)), item.name.lower()))
 
@@ -152,8 +191,14 @@ def main():
             'release_id': release_id,
         }
 
-    playlist_by_file = load_playlist_by_file()
-    active_tracks, available_tracks = split_active_available(pool_track_map, saved_order, playlist_by_file)
+    document_active_files = load_playlist_document_active_files(playlist_id) if playlist_id else []
+    playlist_by_file = load_playlist_by_file() if not document_active_files else {}
+    active_tracks, available_tracks = split_active_available(
+        pool_track_map,
+        saved_order,
+        playlist_by_file,
+        document_active_files,
+    )
 
     print(json.dumps({
         'ok': True,
@@ -163,6 +208,7 @@ def main():
         'hiddenBundledSourceFiles': [entry.name for entry in hidden_bundled_files],
         'unsupportedSourceFiles': [entry.name for entry in unsupported_files],
         'release_filter': release_filter or 'all',
+        'playlist_id': makePlaylists.normalize_playlist_id(playlist_id),
     }, ensure_ascii=False))
 
 

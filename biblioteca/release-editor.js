@@ -125,10 +125,11 @@
         }
 
         let defaultPlayerPlaylistId = 'bandpromo-demo';
+        let defaultPlayerPlaylistSlug = 'bandpromo-demo';
 
         function defaultBandpromoListenUrl() {
             const base = String(siteSharing.siteUrl || '').trim().replace(/\/+$/, '');
-            const playlistSegment = encodeURIComponent(defaultPlayerPlaylistId);
+            const playlistSegment = encodeURIComponent(defaultPlayerPlaylistSlug || defaultPlayerPlaylistId);
             return base ? `${base}/play/${playlistSegment}` : `/play/${playlistSegment}`;
         }
 
@@ -194,6 +195,13 @@
                                 playlistData.active_playlist_id
                                 || playlistData.demo_playlist_id
                                 || 'bandpromo-demo'
+                            );
+                            const playlists = Array.isArray(playlistData.playlists) ? playlistData.playlists : [];
+                            const activeEntry = playlists.find(
+                                (entry) => String(entry?.id || '') === defaultPlayerPlaylistId
+                            );
+                            defaultPlayerPlaylistSlug = String(
+                                activeEntry?.slug || defaultPlayerPlaylistId || 'bandpromo-demo'
                             );
                         }
                     }

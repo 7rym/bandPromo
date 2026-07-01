@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 47:00 - Checkpoint v0.8 build 300: legacy cleanup Phase A — registry-driven makePlaylists, container-aware delete-media, playlist preview by playlist id, release Enjoy-here slug URLs.
+
+2026-07-01 46:30 - Legacy cleanup Phase A: registry-driven makePlaylists.py, playlist container delete-media updates, playlistPreview respects selected playlist id, release Enjoy-here URLs use playlist slug.
+
 2026-07-01 46:00 - Checkpoint v0.8 build 299: multi-playlist/release editor slice — playlist metadata and slug URLs, release editor pool/create-from-release, registry-backed playlist pool, remove legacy `main` playlist, player slug track links.
 
 2026-07-01 45:30 - Player URLs use playlist slug (not internal id) and shorten track links to `/play/{playlist-slug}/{track-slug}`; legacy 3-segment release paths still resolve. Create-from-release no longer copies release id as playlist id.
