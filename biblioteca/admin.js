@@ -3810,7 +3810,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!poolList || !availableEl || !activeEl || !saveBtn) return;
 
                 let galleries = [];
-                let selectedGalleryId = String(editorCard?.dataset.initialGallery || 'main');
+                let selectedGalleryId = String(editorCard?.dataset.initialGallery || 'bandpromo-demo');
                 let isEditing = false;
                 let pendingGalleryDeleteId = '';
 
@@ -3828,7 +3828,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function galleryCanDelete(entry) {
-                    return entry && String(entry.id || '') !== 'main';
+                    return entry && String(entry.id || '') !== 'bandpromo-demo';
                 }
 
                 function galleryMetaLine(entry) {
@@ -4132,7 +4132,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     galleries = Array.isArray(data.galleries) ? data.galleries : [];
                     if (selectedGalleryId === galleryId) {
-                        selectedGalleryId = galleries[0]?.id || 'main';
+                        selectedGalleryId = galleries[0]?.id || 'bandpromo-demo';
                         showPoolView();
                         syncGalleryUrl(selectedGalleryId, false);
                         await loadGalleryPreview({ preserveSavedState: true });

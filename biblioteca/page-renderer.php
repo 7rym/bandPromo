@@ -70,10 +70,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
             return '';
         }
 
-        $galleryId = bandpromo_gallery_normalize_id((string) ($block['gallery_id'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
-        if ($galleryId === '') {
-            $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
-        }
+        $galleryId = bandpromo_gallery_resolve_id((string) ($block['gallery_id'] ?? BANDPROMO_GALLERY_DEMO_ID));
 
         $preset = strtolower(trim((string) ($block['preset'] ?? 'grid')));
         if (!in_array($preset, BANDPROMO_PAGE_GALLERY_PRESETS, true)) {

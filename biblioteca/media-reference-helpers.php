@@ -110,32 +110,6 @@ function bandpromo_media_reference_collect_gallery_references(string $root, stri
         }
     }
 
-    if ($references !== []) {
-        return $references;
-    }
-
-    $gallery_file = $root . '/data/gallery.json';
-    if (!is_file($gallery_file)) {
-        return $references;
-    }
-
-    $gallery = json_decode(file_get_contents($gallery_file) ?: '[]', true);
-    if (!is_array($gallery)) {
-        return $references;
-    }
-
-    foreach ($gallery as $item) {
-        if (!is_array($item) || !bandpromo_media_reference_gallery_matches_target($target, $filename, $item)) {
-            continue;
-        }
-
-        $references[] = [
-            'scope' => 'gallery',
-            'kind' => 'gallery-item',
-            'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
-        ];
-    }
-
     return $references;
 }
 

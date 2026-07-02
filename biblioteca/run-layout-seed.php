@@ -13,24 +13,37 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+function bandpromo_initial_site_seed_marker_path(string $root): string
+{
+    return $root . '/data/initial-site-seed.json';
+}
+
+function bandpromo_initial_site_seed_marker_exists(string $root): bool
+{
+    if (is_file(bandpromo_initial_site_seed_marker_path($root))) {
+        return true;
+    }
+
+    return is_file($root . '/data/initial-site-compose.json');
+}
+
 $root = dirname(__DIR__);
-$marker = $root . '/data/initial-site-compose.json';
 $body = json_decode(file_get_contents('php://input') ?: '', true);
 $force = is_array($body) && !empty($body['force']);
 
-if (is_file($marker) && !$force) {
+if (bandpromo_initial_site_seed_marker_exists($root) && !$force) {
     echo json_encode([
         'ok' => true,
         'skipped' => true,
-        'message' => 'Initial layout is already recorded. Use disaster recovery only when container documents were lost.',
+        'message' => 'Initial site seed is already recorded. Use disaster recovery only when container documents were lost.',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-$result = bandpromo_run_light_task('scripts/setupCompose.py');
+$result = bandpromo_run_light_task('scripts/initialSiteSeed.py', $force ? ['BANDPROMO_LAYOUT_SEED_FORCE' => '1'] : []);
 $ok = !empty($result['ok']);
 
-bandpromo_admin_audit_log('layout_seed_' . ($force ? 'recovery' : 'setup'), [
+bandpromo_admin_audit_log('initial_site_seed_' . ($force ? 'recovery' : 'setup'), [
     'target_type' => 'site',
     'target_id' => 'initial-layout',
     'status' => $ok ? 'ok' : 'error',
@@ -46,8 +59,8 @@ echo json_encode([
     'force' => $force,
     'exit_code' => $result['exit_code'] ?? null,
     'output' => trim((string) ($result['output'] ?? '')),
-    'error' => $ok ? null : (trim((string) ($result['output'] ?? '')) ?: 'Initial layout seed failed'),
+    'error' => $ok ? null : (trim((string) ($result['output'] ?? '')) ?: 'Initial site seed failed'),
     'message' => $ok
-        ? 'Initial site layout seed finished.'
-        : 'Initial layout seed failed. See output for details.',
+        ? 'Initial site seed finished.'
+        : 'Initial site seed failed. See output for details.',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

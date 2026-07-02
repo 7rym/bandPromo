@@ -130,22 +130,6 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
         } catch (Throwable $throwable) {
             $cleanup['warnings'][] = 'Could not update gallery containers: ' . $throwable->getMessage();
         }
-
-        $gallery_file = $root . '/data/gallery.json';
-        $gallery = bandpromo_json_read_array_file($gallery_file);
-        if (is_array($gallery)) {
-            $updated_gallery = [];
-            foreach ($gallery as $item) {
-                if (is_array($item) && bandpromo_media_reference_gallery_matches_target($target, $filename, $item)) {
-                    $cleanup['gallery_items_removed']++;
-                    continue;
-                }
-                $updated_gallery[] = $item;
-            }
-            if ($cleanup['gallery_items_removed'] > 0 && !bandpromo_json_write_file($gallery_file, $updated_gallery)) {
-                $cleanup['warnings'][] = 'Could not update data/gallery.json';
-            }
-        }
     }
 
     return $cleanup;

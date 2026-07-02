@@ -11,10 +11,7 @@ session_write_close();
 header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
-$galleryId = bandpromo_gallery_normalize_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
-if ($galleryId === '') {
-    $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
-}
+$galleryId = bandpromo_gallery_resolve_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEMO_ID));
 
 try {
     bandpromo_gallery_ensure_seeded($root);

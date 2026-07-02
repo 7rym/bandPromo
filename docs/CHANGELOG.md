@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 51:00 - Checkpoint v0.8.4 build 303: VERSION format `major.minor.session build`; legacy cleanup Phase D, initial site seed rename, gallery `bandpromo-demo` migration.
+
+2026-07-01 50:30 - Rename system gallery id `main` to `bandpromo-demo` with legacy migration; align demo naming across playlists, releases, and galleries.
+
+2026-07-01 50:00 - Rename setup compose to initial site seed (`initialSiteSeed.py`, `data/initial-site-seed.json`).
+
+2026-07-01 49:30 - Legacy cleanup Phase D: container-first initial site seed and gallery saves, remove delete-media gallery.json scrub, rename content pool CSS classes.
+
 2026-07-01 49:00 - Checkpoint v0.8 build 302: legacy cleanup Phase C — delete-media container paths, track cover clear helper, docs on publish artifacts.
 
 2026-07-01 48:30 - Legacy cleanup Phase C: remove delete-media play/playlist.json scrubbing, clear track covers via master helpers, drop dead optimizeMedia load_orig_config, sync docs on container-first reads.

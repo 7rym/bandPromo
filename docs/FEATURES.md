@@ -48,7 +48,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Automated build pipeline for optimized audio and images
 - Upload-time background tasks for audio delivery, image delivery, and video delivery (`biblioteca/auto-build-tasks.php` plus focused Python runners)
 - **Planned (v0.8.4):** unified **Visual** media pool (images + video, `ast_{ULID}` identity), context-sized delivery variants, format-by-content (preserve PNG/WebP alpha); collapses Illustrations/Photos/Video — see [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
-- Validation-only playlist scan after audio upload; setup full build composes initial playlist, gallery, and player layout via `scripts/setupCompose.py`
+- Validation-only playlist scan after audio upload; setup runs **initial site seed** (`scripts/initialSiteSeed.py`) for empty playlist/gallery containers and player tab order
 - Automatic lightweight playlist/validation refresh after audio metadata edits
 - Original / master / delivery media workflow for safer repair and publish handling
 - Social sharing metadata and web manifest generation

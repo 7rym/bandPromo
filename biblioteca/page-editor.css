@@ -211,7 +211,7 @@
     flex: 0 0 auto;
 }
 
-.release-available-section {
+.content-pool-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -222,17 +222,17 @@
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.release-available-section[hidden] {
+.content-pool-section[hidden] {
     display: none !important;
 }
 
-.release-available-head {
+.content-pool-head {
     height: auto;
     min-height: 0;
     padding-top: 0;
 }
 
-.release-available-list {
+.content-pool-list {
     flex: 1 1 auto;
     min-height: 120px;
     max-height: 42vh;
@@ -285,7 +285,7 @@
 
 #playlistEditorLayout .player-layout-col--active .player-layout-panel-body,
 #playlistEditorLayout .playlist-editor-active-body,
-#playlistEditorLayout .release-available-section {
+#playlistEditorLayout .content-pool-section {
     flex: 0 0 auto;
     min-height: 0;
     overflow: visible;
@@ -313,7 +313,7 @@
 
 #releaseEditorLayout .player-layout-col--active .player-layout-panel-body,
 #releaseEditorLayout .release-editor-active-body,
-#releaseEditorLayout .release-available-section {
+#releaseEditorLayout .content-pool-section {
     flex: 0 0 auto;
     min-height: 0;
     overflow: visible;
@@ -327,7 +327,7 @@
     min-height: 0;
 }
 
-#releaseEditorLayout .release-available-list {
+#releaseEditorLayout .content-pool-list {
     max-height: none;
     min-height: 0;
     overflow: visible;
@@ -455,7 +455,7 @@
     margin-top: 0;
 }
 
-.playlist-editor-left-panel {
+.content-editor-left-panel {
     min-height: 380px;
 }
 

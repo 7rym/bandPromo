@@ -12,10 +12,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 }
 
 $root_dir = dirname(__DIR__);
-$galleryId = bandpromo_gallery_normalize_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
-if ($galleryId === '') {
-    $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
-}
+$galleryId = bandpromo_gallery_resolve_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEMO_ID));
 
 try {
     bandpromo_gallery_ensure_seeded($root_dir);

@@ -157,7 +157,7 @@ function bandpromo_decode_gallery_items(string $root_dir): ?array {
     return $decoded;
 }
 
-function bandpromo_load_gallery_items(string $root_dir, string $galleryId = 'main'): array {
+function bandpromo_load_gallery_items(string $root_dir, string $galleryId = 'bandpromo-demo'): array {
     require_once __DIR__ . '/gallery-storage.php';
     bandpromo_gallery_ensure_seeded($root_dir);
 

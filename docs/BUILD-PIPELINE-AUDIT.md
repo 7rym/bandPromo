@@ -25,33 +25,34 @@ Operators see uploads in **Files** but builds only process **playlist membership
 | **Deliverable** | Playback/display derivative (`media/*/optimal/`, etc.) |
 | **Container** | Operator document: release, playlist, gallery, page, theme |
 | **Artifact** | Generated runtime file consumed by the site (`play/playlist.json`, `site.webmanifest`, share JPGs) |
-| **Compose** | See below — not delivery, not catalog repair |
+| **Initial site seed** | See below — not delivery, not catalog repair |
 
-### What “Compose” means
+### What “initial site seed” means (formerly “compose”)
 
-**Compose** is **first-run site layout bootstrap**, implemented today as `scripts/setupCompose.py` (build step 6/6).
+**Initial site seed** is **first-run layout bootstrap**, implemented as `scripts/initialSiteSeed.py` and invoked from setup via `biblioteca/run-layout-seed.php`.
 
-It runs **once** (marker file: `data/initial-site-compose.json`). If the marker exists, it skips.
+It runs **once** (marker file: `data/initial-site-seed.json`; legacy `data/initial-site-compose.json` still counts as completed). If the marker exists, it skips.
 
-When it does run, it **guesses** an initial layout from whatever is on disk:
+When it does run, it **only fills empty container documents** from disk:
 
-- Writes `data/playlist-order.json` from **all visible audio originals** (folder scan, not Content editor truth)
-- Regenerates `play/playlist.json` via `makePlaylists.py` full scan
-- Writes `data/gallery.json` from **all** photos/videos in original folders
+- Seeds `data/playlists/{active-id}.json` when that playlist document has no entries
+- Seeds `data/galleries/bandpromo-demo.json` when the demo gallery document has no entries
 - Patches `web-config.json` player modules/tab order (enable gallery + pages)
 
-Compose is **not**:
+It does **not** write `play/playlist.json`, `data/playlist-order.json`, or `data/gallery.json`.
+
+Initial site seed is **not**:
 
 - Transcoding or optimizing media (that is **delivery**)
 - Creating masters or registry entries (that is **catalog**)
-- Honouring release membership or playlist documents the operator configured (it overwrites with folder scans on first run)
+- Honouring release membership or playlist documents the operator already configured (non-empty containers are left alone)
 
-Compose **is**:
+Initial site seed **is**:
 
 - A convenience “wire up a new install” step from the pre–Content-editor era
 - Something that should eventually move to **setup** or an explicit **“Initial layout wizard”**, not run on every publish
 
-**Target policy:** Compose becomes an optional, idempotent **layout seed** stage — run after containers and deliverables exist, only when the operator requests it or on first setup — never silently on routine publish.
+**Target policy:** Initial site seed is an idempotent **setup/recovery** step — run after containers and deliverables exist, only on first setup or explicit disaster recovery — never on routine publish.
 
 ## Target build order (agreed direction)
 
@@ -159,7 +160,7 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 | 4 | `makePlaylists.py` | artifacts | playlist export + validation |
 | 5 | `makeSocial.py` | artifacts | share crops after deliverables |
 | 6 | `makePWA.py` | artifacts | manifest |
-| *(setup only)* | `setupCompose.py` via `run-layout-seed.php` | layout seed | not in publish chain |
+| *(setup only)* | `initialSiteSeed.py` via `run-layout-seed.php` | initial site seed | not in publish chain |
 
 ### Side channels (not the main publish button)
 
@@ -219,24 +220,23 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase F — Compose
 
-- [x] Remove `setupCompose.py` from default publish profile.
+- [x] Remove layout seed from default publish profile (`initialSiteSeed.py` is setup-only).
 - [x] Run from setup completion (`run-layout-seed.php`) or explicit disaster recovery (`force: true`).
 
 ## Open questions (operator decisions)
 
 1. **Deliverable scope:** ~~all registry audio assets, or only those referenced by a release/playlist?~~ **Locked (2026-07-01):** deliverables for **every registered asset**, independent of release or playlist membership.
 2. **Prune policy:** ~~when a track is removed from playlist, delete its MP3 deliverable or keep until registry delete?~~ **Locked (2026-07-01):** prune deliverables **only when the asset is deleted** from the catalog/registry — not when removed from a playlist or release.
-3. **Compose:** ~~delete auto-compose entirely vs keep as setup-only wizard?~~ **Locked (2026-07-01):** **setup-only** plus an explicit **disaster recovery** path (operator-confirmed, documented as destructive/rebuild-from-disk). **Not** part of routine publish. Rename in docs/UI away from “compose” toward **initial layout seed** or **recover site layout**.
+3. **Initial site seed:** ~~delete auto-compose entirely vs keep as setup-only wizard?~~ **Locked (2026-07-01):** **setup-only** plus an explicit **disaster recovery** path (`force: true`). **Not** part of routine publish. Renamed in code/docs to **initial site seed** (`initialSiteSeed.py`).
 
-### Compose — scope clarification (locked narrative)
+### Initial site seed — scope clarification (locked narrative)
 
-Compose (`setupCompose.py`) is **not** demo-content installation. Demo/starter content comes from the **starter theme package**, tracked **templates**, and setup seeding (`setup.php`, template bootstrap).
+Initial site seed (`initialSiteSeed.py`) is **not** demo-content installation. Demo/starter content comes from the **starter theme package**, tracked **templates**, and setup seeding (`setup.php`, template bootstrap).
 
-Compose only:
+Initial site seed only:
 
-- Guesses an initial **playlist order** from audio originals on disk
-- Regenerates `play/playlist.json` once via folder-oriented scan
-- Builds a flat `data/gallery.json` from photo/video originals on disk
+- Seeds **empty** playlist container entries from catalogued audio on disk
+- Seeds **empty** default gallery container entries from photo/video originals on disk
 - Enables default player modules/tab order in `web-config.json`
 
 That is useful when:
@@ -250,11 +250,11 @@ It is **not** useful when:
 - Routine publish after uploads/edits
 - Substituting for catalog repair or deliverable generation
 
-**Rename target:** retire “Compose” as a publish step label; call it **Initial layout seed** (setup) or **Recover layout from disk** (recovery).
+**Naming:** use **Initial site seed** (setup) or **Recover layout from disk** (`force: true` recovery).
 
 ## Success criteria
 
 - Uploading 20 audio files and publishing processes **catalog + deliverables** for the agreed scope — not only the six tracks on `main` playlist.
 - Publish log shows **stage names** in target order; each stage can be skipped in dev/CLI.
 - No release/playlist membership changes during publish unless operator ran **Repair catalog**.
-- Compose never runs on routine publish for established sites.
+- Initial site seed never runs on routine publish for established sites.

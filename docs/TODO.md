@@ -90,7 +90,7 @@ Implementation order:
 - [x] Phase C — catalog stage (masters for all originals).
 - [x] Phase D — registry-scoped deliverables (`optimizeMedia.py` decoupled from playlist scope).
 - [x] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
-- [x] Phase F — demote `setupCompose.py` to setup-only (`run-layout-seed.php`; removed from `build.py`).
+- [x] Phase F — demote layout seed to setup-only (`run-layout-seed.php` + `scripts/initialSiteSeed.py`; removed from `build.py`).
 
 ## v0.8.4 active slice (visual media — delivery + unified pool)
 
@@ -137,7 +137,7 @@ Priority 3a — Content editors and delivery automation (**complete**):
 - [x] Unify Content editors (Playlist, Gallery, Pages, Player layout) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls.
 - [x] Auto-run upload-time delivery tasks (audio, image, video) and gate Content pools on delivery-ready assets.
 - [x] Surface background video delivery progress and failures in Notifications instead of blocking uploads.
-- [x] Playlist save materializes pool tracks without requiring a full build; `setupCompose.py` seeds initial playlist, gallery, and player layout on setup.
+- [x] Playlist save materializes pool tracks without requiring a full build; `initialSiteSeed.py` seeds initial playlist/gallery containers and player layout on setup (not legacy `play/playlist.json` / `data/gallery.json`).
 
 Priority 3b — platform model (**active**):
 
@@ -173,6 +173,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] **Audio delivery alignment** — `media/audio/optimal/` uses `ast_{ULID}.mp3` delivery names keyed off `master_filename`; `makePlaylists.py` / delivery scripts read playlist `master_file` order from `data/playlists/` (not `original/` scan); publish pass prunes orphaned legacy-name delivery files.
 - [x] **Demo media git hygiene** — remove tracked `bandPromo_*` originals from git; bundled demo ships only via setup starter pack (`bandpromo-demo` locked release); document in `MEDIA-HANDLING.md` and `INSTALL-UPDATE.md`.
 - [x] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
+- [x] Rename protected system gallery id `main` to `bandpromo-demo`; migrate registry, page blocks, and templates.
 - [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
 
 Transitional schema work (in progress):

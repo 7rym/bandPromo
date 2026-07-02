@@ -281,18 +281,28 @@
                 { value: 'beside-right', label: 'Beside right' },
             ],
         };
-        let galleryCatalog = [{ id: 'main', title: 'Main Gallery' }];
+        let galleryCatalog = [{ id: 'bandpromo-demo', title: 'bandPromo demo' }];
         let galleryPresets = ['grid', 'list', 'carousel', 'parallax'];
 
+        function normalizeGalleryId(galleryId) {
+            const id = String(galleryId || '').trim();
+            if (id === '' || id === 'main') {
+                return 'bandpromo-demo';
+            }
+            return id;
+        }
+
         function galleryTitle(galleryId) {
-            const entry = galleryCatalog.find((item) => item.id === galleryId);
-            return entry?.title || galleryId || 'main';
+            const normalized = normalizeGalleryId(galleryId);
+            const entry = galleryCatalog.find((item) => item.id === normalized);
+            return entry?.title || normalized;
         }
 
         function renderGalleryEditor(block, index) {
+            const activeGalleryId = normalizeGalleryId(block.gallery_id);
             const galleryOptions = galleryCatalog.map((entry) => {
-                const id = String(entry.id || 'main');
-                const selected = (block.gallery_id || 'main') === id ? ' selected' : '';
+                const id = String(entry.id || 'bandpromo-demo');
+                const selected = activeGalleryId === id ? ' selected' : '';
                 return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(entry.title || id)}</option>`;
             }).join('');
             const presetOptions = galleryPresets.map((preset) => {
@@ -774,9 +784,9 @@
                 return rendered ? `<${tag} class="page-list page-list--${escapeHtml(block.style || 'unordered')}">${rendered}</${tag}>` : '';
             }
             if (block.type === 'gallery') {
-                const galleryId = escapeHtml(block.gallery_id || 'main');
+                const galleryId = escapeHtml(block.gallery_id || 'bandpromo-demo');
                 const preset = escapeHtml(block.preset || 'grid');
-                const title = escapeHtml(galleryTitle(block.gallery_id || 'main'));
+                const title = escapeHtml(galleryTitle(block.gallery_id || 'bandpromo-demo'));
                 return `<section class="page-gallery page-gallery--${preset}" data-gallery-id="${galleryId}"><p class="page-gallery-preview-hint">Gallery: ${title} (${preset} layout)</p></section>`;
             }
             return '';
@@ -1488,7 +1498,7 @@
                 return { type: 'list', style: 'unordered', items: ['First item'] };
             }
             if (type === 'gallery') {
-                return { type: 'gallery', gallery_id: 'main', preset: 'grid' };
+                return { type: 'gallery', gallery_id: 'bandpromo-demo', preset: 'grid' };
             }
             return { type: 'richtext', html: '<p>Write your text here.</p>' };
         }

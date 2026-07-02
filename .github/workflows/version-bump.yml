@@ -37,7 +37,7 @@ jobs:
           import sys
 
           current = Path('VERSION').read_text(encoding='utf-8').strip()
-          if re.fullmatch(r'v\d+\.\d+ build \d+', current) is None:
+          if re.fullmatch(r'v\d+\.\d+\.\d+ build \d+', current) is None:
               print('VERSION file format invalid!', file=sys.stderr)
               raise SystemExit(1)
           print(f'Validated VERSION format: {current}')

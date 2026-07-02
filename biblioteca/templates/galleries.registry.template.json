@@ -2,8 +2,8 @@
     "version": 1,
     "galleries": [
         {
-            "id": "main",
-            "title": "Main Gallery",
+            "id": "bandpromo-demo",
+            "title": "bandPromo demo",
             "kind": "system",
             "sort_order": 10
         }

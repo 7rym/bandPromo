@@ -231,6 +231,8 @@ data/galleries/registry.json
 data/galleries/{gallery-id}.json
 ```
 
+**Default system gallery:** clean installs seed the protected system gallery `bandpromo-demo` (`BANDPROMO_GALLERY_DEMO_ID`). Legacy id `main` is migrated into `bandpromo-demo` on seed (same pattern as playlist `main` removal).
+
 ## Pages and blocks
 
 Canonical storage: `data/pages/*.json` + `data/pages/registry.json` (shipped).

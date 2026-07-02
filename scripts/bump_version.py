@@ -2,6 +2,10 @@
 
 Usage:
   python scripts/bump_version.py
+
+Format:
+  v<major>.<minor>.<session> build <number>
+  Example: v0.8.4 build 303
 """
 
 from pathlib import Path
@@ -11,7 +15,7 @@ import sys
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 VERSION_FILE = ROOT_DIR / 'VERSION'
-VERSION_PATTERN = re.compile(r'^(v\d+\.\d+) build (\d+)$')
+VERSION_PATTERN = re.compile(r'^(v\d+\.\d+\.\d+) build (\d+)$')
 
 
 def main() -> int:
@@ -22,7 +26,10 @@ def main() -> int:
     current = VERSION_FILE.read_text(encoding='utf-8').strip()
     match = VERSION_PATTERN.fullmatch(current)
     if match is None:
-        print('VERSION file format invalid. Expected: v<major>.<minor> build <number>', file=sys.stderr)
+        print(
+            'VERSION file format invalid. Expected: v<major>.<minor>.<session> build <number>',
+            file=sys.stderr,
+        )
         return 1
 
     version, build_number = match.groups()

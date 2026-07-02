@@ -495,9 +495,9 @@ $contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((stri
 if ($contentGallery === '') {
     try {
         bandpromo_gallery_ensure_seeded(__DIR__);
-        $contentGallery = BANDPROMO_GALLERY_DEFAULT_ID;
+        $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
     } catch (Throwable $throwable) {
-        $contentGallery = BANDPROMO_GALLERY_DEFAULT_ID;
+        $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
     }
 }
 $contentPage = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'faq';
@@ -1379,7 +1379,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <div class="player-layout-editor playlist-editor-layout" id="releaseEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel playlist-editor-left-panel">
+                        <div class="player-layout-panel content-editor-left-panel">
                             <div id="releasePoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
                                     <h4 class="player-layout-col-title">Available content</h4>
@@ -1530,12 +1530,12 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 <ol class="playlist-editor player-layout-list" id="releaseActiveList" aria-label="Release tracks">
                                     <li class="player-layout-empty">No release selected.</li>
                                 </ol>
-                                <div id="releaseAvailableSection" class="release-available-section" hidden>
-                                    <div class="player-layout-col-head player-layout-col-head--pool release-available-head">
+                                <div id="releaseAvailableSection" class="content-pool-section" hidden>
+                                    <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
                                         <h4 class="player-layout-col-title">Available content</h4>
                                         <?php echo $poolHeadSpacerHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list release-available-list" id="releaseAvailableList" aria-label="Available tracks">
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="releaseAvailableList" aria-label="Available tracks">
                                         <li class="player-layout-empty">Loading tracks…</li>
                                     </ol>
                                 </div>
@@ -1557,7 +1557,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <div class="player-layout-editor playlist-editor-layout" id="playlistEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel playlist-editor-left-panel">
+                        <div class="player-layout-panel content-editor-left-panel">
                             <div id="playlistPoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
                                     <h4 class="player-layout-col-title">Available content</h4>
@@ -1662,12 +1662,12 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                 <ol class="playlist-editor player-layout-list" id="playlistActiveList" aria-label="Playlist order">
                                     <li class="player-layout-empty">No playlist selected.</li>
                                 </ol>
-                                <div id="playlistAvailableSection" class="release-available-section" hidden>
-                                    <div class="player-layout-col-head player-layout-col-head--pool release-available-head">
+                                <div id="playlistAvailableSection" class="content-pool-section" hidden>
+                                    <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
                                         <h4 class="player-layout-col-title">Available content</h4>
                                         <?php echo $poolReleaseFilterHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list release-available-list" id="playlistAvailableList" aria-label="Available tracks">
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="playlistAvailableList" aria-label="Available tracks">
                                         <li class="player-layout-empty">Loading tracks…</li>
                                     </ol>
                                 </div>
@@ -1704,7 +1704,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <div class="player-layout-editor playlist-editor-layout" id="galleryEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel playlist-editor-left-panel">
+                        <div class="player-layout-panel content-editor-left-panel">
                             <div id="galleryPoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
                                     <h4 class="player-layout-col-title">Available content</h4>
@@ -1946,7 +1946,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <div class="player-layout-editor theme-editor-layout playlist-editor-layout" id="themeEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel playlist-editor-left-panel">
+                        <div class="player-layout-panel content-editor-left-panel">
                             <div id="themePoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
                                     <h4 class="player-layout-col-title">Available content</h4>

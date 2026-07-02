@@ -28,7 +28,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 ### VERSION + push/pull workflow
 
-- Bump `VERSION` locally before pushing to `main` with `python scripts/bump_version.py`.
+- Bump `VERSION` locally before pushing to `main` with `python scripts/bump_version.py`. Format: `v<major>.<minor>.<session> build <number>` (for example `v0.8.4 build 303`).
 - Commit the VERSION change together with the work being pushed so local and remote stay aligned.
 - CI validates the VERSION format on push, but it does not create a follow-up bot commit anymore.
 - Do not batch unrelated manual VERSION edits into feature commits unless explicitly requested.
@@ -39,7 +39,7 @@ Hosted operators and closed-beta testers use **Dashboard → Site update**, whic
 
 After pushing a checkpoint meant for testers, also publish the release package:
 
-1. Read `VERSION` (for example `v0.8 build 291`) and derive the release tag: `v0.8-build-291` (lowercase, spaces → hyphens).
+1. Read `VERSION` (for example `v0.8.4 build 303`) and derive the release tag: `v0.8.4-build-303` (lowercase, spaces → hyphens).
 2. Trigger the GitHub Actions workflow **Publish release package** (`.github/workflows/publish-release-package.yml`).
 3. Confirm the new tag appears on GitHub Releases with `bandpromo-*.zip`, `bandpromo-default-theme-*.zip`, and `release-manifest.json`.
 4. Sanity-check that **Site update** on a test install offers the new build.
@@ -48,8 +48,8 @@ Example (GitHub CLI):
 
 ```powershell
 gh workflow run "Publish release package" `
-  -f tag_name=v0.8-build-291 `
-  -f release_name="bandPromo v0.8 build 291 — short summary" `
+  -f tag_name=v0.8.4-build-303 `
+  -f release_name="bandPromo v0.8.4 build 303 — short summary" `
   -f prerelease=true `
   -f draft=false
 ```

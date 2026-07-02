@@ -176,32 +176,44 @@ function bandpromo_cover_art_collect_config_references(string $root): array
 
 function bandpromo_cover_art_collect_gallery_references(string $root, string $filename): array
 {
+    require_once __DIR__ . '/gallery-storage.php';
     $references = [];
-    $gallery_file = $root . '/data/gallery.json';
-    if (!is_file($gallery_file)) {
+
+    try {
+        bandpromo_gallery_ensure_seeded($root);
+    } catch (Throwable $throwable) {
         return $references;
     }
 
-    $gallery = json_decode(file_get_contents($gallery_file) ?: '[]', true);
-    if (!is_array($gallery)) {
-        return $references;
-    }
-
-    foreach ($gallery as $item) {
-        if (!is_array($item)) {
+    foreach (bandpromo_gallery_registry_entries($root) as $registryEntry) {
+        $galleryId = (string) ($registryEntry['id'] ?? '');
+        if ($galleryId === '') {
             continue;
         }
 
-        $src = str_replace('\\', '/', trim((string) ($item['src'] ?? '')));
-        if ($src === '' || basename($src) !== $filename || stripos($src, '/media/img/') === false) {
+        try {
+            $items = bandpromo_gallery_materialize_items($root, $galleryId);
+        } catch (Throwable $throwable) {
             continue;
         }
 
-        $references[] = [
-            'scope' => 'gallery',
-            'kind' => 'gallery-item',
-            'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
-        ];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $src = str_replace('\\', '/', trim((string) ($item['src'] ?? '')));
+            if ($src === '' || basename($src) !== $filename || stripos($src, '/media/img/') === false) {
+                continue;
+            }
+
+            $references[] = [
+                'scope' => 'gallery',
+                'kind' => 'gallery-item',
+                'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
+                'gallery_id' => $galleryId,
+            ];
+        }
     }
 
     return $references;

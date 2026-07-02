@@ -6,7 +6,8 @@ require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 
 const BANDPROMO_GALLERY_REGISTRY_VERSION = 1;
-const BANDPROMO_GALLERY_DEFAULT_ID = 'main';
+const BANDPROMO_GALLERY_DEMO_ID = 'bandpromo-demo';
+const BANDPROMO_GALLERY_LEGACY_MAIN_ID = 'main';
 
 function bandpromo_gallery_storage_root(string $root): string
 {
@@ -120,8 +121,8 @@ function bandpromo_gallery_default_registry(): array
         'version' => BANDPROMO_GALLERY_REGISTRY_VERSION,
         'galleries' => [
             [
-                'id' => BANDPROMO_GALLERY_DEFAULT_ID,
-                'title' => 'Main Gallery',
+                'id' => BANDPROMO_GALLERY_DEMO_ID,
+                'title' => 'bandPromo demo',
                 'kind' => 'system',
                 'sort_order' => 10,
             ],
@@ -133,8 +134,8 @@ function bandpromo_gallery_default_document(): array
 {
     return [
         'version' => BANDPROMO_GALLERY_REGISTRY_VERSION,
-        'id' => BANDPROMO_GALLERY_DEFAULT_ID,
-        'title' => 'Main Gallery',
+        'id' => BANDPROMO_GALLERY_DEMO_ID,
+        'title' => 'bandPromo demo',
         'kind' => 'system',
         'entries' => [],
     ];
@@ -243,6 +244,7 @@ function bandpromo_gallery_load_legacy_items(string $root): array
 
 function bandpromo_gallery_sync_legacy_artifacts(string $root, array $items): void
 {
+    // Publish/build/repair only — do not call from admin save paths.
     $legacyPath = bandpromo_gallery_legacy_path($root);
     $legacyDir = dirname($legacyPath);
     if (!is_dir($legacyDir) && !mkdir($legacyDir, 0750, true) && !is_dir($legacyDir)) {
@@ -281,7 +283,7 @@ function bandpromo_gallery_save_items(string $root, string $galleryId, array $it
 {
     $galleryId = bandpromo_gallery_normalize_id($galleryId);
     if ($galleryId === '') {
-        $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
+        $galleryId = BANDPROMO_GALLERY_DEMO_ID;
     }
 
     $entries = [];
@@ -300,7 +302,6 @@ function bandpromo_gallery_save_items(string $root, string $galleryId, array $it
     bandpromo_gallery_write_document($root, $document);
 
     $materialized = bandpromo_gallery_materialize_items($root, $galleryId);
-    bandpromo_gallery_sync_legacy_artifacts($root, $materialized);
 
     return [
         'items' => $materialized,
@@ -308,9 +309,132 @@ function bandpromo_gallery_save_items(string $root, string $galleryId, array $it
     ];
 }
 
+function bandpromo_gallery_resolve_id(string $requestedId = ''): string
+{
+    $requestedId = bandpromo_gallery_normalize_id($requestedId);
+    if ($requestedId === BANDPROMO_GALLERY_LEGACY_MAIN_ID) {
+        return BANDPROMO_GALLERY_DEMO_ID;
+    }
+
+    return $requestedId !== '' ? $requestedId : BANDPROMO_GALLERY_DEMO_ID;
+}
+
+function bandpromo_gallery_document_is_empty(string $root, string $galleryId): bool
+{
+    try {
+        $document = bandpromo_gallery_load_document($root, $galleryId);
+    } catch (Throwable $throwable) {
+        return true;
+    }
+
+    foreach ($document['entries'] ?? [] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if (trim((string) ($entry['src'] ?? '')) !== '') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function bandpromo_gallery_remove_legacy_main_gallery(string $root): void
+{
+    $legacyId = BANDPROMO_GALLERY_LEGACY_MAIN_ID;
+    $registryPath = bandpromo_gallery_registry_path($root);
+    if (!is_file($registryPath)) {
+        return;
+    }
+
+    $decoded = bandpromo_json_read_array_file($registryPath);
+    if ($decoded === null) {
+        return;
+    }
+
+    if (!isset($decoded['galleries']) || !is_array($decoded['galleries'])) {
+        $decoded['galleries'] = [];
+    }
+
+    $hadLegacyRegistry = false;
+    foreach ($decoded['galleries'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if ((string) ($entry['id'] ?? '') === $legacyId) {
+            $hadLegacyRegistry = true;
+            break;
+        }
+    }
+
+    $legacyPath = bandpromo_gallery_document_path($root, $legacyId);
+    $legacyExists = is_file($legacyPath);
+    if (!$hadLegacyRegistry && !$legacyExists) {
+        return;
+    }
+
+    if ($legacyExists) {
+        $legacyDoc = bandpromo_json_read_array_file($legacyPath);
+        $legacyEntries = is_array($legacyDoc) && is_array($legacyDoc['entries'] ?? null)
+            ? $legacyDoc['entries']
+            : [];
+        if ($legacyEntries !== [] && bandpromo_gallery_document_is_empty($root, BANDPROMO_GALLERY_DEMO_ID)) {
+            try {
+                $document = bandpromo_gallery_load_document($root, BANDPROMO_GALLERY_DEMO_ID);
+            } catch (Throwable $throwable) {
+                $document = bandpromo_gallery_default_document();
+            }
+            $document['entries'] = $legacyEntries;
+            bandpromo_gallery_write_document($root, $document);
+        }
+    }
+
+    if ($hadLegacyRegistry) {
+        $decoded['galleries'] = array_values(array_filter(
+            $decoded['galleries'],
+            static fn($entry): bool => is_array($entry) && (string) ($entry['id'] ?? '') !== $legacyId
+        ));
+        bandpromo_json_write_file($registryPath, $decoded);
+    }
+
+    if ($legacyExists) {
+        @unlink($legacyPath);
+    }
+}
+
+function bandpromo_gallery_ensure_demo_gallery(string $root): void
+{
+    $registry = bandpromo_gallery_load_registry($root);
+    $hasDemo = false;
+    foreach ($registry['galleries'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if ((string) ($entry['id'] ?? '') === BANDPROMO_GALLERY_DEMO_ID) {
+            $hasDemo = true;
+            break;
+        }
+    }
+
+    if (!$hasDemo) {
+        $registry['galleries'][] = [
+            'id' => BANDPROMO_GALLERY_DEMO_ID,
+            'title' => 'bandPromo demo',
+            'kind' => 'system',
+            'sort_order' => 10,
+        ];
+        bandpromo_gallery_write_registry($root, $registry);
+    }
+
+    $demoPath = bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEMO_ID);
+    if (!is_file($demoPath)) {
+        bandpromo_gallery_write_document($root, bandpromo_gallery_default_document());
+    }
+}
+
 function bandpromo_gallery_migrate_from_legacy(string $root): void
 {
-    $mainPath = bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEFAULT_ID);
+    $mainPath = bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEMO_ID);
     if (is_file($mainPath)) {
         return;
     }
@@ -323,15 +447,15 @@ function bandpromo_gallery_migrate_from_legacy(string $root): void
     $registry = bandpromo_gallery_load_registry($root);
     $hasMain = false;
     foreach ($registry['galleries'] as $entry) {
-        if (($entry['id'] ?? '') === BANDPROMO_GALLERY_DEFAULT_ID) {
+        if (($entry['id'] ?? '') === BANDPROMO_GALLERY_DEMO_ID) {
             $hasMain = true;
             break;
         }
     }
     if (!$hasMain) {
         $registry['galleries'][] = [
-            'id' => BANDPROMO_GALLERY_DEFAULT_ID,
-            'title' => 'Main Gallery',
+            'id' => BANDPROMO_GALLERY_DEMO_ID,
+            'title' => 'bandPromo demo',
             'kind' => 'system',
             'sort_order' => 10,
         ];
@@ -341,13 +465,26 @@ function bandpromo_gallery_migrate_from_legacy(string $root): void
 
 function bandpromo_gallery_ensure_seeded(string $root): void
 {
-    bandpromo_gallery_registry_ensure_dir($root);
-    if (!is_file(bandpromo_gallery_registry_path($root))) {
-        bandpromo_gallery_write_registry($root, bandpromo_gallery_default_registry());
+    static $running = [];
+    if (!empty($running[$root])) {
+        return;
     }
+    $running[$root] = true;
 
-    if (!is_file(bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEFAULT_ID))) {
-        bandpromo_gallery_migrate_from_legacy($root);
+    try {
+        bandpromo_gallery_registry_ensure_dir($root);
+        if (!is_file(bandpromo_gallery_registry_path($root))) {
+            bandpromo_gallery_write_registry($root, bandpromo_gallery_default_registry());
+        }
+
+        bandpromo_gallery_remove_legacy_main_gallery($root);
+        bandpromo_gallery_ensure_demo_gallery($root);
+
+        if (!is_file(bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEMO_ID))) {
+            bandpromo_gallery_migrate_from_legacy($root);
+        }
+    } finally {
+        unset($running[$root]);
     }
 }
 
@@ -392,9 +529,6 @@ function bandpromo_gallery_detach_media(string $root, string $target, string $fi
 
         $document['entries'] = $nextEntries;
         bandpromo_gallery_write_document($root, $document);
-        if ($galleryId === BANDPROMO_GALLERY_DEFAULT_ID) {
-            bandpromo_gallery_sync_legacy_artifacts($root, bandpromo_gallery_materialize_items($root, $galleryId));
-        }
     }
 
     return $removed;
@@ -419,7 +553,7 @@ function bandpromo_gallery_slug_from_title(string $title): string
 
 function bandpromo_gallery_is_protected_id(string $galleryId): bool
 {
-    return bandpromo_gallery_normalize_id($galleryId) === BANDPROMO_GALLERY_DEFAULT_ID;
+    return bandpromo_gallery_normalize_id($galleryId) === BANDPROMO_GALLERY_DEMO_ID;
 }
 
 function bandpromo_gallery_create(string $root, string $title, string $preferredId = ''): array
@@ -509,7 +643,7 @@ function bandpromo_gallery_delete(string $root, string $galleryId): void
 {
     $galleryId = bandpromo_gallery_normalize_id($galleryId);
     if (bandpromo_gallery_is_protected_id($galleryId)) {
-        throw new InvalidArgumentException('The main gallery cannot be deleted.');
+        throw new InvalidArgumentException('The bandPromo demo gallery cannot be deleted.');
     }
 
     $registry = bandpromo_gallery_load_registry($root);

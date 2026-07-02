@@ -41,10 +41,7 @@ if (!is_array($decoded)) {
 }
 
 $root = dirname(__DIR__);
-$galleryId = bandpromo_gallery_normalize_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEFAULT_ID));
-if ($galleryId === '') {
-    $galleryId = BANDPROMO_GALLERY_DEFAULT_ID;
-}
+$galleryId = bandpromo_gallery_resolve_id((string) ($_GET['gallery'] ?? BANDPROMO_GALLERY_DEMO_ID));
 
 foreach ($decoded as $index => $item) {
     if (!is_array($item)) {

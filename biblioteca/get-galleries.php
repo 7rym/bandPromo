@@ -15,7 +15,7 @@ $root = dirname(__DIR__);
 try {
     bandpromo_gallery_ensure_seeded($root);
     $galleries = bandpromo_gallery_registry_entries($root);
-    $defaultId = BANDPROMO_GALLERY_DEFAULT_ID;
+    $defaultId = BANDPROMO_GALLERY_DEMO_ID;
 
     echo json_encode([
         'ok' => true,
