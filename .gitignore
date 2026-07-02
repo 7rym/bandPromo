@@ -25,7 +25,8 @@ Desktop.ini
 */.sync/**
 
 # IDE & Editor
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 .idea/
 *.swp
 *.swo
@@ -42,6 +43,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Local dev one-shot helpers (operator machine only)
+scripts/run-local-cleanup.php
 
 # Sensitive/local runtime config
 FTP_PASS

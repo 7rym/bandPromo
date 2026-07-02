@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-02 10:00 - Session start/end shortcuts: `session-start.ps1` now pulls, bumps session number, starts dev server, and summarizes backlog; `session-end.ps1` validates docs/state, bumps build, commits, builds package, and can publish; tracked `.vscode/tasks.json` plus `/bandpromo-session-end`; docs updated for `v<major>.<minor>.<session> build <number>` versioning.
+
 2026-07-01 51:00 - Checkpoint v0.8.4 build 303: VERSION format `major.minor.session build`; legacy cleanup Phase D, initial site seed rename, gallery `bandpromo-demo` migration.
 
 2026-07-01 50:30 - Rename system gallery id `main` to `bandpromo-demo` with legacy migration; align demo naming across playlists, releases, and galleries.

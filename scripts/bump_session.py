@@ -1,11 +1,11 @@
-"""Increment the build number in the VERSION file.
+"""Increment the session number in the VERSION file.
 
 Usage:
-  python scripts/bump_version.py
+  python scripts/bump_session.py
 
 Format:
   v<major>.<minor>.<session> build <number>
-  Example: v0.8.4 build 303 -> v0.8.4 build 304
+  Example: v0.8.4 build 303 -> v0.8.5 build 303
 """
 
 from pathlib import Path
@@ -32,8 +32,8 @@ def main() -> int:
         VERSION_FILE,
         int(current['major']),
         int(current['minor']),
-        int(current['session']),
-        int(current['build']) + 1,
+        int(current['session']) + 1,
+        int(current['build']),
     )
     print(next_line)
     return 0

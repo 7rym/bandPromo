@@ -3,7 +3,7 @@
 
 **Self-hosted artist platform for music promotion, private listening, and direct fan experiences.**
 
-Current version: `v0.7`
+Current version: `v0.8` beta (repository checkpoints use `v0.8.<session> build <number>`)
 
 ---
 

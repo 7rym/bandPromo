@@ -21,7 +21,7 @@ Rules for this file:
 
 **v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance (config auto-repair, content-model checks folded into Publish), playlist `kind` fix, Content editor UX parity, release/playlist marketing metadata definitions, backup/export MVP, and Release editor. Most trust/UX items shipped in build 295; Release editor shipped session 4.
 
-**v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v0.8 build N`** (build numbering continues from v0.7; build 287 opened the v0.8 line).
+**v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v<major>.<minor>.<session> build <number>`** (for example `v0.8.4 build 303`; build numbering continues from v0.7).
 
 | Priority | Scope | Status |
 |----------|-------|--------|
@@ -395,7 +395,7 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 
 - `ROADMAP.md` is the long-term direction and includes **beta tester expectations** for what is shipped vs planned.
 - `TODO.md` is the short-term working list for the **active v0.8 beta** milestone.
-- **v0.7 is complete** (exit gates passed 2026-06-15). Repository version line is **`v0.8 build N`** (continuous build numbering from v0.7).
+- **v0.7 is complete** (exit gates passed 2026-06-15). Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
 - **v0.8 policy is complete** — platform, access, delivery, portability, and theme tokens are in `docs/PLATFORM-MODEL.md` and companion docs. Implementation follows [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order.
 - **v0.9:** access-tier implementation, login/anonymous entry, Chromecast/cast implementation.
 - **v1+:** fan credits, news + social push, richer engagement modules.

@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
     [int]$TodoLimit = 4,
-    [int]$ChangelogLimit = 3
+    [int]$ChangelogLimit = 3,
+    [switch]$SkipSessionBump,
+    [switch]$SkipDevServer,
+    [switch]$SkipPull
 )
 
 Set-StrictMode -Version Latest
@@ -77,10 +80,10 @@ function Get-TodoSummary {
     }
 
     $lines = Get-Content -LiteralPath $TodoPath -Encoding UTF8
-    $currentSection = ''
-    $currentSubsection = ''
     $inCurrentMilestone = $false
     $collectOpenTasks = $false
+    $currentSection = ''
+    $currentSubsection = ''
 
     foreach ($line in $lines) {
         if ($line -match '^##\s+Current milestone') {
@@ -160,11 +163,76 @@ function Get-RecentChangelogEntries {
     return @($entries)
 }
 
+function Get-VersionLine {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VersionPath
+    )
+
+    if (-not (Test-Path -LiteralPath $VersionPath)) {
+        return $null
+    }
+
+    return (Get-Content -LiteralPath $VersionPath -Encoding UTF8 | Select-Object -First 1).Trim()
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$workspaceRoot = Split-Path -Parent (Split-Path -Parent $repoRoot)
-$tasksPath = Join-Path $workspaceRoot '.vscode\tasks.json'
+$tasksPath = Join-Path $repoRoot '.vscode\tasks.json'
 $todoPath = Join-Path $repoRoot 'docs\TODO.md'
 $changelogPath = Join-Path $repoRoot 'docs\CHANGELOG.md'
+$versionPath = Join-Path $repoRoot 'VERSION'
+$startDevServerScript = Join-Path $repoRoot 'scripts\start-dev-server.ps1'
+
+Write-Output 'bandPromo session start'
+Write-Output ('Repo: {0}' -f $repoRoot)
+Write-Output ('OS: {0}' -f [System.Environment]::OSVersion.VersionString)
+Write-Output ('Shell: PowerShell {0}' -f $PSVersionTable.PSVersion.ToString())
+Write-Output ('PHP: {0}' -f (Get-CommandVersionLine -Command 'php' -Arguments @('-v')))
+Write-Output ('Python: {0}' -f (Get-CommandVersionLine -Command 'python' -Arguments @('--version')))
+Write-Output ''
+
+if (-not $SkipPull) {
+    Write-Output 'Repository sync'
+    try {
+        $pullOutput = git -C $repoRoot pull --ff-only origin main 2>&1
+        $pullOutput | ForEach-Object { Write-Output ('  {0}' -f $_) }
+    }
+    catch {
+        Write-Output ('  git pull failed: {0}' -f $_.Exception.Message)
+        Write-Output '  Continue locally, but resolve sync before checkpointing.'
+    }
+    Write-Output ''
+}
+
+$previousVersion = Get-VersionLine -VersionPath $versionPath
+if (-not $SkipSessionBump) {
+    Write-Output 'Session version'
+    if ($previousVersion) {
+        Write-Output ('  Previous: {0}' -f $previousVersion)
+    }
+
+    $bumpOutput = python (Join-Path $repoRoot 'scripts\bump_session.py') 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output ('  Session bump failed: {0}' -f ($bumpOutput -join ' '))
+    }
+    else {
+        Write-Output ('  Current:  {0}' -f ($bumpOutput | Select-Object -Last 1))
+        Write-Output '  Build number is unchanged until session end checkpoint.'
+    }
+    Write-Output ''
+}
+
+if (-not $SkipDevServer) {
+    Write-Output 'Dev server'
+    try {
+        $serverOutput = & $startDevServerScript 2>&1
+        $serverOutput | ForEach-Object { Write-Output ('  {0}' -f $_) }
+    }
+    catch {
+        Write-Output ('  Dev server start failed: {0}' -f $_.Exception.Message)
+    }
+    Write-Output ''
+}
 
 $gitStatus = git -C $repoRoot status --short --branch 2>$null
 if (-not $gitStatus) {
@@ -174,19 +242,9 @@ if (-not $gitStatus) {
 $taskLabels = @(Get-WorkspaceTaskLabels -TasksFilePath $tasksPath)
 $todoSummary = Get-TodoSummary -TodoPath $todoPath -Limit $TodoLimit
 $recentChanges = @(Get-RecentChangelogEntries -ChangelogPath $changelogPath -Limit $ChangelogLimit)
+$currentVersion = Get-VersionLine -VersionPath $versionPath
 
-$phpVersion = Get-CommandVersionLine -Command 'php' -Arguments @('-v')
-$pythonVersion = Get-CommandVersionLine -Command 'python' -Arguments @('--version')
-
-$shellVersion = 'PowerShell {0}' -f $PSVersionTable.PSVersion.ToString()
-
-Write-Output 'bandPromo fast startup'
-Write-Output ('Repo: {0}' -f $repoRoot)
-Write-Output ('Workspace: {0}' -f $workspaceRoot)
-Write-Output ('OS: {0}' -f [System.Environment]::OSVersion.VersionString)
-Write-Output ('Shell: {0}' -f $shellVersion)
-Write-Output ('PHP: {0}' -f $phpVersion)
-Write-Output ('Python: {0}' -f $pythonVersion)
+Write-Output ('VERSION: {0}' -f $(if ($currentVersion) { $currentVersion } else { 'missing' }))
 Write-Output ''
 
 Write-Output 'Git'
@@ -198,7 +256,7 @@ if ($taskLabels.Count -gt 0) {
     $taskLabels | ForEach-Object { Write-Output ('  - {0}' -f $_) }
 }
 else {
-    Write-Output '  - none found'
+    Write-Output '  - none found (.vscode/tasks.json missing or empty)'
 }
 Write-Output ''
 
@@ -241,3 +299,7 @@ if ($todoSummary.FirstOpen) {
 else {
     Write-Output '  No open v0.8 tasks found in docs/TODO.md.'
 }
+
+Write-Output ''
+Write-Output 'Session end'
+Write-Output '  When ready to checkpoint: run scripts/session-end.ps1 or task "bandPromo: Session end".'

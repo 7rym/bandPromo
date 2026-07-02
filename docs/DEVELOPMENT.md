@@ -39,26 +39,56 @@ Do not add a PHP router script to mimic `.htaccess` in dev — it duplicates pro
 
 ## Common Commands
 
-- Bump version before pushing to `main`:
+- Bump session number at session start:
+  - `python scripts/bump_session.py`
+- Bump build number before checkpoint/push:
   - `python scripts/bump_version.py`
 - Run a build from the repository:
   - `python scripts/build.py`
-- Run the fast session-start summary:
+- Start a dev session:
   - `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
+- End a dev session / checkpoint:
+  - `powershell -ExecutionPolicy Bypass -File scripts/session-end.ps1 -CommitMessage "..." -Push -Publish -ReleaseSummary "..."`
 - Check PHP syntax for a touched file:
   - `php -l path/to/file.php`
 - Build a local distributable package intentionally:
   - `python scripts/build_release_package.py --clean`
 
-## Fast Session Start
+## Session Start and End
 
-Use the fast startup path when opening the repository after a break or starting a new chat session.
+Use the session scripts when opening or closing repository work.
+
+### Session start
 
 - CLI: `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
-- VS Code task: `bandPromo: Fast session startup`
-- VS Code chat slash prompt: `/bandpromo-session-start`
+- VS Code task: `bandPromo: Session start`
+- VS Code/Cursor chat slash prompt: `/bandpromo-session-start`
 
-The fast path is meant to replace repeated manual startup checks. It prints the active shell/runtime context, current git state, available workspace tasks, the current milestone target, the first unresolved v0.8 tasks from `docs/TODO.md`, recent changelog entries, and one recommended next focus.
+Session start:
+
+1. `git pull --ff-only origin main`
+2. bumps the **session** number in `VERSION` (`v0.8.4` → `v0.8.5`, build unchanged)
+3. starts the PHP dev server in the background (`scripts/start-dev-server.ps1`)
+4. prints environment context, git state, backlog, and a recommended next focus
+
+Flags: `-SkipPull`, `-SkipSessionBump`, `-SkipDevServer`
+
+### Session end
+
+- CLI: `powershell -ExecutionPolicy Bypass -File scripts/session-end.ps1 -CommitMessage "..." [-Push] [-Publish] [-ReleaseSummary "..."]`
+- VS Code task: `bandPromo: Session end` (prompts for commit message; pushes and publishes by default)
+- VS Code/Cursor chat slash prompt: `/bandpromo-session-end`
+
+Session end:
+
+1. validates tracked changes and `docs/CHANGELOG.md`
+2. bumps the **build** number in `VERSION`
+3. commits non-forbidden tracked changes
+4. optionally pushes to `main`
+5. builds `dist/bandpromo-*.zip`
+6. optionally triggers **Publish release package** when `-Publish` and `-Push` are set
+
+Use `-SkipValidation` only when you intentionally accept a risky checkpoint.
 
 ## Release Package Notes
 
@@ -75,20 +105,21 @@ When shipping a checkpoint to hosted testers:
 3. Verify the release tag, assets, and `release-manifest.json` on GitHub.
 4. Open **Dashboard → Site update** on a test install and confirm the new build is offered.
 
-Tag naming: `v0.8 build 291` in `VERSION` → release tag `v0.8-build-291`.
+Tag naming: `v0.8.4 build 303` in `VERSION` → release tag `v0.8.4-build-303`.
 
 Available paths:
 
 - Run `python scripts/build_release_package.py --clean` locally for a quick package/manifest sanity check.
 - Trigger **Build release package artifact** for a private/manual artifact build (no public release).
 - Trigger **Publish release package** when a build should become the latest operator-facing immutable GitHub Release package.
+- Or use `scripts/session-end.ps1 -Push -Publish` after a validated checkpoint commit.
 
 Example publish command (GitHub CLI):
 
 ```powershell
 gh workflow run "Publish release package" `
-  -f tag_name=v0.8-build-291 `
-  -f release_name="bandPromo v0.8 build 291 — short summary" `
+  -f tag_name=v0.8.4-build-303 `
+  -f release_name="bandPromo v0.8.4 build 303 — short summary" `
   -f prerelease=true `
   -f draft=false
 ```

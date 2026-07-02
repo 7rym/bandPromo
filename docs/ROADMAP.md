@@ -28,7 +28,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 
 ## Version principles
 
-- **v0.7 is complete** — exit gates passed 2026-06-15. Repository version line is **`v0.8 build N`** (continuous build numbering from v0.7).
+- **v0.7 is complete** — exit gates passed 2026-06-15. Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
 - **v0.8 beta is active** — platform model changes, multi-library foundations, delivery automation, and composition architecture.
 - v0.9 prepares public/beta-facing structure and implements access tiers defined in v0.8.
 - v1.0 is public-ready, stable, and trustworthy.
