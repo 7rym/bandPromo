@@ -1215,7 +1215,7 @@ Origins are tracked separately from roles:
 - `build-sidecar-copy`
 - `bundled-placeholder`
 
-The runtime manifest in `data/media-library-state.json` records advisory `assets` metadata, but live references are always recomputed from `play/playlist.json`, `data/gallery.json`, and `web-config.json`. `biblioteca/list-media.php` now returns this as `cover_info` for Files -> Illustrations, including role, origin, references, and an `orphan` flag for unreferenced non-demo files.
+The runtime manifest in `data/media-library-state.json` records advisory `assets` metadata, but live references are recomputed from playlist containers (`data/playlists/*.json`), gallery containers, and `web-config.json`. `biblioteca/list-media.php` now returns this as `cover_info` for Files -> Illustrations, including role, origin, references, and an `orphan` flag for unreferenced non-demo files.
 
 Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, compact list-header filter dropdowns (`All`, `Track covers`, `Orphans`, `Build-generated`, plus `User files` / `Include demo`), and delete-preview hints for theme references and regenerable build artifacts. Detailed per-row `Used by:` reference text stays out of the normal operator list view; badges and filters are the primary signal. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
 

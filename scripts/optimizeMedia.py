@@ -53,21 +53,6 @@ except ImportError:
     sys.exit(1)
 
 
-def load_orig_config():
-    """Load play/playlist.json to get metadata about songs and covers."""
-    if not PLAY_CONFIG.exists():
-        print(f"❌ Error: {PLAY_CONFIG} not found")
-        print("   Run makePlaylists.py first to generate play/playlist.json")
-        sys.exit(1)
-
-    try:
-        with open(str(PLAY_CONFIG), 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"❌ Error reading play/playlist.json: {e}")
-        sys.exit(1)
-
-
 def load_orig_config_if_present():
     """Load play/playlist.json when available, otherwise return an empty track list."""
     if not PLAY_CONFIG.exists():

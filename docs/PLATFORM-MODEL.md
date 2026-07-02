@@ -332,7 +332,7 @@ data/
   player/layout.json                   # tab order (from web-config player branch)
 ```
 
-Legacy paths (`play/playlist.json`, `data/playlist-order.json`, `data/gallery.json`) are compatibility reads only until migration completes.
+Legacy paths (`play/playlist.json`, `data/playlist-order.json`, `data/gallery.json`) are **publish/build artifacts or repair outputs** only. Admin save paths and runtime readers use `data/playlists/`, `data/galleries/`, and the asset registry instead.
 
 ## URLs and deep links
 

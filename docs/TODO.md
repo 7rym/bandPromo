@@ -161,7 +161,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement `data/assets` registry with `ast_{ULID}` IDs; migrate filename-keyed references to `asset_id`.
 - [x] Implement `data/releases` + required track membership + release `locked` guards.
 - [x] Remove playlist-save → master tag sync (`bandpromo_sync_playlist_order_to_audio_masters`) and `playlist_tracknumber` metadata fallbacks.
-- [x] Implement `data/playlists` + registry; migrate off `play/playlist.json` and `data/playlist-order.json`.
+- [x] Implement `data/playlists` + registry; admin/runtime reads use containers (`play/playlist.json` remains a publish artifact refreshed by build/repair only).
 - [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`. *(Selector renders only when two or more `kind: "system"` playlists exist; operator create currently wrongly sets `kind: "user"` — fix in v0.8.3.)*
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.

@@ -356,3 +356,31 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         'sidecar_cover' => $targetFilename,
     ];
 }
+
+function bandpromo_audio_master_clear_cover_reference(string $root, string $coverBasename): array
+{
+    $coverBasename = basename(trim($coverBasename));
+    $summary = ['covers_cleared' => 0];
+
+    if ($coverBasename === '') {
+        return $summary;
+    }
+
+    foreach (bandpromo_playlist_merged_built_track_map($root) as $audioFile => $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+
+        $trackCover = basename(trim((string) ($track['cover'] ?? '')));
+        if ($trackCover === '' || $trackCover !== $coverBasename) {
+            continue;
+        }
+
+        $result = bandpromo_audio_master_apply_cover_selection($root, $audioFile, '');
+        if (!empty($result['ok'])) {
+            $summary['covers_cleared']++;
+        }
+    }
+
+    return $summary;
+}

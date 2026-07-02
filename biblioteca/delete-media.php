@@ -14,6 +14,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/audio-master-detail-helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -116,45 +117,9 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
         $cleanup['playlist_tracks_removed'] += (int) ($containerCleanup['entries_removed'] ?? 0);
     }
 
-    if ($target === 'audio' || $target === 'illustrations') {
-        $playlist_file = $root . '/play/playlist.json';
-        $playlist = bandpromo_json_read_array_file($playlist_file);
-        if (is_array($playlist)) {
-            $changed = false;
-            $updated = [];
-            foreach ($playlist as $track) {
-                if (!is_array($track)) {
-                    $updated[] = $track;
-                    continue;
-                }
-                if ($target === 'audio' && trim((string) ($track['file'] ?? '')) === $filename) {
-                    $changed = true;
-                    continue;
-                }
-                if ($target === 'illustrations' && basename(trim((string) ($track['cover'] ?? ''))) === $filename) {
-                    $track['cover'] = '';
-                    $cleanup['playlist_covers_cleared']++;
-                    $changed = true;
-                }
-                $updated[] = $track;
-            }
-            if ($changed && !bandpromo_json_write_file($playlist_file, $updated)) {
-                $cleanup['warnings'][] = 'Could not update play/playlist.json';
-            }
-        }
-    }
-
-    if ($target === 'audio') {
-        $order_file = $root . '/data/playlist-order.json';
-        $order = bandpromo_json_read_array_file($order_file);
-        if (is_array($order)) {
-            $updated_order = array_values(array_filter($order, static function ($entry) use ($filename) {
-                return is_string($entry) && $entry !== $filename;
-            }));
-            if (count($updated_order) !== count($order) && !bandpromo_json_write_file($order_file, $updated_order)) {
-                $cleanup['warnings'][] = 'Could not update data/playlist-order.json';
-            }
-        }
+    if ($target === 'illustrations') {
+        $coverCleanup = bandpromo_audio_master_clear_cover_reference($root, $filename);
+        $cleanup['playlist_covers_cleared'] += (int) ($coverCleanup['covers_cleared'] ?? 0);
     }
 
     if (in_array($target, ['illustrations', 'photos', 'video'], true)) {

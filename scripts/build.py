@@ -10,7 +10,7 @@ Output (new structure):
     media/audio/optimal/  - publish-ready audio delivery files (generated here)
     media/img/original/     - source cover/artwork files (uploaded by admin)
     media/img/optimal/   - publish-ready cover/artwork delivery files (generated here)
-  play/playlist.json  - single playlist config for the player
+  play/playlist.json  - publish-time player artifact (from playlist containers)
     media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   media/special/    - platform-specific social share images (generated here)
 """

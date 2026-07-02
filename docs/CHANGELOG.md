@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-01 49:00 - Checkpoint v0.8 build 302: legacy cleanup Phase C — delete-media container paths, track cover clear helper, docs on publish artifacts.
+
+2026-07-01 48:30 - Legacy cleanup Phase C: remove delete-media play/playlist.json scrubbing, clear track covers via master helpers, drop dead optimizeMedia load_orig_config, sync docs on container-first reads.
+
 2026-07-01 48:00 - Checkpoint v0.8 build 301: legacy cleanup Phase B — container-first admin reads, no save-time play/playlist.json sync.
 
 2026-07-01 47:30 - Legacy cleanup Phase B: stop syncing play/playlist.json on admin save; player OG tags and media helpers read playlist containers.
