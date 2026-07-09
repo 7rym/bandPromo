@@ -180,6 +180,44 @@ function bandpromo_build_launch_background_unix_shell(
     ];
 }
 
+function bandpromo_build_launch_background_unix_python(
+    string $python,
+    string $script,
+    string $logFile,
+    string $lockFile
+): array {
+    if (!bandpromo_build_function_usable('shell_exec')) {
+        return [
+            'started' => false,
+            'launch_command' => 'nohup python build.py',
+            'launch_exit_code' => 1,
+            'launch_output_tail' => 'shell_exec disabled; cannot use legacy nohup→python launcher',
+        ];
+    }
+
+    $root = dirname(__DIR__);
+    $inner = 'cd ' . escapeshellarg($root)
+        . ' && ' . escapeshellarg($python)
+        . ' -u ' . escapeshellarg($script)
+        . ' >> ' . escapeshellarg($logFile)
+        . ' 2>> ' . escapeshellarg($logFile)
+        . '; code=$?; echo EXITCODE:$code >> ' . escapeshellarg($logFile)
+        . '; rm -f ' . escapeshellarg($lockFile)
+        . '; exit $code';
+
+    $bgCmd = 'nohup sh -c ' . escapeshellarg($inner) . ' > /dev/null 2>&1 & echo $!';
+    $pid = trim((string) shell_exec($bgCmd));
+    $started = $pid !== '' && ctype_digit($pid);
+
+    return [
+        'started' => $started,
+        'launch_command' => 'nohup ' . $python . ' build.py (detached)',
+        'launch_exit_code' => $started ? 0 : 1,
+        'launch_output_tail' => $started ? ('python_pid:' . $pid) : 'nohup python launcher did not return pid',
+        'pid' => $started ? (int) $pid : null,
+    ];
+}
+
 function bandpromo_build_launch_background_proc_open(
     string $php,
     string $runner,
@@ -243,7 +281,8 @@ function bandpromo_build_launch_background(
     string $logFile,
     string $lockFile,
     string $runId,
-    bool $isWindows
+    bool $isWindows,
+    ?array $diagnostics = null
 ): array {
     $runner = __DIR__ . '/build-runner.php';
     if (!is_file($runner)) {
@@ -255,7 +294,34 @@ function bandpromo_build_launch_background(
         ];
     }
 
-    $php = bandpromo_resolve_php_cli();
+    $php = is_array($diagnostics) ? (string) ($diagnostics['resolved_php'] ?? bandpromo_resolve_php_cli()) : bandpromo_resolve_php_cli();
+    $method = is_array($diagnostics) ? (string) ($diagnostics['recommended_method'] ?? '') : '';
+
+    if ($method === 'nohup_python' && !$isWindows) {
+        return bandpromo_build_launch_background_unix_python($python, $script, $logFile, $lockFile);
+    }
+
+    if ($method === 'proc_open_runner' && bandpromo_build_function_usable('proc_open')) {
+        $launch = bandpromo_build_launch_background_proc_open($php, $runner, $logFile, $lockFile, $python, $script);
+        if ($launch['started'] ?? false) {
+            return $launch;
+        }
+    }
+
+    if ($method === 'nohup_runner' && !$isWindows) {
+        return bandpromo_build_launch_background_unix_shell($php, $runner, $logFile, $lockFile, $python, $script);
+    }
+
+    if ($method === 'failed') {
+        return [
+            'started' => false,
+            'launch_command' => null,
+            'launch_exit_code' => 1,
+            'launch_output_tail' => is_array($diagnostics)
+                ? (string) ($diagnostics['recommended_reason'] ?? 'Launch diagnostics found no supported path')
+                : 'Launch diagnostics missing',
+        ];
+    }
 
     if (bandpromo_build_function_usable('proc_open')) {
         $launch = bandpromo_build_launch_background_proc_open($php, $runner, $logFile, $lockFile, $python, $script);
@@ -265,6 +331,10 @@ function bandpromo_build_launch_background(
     }
 
     if (!$isWindows) {
+        if (!bandpromo_build_is_executable_file($php) && bandpromo_build_function_usable('shell_exec')) {
+            return bandpromo_build_launch_background_unix_python($python, $script, $logFile, $lockFile);
+        }
+
         return bandpromo_build_launch_background_unix_shell($php, $runner, $logFile, $lockFile, $python, $script);
     }
 

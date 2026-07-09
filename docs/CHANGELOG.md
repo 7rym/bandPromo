@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-09 17:30 - Hotfix v0.8.5 build 310: publish build now runs launch diagnostics (`[diag]` lines in build log) including PHP/Python proc_open and nohup smoke tests, recommends the safest launcher path, and falls back to legacy nohup→python when detached PHP cannot run on the host.
+
 2026-07-09 16:45 - Hotfix v0.8.5 build 309: resolve Plesk/Linux PHP CLI paths for publish build launcher so background `build-runner.php` actually starts on shared hosting.
 
 2026-07-09 16:30 - Hotfix v0.8.5 build 308: Site update now ranks published packages by monotonic build number so legacy tags like `v0.8-build-307` are offered over older `v0.8.4-build-304` releases.

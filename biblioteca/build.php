@@ -13,6 +13,7 @@ require_once __DIR__ . '/release-package.php';
 require_once __DIR__ . '/publish-preflight-helpers.php';
 require_once __DIR__ . '/build-lock.php';
 require_once __DIR__ . '/build-launcher.php';
+require_once __DIR__ . '/build-launch-diagnostics.php';
 require_once __DIR__ . '/build-stages.php';
 require_once __DIR__ . '/build-log-helpers.php';
 
@@ -228,7 +229,15 @@ file_put_contents($lock_file, 'running');
 
 $started = false;
 
-$launch = bandpromo_build_launch_background($python, $script, $log_file, $lock_file, $build_run_id, $is_windows);
+$diagnostics = bandpromo_build_run_launch_diagnostics($root_dir, $log_file, $python, $script, $is_windows);
+$debug['launch_diagnostics'] = [
+    'recommended_method' => $diagnostics['recommended_method'] ?? null,
+    'recommended_reason' => $diagnostics['recommended_reason'] ?? null,
+    'resolved_php' => $diagnostics['resolved_php'] ?? null,
+    'php_smoke_binary' => $diagnostics['php_smoke_binary'] ?? null,
+];
+
+$launch = bandpromo_build_launch_background($python, $script, $log_file, $lock_file, $build_run_id, $is_windows, $diagnostics);
 $debug['launch_command'] = $launch['launch_command'] ?? null;
 $debug['launch_exit_code'] = $launch['launch_exit_code'] ?? null;
 $debug['launch_output_tail'] = $launch['launch_output_tail'] ?? null;
