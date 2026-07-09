@@ -6,14 +6,12 @@ starting Python so catalog stages can call biblioteca/*.php CLIs on hosts where
 bare `php` is not on PATH or open_basedir hides Plesk binaries from is_file().
 """
 
-from __future__ import annotations
-
 import os
 import subprocess
 from pathlib import Path
 
 
-def _php_smoke(candidate: str) -> bool:
+def _php_smoke(candidate):
     if candidate == '':
         return False
 
@@ -34,8 +32,8 @@ def _php_smoke(candidate: str) -> bool:
     return 'php-cli-smoke' in output
 
 
-def php_cli_candidates() -> list[str]:
-    candidates: list[str] = []
+def php_cli_candidates():
+    candidates = []
 
     for key in ('BANDPROMO_PHP_CLI', 'BUILD_PHP'):
         value = os.environ.get(key, '').strip()
@@ -46,10 +44,10 @@ def php_cli_candidates() -> list[str]:
     if version:
         major = version.split('.', 1)[0]
         candidates.extend([
-            f'/opt/plesk/php/{version}/bin/php',
-            f'/opt/plesk/php/{major}/bin/php',
-            f'/usr/bin/php{version}',
-            f'/usr/bin/php{major}',
+            '/opt/plesk/php/{}/bin/php'.format(version),
+            '/opt/plesk/php/{}/bin/php'.format(major),
+            '/usr/bin/php{}'.format(version),
+            '/usr/bin/php{}'.format(major),
         ])
 
     bindir = os.environ.get('BANDPROMO_PHP_BINDIR', '').strip()
@@ -63,7 +61,7 @@ def php_cli_candidates() -> list[str]:
         'php.exe',
     ])
 
-    unique: list[str] = []
+    unique = []
     for candidate in candidates:
         candidate = candidate.strip()
         if candidate and candidate not in unique:
@@ -72,7 +70,7 @@ def php_cli_candidates() -> list[str]:
     return unique
 
 
-def resolve_php_cli() -> str:
+def resolve_php_cli():
     for candidate in php_cli_candidates():
         if _php_smoke(candidate):
             return candidate

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-09 18:15 - Hotfix v0.8.5 build 312: make `scripts/php_cli.py` compatible with Python 3.6 hosts (remove `from __future__ import annotations` and 3.7+ type-hint syntax).
+
 2026-07-09 18:00 - Hotfix v0.8.5 build 311: PHP CLI resolution now uses exec smoke tests when open_basedir hides Plesk binaries; export `BANDPROMO_PHP_CLI` into Python publish subprocesses (catalog stage and video-delivery finish hook); deduplicate resolver in `auto-build-tasks.php`.
 
 2026-07-09 17:30 - Hotfix v0.8.5 build 310: publish build now runs launch diagnostics (`[diag]` lines in build log) including PHP/Python proc_open and nohup smoke tests, recommends the safest launcher path, and falls back to legacy nohup→python when detached PHP cannot run on the host.
