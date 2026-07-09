@@ -12,6 +12,8 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 }
 
+require_once __DIR__ . '/build-launcher.php';
+
 $logFile = isset($argv[1]) ? (string) $argv[1] : '';
 $lockFile = isset($argv[2]) ? (string) $argv[2] : '';
 $python = isset($argv[3]) ? (string) $argv[3] : '';
@@ -54,6 +56,22 @@ $process = @proc_open(
 );
 
 if (!is_resource($process)) {
+    if (PHP_OS_FAMILY !== 'Windows' && bandpromo_build_function_usable('exec')) {
+        $shellCmd = escapeshellarg($python)
+            . ' -u '
+            . escapeshellarg($script)
+            . ' >> '
+            . escapeshellarg($logFile)
+            . ' 2>> '
+            . escapeshellarg($logFile);
+        $output = [];
+        $exitCode = 1;
+        exec($shellCmd, $output, $exitCode);
+        file_put_contents($logFile, 'EXITCODE:' . $exitCode . "\n", FILE_APPEND);
+        @unlink($lockFile);
+        exit($exitCode === 0 ? 0 : 1);
+    }
+
     bandpromo_build_runner_fail($logFile, $lockFile, 'FAILED Could not start build runtime.');
     exit(1);
 }
