@@ -192,6 +192,10 @@ try {
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG PHP CLI: " . bandpromo_resolve_php_cli() . "\n", FILE_APPEND);
+$phpEnv = bandpromo_build_python_subprocess_env();
+if (!empty($phpEnv['BANDPROMO_PHP_CLI'])) {
+    file_put_contents($log_file, "DEBUG BANDPROMO_PHP_CLI: " . $phpEnv['BANDPROMO_PHP_CLI'] . "\n", FILE_APPEND);
+}
 file_put_contents($log_file, "DEBUG Mode: " . $mode . "\n", FILE_APPEND);
 if ($mode === 'full') {
     file_put_contents($log_file, "DEBUG Profile: " . $build_profile . "\n", FILE_APPEND);

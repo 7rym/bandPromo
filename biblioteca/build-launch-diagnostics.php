@@ -103,19 +103,23 @@ function bandpromo_build_diag_proc_open_smoke(string $binary, array $args): arra
 
 function bandpromo_build_diag_format_candidate_status(string $candidate): string
 {
-    if ($candidate === 'php') {
-        return 'php (PATH lookup fallback; not a file path)';
+    if ($candidate === 'php' || $candidate === 'php.exe') {
+        return $candidate . (bandpromo_build_php_cli_usable($candidate) ? ' (smoke ok)' : ' (PATH lookup fallback; smoke failed)');
     }
 
-    if (!is_file($candidate)) {
-        return $candidate . ' missing';
+    if (bandpromo_build_php_cli_usable($candidate)) {
+        if (is_file($candidate)) {
+            return $candidate . ' executable';
+        }
+
+        return $candidate . ' smoke ok (hidden by open_basedir or outside web root)';
     }
 
-    if (!is_executable($candidate)) {
-        return $candidate . ' exists but not executable';
+    if (is_file($candidate)) {
+        return $candidate . ' exists but smoke test failed';
     }
 
-    return $candidate . ' executable';
+    return $candidate . ' missing or not runnable';
 }
 
 function bandpromo_build_run_launch_diagnostics(
@@ -192,8 +196,8 @@ function bandpromo_build_run_launch_diagnostics(
         );
     }
 
-    $phpSmokeIsExecutable = $phpSmokeBinary !== 'php' && bandpromo_build_is_executable_file($phpSmokeBinary);
-    if ($phpSmokeIsExecutable) {
+    $phpSmokeIsExecutable = $phpSmokeBinary !== 'php' && $phpSmokeBinary !== 'php.exe' && bandpromo_build_php_cli_usable($phpSmokeBinary);
+    if ($phpSmokeIsExecutable || bandpromo_build_php_cli_usable($phpSmokeBinary)) {
         $phpVersion = bandpromo_build_diag_exec_output(escapeshellarg($phpSmokeBinary) . ' -v');
         $checks['php_exec_version'] = $phpVersion;
         bandpromo_build_diag_log(
@@ -207,7 +211,7 @@ function bandpromo_build_run_launch_diagnostics(
             $logFile,
             'proc_open php smoke: ' . ($phpSmoke['ok'] ? $phpSmoke['output'] : $phpSmoke['error'])
         );
-    } elseif ($phpSmokeBinary === 'php') {
+    } elseif ($phpSmokeBinary === 'php' || $phpSmokeBinary === 'php.exe') {
         bandpromo_build_diag_log($logFile, 'Skipped php exec/proc_open smoke tests because no executable PHP CLI path was resolved.');
     } else {
         bandpromo_build_diag_log($logFile, 'Skipped php exec/proc_open smoke tests because ' . $phpSmokeBinary . ' is not executable.');

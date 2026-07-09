@@ -72,7 +72,7 @@ $process = @proc_open(
     ],
     $pipes,
     dirname(__DIR__),
-    null,
+    bandpromo_build_python_subprocess_env(),
     $options
 );
 

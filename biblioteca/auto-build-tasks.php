@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/build-launcher.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/setup-state.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
@@ -100,15 +101,6 @@ function bandpromo_video_delivery_job_dir(): string
 function bandpromo_video_delivery_lock_path(string $taskId): string
 {
     return bandpromo_video_delivery_job_dir() . '/' . $taskId . '.lock';
-}
-
-function bandpromo_resolve_php_cli(): string
-{
-    if (defined('PHP_BINARY') && is_string(PHP_BINARY) && PHP_BINARY !== '' && is_file(PHP_BINARY)) {
-        return PHP_BINARY;
-    }
-
-    return 'php';
 }
 
 function bandpromo_resolve_ffmpeg_path(): string

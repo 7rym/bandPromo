@@ -30,26 +30,64 @@ function bandpromo_build_is_executable_file(string $path): bool
     return $path !== '' && is_file($path) && is_executable($path);
 }
 
-function bandpromo_build_derive_php_cli_from_fpm(string $binary): ?string
+function bandpromo_build_derive_php_cli_from_fpm_path(string $binary): ?string
 {
-    if (!is_file($binary)) {
-        return null;
-    }
-
     $normalized = str_replace('\\', '/', $binary);
     if (preg_match('#/opt/plesk/php/([^/]+)/sbin/php-fpm(?:\d+)?$#i', $normalized, $matches) === 1) {
-        $candidate = '/opt/plesk/php/' . $matches[1] . '/bin/php';
-        return bandpromo_build_is_executable_file($candidate) ? $candidate : null;
+        return '/opt/plesk/php/' . $matches[1] . '/bin/php';
     }
 
     if (stripos($normalized, 'php-fpm') !== false) {
         $candidate = preg_replace('#/sbin/php-fpm(?:\d+)?$#i', '/bin/php', $normalized);
-        if (is_string($candidate) && bandpromo_build_is_executable_file($candidate)) {
-            return $candidate;
-        }
+
+        return is_string($candidate) && $candidate !== '' ? $candidate : null;
     }
 
     return null;
+}
+
+function bandpromo_build_php_cli_smoke_test(string $candidate): bool
+{
+    if ($candidate === '' || $candidate === 'php' || $candidate === 'php.exe') {
+        if (!bandpromo_build_function_usable('exec')) {
+            return false;
+        }
+
+        $output = [];
+        $exitCode = 1;
+        exec(escapeshellarg($candidate) . ' -r ' . escapeshellarg('echo "php-cli-smoke";') . ' 2>&1', $output, $exitCode);
+
+        return $exitCode === 0 && strpos(implode("\n", $output), 'php-cli-smoke') !== false;
+    }
+
+    if (bandpromo_build_is_executable_file($candidate)) {
+        return true;
+    }
+
+    if (!bandpromo_build_function_usable('exec')) {
+        return false;
+    }
+
+    $output = [];
+    $exitCode = 1;
+    exec(escapeshellarg($candidate) . ' -r ' . escapeshellarg('echo "php-cli-smoke";') . ' 2>&1', $output, $exitCode);
+
+    return $exitCode === 0 && strpos(implode("\n", $output), 'php-cli-smoke') !== false;
+}
+
+function bandpromo_build_php_cli_usable(string $candidate): bool
+{
+    return bandpromo_build_php_cli_smoke_test($candidate);
+}
+
+function bandpromo_build_derive_php_cli_from_fpm(string $binary): ?string
+{
+    $candidate = bandpromo_build_derive_php_cli_from_fpm_path($binary);
+    if ($candidate === null) {
+        return null;
+    }
+
+    return bandpromo_build_php_cli_usable($candidate) ? $candidate : null;
 }
 
 function bandpromo_build_php_cli_candidates(): array
@@ -74,9 +112,9 @@ function bandpromo_build_php_cli_candidates(): array
     }
 
     if (defined('PHP_BINARY') && is_string(PHP_BINARY) && PHP_BINARY !== '') {
-        $derived = bandpromo_build_derive_php_cli_from_fpm(PHP_BINARY);
-        if ($derived !== null) {
-            $candidates[] = $derived;
+        $derivedPath = bandpromo_build_derive_php_cli_from_fpm_path(PHP_BINARY);
+        if ($derivedPath !== null) {
+            $candidates[] = $derivedPath;
         }
         if (stripos(PHP_BINARY, 'fpm') === false) {
             $candidates[] = PHP_BINARY;
@@ -111,16 +149,57 @@ function bandpromo_build_php_cli_candidates(): array
 
 function bandpromo_resolve_php_cli(): string
 {
+    $fallback = 'php';
+
     foreach (bandpromo_build_php_cli_candidates() as $candidate) {
-        if ($candidate === 'php') {
+        if ($candidate === 'php' || $candidate === 'php.exe') {
+            $fallback = $candidate;
             continue;
         }
-        if (bandpromo_build_is_executable_file($candidate)) {
+        if (bandpromo_build_php_cli_usable($candidate)) {
             return $candidate;
         }
     }
 
-    return 'php';
+    return bandpromo_build_php_cli_usable($fallback) ? $fallback : $fallback;
+}
+
+function bandpromo_build_python_subprocess_env(): array
+{
+    $env = $_ENV;
+    foreach ($_SERVER as $key => $value) {
+        if (!is_string($key) || !is_string($value)) {
+            continue;
+        }
+        if (!array_key_exists($key, $env)) {
+            $env[$key] = $value;
+        }
+    }
+
+    $php = bandpromo_resolve_php_cli();
+    if ($php !== '' && $php !== 'php' && $php !== 'php.exe') {
+        $env['BANDPROMO_PHP_CLI'] = $php;
+    }
+    if (defined('PHP_BINDIR') && is_string(PHP_BINDIR) && PHP_BINDIR !== '') {
+        $env['BANDPROMO_PHP_BINDIR'] = PHP_BINDIR;
+    }
+    if (defined('PHP_MAJOR_VERSION') && defined('PHP_MINOR_VERSION')) {
+        $env['BANDPROMO_PHP_VERSION'] = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+    }
+
+    return $env;
+}
+
+function bandpromo_build_shell_env_prefix(array $env): string
+{
+    $parts = [];
+    foreach (['BANDPROMO_PHP_CLI', 'BANDPROMO_PHP_BINDIR', 'BANDPROMO_PHP_VERSION'] as $key) {
+        if (!empty($env[$key])) {
+            $parts[] = $key . '=' . escapeshellarg((string) $env[$key]);
+        }
+    }
+
+    return $parts === [] ? '' : implode(' ', $parts) . ' ';
 }
 
 function bandpromo_build_null_device(): string
@@ -196,8 +275,10 @@ function bandpromo_build_launch_background_unix_python(
     }
 
     $root = dirname(__DIR__);
+    $envPrefix = bandpromo_build_shell_env_prefix(bandpromo_build_python_subprocess_env());
     $inner = 'cd ' . escapeshellarg($root)
-        . ' && ' . escapeshellarg($python)
+        . ' && ' . $envPrefix
+        . escapeshellarg($python)
         . ' -u ' . escapeshellarg($script)
         . ' >> ' . escapeshellarg($logFile)
         . ' 2>> ' . escapeshellarg($logFile)
@@ -331,7 +412,7 @@ function bandpromo_build_launch_background(
     }
 
     if (!$isWindows) {
-        if (!bandpromo_build_is_executable_file($php) && bandpromo_build_function_usable('shell_exec')) {
+        if (!bandpromo_build_php_cli_usable($php) && bandpromo_build_function_usable('shell_exec')) {
             return bandpromo_build_launch_background_unix_python($python, $script, $logFile, $lockFile);
         }
 

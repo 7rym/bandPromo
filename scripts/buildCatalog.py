@@ -12,22 +12,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent.parent
 CLI_SCRIPT = ROOT_DIR / 'biblioteca' / 'build-catalog-cli.php'
 
-
-def resolve_php_cli():
-    for candidate in ('php', 'php.exe'):
-        try:
-            proc = subprocess.run(
-                [candidate, '-v'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                cwd=str(ROOT_DIR),
-                check=False,
-            )
-            if proc.returncode == 0:
-                return candidate
-        except OSError:
-            continue
-    return ''
+from php_cli import resolve_php_cli
 
 
 def main():
