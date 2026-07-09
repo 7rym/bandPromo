@@ -19,6 +19,27 @@ $lockFile = isset($argv[2]) ? (string) $argv[2] : '';
 $python = isset($argv[3]) ? (string) $argv[3] : '';
 $script = isset($argv[4]) ? (string) $argv[4] : '';
 
+function bandpromo_runner_runtime_exists(string $command): bool
+{
+    if ($command === '') {
+        return false;
+    }
+
+    if (is_file($command)) {
+        return true;
+    }
+
+    if (PHP_OS_FAMILY !== 'Windows' && bandpromo_build_function_usable('shell_exec')) {
+        return trim((string) shell_exec('command -v ' . escapeshellarg($command) . ' 2>/dev/null')) !== '';
+    }
+
+    return false;
+}
+
+if ($logFile !== '' && is_dir(dirname($logFile))) {
+    @file_put_contents($logFile, "[runner] build-runner.php started\n", FILE_APPEND);
+}
+
 function bandpromo_build_runner_fail(string $logFile, string $lockFile, string $message): void
 {
     if ($logFile !== '' && is_dir(dirname($logFile))) {
@@ -30,7 +51,7 @@ function bandpromo_build_runner_fail(string $logFile, string $lockFile, string $
     }
 }
 
-if ($logFile === '' || $lockFile === '' || $python === '' || $script === '' || !is_file($python) || !is_file($script)) {
+if ($logFile === '' || $lockFile === '' || $python === '' || $script === '' || !bandpromo_runner_runtime_exists($python) || !is_file($script)) {
     bandpromo_build_runner_fail($logFile, $lockFile, 'FAILED Invalid build runner arguments.');
     exit(1);
 }

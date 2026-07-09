@@ -237,6 +237,9 @@ if ($launch['started'] ?? false) {
     if (!$is_windows && !empty($launch['pid'])) {
         file_put_contents($lock_file, (string) $launch['pid']);
     }
+    file_put_contents($log_file, 'DEBUG Python: ' . $python . "\n", FILE_APPEND);
+    file_put_contents($log_file, 'DEBUG Launcher: ' . ($debug['launch_command'] ?? '') . "\n", FILE_APPEND);
+    file_put_contents($log_file, 'DEBUG Launcher output: ' . ($debug['launch_output_tail'] ?? '') . "\n", FILE_APPEND);
 }
 
 if (!$started) {

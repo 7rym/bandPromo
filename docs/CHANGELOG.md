@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-09 16:45 - Hotfix v0.8.5 build 309: resolve Plesk/Linux PHP CLI paths for publish build launcher so background `build-runner.php` actually starts on shared hosting.
+
 2026-07-09 16:30 - Hotfix v0.8.5 build 308: Site update now ranks published packages by monotonic build number so legacy tags like `v0.8-build-307` are offered over older `v0.8.4-build-304` releases.
 
 2026-07-09 15:20 - Hotfix v0.8.5 build 307: Unix publish build launcher falls back to `nohup` when `proc_open` is blocked and resolves a real PHP CLI instead of php-fpm; build runner can start Python through `exec` on the same hosts.
