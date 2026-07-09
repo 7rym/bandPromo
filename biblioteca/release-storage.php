@@ -1682,15 +1682,18 @@ function bandpromo_release_admin_editor_state(
         if (isset($activeFiles[$file])) {
             continue;
         }
+        if (bandpromo_release_is_demo_filename((string) $file)) {
+            continue;
+        }
         $trackReleaseId = bandpromo_release_normalize_id(
             bandpromo_release_id_for_master_filename($root, (string) $file)
         );
-        if ($trackReleaseId !== $releaseId) {
+        if ($trackReleaseId !== '' && $trackReleaseId !== $releaseId) {
             continue;
         }
         $availableTracks[] = bandpromo_release_enrich_track_row_labels(
             $root,
-            bandpromo_release_track_row_from_pool($track, $trackReleaseId),
+            bandpromo_release_track_row_from_pool($track, $trackReleaseId !== '' ? $trackReleaseId : $releaseId),
             $releaseTitle
         );
     }

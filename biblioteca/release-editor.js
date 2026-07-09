@@ -1505,7 +1505,7 @@
                 const emptyMessage = canEditTracks
                     ? (activeTracks.length
                         ? 'All tracks for this release are already in the list above. Use ✕ to move a track back here.'
-                        : 'No catalogued tracks belong to this release yet. Upload audio or assign tracks in Files → Audio.')
+                        : 'No unassigned catalog tracks are available for this release. Upload audio in Files → Audio, then add tracks here.')
                     : 'Track membership is preview-only while this release is locked.';
                 availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {

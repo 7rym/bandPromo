@@ -141,8 +141,8 @@ function bandpromo_audio_metadata_health_for_listing(
             'artist' => ['label' => 'Artist', 'state' => 'good'],
             'title' => ['label' => 'Title', 'state' => 'good'],
             'release' => ['label' => 'Release', 'state' => 'good'],
-            'description' => ['label' => 'Description', 'state' => 'improvable'],
-            'lyrics' => ['label' => 'Lyrics', 'state' => 'improvable'],
+            'description' => ['label' => 'Description', 'state' => 'unknown'],
+            'lyrics' => ['label' => 'Lyrics', 'state' => 'unknown'],
         ],
     ];
 }
