@@ -235,16 +235,28 @@ function bandpromo_release_copy_tree(string $sourceRoot, string $targetRoot, str
 
 function bandpromo_release_parse_version(string $version): ?array {
     $version = trim($version);
-    if (preg_match('/^v(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) !== 1) {
-        return null;
+
+    if (preg_match('/^v(\d+)\.(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) === 1) {
+        return [
+            'major' => (int) $matches[1],
+            'minor' => (int) $matches[2],
+            'session' => (int) $matches[3],
+            'build' => (int) $matches[4],
+            'raw' => $version,
+        ];
     }
 
-    return [
-        'major' => (int) $matches[1],
-        'minor' => (int) $matches[2],
-        'build' => (int) $matches[3],
-        'raw' => $version,
-    ];
+    if (preg_match('/^v(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) === 1) {
+        return [
+            'major' => (int) $matches[1],
+            'minor' => (int) $matches[2],
+            'session' => 0,
+            'build' => (int) $matches[3],
+            'raw' => $version,
+        ];
+    }
+
+    return null;
 }
 
 function bandpromo_release_compare_versions(string $installed, string $remote): int {
@@ -255,22 +267,27 @@ function bandpromo_release_compare_versions(string $installed, string $remote): 
         return strcasecmp($installed, $remote);
     }
 
-    if ($left['major'] !== $right['major']) {
-        return $left['major'] <=> $right['major'];
-    }
-    if ($left['minor'] !== $right['minor']) {
-        return $left['minor'] <=> $right['minor'];
+    foreach (['major', 'minor', 'session', 'build'] as $key) {
+        if ($left[$key] !== $right[$key]) {
+            return $left[$key] <=> $right[$key];
+        }
     }
 
-    return $left['build'] <=> $right['build'];
+    return 0;
 }
 
 function bandpromo_release_version_text_from_tag(string $tag): ?string {
-    if (preg_match('/^v(\d+)\.(\d+)-build-(\d+)$/i', trim($tag), $matches) !== 1) {
-        return null;
+    $tag = trim($tag);
+
+    if (preg_match('/^v(\d+)\.(\d+)\.(\d+)-build-(\d+)$/i', $tag, $matches) === 1) {
+        return sprintf('v%s.%s.%s build %s', $matches[1], $matches[2], $matches[3], $matches[4]);
     }
 
-    return sprintf('v%s.%s build %s', $matches[1], $matches[2], $matches[3]);
+    if (preg_match('/^v(\d+)\.(\d+)-build-(\d+)$/i', $tag, $matches) === 1) {
+        return sprintf('v%s.%s build %s', $matches[1], $matches[2], $matches[3]);
+    }
+
+    return null;
 }
 
 function bandpromo_release_manifest_url_for_tag(string $repository, string $tag): string {

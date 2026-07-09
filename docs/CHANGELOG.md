@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-09 15:00 - Hotfix v0.8.5 build 306: Site update now parses `major.minor.session build` versions and `v0.8.5-build-305` release tags; publish legacy-tag package `v0.8-build-306` so installs still on build 302 can receive the fix.
+
 2026-07-09 14:40 - Checkpoint v0.8.5 package refresh: publish a new tester update package after build 302 was still the latest offered package.
 
 2026-07-02 10:00 - Session start/end shortcuts: `session-start.ps1` now pulls, bumps session number, starts dev server, and summarizes backlog; `session-end.ps1` validates docs/state, bumps build, commits, builds package, and can publish; tracked `.vscode/tasks.json` plus `/bandpromo-session-end`; docs updated for `v<major>.<minor>.<session> build <number>` versioning.
