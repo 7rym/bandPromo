@@ -1177,7 +1177,7 @@
             const data = await fetchJson('/biblioteca/get-releases.php');
             releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : []);
             if (!releaseEntry(selectedReleaseId)) {
-                selectedReleaseId = releases[0]?.id || 'primary';
+                selectedReleaseId = releases[0]?.id || data.default_release_id || 'primary';
             }
             renderReleasePoolList();
         }

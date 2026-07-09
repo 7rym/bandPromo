@@ -1000,6 +1000,31 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
     return $entry;
 }
 
+function bandpromo_release_visible_in_admin_catalog(string $root, array $entry): bool
+{
+    $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+    if ($releaseId !== BANDPROMO_RELEASE_DEFAULT_ID) {
+        return true;
+    }
+    if ((int) ($entry['track_count'] ?? 0) > 0) {
+        return true;
+    }
+
+    foreach (bandpromo_release_registry_entries($root) as $candidate) {
+        if (!is_array($candidate)) {
+            continue;
+        }
+        $candidateId = bandpromo_release_normalize_id((string) ($candidate['id'] ?? ''));
+        if ($candidateId === '' || $candidateId === BANDPROMO_RELEASE_DEFAULT_ID || $candidateId === BANDPROMO_RELEASE_DEMO_ID) {
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
 function bandpromo_release_admin_registry_entries(string $root): array
 {
     $entries = [];
@@ -1007,7 +1032,11 @@ function bandpromo_release_admin_registry_entries(string $root): array
         if (!is_array($entry)) {
             continue;
         }
-        $entries[] = bandpromo_release_admin_registry_entry($root, $entry);
+        $adminEntry = bandpromo_release_admin_registry_entry($root, $entry);
+        if (!bandpromo_release_visible_in_admin_catalog($root, $adminEntry)) {
+            continue;
+        }
+        $entries[] = $adminEntry;
     }
 
     usort($entries, static function (array $left, array $right): int {

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-09 19:00 - Hotfix v0.8.5 build 315: player cover art falls back to original images before publish optimizes them; default playlist prefers operator playlists over the demo; empty Primary Release is hidden from the catalog when a real release exists; new playlists use today as publish date when the release date is still in the future.
+
 2026-07-09 18:45 - Hotfix v0.8.5 build 314: paginate GitHub Releases API when resolving Site update packages so prerelease builds are found even when `/releases/latest` points at an older tag.
 
 2026-07-09 18:30 - Hotfix v0.8.5 build 313: release editor now lists unassigned catalog tracks in Available content; release preview loads from the asset registry without a Python cold-start; auto-registered audio rows no longer show false yellow description/lyrics badges before the first publish build.

@@ -38,14 +38,59 @@ function buildAudioUrl(filename) {
     return `/biblioteca/audio.php?${params.toString()}`;
 }
 
-function buildCoverUrl(rawCoverPath) {
+function buildCoverUrl(rawCoverPath, variant = IMAGE_PATH_VARIANT) {
     if (!rawCoverPath) return '';
     const filename = rawCoverPath.split('\\').pop().split('/').pop();
-    const name = filename.replace(/\.(png|jpe?g|webp)$/i, '.jpg');
+    const stem = filename.replace(/\.[^.]+$/, '');
+    const extMatch = filename.match(/\.(png|jpe?g|webp)$/i);
+    const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+    const normalizedExt = variant === 'optimal' ? 'jpg' : ext;
+    const name = `${stem}.${normalizedExt}`;
     if (window.MEDIA_IMG_BASE != null) {
-        return `${window.MEDIA_IMG_BASE}/${IMAGE_PATH_VARIANT}/${name}`;
+        return `${window.MEDIA_IMG_BASE}/${variant}/${name}`;
     }
-    return `../${IMAGE_PATH_VARIANT}/${name}`;
+    return `../${variant}/${name}`;
+}
+
+function buildCoverUrlCandidates(rawCoverPath) {
+    if (!rawCoverPath) return [];
+    const filename = rawCoverPath.split('\\').pop().split('/').pop();
+    const stem = filename.replace(/\.[^.]+$/, '');
+    const extMatch = filename.match(/\.(png|jpe?g|webp)$/i);
+    const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+    const base = window.MEDIA_IMG_BASE != null ? window.MEDIA_IMG_BASE : '..';
+    const candidates = [
+        `${base}/optimal/${stem}.jpg`,
+        `${base}/original/${filename}`,
+        `${base}/original/${stem}.${ext}`,
+        `${base}/original/${stem}.jpg`,
+        `${base}/original/${stem}.png`,
+    ];
+    return candidates.filter((url, index, list) => list.indexOf(url) === index);
+}
+
+function setImageWithFallback(image, rawCoverPath) {
+    if (!image) return;
+    const candidates = buildCoverUrlCandidates(rawCoverPath);
+    if (!candidates.length) {
+        image.removeAttribute('src');
+        return;
+    }
+
+    let index = 0;
+    const tryNext = () => {
+        if (index >= candidates.length) {
+            image.removeAttribute('src');
+            return;
+        }
+        image.onerror = () => {
+            index += 1;
+            tryNext();
+        };
+        image.src = candidates[index];
+    };
+
+    tryNext();
 }
 
 function hasDisplayableLyrics(song) {
@@ -164,8 +209,8 @@ function updateMediaSessionMetadata() {
         return;
     }
 
-    const coverUrl = buildCoverUrl(song.cover);
-    const artwork = coverUrl ? [{ src: coverUrl, sizes: '600x600', type: 'image/jpeg' }] : [];
+    const candidates = buildCoverUrlCandidates(song.cover);
+    const artwork = candidates.map((src) => ({ src, sizes: '600x600', type: 'image/jpeg' }));
 
     try {
         navigator.mediaSession.metadata = new MediaMetadata({
@@ -1290,16 +1335,15 @@ function initPlayer(index) {
 function updateVisuals(index) {
     const song = playList[index];
     
-    // Build cover path
-    const coverPath = buildCoverUrl(song.cover);
-    
     // Main info
     songTitle.innerText = song.title;
     artistName.innerText = song.artist;
     lyricsBox.innerText = hasDisplayableLyrics(song) ? song.lyrics : '';
     lyricsBox.scrollTop = 0; // Reset scroll position to top
-    coverImage.src = coverPath;
-    reflectionImage.src = coverPath;
+
+    // Build cover path
+    setImageWithFallback(coverImage, song.cover);
+    setImageWithFallback(reflectionImage, song.cover);
     syncLyricsTab(song);
 
     // Scroll page to top
@@ -1309,11 +1353,8 @@ function updateVisuals(index) {
     const prevIndex = (index - 1 + playList.length) % playList.length;
     const nextIndex = (index + 1) % playList.length;
 
-    const prevCoverPath = buildCoverUrl(playList[prevIndex].cover);
-    prevCover.src = prevCoverPath;
-
-    const nextCoverPath = buildCoverUrl(playList[nextIndex].cover);
-    nextCover.src = nextCoverPath;
+    setImageWithFallback(prevCover, playList[prevIndex].cover);
+    setImageWithFallback(nextCover, playList[nextIndex].cover);
 
     // Update playlist view if it's currently visible
     const playlistBox = document.getElementById('playlistBox');
@@ -1493,8 +1534,8 @@ function renderPlaylist() {
         const isLocked = song.playable === false ? 'playlist-item--locked' : '';
         const lockLabel = song.playable === false ? '<span class="playlist-track-lock">Not available yet</span>' : '';
         
-        // Build cover path
-        const coverPath = buildCoverUrl(song.cover);
+        const coverCandidates = buildCoverUrlCandidates(song.cover);
+        const coverPath = coverCandidates[0] || '';
         
         // Parse title to extract track number and tale
         const titleParts = song.title.split('\n');
@@ -1513,6 +1554,9 @@ function renderPlaylist() {
     });
     html += '</div>';
     playlistBox.innerHTML = html;
+    playlistBox.querySelectorAll('.playlist-track-cover').forEach((img, index) => {
+        setImageWithFallback(img, playList[index]?.cover);
+    });
 }
 
 // Play a track from the playlist
