@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-09 16:30 - Hotfix v0.8.5 build 308: Site update now ranks published packages by monotonic build number so legacy tags like `v0.8-build-307` are offered over older `v0.8.4-build-304` releases.
+
 2026-07-09 15:20 - Hotfix v0.8.5 build 307: Unix publish build launcher falls back to `nohup` when `proc_open` is blocked and resolves a real PHP CLI instead of php-fpm; build runner can start Python through `exec` on the same hosts.
 
 2026-07-09 15:00 - Hotfix v0.8.5 build 306: Site update now parses `major.minor.session build` versions and `v0.8.5-build-305` release tags; publish legacy-tag package `v0.8-build-306` so installs still on build 302 can receive the fix.

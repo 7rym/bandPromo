@@ -267,7 +267,12 @@ function bandpromo_release_compare_versions(string $installed, string $remote): 
         return strcasecmp($installed, $remote);
     }
 
-    foreach (['major', 'minor', 'session', 'build'] as $key) {
+    // Published packages use a monotonic build number across legacy and sessioned VERSION formats.
+    if ($left['build'] !== $right['build']) {
+        return $left['build'] <=> $right['build'];
+    }
+
+    foreach (['major', 'minor', 'session'] as $key) {
         if ($left[$key] !== $right[$key]) {
             return $left[$key] <=> $right[$key];
         }
