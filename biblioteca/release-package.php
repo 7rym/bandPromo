@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
 const BANDPROMO_GITHUB_REPOSITORY = '7rym/bandPromo';
-const BANDPROMO_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=30';
+const BANDPROMO_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=100';
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
 const BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION = '1.0';
@@ -304,6 +304,23 @@ function bandpromo_release_is_latest_manifest_url(string $manifestUrl): bool {
 }
 
 function bandpromo_release_fetch_github_releases(string $apiUrl = BANDPROMO_GITHUB_RELEASES_API_URL): array {
+    $releases = [];
+    $nextUrl = $apiUrl;
+    $pages = 0;
+
+    while ($nextUrl !== '' && $pages < 5) {
+        $pages++;
+        $page = bandpromo_release_fetch_github_releases_page($nextUrl);
+        $releases = array_merge($releases, $page['releases']);
+        $nextUrl = $page['next_url'];
+    }
+
+    return $releases;
+}
+
+function bandpromo_release_fetch_github_releases_page(string $apiUrl): array {
+    $nextUrl = '';
+
     if (function_exists('curl_init')) {
         $ch = curl_init($apiUrl);
         if ($ch === false) {
@@ -317,21 +334,27 @@ function bandpromo_release_fetch_github_releases(string $apiUrl = BANDPROMO_GITH
             CURLOPT_TIMEOUT => 30,
             CURLOPT_USERAGENT => 'bandPromo release helper',
             CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json'],
+            CURLOPT_HEADER => true,
             CURLOPT_FAILONERROR => false,
         ]);
 
-        $body = curl_exec($ch);
+        $response = curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         $error = curl_error($ch);
         curl_close($ch);
 
-        if ($body === false) {
+        if ($response === false) {
             throw new RuntimeException('GitHub releases fetch failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
         }
 
         if ($status >= 400) {
             throw new RuntimeException('GitHub releases fetch failed with HTTP status ' . $status . '.');
         }
+
+        $headers = substr((string) $response, 0, $headerSize);
+        $body = substr((string) $response, $headerSize);
+        $nextUrl = bandpromo_release_parse_github_next_link($headers);
     } else {
         $context = stream_context_create([
             'http' => [
@@ -357,7 +380,24 @@ function bandpromo_release_fetch_github_releases(string $apiUrl = BANDPROMO_GITH
         throw new RuntimeException('GitHub releases response is not valid JSON.');
     }
 
-    return $decoded;
+    return [
+        'releases' => $decoded,
+        'next_url' => $nextUrl,
+    ];
+}
+
+function bandpromo_release_parse_github_next_link(string $headers): string
+{
+    foreach (preg_split('/\r\n|\n|\r/', $headers) ?: [] as $line) {
+        if (stripos($line, 'Link:') !== 0) {
+            continue;
+        }
+        if (preg_match('/<([^>]+)>;\s*rel="next"/i', $line, $matches) === 1) {
+            return trim((string) ($matches[1] ?? ''));
+        }
+    }
+
+    return '';
 }
 
 function bandpromo_release_pick_newest_release_tag(array $releases): ?string {
