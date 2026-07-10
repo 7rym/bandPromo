@@ -36,6 +36,11 @@ try {
     if ($playlistId === BANDPROMO_PLAYLIST_DEMO_ID) {
         bandpromo_ensure_bundled_demo_audio_delivery($root);
     }
+    if (!bandpromo_playlist_is_player_visible($root, $playlistId, $operatorBypass)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'This playlist is not available yet.']);
+        exit;
+    }
     $tracks = bandpromo_playlist_materialize_for_player($root, $playlistId, $operatorBypass, $preferredVariant);
     $deliverySummary = bandpromo_playlist_delivery_summary($tracks);
     $registryEntry = null;

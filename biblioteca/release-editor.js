@@ -327,6 +327,11 @@
             creatingPlaylistFromRelease = true;
             updateReleaseCreatePlaylistButton();
             try {
+                const saved = await saveReleaseSettings({ silent: true });
+                if (!saved) {
+                    throw new Error('Save the release settings before creating a playlist.');
+                }
+
                 const data = await fetchJson('/biblioteca/manage-playlist.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

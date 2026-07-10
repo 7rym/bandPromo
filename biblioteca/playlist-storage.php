@@ -145,15 +145,42 @@ function bandpromo_playlist_public_slug(string $root, string $playlistId): strin
     }
 }
 
-function bandpromo_playlist_player_catalog_entries(string $root): array
+function bandpromo_playlist_publish_date_is_public(string $publishDate, bool $operatorBypass): bool
+{
+    return bandpromo_playlist_release_date_is_public($publishDate, $operatorBypass);
+}
+
+function bandpromo_playlist_is_player_visible(string $root, string $playlistId, bool $operatorBypass): bool
+{
+    $playlistId = bandpromo_playlist_normalize_id($playlistId);
+    if ($playlistId === '') {
+        return false;
+    }
+
+    try {
+        $document = bandpromo_playlist_load_document($root, $playlistId);
+    } catch (Throwable $throwable) {
+        return false;
+    }
+
+    return bandpromo_playlist_publish_date_is_public(
+        (string) ($document['publish_date'] ?? ''),
+        $operatorBypass
+    );
+}
+
+function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorBypass = false): array
 {
     $entries = [];
-    foreach (bandpromo_playlist_system_entries($root) as $entry) {
+    foreach (bandpromo_playlist_admin_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
         }
         $id = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
         if ($id === '') {
+            continue;
+        }
+        if (!bandpromo_playlist_publish_date_is_public((string) ($entry['publish_date'] ?? ''), $operatorBypass)) {
             continue;
         }
         $entries[] = [
@@ -1908,12 +1935,6 @@ function bandpromo_playlist_create_from_release(string $root, string $releaseId)
     $publishDate = trim((string) ($document['release_date'] ?? ''));
     if ($publishDate === '' || !bandpromo_playlist_validate_date($publishDate)) {
         $publishDate = gmdate('Y-m-d');
-    } else {
-        $publishValue = bandpromo_playlist_publish_date_sort_value($publishDate);
-        $today = (int) gmdate('Ymd');
-        if ($publishValue > $today) {
-            $publishDate = gmdate('Y-m-d');
-        }
     }
 
     bandpromo_playlist_update_details($root, $playlistId, [

@@ -13,9 +13,13 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 require_once __DIR__ . '/../biblioteca/playlist-storage.php';
 require_once __DIR__ . '/../biblioteca/auto-build-tasks.php';
 require_once __DIR__ . '/../biblioteca/media-delivery-helpers.php';
+require_once __DIR__ . '/../biblioteca/auth.php';
 
 $playerRoot = dirname(__DIR__);
 bandpromo_playlist_ensure_seeded($playerRoot);
+
+$currentUserRole = current_user_role();
+$operatorBypass = in_array($currentUserRole, ['admin', 'developer'], true);
 
 $requestedSegment = trim((string) ($_GET['playlist'] ?? ''));
 $resolvedPlaylistId = $requestedSegment !== ''
@@ -24,6 +28,9 @@ $resolvedPlaylistId = $requestedSegment !== ''
 $activePlaylistId = $resolvedPlaylistId !== ''
     ? $resolvedPlaylistId
     : bandpromo_playlist_default_active_id($playerRoot);
+if (!bandpromo_playlist_is_player_visible($playerRoot, $activePlaylistId, $operatorBypass)) {
+    $activePlaylistId = bandpromo_playlist_default_active_id($playerRoot);
+}
 try {
     bandpromo_playlist_load_document($playerRoot, $activePlaylistId);
 } catch (Throwable $throwable) {
@@ -55,7 +62,7 @@ require_once '../biblioteca/config-loader.php';
 
 $deepLinkReleaseSlug = strtolower(trim((string) ($_GET['release'] ?? '')));
 $deepLinkTrackSlug = strtolower(trim((string) ($_GET['track'] ?? '')));
-$playlistCatalog = bandpromo_playlist_player_catalog_entries($playerRoot);
+$playlistCatalog = bandpromo_playlist_player_catalog_entries($playerRoot, $operatorBypass);
 $activePlaylistSlug = bandpromo_playlist_public_slug($playerRoot, $activePlaylistId);
 
 function bandpromo_support_parse_kofi_page_id(string $value): string {

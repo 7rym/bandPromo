@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-10 13:00 - Hotfix v0.8.5 build 318: create-playlist-from-release copies release metadata; future playlists hidden from normal users in the player.
+
+2026-07-10 12:50 - Player playlist catalog and API now hide future-dated playlists from normal users; operators and developers still see and can preview them. Create-playlist-from-release copies the release publish date (including future dates) after flushing unsaved release settings.
+
 2026-07-10 12:30 - Hotfix v0.8.5 build 317: admin date fields use ISO text inputs (YYYY-MM-DD); optimal streaming now requires publish-built MP3s (no silent FLAC/WAV fallback for catalog audio); operators see delivery-pending locks and a player publish notice; welcome checklist tracks missing streaming delivery; legacy player playlist.json fetch path removed.
 
 2026-07-10 12:00 - Hotfix v0.8.5 build 316: player playlist picker uses a dark surface so options are readable on light themes; demo and unpublished tracks stream from original audio when delivery MP3s are missing; playlist materialization falls back to PHP when Python is unavailable on the host.
