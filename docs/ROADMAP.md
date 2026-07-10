@@ -50,7 +50,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Theme tokens + semantic player colors | Shipped (Content → Themes editor) |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus (v0.8.3):** operator trust and invisible maintenance — config auto-repair, Publish-integrated content preparation, post-update messaging, backup/export MVP, playlist `kind: system` fix, Content editor header UX parity, Release editor + container marketing/EPK metadata. See [TODO.md](TODO.md) → v0.8.3 active slice.
+**Next focus (v0.8.5+):** closed-beta hotfix stability (hosted publish, Site update, player/catalog UX). **Still open:** backup/export MVP, container marketing metadata on playlists/pages, v0.8.4 visual media rework. See [TODO.md](TODO.md).
 
 ## Core vs modules
 

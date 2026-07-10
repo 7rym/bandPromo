@@ -432,6 +432,11 @@ function bandpromo_resolve_source_audio_file(string $root_dir, string $filename)
 function bandpromo_audio_demo_original_fallback_allowed(string $root_dir, string $filename): bool
 {
     require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/demo-catalog-state.php';
+
+    if (!bandpromo_demo_catalog_is_visible($root_dir)) {
+        return false;
+    }
 
     $filename = basename(trim($filename));
     if ($filename === '' || !bandpromo_release_is_demo_filename($filename)) {

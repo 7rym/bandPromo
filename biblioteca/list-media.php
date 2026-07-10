@@ -202,7 +202,7 @@ if (is_dir($dir)) {
             'modified' => $f->getMTime(),
             'origin'   => bandpromo_media_origin($filename),
             'release_id' => bandpromo_release_id_for_media_file($root, $target, $filename),
-            'hidden'   => bandpromo_media_is_hidden_for_install($target, $filename),
+            'hidden'   => bandpromo_media_is_effectively_hidden_for_install($target, $filename),
             'original_format' => strtolower((string) pathinfo($filename, PATHINFO_EXTENSION)),
             'audio_master' => $target === 'audio' ? bandpromo_audio_master_info($root, $filename) : null,
             'audio_metadata_health' => $target === 'audio'

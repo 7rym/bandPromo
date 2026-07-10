@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-10 14:20 - Checkpoint v0.8.5 build 319: demo catalog visibility toggle, Site update dev-host reliability and ahead-of-published state, dashboard panel order; planning docs synced to v0.8.5 hotfix slice.
+
+2026-07-10 14:05 - Site update shows a green ahead-of-published state when the local VERSION is newer than the latest GitHub release package, with the published version called out as a developer publish reminder.
+
+2026-07-10 13:35 - Site update HTTPS readiness now requires curl or openssl (not allow_url_fopen alone); manifest fetch errors name missing PHP extensions.
+
+2026-07-10 13:30 - Site update localhost checks: writable probe via log/data instead of is_writable on Google Drive paths; ZipArchive missing on local dev is advisory and no longer blocks readiness.
+
+2026-07-10 13:24 - Remove redundant Dashboard title card; the tab label is enough once setup is complete.
+
+2026-07-10 13:22 - Dashboard panel order: demo catalog nudge, Site update, then Quick actions (setup Welcome checklist layout unchanged).
+
+2026-07-10 13:15 - Add install-level demo catalog visibility: Settings toggle plus Welcome nudge hide the shipped bandPromo demo release, playlist, gallery, and bundled demo media from the player and content editors while publish builds continue to process demo files on disk.
+
 2026-07-10 13:00 - Hotfix v0.8.5 build 318: create-playlist-from-release copies release metadata; future playlists hidden from normal users in the player.
 
 2026-07-10 12:50 - Player playlist catalog and API now hide future-dated playlists from normal users; operators and developers still see and can preview them. Create-playlist-from-release copies the release publish date (including future dates) after flushing unsaved release settings.

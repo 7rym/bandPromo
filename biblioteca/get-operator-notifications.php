@@ -99,6 +99,7 @@ echo json_encode([
         'installed_version' => $packageUpdate['installed_version'] ?? null,
         'remote_version' => $packageUpdate['remote_version'] ?? null,
         'update_available' => !empty($packageUpdate['update_available']),
+        'ahead_of_published' => !empty($packageUpdate['ahead_of_published']),
         'up_to_date' => !empty($packageUpdate['up_to_date']),
         'ready' => !empty($packageUpdate['ready']),
         'manifest_error' => $packageUpdate['manifest_error'] ?? null,

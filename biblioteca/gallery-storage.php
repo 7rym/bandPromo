@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/media-reference-helpers.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 const BANDPROMO_GALLERY_REGISTRY_VERSION = 1;
 const BANDPROMO_GALLERY_DEMO_ID = 'bandpromo-demo';
@@ -199,6 +200,61 @@ function bandpromo_gallery_load_document(string $root, string $galleryId): array
 function bandpromo_gallery_registry_entries(string $root): array
 {
     return bandpromo_gallery_load_registry($root)['galleries'] ?? [];
+}
+
+function bandpromo_gallery_visible_in_admin_catalog(string $root, array $entry): bool
+{
+    $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+
+    return bandpromo_demo_catalog_entity_is_visible($root, $galleryId);
+}
+
+function bandpromo_gallery_admin_registry_entries(string $root): array
+{
+    $entries = [];
+    foreach (bandpromo_gallery_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if (!bandpromo_gallery_visible_in_admin_catalog($root, $entry)) {
+            continue;
+        }
+        $entries[] = $entry;
+    }
+
+    return $entries;
+}
+
+function bandpromo_gallery_default_admin_content_id(string $root): string
+{
+    foreach (bandpromo_gallery_admin_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($galleryId === '' || bandpromo_demo_catalog_is_demo_entity_id($galleryId)) {
+            continue;
+        }
+        if (!bandpromo_gallery_document_is_empty($root, $galleryId)) {
+            return $galleryId;
+        }
+    }
+
+    foreach (bandpromo_gallery_admin_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($galleryId !== '' && !bandpromo_demo_catalog_is_demo_entity_id($galleryId)) {
+            return $galleryId;
+        }
+    }
+
+    if (bandpromo_demo_catalog_is_visible($root)) {
+        return BANDPROMO_GALLERY_DEMO_ID;
+    }
+
+    return '';
 }
 
 function bandpromo_gallery_system_entries(string $root): array

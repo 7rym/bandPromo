@@ -17,11 +17,13 @@ Rules for this file:
 
 **v0.8 beta (active)** — platform model definitions and core deliverables.
 
-**v0.8.4 working slice (session 4 — 2026-07-01):** rolls remaining v0.8.3 items into this session and starts visual media rework. **Shipped this session so far:** Release editor (Content → Release). **Still open from v0.8.3:** backup/export MVP, container marketing metadata. See **v0.8.4 active slice** below.
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Still open from earlier slices:** backup/export MVP, container marketing metadata on playlists/pages, v0.8.4 visual media rework.
 
-**v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance (config auto-repair, content-model checks folded into Publish), playlist `kind` fix, Content editor UX parity, release/playlist marketing metadata definitions, backup/export MVP, and Release editor. Most trust/UX items shipped in build 295; Release editor shipped session 4.
+**v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
-**v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is now **`v<major>.<minor>.<session> build <number>`** (for example `v0.8.4 build 303`; build numbering continues from v0.7).
+**v0.8.3 working slice (2026-06-16):** closed-beta feedback after build 292 — operator trust, invisible maintenance, playlist `kind` fix, Content editor UX parity, Release editor. Most items shipped in builds 295+.
+
+**v0.7 is complete.** All exit gates passed by 2026-06-15. Repository version line is **`v<major>.<minor>.<session> build <number>`** (for example `v0.8.5 build 319`; build numbering continues from v0.7).
 
 | Priority | Scope | Status |
 |----------|-------|--------|
@@ -162,7 +164,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement `data/releases` + required track membership + release `locked` guards.
 - [x] Remove playlist-save → master tag sync (`bandpromo_sync_playlist_order_to_audio_masters`) and `playlist_tracknumber` metadata fallbacks.
 - [x] Implement `data/playlists` + registry; admin/runtime reads use containers (`play/playlist.json` remains a publish artifact refreshed by build/repair only).
-- [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`. *(Selector renders only when two or more `kind: "system"` playlists exist; operator create currently wrongly sets `kind: "user"` — fix in v0.8.3.)*
+- [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`. Selector renders when two or more `kind: "system"` playlists exist.
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
 - [x] Implement first gallery **module block** on pages (minimum: `grid` preset).
@@ -174,6 +176,8 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] **Demo media git hygiene** — remove tracked `bandPromo_*` originals from git; bundled demo ships only via setup starter pack (`bandpromo-demo` locked release); document in `MEDIA-HANDLING.md` and `INSTALL-UPDATE.md`.
 - [x] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
 - [x] Rename protected system gallery id `main` to `bandpromo-demo`; migrate registry, page blocks, and templates.
+- [x] **Demo catalog visibility** — install preference hides shipped demo release, playlist, gallery, and bundled `bandPromo_*` media from player, editors, and pickers; publish builds still process demo files on disk.
+- [x] **Site update reliability** — writable probe for synced folders, HTTPS requires curl or openssl, ZipArchive advisory on local dev, ahead-of-published OK state when local VERSION exceeds the published package.
 - [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
 
 Transitional schema work (in progress):

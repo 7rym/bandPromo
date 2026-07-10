@@ -16,6 +16,7 @@ require_once 'biblioteca/page-storage.php';
 require_once 'biblioteca/page-registry.php';
 require_once 'biblioteca/player-modules.php';
 require_once 'biblioteca/admin-welcome-state.php';
+require_once 'biblioteca/demo-catalog-state.php';
 require_once 'biblioteca/theme-storage.php';
 require_once 'biblioteca/playlist-storage.php';
 require_once 'biblioteca/gallery-storage.php';
@@ -60,6 +61,8 @@ $welcomeCompletedChecks = $welcomeState['completed_count'];
 $welcomeTotalChecks = $welcomeState['total_count'];
 $welcomeSetupComplete = $welcomeState['setup_complete'];
 $welcomeNextSteps = $welcomeState['next_steps'];
+$demoCatalogVisible = bandpromo_demo_catalog_is_visible(__DIR__);
+$demoCatalogShouldSuggestHide = bandpromo_demo_catalog_should_suggest_hide(__DIR__);
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
 if ($requestHostNoPort === 'localhost') {
@@ -474,15 +477,21 @@ if ($contentTheme === '') {
     }
 }
 $contentPlaylist = isset($_GET['playlist']) ? bandpromo_playlist_normalize_id((string) $_GET['playlist']) : '';
+if ($contentPlaylist !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentPlaylist)) {
+    $contentPlaylist = '';
+}
 if ($contentPlaylist === '') {
     try {
         bandpromo_playlist_ensure_seeded(__DIR__);
         $contentPlaylist = bandpromo_playlist_default_active_id(__DIR__);
     } catch (Throwable $throwable) {
-        $contentPlaylist = BANDPROMO_PLAYLIST_DEMO_ID;
+        $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
     }
 }
 $contentRelease = isset($_GET['release']) ? bandpromo_release_normalize_id((string) $_GET['release']) : '';
+if ($contentRelease !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentRelease)) {
+    $contentRelease = '';
+}
 if ($contentRelease === '') {
     try {
         bandpromo_release_ensure_seeded(__DIR__);
@@ -492,12 +501,18 @@ if ($contentRelease === '') {
     }
 }
 $contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((string) $_GET['gallery']) : '';
+if ($contentGallery !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentGallery)) {
+    $contentGallery = '';
+}
 if ($contentGallery === '') {
     try {
         bandpromo_gallery_ensure_seeded(__DIR__);
-        $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
+        $contentGallery = bandpromo_gallery_default_admin_content_id(__DIR__);
+        if ($contentGallery === '') {
+            $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
+        }
     } catch (Throwable $throwable) {
-        $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
+        $contentGallery = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_GALLERY_DEMO_ID : '';
     }
 }
 $contentPage = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'faq';
@@ -624,65 +639,20 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <?php endif; ?>
             </div>
 
-            <div class="card welcome-card<?php echo $welcomeSetupComplete ? ' welcome-card-dashboard' : ''; ?>">
-                <?php if ($welcomeSetupComplete): ?>
-                    <h2>📊 <?php echo htmlspecialchars($siteName); ?> dashboard</h2>
-                <?php else: ?>
-                    <h2>🌍 Welcome to bandPromo</h2>
-                <?php endif; ?>
-
-                <?php if ($welcomePrimaryNotice !== ''): ?>
-                <div class="welcome-callout<?php echo $welcomeSetupComplete ? ' welcome-callout-dashboard' : ''; ?>">
-                    <?php echo htmlspecialchars($welcomePrimaryNotice); ?>
+            <?php if ($welcomeSetupComplete): ?>
+            <?php if ($demoCatalogShouldSuggestHide): ?>
+            <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
+                <h2>🎭 bandPromo demo catalog</h2>
+                <p class="card-note">
+                    Your installation already has its own content. You can hide the shipped <strong>bandPromo demo</strong> release, playlist, gallery, and bundled demo media from the player and content editors. Demo files stay on disk and continue to build normally, so you can turn the catalog back on later from Settings.
+                </p>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
+                    <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
+                    <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
-                <?php endif; ?>
-
-                <?php if ($welcomeSetupComplete): ?>
-                    <div class="welcome-section">
-                        <h3>Quick actions</h3>
-                        <ul class="welcome-dashboard-links">
-                            <?php foreach ($welcomeDashboardLinks as $link): ?>
-                                <li>
-                                    <a class="welcome-dashboard-link" href="<?php echo htmlspecialchars($link['href']); ?>"<?php echo !empty($link['external']) ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
-                                        <strong><?php echo htmlspecialchars($link['label']); ?></strong>
-                                        <span><?php echo htmlspecialchars($link['description']); ?></span>
-                                    </a>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php else: ?>
-                    <div class="welcome-grid">
-                        <div class="welcome-section">
-                            <h3>Checklist</h3>
-                            <ul class="welcome-checklist">
-                                <?php foreach ($welcomeChecklist as $check): ?>
-                                    <li>
-                                        <?php $checkSeverityClass = !empty($check['complete']) ? 'is-complete' : ('is-' . htmlspecialchars((string) ($check['severity'] ?? 'nonblocking'))); ?>
-                                        <span class="welcome-check-icon <?php echo $checkSeverityClass; ?>"><?php echo !empty($check['complete']) ? '✔' : '○'; ?></span>
-                                        <div class="welcome-check-body">
-                                            <a class="welcome-link <?php echo $checkSeverityClass; ?>" href="<?php echo htmlspecialchars($check['href']); ?>"><strong><?php echo htmlspecialchars($check['label']); ?></strong></a>
-                                            <span><?php echo htmlspecialchars($check['detail']); ?></span>
-                                        </div>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-
-                        <div class="welcome-section">
-                            <h3>What to do next</h3>
-                            <ol class="welcome-list welcome-list-numbered">
-                                <?php foreach ($welcomeNextSteps as $step): ?>
-                                    <li>
-                                        <a class="welcome-link is-<?php echo htmlspecialchars((string) ($step['severity'] ?? 'nonblocking')); ?>" href="<?php echo htmlspecialchars($step['href']); ?>"><strong><?php echo htmlspecialchars($step['label']); ?></strong></a>
-                                        <span><?php echo htmlspecialchars($step['description']); ?></span>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ol>
-                        </div>
-                    </div>
-                <?php endif; ?>
             </div>
+            <?php endif; ?>
 
             <div class="card package-update-card" id="packageUpdateCard">
                 <h2>⬆️ Site update</h2>
@@ -703,6 +673,97 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
 
                 <p class="package-update-footnote" id="packageUpdateFootnote" hidden></p>
             </div>
+
+            <div class="card welcome-card welcome-card-dashboard">
+                <div class="welcome-section">
+                    <h3>Quick actions</h3>
+                    <ul class="welcome-dashboard-links">
+                        <?php foreach ($welcomeDashboardLinks as $link): ?>
+                            <li>
+                                <a class="welcome-dashboard-link" href="<?php echo htmlspecialchars($link['href']); ?>"<?php echo !empty($link['external']) ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                    <strong><?php echo htmlspecialchars($link['label']); ?></strong>
+                                    <span><?php echo htmlspecialchars($link['description']); ?></span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            </div>
+            <?php else: ?>
+            <div class="card welcome-card">
+                <h2>🌍 Welcome to bandPromo</h2>
+
+                <?php if ($welcomePrimaryNotice !== ''): ?>
+                <div class="welcome-callout">
+                    <?php echo htmlspecialchars($welcomePrimaryNotice); ?>
+                </div>
+                <?php endif; ?>
+
+                <div class="welcome-grid">
+                    <div class="welcome-section">
+                        <h3>Checklist</h3>
+                        <ul class="welcome-checklist">
+                            <?php foreach ($welcomeChecklist as $check): ?>
+                                <li>
+                                    <?php $checkSeverityClass = !empty($check['complete']) ? 'is-complete' : ('is-' . htmlspecialchars((string) ($check['severity'] ?? 'nonblocking'))); ?>
+                                    <span class="welcome-check-icon <?php echo $checkSeverityClass; ?>"><?php echo !empty($check['complete']) ? '✔' : '○'; ?></span>
+                                    <div class="welcome-check-body">
+                                        <a class="welcome-link <?php echo $checkSeverityClass; ?>" href="<?php echo htmlspecialchars($check['href']); ?>"><strong><?php echo htmlspecialchars($check['label']); ?></strong></a>
+                                        <span><?php echo htmlspecialchars($check['detail']); ?></span>
+                                    </div>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+
+                    <div class="welcome-section">
+                        <h3>What to do next</h3>
+                        <ol class="welcome-list welcome-list-numbered">
+                            <?php foreach ($welcomeNextSteps as $step): ?>
+                                <li>
+                                    <a class="welcome-link is-<?php echo htmlspecialchars((string) ($step['severity'] ?? 'nonblocking')); ?>" href="<?php echo htmlspecialchars($step['href']); ?>"><strong><?php echo htmlspecialchars($step['label']); ?></strong></a>
+                                    <span><?php echo htmlspecialchars($step['description']); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($demoCatalogShouldSuggestHide): ?>
+            <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
+                <h2>🎭 bandPromo demo catalog</h2>
+                <p class="card-note">
+                    Your installation already has its own content. You can hide the shipped <strong>bandPromo demo</strong> release, playlist, gallery, and bundled demo media from the player and content editors. Demo files stay on disk and continue to build normally, so you can turn the catalog back on later from Settings.
+                </p>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
+                    <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
+                    <span id="demoCatalogHideStatus" class="status-text"></span>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div class="card package-update-card" id="packageUpdateCard">
+                <h2>⬆️ Site update</h2>
+                <p class="package-update-lead">
+                    Check for published bandPromo packages and install a newer release without Git, SSH, or manual file uploads.
+                    Your site content stays safe: <strong>web-config.json</strong>, <strong>.env</strong>, <strong>data/</strong>, <strong>media/</strong>, and <strong>log/</strong> are preserved.
+                </p>
+
+                <div class="package-update-status" id="packageUpdateStatus">Checking for updates…</div>
+
+                <ul class="package-update-checks" id="packageUpdateChecks" hidden></ul>
+                <ul class="package-update-notes" id="packageUpdateNotes" hidden></ul>
+
+                <div class="package-update-actions">
+                    <button type="button" class="btn" id="packageUpdateRefreshBtn">Check again</button>
+                    <button type="button" class="btn btn-primary" id="packageUpdateApplyBtn" hidden>Download and install update</button>
+                </div>
+
+                <p class="package-update-footnote" id="packageUpdateFootnote" hidden></p>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- ===================== ANALYTICS TAB ===================== -->
@@ -2108,7 +2169,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template.
+                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalog</strong> below to hide or restore the shipped bandPromo demo release, playlist, gallery, and bundled demo media.
                 <?php elseif ($configTab === 'theme'): ?>
                     Theme is the place for visible presentation assets such as the logo, primary cover image, welcome audio, and background media. <strong>Save validates only the theme fields</strong>, then writes them back into the full config. Most path-only changes apply immediately; changing the primary cover image may still queue follow-up image optimization.
                 <?php elseif ($configTab === 'support'): ?>
@@ -2170,6 +2231,20 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <div class="card-actions">
                     <button id="cfgBasicsSaveBtn" class="btn btn-primary">💾 Save basics</button>
                     <span id="cfgBasicsStatus" class="status-text"></span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🎭 Demo catalog</h3>
+                <p class="card-note">
+                    When hidden, the shipped <strong>bandPromo demo</strong> release, playlist, gallery, and bundled <code>bandPromo_*</code> media are removed from the player, content editors, and media pickers. Files remain on disk and publish builds still process them, so you can show the catalog again later without reinstalling.
+                </p>
+                <label class="config-checkbox-row">
+                    <input type="checkbox" id="cfgDemoCatalogVisible"<?php echo $demoCatalogVisible ? ' checked' : ''; ?>>
+                    <span>Show bandPromo demo catalog</span>
+                </label>
+                <div class="card-actions">
+                    <span id="cfgDemoCatalogStatus" class="status-text"></span>
                 </div>
             </div>
 

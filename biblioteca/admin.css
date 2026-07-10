@@ -474,6 +474,22 @@ button.danger:hover { background: #d32f2f; }
     padding-top: 10px;
 }
 
+.config-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+    cursor: pointer;
+}
+
+.config-checkbox-row input {
+    margin-top: 3px;
+}
+
+.welcome-demo-catalog-card {
+    margin-top: 0;
+}
+
 .media-pills {
     display: flex;
     gap: 8px;
@@ -2758,6 +2774,10 @@ canvas { max-width: 100%; height: auto; }
 
 .package-update-checks li.is-bad {
     color: #ffb1aa;
+}
+
+.package-update-checks li.is-advisory {
+    color: #d9c27a;
 }
 
 .package-update-actions {

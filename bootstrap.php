@@ -82,7 +82,12 @@ function bandpromo_bootstrap_runtime_dirs(): array {
 }
 
 function bandpromo_bootstrap_collect_environment_checks(string $root): array {
-    $downloadSupport = extension_loaded('curl') || filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN);
+    require_once __DIR__ . '/biblioteca/json-file-helpers.php';
+    require_once __DIR__ . '/biblioteca/release-package.php';
+    $downloadSupport = bandpromo_release_https_download_available();
+    $downloadDetail = $downloadSupport
+        ? (extension_loaded('curl') ? 'curl available' : 'allow_url_fopen + openssl available')
+        : bandpromo_release_https_download_setup_hint();
 
     return [
         [
@@ -98,11 +103,11 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
         [
             'label' => 'HTTPS-capable download support',
             'ok' => $downloadSupport,
-            'detail' => $downloadSupport ? 'curl or allow_url_fopen available' : 'Enable curl or allow_url_fopen',
+            'detail' => $downloadDetail,
         ],
         [
             'label' => 'Target folder writable',
-            'ok' => is_writable($root),
+            'ok' => bandpromo_install_path_is_writable($root),
             'detail' => $root,
         ],
     ];

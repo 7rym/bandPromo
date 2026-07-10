@@ -29,3 +29,37 @@ function bandpromo_json_write_file(string $file, $data): bool
 
     return file_put_contents($file, $encoded, LOCK_EX) !== false;
 }
+
+function bandpromo_install_path_is_writable(string $root): bool
+{
+    $root = rtrim($root, '/\\');
+    if ($root !== '' && @is_writable($root)) {
+        return true;
+    }
+
+    $candidates = [
+        $root . DIRECTORY_SEPARATOR . 'log',
+        $root . DIRECTORY_SEPARATOR . 'data',
+    ];
+
+    foreach ($candidates as $dir) {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        if (!is_dir($dir)) {
+            continue;
+        }
+
+        $probe = $dir . DIRECTORY_SEPARATOR . '.bandpromo-write-probe';
+        $written = @file_put_contents($probe, (string) time(), LOCK_EX);
+        if ($written === false) {
+            continue;
+        }
+
+        @unlink($probe);
+
+        return true;
+    }
+
+    return false;
+}

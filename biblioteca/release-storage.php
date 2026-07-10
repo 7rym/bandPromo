@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/site-contact.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 const BANDPROMO_RELEASE_REGISTRY_VERSION = 1;
 const BANDPROMO_RELEASE_DEFAULT_ID = 'primary';
@@ -1003,6 +1004,9 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
 function bandpromo_release_visible_in_admin_catalog(string $root, array $entry): bool
 {
     $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+    if ($releaseId === BANDPROMO_RELEASE_DEMO_ID && !bandpromo_demo_catalog_is_visible($root)) {
+        return false;
+    }
     if ($releaseId !== BANDPROMO_RELEASE_DEFAULT_ID) {
         return true;
     }

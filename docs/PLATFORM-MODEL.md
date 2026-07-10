@@ -192,7 +192,7 @@ Playlists are **containers** of track references. They are independent of releas
 - Playlist is shown **in full**; embargoed tracks appear but are **not playable** for the current user tier.
 - Analytics bind plays to **track → release**, not to playlist.
 - v0.8: **system playlists only** (`kind: "system"`). User/VIP playlists later (v0.9+).
-- Operator-created playlists in admin must use `kind: "system"` until user playlists ship. *(Known v0.8.3 bug: create path currently writes `kind: "user"`, which excludes the playlist from the player selector and default-playlist logic.)*
+- Operator-created playlists in admin use `kind: "system"` until user playlists ship (v0.9+).
 - Player playlist selector appears only when **two or more** system playlists exist in the registry.
 
 ### Presentation metadata (v0.8.3+)

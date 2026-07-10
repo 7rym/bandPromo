@@ -22,6 +22,7 @@ try {
         'ok' => true,
         'default_playlist_id' => $defaultId,
         'demo_playlist_id' => BANDPROMO_PLAYLIST_DEMO_ID,
+        'demo_catalog_visible' => bandpromo_demo_catalog_is_visible($root),
         'active_playlist_id' => $activeId,
         'playlists' => $playlists,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

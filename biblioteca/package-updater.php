@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/release-package.php';
+require_once __DIR__ . '/json-file-helpers.php';
+require_once __DIR__ . '/https.php';
 
 const BANDPROMO_PACKAGE_UPDATE_WORKDIR = '.bandpromo-update';
 const BANDPROMO_PACKAGE_UPDATE_LOG = 'log/package-updates.jsonl';
@@ -141,7 +143,13 @@ function bandpromo_package_copy_tree(string $sourceRoot, string $targetRoot, str
 }
 
 function bandpromo_package_collect_environment_checks(string $root): array {
-    $downloadSupport = extension_loaded('curl') || filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN);
+    $downloadSupport = bandpromo_release_https_download_available();
+    $downloadDetail = $downloadSupport
+        ? (extension_loaded('curl') ? 'curl available' : 'allow_url_fopen + openssl available')
+        : bandpromo_release_https_download_setup_hint();
+    $zipAvailable = class_exists('ZipArchive');
+    $isLocalDev = bandpromo_is_local_dev_host();
+    $rootWritable = bandpromo_install_path_is_writable($root);
 
     return [
         [
@@ -149,30 +157,44 @@ function bandpromo_package_collect_environment_checks(string $root): array {
             'label' => 'PHP 8+',
             'ok' => PHP_VERSION_ID >= 80000,
             'detail' => 'Running ' . PHP_VERSION,
+            'blocking' => true,
         ],
         [
             'id' => 'zip',
             'label' => 'ZipArchive available',
-            'ok' => class_exists('ZipArchive'),
-            'detail' => class_exists('ZipArchive') ? 'Available' : 'Missing ZipArchive extension',
+            'ok' => $zipAvailable,
+            'detail' => $zipAvailable
+                ? 'Available'
+                : ($isLocalDev
+                    ? 'Not loaded in this PHP build (optional on local dev; enable ext-zip to test Site update)'
+                    : 'Missing ZipArchive extension'),
+            'blocking' => !$isLocalDev,
+            'advisory' => $isLocalDev && !$zipAvailable,
         ],
         [
             'id' => 'download',
             'label' => 'HTTPS download support',
             'ok' => $downloadSupport,
-            'detail' => $downloadSupport ? 'curl or allow_url_fopen available' : 'Enable curl or allow_url_fopen',
+            'detail' => $downloadDetail,
+            'blocking' => true,
         ],
         [
             'id' => 'writable',
             'label' => 'Site folder writable',
-            'ok' => is_writable($root),
-            'detail' => $root,
+            'ok' => $rootWritable,
+            'detail' => $rootWritable
+                ? ($isLocalDev ? 'Writable via log/ or data/' : 'Writable')
+                : $root,
+            'blocking' => true,
         ],
     ];
 }
 
 function bandpromo_package_environment_ready(array $checks): bool {
     foreach ($checks as $check) {
+        if (array_key_exists('blocking', $check) && $check['blocking'] === false) {
+            continue;
+        }
         if (empty($check['ok'])) {
             return false;
         }
@@ -230,6 +252,7 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
     $manifest = null;
     $remoteVersion = null;
     $updateAvailable = false;
+    $aheadOfPublished = false;
     $upToDate = false;
     $manifestError = null;
     $versionCompare = null;
@@ -239,7 +262,8 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
         $remoteVersion = (string) $manifest['version'];
         $versionCompare = bandpromo_package_compare_versions($installedVersion, $remoteVersion);
         $updateAvailable = $versionCompare < 0;
-        $upToDate = $versionCompare >= 0;
+        $aheadOfPublished = $versionCompare > 0;
+        $upToDate = $versionCompare === 0;
     } catch (Throwable $throwable) {
         $manifestError = $throwable->getMessage();
     }
@@ -250,6 +274,7 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
         'installed_version' => $installedVersion,
         'remote_version' => $remoteVersion,
         'update_available' => $updateAvailable,
+        'ahead_of_published' => $aheadOfPublished,
         'up_to_date' => $upToDate,
         'ready' => $ready,
         'checks' => $checks,

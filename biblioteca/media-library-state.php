@@ -182,5 +182,11 @@ function bandpromo_media_is_effectively_hidden_for_install(string $target, strin
         return false;
     }
 
+    $root = dirname(__DIR__);
+    require_once __DIR__ . '/demo-catalog-state.php';
+    if (!bandpromo_demo_catalog_is_visible($root)) {
+        return true;
+    }
+
     return bandpromo_media_has_visible_user_uploads($target);
 }

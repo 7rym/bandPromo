@@ -72,6 +72,37 @@ function bandpromo_release_rrmdir(string $path): void {
     }
 }
 
+function bandpromo_release_https_download_available(): bool
+{
+    if (extension_loaded('curl')) {
+        return true;
+    }
+
+    return filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN)
+        && extension_loaded('openssl');
+}
+
+function bandpromo_release_https_download_setup_hint(): string
+{
+    if (bandpromo_release_https_download_available()) {
+        return '';
+    }
+
+    $missing = [];
+    if (!extension_loaded('curl')) {
+        $missing[] = 'curl';
+    }
+    if (!extension_loaded('openssl')) {
+        $missing[] = 'openssl';
+    }
+
+    if ($missing === []) {
+        return 'Enable allow_url_fopen or the PHP curl extension in php.ini.';
+    }
+
+    return 'Enable the PHP ' . implode(' and ', $missing) . ' extension' . (count($missing) > 1 ? 's' : '') . ' in php.ini.';
+}
+
 function bandpromo_release_fetch_text(string $url): string {
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
@@ -102,6 +133,11 @@ function bandpromo_release_fetch_text(string $url): string {
         }
 
         return (string) $body;
+    }
+
+    if (!bandpromo_release_https_download_available()) {
+        $hint = bandpromo_release_https_download_setup_hint();
+        throw new RuntimeException('Release manifest fetch failed. ' . ($hint !== '' ? $hint : 'HTTPS download support is not configured.'));
     }
 
     $context = stream_context_create([

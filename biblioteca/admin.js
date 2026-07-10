@@ -3732,6 +3732,61 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
+            async function saveDemoCatalogVisible(visible, statusEl) {
+                if (statusEl) {
+                    statusEl.textContent = 'Saving…';
+                    statusEl.style.color = '#aaa';
+                }
+                try {
+                    const resp = await fetch('/biblioteca/save-demo-catalog-preference.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ visible: !!visible }),
+                    });
+                    const data = await resp.json();
+                    if (data.ok) {
+                        if (statusEl) {
+                            statusEl.textContent = visible ? '✅ Demo catalog shown' : '✅ Demo catalog hidden';
+                            statusEl.style.color = 'var(--success, #4ade80)';
+                        }
+                        return true;
+                    }
+                    if (statusEl) {
+                        statusEl.textContent = '❌ ' + (data.error || 'Save failed');
+                        statusEl.style.color = '#f55';
+                    }
+                    return false;
+                } catch (error) {
+                    if (statusEl) {
+                        statusEl.textContent = '❌ Network error: ' + error.message;
+                        statusEl.style.color = '#f55';
+                    }
+                    return false;
+                }
+            }
+
+            const cfgDemoCatalogVisible = document.getElementById('cfgDemoCatalogVisible');
+            const cfgDemoCatalogStatus = document.getElementById('cfgDemoCatalogStatus');
+            if (cfgDemoCatalogVisible) {
+                cfgDemoCatalogVisible.addEventListener('change', async () => {
+                    const saved = await saveDemoCatalogVisible(cfgDemoCatalogVisible.checked, cfgDemoCatalogStatus);
+                    if (saved) {
+                        window.setTimeout(() => window.location.reload(), 600);
+                    }
+                });
+            }
+
+            const demoCatalogHideBtn = document.getElementById('demoCatalogHideBtn');
+            const demoCatalogHideStatus = document.getElementById('demoCatalogHideStatus');
+            if (demoCatalogHideBtn) {
+                demoCatalogHideBtn.addEventListener('click', async () => {
+                    const saved = await saveDemoCatalogVisible(false, demoCatalogHideStatus);
+                    if (saved) {
+                        window.setTimeout(() => window.location.reload(), 600);
+                    }
+                });
+            }
+
             // ── Theme: media branch form ────────────────────────────────────
             const cfgThemeFullSource = document.getElementById('cfgThemeFullSource');
             const cfgThemeSaveBtn = document.getElementById('cfgThemeSaveBtn');
@@ -7215,10 +7270,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     checks.forEach((check) => {
                         const item = document.createElement('li');
-                        item.className = check && check.ok ? 'is-ok' : 'is-bad';
+                        const advisory = !!(check && check.advisory);
+                        item.className = advisory ? 'is-advisory' : (check && check.ok ? 'is-ok' : 'is-bad');
                         const label = check && check.label ? check.label : 'Requirement';
                         const detail = check && check.detail ? ` (${check.detail})` : '';
-                        item.textContent = `${check && check.ok ? '✔' : '✖'} ${label}${detail}`;
+                        const icon = advisory ? '◦' : (check && check.ok ? '✔' : '✖');
+                        item.textContent = `${icon} ${label}${detail}`;
                         checksEl.appendChild(item);
                     });
                     checksEl.hidden = false;
@@ -7273,6 +7330,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         setStatusClass('is-available');
                         statusEl.textContent = `Update available: ${installed} → ${remote}. Application files will be replaced while your site content stays preserved.`;
                         applyBtn.hidden = false;
+                    } else if (data.ahead_of_published) {
+                        setStatusClass('is-current');
+                        statusEl.textContent = `This site is running ${installed}, which is newer than the latest published package (${remote}). When you are confident this build is ready for beta testers, publish a release package.`;
+                        applyBtn.hidden = true;
                     } else if (data.up_to_date) {
                         setStatusClass('is-current');
                         statusEl.textContent = `This site is up to date on ${installed}.`;

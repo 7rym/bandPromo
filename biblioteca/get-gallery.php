@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/gallery-storage.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 bandpromo_enforce_https();
 session_write_close();
@@ -15,6 +16,9 @@ $galleryId = bandpromo_gallery_resolve_id((string) ($_GET['gallery'] ?? BANDPROM
 
 try {
     bandpromo_gallery_ensure_seeded($root);
+    if (!bandpromo_demo_catalog_entity_is_visible($root, $galleryId)) {
+        throw new InvalidArgumentException('This gallery is not available.');
+    }
     $document = bandpromo_gallery_load_document($root, $galleryId);
     $items = bandpromo_gallery_materialize_items($root, $galleryId);
 
