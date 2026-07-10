@@ -399,6 +399,7 @@ label {
 
 input[type="text"],
 input[type="date"],
+input.iso-date-input,
 input[type="password"],
 input[type="url"],
 input[type="email"],
@@ -1040,6 +1041,7 @@ table tbody tr:hover {
 }
 
 .filter-bar input[type="date"],
+input.iso-date-input,
 .filter-bar select {
     padding: 5px 8px;
     border: 1px solid var(--border2);

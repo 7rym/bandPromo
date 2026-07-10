@@ -773,6 +773,23 @@ button.pulse-guide {
     color: var(--text-color, #ffffff);
 }
 
+.operator-delivery-notice {
+    width: min(100%, var(--card-size));
+    margin: 0 0 0.75rem 0;
+    padding: 0.65rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 196, 0, 0.45);
+    background: rgba(255, 196, 0, 0.12);
+    color: var(--text-color, #ffffff);
+    font-size: 0.92rem;
+    line-height: 1.4;
+}
+
+.operator-delivery-notice a {
+    color: var(--primary-color, #00d2ff);
+    margin-left: 0.35rem;
+}
+
 /* Playlist Track Cover */
 .playlist-track-cover {
     width: 70px;

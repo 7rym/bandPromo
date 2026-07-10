@@ -364,7 +364,37 @@ function bandpromo_audio_master_paths_for_original(string $root_dir, string $fil
     return array_values(array_unique($paths));
 }
 
-function bandpromo_resolve_playable_audio_file(string $root_dir, string $filename, string $variant = 'optimal'): ?array
+const BANDPROMO_DEMO_ORIGINAL_FALLBACK_MAX_BYTES = 15 * 1024 * 1024;
+
+function bandpromo_resolve_optimal_audio_file(string $root_dir, string $filename): ?array
+{
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return null;
+    }
+
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    $requestedExt = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+    $candidates = [
+        $root_dir . '/media/audio/optimal/' . $filename,
+    ];
+    if ($requestedExt !== 'mp3') {
+        $candidates[] = $root_dir . '/media/audio/optimal/' . $stem . '.mp3';
+    }
+
+    foreach ($candidates as $candidate) {
+        if (is_file($candidate)) {
+            return [
+                'path' => $candidate,
+                'filename' => basename($candidate),
+            ];
+        }
+    }
+
+    return null;
+}
+
+function bandpromo_resolve_source_audio_file(string $root_dir, string $filename): ?array
 {
     $filename = basename(trim($filename));
     if ($filename === '') {
@@ -372,24 +402,13 @@ function bandpromo_resolve_playable_audio_file(string $root_dir, string $filenam
     }
 
     $candidates = [];
+    $candidates[] = $root_dir . '/media/audio/original/' . $filename;
     $stem = pathinfo($filename, PATHINFO_FILENAME);
-    $requestedExt = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
-
-    if ($variant === 'optimal') {
-        $candidates[] = $root_dir . '/media/audio/optimal/' . $filename;
-        if ($requestedExt !== 'mp3') {
-            $candidates[] = $root_dir . '/media/audio/optimal/' . $stem . '.mp3';
-        }
+    foreach (['flac', 'mp3', 'wav'] as $ext) {
+        $candidates[] = $root_dir . '/media/audio/original/' . $stem . '.' . $ext;
     }
-
-    if ($variant === 'original' || $variant === 'optimal') {
-        $candidates[] = $root_dir . '/media/audio/original/' . $filename;
-        foreach (['flac', 'mp3', 'wav'] as $ext) {
-            $candidates[] = $root_dir . '/media/audio/original/' . $stem . '.' . $ext;
-        }
-        foreach (bandpromo_audio_master_paths_for_original($root_dir, $filename) as $path) {
-            $candidates[] = $path;
-        }
+    foreach (bandpromo_audio_master_paths_for_original($root_dir, $filename) as $path) {
+        $candidates[] = $path;
     }
 
     $seen = [];
@@ -405,6 +424,44 @@ function bandpromo_resolve_playable_audio_file(string $root_dir, string $filenam
                 'filename' => basename($candidate),
             ];
         }
+    }
+
+    return null;
+}
+
+function bandpromo_audio_demo_original_fallback_allowed(string $root_dir, string $filename): bool
+{
+    require_once __DIR__ . '/release-storage.php';
+
+    $filename = basename(trim($filename));
+    if ($filename === '' || !bandpromo_release_is_demo_filename($filename)) {
+        return false;
+    }
+
+    $resolved = bandpromo_resolve_source_audio_file($root_dir, $filename);
+    if ($resolved === null) {
+        return false;
+    }
+
+    $size = filesize($resolved['path']);
+
+    return $size !== false && $size <= BANDPROMO_DEMO_ORIGINAL_FALLBACK_MAX_BYTES;
+}
+
+function bandpromo_resolve_playable_audio_file(string $root_dir, string $filename, string $variant = 'optimal'): ?array
+{
+    $variant = strtolower(trim($variant));
+    if ($variant === 'original') {
+        return bandpromo_resolve_source_audio_file($root_dir, $filename);
+    }
+
+    $resolved = bandpromo_resolve_optimal_audio_file($root_dir, $filename);
+    if ($resolved !== null) {
+        return $resolved;
+    }
+
+    if (bandpromo_audio_demo_original_fallback_allowed($root_dir, $filename)) {
+        return bandpromo_resolve_source_audio_file($root_dir, $filename);
     }
 
     return null;

@@ -1423,7 +1423,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                                 <span>Release date</span>
                                                 <div class="date-input-shell">
                                                     <span class="date-input-icon" aria-hidden="true">📅</span>
-                                                    <input type="date" id="releaseSettingsDate" autocomplete="off">
+                                                    <input type="text" class="iso-date-input" id="releaseSettingsDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                                                 </div>
                                             </label>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
@@ -1601,7 +1601,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                                 <span>Publish date</span>
                                                 <div class="date-input-shell">
                                                     <span class="date-input-icon" aria-hidden="true">📅</span>
-                                                    <input type="date" id="playlistSettingsPublishDate" autocomplete="off">
+                                                    <input type="text" class="iso-date-input" id="playlistSettingsPublishDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                                                 </div>
                                             </label>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
@@ -2511,9 +2511,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <input type="hidden" name="tab" value="system">
                 <input type="hidden" name="stab" value="audit">
                 <label>Start</label>
-                <input type="date" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>">
+                <input type="text" class="iso-date-input" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                 <label>End</label>
-                <input type="date" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>">
+                <input type="text" class="iso-date-input" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                 <label>Action</label>
                 <select name="audit_action" onchange="this.form.submit()">
                     <option value="">All actions</option>
@@ -2738,7 +2738,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                         <label for="audioMasterFieldDate">* Release date</label>
                         <div class="date-input-shell">
                             <span class="date-input-icon" aria-hidden="true">📅</span>
-                            <input type="date" id="audioMasterFieldDate" name="date" autocomplete="off" required>
+                            <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false" required>
                         </div>
                     </div>
                     <div class="form-group">
@@ -2823,6 +2823,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'release'): ?>
+    <script src="biblioteca/iso-date.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/iso-date.js'); ?>"></script>
     <script src="biblioteca/release-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/release-editor.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
@@ -2846,6 +2847,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         </div>
     </div>
 
+    <script src="biblioteca/iso-date.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/iso-date.js'); ?>"></script>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 
     <!-- Admin media preview lightbox -->

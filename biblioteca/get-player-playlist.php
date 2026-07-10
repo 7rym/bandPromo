@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/auto-build-tasks.php';
+require_once __DIR__ . '/media-delivery-helpers.php';
 require_once __DIR__ . '/auth.php';
 
 bandpromo_enforce_https();
@@ -29,12 +30,14 @@ if ($playlistId === '') {
 $username = trim((string) ($_SESSION['username'] ?? ''));
 $role = $username !== '' ? getUserRole($username) : 'user';
 $operatorBypass = in_array($role, ['admin', 'developer'], true);
+$preferredVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
 
 try {
     if ($playlistId === BANDPROMO_PLAYLIST_DEMO_ID) {
         bandpromo_ensure_bundled_demo_audio_delivery($root);
     }
-    $tracks = bandpromo_playlist_materialize_for_player($root, $playlistId, $operatorBypass);
+    $tracks = bandpromo_playlist_materialize_for_player($root, $playlistId, $operatorBypass, $preferredVariant);
+    $deliverySummary = bandpromo_playlist_delivery_summary($tracks);
     $registryEntry = null;
     foreach (bandpromo_playlist_registry_entries($root) as $entry) {
         if (($entry['id'] ?? '') === $playlistId) {
@@ -47,6 +50,8 @@ try {
         'playlist_id' => $playlistId,
         'playlist_slug' => bandpromo_playlist_public_slug($root, $playlistId),
         'playlist_title' => (string) ($registryEntry['title'] ?? $playlistId),
+        'preferred_audio_variant' => $preferredVariant,
+        'delivery_summary' => $deliverySummary,
         'tracks' => $tracks,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $throwable) {

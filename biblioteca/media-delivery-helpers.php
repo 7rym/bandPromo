@@ -59,3 +59,8 @@ function bandpromo_media_pool_ready(string $root, string $target, string $filena
 
     return true;
 }
+
+function bandpromo_preferred_audio_variant(?string $quality): string
+{
+    return strtolower(trim((string) $quality)) === 'high' ? 'original' : 'optimal';
+}

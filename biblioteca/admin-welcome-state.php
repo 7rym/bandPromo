@@ -146,6 +146,8 @@ function bandpromo_admin_get_default_theme_status(string $root): ?array
 
 function bandpromo_admin_build_welcome_checklist(string $root): array
 {
+    require_once __DIR__ . '/publish-status-helpers.php';
+
     $defaultThemeStatus = bandpromo_admin_get_default_theme_status($root);
     $siteName = get_config('release.identity.title', 'Admin');
     $siteShortLabel = trim((string) get_config('release.identity.short_label', ''));
@@ -190,6 +192,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
 
     $fullBuildSucceeded = bandpromo_admin_latest_full_build_success($root);
     $installationRunning = bandpromo_is_setup_complete() && bandpromo_admin_runtime_files_present($root);
+    $publishStatus = bandpromo_publish_status_summary($root);
+    $missingDeliveryCount = (int) ($publishStatus['summary']['missing_delivery'] ?? 0);
 
     return [
         [
@@ -244,6 +248,17 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
                 : 'No successful full build has been recorded yet, or the last full build failed.',
             'href' => '?tab=system&stab=publish',
             'next' => 'Open System → Publish and run a full build until it completes successfully.',
+        ],
+        [
+            'label' => 'Streaming MP3 delivery is ready',
+            'action_label' => 'Build streaming delivery',
+            'severity' => 'blocking',
+            'complete' => $missingDeliveryCount === 0 || !$hasUploadedAudio,
+            'detail' => $missingDeliveryCount === 0 || !$hasUploadedAudio
+                ? 'Catalogued audio has publish-ready MP3 delivery files (or no uploaded audio yet).'
+                : $missingDeliveryCount . ' catalogued audio file' . ($missingDeliveryCount === 1 ? '' : 's') . ' still lack streaming MP3 delivery.',
+            'href' => '?tab=system&stab=publish',
+            'next' => 'Open System → Publish and run Publish Build so listeners stream MP3s instead of large originals.',
         ],
         [
             'label' => 'This installation is up and running',

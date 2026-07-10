@@ -4982,6 +4982,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let playlistSettingsSaving = false;
 
                 function normalizePlaylistDateForInput(value) {
+                    if (typeof window.bandpromoNormalizeIsoDateInput === 'function') {
+                        return window.bandpromoNormalizeIsoDateInput(value);
+                    }
                     const trimmed = String(value || '').trim();
                     if (!trimmed) {
                         return '';

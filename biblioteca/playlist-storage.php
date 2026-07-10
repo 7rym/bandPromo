@@ -6,6 +6,7 @@ require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/publish-status-helpers.php';
 
 const BANDPROMO_PLAYLIST_REGISTRY_VERSION = 1;
 const BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo';
@@ -1164,8 +1165,90 @@ function bandpromo_playlist_track_slug(array $track, ?array $asset, ?array $rele
     return $slug !== '' ? substr($slug, 0, 64) : 'track';
 }
 
-function bandpromo_playlist_enrich_tracks_for_player(string $root, array $tracks, bool $operatorBypass): array
+function bandpromo_playlist_track_stream_state(
+    string $root,
+    string $masterFile,
+    string $preferredVariant,
+    bool $embargoPlayable
+): array {
+    if (!$embargoPlayable) {
+        return [
+            'delivery_ready' => false,
+            'delivery_mode' => 'embargoed',
+            'playable' => false,
+            'lock_reason' => 'embargoed',
+        ];
+    }
+
+    if ($preferredVariant === 'original') {
+        $sourceReady = bandpromo_playlist_resolve_source_audio_path($root, $masterFile) !== null;
+
+        return [
+            'delivery_ready' => $sourceReady,
+            'delivery_mode' => $sourceReady ? 'original' : 'source_missing',
+            'playable' => $sourceReady,
+            'lock_reason' => $sourceReady ? '' : 'source_missing',
+        ];
+    }
+
+    $deliveryReady = bandpromo_asset_audio_delivery_ready($root, $masterFile);
+    if ($deliveryReady) {
+        return [
+            'delivery_ready' => true,
+            'delivery_mode' => 'optimal',
+            'playable' => true,
+            'lock_reason' => '',
+        ];
+    }
+
+    if (bandpromo_audio_demo_original_fallback_allowed($root, $masterFile)) {
+        return [
+            'delivery_ready' => false,
+            'delivery_mode' => 'demo_original',
+            'playable' => true,
+            'lock_reason' => '',
+        ];
+    }
+
+    return [
+        'delivery_ready' => false,
+        'delivery_mode' => 'pending',
+        'playable' => false,
+        'lock_reason' => 'delivery_pending',
+    ];
+}
+
+function bandpromo_playlist_delivery_summary(array $tracks): array
 {
+    $pending = 0;
+    $demoOriginal = 0;
+
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $mode = (string) ($track['delivery_mode'] ?? '');
+        if ($mode === 'pending' && ($track['lock_reason'] ?? '') === 'delivery_pending') {
+            $pending++;
+        }
+        if ($mode === 'demo_original') {
+            $demoOriginal++;
+        }
+    }
+
+    return [
+        'pending_count' => $pending,
+        'demo_original_count' => $demoOriginal,
+        'publish_required' => $pending > 0,
+    ];
+}
+
+function bandpromo_playlist_enrich_tracks_for_player(
+    string $root,
+    array $tracks,
+    bool $operatorBypass,
+    string $preferredVariant = 'optimal'
+): array {
     $enriched = [];
     foreach ($tracks as $track) {
         if (!is_array($track)) {
@@ -1191,28 +1274,39 @@ function bandpromo_playlist_enrich_tracks_for_player(string $root, array $tracks
 
         $releaseSlug = (string) ($release['slug'] ?? $releaseId);
         $releaseDate = (string) ($release['release_date'] ?? '');
-        $playable = bandpromo_playlist_release_date_is_public($releaseDate, $operatorBypass);
-        $lockReason = $playable ? '' : 'embargoed';
+        $embargoPlayable = bandpromo_playlist_release_date_is_public($releaseDate, $operatorBypass);
+        $streamState = bandpromo_playlist_track_stream_state(
+            $root,
+            $masterFile,
+            $preferredVariant,
+            $embargoPlayable
+        );
 
         $enriched[] = array_merge($track, [
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => $releaseId,
             'release_slug' => $releaseSlug,
             'track_slug' => bandpromo_playlist_track_slug($track, $asset, $releaseTrack),
-            'playable' => $playable,
-            'lock_reason' => $lockReason,
+            'delivery_ready' => (bool) ($streamState['delivery_ready'] ?? false),
+            'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),
+            'playable' => (bool) ($streamState['playable'] ?? false),
+            'lock_reason' => (string) ($streamState['lock_reason'] ?? ''),
         ]);
     }
 
     return $enriched;
 }
 
-function bandpromo_playlist_materialize_for_player(string $root, string $playlistId, bool $operatorBypass): array
-{
+function bandpromo_playlist_materialize_for_player(
+    string $root,
+    string $playlistId,
+    bool $operatorBypass,
+    string $preferredVariant = 'optimal'
+): array {
     $document = bandpromo_playlist_load_document($root, $playlistId);
     $tracks = bandpromo_playlist_build_track_list($root, $document);
 
-    return bandpromo_playlist_enrich_tracks_for_player($root, $tracks, $operatorBypass);
+    return bandpromo_playlist_enrich_tracks_for_player($root, $tracks, $operatorBypass, $preferredVariant);
 }
 
 function bandpromo_playlist_resolve_track_index(array $tracks, string $releaseSlug, string $trackSlug): int

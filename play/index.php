@@ -12,6 +12,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 // Load playlist
 require_once __DIR__ . '/../biblioteca/playlist-storage.php';
 require_once __DIR__ . '/../biblioteca/auto-build-tasks.php';
+require_once __DIR__ . '/../biblioteca/media-delivery-helpers.php';
 
 $playerRoot = dirname(__DIR__);
 bandpromo_playlist_ensure_seeded($playerRoot);
@@ -74,19 +75,21 @@ function bandpromo_support_parse_kofi_page_id(string $value): string {
     return preg_replace('/[^a-zA-Z0-9_-]/', '', $trimmed);
 }
 
-function bandpromo_preferred_audio_variant(?string $quality): string {
-    return strtolower(trim((string) $quality)) === 'high' ? 'original' : 'optimal';
-}
-
 $origin = bandpromo_current_origin();
 $baseUrl = $origin . '/play/';
+$preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
 
 $playlistTracks = [];
 try {
     if ($activePlaylistId === BANDPROMO_PLAYLIST_DEMO_ID) {
         bandpromo_ensure_bundled_demo_audio_delivery($playerRoot);
     }
-    $playlistTracks = bandpromo_playlist_materialize_for_player($playerRoot, $activePlaylistId, false);
+    $playlistTracks = bandpromo_playlist_materialize_for_player(
+        $playerRoot,
+        $activePlaylistId,
+        false,
+        $preferredAudioVariant
+    );
 } catch (Throwable $throwable) {
     $playlistTracks = [];
 }
@@ -164,7 +167,7 @@ $currentUsername = trim((string) ($_SESSION['username'] ?? ''));
 $currentUserRole = current_user_role();
 $showAdminButton = can_access_admin_panel();
 $showDebugTools = is_developer();
-$preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
+$showOperatorNotice = in_array($currentUserRole, ['admin', 'developer'], true);
 $debugInfo = [
     'username' => $currentUsername,
     'role' => $currentUserRole,
@@ -233,6 +236,12 @@ if ($supportEnabled && $supportUrl !== '') {
         <h2>Cannot load player</h2>
         <p>The playlist could not be loaded. Check that you are logged in and the PHP dev server is running.</p>
         <p>Local dev: <code>php -S localhost:8000</code> then open <a href="/play/">/play/</a>.</p>
+    </div>
+
+    <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>
+        <strong>Publish build required.</strong>
+        <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Run System → Publish Build.</span>
+        <a href="/admin.php?tab=system&amp;stab=publish">Open Publish</a>
     </div>
 
     <div id="mediaplayer">
@@ -382,6 +391,7 @@ if ($supportEnabled && $supportUrl !== '') {
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
+        window.BANDPROMO_IS_OPERATOR = <?php echo json_encode($showOperatorNotice); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
         window.BANDPROMO_DEBUG_INFO = <?php echo json_encode($debugInfo, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         <?php

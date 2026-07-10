@@ -1,6 +1,6 @@
 // --- APPLICATION LOGIC ---
 
-let playList = []; // Will be loaded from playlist.json
+let playList = []; // Loaded from get-player-playlist.php
 let currentIndex = 0;
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
 const IMAGE_PATH_VARIANT = 'optimal';
@@ -1055,6 +1055,38 @@ function showPlayerLoadError(message) {
     if (lyricsBox) lyricsBox.innerText = message || 'Could not load playlist.';
 }
 
+function playlistLockLabel(song) {
+    if (!song || song.playable !== false) {
+        return '';
+    }
+    if (song.lock_reason === 'delivery_pending') {
+        return '<span class="playlist-track-lock">Awaiting publish build (streaming MP3 not ready)</span>';
+    }
+    if (song.lock_reason === 'embargoed') {
+        return '<span class="playlist-track-lock">Not available yet</span>';
+    }
+    return '<span class="playlist-track-lock">Not available</span>';
+}
+
+function updateOperatorDeliveryNotice(summary) {
+    const notice = document.getElementById('operatorDeliveryNotice');
+    const noticeText = document.getElementById('operatorDeliveryNoticeText');
+    if (!notice || !window.BANDPROMO_IS_OPERATOR) {
+        return;
+    }
+
+    const pendingCount = Number(summary?.pending_count || 0);
+    if (pendingCount <= 0) {
+        notice.hidden = true;
+        return;
+    }
+
+    if (noticeText) {
+        noticeText.textContent = `${pendingCount} track${pendingCount === 1 ? '' : 's'} in this playlist need streaming MP3 delivery. Run System → Publish Build before listeners stream on mobile data.`;
+    }
+    notice.hidden = false;
+}
+
 async function loadConfig() {
     if (window.location.protocol === 'file:') {
         showPlayerLoadError('Open http://localhost:8000/play/ after starting the PHP dev server.');
@@ -1062,7 +1094,10 @@ async function loadConfig() {
     }
 
     try {
-        const configUrl = window.CONFIG_URL || `../${PATH_VARIANT}/playlist.json`;
+        const configUrl = window.CONFIG_URL;
+        if (!configUrl) {
+            throw new Error('Player playlist endpoint is not configured.');
+        }
         const response = await fetch(configUrl);
         if (!response.ok) {
             let detail = `HTTP ${response.status}`;
@@ -1084,6 +1119,7 @@ async function loadConfig() {
         if (data.playlist_slug) {
             window.BANDPROMO_PLAYLIST_SLUG = data.playlist_slug;
         }
+        updateOperatorDeliveryNotice(data.delivery_summary || null);
         
         // Start player if we got data
         if (playList.length > 0) {
@@ -1104,7 +1140,7 @@ async function loadConfig() {
             showPlayerLoadError('This playlist has no playable tracks yet.');
         }
     } catch (e) {
-        console.error("Failed to load playlist.json:", e);
+        console.error('Failed to load player playlist:', e);
         showPlayerLoadError(e && e.message ? e.message : 'Could not load playlist.');
     }
 }
@@ -1226,14 +1262,6 @@ audioPlayer.addEventListener('error', e => {
     console.error('Audio playback error', e);
     const song = playList[currentIndex];
     const sourceFile = (song && song.file) || audioPlayer.dataset.sourceFile || '';
-    if (!audioVariantFallbackAttempted && PATH_VARIANT === 'optimal' && sourceFile) {
-        PATH_VARIANT = 'original';
-        setAudioSrc(sourceFile);
-        audioVariantFallbackAttempted = true;
-        audioPlayer.play().catch(() => {});
-        return;
-    }
-    // give user some visible feedback if it happens during interaction
     const deliveryFile = audioPlayer.dataset.deliveryFile || sourceFile || '';
     if (deliveryFile) {
         const prefix = currentTrackChangeSource === 'auto_next'
@@ -1290,11 +1318,8 @@ audioPlayer.addEventListener('ended', () => {
     triggerSongChange('next');
 });
 
-let audioVariantFallbackAttempted = false;
-
 // helper to safely set audio source with encoding and support check
 function setAudioSrc(filename) {
-    audioVariantFallbackAttempted = false;
     // Build full path based on variant and configured media base
     const deliveryFilename = resolveAudioDeliveryFilename(filename);
     const url = buildAudioUrl(filename);
@@ -1553,7 +1578,7 @@ function renderPlaylist() {
     playList.forEach((song, index) => {
         const isCurrentTrack = index === currentIndex ? 'current' : '';
         const isLocked = song.playable === false ? 'playlist-item--locked' : '';
-        const lockLabel = song.playable === false ? '<span class="playlist-track-lock">Not available yet</span>' : '';
+        const lockLabel = playlistLockLabel(song);
         
         const coverCandidates = buildCoverUrlCandidates(song.cover);
         const coverPath = coverCandidates[0] || '';
