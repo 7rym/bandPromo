@@ -364,6 +364,52 @@ function bandpromo_audio_master_paths_for_original(string $root_dir, string $fil
     return array_values(array_unique($paths));
 }
 
+function bandpromo_resolve_playable_audio_file(string $root_dir, string $filename, string $variant = 'optimal'): ?array
+{
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return null;
+    }
+
+    $candidates = [];
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    $requestedExt = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+
+    if ($variant === 'optimal') {
+        $candidates[] = $root_dir . '/media/audio/optimal/' . $filename;
+        if ($requestedExt !== 'mp3') {
+            $candidates[] = $root_dir . '/media/audio/optimal/' . $stem . '.mp3';
+        }
+    }
+
+    if ($variant === 'original' || $variant === 'optimal') {
+        $candidates[] = $root_dir . '/media/audio/original/' . $filename;
+        foreach (['flac', 'mp3', 'wav'] as $ext) {
+            $candidates[] = $root_dir . '/media/audio/original/' . $stem . '.' . $ext;
+        }
+        foreach (bandpromo_audio_master_paths_for_original($root_dir, $filename) as $path) {
+            $candidates[] = $path;
+        }
+    }
+
+    $seen = [];
+    foreach ($candidates as $candidate) {
+        $key = strtolower($candidate);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        if (is_file($candidate)) {
+            return [
+                'path' => $candidate,
+                'filename' => basename($candidate),
+            ];
+        }
+    }
+
+    return null;
+}
+
 function bandpromo_audio_delivery_paths_for_original(string $root_dir, string $filename): array
 {
     $filename = basename(trim($filename));

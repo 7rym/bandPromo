@@ -11,6 +11,7 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 
 // Load playlist
 require_once __DIR__ . '/../biblioteca/playlist-storage.php';
+require_once __DIR__ . '/../biblioteca/auto-build-tasks.php';
 
 $playerRoot = dirname(__DIR__);
 bandpromo_playlist_ensure_seeded($playerRoot);
@@ -82,6 +83,9 @@ $baseUrl = $origin . '/play/';
 
 $playlistTracks = [];
 try {
+    if ($activePlaylistId === BANDPROMO_PLAYLIST_DEMO_ID) {
+        bandpromo_ensure_bundled_demo_audio_delivery($playerRoot);
+    }
     $playlistTracks = bandpromo_playlist_materialize_for_player($playerRoot, $activePlaylistId, false);
 } catch (Throwable $throwable) {
     $playlistTracks = [];

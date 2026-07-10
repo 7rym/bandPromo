@@ -35,11 +35,18 @@ if ($fileName === '' || $fileName === '.' || $fileName === '..') {
     exit('Invalid filename');
 }
 
-$audioDir = dirname(__DIR__) . '/media/audio/' . $variant;
+$root = dirname(__DIR__);
+$audioDir = $root . '/media/audio/' . $variant;
 $filePath = $audioDir . '/' . $fileName;
 if (!is_file($filePath)) {
-    http_response_code(404);
-    exit('Not found');
+    require_once __DIR__ . '/audio-master-helpers.php';
+    $resolved = bandpromo_resolve_playable_audio_file($root, $fileName, $variant);
+    if ($resolved === null) {
+        http_response_code(404);
+        exit('Not found');
+    }
+    $filePath = $resolved['path'];
+    $fileName = $resolved['filename'];
 }
 
 $size = filesize($filePath);

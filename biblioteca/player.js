@@ -1065,7 +1065,16 @@ async function loadConfig() {
         const configUrl = window.CONFIG_URL || `../${PATH_VARIANT}/playlist.json`;
         const response = await fetch(configUrl);
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let detail = `HTTP ${response.status}`;
+            try {
+                const errorPayload = await response.json();
+                if (errorPayload && typeof errorPayload.error === 'string' && errorPayload.error.trim() !== '') {
+                    detail = errorPayload.error.trim();
+                }
+            } catch (parseError) {
+                // Keep status-only detail when the body is not JSON.
+            }
+            throw new Error(detail);
         }
         const data = await response.json();
         playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
@@ -1092,11 +1101,11 @@ async function loadConfig() {
             }
             bindPlaylistSelector();
         } else {
-            alert("Config file is empty!");
+            showPlayerLoadError('This playlist has no playable tracks yet.');
         }
     } catch (e) {
         console.error("Failed to load playlist.json:", e);
-        showPlayerLoadError('Could not load playlist. Is the PHP dev server running on http://localhost:8000 ?');
+        showPlayerLoadError(e && e.message ? e.message : 'Could not load playlist.');
     }
 }
 
@@ -1215,8 +1224,17 @@ audioPlayer.addEventListener('ratechange', updateMediaSessionPositionState);
 // listen for errors (unsupported codec, network problems, etc.)
 audioPlayer.addEventListener('error', e => {
     console.error('Audio playback error', e);
+    const song = playList[currentIndex];
+    const sourceFile = (song && song.file) || audioPlayer.dataset.sourceFile || '';
+    if (!audioVariantFallbackAttempted && PATH_VARIANT === 'optimal' && sourceFile) {
+        PATH_VARIANT = 'original';
+        setAudioSrc(sourceFile);
+        audioVariantFallbackAttempted = true;
+        audioPlayer.play().catch(() => {});
+        return;
+    }
     // give user some visible feedback if it happens during interaction
-    const deliveryFile = audioPlayer.dataset.deliveryFile || (playList[currentIndex] && playList[currentIndex].file) || '';
+    const deliveryFile = audioPlayer.dataset.deliveryFile || sourceFile || '';
     if (deliveryFile) {
         const prefix = currentTrackChangeSource === 'auto_next'
             ? 'Playback stopped while switching to the next track.'
@@ -1272,8 +1290,11 @@ audioPlayer.addEventListener('ended', () => {
     triggerSongChange('next');
 });
 
+let audioVariantFallbackAttempted = false;
+
 // helper to safely set audio source with encoding and support check
 function setAudioSrc(filename) {
+    audioVariantFallbackAttempted = false;
     // Build full path based on variant and configured media base
     const deliveryFilename = resolveAudioDeliveryFilename(filename);
     const url = buildAudioUrl(filename);

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/light-build-tasks.php';
 
@@ -704,6 +705,46 @@ function bandpromo_playlist_sync_demo_playlist(string $root): void
     bandpromo_playlist_write_document($root, $document);
 }
 
+function bandpromo_playlist_resolve_source_audio_path(string $root, string $filename): ?string
+{
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return null;
+    }
+
+    $resolved = bandpromo_resolve_playable_audio_file($root, $filename, 'original');
+    return $resolved !== null ? $resolved['path'] : null;
+}
+
+function bandpromo_playlist_build_php_track_entry(string $root, string $filename): ?array
+{
+    $filename = basename(trim($filename));
+    if ($filename === '' || bandpromo_playlist_resolve_source_audio_path($root, $filename) === null) {
+        return null;
+    }
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+    $display = bandpromo_asset_read_audio_display($asset);
+    $stem = pathinfo($filename, PATHINFO_FILENAME);
+    $fallbackTitle = ucwords(str_replace(['_', '-'], ' ', preg_replace('/^bandPromo_/', '', $stem) ?? $stem));
+    $title = trim((string) ($display['title'] ?? ''));
+    if ($title === '') {
+        $title = $fallbackTitle !== '' ? $fallbackTitle : $filename;
+    }
+
+    return [
+        'file' => $filename,
+        'title' => $title,
+        'artist' => trim((string) ($display['artist'] ?? '')),
+        'album' => trim((string) ($display['album'] ?? '')),
+        'duration' => max(0, (int) ($display['duration'] ?? 0)),
+        'lyrics' => '',
+        'description' => '',
+        'cover' => '',
+    ];
+}
+
 function bandpromo_playlist_materialize_entries(array $filenames): array
 {
     $requested = array_values(array_filter($filenames, static function ($entry) {
@@ -721,34 +762,51 @@ function bandpromo_playlist_materialize_entries(array $filenames): array
         'filenames' => $requested,
     ]);
     $data = is_array($result['data'] ?? null) ? $result['data'] : null;
-    if (!$result['ok'] || !is_array($data) || empty($data['ok'])) {
+    $entries = [];
+    $missing = $requested;
+    $taskError = '';
+
+    if ($result['ok'] && is_array($data) && !empty($data['ok'])) {
+        $missing = [];
+        foreach (($data['entries'] ?? []) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $file = trim((string) ($entry['file'] ?? ''));
+            if ($file !== '') {
+                $entries[$file] = $entry;
+            }
+        }
+
+        foreach (($data['missing'] ?? []) as $entry) {
+            $file = trim((string) $entry);
+            if ($file !== '') {
+                $missing[] = $file;
+            }
+        }
+    } else {
         $error = is_array($data) ? (string) ($data['error'] ?? '') : '';
         $output = trim((string) ($result['output'] ?? ''));
-
-        return [
-            'entries' => [],
-            'missing' => $requested,
-            'error' => $error !== '' ? $error : ($output !== '' ? $output : 'Could not materialize playlist entries from source audio'),
-        ];
+        $taskError = $error !== '' ? $error : ($output !== '' ? $output : (string) ($result['error'] ?? ''));
     }
 
-    $entries = [];
-    foreach (($data['entries'] ?? []) as $entry) {
-        if (!is_array($entry)) {
+    $root = dirname(__DIR__);
+    foreach ($missing as $index => $filename) {
+        $phpEntry = bandpromo_playlist_build_php_track_entry($root, $filename);
+        if ($phpEntry === null) {
             continue;
         }
-        $file = trim((string) ($entry['file'] ?? ''));
-        if ($file !== '') {
-            $entries[$file] = $entry;
-        }
+        $entries[$filename] = $phpEntry;
+        unset($missing[$index]);
     }
+    $missing = array_values($missing);
 
-    $missing = [];
-    foreach (($data['missing'] ?? []) as $entry) {
-        $file = trim((string) $entry);
-        if ($file !== '') {
-            $missing[] = $file;
-        }
+    if ($entries === [] && $missing !== []) {
+        return [
+            'entries' => [],
+            'missing' => $missing,
+            'error' => $taskError !== '' ? $taskError : 'Could not materialize playlist entries from source audio',
+        ];
     }
 
     return [

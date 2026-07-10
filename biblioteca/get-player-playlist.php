@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/auth.php';
 
 bandpromo_enforce_https();
@@ -30,6 +31,9 @@ $role = $username !== '' ? getUserRole($username) : 'user';
 $operatorBypass = in_array($role, ['admin', 'developer'], true);
 
 try {
+    if ($playlistId === BANDPROMO_PLAYLIST_DEMO_ID) {
+        bandpromo_ensure_bundled_demo_audio_delivery($root);
+    }
     $tracks = bandpromo_playlist_materialize_for_player($root, $playlistId, $operatorBypass);
     $registryEntry = null;
     foreach (bandpromo_playlist_registry_entries($root) as $entry) {
