@@ -142,28 +142,36 @@ if (!$error && isset($_GET['session_expired']) && $_GET['session_expired'] === '
 }
 
 require_once __DIR__ . '/biblioteca/config-loader.php';
+require_once __DIR__ . '/biblioteca/brand-storage.php';
 $installLogo = get_config('install.brand.logo', '/media/special/bandPromo_logo.png');
+$siteTitle = trim((string) get_config('release.identity.title', 'bandPromo'));
+if ($siteTitle === '') {
+    $siteTitle = 'bandPromo';
+}
+$pageTitle = htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') . ' — Login';
+$themeColor = '#121212';
+try {
+    $activeBrand = bandpromo_brand_load_active_document(__DIR__);
+    $brandBackground = trim((string) ($activeBrand['tokens']['color']['background'] ?? ''));
+    if ($brandBackground !== '') {
+        $themeColor = $brandBackground;
+    }
+} catch (Throwable $throwable) {
+    // Keep default theme color.
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
     <?php
-    require_once 'biblioteca/share-tools.php';
     require_once 'biblioteca/csrf.php';
-    
-    // Generate CSRF token for form
     $csrf_token = generate_csrf_token();
-    
-    echo generate_standard_meta_tags();
     ?>
-    <title><?php echo get_config('release.identity.title'); ?> - Login</title>
-    
-    <!-- Open Graph Meta Tags -->
-    <?php echo generate_og_tags(get_config('release.identity.title') . ' - Login', 'Access ' . get_config('release.identity.title')); ?>
-    
-    <!-- Twitter Card Meta Tags -->
-    <?php echo generate_twitter_tags(get_config('release.identity.title') . ' - Login', 'Access ' . get_config('release.identity.title')); ?>
-    
+    <title><?php echo $pageTitle; ?></title>
+
     <!-- Favicon & Icons -->
     <!-- favicon.ico is auto-discovered in root, no link needed -->
     <link rel="icon" type="image/png" sizes="16x16" href="/media/icons/favicon-16x16.png">
@@ -175,19 +183,16 @@ $installLogo = get_config('install.brand.logo', '/media/special/bandPromo_logo.p
     <link rel="apple-touch-icon" href="/media/icons/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(get_config('release.identity.title')); ?>">
+    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?>">
     
     <!-- Manifest & Theme -->
     <link rel="manifest" href="/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
-    <meta name="theme-color" content="#121212">
+    <meta name="theme-color" content="<?php echo htmlspecialchars($themeColor, ENT_QUOTES, 'UTF-8'); ?>">
 
     <!-- Stylesheet -->
     <link rel="stylesheet" href="./biblioteca/login.css?v=<?php echo rawurlencode($appVersion); ?>">
     <link rel="stylesheet" href="./biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
-    <?php
-    require_once __DIR__ . '/biblioteca/theme-storage.php';
-    echo bandpromo_theme_render_css(__DIR__);
-    ?>
+    <?php echo bandpromo_brand_render_css_for_id(__DIR__, bandpromo_brand_active_id(__DIR__)); ?>
 
 </head>
 <body>
@@ -339,11 +344,9 @@ $installLogo = get_config('install.brand.logo', '/media/special/bandPromo_logo.p
                 </div>
 
                 <div class="quality-group">
-                    <div id="speed-test-result" style="text-align: center; font-size: 12px; color: #fff; margin-bottom: 4px; min-height: 20px;">
-                        Testing connection speed...
-                    </div>
-                    <div style="text-align: center; margin-bottom: 10px;">
-                        <button type="button" id="retest-speed-btn" style="background: none; border: none; color: #aaa; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0;">Re-test connection</button>
+                    <div id="speed-test-result">Testing connection speed...</div>
+                    <div class="speed-test-actions">
+                        <button type="button" id="retest-speed-btn">Re-test connection</button>
                     </div>
                 </div>
                 

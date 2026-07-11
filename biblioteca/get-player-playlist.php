@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
 require_once __DIR__ . '/auth.php';
@@ -51,12 +52,24 @@ try {
         }
     }
 
+    $brandIds = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $brandId = trim((string) ($track['brand_id'] ?? ''));
+        if ($brandId !== '') {
+            $brandIds[] = $brandId;
+        }
+    }
+
     echo json_encode([
         'playlist_id' => $playlistId,
         'playlist_slug' => bandpromo_playlist_public_slug($root, $playlistId),
         'playlist_title' => (string) ($registryEntry['title'] ?? $playlistId),
         'preferred_audio_variant' => $preferredVariant,
         'delivery_summary' => $deliverySummary,
+        'brand_styles' => bandpromo_brand_player_styles_for_ids($root, $brandIds),
         'tracks' => $tracks,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $throwable) {

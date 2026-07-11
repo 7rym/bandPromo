@@ -15,9 +15,9 @@ Rules for this file:
 
 ## Current milestone
 
-**v0.8 beta (active)** — platform model definitions and core deliverables.
+**v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and content AI wizards. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Still open from earlier slices:** backup/export MVP, container marketing metadata on playlists/pages, v0.8.4 visual media rework.
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Still open from earlier slices:** backup/export MVP, page container metadata + OG wiring, v0.8 management slice (Brand, Visual pool, AI wizards).
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
@@ -31,6 +31,7 @@ Rules for this file:
 | 2 | Block-based page editor + presentation | **Shipped** |
 | 3a | Unified Content editors + upload-time delivery automation | **Shipped** |
 | 3b | Platform model: multi-playlist/gallery, module blocks, delivery architecture | **Active** |
+| 4 | v0.8 management slice: Brand, Visual pool, role tags, content AI wizards | **Active — primary focus** |
 
 Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first.
 
@@ -43,7 +44,7 @@ Policy and operator messaging — **lock before implementation**:
 - [x] Close legacy `data/bio.html` / `data/faq.html` import scope: all betatesters on current JSON pages; recovery is manual copy only if old files exist on host backups.
 - [x] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; one follow-up **Update the live site** (Publish) is normal after every package update — not a failure state.
 - [x] Lock **invisible maintenance** contract: config structure auto-repair and content-model preparation run automatically before Publish; no separate operator-facing “content model upgrade” card in normal workflow.
-- [ ] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)). *(Release EPK fields implemented in editor + storage; playlist/page fields still open.)*
+- [x] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)). *(Release + playlist fields shipped in editor + storage; page fields + OG runtime wiring still open.)*
 - [x] Lock **v0.8 playlist kind rule**: operator-created playlists are **`system`** until user/VIP playlists ship in v0.9+; fix current bug that creates `kind: "user"` (invisible to player).
 
 Implementation order (v0.8.3):
@@ -59,7 +60,7 @@ Platform fixes:
 
 - [x] **Playlist `kind` bug** — create/save operator playlists as `kind: "system"`; migrate existing `user` playlists on existing installs during Publish preflight; player selector appears when **two or more system playlists** exist.
 - [x] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
-- [ ] **Container marketing metadata** — add `description` + `poster_asset_id` fields to playlist and page containers; sketch then implement release EPK fields (press blurb, credits, genre, contact, streaming links).
+- [x] **Container marketing metadata — pages (storage only)** — playlist/release fields shipped; page `description`, `short_description`, and `poster_asset_id` in document storage + editor. **OG/share runtime wiring deferred to v0.9** (anonymous access).
 
 Content editor UX (match Themes pattern):
 
@@ -94,16 +95,73 @@ Implementation order:
 - [x] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
 - [x] Phase F — demote layout seed to setup-only (`run-layout-seed.php` + `scripts/initialSiteSeed.py`; removed from `build.py`).
 
-## v0.8.4 active slice (visual media — delivery + unified pool)
+## v0.8 management slice (Brand + Visual pool + content AI)
 
-Scheduled after v0.8.3 trust/UX items. Fits v0.8 platform adaptation work (scaling, asset identity, pool model) — **not a hotfix**.
+Primary focus after hotfix stability. Policy locked 2026-07-11 — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [ROADMAP.md](ROADMAP.md).
+
+**Product framing:** v0.8 = **management machine**; v2+ = **marketing machine** (campaign automation from existing content).
+
+### Brand (replaces Theme)
+
+Policy — **locked**:
+
+- [x] Lock **Brand replaces Theme**: colors, typography, mood narrative, and asset refs live in `data/brands/` — not a separate Theme container.
+- [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era).
+- [x] Lock **release cover on release**: `poster_asset_id` picked from Visual pool with brand filter; not stored inside the brand document.
+- [x] Lock **install default brand**: seed locked `bandpromo-default` on first install; duplicate as suggested first customization task.
+- [x] Lock **upload role tagging**: contextual uploads inherit role + brand; bulk Visual uploads default to `role: unassigned` — never block upload on role selection.
+- [x] Lock **`special` is legacy intake only**, not a brand role — migrate `media/special/` into Visual pool with explicit role tags.
+
+Implementation order:
+
+- [x] **Brand storage + migration** — `data/brands/` registry; migrate `data/themes/` + `active_theme_id` → `active_brand_id`; compatibility reads. *(Shipped build 320.)*
+- [ ] **Content → Brands editor** — evolve from Themes pool/preview; duplicate `bandpromo-default`; Set active pointer.
+- [x] **Release editor brand picker** — `brand_id` on releases; inherit install default when empty.
+- [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
+- [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses active brand CSS tokens.
+- [ ] **Welcome nudge** — post-install task: duplicate default brand and customize.
+
+### Visual pool + delivery
+
+Policy — **locked** (extends v0.8.4 visual media plan):
+
+- [x] Lock **two media families**: `audio` and `visual` (images + video). Retire Illustrations / Photos / Video / Theme as product categories.
+- [x] Lock **visual `ast_{ULID}` identity** and **explicit role tags primary** (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+- [x] Lock **brand filter** on Visual pool and pickers.
+- [ ] Lock **format-by-content** and **dimension-by-context** rules in delivery (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
+- [ ] Check in **delivery context registry** JSON (`scripts/delivery-contexts.json` or equivalent).
+
+Implementation order:
+
+- [ ] **Phase 0b — visual registry + migration** — register visual uploads at intake; backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility.
+- [ ] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten.
+- [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest.
+- [ ] **Phase 3 — Files → Visual** — single tab with brand/role/type filters; context pickers; variant gating in Content pools.
+
+### Content AI wizards (v0.8)
+
+Policy — **locked**:
+
+- [x] Lock **v0.8 scope**: wizards fill missing **container/content** fields from release + linked brand canon — not v2 campaign automation.
+- [x] Lock **prompt context contract**: release facts, EPK fields, brand mood/keywords/tone, role-tagged asset refs.
+- [ ] Lock **operator API settings**: provider, keys, limits, disclosure for AI-generated assets (`origin: ai-generated`).
+
+Implementation order:
+
+- [ ] **Settings → AI** (or Integrations) — operator-configured model endpoints and safe defaults.
+- [ ] **Wizard entry points** — Release EPK, Pages, playlist/page descriptions, optional metadata/alt text.
+- [ ] **Draft → confirm → save** — generated text/assets stay drafts until operator confirms; assets enter Visual pool with role + origin tags.
+
+## v0.8.4 active slice (visual media — merged into management slice above)
+
+Legacy heading kept for changelog references. **Do not start new work under this heading** — use **v0.8 management slice** instead.
 
 Policy — **lock before implementation**:
 
-- [ ] Lock **two media families**: `audio` (unchanged) and `visual` (images + video). Retire Illustrations / Photos / Video as product categories.
-- [ ] Lock **visual `ast_{ULID}` identity**: extend `data/assets/registry.json` to all visual uploads; containers reference `asset_id`, not legacy folder paths.
-- [ ] Lock **tags-over-folders**: `media_type`, `has_alpha`, `origin`, delivery-ready facets; role from container references (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
-- [ ] Lock **picker filter contract** per admin context (track cover, gallery, page picture, theme logo, background video, share source).
+- [x] Lock **two media families**: `audio` (unchanged) and `visual` (images + video). Retire Illustrations / Photos / Video as product categories.
+- [x] Lock **visual `ast_{ULID}` identity**: extend `data/assets/registry.json` to all visual uploads; containers reference `asset_id`, not legacy folder paths.
+- [x] Lock **tags-over-folders**: explicit role tags primary; `brand_id` on assets; picker brand filter (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+- [x] Lock **picker filter contract** per admin context (track cover, release cover, gallery, page picture, brand logo, shell background, share source).
 - [ ] Lock **format-by-content** rule: delivery codec follows alpha and role requirements; no global JPEG flattening (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
 - [ ] Lock **dimension-by-context** rule: delivery pixels target real UI surfaces (+ retina margin), not source upload dimensions.
 - [ ] Complete **display-context audit**: verify seed matrix (logo 320px, playlist thumb 70px, card 320px, gallery grid 160px, lightbox, share crops) on phone/tablet/desktop; publish delivery context registry.
@@ -168,7 +226,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
 - [x] Implement first gallery **module block** on pages (minimum: `grid` preset).
-- [x] Implement `data/themes` + setup protected seed + duplicate + active pointer.
+- [x] Implement `data/themes` + setup protected seed + duplicate + active pointer. *(Transitional — migrate to `data/brands/` + `bandpromo-default` in management slice.)*
 - [x] Split `picture` (plain caption) and `picture_richtext` page blocks.
 - [x] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.
 - [x] Restructure admin IA: **Settings** (Basics, Theme, Support, Sharing), **System** (Publish + Audit); legacy `?tab=config|build|audit` redirects; notification-first publish nudging (no Build tab pulse).
@@ -400,8 +458,8 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 - `ROADMAP.md` is the long-term direction and includes **beta tester expectations** for what is shipped vs planned.
 - `TODO.md` is the short-term working list for the **active v0.8 beta** milestone.
 - **v0.7 is complete** (exit gates passed 2026-06-15). Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
-- **v0.8 policy is complete** — platform, access, delivery, portability, and theme tokens are in `docs/PLATFORM-MODEL.md` and companion docs. Implementation follows [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order.
-- **v0.9:** access-tier implementation, login/anonymous entry, Chromecast/cast implementation.
-- **v1+:** fan credits, news + social push, richer engagement modules.
-- Current operator model: one branded site, one primary playlist, one gallery — migrating to **multiple libraries** with pages as the composition surface.
+- **v0.8 = management machine** — Brand (replaces Theme), Visual pool + role tags, release `brand_id`, content AI wizards, delivery scaling. See **v0.8 management slice**.
+- **v0.9** — access-tier implementation, login/anonymous entry, user roles, Chromecast/cast implementation.
+- **v2+ = marketing machine** — campaign automation and marketing AI from existing catalog content.
+- Current operator model: one active brand (duplicate demo default), multiple releases/playlists/galleries — releases link to shared brands by era.
 - If a task does not help ship or define the current v0.8 milestone, it probably belongs in the roadmap, not here.

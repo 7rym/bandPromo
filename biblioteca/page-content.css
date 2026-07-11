@@ -94,7 +94,7 @@
     font-size: 22px;
     font-weight: 700;
     margin: 0 0 12px;
-    text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+    text-shadow: 0 0 10px var(--primary-a30);
 }
 
 .page-richtext h2 {
@@ -390,7 +390,7 @@
 
 .page-heading--2 {
     font-size: 18px;
-    text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+    text-shadow: 0 0 10px var(--primary-a30);
 }
 
 .page-heading--3 {
@@ -426,7 +426,7 @@
     max-width: 34rem;
     padding: 12px 14px;
     border-left: 3px solid var(--primary-color);
-    background: rgba(0, 210, 255, 0.08);
+    background: var(--primary-a08);
     border-radius: 10px;
     color: var(--color-text-muted, #dddddd);
     text-align: left;
@@ -517,8 +517,8 @@
 }
 
 .page-callout--note {
-    background: rgba(0, 210, 255, 0.1);
-    border: 1px solid rgba(0, 210, 255, 0.24);
+    background: var(--primary-a10);
+    border: 1px solid var(--primary-a24);
     color: var(--color-text-muted, #dddddd);
 }
 
@@ -610,8 +610,8 @@
 
 .page-gallery-item {
     margin: 0;
-    background: rgba(0, 210, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.2);
+    background: var(--primary-a05);
+    border: 1px solid var(--primary-a20);
     border-radius: 8px;
     overflow: hidden;
     position: relative;
@@ -621,7 +621,7 @@
 
 .page-gallery-item:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 10px var(--primary-a30);
 }
 
 .page-gallery-item--video .page-gallery-video-play {
@@ -661,6 +661,6 @@
     padding: 12px;
     color: var(--color-text-muted, #dddddd);
     font-size: 0.9rem;
-    border: 1px dashed rgba(0, 210, 255, 0.35);
+    border: 1px dashed var(--primary-a35);
     border-radius: 8px;
 }

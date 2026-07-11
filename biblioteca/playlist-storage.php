@@ -1362,6 +1362,7 @@ function bandpromo_playlist_enrich_tracks_for_player(
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => $releaseId,
             'release_slug' => $releaseSlug,
+            'brand_id' => bandpromo_release_effective_brand_id($root, $releaseId),
             'track_slug' => bandpromo_playlist_track_slug($track, $asset, $releaseTrack),
             'delivery_ready' => (bool) ($streamState['delivery_ready'] ?? false),
             'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),

@@ -10,6 +10,22 @@
     --color-text-muted: #dddddd;
     --color-surface-mid: #1e1e24;
     --color-surface-deep: #000000;
+    --primary-a05: color-mix(in srgb, var(--primary-color) 5%, transparent);
+    --primary-a08: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    --primary-a10: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    --primary-a12: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    --primary-a15: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    --primary-a20: color-mix(in srgb, var(--primary-color) 20%, transparent);
+    --primary-a24: color-mix(in srgb, var(--primary-color) 24%, transparent);
+    --primary-a25: color-mix(in srgb, var(--primary-color) 25%, transparent);
+    --primary-a28: color-mix(in srgb, var(--primary-color) 28%, transparent);
+    --primary-a30: color-mix(in srgb, var(--primary-color) 30%, transparent);
+    --primary-a35: color-mix(in srgb, var(--primary-color) 35%, transparent);
+    --primary-a40: color-mix(in srgb, var(--primary-color) 40%, transparent);
+    --primary-a45: color-mix(in srgb, var(--primary-color) 45%, transparent);
+    --primary-a50: color-mix(in srgb, var(--primary-color) 50%, transparent);
+    --secondary-a20: color-mix(in srgb, var(--secondary-color) 20%, transparent);
+    --secondary-a30: color-mix(in srgb, var(--secondary-color) 30%, transparent);
 }
 
 body {
@@ -281,9 +297,9 @@ body.debug-modal-open {
     gap: 12px;
     padding: 18px;
     border-radius: 18px;
-    border: 1px solid rgba(0, 210, 255, 0.28);
+    border: 1px solid var(--primary-a28);
     background: linear-gradient(180deg, rgba(14, 24, 32, 0.98) 0%, rgba(8, 13, 18, 0.96) 100%);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(0, 210, 255, 0.12);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 30px var(--primary-a12);
     backdrop-filter: blur(16px);
 }
 
@@ -513,7 +529,7 @@ body.debug-modal-open {
     pointer-events: none;
 }
 
-h2 { margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5); z-index: 2; }
+h2 { margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px var(--primary-a50); z-index: 2; }
 h3 { margin: 5px 0 0; font-size: 1.2rem; color: #aaa; font-weight: normal; z-index: 2; }
 
 .controls {
@@ -553,13 +569,13 @@ button:active {
 /* Pulse Guide Animation */
 @keyframes pulseGlow {
     0% {
-        box-shadow: 0 0 10px rgba(0, 210, 255, 0.5), inset 0 0 10px rgba(0, 210, 255, 0.2);
+        box-shadow: 0 0 10px var(--primary-a50), inset 0 0 10px var(--primary-a20);
     }
     50% {
-        box-shadow: 0 0 25px rgba(0, 210, 255, 1), inset 0 0 15px rgba(0, 210, 255, 1);
+        box-shadow: 0 0 25px var(--primary-color), inset 0 0 15px var(--primary-color);
     }
     100% {
-        box-shadow: 0 0 10px rgba(0, 210, 255, 0.5), inset 0 0 10px rgba(0, 210, 255, 0.2);
+        box-shadow: 0 0 10px var(--primary-a50), inset 0 0 10px var(--primary-a20);
     }
 }
 
@@ -627,8 +643,8 @@ button.pulse-guide {
     flex: 1;
     padding: 8px 15px;
     font-size: 0.85rem;
-    border: 2px solid rgba(0, 210, 255, 0.3);
-    background: rgba(0, 210, 255, 0.05);
+    border: 2px solid var(--primary-a30);
+    background: var(--primary-a05);
     color: rgba(255, 255, 255, 0.6);
     transition: all 0.2s ease;
 }
@@ -637,7 +653,7 @@ button.pulse-guide {
     .content-toggle button:hover {
         border-color: var(--primary-color);
         color: var(--primary-color);
-        background: rgba(0, 210, 255, 0.1);
+        background: var(--primary-a10);
     }
 }
 
@@ -693,8 +709,8 @@ button.pulse-guide {
 /* Playlist Items (Album Tracks Style) */
 .playlist-item {
     padding: 8px;
-    background: rgba(0, 210, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.2);
+    background: var(--primary-a05);
+    border: 1px solid var(--primary-a20);
     border-radius: 6px;
     display: flex;
     gap: 8px;
@@ -705,14 +721,14 @@ button.pulse-guide {
 
 @media (hover: hover) {
     .playlist-item:hover {
-        background: rgba(0, 210, 255, 0.15);
+        background: var(--primary-a15);
         border-color: var(--primary-color);
-        box-shadow: 0 0 8px rgba(0, 210, 255, 0.3);
+        box-shadow: 0 0 8px var(--primary-a30);
     }
 }
 
 .playlist-item.current {
-    background: rgba(0, 210, 255, 0.25);
+    background: var(--primary-a25);
     border-color: var(--primary-color);
     box-shadow: 0 0 12px var(--primary-color);
 }
@@ -754,7 +770,7 @@ button.pulse-guide {
     -webkit-appearance: none;
     background-color: var(--color-surface-mid, #1e1e24);
     color: var(--text-color, #ffffff);
-    border: 1px solid rgba(0, 210, 255, 0.45);
+    border: 1px solid var(--primary-a45);
     border-radius: 8px;
     padding: 0.45rem 2rem 0.45rem 0.6rem;
     color-scheme: dark;
@@ -796,7 +812,7 @@ button.pulse-guide {
     height: 70px;
     object-fit: cover;
     border-radius: 4px;
-    border: 1px solid rgba(0, 210, 255, 0.3);
+    border: 1px solid var(--primary-a30);
     flex-shrink: 0;
     align-self: center;
 }
@@ -896,7 +912,7 @@ audio {
     max-height: 85vh;
     object-fit: contain;
     border-radius: 8px;
-    box-shadow: 0 0 50px rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 50px var(--primary-a30);
     padding: 0px;
     box-sizing: border-box;
 }
@@ -938,7 +954,7 @@ audio {
 .lightbox-next { right: 0; }
 @media (hover: hover) {
     .lightbox-nav:hover {
-        background: rgba(0, 210, 255, 0.35);
+        background: var(--primary-a35);
         box-shadow: 0 0 16px var(--primary-color);
     }
 }
@@ -1004,7 +1020,7 @@ audio {
     color: var(--primary-color);
     font-size: 18px;
     margin-bottom: 12px;
-    text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+    text-shadow: 0 0 10px var(--primary-a30);
     font-weight: 700;
 }
 
@@ -1068,8 +1084,8 @@ audio {
 
 .album-track {
     padding: 12px;
-    background: rgba(0, 210, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.2);
+    background: var(--primary-a05);
+    border: 1px solid var(--primary-a20);
     border-radius: 6px;
     display: flex;
     gap: 12px;
@@ -1081,7 +1097,7 @@ audio {
     height: 70px;
     object-fit: cover;
     border-radius: 4px;
-    border: 1px solid rgba(0, 210, 255, 0.3);
+    border: 1px solid var(--primary-a30);
     flex-shrink: 0;
 }
 
@@ -1122,7 +1138,7 @@ audio {
     position: relative;
     overflow: hidden;
     border-radius: 6px;
-    border: 1px solid rgba(0, 210, 255, 0.3);
+    border: 1px solid var(--primary-a30);
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -1141,7 +1157,7 @@ audio {
 
 .gallery-item:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 10px var(--primary-a30);
 }
 
 .gallery-item--video video {

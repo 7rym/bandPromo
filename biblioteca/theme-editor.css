@@ -114,7 +114,7 @@
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
     font-size: 0.78rem;
-    background: rgba(0, 210, 255, 0.12);
+    background: var(--primary-a12);
     color: var(--primary-color, #00d2ff);
 }
 

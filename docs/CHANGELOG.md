@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-11 15:40 - Checkpoint v0.8.6 build 320: v0.8 management slice — Brand storage (`data/brands/`), release `brand_id` + editor picker, per-release player branding, brand-aware CSS alpha tokens, login brand tokens, OG/Twitter removed from player+login until v0.9; page container metadata fields; planning docs aligned.
+
+2026-07-11 15:30 - Login page: remove OG/Twitter meta until v0.9; wire active brand CSS tokens through login.css (primary/secondary/alpha vars, typography inherit); theme-color from brand background.
+
+2026-07-11 15:25 - Player: remove Open Graph and Twitter Card meta tags until v0.9 anonymous share entry; keep browser/PWA head (title, favicons, manifest). `share-tools.php` kept for v0.9 public routes.
+
+2026-07-11 15:15 - Player CSS: replace hardcoded cyan rgba accents with `--primary-a**` / `--secondary-a**` variables derived from brand tokens via `color-mix()`; inject derived alpha vars in brand CSS output.
+
+2026-07-11 15:05 - Player applies per-release brand tokens: tracks carry resolved `brand_id`, playlist API returns `brand_styles`, player swaps CSS variables on playlist load and track change; initial page render uses the active track's brand.
+
+2026-07-11 15:00 - v0.8 management slice start: brand storage on `data/brands/` with themes migration and `bandpromo-default` seed; `brand-storage.php`; release `brand_id` + editor picker; page container metadata fields in document storage + editor (OG runtime deferred to v0.9); admin Brands labeling.
+
+2026-07-11 14:30 - FEATURES.md: note Brand-replaces-Theme direction and v0.8 management slice (Visual pool, role tags, content AI wizards).
+
+2026-07-11 14:30 - Planning docs: v0.8 management machine (Brand replaces Theme, Visual pool + explicit role tags, release brand_id many-to-one, content AI wizards); v2+ marketing machine; upload tagging policy; special/Theme tab legacy migration. Updated PLATFORM-MODEL.md, MEDIA-HANDLING.md, ROADMAP.md, TODO.md.
+
 2026-07-10 14:20 - Checkpoint v0.8.5 build 319: demo catalog visibility toggle, Site update dev-host reliability and ahead-of-published state, dashboard panel order; planning docs synced to v0.8.5 hotfix slice.
 
 2026-07-10 14:05 - Site update shows a green ahead-of-published state when the local VERSION is newer than the latest GitHub release package, with the published version called out as a developer publish reminder.

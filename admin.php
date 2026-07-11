@@ -1372,7 +1372,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     'playlist' => ['🎵', 'Playlists'],
                     'gallery'  => ['🖼️', 'Galleries'],
                     'pages'    => ['📝', 'Pages'],
-                    'themes'   => ['🎨', 'Themes'],
+                    'themes'   => ['🎨', 'Brands'],
                     'player'   => ['🎛️', 'Player'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
@@ -1486,6 +1486,13 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                                     <span class="date-input-icon" aria-hidden="true">📅</span>
                                                     <input type="text" class="iso-date-input" id="releaseSettingsDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                                                 </div>
+                                            </label>
+                                            <label class="playlist-settings-field release-catalog-meta-field--id">
+                                                <span>Brand</span>
+                                                <select id="releaseSettingsBrandId" aria-label="Release brand">
+                                                    <option value="">Install default</option>
+                                                </select>
+                                                <p class="hint">Many releases can share one brand (era). Leave empty to use the active install brand.</p>
                                             </label>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
                                                 <span>Catalog ID</span>
@@ -1911,6 +1918,24 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                             <span>Player tab</span>
                                             <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
                                         </label>
+                                        <label class="page-meta-field page-meta-field--wide">
+                                            <span>Short description</span>
+                                            <textarea id="pageSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
+                                            <div class="field-note release-short-description-note"><span id="pageSettingsShortDescriptionCount">0</span>/300 characters</div>
+                                        </label>
+                                        <label class="page-meta-field page-meta-field--wide">
+                                            <span>Description</span>
+                                            <textarea id="pageSettingsDescription" rows="3" maxlength="4000" placeholder="Summary for this page" autocomplete="off"></textarea>
+                                        </label>
+                                        <label class="page-meta-field page-meta-field--wide">
+                                            <span>Share image</span>
+                                            <input type="hidden" id="pageSettingsPosterAssetId" data-empty-label="No share image selected">
+                                            <div class="asset-picker-row">
+                                                <span id="pageSettingsPosterAssetId_label" class="asset-picker-value empty">No share image selected</span>
+                                                <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="pageSettingsPosterAssetId" data-title="Choose share image" data-targets="illustrations,photos,special" title="Choose share image" aria-label="Choose share image">✎</button>
+                                            </div>
+                                            <p class="hint">Stored for when public sharing ships in v0.9. OG tags are not wired yet.</p>
+                                        </label>
                                     </div>
                                     <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
                                     <div class="page-editor-panel-head">
@@ -1999,7 +2024,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php elseif ($contentTab === 'themes'): ?>
             <div class="card content-editor-card" id="themeEditorRoot"
                  data-initial-theme="<?php echo htmlspecialchars($contentTheme, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🎨 Themes</h3>
+                <h3>🎨 Brands</h3>
                 <p class="card-note">
                     Pick a theme from the pool to preview how its tokens look on the right. Use the edit button to change colors, typography, and layout variables.
                     Setup Default stays locked; duplicate it to create an editable copy. Brand asset paths still live under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during migration.
@@ -2025,7 +2050,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                         <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
                                     </div>
                                     <span class="status-text theme-editor-name-status content-editor-name-status" id="themeSettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to theme list">← Themes</button>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Brands</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body theme-editor-view-body">
                                     <div class="theme-editor-form" id="themeEditorForm">

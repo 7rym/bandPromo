@@ -16,14 +16,15 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - **Notifications** operator inbox modal with plain-language tasks (header bell is the primary entry point on completed installs)
 - Quick actions on the completed-install dashboard (Analytics, Files, Content, live preview, Documentation)
 - Built-in analytics for playback and user behavior
-- Guided **Settings** forms (Basics, Theme, Support, Sharing) instead of raw JSON editing
-- **Content → Themes** editor: theme pool, token editing, live preview, duplicate/delete, and Set active
+- Guided **Settings** forms (Basics, Theme, Support, Sharing) instead of raw JSON editing *(Theme settings migrate to Brand in v0.8 management slice)*
+- **Content → Themes** editor *(transitional — becomes **Content → Brands**: pool, tokens, mood narrative, live preview, duplicate/delete, Set active)*
 - **Block-based Pages editor** (v0.8 beta): Text, Picture, and List blocks; rich formatting; fraction picture widths and Flow placement; live player-styled preview; delete confirmations for pages and blocks
 - Page registry in `data/pages/registry.json`: operators can add, rename, and remove optional pages; **FAQ remains required** for login info / shared-link context
 - Content → **Playlist**, **Gallery**, **Pages**, and **Player layout** share one pool/result editor pattern: **Available content** pool on the left, active order/layout on the right, multi-select drag-and-drop, demo filter on media pools only, and amber **Save** / green **Saved** header controls
 - Content → **Playlist** and **Gallery** management (multiple libraries in admin; player playlist selector when two or more **system** playlists exist)
 - Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
-- Files panels for Audio, Photos, Video, Illustrations, and install-specific **Theme** assets (distinct from Settings → Theme brand paths)
+- Files panels for Audio and legacy visual buckets (Photos, Video, Illustrations, Theme/`special`) — **planned:** single **Visual** pool with brand + role filters
+- **Planned (v0.8 management slice):** **Brand** containers (replace Theme), release `brand_id` links (many releases per era), explicit role tags on visuals, **content AI wizards**, unified Visual pool — see [TODO.md](TODO.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
 - Files list header row aligned with file items: master select-all checkbox, compact filter dropdowns (`All` / usage filters plus `User files` / `Include demo`), and labeled **Upload**, **Download**, and **Delete** bulk actions
 - Per-row selection with shift-range support, ZIP bulk download, and reference-aware delete warnings
 - Audio quick-edit for common tag fields plus full editor for lyrics, description, and cover work
@@ -47,7 +48,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 ### Build & Delivery
 - Automated build pipeline for optimized audio and images
 - Upload-time background tasks for audio delivery, image delivery, and video delivery (`biblioteca/auto-build-tasks.php` plus focused Python runners)
-- **Planned (v0.8.4):** unified **Visual** media pool (images + video, `ast_{ULID}` identity), context-sized delivery variants, format-by-content (preserve PNG/WebP alpha); collapses Illustrations/Photos/Video — see [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
+- **Planned (v0.8 management slice):** unified **Visual** media pool (images + video, `ast_{ULID}` identity), brand filter, explicit role tags, context-sized delivery variants, format-by-content (preserve PNG/WebP alpha) — see [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
 - Validation-only playlist scan after audio upload; setup runs **initial site seed** (`scripts/initialSiteSeed.py`) for empty playlist/gallery containers and player tab order
 - Automatic lightweight playlist/validation refresh after audio metadata edits
 - Original / master / delivery media workflow for safer repair and publish handling

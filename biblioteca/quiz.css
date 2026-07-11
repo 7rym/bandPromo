@@ -33,7 +33,7 @@
 .quiz-option {
     padding: 10px;
     background: rgba(255, 255, 255, 0.05);
-    border: 2px solid rgba(0, 210, 255, 0.2);
+    border: 2px solid var(--primary-a20);
     border-radius: 6px;
     color: var(--text-color);
     cursor: pointer;
@@ -44,7 +44,7 @@
 
 @media (hover: hover) {
     .quiz-option:hover:not(:disabled) {
-        background: rgba(0, 210, 255, 0.15);
+        background: var(--primary-a15);
         border-color: var(--primary-color);
     }
 }
@@ -101,7 +101,7 @@
 @media (hover: hover) {
     .quiz-action-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4);
+        box-shadow: 0 5px 20px var(--primary-a40);
     }
 }
 
@@ -146,8 +146,8 @@
 .quiz-highscores {
     margin: 12px 0;
     padding: 10px;
-    background: rgba(0, 210, 255, 0.1);
-    border: 1px solid rgba(0, 210, 255, 0.3);
+    background: var(--primary-a10);
+    border: 1px solid var(--primary-a30);
     border-radius: 6px;
 }
 
@@ -215,8 +215,8 @@
     font-weight: bold;
     color: var(--primary-color);
     padding: 10px 20px;
-    background: rgba(0, 210, 255, 0.1);
-    border: 2px solid rgba(0, 210, 255, 0.3);
+    background: var(--primary-a10);
+    border: 2px solid var(--primary-a30);
     border-radius: 8px;
     min-width: 120px;
     text-align: center;
@@ -247,8 +247,8 @@
 
 .quiz-select-btn {
     padding: 12px 18px;
-    background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(58, 123, 213, 0.2));
-    border: 2px solid rgba(0, 210, 255, 0.4);
+    background: linear-gradient(135deg, var(--primary-a20), var(--secondary-a20));
+    border: 2px solid var(--primary-a40);
     border-radius: 8px;
     color: var(--text-color);
     cursor: pointer;
@@ -262,9 +262,9 @@
 
 @media (hover: hover) {
     .quiz-select-btn:hover {
-        background: linear-gradient(135deg, rgba(0, 210, 255, 0.3), rgba(58, 123, 213, 0.3));
+        background: linear-gradient(135deg, var(--primary-a30), var(--secondary-a30));
         border-color: var(--primary-color);
-        box-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+        box-shadow: 0 0 20px var(--primary-a30);
         transform: translateY(-2px);
     }
 }
@@ -298,8 +298,8 @@
 
 .quiz-highscores-col {
     padding: 4px;
-    background: rgba(0, 210, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.2);
+    background: var(--primary-a05);
+    border: 1px solid var(--primary-a20);
     border-radius: 8px;
     animation: slideIn 0.3s ease;
     width: 100%;

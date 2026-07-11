@@ -29,6 +29,11 @@
 
         const pageTitleInput = document.getElementById('pageTitleInput');
         const pageLabelInput = document.getElementById('pageLabelInput');
+        const pageSettingsShortDescription = document.getElementById('pageSettingsShortDescription');
+        const pageSettingsShortDescriptionCount = document.getElementById('pageSettingsShortDescriptionCount');
+        const pageSettingsDescription = document.getElementById('pageSettingsDescription');
+        const pageSettingsPosterAssetId = document.getElementById('pageSettingsPosterAssetId');
+        const pageSettingsPosterAssetIdLabel = document.getElementById('pageSettingsPosterAssetId_label');
         function pageEntry(pageId) {
             return pages.find((entry) => entry && entry.id === pageId) || null;
         }
@@ -344,6 +349,44 @@
             },
         }) || null;
 
+        function syncPageDocumentMetaFromForm() {
+            if (!documentState || typeof documentState !== 'object') {
+                return;
+            }
+            if (pageSettingsShortDescription instanceof HTMLTextAreaElement) {
+                documentState.short_description = String(pageSettingsShortDescription.value || '').trim();
+            }
+            if (pageSettingsDescription instanceof HTMLTextAreaElement) {
+                documentState.description = String(pageSettingsDescription.value || '').trim();
+            }
+            if (pageSettingsPosterAssetId instanceof HTMLInputElement) {
+                documentState.poster_asset_id = String(pageSettingsPosterAssetId.value || '').trim();
+            }
+        }
+
+        function syncPageDocumentMetaToForm() {
+            const doc = documentState && typeof documentState === 'object' ? documentState : {};
+            if (pageSettingsShortDescription instanceof HTMLTextAreaElement) {
+                pageSettingsShortDescription.value = String(doc.short_description || '').trim();
+            }
+            if (pageSettingsDescription instanceof HTMLTextAreaElement) {
+                pageSettingsDescription.value = String(doc.description || '').trim();
+            }
+            if (pageSettingsPosterAssetId instanceof HTMLInputElement) {
+                pageSettingsPosterAssetId.value = String(doc.poster_asset_id || '').trim();
+            }
+            if (pageSettingsPosterAssetIdLabel) {
+                const posterId = pageSettingsPosterAssetId instanceof HTMLInputElement
+                    ? String(pageSettingsPosterAssetId.value || '').trim()
+                    : '';
+                pageSettingsPosterAssetIdLabel.textContent = posterId || 'No share image selected';
+                pageSettingsPosterAssetIdLabel.classList.toggle('empty', posterId === '');
+            }
+            if (pageSettingsShortDescriptionCount && pageSettingsShortDescription instanceof HTMLTextAreaElement) {
+                pageSettingsShortDescriptionCount.textContent = String(pageSettingsShortDescription.value.length);
+            }
+        }
+
         function pageMetaSnapshot() {
             return {
                 title: pageTitleInput ? String(pageTitleInput.value || '').trim() : '',
@@ -356,9 +399,15 @@
         }
 
         function buildDirtyFingerprint() {
+            syncPageDocumentMetaFromForm();
             const meta = pageMetaSnapshot();
             const blocks = Array.isArray(documentState?.blocks) ? documentState.blocks : [];
-            return JSON.stringify({ meta, blocks });
+            const containerMeta = {
+                short_description: String(documentState?.short_description || '').trim(),
+                description: String(documentState?.description || '').trim(),
+                poster_asset_id: String(documentState?.poster_asset_id || '').trim(),
+            };
+            return JSON.stringify({ meta, containerMeta, blocks });
         }
 
         function hasUnsavedChanges() {
@@ -1700,6 +1749,7 @@
             suppressDirtyTracking = true;
             allowUnloadWithoutSave = false;
             documentState = data.document;
+            syncPageDocumentMetaToForm();
             if (data.picture_styles && typeof data.picture_styles === 'object') {
                 pictureStyleMeta = {
                     width_min: Number(data.picture_styles.width_min) || 1,
@@ -1741,6 +1791,7 @@
         async function saveDocument() {
             if (!documentState || !saveBtn) return;
             syncRichEditors();
+            syncPageDocumentMetaFromForm();
             saveUi?.markSaving();
 
             const meta = pageMetaSnapshot();
@@ -1915,6 +1966,23 @@
             if (event.isTrusted) {
                 markDirty();
             }
+        });
+        pageSettingsShortDescription?.addEventListener('input', (event) => {
+            if (pageSettingsShortDescriptionCount && pageSettingsShortDescription instanceof HTMLTextAreaElement) {
+                pageSettingsShortDescriptionCount.textContent = String(pageSettingsShortDescription.value.length);
+            }
+            if (event.isTrusted) {
+                markDirty();
+            }
+        });
+        pageSettingsDescription?.addEventListener('input', (event) => {
+            if (event.isTrusted) {
+                markDirty();
+            }
+        });
+        pageSettingsPosterAssetId?.addEventListener('input', () => {
+            syncPageDocumentMetaToForm();
+            markDirty();
         });
         document.addEventListener('click', guardAdminNavigation, true);
 

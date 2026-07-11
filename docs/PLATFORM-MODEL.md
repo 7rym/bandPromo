@@ -1,8 +1,8 @@
 # bandPromo Platform Model (v0.8)
 
-Source of truth for the v0.8 beta platform contract: releases, assets, containers, pages, themes, URLs, and legacy behaviour to remove.
+Source of truth for the v0.8 beta platform contract: releases, assets, containers, pages, brands, URLs, and legacy behaviour to remove.
 
-Status: **policy complete** (2026-06-15). Implementation slices in [TODO.md](TODO.md).
+Status: **policy updated** (2026-07-11 — Brand replaces Theme; visual pool + role tags; content AI wizards in v0.8). Implementation slices in [TODO.md](TODO.md).
 
 Companion policy docs:
 
@@ -16,7 +16,8 @@ Companion policy docs:
 |------|---------|
 | **Asset** | One stored media file or inline content fragment (audio, image, video, richtext HTML). Identified by `asset_id`. |
 | **Release** | Catalog entity: a marketed album/EP/single. Owns track membership, release date, and release-level metadata. |
-| **Container** | Operator-managed document in `data/`: playlist, gallery, page, theme, release. |
+| **Brand** | Visual identity package for an era or campaign: colors, typography, mood narrative, and curated asset refs. Many releases may share one brand. |
+| **Container** | Operator-managed document in `data/`: playlist, gallery, page, brand, release. |
 | **Block** | One composition unit inside a page container. |
 | **Module** | Editor + renderer for a block or container type. |
 | **Pool** | Available items when adding to a container (Content editor left column). |
@@ -24,7 +25,7 @@ Companion policy docs:
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
-Admin UI uses friendly names (Playlist, Gallery, Page, Theme). Docs and code use the terms above.
+Admin UI uses friendly names (Playlist, Gallery, Page, Brand). Docs and code use the terms above. **Theme** is a legacy name for what is now **Brand** during migration (`data/themes/` → `data/brands/`).
 
 ## Asset identity and filenames
 
@@ -57,7 +58,8 @@ All containers, registries, playlists, releases, and deep links reference **`ass
 - `release_id` + `release_track_number` for audio in a release
 - `original_filename`: exact upload name
 - `storage`: paths to original, master, delivery tiers
-- `tags`: filter facets for unified media pools
+- `tags`: explicit **role tags** and filter facets for unified media pools (see **Tags and roles**)
+- `brand_id`: optional brand scope for visual assets (defaults to install active brand)
 - `locked`: inherited from release lock (see below)
 
 Human-readable export names (for future distributor handover ZIPs) are generated at **export time** from registry fields, not used as on-disk paths.
@@ -69,7 +71,7 @@ Two **media families** at the platform level — because intake, packaging, and 
 | Family | Contents | Operator pool |
 |--------|----------|-----------------|
 | **Audio** | Music, spoken word, theme welcome audio | Files → Audio; playlist/release references |
-| **Visual** | Still images **and** video | Files → Visual (single pool); gallery/page/theme references |
+| **Visual** | Still images **and** video | Files → Visual (single pool); gallery/page/brand/release references |
 
 **Scheduled v0.8.4:** collapse today's constructed split — **Illustrations** (`media/img/`), **Photos** (`media/photo/`), and **Video** (`media/video/`) — into one **Visual** library. The old folder names are legacy intake buckets, not product categories. Anything visual can share one pool as long as assets are tagged and pickers apply context filters.
 
@@ -83,20 +85,30 @@ Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visu
 - **Master** stored as `ast_{ULID}.{ext}` (canonical regeneration source)
 - **Delivery** variants under `ast_{ULID}/` or `ast_{ULID}_{variant}.{ext}` — not human upload stems
 
-Containers, galleries, pages, themes, and track covers reference **`asset_id`**, not `/media/img/original/my-logo.png`.
+Containers, galleries, pages, brands, and track covers reference **`asset_id`**, not `/media/img/original/my-logo.png`.
 
 ### Tags and roles (not folders)
 
-Registry **`tags`** and derived facets replace folder location as the operator/filter model:
+Registry **`tags`**, **`brand_id`**, and derived facets replace folder location as the operator/filter model.
+
+**Policy (2026-07-11):** **explicit role tags are primary.** Container references add usage context and validation; they do not replace the asset's tagged role.
 
 | Facet | Purpose | Examples |
 |-------|---------|----------|
-| `media_type` | Intake/delivery pipeline branch | `image`, `video` |
+| `role` | Intended use of the asset (required for pickers; default `unassigned` for bulk pool uploads) | `brand-logo`, `brand-portrait`, `style-ref`, `release-cover`, `track-cover`, `gallery`, `page-illustration`, `shell-background-image`, `shell-welcome-audio` |
+| `brand_id` | Which brand identity package this asset belongs to | `bandpromo-default`, `violator-era`, … |
+| `media_type` | Intake/delivery pipeline branch | `image`, `video`, `audio` |
 | `has_alpha` | Format/delivery policy | `true` for logos, overlays |
-| `origin` | Bundled vs operator content | `user-upload`, `bundled-placeholder`, `generated` |
+| `origin` | Provenance | `user-upload`, `bundled-placeholder`, `ai-generated`, `generated` |
 | `delivery_ready` | Pool gating | computed from variant manifest |
 
-**Role** (track cover, gallery item, page picture, theme logo, share source) comes from **references** in containers/blocks/config — not from which legacy folder the file was uploaded to.
+**Upload defaults:**
+
+- **Contextual upload** (picker in release editor, brand asset field, page picture): inherit `role` and `brand_id` from picker context.
+- **Bulk upload** to Visual pool: `role: unassigned`, `brand_id` = install active brand until operator retags.
+- Uploads never require role selection up front; Notifications may nudge when assets remain `unassigned`.
+
+**Legacy intake:** today's Illustrations / Photos / Video / Theme (`media/special/`) tabs and `target=special` upload hints are **legacy buckets**, not product roles. Migration registers existing files, assigns provisional roles, and retires folder-based mental models. **`special` is not a brand role.**
 
 ### Picker and admin filter contract
 
@@ -104,16 +116,18 @@ Media pickers declare a **context**; the backend returns assets from the Visual 
 
 | Picker context | Typical filters |
 |----------------|-----------------|
+| Release cover | `media_type=image`, `brand_id` = release's linked brand (or install default), delivery-ready, square-friendly; role includes `release-cover` or `unassigned` |
 | Track cover | `media_type=image`, delivery-ready, square-friendly |
 | Gallery item | `media_type` image or video, delivery-ready |
 | Page picture | `media_type=image`, delivery-ready |
-| Theme logo | `media_type=image`, prefer `has_alpha` |
-| Background video | `media_type=video`, delivery-ready |
+| Brand logo | `media_type=image`, `brand_id` match, prefer `has_alpha`, roles `brand-logo` / `unassigned` |
+| Brand portrait / style ref | `brand_id` match, roles `brand-portrait`, `style-ref`, `typography-sample` |
+| Shell background video | `media_type=video`, `brand_id` match, role `shell-background-image` or `shell-background-video` |
 | Share / poster source | `media_type=image`, large enough for share variant |
 
-Admin **Files → Visual** exposes the same pool with operator filters: type (image/video), in-use/orphan, alpha, delivery-ready, references — replacing separate Illustrations/Photos/Video tabs.
+Admin **Files → Visual** exposes the same pool with operator filters: brand, role, type (image/video), in-use/orphan, alpha, delivery-ready — replacing separate Illustrations/Photos/Video/Theme tabs after migration.
 
-`media/special/` install identity assets (**logos, share sources**) migrate into the Visual pool with tags such as `theme-identity` during v0.8.4; until then they remain a workaround path that bypasses the JPEG optimizer.
+`media/special/` and direct config paths migrate into the Visual pool as brand-scoped assets during v0.8; until then they remain a legacy workaround that bypasses the JPEG optimizer.
 
 ## Releases
 
@@ -121,6 +135,7 @@ A release is a traditional album/EP/single release: recorded tracks, marketing p
 
 ### Rules
 
+- **`brand_id`**: optional link to a brand container (see **Brands**). Many releases may share one brand (singles, EPs, and album tracks in the same visual era).
 - Every audio track must belong to **exactly one** release (explicit `release_id` **and** required album/release tag on the master for builds).
 - `release_date` is the primary availability threshold (soft by user role in v0.9; operators always bypass).
 - ISRC / ISWC: not in v0.8; reserve per-track fields for future distributor handover.
@@ -145,6 +160,7 @@ Release document (sketch):
   "release_date": "2026-09-01",
   "locked": false,
   "catalog_id": "EP002",
+  "brand_id": "twisted-chronicles-debut-era",
   "short_description": "One-line summary for cards and previews.",
   "description": "Press-ready blurb for this release.",
   "poster_asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
@@ -249,25 +265,39 @@ Canonical storage: `data/pages/*.json` + `data/pages/registry.json` (shipped).
 
 All block types are implemented as **modules** (editor + renderer). Playlists and lyrics stay in the **player shell**; pages link in via deep links, not embedded players.
 
-## Themes
+## Brands
 
-Theme = container of style definitions (colors, fonts, typography tokens, brand asset paths).
+**Brand** replaces the former **Theme** container. A brand is the full visual identity for an era or campaign: colors, typography, mood narrative, and curated asset references. **Release cover art stays on the release** (`poster_asset_id`); the brand holds identity assets and presentation tokens shared across releases in the same era.
+
+### Why many releases → one brand
+
+Normal release cadence — singles and EPs while building toward an album, then post-album singles to keep momentum — often shares one visual era. Example: several releases link to `violator-era` while each keeps its own cover in the Visual pool.
+
+Rules:
+
+- **`brand_id` on releases** is optional; when omitted, fall back to **`install.pointers.active_brand_id`**.
+- **Many releases may reference the same brand** (many-to-one).
+- **New era:** duplicate an existing brand, customize, point new releases at the copy.
+- **Release cover** is always **`poster_asset_id` on the release**, picked from the Visual pool filtered by the release's linked brand.
+
+### Storage
 
 ```
-data/themes/registry.json
-data/themes/{theme-id}.json
+data/brands/registry.json
+data/brands/{brand-id}.json
 ```
 
-- Setup seeds `setup-default` — complete, `system: true`, `locked: true` (fail-safe).
+Migration: `data/themes/` → `data/brands/` with compatibility reads for `active_theme_id` → `active_brand_id`.
+
+- Setup seeds **`bandpromo-default`** — complete, `system: true`, `locked: true` (fail-safe demo brand).
 - Operators **duplicate** to customize; they do not edit the locked seed in place.
-- Active theme: `install.pointers.active_theme_id` in `web-config.json` (or `data/install/state.json`).
-- Content → Themes uses the pool/preview editor pattern; **Set active** updates the install pointer.
-- Config → Theme becomes a shortcut to active theme brand paths during migration (see **Settings → Theme**).
-- Release/theme overrides (per-release visual identity) are **post-basics**; v0.8 ships one active install theme.
+- Active brand: `install.pointers.active_brand_id` in `web-config.json` (or `data/install/state.json`).
+- Content → **Brands** uses the pool/preview editor pattern (evolves from Content → Themes); **Set active** updates the install pointer.
+- Suggested first post-install task: duplicate **bandPromo Default** and customize colors/assets.
 
 ### Semantic color and layout tokens
 
-Theme containers expose tokens that map to CSS custom properties on `:root` (player, pages, login share one contract). Theme packs and GitHub ZIP distributions reuse this schema.
+Brand containers expose tokens that map to CSS custom properties on `:root` (player, pages, login share one contract). Brand packs and GitHub ZIP distributions reuse this schema.
 
 **Color tokens (required v0.8):**
 
@@ -284,40 +314,60 @@ Theme containers expose tokens that map to CSS custom properties on `:root` (pla
 | `color.link_hover` | `--color-link-hover` | Link hover |
 | `color.link_visited` | `--color-link-visited` | Visited links on dark backgrounds |
 
-**Layout:** Player cover art size (`--card-size`) is **not** a theme token. Responsive breakpoints and orientation rules live in `biblioteca/style.css`.
+**Layout:** Player cover art size (`--card-size`) is **not** a brand token. Responsive breakpoints and orientation rules live in `biblioteca/style.css`.
 
-**Brand asset refs (paths to `asset_id` or delivery URL):**
+**Asset refs (`asset_id` in Visual pool, tagged for this brand):**
 
-- `brand.logo`, `brand.poster`, `brand.background_image`, `brand.background_video`
-- `brand.welcome_audio`, `brand.loggedin_audio`
-- `brand.favicon_package` (optional; icons under `media/icons/`)
+| Slot | Typical role tag |
+|------|------------------|
+| Logo / lockups | `brand-logo` |
+| Default poster / share source | `brand-poster` |
+| Member portraits | `brand-portrait` |
+| Style / mood reference images | `style-ref` |
+| Typography samples | `typography-sample` |
+| Shell background image | `shell-background-image` |
+| Shell background video | `shell-background-video` |
+| Welcome / logged-in audio | `shell-welcome-audio`, `shell-loggedin-audio` |
+| Favicon package | optional; icons under `media/icons/` |
+
+**Narrative (for operators and AI wizards):**
+
+- `mood`, `keywords`, `tone_notes` — plain-language identity brief (gritty industrial vs playful cartoon vs glossy fashion, etc.)
 
 **Typography (v0.8 minimum):**
 
 - `typography.font_family_base` — body/UI stack
 - `typography.font_family_heading` — optional; falls back to base
 
-Renderer injects tokens as `:root` overrides when a theme is active. Page blocks and player chrome read the same variables.
+Renderer injects tokens as `:root` overrides when a brand is active. Page blocks and player chrome read the same variables.
 
-### Theme document sketch
+### Brand document sketch
 
 ```json
 {
   "version": 1,
-  "id": "setup-default",
-  "title": "Setup Default",
+  "id": "bandpromo-default",
+  "title": "bandPromo Default",
   "system": true,
   "locked": true,
+  "mood": "Clean demo identity for first-run installs",
+  "keywords": ["demo", "electronic", "modern"],
+  "tone_notes": "Neutral platform defaults; duplicate and replace for your artist era.",
   "tokens": {
     "color": { "primary": "#00d2ff", "secondary": "#3a7bd5", "background": "#121212" },
     "typography": { "font_family_base": "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }
   },
   "assets": {
     "logo": "ast_…",
-    "poster": "ast_…"
+    "poster": "ast_…",
+    "background_video": "ast_…"
   }
 }
 ```
+
+### Content AI wizards (v0.8)
+
+When a release links to a brand, **content wizards** use release facts + brand narrative + role-tagged asset refs as structured prompt context to fill missing container fields (EPK blurb, page draft, descriptions, alt text, etc.). Generated assets enter the Visual pool with `origin: ai-generated` and an explicit role; operator confirms before publish-relevant use. See [ROADMAP.md](ROADMAP.md) — v0.8 **management machine** vs v2 **marketing machine**.
 
 ## `data/` layout (source of truth)
 
@@ -330,7 +380,7 @@ data/
   playlists/registry.json + {id}.json
   galleries/registry.json + {id}.json
   pages/registry.json + {id}.json      # shipped
-  themes/registry.json + {id}.json
+  brands/registry.json + {id}.json     # replaces themes/
   player/layout.json                   # tab order (from web-config player branch)
 ```
 
@@ -372,7 +422,7 @@ Playlist position must **never** sync into ID3/FLAC `TRCK` tags.
 
 Content editors use one pattern (shipped for playlist/gallery/pages):
 
-1. Left: pool of **containers** (playlists, galleries, pages, themes).
+1. Left: pool of **containers** (playlists, galleries, pages, brands).
 2. Right: preview of selected container.
 3. **Add** or **edit** replaces the container list with a pool of **assets** (or block types) to insert.
 
@@ -393,7 +443,7 @@ Shipped in every install; may not be disabled in v0.8:
 | `container.playlist` | container editor | System playlists |
 | `container.gallery` | container editor | System galleries |
 | `container.page` | container editor | Shipped |
-| `container.theme` | container editor | Theme pool editor |
+| `container.brand` | container editor | Brand pool editor (transitional id: `container.theme`) |
 | `container.release` | container editor | Release catalog |
 | `player.playlists` | player shell | Not a page block |
 | `player.lyrics` | player shell | Not a page block |
@@ -445,7 +495,7 @@ After migration, `web-config.json` holds **install shell + pointers only**:
     "site": { "url": "", "language": "en", "author": "" },
     "social": { },
     "pointers": {
-      "active_theme_id": "setup-default",
+      "active_brand_id": "bandpromo-default",
       "active_release_id": null
     }
   },
@@ -454,7 +504,7 @@ After migration, `web-config.json` holds **install shell + pointers only**:
 }
 ```
 
-Release identity, theme tokens, and brand assets move to `data/releases/` and `data/themes/`. Compatibility reads from legacy `site` / `media` / `release.*` branches continue until dual-write migration completes (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
+Release identity and brand tokens move to `data/releases/` and `data/brands/`. Compatibility reads from legacy `site` / `media` / `release.*` / `data/themes/` branches continue until dual-write migration completes (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
 
 ## Legacy behaviour to remove
 
@@ -473,8 +523,10 @@ These behaviours come from the old single-playlist / filename-key model and must
 4. Player: playlist selector, default-by-`publish_date`, path URLs with per-release slugs.
 5. Embargoed tracks visible but non-playable in playlist UI.
 6. `data/galleries` + page `gallery` block (grid preset minimum).
-7. `data/themes` + setup protected seed + duplicate + active pointer.
+7. `data/brands/` + setup protected seed `bandpromo-default` + duplicate + active pointer (migrate from `data/themes/`).
 8. Split `picture` / `picture_richtext` blocks.
+9. Visual pool registry + role tags + brand-scoped pickers (see [TODO.md](TODO.md) v0.8 management slice).
+10. Content AI wizards — operator-configured models; release + brand prompt context (v0.8).
 
 ## Related docs
 

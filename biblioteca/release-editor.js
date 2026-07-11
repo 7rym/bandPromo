@@ -22,6 +22,7 @@
         const releaseSettingsTitle = document.getElementById('releaseSettingsTitle');
         const releaseSettingsDate = document.getElementById('releaseSettingsDate');
         const releaseSettingsCatalogId = document.getElementById('releaseSettingsCatalogId');
+        const releaseSettingsBrandId = document.getElementById('releaseSettingsBrandId');
         const releaseSettingsStatus = document.getElementById('releaseSettingsStatus');
         const releaseSettingsDescription = document.getElementById('releaseSettingsDescription');
         const releaseSettingsShortDescription = document.getElementById('releaseSettingsShortDescription');
@@ -443,6 +444,7 @@
                 short_description: '',
                 description: '',
                 poster_asset_id: '',
+                brand_id: '',
                 epk: defaultReleaseEpk(),
             };
         }
@@ -534,6 +536,9 @@
                     : '',
                 poster_asset_id: releaseSettingsPosterAssetId instanceof HTMLInputElement
                     ? String(releaseSettingsPosterAssetId.value || '').trim()
+                    : '',
+                brand_id: releaseSettingsBrandId instanceof HTMLSelectElement
+                    ? String(releaseSettingsBrandId.value || '').trim()
                     : '',
                 epk: {
                     tagline: releaseSettingsTagline instanceof HTMLInputElement
@@ -842,6 +847,7 @@
             const shortDescription = String(entry?.short_description || '').trim();
             const catalogId = String(entry?.catalog_id || '').trim();
             const posterAssetId = String(entry?.poster_asset_id || '').trim();
+            const brandId = String(entry?.brand_id || '').trim();
             const epk = normalizeReleaseEpk(entry?.epk);
             const systemManaged = releaseIsSystemManaged(entry);
             const bandpromoListenUrl = streamingUrlForBandpromo(epk.streaming_links)
@@ -863,6 +869,10 @@
             if (releaseSettingsCatalogId instanceof HTMLInputElement) {
                 releaseSettingsCatalogId.value = catalogId;
                 releaseSettingsCatalogId.disabled = systemManaged;
+            }
+            if (releaseSettingsBrandId instanceof HTMLSelectElement) {
+                releaseSettingsBrandId.value = brandId;
+                releaseSettingsBrandId.disabled = systemManaged;
             }
             if (releaseSettingsShortDescription instanceof HTMLTextAreaElement) {
                 releaseSettingsShortDescription.value = shortDescription;
@@ -1145,6 +1155,7 @@
                 short_description: String(entry?.short_description || '').trim(),
                 description: String(entry?.description || '').trim(),
                 poster_asset_id: String(entry?.poster_asset_id || '').trim(),
+                brand_id: String(entry?.brand_id || '').trim(),
                 epk,
             };
         }
@@ -1181,7 +1192,33 @@
             }
         }
 
+        async function loadBrandCatalog() {
+            if (!(releaseSettingsBrandId instanceof HTMLSelectElement)) {
+                return;
+            }
+            try {
+                const data = await fetchJson('/biblioteca/get-themes.php');
+                const brands = Array.isArray(data.themes) ? data.themes : [];
+                const selected = releaseSettingsBrandId.value;
+                releaseSettingsBrandId.innerHTML = '<option value="">Install default</option>';
+                brands.forEach((brand) => {
+                    const id = String(brand?.id || '').trim();
+                    if (!id) {
+                        return;
+                    }
+                    const option = document.createElement('option');
+                    option.value = id === 'setup-default' ? 'bandpromo-default' : id;
+                    option.textContent = String(brand?.title || id);
+                    releaseSettingsBrandId.appendChild(option);
+                });
+                releaseSettingsBrandId.value = selected;
+            } catch (error) {
+                // Brand picker is optional until data/brands is seeded.
+            }
+        }
+
         async function loadReleaseRegistry() {
+            await loadBrandCatalog();
             const data = await fetchJson('/biblioteca/get-releases.php');
             releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : []);
             if (!releaseEntry(selectedReleaseId)) {
@@ -1985,6 +2022,9 @@
             saveReleaseSettings();
         });
         releaseSettingsCatalogId?.addEventListener('blur', () => {
+            saveReleaseSettings();
+        });
+        releaseSettingsBrandId?.addEventListener('change', () => {
             saveReleaseSettings();
         });
         releaseSettingsPosterAssetId?.addEventListener('input', () => {

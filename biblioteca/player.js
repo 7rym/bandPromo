@@ -2,6 +2,7 @@
 
 let playList = []; // Loaded from get-player-playlist.php
 let currentIndex = 0;
+let brandStylesById = {};
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
 const IMAGE_PATH_VARIANT = 'optimal';
 
@@ -1002,6 +1003,38 @@ function playlistSlugForId(playlistId) {
     return String(match?.slug || id);
 }
 
+function applyBrandForTrack(song) {
+    if (!song || typeof song !== 'object') {
+        return;
+    }
+    const brandId = String(song.brand_id || '').trim();
+    if (!brandId) {
+        return;
+    }
+    const brand = brandStylesById[brandId];
+    if (!brand || !brand.css_variables || typeof brand.css_variables !== 'object') {
+        return;
+    }
+
+    const root = document.documentElement;
+    const vars = brand.css_variables;
+    Object.entries(vars).forEach(([key, value]) => {
+        if (typeof value !== 'string' || value.trim() === '') {
+            return;
+        }
+        if (key === 'font-family') {
+            root.style.fontFamily = value;
+            return;
+        }
+        root.style.setProperty(key, value);
+    });
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta && typeof vars['--bg-color'] === 'string' && vars['--bg-color'].trim() !== '') {
+        themeMeta.setAttribute('content', vars['--bg-color'].trim());
+    }
+}
+
 function buildPlaylistPlayerUrl(_playlistId, song) {
     const playlist = encodeURIComponent(getActivePlaylistSlug());
     if (!song || !song.track_slug) {
@@ -1113,6 +1146,7 @@ async function loadConfig() {
         }
         const data = await response.json();
         playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
+        brandStylesById = (data.brand_styles && typeof data.brand_styles === 'object') ? data.brand_styles : {};
         if (data.playlist_id) {
             window.BANDPROMO_PLAYLIST_ID = data.playlist_id;
         }
@@ -1132,6 +1166,7 @@ async function loadConfig() {
             }
             initPlayer(currentIndex);
             renderPlaylist();
+            applyBrandForTrack(playList[currentIndex]);
             if (playList[currentIndex]) {
                 updatePlaylistHistory(playList[currentIndex]);
             }
@@ -1380,6 +1415,7 @@ function initPlayer(index) {
 // Update visuals (Text, Images, Side-covers)
 function updateVisuals(index) {
     const song = playList[index];
+    applyBrandForTrack(song);
     
     // Main info
     songTitle.innerText = song.title;

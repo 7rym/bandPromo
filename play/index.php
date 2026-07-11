@@ -43,7 +43,7 @@ if (bandpromo_playlist_registry_entries($playerRoot) === []) {
     exit;
 }
 
-// Load site config for OG defaults
+// Load site config
 $siteCfgFile = dirname(__DIR__) . '/web-config.json';
 if (!file_exists($siteCfgFile)) {
     http_response_code(500);
@@ -83,7 +83,6 @@ function bandpromo_support_parse_kofi_page_id(string $value): string {
 }
 
 $origin = bandpromo_current_origin();
-$baseUrl = $origin . '/play/';
 $preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
 
 $playlistTracks = [];
@@ -101,14 +100,7 @@ try {
     $playlistTracks = [];
 }
 
-// Default meta tags
-$ogTitle       = get_config('release.identity.title', 'Twisted Chronicles');
-$ogDescription = get_config('release.identity.description', 'A private music experience');
-$ogImage       = $origin . get_config('release.brand.poster', '/media/special/bandPromo_share.png');
-$ogImageWidth  = get_config('release.brand.poster_width', 1200);
-$ogImageHeight = get_config('release.brand.poster_height', 630);
-$ogUrl         = $baseUrl . rawurlencode($activePlaylistSlug);
-
+// Resolve deep-linked track for page title and per-release branding.
 $song = null;
 if ($deepLinkTrackSlug !== '') {
     $trackIndex = bandpromo_playlist_resolve_player_track_index(
@@ -118,7 +110,6 @@ if ($deepLinkTrackSlug !== '') {
     );
     if ($trackIndex >= 0 && isset($playlistTracks[$trackIndex])) {
         $song = $playlistTracks[$trackIndex];
-        $ogUrl = $baseUrl . rawurlencode($activePlaylistSlug) . '/' . rawurlencode($deepLinkTrackSlug);
     }
 } elseif (isset($_GET['t'])) {
     $track = max(1, (int) $_GET['t']);
@@ -128,19 +119,20 @@ if ($deepLinkTrackSlug !== '') {
     }
     if (isset($playlistTracks[$index])) {
         $song = $playlistTracks[$index];
-        $ogUrl = $baseUrl . rawurlencode($activePlaylistSlug) . '?t=' . $track;
     }
 }
 
+$siteTitle = trim((string) get_config('release.identity.title', 'bandPromo'));
+if ($siteTitle === '') {
+    $siteTitle = 'bandPromo';
+}
+$pageTitle = htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8');
 if (is_array($song)) {
-    $ogTitle = htmlspecialchars(preg_replace('/\s+/', ' ', (string) ($song['title'] ?? '')), ENT_QUOTES, 'UTF-8');
-    $ogDescription = htmlspecialchars((string) ($song['artist'] ?? ''), ENT_QUOTES, 'UTF-8');
-
-    if (!empty($song['cover'])) {
-        $coverFilename = basename(str_replace('\\', '/', (string) $song['cover']));
-        $ogImage       = $origin . '/media/img/original/' . rawurlencode($coverFilename);
-        $ogImageWidth  = 600;
-        $ogImageHeight = 600;
+    $trackTitle = trim(preg_replace('/\s+/', ' ', (string) ($song['title'] ?? '')));
+    if ($trackTitle !== '') {
+        $pageTitle = htmlspecialchars($trackTitle, ENT_QUOTES, 'UTF-8')
+            . ' — '
+            . htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8');
     }
 }
 
@@ -196,17 +188,10 @@ if ($supportEnabled && $supportUrl !== '') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <?php
-    require_once '../biblioteca/share-tools.php';
-    echo generate_standard_meta_tags();
-    ?>
-    <title><?php echo $ogTitle; ?></title>
-
-    <!-- Open Graph -->
-    <?php echo generate_og_tags($ogTitle, $ogDescription, $ogImage, $ogUrl, 'music.song'); ?>
-
-    <!-- Twitter Card -->
-    <?php echo generate_twitter_tags($ogTitle, $ogDescription, $ogImage); ?>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <title><?php echo $pageTitle; ?></title>
 
     <!-- Favicons -->
     <link rel="shortcut icon" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/media/icons/favicon.ico">
@@ -217,7 +202,7 @@ if ($supportEnabled && $supportUrl !== '') {
     <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/media/icons/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="<?php echo $ogTitle; ?>">
+    <meta name="apple-mobile-web-app-title" content="<?php echo $pageTitle; ?>">
 
     <!-- Manifest & Theme -->
     <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
@@ -225,8 +210,19 @@ if ($supportEnabled && $supportUrl !== '') {
     <link rel="stylesheet" href="/biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
     <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
     <?php
-    require_once __DIR__ . '/../biblioteca/theme-storage.php';
-    echo bandpromo_theme_render_css(dirname(__DIR__));
+    require_once __DIR__ . '/../biblioteca/brand-storage.php';
+    $playerBrandId = bandpromo_brand_active_id($playerRoot);
+    $brandSourceTrack = is_array($song) ? $song : ($playlistTracks[0] ?? null);
+    if (is_array($brandSourceTrack)) {
+        $playerBrandId = trim((string) ($brandSourceTrack['brand_id'] ?? ''));
+        if ($playerBrandId === '') {
+            $playerBrandId = bandpromo_release_effective_brand_id(
+                $playerRoot,
+                (string) ($brandSourceTrack['release_id'] ?? '')
+            );
+        }
+    }
+    echo bandpromo_brand_render_css_for_id($playerRoot, $playerBrandId);
     ?>
 </head>
 <body>

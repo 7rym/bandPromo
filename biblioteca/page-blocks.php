@@ -260,6 +260,9 @@ function bandpromo_page_new_document(string $pageId, string $title = ''): array 
         'version' => BANDPROMO_PAGE_SCHEMA_VERSION,
         'id' => $pageId,
         'title' => $resolvedTitle,
+        'short_description' => '',
+        'description' => '',
+        'poster_asset_id' => '',
         'updated_at' => gmdate('c'),
         'blocks' => [],
     ];
@@ -617,6 +620,15 @@ function bandpromo_page_normalize_document(array $input, string $expectedId): ar
     }
 
     $document['blocks'] = $blocks;
+    if (array_key_exists('short_description', $input)) {
+        $document['short_description'] = bandpromo_page_normalize_text((string) $input['short_description'], 300);
+    }
+    if (array_key_exists('description', $input)) {
+        $document['description'] = bandpromo_page_normalize_text((string) $input['description'], 4000);
+    }
+    if (array_key_exists('poster_asset_id', $input)) {
+        $document['poster_asset_id'] = trim((string) $input['poster_asset_id']);
+    }
     $document['updated_at'] = gmdate('c');
 
     return $document;

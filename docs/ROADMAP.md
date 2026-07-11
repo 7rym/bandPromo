@@ -29,11 +29,11 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 ## Version principles
 
 - **v0.7 is complete** — exit gates passed 2026-06-15. Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
-- **v0.8 beta is active** — platform model changes, multi-library foundations, delivery automation, and composition architecture.
-- v0.9 prepares public/beta-facing structure and implements access tiers defined in v0.8.
-- v1.0 is public-ready, stable, and trustworthy.
-- v1.x expands fan and artist utility without overloading the core.
-- v2+ is where advanced integrations and automation belong.
+- **v0.8 beta is active — the management machine** — catalog, media, brands, containers, delivery pipeline, and **content AI wizards** that help operators fill missing pieces from release + brand canon.
+- **v0.9 — access and engagement foundation** — implements access tiers defined in v0.8, login/anonymous entry, user roles, and user-facing services on stable deliverables.
+- **v1.0** is public-ready, stable, and trustworthy.
+- **v1.x** expands fan and artist utility without overloading the core.
+- **v2+ — the marketing machine** — campaign automation, scheduled social pushes, and semi-autonomous promotion **based on content that already exists** (not the same as v0.8 content-creation wizards).
 - bandPromo should favor operator control over centralized platform behavior.
 - Core decisions should preserve self-hosting, local ownership, and predictable operator control.
 
@@ -47,10 +47,12 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Block-based page editor | Shipped |
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
-| Theme tokens + semantic player colors | Shipped (Content → Themes editor) |
+| Brand containers + semantic player colors (replaces Theme) | Defined; migration in progress |
+| Visual pool + role tags + registry-scoped delivery | Defined; implementation in progress |
+| Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus (v0.8.5+):** closed-beta hotfix stability (hosted publish, Site update, player/catalog UX). **Still open:** backup/export MVP, container marketing metadata on playlists/pages, v0.8.4 visual media rework. See [TODO.md](TODO.md).
+**Next focus:** v0.8 **management machine** — Brand replaces Theme, unified Visual pool with explicit role tags, release `brand_id` links (many releases per brand), content AI wizards, and visual delivery rework. **Still open:** backup/export MVP, page container metadata, OG/share wiring. See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -87,8 +89,8 @@ Modular features can be enabled or omitted per install. Modules extend pages and
 - analytics integrations such as Google Analytics
 - community/chat features
 - future automation and publishing integrations
-- semi-automatic marketing tools
-- external AI content-creation helpers through API (text, images, video, social content design)
+- semi-automatic **marketing** tools (**v2+** — campaigns from existing catalog content)
+- external AI **marketing** helpers (**v2+** — social series, timed pushes, newsletter drafts from published releases)
 
 **Composition rule:** operators build pages from **core blocks** (text, pictures, lists, and future first-party block types). **Module blocks** (gallery, news, fanboard, feeds, etc.) reference module libraries or services and are rendered inside those pages. The player remains the primary listening shell.
 
@@ -96,20 +98,34 @@ Modular features can be enabled or omitted per install. Modules extend pages and
 
 **Exposure/distribution** (Chromecast and similar cast targets): architecture and product boundaries are **defined in v0.8** after the playback/delivery model is stable; **implementation follows in v0.9+**, not before deliverables are trustworthy.
 
-## Theme strategy
+## Brand strategy (replaces Theme strategy)
 
-Theme support should arrive before v1.0 so the platform does not hard-code one visual identity forever.
+**Brand** replaces the former Theme container. Colors, typography, mood narrative, and curated visual assets belong in one **brand identity package** per era or campaign — not split across Theme vs brand asset paths.
 
-Initial theme support should focus on:
+Initial brand support should focus on:
 
-- design tokens and CSS variables
-- brand assets: mandatory site logo/poster plus optional release-specific logo/poster overrides
-- operator-friendly brand-asset intake, including support for uploading favicon packages from realfavicongenerator.net and unpacking the expected icon files into `media/icons/` without asking operators to place each file manually
-- typography choices
-- layout variants
-- module templates inheriting from the active theme
+- design tokens and CSS variables (colors, typography)
+- curated asset refs in the Visual pool: logos, portraits, style references, shell backgrounds/audio
+- **`bandpromo-default`** locked seed on first install so demo content works out of the box; operators duplicate as their first customization task
+- **release `brand_id` links** — many releases (singles, EPs, album, post-album singles) may share one brand; release cover stays **`poster_asset_id` on the release**
+- explicit **role tags** on visual uploads; brand filter in Files and pickers
+- operator-friendly favicon package intake (RealFaviconGenerator ZIP → `media/icons/`)
+- module templates inheriting from the active brand
 
-The first theme system does not need arbitrary custom templating. It needs a clean theme API.
+The first brand system does not need arbitrary custom templating. It needs a clean brand API and a Visual pool filtered by `brand_id` + role.
+
+### Content AI wizards (v0.8 — management machine)
+
+v0.8 ships **content-creation wizards** — operator-triggered helpers that fill **missing container fields** using **release + linked brand** as canon:
+
+- EPK blurbs, page block drafts, descriptions, alt text, metadata suggestions
+- optional image briefs from brand style refs
+- operator-configured external model/API settings
+- outputs are drafts; generated assets enter the Visual pool with `origin: ai-generated` until confirmed
+
+This is **not** the v2+ marketing machine (campaign calendars, scheduled social pushes, multi-post series from an existing catalog). Those stay v2+.
+
+See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands and [MEDIA-HANDLING.md](MEDIA-HANDLING.md) → upload role tagging.
 
 ## Identity strategy
 
@@ -439,7 +455,7 @@ Caching and update propagation (aggressive safe caching, low needless re-downloa
 
 ## v0.8 beta goals (active)
 
-Theme: architectural shift from a private single-release site to a reusable artist platform foundation — **definitions and core deliverables first**, not every future fan feature at once.
+Theme: architectural shift from a private single-release site to a reusable artist platform foundation — **v0.8 is the management machine** (catalog, media, brands, content wizards), not every future fan or marketing feature at once.
 
 Closed-beta feedback (2026-06-14) locked the first three implementation priorities:
 
@@ -458,19 +474,23 @@ Closed-beta feedback (2026-06-14) locked the first three implementation prioriti
 | Player | Core Playlists + Lyrics; Player layout editor; track deep links from pages (planned) | Chromecast/cast targets |
 | Access | FAQ/login requirement; shared-link → login + FAQ copy | Tier enforcement, anonymous entry, VIP embargo |
 | Delivery/PWA | Upload-time background delivery; delivery-ready Content pool gates (**shipped**) | Protected delivery architecture, cache contract, full offline audio cache + cast send |
+| Brand / Visual | Brand containers (replaces Theme); Visual pool + role tags; registry visual delivery; content AI wizards | — |
+| AI | Content wizards at point of need (release + brand canon) | Marketing automation and campaign AI (**v2+**) |
 
 Primary goals:
 
 - ship the admin-panel package updater (**complete**)
 - ship the page editor and presentation overhaul (**complete**)
 - ship unified Content editors and upload-time delivery automation (**complete**)
+- **ship** Brand containers (migrate from Theme), Visual pool with explicit role tags, and release `brand_id` links
+- **ship** content AI wizards with operator-configured models and release + brand prompt context
 - **define** the multi-release / multi-playlist / multi-gallery data model and admin library UX
 - **define** core vs module block boundaries and the page composition model
 - **define** the FAQ/login + shared-link entry model (FAQ page remains required; login page adds a restricted anonymous path)
 - **define** access-tier rules (admin/dev, VIP pre-access with embargo + override, registered fan, anonymous released-only) — **implementation in v0.9**
 - **define** exposure/distribution architecture (Chromecast and similar) on top of the new delivery model — **implementation in v0.9+**
-- add theme architecture and semantic player color tokens shared by page rendering and future theme packs
-- rewrite audio delivery to be scalable and less resource-intensive server-side
+- rewrite audio delivery to be scalable and less resource-intensive server-side (**shipped** for UID delivery names)
+- visual delivery rework: format/dimension-aware multi-variant output from registry
 - a solid PWA solution with strong offline support (delivery/cache architecture first)
 
 Suggested scope:
@@ -483,7 +503,9 @@ Suggested scope:
 - multiple gallery libraries + gallery **module blocks** embedded in pages (no Gallery player tab in the end state)
 - track deep links in page blocks: a link opens the player, activates the target playlist, and focuses the track
 - basic module registry or config-based enable/disable model
-- theme tokens and theme selection model
+- brand tokens and brand selection model (replaces theme tokens)
+- explicit role tags on visual assets; Visual pool with brand filter
+- content AI wizards (release + brand canon)
 - structured static-page content model: block JSON source with rendered HTML delivery (**shipped**)
 - nondestructive media naming (display names/aliases) layered on immutable source-file identities
 - role-based media handling that separates gallery media from page illustrations in admin/build behavior
@@ -503,7 +525,7 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 **Checkpoint 2026-06-16 (v0.8.3 docs):** all betatesters are on the latest build (292+). Legacy HTML pages (`data/bio.html`, `data/faq.html`) are **not** imported automatically — content lives in `data/pages/*.json` only. If you still have old HTML files on the host from backups, copy text into the Pages editor manually.
 
-**Image delivery (v0.8.4):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Planned in the same slice:** unify Illustrations/Photos/Video into one Visual pool with `ast_{ULID}` naming (audio stays separate); format and dimensions follow content and UI context. Policy in [MEDIA-HANDLING.md](MEDIA-HANDLING.md) and [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Workaround until v0.8.4: store transparent logos in **Theme Assets** (`media/special/`).
+**Image delivery (v0.8 visual slice):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Planned:** unify Illustrations/Photos/Video/Theme into one **Visual** pool with `ast_{ULID}` naming, explicit role tags, brand filter, and format/dimension-aware delivery. Policy in [MEDIA-HANDLING.md](MEDIA-HANDLING.md) and [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Workaround until migration: store transparent logos in legacy **Theme Assets** (`media/special/`).
 
 **Updating safely:**
 
@@ -522,7 +544,7 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 - **Shipped now:** package updater; block-based Pages editor; unified Content editors (Playlist, Gallery, Pages, Player layout) with pool/result UX; upload-time background delivery; delivery-ready pool gates; Notifications for background video jobs; improved player page presentation; delete confirmations; platform storage/API hotfix (build 292).
 - **In progress in v0.8.3:** invisible maintenance (auto-repair + Publish preflight), playlist `kind` fix, Release editor, backup/export, Content editor UX parity, container marketing metadata.
-- **Planned v0.8.4:** visual media rework — unified Visual pool (`ast_{ULID}`), format/dimension-aware multi-variant delivery, collapse Illustrations/Photos/Video admin split.
+- **Planned v0.8 management slice:** Brand replaces Theme; Visual pool + role tags; release `brand_id`; content AI wizards; visual delivery rework.
 - **In progress in v0.8:** gallery module blocks on pages, track deep links, playback/delivery architecture, theme semantic color tokens.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
@@ -710,7 +732,7 @@ Rules:
 
 ## v0.9 goals
 
-Theme: public-readiness, **access-tier implementation**, and distribution hooks on stable v0.8 deliverables.
+Theme: public-readiness, **access-tier implementation**, user roles, and user-facing engagement services on stable v0.8 deliverables — **not** the v2 marketing machine.
 
 Goals:
 
@@ -773,16 +795,19 @@ Examples of good early registered-user features:
 
 ## v2+ goals
 
-Theme: integrations and automation.
+Theme: integrations, **marketing machine** automation, and campaign tooling built on catalog content the operator already manages in v0.8.
 
 Examples:
 
-- Google Analytics integration
-- text/image/video generation APIs
-- automated campaign drafting
-- social publishing integrations
-- scheduling and background jobs
-- approval workflow for generated content
+- semi-automatic marketing campaigns from existing releases and pages
+- social/share copy and image series scheduled from catalog state
+- newsletters and mailing integrations tied to tour/release calendars
+- QR and shortlink generation for campaigns
+- campaign checklists and operator workflow automation
+- AI-assisted **marketing** drafts (multi-post series, channel-specific variants) — distinct from v0.8 **content wizards** that fill missing fields during editing
+- Google Analytics and other analytics integrations
+- social publishing integrations and scheduling/background jobs
+- approval workflows for generated campaign content
 
 These belong after the core platform is stable and its content model is mature.
 See the discussion in the last part of this document

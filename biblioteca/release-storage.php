@@ -5,6 +5,7 @@ require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/site-contact.php';
 require_once __DIR__ . '/demo-catalog-state.php';
+require_once __DIR__ . '/brand-storage.php';
 
 const BANDPROMO_RELEASE_REGISTRY_VERSION = 1;
 const BANDPROMO_RELEASE_DEFAULT_ID = 'primary';
@@ -162,6 +163,7 @@ function bandpromo_release_normalize_document(array $input, ?string $expectedId 
         'catalog_id' => bandpromo_release_normalize_text_field($input['catalog_id'] ?? '', 80),
         'description' => bandpromo_release_normalize_text_field($input['description'] ?? '', 4000),
         'poster_asset_id' => bandpromo_release_normalize_poster_asset_id($root, $input['poster_asset_id'] ?? ''),
+        'brand_id' => bandpromo_release_normalize_brand_id($root, $input['brand_id'] ?? ''),
         'epk' => bandpromo_release_normalize_epk($input['epk'] ?? []),
         'tracks' => $tracks,
     ];
@@ -179,6 +181,42 @@ function bandpromo_release_normalize_text_field(mixed $value, int $maxLength): s
     }
 
     return $text;
+}
+
+function bandpromo_release_normalize_brand_id(?string $root, mixed $value): string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return '';
+    }
+
+    $canonical = bandpromo_brand_canonical_id($value);
+    if ($root !== null) {
+        bandpromo_theme_ensure_seeded($root);
+        if (bandpromo_brand_registry_entry($root, $canonical) === null) {
+            return '';
+        }
+    }
+
+    return $canonical;
+}
+
+function bandpromo_release_effective_brand_id(string $root, string $releaseId): string
+{
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    if ($releaseId !== '') {
+        try {
+            $document = bandpromo_release_load_document($root, $releaseId);
+            $brandId = bandpromo_release_normalize_brand_id($root, $document['brand_id'] ?? '');
+            if ($brandId !== '') {
+                return $brandId;
+            }
+        } catch (Throwable $throwable) {
+            // Fall back to install active brand.
+        }
+    }
+
+    return bandpromo_brand_active_id($root);
 }
 
 function bandpromo_release_normalize_poster_asset_id(?string $root, mixed $value): string
@@ -417,6 +455,7 @@ function bandpromo_release_default_document(): array
         'catalog_id' => '',
         'description' => '',
         'poster_asset_id' => '',
+        'brand_id' => '',
         'epk' => bandpromo_release_default_epk(),
         'tracks' => [],
     ];
@@ -975,6 +1014,7 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
     $entry['short_description'] = '';
     $entry['catalog_id'] = '';
     $entry['poster_asset_id'] = '';
+    $entry['brand_id'] = '';
     $entry['epk'] = bandpromo_release_default_epk();
 
     try {
@@ -986,6 +1026,7 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
         $entry['short_description'] = (string) ($document['short_description'] ?? '');
         $entry['catalog_id'] = (string) ($document['catalog_id'] ?? '');
         $entry['poster_asset_id'] = (string) ($document['poster_asset_id'] ?? '');
+        $entry['brand_id'] = (string) ($document['brand_id'] ?? '');
         $entry['poster_preview_url'] = bandpromo_release_resolve_poster_preview_url(
             $root,
             $entry['poster_asset_id']
@@ -2035,6 +2076,9 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
     }
     if (array_key_exists('poster_asset_id', $fields)) {
         $document['poster_asset_id'] = bandpromo_release_normalize_poster_asset_id($root, $fields['poster_asset_id']);
+    }
+    if (array_key_exists('brand_id', $fields)) {
+        $document['brand_id'] = bandpromo_release_normalize_brand_id($root, $fields['brand_id']);
     }
     if (array_key_exists('epk', $fields)) {
         $pressContact = bandpromo_site_contact_sanitize_input((string) (($fields['epk']['press_contact'] ?? '') ?: ''));

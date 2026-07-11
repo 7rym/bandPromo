@@ -47,30 +47,27 @@ The important distinction is:
 
 ### Install scope
 
-Assets that belong to the whole install or active theme:
+Assets that belong to the whole install or **active brand**:
 
-- logo
+- logo and lockups
 - favicon/app icons
-- poster / share image
+- default poster / share image
 - background image/video
 - welcome audio / logged-in audio
+- style reference and portrait assets curated for the brand
 
-These should be treated as install-wide shell assets, not as release packaging.
-
-Within that install-wide shell layer, the distinction should be:
-
-- `brand assets`: logo, favicon/app icons, poster / share image
-- `theme assets`: background image/video, welcome audio, logged-in audio
+These live in the **Visual pool** (or audio pool for shell audio), scoped by **`brand_id`**, not in legacy `media/special/` folders long term.
 
 ### Release scope
 
-Assets that belong to one release / playlist / album context:
+Assets and fields that belong to one release:
 
-- primary release cover
+- **primary release cover** (`poster_asset_id` on the release document — picked from Visual pool filtered by the release's linked brand)
 - release-level gallery media when a gallery is scoped to that release
-- release-level packaging metadata
+- release-level packaging metadata and EPK fields
+- **`brand_id` link** — many releases may share one brand (singles, EPs, album, post-album singles in the same era)
 
-The `release cover` should be a first-class concept, not merely an inferred image role.
+The `release cover` should be a first-class concept on the release, not stored inside the brand container.
 
 ### Track scope
 
@@ -102,16 +99,23 @@ Gallery media is for browsing and presentation, not for release packaging by def
 
 ### Role model summary
 
-The intended product concepts are:
+The intended product concepts are expressed as **explicit role tags** on registry assets (primary) plus container references (usage validation):
 
-- `brand assets`: install-wide or release-level identity assets such as logo and poster / share image
-- `theme assets`: presentation assets such as backgrounds and shell audio
-- `release cover`: one primary cover for the release/playlist/album context
-- `track cover`: optional per-track artwork
-- `gallery media`: photos and videos for gallery presentation
-- `page illustrations`: images for static pages and future modules
+| Role tag | Meaning |
+|----------|---------|
+| `brand-logo`, `brand-poster` | Identity lockups and default share sources on the brand |
+| `brand-portrait` | Band member / lineup photos |
+| `style-ref`, `typography-sample` | Mood boards and design references (may never appear on-site) |
+| `shell-background-image`, `shell-background-video`, `shell-welcome-audio`, `shell-loggedin-audio` | Player/login shell media on the brand |
+| `release-cover` | Album/EP/single art linked via release `poster_asset_id` |
+| `track-cover` | Optional per-track artwork override |
+| `gallery` | Gallery presentation media |
+| `page-illustration` | Static page and module visuals |
+| `unassigned` | Bulk pool upload until operator assigns a role |
 
-Storage folders do not have to match these roles one-to-one immediately, but the admin UI, validation rules, and build logic should move toward this role model.
+**Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
+
+Storage folders do not match these roles. The admin UI, validation rules, and build logic use **tags + brand_id**, not Illustrations/Photos/Video/Theme tabs.
 
 ### Current exposed model vs prepared internal model
 
@@ -127,11 +131,11 @@ Under the hood, the code and docs should still prepare the future structure so l
 
 The practical distinction is:
 
-- exposed now: one branded site
-- prepared internally: separate `brand`, `theme`, and `social` concerns
-- exposed later: install defaults plus optional release overrides
+- exposed now: one active brand (duplicate **bandPromo Default** to customize)
+- prepared internally: **brand containers**, release `brand_id` links, Visual pool role tags
+- exposed later: multiple brands and era-scoped release catalogs in full
 
-So when the internal schema uses names such as `install.brand.*` or `release.brand.*`, that should be understood as preparation for future scope-aware inheritance, not as a signal that current admins must think in terms of releases already.
+Legacy **`media/special/`** and the Files → Theme tab are **not** a brand role — they are intake workarounds migrating into the Visual pool with explicit role tags and `brand_id`.
 
 ## Inheritance model
 
@@ -164,19 +168,15 @@ These values should be reusable across all releases unless a release explicitly 
 
 ### Release overrides
 
-Each release should be able to override the install defaults where the release has its own identity.
+Each release links to a **brand** (`brand_id`) and may override presentation only where needed:
 
-Typical release overrides:
+Typical release-specific fields:
 
-- release cover
-- release gallery
-- release palette or token overrides
-- release background media
-- release logo variant
-- release poster / share image
-- release-specific descriptive metadata
+- **release cover** (`poster_asset_id`) — always on the release; picked from Visual pool filtered by linked brand
+- release gallery membership
+- release-specific descriptive metadata and EPK
 
-The important rule is that a release should override only what it needs. It should not require a fully separate theme definition when install defaults are already sufficient.
+Many releases in one era share the same `brand_id`; each keeps its own cover art.
 
 ### Track-specific exceptions
 
@@ -962,9 +962,10 @@ Lock alongside the display-context audit:
 
 - **Two families only:** `audio` and `visual` (images + video). Drop the product distinction between Illustrations, Photos, and Video — those become legacy intake paths, not operator mental models.
 - **Registry for all visual uploads:** assign `ast_{ULID}` at intake; store `media_type`, `has_alpha`, `original_filename`, master/delivery paths in `data/assets/registry.json` (same registry as audio, discriminated by type).
-- **Role from references:** track cover vs gallery item vs page picture vs theme logo is determined by container/config references, not upload folder.
-- **Picker filter contract:** each admin picker declares allowed `media_type`, delivery-ready requirement, and optional facets (alpha, square); document in [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
-- **Migration rule:** dual-read legacy paths (`/media/img/original/…`, `/media/photo/original/…`, `/media/video/original/…`, `/media/special/…`) during transition; Publish/autofix registers existing files and generates new-tier delivery; retire folder split after backfill.
+- **Role from explicit tags (primary):** each visual asset carries a `role` tag and optional `brand_id`; container references validate allowed roles for pickers.
+- **Picker filter contract:** each admin picker declares allowed `media_type`, `brand_id`, role tags, delivery-ready requirement, and optional facets (alpha, square); document in [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
+- **Upload tagging:** contextual uploads inherit role + brand from picker; bulk Visual pool uploads default to `role: unassigned` and install active `brand_id` — never block upload on role selection.
+- **Migration rule:** dual-read legacy paths (`/media/img/original/…`, `/media/photo/original/…`, `/media/video/original/…`, `/media/special/…`); Publish/autofix registers existing files and assigns provisional role tags; retire folder split after backfill.
 
 #### Phase 1 — format-aware single delivery (quick win)
 
@@ -974,7 +975,17 @@ Stop harming transparency while multi-variant work is in progress:
 - for opaque sources, keep JPEG or WebP without alpha
 - apply a **sanity max dimension** per asset role (logo vs track cover vs gallery photo) even before full multi-variant lands — better one correctly sized PNG than one oversized JPG
 
-Theme/logos: prefer Visual pool assets tagged for theme identity; until migration, `media/special/` direct references remain a valid workaround.
+Brand/logos: Visual pool assets with `brand-logo` (or contextual upload from brand editor); until migration, `media/special/` direct references remain a legacy workaround.
+
+#### Upload role tagging (locked 2026-07-11)
+
+| Upload path | Default `brand_id` | Default `role` |
+|-------------|-------------------|----------------|
+| Picker in context (release cover, brand slot, page picture) | Release's brand or active brand | Role implied by picker |
+| Bulk drop into Visual pool | Install active brand | `unassigned` |
+| AI wizard output | Release/brand from wizard | Target role + `origin: ai-generated` |
+
+Operators may change role and brand after upload in Files → Visual (single or batch). Notifications nudge when assets remain `unassigned`; delivery is not blocked for bulk uploads unless a specific picker requires a role.
 
 #### Phase 2 — multi-variant delivery + visual storage migration
 
