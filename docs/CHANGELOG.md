@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-12 15:05 - Checkpoint v0.8.6 build 321: admin read-performance caches and PHP playlist preview; compact operator dashboard (site update strip + icon quick actions); brands editor narrative fields; system shell vs brand overlay docs.
+
+2026-07-12 15:00 - Dashboard layout: Site update above Quick actions; compact icon tiles for quick actions with shorter labels.
+
+2026-07-12 14:55 - Dashboard Site update: single status strip with inline actions; hide PHP/hosting preflight checks and release-note lists from operators.
+
+2026-07-12 14:50 - Dashboard: compact Site update panel — quiet reassurance when up to date; full card + Install button only when an update is available; Quick actions moved above update strip.
+
+2026-07-11 18:12 - Dev server: default bind to 127.0.0.1 (Windows IPv6 localhost-only bind broke 127.0.0.1:8000 in browser).
+
+2026-07-11 18:15 - Playlist editor: sync settings panel (including cover preview) when preview loads, matching release editor behavior.
+
+2026-07-11 18:10 - Hotfix admin performance caches: return runtime cache buckets by reference (fixes PHP notice output breaking pages); reentrant-safe ensure_seeded guards for release and playlist seeding.
+
+2026-07-11 18:05 - Admin UI performance: request-level caches for asset/release registries and release documents; asset→release membership index replaces per-track release scans; playlist preview uses PHP asset registry (no Python cold-start); trim redundant player enrichment on release preview.
+
+2026-07-11 17:45 - Planning docs: lock system shell vs brand overlay contract (platform-owned layout + dark baseline; brand replaces enumerated slots only; shell asset runtime deferred to v1). PLATFORM-MODEL.md, ROADMAP.md, TODO.md.
+
+2026-07-11 17:30 - Brands editor: mood/keywords/tone narrative fields in Content → Brands; welcome checklist nudge to duplicate default brand; fix save-theme registry write for `brands` key.
+
 2026-07-11 15:40 - Checkpoint v0.8.6 build 320: v0.8 management slice — Brand storage (`data/brands/`), release `brand_id` + editor picker, per-release player branding, brand-aware CSS alpha tokens, login brand tokens, OG/Twitter removed from player+login until v0.9; page container metadata fields; planning docs aligned.
 
 2026-07-11 15:30 - Login page: remove OG/Twitter meta until v0.9; wire active brand CSS tokens through login.css (primary/secondary/alpha vars, typography inherit); theme-color from brand background.

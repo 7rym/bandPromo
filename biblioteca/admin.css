@@ -2636,26 +2636,52 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .package-update-card {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin-top: 16px;
+    gap: 0;
+    margin-top: 0;
+    margin-bottom: 12px;
+    padding: 0;
+    background: transparent;
+    border: none;
 }
 
-.package-update-lead {
-    margin: 0;
-    color: var(--muted);
-    line-height: 1.6;
-    font-size: 14px;
+.package-update-card--quiet .package-update-status,
+.package-update-card--attention .package-update-status,
+.package-update-card--busy .package-update-status {
+    font-size: 13px;
+}
+
+.package-update-card--quiet .package-update-status {
+    border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+    background: color-mix(in srgb, var(--success) 8%, var(--surface));
 }
 
 .package-update-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--surface);
-    padding: 14px 16px;
-    line-height: 1.6;
-    font-size: 14px;
+    padding: 10px 12px;
+    line-height: 1.5;
+    font-size: 13px;
+}
+
+.package-update-status-message {
+    flex: 1;
+    min-width: 0;
+}
+
+.package-update-status-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.package-update-status-actions[hidden] {
+    display: none !important;
 }
 
 .package-update-status.is-ready {
@@ -2762,34 +2788,11 @@ canvas { max-width: 100%; height: auto; }
     margin-top: 0.75rem;
 }
 
-.content-autofix-report,
-.package-update-checks,
-.package-update-notes {
+.content-autofix-report {
     margin: 0;
     padding-left: 20px;
     color: var(--muted);
     font-size: 13px;
-    line-height: 1.5;
-}
-
-.package-update-checks li.is-bad {
-    color: #ffb1aa;
-}
-
-.package-update-checks li.is-advisory {
-    color: #d9c27a;
-}
-
-.package-update-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.package-update-footnote {
-    margin: 0;
-    color: var(--muted);
-    font-size: 12px;
     line-height: 1.5;
 }
 
@@ -2811,33 +2814,72 @@ canvas { max-width: 100%; height: auto; }
     color: #d8f5d3;
 }
 
+.welcome-card-dashboard {
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    gap: 0;
+}
+
+.welcome-dashboard-heading {
+    margin: 0 0 10px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-soft);
+}
+
 .welcome-dashboard-links {
     margin: 0;
     padding: 0;
     list-style: none;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 8px;
 }
 
 .welcome-dashboard-link {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-height: 100%;
-    padding: 12px 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    min-height: 0;
+    padding: 8px 10px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.03);
     color: var(--text);
     text-decoration: none;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.welcome-dashboard-link span {
+.welcome-dashboard-link-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.04));
+    font-size: 1.15rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.welcome-dashboard-link-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.welcome-dashboard-link-body strong {
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.welcome-dashboard-link-body span {
     color: var(--muted);
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 11px;
+    line-height: 1.35;
 }
 
 .welcome-dashboard-link:hover,
@@ -2845,6 +2887,7 @@ canvas { max-width: 100%; height: auto; }
     border-color: var(--accent);
     background: rgba(98, 179, 255, 0.08);
     text-decoration: none;
+    transform: translateY(-1px);
 }
 
 .welcome-setup-archive {
@@ -2866,6 +2909,12 @@ canvas { max-width: 100%; height: auto; }
 }
 
 @media (max-width: 768px) {
+    .welcome-dashboard-links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
     .welcome-dashboard-links {
         grid-template-columns: 1fr;
     }

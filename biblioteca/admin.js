@@ -6382,6 +6382,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         activeTracks = Array.isArray(data.tracks) ? data.tracks.map(cloneTrack) : [];
                         availableTracks = [];
                     }
+                    syncPlaylistSettingsPanel(selectedPlaylistId);
                     renderLists();
                 }
 
@@ -7241,127 +7242,97 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             (function initPackageUpdater() {
                 const card = document.getElementById('packageUpdateCard');
                 const statusEl = document.getElementById('packageUpdateStatus');
-                const checksEl = document.getElementById('packageUpdateChecks');
-                const notesEl = document.getElementById('packageUpdateNotes');
-                const footnoteEl = document.getElementById('packageUpdateFootnote');
+                const messageEl = document.getElementById('packageUpdateStatusMessage');
+                const actionsEl = document.getElementById('packageUpdateStatusActions');
                 const refreshBtn = document.getElementById('packageUpdateRefreshBtn');
                 const applyBtn = document.getElementById('packageUpdateApplyBtn');
 
-                if (!card || !statusEl || !refreshBtn || !applyBtn) {
+                if (!card || !statusEl || !messageEl || !refreshBtn || !applyBtn) {
                     return;
                 }
 
                 let latestStatus = null;
 
+                function setCardMode(mode) {
+                    card.classList.remove(
+                        'package-update-card--quiet',
+                        'package-update-card--attention',
+                        'package-update-card--busy'
+                    );
+                    card.classList.add('package-update-card--' + mode);
+                }
+
                 function setStatusClass(className) {
                     statusEl.className = 'package-update-status' + (className ? ' ' + className : '');
                 }
 
-                function renderChecks(checks) {
-                    if (!checksEl) {
-                        return;
-                    }
-
-                    checksEl.replaceChildren();
-                    if (!Array.isArray(checks) || checks.length === 0) {
-                        checksEl.hidden = true;
-                        return;
-                    }
-
-                    checks.forEach((check) => {
-                        const item = document.createElement('li');
-                        const advisory = !!(check && check.advisory);
-                        item.className = advisory ? 'is-advisory' : (check && check.ok ? 'is-ok' : 'is-bad');
-                        const label = check && check.label ? check.label : 'Requirement';
-                        const detail = check && check.detail ? ` (${check.detail})` : '';
-                        const icon = advisory ? '◦' : (check && check.ok ? '✔' : '✖');
-                        item.textContent = `${icon} ${label}${detail}`;
-                        checksEl.appendChild(item);
-                    });
-                    checksEl.hidden = false;
+                function setStatusMessage(text) {
+                    messageEl.textContent = String(text || '');
                 }
 
-                function renderNotes(notes) {
-                    if (!notesEl) {
-                        return;
+                function syncActionButtons() {
+                    const showActions = !refreshBtn.hidden || !applyBtn.hidden;
+                    if (actionsEl) {
+                        actionsEl.hidden = !showActions;
                     }
-
-                    notesEl.replaceChildren();
-                    if (!Array.isArray(notes) || notes.length === 0) {
-                        notesEl.hidden = true;
-                        return;
-                    }
-
-                    notes.forEach((note) => {
-                        const item = document.createElement('li');
-                        item.textContent = String(note);
-                        notesEl.appendChild(item);
-                    });
-                    notesEl.hidden = false;
                 }
 
                 renderPackageUpdateStatus = function renderPackageUpdateCard(data) {
                     latestStatus = data;
-                    renderChecks(data.checks || []);
-                    renderNotes(data.release_notes || []);
+                    refreshBtn.hidden = true;
+                    applyBtn.hidden = true;
 
                     if (!data.ok) {
+                        setCardMode('attention');
                         setStatusClass('is-error');
-                        statusEl.textContent = data.error || 'Could not check for updates.';
-                        applyBtn.hidden = true;
-                        if (footnoteEl) {
-                            footnoteEl.hidden = true;
-                        }
+                        setStatusMessage(data.error || 'Could not check for updates right now.');
+                        refreshBtn.hidden = false;
+                        syncActionButtons();
                         return;
                     }
 
-                    const installed = data.installed_version || 'unknown';
-                    const remote = data.remote_version || 'unavailable';
+                    const installed = data.installed_version || '';
+                    const remote = data.remote_version || '';
 
                     if (data.manifest_error) {
+                        setCardMode('attention');
                         setStatusClass('is-warning');
-                        statusEl.textContent = `Installed version: ${installed}. The published update source could not be reached: ${data.manifest_error}`;
-                        applyBtn.hidden = true;
+                        setStatusMessage('Could not reach the update service. Try again in a few minutes.');
+                        refreshBtn.hidden = false;
                     } else if (!data.ready) {
+                        setCardMode('attention');
                         setStatusClass('is-warning');
-                        statusEl.textContent = `Installed version: ${installed}. This hosting setup is not ready for package updates yet.`;
-                        applyBtn.hidden = true;
+                        setStatusMessage('Updates are not available on this hosting setup yet. Contact your host if this persists.');
+                        refreshBtn.hidden = false;
                     } else if (data.update_available) {
+                        setCardMode('attention');
                         setStatusClass('is-available');
-                        statusEl.textContent = `Update available: ${installed} → ${remote}. Application files will be replaced while your site content stays preserved.`;
+                        const versionHint = installed && remote ? ` (${installed} → ${remote})` : '';
+                        setStatusMessage(`A new version is ready${versionHint}. Your content stays safe.`);
                         applyBtn.hidden = false;
-                    } else if (data.ahead_of_published) {
+                    } else if (data.ahead_of_published || data.up_to_date) {
+                        setCardMode('quiet');
                         setStatusClass('is-current');
-                        statusEl.textContent = `This site is running ${installed}, which is newer than the latest published package (${remote}). When you are confident this build is ready for beta testers, publish a release package.`;
-                        applyBtn.hidden = true;
-                    } else if (data.up_to_date) {
-                        setStatusClass('is-current');
-                        statusEl.textContent = `This site is up to date on ${installed}.`;
-                        applyBtn.hidden = true;
+                        setStatusMessage('Your site is up to date. Your content and settings are safe.');
                     } else {
+                        setCardMode('attention');
                         setStatusClass('is-warning');
-                        statusEl.textContent = `Installed version: ${installed}. Published version: ${remote}.`;
-                        applyBtn.hidden = true;
+                        setStatusMessage('Update status is unclear.');
+                        refreshBtn.hidden = false;
                     }
 
-                    if (footnoteEl) {
-                        const lastUpdate = data.last_update;
-                        if (lastUpdate && lastUpdate.installed_version) {
-                            const when = lastUpdate.logged_at_utc ? ` on ${lastUpdate.logged_at_utc}` : '';
-                            const result = lastUpdate.ok ? 'completed' : 'failed';
-                            footnoteEl.textContent = `Last update ${result}${when}: ${lastUpdate.previous_version || 'unknown'} → ${lastUpdate.installed_version || 'unknown'}.`;
-                            footnoteEl.hidden = false;
-                        } else {
-                            footnoteEl.hidden = true;
-                        }
-                    }
+                    syncActionButtons();
                 };
 
                 async function refreshPackageUpdateStatus() {
                     refreshBtn.disabled = true;
                     applyBtn.disabled = true;
+                    setCardMode('busy');
                     setStatusClass('');
-                    statusEl.textContent = 'Checking for updates…';
+                    refreshBtn.hidden = true;
+                    applyBtn.hidden = true;
+                    syncActionButtons();
+                    setStatusMessage('Checking for updates…');
 
                     try {
                         if (typeof refreshBuildRequiredState === 'function') {
@@ -7383,9 +7354,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
 
-                    const remote = latestStatus.remote_version || 'the published release';
+                    const remote = latestStatus.remote_version || 'the new version';
                     const confirmed = window.confirm(
-                        `Install ${remote} now?\n\nApplication files will be replaced. web-config.json, .env, data/, media/, and log/ stay preserved.`
+                        `Install ${remote} now?\n\nYour music, pages, and settings stay safe.`
                     );
                     if (!confirmed) {
                         return;
@@ -7393,8 +7364,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     refreshBtn.disabled = true;
                     applyBtn.disabled = true;
+                    setCardMode('attention');
                     setStatusClass('');
-                    statusEl.textContent = 'Downloading and installing update… This can take a minute.';
+                    refreshBtn.hidden = true;
+                    applyBtn.hidden = true;
+                    syncActionButtons();
+                    setStatusMessage('Installing update… This can take a minute.');
 
                     try {
                         const csrfToken = await refreshAdminCsrfToken();
@@ -7410,17 +7385,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         if (!resp.ok || !data || data.ok !== true) {
                             setStatusClass('is-error');
-                            const stage = data && data.stage ? ` (${data.stage})` : '';
-                            statusEl.textContent = 'Update failed' + stage + ': ' + ((data && data.error) || 'Unknown error');
-                            if (data && data.retry_safe) {
-                                statusEl.textContent += ' You can safely try again.';
+                            let failureMessage = 'Update failed. Please try again.';
+                            if (data && data.error) {
+                                failureMessage = 'Update failed: ' + data.error;
                             }
+                            setStatusMessage(failureMessage);
+                            refreshBtn.hidden = false;
+                            syncActionButtons();
                             await refreshPackageUpdateStatus();
                             return;
                         }
 
+                        setCardMode('attention');
                         setStatusClass('is-ready');
-                        statusEl.textContent = data.message || 'Update completed successfully.';
+                        setStatusMessage(data.message || 'Update installed successfully.');
                         applyBtn.hidden = true;
 
                         if (typeof refreshBuildRequiredState === 'function') {
@@ -7435,7 +7413,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }, 1800);
                     } catch (error) {
                         setStatusClass('is-error');
-                        statusEl.textContent = 'Network error: ' + error.message;
+                        setStatusMessage('Network error: ' + error.message);
+                        refreshBtn.hidden = false;
+                        syncActionButtons();
                     } finally {
                         refreshBtn.disabled = false;
                         applyBtn.disabled = false;

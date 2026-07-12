@@ -28,17 +28,13 @@ try {
 }
 
 $poolByFile = bandpromo_release_pool_map_canonical($root, []);
+$poolByFile = bandpromo_playlist_enrich_pool_release_ids($root, $poolByFile);
+$poolByFile = bandpromo_playlist_enrich_pool_delivery_ready($root, $poolByFile);
 $meta = [
-    'previewSource' => 'release-container',
+    'previewSource' => 'asset-registry',
     'unsupportedSourceFiles' => [],
     'hiddenBundledSourceFiles' => [],
 ];
 
 $response = bandpromo_release_admin_editor_state($root, $releaseId, $poolByFile, $meta);
-if (!empty($response['activeTracks']) && is_array($response['activeTracks'])) {
-    $response['activeTracks'] = bandpromo_playlist_enrich_tracks_for_player($root, $response['activeTracks'], true);
-}
-if (!empty($response['availableTracks']) && is_array($response['availableTracks'])) {
-    $response['availableTracks'] = bandpromo_playlist_enrich_tracks_for_player($root, $response['availableTracks'], true);
-}
 echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

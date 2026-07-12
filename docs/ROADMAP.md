@@ -114,6 +114,8 @@ Initial brand support should focus on:
 
 The first brand system does not need arbitrary custom templating. It needs a clean brand API and a Visual pool filtered by `brand_id` + role.
 
+**System shell vs brand overlay:** v0.8 ships brand **management** and **token overlay** on the stable dark system shell (layout, breakpoints, and behavior stay platform-owned). v1.0 adds **shell asset runtime** so installs can look genuinely different while a broken brand still degrades to default — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands.
+
 ### Content AI wizards (v0.8 — management machine)
 
 v0.8 ships **content-creation wizards** — operator-triggered helpers that fill **missing container fields** using **release + linked brand** as canon:
@@ -770,7 +772,7 @@ Expected capabilities:
 - dependable build and media workflow
 - tours/events support
 - simple merch/shop support or clear merch integration path
-- theme support sufficient for different-looking installs
+- brand shell override support sufficient for different-looking installs (token overlay in v0.8; full shell asset runtime in v1)
 - module structure stable enough for future expansion
 - setup and branding reproducible without code surgery
 - operator control preserved without centralized platform dependency

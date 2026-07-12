@@ -615,6 +615,10 @@ function bandpromo_playlist_seed_from_template(string $root): void
 function bandpromo_playlist_ensure_seeded(string $root): void
 {
     static $running = [];
+    static $completed = [];
+    if (!empty($completed[$root])) {
+        return;
+    }
     if (!empty($running[$root])) {
         return;
     }
@@ -631,6 +635,7 @@ function bandpromo_playlist_ensure_seeded(string $root): void
 
         bandpromo_playlist_remove_legacy_main_playlist($root);
         bandpromo_playlist_ensure_demo_playlist($root);
+        $completed[$root] = true;
     } finally {
         unset($running[$root]);
     }
@@ -1542,8 +1547,14 @@ function bandpromo_playlist_release_title(string $root, string $releaseId): stri
 function bandpromo_playlist_build_pool_track_row(string $root, array $track, string $masterFile): array
 {
     $masterFile = basename(trim($masterFile));
-    $releaseId = bandpromo_release_id_for_master_filename($root, $masterFile);
-    $releaseTitle = bandpromo_playlist_release_title($root, $releaseId);
+    $releaseId = bandpromo_release_normalize_id(trim((string) ($track['release_id'] ?? '')));
+    if ($releaseId === '') {
+        $releaseId = bandpromo_release_id_for_master_filename($root, $masterFile);
+    }
+    $releaseTitle = trim((string) ($track['release_title'] ?? ''));
+    if ($releaseTitle === '') {
+        $releaseTitle = bandpromo_playlist_release_title($root, $releaseId);
+    }
 
     $row = bandpromo_release_enrich_track_row_labels(
         $root,
@@ -1551,7 +1562,14 @@ function bandpromo_playlist_build_pool_track_row(string $root, array $track, str
         $releaseTitle
     );
 
-    return bandpromo_playlist_enrich_track_release_meta($root, $row);
+    if ($releaseTitle !== '') {
+        $row['release_title'] = $releaseTitle;
+    }
+    if ($releaseId !== '') {
+        $row['release_id'] = $releaseId;
+    }
+
+    return $row;
 }
 
 function bandpromo_playlist_sort_available_tracks(string $root, string $releaseFilter, array $tracks): array
@@ -1663,7 +1681,15 @@ function bandpromo_playlist_enrich_pool_release_ids(string $root, array $poolByF
             continue;
         }
         $track['file'] = $masterFile;
-        $track['release_id'] = bandpromo_release_id_for_master_filename($root, $masterFile);
+        $meta = bandpromo_release_audio_listing_meta($root, $masterFile);
+        $releaseId = bandpromo_release_normalize_id(trim((string) ($meta['release_id'] ?? '')));
+        if ($releaseId !== '') {
+            $track['release_id'] = $releaseId;
+        }
+        $releaseTitle = trim((string) ($meta['release_title'] ?? ''));
+        if ($releaseTitle !== '') {
+            $track['release_title'] = $releaseTitle;
+        }
         $poolByFile[$file] = $track;
     }
 
@@ -1690,7 +1716,12 @@ function bandpromo_playlist_pool_dedupe_master_files(array $poolByFile): array
 
 function bandpromo_playlist_enrich_pool_delivery_ready(string $root, array $poolByFile): array
 {
-require_once __DIR__ . '/publish-status-helpers.php';
+    require_once __DIR__ . '/publish-status-helpers.php';
+
+    $registry = bandpromo_asset_load_registry($root);
+    $registeredMasters = is_array($registry['by_master_filename'] ?? null)
+        ? $registry['by_master_filename']
+        : [];
 
     foreach ($poolByFile as $file => $track) {
         if (!is_array($track)) {
@@ -1703,7 +1734,7 @@ require_once __DIR__ . '/publish-status-helpers.php';
 
         if (($track['sourceTier'] ?? '') === 'release-container') {
             $track['deliveryReady'] = true;
-        } elseif (bandpromo_asset_lookup_by_master_filename($root, $masterFile) !== null) {
+        } elseif (isset($registeredMasters[$masterFile])) {
             $track['deliveryReady'] = true;
         } else {
             $track['deliveryReady'] = bandpromo_asset_audio_delivery_ready($root, $masterFile);

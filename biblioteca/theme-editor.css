@@ -340,6 +340,25 @@
     width: 100%;
 }
 
+.theme-narrative-textarea {
+    width: 100%;
+    min-height: 5.5rem;
+    resize: vertical;
+    padding: 0.55rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #444);
+    background: #111;
+    color: var(--text-color, #e8e8e8);
+    font: inherit;
+    line-height: 1.45;
+}
+
+.theme-narrative-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color, #00d2ff);
+    box-shadow: 0 0 0 2px var(--primary-a20, rgba(0, 210, 255, 0.2));
+}
+
 .theme-editor-view-head {
     justify-content: flex-start;
     gap: 10px;

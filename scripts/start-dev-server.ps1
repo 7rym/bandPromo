@@ -1,6 +1,6 @@
 param(
     [int]$Port = 8000,
-    [string]$BindHost = "localhost",
+    [string]$BindHost = "127.0.0.1",
     [string]$Timezone = "Europe/Oslo"
 )
 

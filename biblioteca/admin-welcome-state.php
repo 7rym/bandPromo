@@ -6,6 +6,19 @@ require_once __DIR__ . '/setup-state.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/page-storage.php';
 require_once __DIR__ . '/page-registry.php';
+require_once __DIR__ . '/brand-storage.php';
+
+function bandpromo_admin_has_custom_brand(string $root): bool
+{
+    bandpromo_brand_ensure_seeded($root);
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (empty($entry['system'])) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 function bandpromo_admin_default_theme_display_version(?string $rawVersion): string
 {
@@ -215,6 +228,17 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
                 : 'The site is still using the shipped demo identity or default branding values.',
             'href' => '?tab=settings',
             'next' => 'Open Settings and replace the starter name, description, branding, or support details with your own.',
+        ],
+        [
+            'label' => 'Custom brand created',
+            'action_label' => 'Duplicate the default brand',
+            'severity' => 'nonblocking',
+            'complete' => bandpromo_admin_has_custom_brand($root),
+            'detail' => bandpromo_admin_has_custom_brand($root)
+                ? 'At least one editable brand exists beyond the locked bandPromo Default seed.'
+                : 'Only the locked bandPromo Default brand is present. Duplicate it to start your artist era identity.',
+            'href' => '?tab=content&cntab=themes',
+            'next' => 'Open Content → Brands, duplicate bandPromo Default, customize colors and narrative fields, then Set active.',
         ],
         [
             'label' => 'Your own media content is present',

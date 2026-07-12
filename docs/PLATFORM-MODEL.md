@@ -269,6 +269,24 @@ All block types are implemented as **modules** (editor + renderer). Playlists an
 
 **Brand** replaces the former **Theme** container. A brand is the full visual identity for an era or campaign: colors, typography, mood narrative, and curated asset references. **Release cover art stays on the release** (`poster_asset_id`); the brand holds identity assets and presentation tokens shared across releases in the same era.
 
+### System shell vs brand overlay
+
+**Product rule:** The platform always ships a complete, working shell. A brand only overrides an **enumerated set of identity slots**; a broken brand degrades to ugly or default — never to a broken site.
+
+| Layer | Owner | Always on | Examples |
+|-------|-------|-----------|----------|
+| **System shell** | bandPromo platform | Yes | Player/login/page layout, spacing, breakpoints, default dark atmosphere, mandatory install fallbacks (logo, poster, favicon), playback and access behavior |
+| **Brand overlay** | Operator (per era) | No — replaces slots only | Color tokens, typography, narrative brief, shell asset refs (v1+ runtime), optional chrome personality tokens (v1+) |
+
+**System shell** owns everything that must work when brand design fails: structure, responsive rules (`--card-size` and breakpoints are **not** brand tokens), the default dark background and surface gradient, and install-level fallback assets.
+
+**Brand overlay** does not redefine layout or behavior. It replaces declared slots on top of the shell:
+
+- **v0.8 (shipped target):** color and typography tokens, mood/keywords/tone narrative; per-release **CSS variable** swap on the **same** dark shell.
+- **v1+ (deferred runtime):** shell background image/video, logo, welcome audio; web/display fonts; small chrome token set (scrim, corner style) — enough for genuinely different era looks without arbitrary custom CSS.
+
+Wildly different era styles (vivid K-pop illustration, metal textures, country photo backgrounds) express **future scope** for the overlay model, not a v0.8 beta requirement. v0.8 builds brand storage, Visual pool, release links, and token management while keeping the dark shell stable.
+
 ### Why many releases → one brand
 
 Normal release cadence — singles and EPs while building toward an album, then post-album singles to keep momentum — often shares one visual era. Example: several releases link to `violator-era` while each keeps its own cover in the Visual pool.

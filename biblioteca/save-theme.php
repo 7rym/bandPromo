@@ -46,17 +46,21 @@ try {
     }
 
     $registry = bandpromo_theme_load_registry($root);
-    foreach ($registry['themes'] as $index => $entry) {
-        if (($entry['id'] ?? '') === $themeId) {
-            $registry['themes'][$index]['title'] = $document['title'];
+    $canonicalId = bandpromo_brand_canonical_id($themeId);
+    foreach ($registry['brands'] ?? [] as $index => $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        if (bandpromo_brand_canonical_id((string) ($entry['id'] ?? '')) === $canonicalId) {
+            $registry['brands'][$index]['title'] = $document['title'];
             break;
         }
     }
     bandpromo_theme_write_registry($root, $registry);
 
-    bandpromo_admin_audit_log('theme_saved', [
-        'target_type' => 'theme',
-        'target_id' => 'data/themes/' . $themeId . '.json',
+    bandpromo_admin_audit_log('brand_saved', [
+        'target_type' => 'brand',
+        'target_id' => 'data/brands/' . $canonicalId . '.json',
         'status' => 'ok',
     ]);
 

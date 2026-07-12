@@ -43,6 +43,21 @@ function bandpromo_admin_welcome_build_status(array $buildState): string {
     return 'A full build is pending before the latest source changes reach the site.';
 }
 
+function bandpromo_admin_render_package_update_card(): void
+{
+    ?>
+            <div class="card package-update-card package-update-card--quiet" id="packageUpdateCard">
+                <div class="package-update-status" id="packageUpdateStatus">
+                    <span class="package-update-status-message" id="packageUpdateStatusMessage">Checking for updates…</span>
+                    <span class="package-update-status-actions" id="packageUpdateStatusActions">
+                        <button type="button" class="btn btn-sm" id="packageUpdateRefreshBtn" hidden>Check again</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="packageUpdateApplyBtn" hidden>Install update</button>
+                    </span>
+                </div>
+            </div>
+    <?php
+}
+
 // Redirect to setup wizard if setup hasn't been completed
 if (!bandpromo_is_setup_complete()) {
     header('Location: /setup.php');
@@ -76,29 +91,34 @@ $buildRequiredState = bandpromo_get_build_required_state();
 $welcomeDashboardLinks = [
     [
         'label' => 'Analytics',
+        'icon' => '📊',
         'href' => '?tab=analytics',
-        'description' => 'Review listener activity, playback trends, and recent usage.',
+        'description' => 'Listener stats and trends',
     ],
     [
         'label' => 'Files',
+        'icon' => '📁',
         'href' => '?tab=files&fpanel=audio',
-        'description' => 'Manage uploads, metadata, cover art, and media references.',
+        'description' => 'Uploads and cover art',
     ],
     [
         'label' => 'Content',
+        'icon' => '✏️',
         'href' => '?tab=content',
-        'description' => 'Edit pages, playlist order, and gallery items.',
+        'description' => 'Pages, playlists, galleries',
     ],
     [
-        'label' => 'Open public site',
+        'label' => 'Public site',
+        'icon' => '🌐',
         'href' => $siteUrl !== '' ? $siteUrl : '../',
-        'description' => 'Preview the live site as visitors see it.',
+        'description' => 'Preview as visitors see it',
         'external' => true,
     ],
     [
-        'label' => 'Documentation',
+        'label' => 'Guides',
+        'icon' => '📖',
         'href' => '?tab=docs&doc_scope=operator',
-        'description' => 'Open the operator guides when you need deeper workflow help.',
+        'description' => 'Operator help',
     ],
 ];
 
@@ -633,7 +653,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard. Use <strong>Notifications</strong> in the header for open tasks and background activity, then jump to <strong>Files</strong> or <strong>Content</strong> to work on them. Use <strong>Site update</strong> below when a newer published package is available.
+                    This page is your dashboard. Use <strong>Notifications</strong> in the header for open tasks, then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
                 <?php else: ?>
                     Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Publish</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
@@ -654,40 +674,23 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <?php endif; ?>
 
-            <div class="card package-update-card" id="packageUpdateCard">
-                <h2>⬆️ Site update</h2>
-                <p class="package-update-lead">
-                    Check for published bandPromo packages and install a newer release without Git, SSH, or manual file uploads.
-                    Your site content stays safe: <strong>web-config.json</strong>, <strong>.env</strong>, <strong>data/</strong>, <strong>media/</strong>, and <strong>log/</strong> are preserved.
-                </p>
-
-                <div class="package-update-status" id="packageUpdateStatus">Checking for updates…</div>
-
-                <ul class="package-update-checks" id="packageUpdateChecks" hidden></ul>
-                <ul class="package-update-notes" id="packageUpdateNotes" hidden></ul>
-
-                <div class="package-update-actions">
-                    <button type="button" class="btn" id="packageUpdateRefreshBtn">Check again</button>
-                    <button type="button" class="btn btn-primary" id="packageUpdateApplyBtn" hidden>Download and install update</button>
-                </div>
-
-                <p class="package-update-footnote" id="packageUpdateFootnote" hidden></p>
-            </div>
+            <?php bandpromo_admin_render_package_update_card(); ?>
 
             <div class="card welcome-card welcome-card-dashboard">
-                <div class="welcome-section">
-                    <h3>Quick actions</h3>
-                    <ul class="welcome-dashboard-links">
-                        <?php foreach ($welcomeDashboardLinks as $link): ?>
-                            <li>
-                                <a class="welcome-dashboard-link" href="<?php echo htmlspecialchars($link['href']); ?>"<?php echo !empty($link['external']) ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                <h3 class="welcome-dashboard-heading">Quick actions</h3>
+                <ul class="welcome-dashboard-links">
+                    <?php foreach ($welcomeDashboardLinks as $link): ?>
+                        <li>
+                            <a class="welcome-dashboard-link" href="<?php echo htmlspecialchars($link['href']); ?>"<?php echo !empty($link['external']) ? ' target="_blank" rel="noopener noreferrer"' : ''; ?> title="<?php echo htmlspecialchars($link['description']); ?>">
+                                <span class="welcome-dashboard-link-icon" aria-hidden="true"><?php echo htmlspecialchars($link['icon'] ?? '•'); ?></span>
+                                <span class="welcome-dashboard-link-body">
                                     <strong><?php echo htmlspecialchars($link['label']); ?></strong>
                                     <span><?php echo htmlspecialchars($link['description']); ?></span>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
+                                </span>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
             <?php else: ?>
             <div class="card welcome-card">
@@ -744,25 +747,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <?php endif; ?>
 
-            <div class="card package-update-card" id="packageUpdateCard">
-                <h2>⬆️ Site update</h2>
-                <p class="package-update-lead">
-                    Check for published bandPromo packages and install a newer release without Git, SSH, or manual file uploads.
-                    Your site content stays safe: <strong>web-config.json</strong>, <strong>.env</strong>, <strong>data/</strong>, <strong>media/</strong>, and <strong>log/</strong> are preserved.
-                </p>
-
-                <div class="package-update-status" id="packageUpdateStatus">Checking for updates…</div>
-
-                <ul class="package-update-checks" id="packageUpdateChecks" hidden></ul>
-                <ul class="package-update-notes" id="packageUpdateNotes" hidden></ul>
-
-                <div class="package-update-actions">
-                    <button type="button" class="btn" id="packageUpdateRefreshBtn">Check again</button>
-                    <button type="button" class="btn btn-primary" id="packageUpdateApplyBtn" hidden>Download and install update</button>
-                </div>
-
-                <p class="package-update-footnote" id="packageUpdateFootnote" hidden></p>
-            </div>
+            <?php bandpromo_admin_render_package_update_card(); ?>
             <?php endif; ?>
         </div>
 
@@ -2026,8 +2011,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                  data-initial-theme="<?php echo htmlspecialchars($contentTheme, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎨 Brands</h3>
                 <p class="card-note">
-                    Pick a theme from the pool to preview how its tokens look on the right. Use the edit button to change colors, typography, and layout variables.
-                    Setup Default stays locked; duplicate it to create an editable copy. Brand asset paths still live under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during migration.
+                    Pick a brand from the pool to preview tokens on the right. Edit colors, typography, and narrative fields (mood, keywords, tone). bandPromo Default stays locked — duplicate it for your era. Shell asset paths still live under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during migration.
                 </p>
 
                 <div class="player-layout-editor theme-editor-layout playlist-editor-layout" id="themeEditorLayout">
@@ -2046,7 +2030,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                             <div id="themeEditorView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head theme-editor-view-head content-editor-view-head">
                                     <div class="theme-editor-head-name content-editor-head-name">
-                                        <input type="text" class="theme-editor-name-input content-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Theme name" aria-label="Theme name">
+                                        <input type="text" class="theme-editor-name-input content-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
                                         <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
                                     </div>
                                     <span class="status-text theme-editor-name-status content-editor-name-status" id="themeSettingsStatus"></span>

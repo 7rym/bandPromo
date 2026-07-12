@@ -73,9 +73,14 @@
         }
 
         const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
-            saveLabel: '💾 Save theme',
+            saveLabel: '💾 Save brand',
             readFingerprint() {
-                return JSON.stringify(editorDocument?.tokens || previewDocument?.tokens || {});
+                return JSON.stringify({
+                    tokens: editorDocument?.tokens || previewDocument?.tokens || {},
+                    mood: editorDocument?.mood || '',
+                    keywords: editorDocument?.keywords || [],
+                    tone_notes: editorDocument?.tone_notes || '',
+                });
             },
         }) || null;
 
@@ -141,6 +146,67 @@
 
         function cloneDocument(document) {
             return document ? JSON.parse(JSON.stringify(document)) : null;
+        }
+
+        function narrativeKeywordsString(document) {
+            const keywords = document?.keywords;
+            if (!Array.isArray(keywords)) {
+                return '';
+            }
+            return keywords.map((item) => String(item || '').trim()).filter(Boolean).join(', ');
+        }
+
+        function parseKeywordsInput(value) {
+            return String(value || '')
+                .split(/[,;\n]+/)
+                .map((item) => item.trim())
+                .filter(Boolean);
+        }
+
+        function collectNarrativeFields() {
+            if (!editorDocument || editorDocument.locked) {
+                return;
+            }
+            formEl.querySelectorAll('[data-narrative-field]').forEach((input) => {
+                const field = input.getAttribute('data-narrative-field') || '';
+                if (!field) {
+                    return;
+                }
+                if (field === 'keywords') {
+                    editorDocument.keywords = parseKeywordsInput(input.value);
+                    return;
+                }
+                editorDocument[field] = String(input.value || '').trim();
+            });
+        }
+
+        function renderNarrativeFields(locked) {
+            const mood = escapeHtml(String(editorDocument?.mood || ''));
+            const keywords = escapeHtml(narrativeKeywordsString(editorDocument));
+            const toneNotes = escapeHtml(String(editorDocument?.tone_notes || ''));
+            const disabled = locked ? 'disabled' : '';
+
+            return `
+                <div class="theme-editor-section">
+                    <h5>Brand narrative</h5>
+                    <p class="theme-field-hint">Canon for this visual era — mood, keywords, and tone notes for content AI wizards and operator reference.</p>
+                    <div class="theme-token-grid theme-token-grid--stacked">
+                        <div class="theme-token-field">
+                            <label for="brand-mood">Mood</label>
+                            <input type="text" id="brand-mood" data-narrative-field="mood" maxlength="500" value="${mood}" placeholder="e.g. Gritty winter club energy" ${disabled}>
+                        </div>
+                        <div class="theme-token-field">
+                            <label for="brand-keywords">Keywords</label>
+                            <input type="text" id="brand-keywords" data-narrative-field="keywords" value="${keywords}" placeholder="e.g. electronic, neon, dance, party" ${disabled}>
+                            <p class="theme-field-hint">Comma-separated tags describing this brand era.</p>
+                        </div>
+                        <div class="theme-token-field">
+                            <label for="brand-tone-notes">Tone notes</label>
+                            <textarea id="brand-tone-notes" class="theme-narrative-textarea" data-narrative-field="tone_notes" maxlength="2000" rows="4" placeholder="Voice, attitude, and copy guidance for this era." ${disabled}>${toneNotes}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function tokenValue(document, path) {
@@ -275,7 +341,7 @@
             const title = themeTitleValue();
             if (!title) {
                 if (!silent && settingsStatus) {
-                    settingsStatus.textContent = 'Theme name is required.';
+                    settingsStatus.textContent = 'Brand name is required.';
                 }
                 return false;
             }
@@ -313,7 +379,7 @@
                 return true;
             } catch (error) {
                 if (!silent && settingsStatus) {
-                    settingsStatus.textContent = error.message || 'Could not save theme name';
+                    settingsStatus.textContent = error.message || 'Could not save brand name';
                 }
                 return false;
             } finally {
@@ -499,7 +565,7 @@
             if (setActiveBtn) {
                 setActiveBtn.hidden = !document;
                 setActiveBtn.disabled = !!isActive;
-                setActiveBtn.textContent = isActive ? '✓ Active theme' : '★ Set active';
+                setActiveBtn.textContent = isActive ? '✓ Active brand' : '★ Set active';
                 setActiveBtn.classList.toggle('btn-saved', !!isActive);
             }
         }
@@ -513,7 +579,7 @@
             }
             saveUi?.reset();
             if (editorHint) {
-                editorHint.textContent = 'Select a theme from the pool, then click edit to change its tokens.';
+                editorHint.textContent = 'Select a brand from the pool, then click edit to change colors, narrative, and typography.';
             }
             renderPoolList();
             updateActionButtons(previewDocument);
@@ -569,7 +635,7 @@
             }
             const title = String(entry.title || themeId);
             if (!deleteModal) {
-                if (!window.confirm(`Delete theme "${title}"? Its settings will be lost. This cannot be undone.`)) {
+                if (!window.confirm(`Delete brand "${title}"? Its settings will be lost. This cannot be undone.`)) {
                     return;
                 }
                 deleteTheme(themeId).catch((error) => notifyThemeError(error.message || 'Could not delete theme'));
@@ -618,7 +684,7 @@
 
         function renderPoolList() {
             if (!themes.length) {
-                poolList.innerHTML = '<li class="player-layout-empty">No themes available.</li>';
+                poolList.innerHTML = '<li class="player-layout-empty">No brands available.</li>';
                 return;
             }
 
@@ -626,14 +692,14 @@
                 const id = entry.id || '';
                 const selectedClass = id === selectedThemeId ? ' playlist-editor-row-selected' : '';
                 const activeClass = id === activeThemeId ? ' theme-pool-row--active' : '';
-                const activeDot = id === activeThemeId ? '<span class="theme-pool-active-dot" title="Active theme">●</span>' : '';
+                const activeDot = id === activeThemeId ? '<span class="theme-pool-active-dot" title="Active brand">●</span>' : '';
                 const title = escapeHtml(entry.title || id);
                 const deleteBtn = themeCanDelete(entry)
-                    ? `<button type="button" class="page-pool-delete-btn" data-theme-id="${escapeHtml(id)}" title="Delete theme" aria-label="Delete ${title}">🗑️</button>`
+                    ? `<button type="button" class="page-pool-delete-btn" data-theme-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${title}">🗑️</button>`
                     : '';
                 const editBtn = entry.locked
                     ? ''
-                    : `<button type="button" class="page-pool-edit-btn" data-theme-id="${escapeHtml(id)}" title="Edit theme" aria-label="Edit ${title}">✏️</button>`;
+                    : `<button type="button" class="page-pool-edit-btn" data-theme-id="${escapeHtml(id)}" title="Edit brand" aria-label="Edit ${title}">✏️</button>`;
                 return `<li class="playlist-editor-row theme-pool-row page-pool-row${selectedClass}${activeClass}" data-theme-id="${escapeHtml(id)}" aria-selected="${id === selectedThemeId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>🎨 ${title}${activeDot}</strong>
@@ -641,7 +707,7 @@
                     </span>
                     <span class="page-pool-row-actions">
                         ${editBtn}
-                        <button type="button" class="page-pool-duplicate-btn" data-theme-id="${escapeHtml(id)}" title="Duplicate theme" aria-label="Duplicate ${title}">⧉</button>
+                        <button type="button" class="page-pool-duplicate-btn" data-theme-id="${escapeHtml(id)}" title="Duplicate brand" aria-label="Duplicate ${title}">⧉</button>
                         ${deleteBtn}
                     </span>
                 </li>`;
@@ -650,7 +716,7 @@
 
         function renderForm() {
             if (!editorDocument) {
-                formEl.innerHTML = '<p class="theme-editor-locked-note">Select a theme from the pool.</p>';
+                formEl.innerHTML = '<p class="theme-editor-locked-note">Select a brand from the pool.</p>';
                 return;
             }
 
@@ -659,7 +725,8 @@
             const fontHeading = tokenValue(editorDocument, 'typography.font_family_heading');
 
             formEl.innerHTML = `
-                ${locked ? '<p class="theme-editor-locked-note">Setup Default is protected. Duplicate it to customize this theme.</p>' : ''}
+                ${locked ? '<p class="theme-editor-locked-note">bandPromo Default is protected. Duplicate it to customize this brand.</p>' : ''}
+                ${renderNarrativeFields(locked)}
                 <div class="theme-editor-section">
                     <h5>Typography</h5>
                     <div class="theme-token-grid theme-token-grid--stacked">
@@ -672,7 +739,7 @@
                     <p class="theme-field-hint">Tap a swatch to adjust site-wide colors. Changes appear in the live preview immediately.</p>
                     ${renderCompactColors(locked)}
                 </div>
-                <p class="hint">Logo, cover art, and background media paths stay under <a href="?tab=settings&ctab=theme">Settings → Theme</a> for now.</p>
+                <p class="hint">Logo, cover art, and background media paths stay under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during the brand migration.</p>
             `;
 
             syncThemeSettingsPanel(editorDocument);
@@ -682,6 +749,7 @@
             if (!editorDocument || editorDocument.locked) {
                 return;
             }
+            collectNarrativeFields();
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement) || input.hidden) return;
                 const path = input.getAttribute('data-token-path') || '';
@@ -863,10 +931,10 @@
 
         formEl.addEventListener('input', (event) => {
             const input = event.target;
-            if (!(input instanceof HTMLInputElement)) {
+            if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) {
                 return;
             }
-            if (input.hasAttribute('data-token-path')) {
+            if (input.hasAttribute('data-token-path') || input.hasAttribute('data-narrative-field')) {
                 collectFormIntoDocument();
             }
         });
@@ -898,9 +966,9 @@
             const title = themeTitleValue();
             if (!title) {
                 if (settingsStatus) {
-                    settingsStatus.textContent = 'Theme name is required.';
+                    settingsStatus.textContent = 'Brand name is required.';
                 }
-                notifyThemeError('Theme name is required.');
+                notifyThemeError('Brand name is required.');
                 return;
             }
             editorDocument.title = title;

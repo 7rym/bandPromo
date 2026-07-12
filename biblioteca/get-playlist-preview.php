@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/https.php';
-require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/release-storage.php';
@@ -25,39 +24,15 @@ try {
     exit;
 }
 
-$result = bandpromo_run_light_json_task('scripts/playlistPreview.py', [
-    'release' => 'all',
-    'playlistId' => $playlistId,
-]);
+$poolByFile = bandpromo_release_pool_map_canonical($root, []);
+$poolByFile = bandpromo_playlist_enrich_pool_release_ids($root, $poolByFile);
+$poolByFile = bandpromo_playlist_enrich_pool_delivery_ready($root, $poolByFile);
 
-$data = is_array($result['data'] ?? null) ? $result['data'] : null;
-$poolByFile = [];
 $meta = [
-    'previewSource' => 'audio-pool',
+    'previewSource' => 'asset-registry',
     'unsupportedSourceFiles' => [],
     'hiddenBundledSourceFiles' => [],
 ];
-
-if ($result['ok'] && is_array($data) && !empty($data['ok'])) {
-    $poolTracks = array_merge(
-        is_array($data['activeTracks'] ?? null) ? $data['activeTracks'] : [],
-        is_array($data['availableTracks'] ?? null) ? $data['availableTracks'] : [],
-        is_array($data['tracks'] ?? null) ? $data['tracks'] : []
-    );
-    $poolByFile = bandpromo_playlist_pool_map_from_preview_tracks($poolTracks);
-    $poolByFile = bandpromo_release_pool_map_canonical($root, $poolByFile);
-    $poolByFile = bandpromo_playlist_enrich_pool_release_ids($root, $poolByFile);
-    $poolByFile = bandpromo_playlist_enrich_pool_delivery_ready($root, $poolByFile);
-    $poolByFile = bandpromo_playlist_pool_dedupe_master_files($poolByFile);
-    $meta['unsupportedSourceFiles'] = is_array($data['unsupportedSourceFiles'] ?? null)
-        ? $data['unsupportedSourceFiles']
-        : [];
-    $meta['hiddenBundledSourceFiles'] = is_array($data['hiddenBundledSourceFiles'] ?? null)
-        ? $data['hiddenBundledSourceFiles']
-        : [];
-} else {
-    $meta['previewSource'] = 'playlist-container';
-}
 
 $response = bandpromo_playlist_admin_editor_state($root, $playlistId, $releaseFilter, $poolByFile, $meta);
 echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -158,6 +158,26 @@ function bandpromo_asset_normalize_registry(array $input): array
     return $registry;
 }
 
+function &bandpromo_asset_runtime_cache(string $root): array
+{
+    static $caches = [];
+    if (!isset($caches[$root])) {
+        $caches[$root] = [
+            'registry' => null,
+            'filename_index' => null,
+        ];
+    }
+
+    return $caches[$root];
+}
+
+function bandpromo_asset_invalidate_runtime_cache(string $root): void
+{
+    $cache = &bandpromo_asset_runtime_cache($root);
+    $cache['registry'] = null;
+    $cache['filename_index'] = null;
+}
+
 function bandpromo_asset_write_registry(string $root, array $registry): void
 {
     bandpromo_asset_registry_ensure_dir($root);
@@ -165,19 +185,57 @@ function bandpromo_asset_write_registry(string $root, array $registry): void
     if (!bandpromo_json_write_file(bandpromo_asset_registry_path($root), $normalized)) {
         throw new RuntimeException('Could not write asset registry.');
     }
+    bandpromo_asset_invalidate_runtime_cache($root);
 }
 
 function bandpromo_asset_load_registry(string $root): array
 {
+    $cache = &bandpromo_asset_runtime_cache($root);
+    if (is_array($cache['registry'])) {
+        return $cache['registry'];
+    }
+
     bandpromo_asset_registry_ensure_migrated($root);
     $decoded = bandpromo_json_read_array_file(bandpromo_asset_registry_path($root));
     if ($decoded === null) {
         bandpromo_asset_write_registry($root, bandpromo_asset_registry_default());
+        $cache['registry'] = bandpromo_asset_registry_default();
 
-        return bandpromo_asset_registry_default();
+        return $cache['registry'];
     }
 
-    return bandpromo_asset_normalize_registry($decoded);
+    $cache['registry'] = bandpromo_asset_normalize_registry($decoded);
+
+    return $cache['registry'];
+}
+
+function bandpromo_asset_filename_index(string $root): array
+{
+    $cache = &bandpromo_asset_runtime_cache($root);
+    if (is_array($cache['filename_index'])) {
+        return $cache['filename_index'];
+    }
+
+    $index = [];
+    foreach (bandpromo_asset_load_registry($root)['assets'] as $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId === '') {
+            continue;
+        }
+        foreach (['master_filename', 'original_filename'] as $field) {
+            $filename = basename(trim((string) ($asset[$field] ?? '')));
+            if ($filename !== '') {
+                $index[$filename] = $assetId;
+            }
+        }
+    }
+
+    $cache['filename_index'] = $index;
+
+    return $cache['filename_index'];
 }
 
 function bandpromo_asset_lookup_by_master_filename(string $root, string $masterFilename): ?array
@@ -203,17 +261,12 @@ function bandpromo_asset_lookup_by_original_filename(string $root, string $origi
         return null;
     }
 
-    $registry = bandpromo_asset_load_registry($root);
-    foreach ($registry['assets'] as $asset) {
-        if (!is_array($asset)) {
-            continue;
-        }
-        if (basename((string) ($asset['original_filename'] ?? '')) === $originalFilename) {
-            return $asset;
-        }
+    $assetId = trim((string) (bandpromo_asset_filename_index($root)[$originalFilename] ?? ''));
+    if ($assetId === '') {
+        return null;
     }
 
-    return bandpromo_asset_lookup_by_master_filename($root, $originalFilename);
+    return bandpromo_asset_lookup_by_id($root, $assetId);
 }
 
 function bandpromo_asset_lookup_by_id(string $root, string $assetId): ?array
@@ -640,9 +693,8 @@ function bandpromo_asset_registry_ensure_migrated(string $root): void
 
     if ($changed || !is_file($path)) {
         bandpromo_asset_write_registry($root, $registry);
+        bandpromo_asset_reconcile_audio_originals($root);
     }
-
-    bandpromo_asset_reconcile_audio_originals($root);
 }
 
 function bandpromo_audio_catalogued_filenames(string $root): array
