@@ -7536,4 +7536,119 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     refreshPackageUpdateStatus().catch(() => {});
                 }
             })();
+
+            (function initActivityLogPortability() {
+                const exportBtn = document.getElementById('activityLogExportBtn');
+                const importFile = document.getElementById('activityLogImportFile');
+                const importMode = document.getElementById('activityLogImportMode');
+                const statusEl = document.getElementById('activityLogPortabilityStatus');
+                if (!exportBtn && !importFile) {
+                    return;
+                }
+
+                function setStatus(message, isError) {
+                    if (!statusEl) {
+                        return;
+                    }
+                    statusEl.textContent = message || '';
+                    statusEl.classList.toggle('is-error', Boolean(isError));
+                }
+
+                function updateCounts(counts) {
+                    if (!counts) {
+                        return;
+                    }
+                    const card = document.querySelector('.activity-log-counts');
+                    if (!card) {
+                        return;
+                    }
+                    const badges = card.querySelectorAll('.badge');
+                    if (badges[0]) {
+                        badges[0].textContent = 'Listener events: ' + Number(counts.listener || 0).toLocaleString();
+                    }
+                    if (badges[1]) {
+                        badges[1].textContent = 'Audit events: ' + Number(counts.audit || 0).toLocaleString();
+                    }
+                }
+
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', async () => {
+                        exportBtn.disabled = true;
+                        setStatus('Preparing export…');
+                        try {
+                            const resp = await fetch('/biblioteca/export-activity-log.php', {
+                                credentials: 'same-origin',
+                            });
+                            if (!resp.ok) {
+                                const data = await resp.json().catch(() => ({}));
+                                throw new Error((data && data.error) || 'Export failed.');
+                            }
+                            const blob = await resp.blob();
+                            let filename = 'bandpromo-activity-log-export.json';
+                            const disposition = resp.headers.get('Content-Disposition') || '';
+                            const match = disposition.match(/filename="([^"]+)"/i);
+                            if (match) {
+                                filename = match[1];
+                            }
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = filename;
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            URL.revokeObjectURL(url);
+                            setStatus('Export downloaded.');
+                        } catch (error) {
+                            setStatus(error.message, true);
+                        } finally {
+                            exportBtn.disabled = false;
+                        }
+                    });
+                }
+
+                if (importFile) {
+                    importFile.addEventListener('change', async () => {
+                        const file = importFile.files && importFile.files[0];
+                        if (!file) {
+                            return;
+                        }
+
+                        const mode = importMode ? importMode.value : 'merge';
+                        if (mode === 'replace') {
+                            const confirmed = window.confirm(
+                                'Replace mode deletes all local listener and audit events before import. Continue?'
+                            );
+                            if (!confirmed) {
+                                importFile.value = '';
+                                return;
+                            }
+                        }
+
+                        setStatus('Importing package…');
+                        try {
+                            const csrfToken = await refreshAdminCsrfToken();
+                            const formData = new FormData();
+                            formData.append('csrf_token', csrfToken);
+                            formData.append('mode', mode);
+                            formData.append('package', file);
+                            const resp = await fetch('/biblioteca/import-activity-log.php', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                body: formData,
+                            });
+                            const data = await resp.json().catch(() => ({}));
+                            if (!resp.ok || !data || data.ok !== true) {
+                                throw new Error((data && data.error) || 'Import failed.');
+                            }
+                            setStatus(data.message || 'Import completed.');
+                            updateCounts(data.counts);
+                        } catch (error) {
+                            setStatus(error.message, true);
+                        } finally {
+                            importFile.value = '';
+                        }
+                    });
+                }
+            })();
         })();

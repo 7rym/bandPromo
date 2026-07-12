@@ -155,6 +155,7 @@ def build_zip(
         "generated_at_utc": git("show", "-s", "--format=%cI", "HEAD"),
         "requirements": {
             "php_min": "8.0.0",
+            "sqlite_min": "3.8.0",
             "php_extensions": ["pdo_sqlite"],
             "php_classes": ["ZipArchive"],
         },

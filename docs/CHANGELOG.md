@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-12 19:40 - Checkpoint v0.8.6 build 325: developer activity log export/import, SQLite 3.8.0+ preflight, analytics filter bar UX.
+
+2026-07-12 19:35 - Developer-only System → Activity logs: export/import listener activity and audit events as a JSON package (merge or replace) for copying data between installs.
+
+2026-07-12 19:20 - Analytics filter bar: active period chip styling; ISO date inputs capped at 10 chars with in-field calendar icon.
+
+2026-07-12 19:10 - Bootstrap/setup/Site update preflight: require bundled SQLite 3.8.0+ (via `SELECT sqlite_version()`), declared in `release-manifest.json` requirements.
+
 2026-07-12 19:00 - Hotfix v0.8.6 build 324: replace SQLite UPSERT (`ON CONFLICT`) with portable UPDATE/INSERT for older bundled SQLite on shared hosts.
 
 2026-07-12 18:45 - Hotfix v0.8.6 build 323: admin survives SQLite migration failures; Site update validates published `release-manifest.json` requirements before apply; install UI no longer resets during background refresh. Recovery for broken admin: `git pull` then reload.

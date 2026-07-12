@@ -29,7 +29,7 @@ bandPromo can also work by uploading or cloning the repository and then opening 
 ## Hosting Requirements
 
 - Web server: Apache/Nginx with PHP 8+
-- `pdo_sqlite` for listener activity logs and analytics (`data/analytics/events.sqlite`)
+- `pdo_sqlite` with SQLite **3.8.0+** for listener activity logs and analytics (`data/analytics/events.sqlite`)
 - `ZipArchive` for bootstrap package install, package-based updates, and multi-file downloads
 - For bootstrap install: outbound HTTPS download support (`curl` or `allow_url_fopen`) and a writable target folder
 - HTTPS hosting required, HTTP support for localhost supported

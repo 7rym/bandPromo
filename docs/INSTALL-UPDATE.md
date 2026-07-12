@@ -5,7 +5,7 @@ This guide is for operators who want to run bandPromo without relying on Git, SS
 ## What this guide assumes
 
 - You can upload files into the folder where your site should live.
-- Your host can run PHP 8+ with `pdo_sqlite` enabled.
+- Your host can run PHP 8+ with `pdo_sqlite` enabled and SQLite **3.8.0+** bundled with that PHP build.
 - Your host allows outbound HTTPS requests so the bootstrap installer can download the published release package and query the GitHub Releases API for beta prereleases.
 - You can open a URL in the browser after uploading the installer file.
 
@@ -41,6 +41,7 @@ The current bootstrap installer checks at least:
 
 - PHP 8+
 - `pdo_sqlite` (listener activity logs and analytics)
+- SQLite **3.8.0+** bundled with PHP (bootstrap runs `SELECT sqlite_version()`)
 - `ZipArchive`
 - HTTPS-capable download support
 - writable target folder access

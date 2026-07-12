@@ -21,6 +21,7 @@ Confirm that a non-technical operator can upload `bootstrap.php`, open it in the
 - [ ] The target folder is writable by PHP.
 - [ ] The host runs PHP 8+.
 - [ ] `pdo_sqlite` is available.
+- [ ] Bundled SQLite is **3.8.0+** (bootstrap shows the detected version).
 - [ ] `ZipArchive` is available.
 - [ ] Outbound HTTPS requests work from PHP.
 - [ ] The folder does not already contain another application that could be overwritten.

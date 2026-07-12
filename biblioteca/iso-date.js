@@ -24,6 +24,11 @@
         if (!(input instanceof HTMLInputElement)) {
             return;
         }
+        input.addEventListener('input', () => {
+            if (input.value.length > 10) {
+                input.value = input.value.slice(0, 10);
+            }
+        });
         input.addEventListener('blur', () => {
             const before = input.value;
             const normalized = normalizeIsoDateInput(before);

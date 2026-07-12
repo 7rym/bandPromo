@@ -92,6 +92,13 @@ if (!bandpromo_environment_pdo_sqlite_available()) {
     exit;
 }
 
+$sqliteVersionCheck = bandpromo_environment_check_sqlite_version();
+if (!$sqliteVersionCheck['ok']) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => bandpromo_environment_sqlite_version_setup_error()]);
+    exit;
+}
+
 // Ensure data/ directory exists
 $dataDir = dirname(TERCES_FILE);
 if (!is_dir($dataDir)) {

@@ -67,6 +67,10 @@ $setupWarnings = [];
 if (!bandpromo_environment_pdo_sqlite_available()) {
     $setupErrors[] = bandpromo_environment_pdo_sqlite_setup_error();
 }
+$sqliteVersionCheck = bandpromo_environment_check_sqlite_version();
+if (!$sqliteVersionCheck['ok']) {
+    $setupErrors[] = bandpromo_environment_sqlite_version_setup_error();
+}
 if (!class_exists('ZipArchive')) {
   $setupWarnings[] = 'ZipArchive is missing. Setup can continue, but bootstrap package installs, future package updates, and multi-file downloads will stay unavailable until your host enables the PHP ZipArchive extension.';
 }

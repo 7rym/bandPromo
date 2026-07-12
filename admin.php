@@ -552,9 +552,19 @@ if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'], true)) {
 }
 
 // System sub-tab
+$allowedSystemTabs = ['publish', 'audit'];
+if ($currentUserRole === 'developer') {
+    $allowedSystemTabs[] = 'activity';
+}
 $systemTab = $_GET['stab'] ?? 'publish';
-if (!in_array($systemTab, ['publish', 'audit'], true)) {
+if (!in_array($systemTab, $allowedSystemTabs, true)) {
     $systemTab = 'publish';
+}
+
+$activityLogCounts = null;
+if ($tab === 'system' && $systemTab === 'activity' && $currentUserRole === 'developer') {
+    require_once __DIR__ . '/biblioteca/activity-log-portability.php';
+    $activityLogCounts = bandpromo_activity_log_store_counts(__DIR__);
 }
 
 // Date range (ISO YYYY-MM-DD)
@@ -2576,10 +2586,15 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
             <div class="tabs sub-tabs">
                 <a href="?tab=system&amp;stab=publish" class="tab-link <?php echo $systemTab === 'publish' ? 'active' : ''; ?>">🚀 Publish</a>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
+                <?php if ($currentUserRole === 'developer'): ?>
+                <a href="?tab=system&amp;stab=activity" class="tab-link <?php echo $systemTab === 'activity' ? 'active' : ''; ?>">📈 Activity logs</a>
+                <?php endif; ?>
                 <?php if ($systemTab === 'publish'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
-                <?php else: ?>
+                <?php elseif ($systemTab === 'audit'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
+                <?php else: ?>
+                <button class="help-toggle-btn collapsed" id="helpBtn-activity-log" onclick="toggleHelp('activity-log')" title="Show/hide help">ⓘ</button>
                 <?php endif; ?>
             </div>
 
@@ -2624,7 +2639,7 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                 </div>
                 <pre id="buildLog" class="build-log">No build output yet.</pre>
             </div>
-            <?php else: ?>
+            <?php elseif ($systemTab === 'audit'): ?>
             <div class="admin-help-box collapsed" id="help-audit">
                 Separate admin audit trail for management actions only. Use this to trace who changed users, content, settings, files, and publish runs, without mixing those records into listener activity analytics.
             </div>
@@ -2708,6 +2723,34 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                 </table>
             </div>
             <?php endif; ?>
+            <?php elseif ($systemTab === 'activity' && $currentUserRole === 'developer'): ?>
+            <div class="admin-help-box collapsed" id="help-activity-log">
+                Export listener activity and admin audit events from this install as one JSON package, then import it on another dev or staging site. Use <strong>Merge</strong> to add missing rows without deleting local data. Use <strong>Replace</strong> to wipe local activity/audit tables first. Hourly analytics rollups are rebuilt after import.
+            </div>
+
+            <div class="card activity-log-portability-card">
+                <h3>📈 Activity log portability</h3>
+                <p class="card-note">
+                    Developer tool for copying SQLite activity data between installs (for example twistedchronicles.eu → local).
+                    This does not touch your music, pages, or settings.
+                </p>
+                <div class="activity-log-counts">
+                    <span class="badge">Listener events: <?php echo number_format((int) ($activityLogCounts['listener'] ?? 0)); ?></span>
+                    <span class="badge">Audit events: <?php echo number_format((int) ($activityLogCounts['audit'] ?? 0)); ?></span>
+                </div>
+                <div class="card-actions activity-log-portability-actions">
+                    <button type="button" class="btn" id="activityLogExportBtn">⬇️ Export package</button>
+                    <label class="btn btn-secondary activity-log-import-label">
+                        ⬆️ Import package
+                        <input type="file" id="activityLogImportFile" accept="application/json,.json" hidden>
+                    </label>
+                    <select id="activityLogImportMode" class="filter-bar-select" aria-label="Import mode">
+                        <option value="merge">Merge (keep local rows)</option>
+                        <option value="replace">Replace (wipe local activity first)</option>
+                    </select>
+                </div>
+                <p id="activityLogPortabilityStatus" class="status-text"></p>
+            </div>
             <?php endif; ?>
         </div>
 

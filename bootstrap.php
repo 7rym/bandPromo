@@ -90,6 +90,7 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
         ? (extension_loaded('curl') ? 'curl available' : 'allow_url_fopen + openssl available')
         : bandpromo_release_https_download_setup_hint();
     $pdoSqliteCheck = bandpromo_environment_check_pdo_sqlite();
+    $sqliteVersionCheck = bandpromo_environment_check_sqlite_version();
 
     return [
         [
@@ -101,6 +102,11 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
             'label' => $pdoSqliteCheck['label'],
             'ok' => $pdoSqliteCheck['ok'],
             'detail' => $pdoSqliteCheck['detail'],
+        ],
+        [
+            'label' => $sqliteVersionCheck['label'],
+            'ok' => $sqliteVersionCheck['ok'],
+            'detail' => $sqliteVersionCheck['detail'],
         ],
         [
             'label' => 'ZipArchive available',
@@ -164,6 +170,15 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
       ];
     }
 
+    if (str_starts_with($label, 'SQLite library ')) {
+      return [
+        'title' => 'SQLite library version',
+        'success' => 'The SQLite library bundled with PHP is new enough for activity storage.',
+        'failure' => 'The SQLite library bundled with PHP is too old for bandPromo.',
+        'detail' => $ok ? $detail : ('SQLite ' . bandpromo_environment_sqlite_min_version() . ' or newer is required.'),
+      ];
+    }
+
     if ($label === 'HTTPS-capable download support') {
       return [
         'title' => 'Secure download support',
@@ -212,6 +227,13 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
 
       if ($label === 'PDO SQLite available') {
         $requests[] = 'Please enable the PHP pdo_sqlite extension for this site so bandPromo can store listener activity logs and analytics.';
+        continue;
+      }
+
+      if (str_starts_with($label, 'SQLite library ')) {
+        $requests[] = 'Please ask your host for a newer PHP build with SQLite '
+          . bandpromo_environment_sqlite_min_version()
+          . ' or newer so bandPromo can store listener activity logs and analytics.';
         continue;
       }
 

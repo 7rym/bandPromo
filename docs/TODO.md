@@ -142,7 +142,7 @@ Implementation order:
 - [x] **Wire ingest** — `log.php`, `admin-audit.php` append through activity store.
 - [x] **PlaybackAnalytics rewrite** — query SQLite; hourly chart uses SQL aggregation.
 - [x] **Legacy import** — migrate existing `log/` and `log/admin-audit/` into SQLite, delete JSONL daily files.
-- [x] **Setup/bootstrap preflight** — require `pdo_sqlite` before install and setup continue.
+- [x] **Setup/bootstrap preflight** — require `pdo_sqlite` and bundled SQLite **3.8.0+** before install and setup continue.
 - [ ] **Rollup maintainer** — expand daily user/track/device rollups beyond hourly.
 - [ ] **Client batching** — player buffers warm events; rate limit on ingest endpoint.
 - [ ] **Admin export** — JSONL/CSV dump for operator backup.

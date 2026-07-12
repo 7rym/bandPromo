@@ -40,7 +40,7 @@ function bandpromo_admin_render_iso_date_field(string $name, string $value, stri
     $fieldId = $id !== '' ? $id : $name;
     ?>
     <span class="iso-date-field">
-        <input type="text" class="iso-date-input" name="<?php echo htmlspecialchars($name); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" value="<?php echo htmlspecialchars($value); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false" required>
+        <input type="text" class="iso-date-input" name="<?php echo htmlspecialchars($name); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" value="<?php echo htmlspecialchars($value); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
         <input type="date" class="iso-date-picker-native" value="<?php echo htmlspecialchars($value); ?>" tabindex="-1" aria-hidden="true">
         <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">&#128197;</button>
     </span>

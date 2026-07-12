@@ -6,6 +6,32 @@ function bandpromo_environment_pdo_sqlite_available(): bool
     return extension_loaded('pdo_sqlite');
 }
 
+function bandpromo_environment_sqlite_min_version(): string
+{
+    return '3.8.0';
+}
+
+function bandpromo_environment_sqlite_library_version(): ?string
+{
+    if (!bandpromo_environment_pdo_sqlite_available()) {
+        return null;
+    }
+
+    try {
+        $pdo = new PDO('sqlite::memory:');
+        $version = $pdo->query('SELECT sqlite_version()')->fetchColumn();
+        if (!is_string($version)) {
+            return null;
+        }
+
+        $version = trim($version);
+
+        return $version !== '' ? $version : null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 function bandpromo_environment_check_pdo_sqlite(): array
 {
     $ok = bandpromo_environment_pdo_sqlite_available();
@@ -19,15 +45,68 @@ function bandpromo_environment_check_pdo_sqlite(): array
     ];
 }
 
+function bandpromo_environment_check_sqlite_version(?string $minimumVersion = null): array
+{
+    $minimumVersion = trim((string) ($minimumVersion ?? bandpromo_environment_sqlite_min_version()));
+    if ($minimumVersion === '') {
+        $minimumVersion = bandpromo_environment_sqlite_min_version();
+    }
+
+    if (!bandpromo_environment_pdo_sqlite_available()) {
+        return [
+            'label' => 'SQLite library ' . $minimumVersion . '+',
+            'ok' => false,
+            'detail' => 'pdo_sqlite is not loaded',
+        ];
+    }
+
+    $actual = bandpromo_environment_sqlite_library_version();
+    if ($actual === null) {
+        return [
+            'label' => 'SQLite library ' . $minimumVersion . '+',
+            'ok' => false,
+            'detail' => 'Could not read the SQLite library version bundled with PHP',
+        ];
+    }
+
+    $ok = version_compare($actual, $minimumVersion, '>=');
+
+    return [
+        'label' => 'SQLite library ' . $minimumVersion . '+',
+        'ok' => $ok,
+        'detail' => $ok
+            ? ('Bundled SQLite ' . $actual)
+            : ('Bundled SQLite ' . $actual . '; SQLite ' . $minimumVersion . ' or newer is required'),
+    ];
+}
+
 function bandpromo_environment_pdo_sqlite_setup_error(): string
 {
     return 'PDO SQLite (pdo_sqlite) is required for listener activity logging and analytics. Ask your hosting provider to enable the PHP pdo_sqlite extension.';
+}
+
+function bandpromo_environment_sqlite_version_setup_error(?string $minimumVersion = null): string
+{
+    $minimumVersion = trim((string) ($minimumVersion ?? bandpromo_environment_sqlite_min_version()));
+    if ($minimumVersion === '') {
+        $minimumVersion = bandpromo_environment_sqlite_min_version();
+    }
+
+    $actual = bandpromo_environment_sqlite_library_version();
+    $actualLabel = $actual !== null ? (' (found SQLite ' . $actual . ')') : '';
+
+    return 'PHP pdo_sqlite is present, but the bundled SQLite library is too old for bandPromo'
+        . $actualLabel
+        . '. SQLite '
+        . $minimumVersion
+        . ' or newer is required. Ask your hosting provider for a newer PHP build or SQLite library.';
 }
 
 function bandpromo_environment_default_release_requirements(): array
 {
     return [
         'php_min' => '8.0.0',
+        'sqlite_min' => bandpromo_environment_sqlite_min_version(),
         'php_extensions' => ['pdo_sqlite'],
         'php_classes' => ['ZipArchive'],
     ];
@@ -44,6 +123,10 @@ function bandpromo_environment_normalize_release_requirements(?array $requiremen
 
     if (isset($requirements['php_min']) && is_string($requirements['php_min']) && trim($requirements['php_min']) !== '') {
         $normalized['php_min'] = trim($requirements['php_min']);
+    }
+
+    if (isset($requirements['sqlite_min']) && is_string($requirements['sqlite_min']) && trim($requirements['sqlite_min']) !== '') {
+        $normalized['sqlite_min'] = trim($requirements['sqlite_min']);
     }
 
     if (isset($requirements['php_extensions']) && is_array($requirements['php_extensions'])) {
@@ -89,6 +172,18 @@ function bandpromo_environment_validate_release_requirements(array $requirements
             'detail' => $ok
                 ? 'Available'
                 : ('Missing ' . $extension . ' extension' . $scope),
+            'blocking' => true,
+        ];
+    }
+
+    if (in_array('pdo_sqlite', $requirements['php_extensions'], true)) {
+        $sqliteMin = (string) ($requirements['sqlite_min'] ?? bandpromo_environment_sqlite_min_version());
+        $sqliteCheck = bandpromo_environment_check_sqlite_version($sqliteMin);
+        $checks[] = [
+            'id' => 'sqlite_min',
+            'label' => $sqliteCheck['label'],
+            'ok' => $sqliteCheck['ok'],
+            'detail' => $sqliteCheck['detail'] . ($sqliteCheck['ok'] ? '' : $scope),
             'blocking' => true,
         ];
     }

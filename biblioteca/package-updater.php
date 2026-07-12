@@ -150,6 +150,7 @@ function bandpromo_package_collect_environment_checks(string $root): array {
         : bandpromo_release_https_download_setup_hint();
     $zipAvailable = class_exists('ZipArchive');
     $pdoSqliteCheck = bandpromo_environment_check_pdo_sqlite();
+    $sqliteVersionCheck = bandpromo_environment_check_sqlite_version();
     $isLocalDev = bandpromo_is_local_dev_host();
     $rootWritable = bandpromo_install_path_is_writable($root);
 
@@ -166,6 +167,13 @@ function bandpromo_package_collect_environment_checks(string $root): array {
             'label' => $pdoSqliteCheck['label'],
             'ok' => $pdoSqliteCheck['ok'],
             'detail' => $pdoSqliteCheck['detail'],
+            'blocking' => true,
+        ],
+        [
+            'id' => 'sqlite_min',
+            'label' => $sqliteVersionCheck['label'],
+            'ok' => $sqliteVersionCheck['ok'],
+            'detail' => $sqliteVersionCheck['detail'],
             'blocking' => true,
         ],
         [
