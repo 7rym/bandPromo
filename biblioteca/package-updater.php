@@ -212,6 +212,56 @@ function bandpromo_package_environment_ready(array $checks): bool {
     return true;
 }
 
+function bandpromo_package_merge_requirement_checks(array $checks, array $requirementChecks): array
+{
+    $merged = $checks;
+    $seen = [];
+    foreach ($checks as $check) {
+        if (!is_array($check)) {
+            continue;
+        }
+        $id = trim((string) ($check['id'] ?? ''));
+        if ($id !== '') {
+            $seen[$id] = true;
+        }
+    }
+
+    foreach ($requirementChecks as $check) {
+        if (!is_array($check)) {
+            continue;
+        }
+        $id = trim((string) ($check['id'] ?? ''));
+        if ($id !== '' && isset($seen[$id])) {
+            continue;
+        }
+        $merged[] = $check;
+    }
+
+    return $merged;
+}
+
+function bandpromo_package_validate_manifest_requirements(array $manifest): array
+{
+    require_once __DIR__ . '/environment-checks.php';
+
+    $targetVersion = trim((string) ($manifest['version'] ?? ''));
+    $requirements = is_array($manifest['requirements'] ?? null) ? $manifest['requirements'] : null;
+
+    return bandpromo_environment_validate_release_requirements($requirements ?? [], $targetVersion !== '' ? $targetVersion : null);
+}
+
+function bandpromo_package_assert_manifest_requirements_met(array $manifest): void
+{
+    $status = bandpromo_package_validate_manifest_requirements($manifest);
+    if (!empty($status['ok'])) {
+        return;
+    }
+
+    throw new RuntimeException(
+        bandpromo_environment_release_requirements_error($status, trim((string) ($manifest['version'] ?? '')) ?: null)
+    );
+}
+
 function bandpromo_package_update_log_path(string $root): string {
     return $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, BANDPROMO_PACKAGE_UPDATE_LOG);
 }
@@ -266,6 +316,8 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
     $manifestError = null;
     $versionCompare = null;
 
+    $manifestRequirements = null;
+
     try {
         $manifest = bandpromo_package_load_app_release_manifest($manifestUrl);
         $remoteVersion = (string) $manifest['version'];
@@ -273,6 +325,14 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
         $updateAvailable = $versionCompare < 0;
         $aheadOfPublished = $versionCompare > 0;
         $upToDate = $versionCompare === 0;
+
+        if ($updateAvailable) {
+            $manifestRequirements = bandpromo_package_validate_manifest_requirements($manifest);
+            $checks = bandpromo_package_merge_requirement_checks($checks, $manifestRequirements['checks'] ?? []);
+            if (empty($manifestRequirements['ok'])) {
+                $ready = false;
+            }
+        }
     } catch (Throwable $throwable) {
         $manifestError = $throwable->getMessage();
     }
@@ -287,6 +347,7 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
         'up_to_date' => $upToDate,
         'ready' => $ready,
         'checks' => $checks,
+        'manifest_requirements' => $manifestRequirements,
         'manifest_error' => $manifestError,
         'package_file' => is_array($manifest) ? ($manifest['package_file'] ?? null) : null,
         'release_notes' => is_array($manifest) && isset($manifest['notes']) && is_array($manifest['notes']) ? array_values($manifest['notes']) : [],

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-12 18:45 - Hotfix v0.8.6 build 323: admin survives SQLite migration failures; Site update validates published `release-manifest.json` requirements before apply; install UI no longer resets during background refresh. Recovery for broken admin: `git pull` then reload.
+
+2026-07-12 18:15 - Hotfix: admin no longer fatals when SQLite activity migration fails on first load after upgrade; legacy import records failure instead of throwing. Site update install UI ignores background refresh while installing (fixes first-click appears to do nothing).
+
 2026-07-12 17:05 - Follow-up cleanup: removed unused `vendor/tinymce`; self-hosted Chart.js 4.4.1 under `vendor/chart.js`; refreshed SECURITY-AUDIT for SQLite activity store.
 
 2026-07-12 16:55 - Legal/docs audit: refreshed THIRD-PARTY-NOTICES (SQLite, GitHub Releases, jsDelivr, HTML Purifier paths; TinyMCE marked vendored-not-loaded); wrote TRADEMARKS.md; linked license notice to third-party/trademark docs.

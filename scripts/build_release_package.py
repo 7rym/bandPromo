@@ -153,6 +153,11 @@ def build_zip(
         "git_commit": git("rev-parse", "HEAD"),
         "tracked_file_count": len(app_files),
         "generated_at_utc": git("show", "-s", "--format=%cI", "HEAD"),
+        "requirements": {
+            "php_min": "8.0.0",
+            "php_extensions": ["pdo_sqlite"],
+            "php_classes": ["ZipArchive"],
+        },
         "notes": [
             "This package is built only on explicit operator/developer action.",
             "Tracked runtime state such as web-config.json, .env, data/, and log/ is excluded from the package surface by repository policy.",

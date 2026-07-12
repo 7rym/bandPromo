@@ -583,7 +583,22 @@ if ($tab === 'docs') {
 
 // Initialize analytics engine (also triggers legacy log import on first use)
 $analytics = new PlaybackAnalytics();
-$platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
+$platformStats = [
+    'total_plays' => 0,
+    'total_listening_time' => 0,
+    'unique_users' => 0,
+    'total_sessions' => 0,
+    'device_breakdown' => [],
+    'quality_estimate' => [],
+    'hourly_distribution' => [],
+    'daily_distribution' => [],
+    'activity_types' => [],
+];
+try {
+    $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
+} catch (Throwable $e) {
+    error_log('bandPromo admin analytics init error: ' . $e->getMessage());
+}
 $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
 ?>
 <!DOCTYPE html>
@@ -632,9 +647,9 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
             <div class="message error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
         <?php if (empty($activityStoreStatus['ok'])): ?>
+            <?php $activityStoreOperatorMessage = bandpromo_activity_store_operator_status_message($activityStoreStatus); ?>
             <div class="message error">
-                Activity log storage needs attention: <?php echo htmlspecialchars((string) ($activityStoreStatus['message'] ?? 'Unknown error')); ?>.
-                Analytics and listener logging may be incomplete until this is resolved.
+                <?php echo htmlspecialchars($activityStoreOperatorMessage); ?>
             </div>
         <?php endif; ?>
 

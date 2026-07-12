@@ -56,6 +56,7 @@ try {
     }
 
     $manifest = bandpromo_package_load_app_release_manifest();
+    bandpromo_package_assert_manifest_requirements_met($manifest);
     $stage = 'download';
 
     $applyResult = bandpromo_package_apply_release($root, $manifest);

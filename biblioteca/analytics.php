@@ -263,6 +263,13 @@ class PlaybackAnalytics {
 
         $entries = $this->getLogEntries($dateStart, $dateEnd);
         
+        try {
+            $hourlyDistribution = bandpromo_activity_store_hourly_distribution($this->root, $dateStart, $dateEnd);
+        } catch (Throwable $e) {
+            error_log('bandPromo analytics hourly distribution error: ' . $e->getMessage());
+            $hourlyDistribution = [];
+        }
+
         $stats = [
             'total_plays' => 0,
             'total_listening_time' => 0,
@@ -270,7 +277,7 @@ class PlaybackAnalytics {
             'total_sessions' => 0,
             'device_breakdown' => [],
             'quality_estimate' => [],
-            'hourly_distribution' => bandpromo_activity_store_hourly_distribution($this->root, $dateStart, $dateEnd),
+            'hourly_distribution' => $hourlyDistribution,
             'daily_distribution' => [],
             'activity_types' => []
         ];

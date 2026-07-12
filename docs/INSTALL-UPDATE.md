@@ -124,6 +124,16 @@ That means:
 - normal operators should not be expected to use `git pull`, SSH, or hosting-panel repository tools as the long-term update path
 - failed update attempts are logged locally and are safe to retry
 
+### If admin is unavailable after an update
+
+If `/admin.php` returns HTTP 500 after a package update, use a one-time repository pull from the site root (developer or hosting-panel git tool), then reload admin:
+
+```text
+git pull origin main
+```
+
+Your content under `data/`, `media/`, `web-config.json`, and `log/` is preserved. After admin loads again, use **Dashboard → Site update** for future releases.
+
 ## Operator update flow
 
 The intended operator update flow is:
@@ -133,6 +143,7 @@ The intended operator update flow is:
 Open **Dashboard → Site update**. The updater will:
 
 - compare the installed version with the published release metadata
+- validate `release-manifest.json` requirements (PHP version, `pdo_sqlite`, `ZipArchive`, and future declared deps) against this server **before** download/apply
 - show the current version and available version
 - explain whether the update is recommended or optional
 - show a short change summary when available

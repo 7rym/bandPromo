@@ -142,10 +142,39 @@ function bandpromo_activity_store_ensure_ready(string $root): PDO
     }
 
     $pdo = bandpromo_activity_store_open($root);
-    bandpromo_activity_store_migrate_legacy_files($root, $pdo);
+    try {
+        bandpromo_activity_store_migrate_legacy_files($root, $pdo);
+    } catch (Throwable $e) {
+        error_log('bandPromo activity log migration failed: ' . $e->getMessage());
+    }
     $connections[$root] = $pdo;
 
     return $pdo;
+}
+
+function bandpromo_activity_store_operator_status_message(array $status): string
+{
+    if (!empty($status['ok'])) {
+        return '';
+    }
+
+    $raw = trim((string) ($status['message'] ?? ''));
+    if (stripos($raw, 'pdo_sqlite') !== false || stripos($raw, 'PDO SQLite') !== false) {
+        return 'This server is missing PHP SQLite support (pdo_sqlite). Ask your hosting provider to enable it so listener activity and analytics can be stored.';
+    }
+    if ($raw === 'Legacy JSON log files are still present and need import.') {
+        return 'bandPromo is still upgrading older activity log files to the new local database. Reload this page in a moment; if the message stays, contact support before deleting anything in log/.';
+    }
+    if (str_starts_with($raw, 'Legacy listener log could not be parsed:') || str_starts_with($raw, 'Legacy audit log could not be parsed:')) {
+        return 'bandPromo found older activity log files that could not be read cleanly. Analytics may be incomplete until those files are repaired or removed with support help.';
+    }
+    if ($raw === 'Listener log import verification failed.' || $raw === 'Admin audit log import verification failed.') {
+        return 'bandPromo could not verify the upgrade of older activity logs into the new local database. Your original log files were kept; retry by reloading admin or contact support.';
+    }
+
+    return $raw !== ''
+        ? $raw
+        : 'Activity logging needs attention on this server.';
 }
 
 function bandpromo_activity_store_migration_status(string $root): array
@@ -169,6 +198,15 @@ function bandpromo_activity_store_migration_status(string $root): array
 
     $legacyListener = bandpromo_activity_store_find_legacy_listener_files($root);
     $legacyAudit = bandpromo_activity_store_find_legacy_audit_files($root);
+    if (
+        bandpromo_activity_store_get_meta($pdo, 'legacy_import_completed_at', '') !== ''
+        && ($legacyListener !== [] || $legacyAudit !== [])
+    ) {
+        bandpromo_activity_store_delete_legacy_daily_files(array_merge($legacyListener, $legacyAudit));
+        $legacyListener = bandpromo_activity_store_find_legacy_listener_files($root);
+        $legacyAudit = bandpromo_activity_store_find_legacy_audit_files($root);
+    }
+
     if ($legacyListener !== [] || $legacyAudit !== []) {
         return [
             'ok' => false,
@@ -223,6 +261,15 @@ function bandpromo_activity_store_find_legacy_audit_files(string $root): array
     return $files;
 }
 
+function bandpromo_activity_store_delete_legacy_daily_files(array $files): void
+{
+    foreach ($files as $file) {
+        if (is_file($file)) {
+            @unlink($file);
+        }
+    }
+}
+
 function bandpromo_activity_store_migrate_legacy_files(string $root, PDO $pdo): void
 {
     $listenerFiles = bandpromo_activity_store_find_legacy_listener_files($root);
@@ -232,6 +279,9 @@ function bandpromo_activity_store_migrate_legacy_files(string $root, PDO $pdo): 
     }
 
     if (bandpromo_activity_store_get_meta($pdo, 'legacy_import_completed_at', '') !== '') {
+        // Import already finished on a prior request; daily JSONL files should be gone.
+        // Remove any orphans left behind (for example a failed unlink or dev-only debris).
+        bandpromo_activity_store_delete_legacy_daily_files(array_merge($listenerFiles, $auditFiles));
         return;
     }
 
@@ -283,7 +333,6 @@ function bandpromo_activity_store_migrate_legacy_files(string $root, PDO $pdo): 
         }
         bandpromo_activity_store_set_meta($pdo, 'legacy_import_failed', $e->getMessage());
         error_log('bandPromo activity log migration failed: ' . $e->getMessage());
-        throw $e;
     }
 
     foreach (array_merge($listenerFiles, $auditFiles) as $file) {

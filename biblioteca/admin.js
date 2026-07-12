@@ -341,6 +341,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let latestBuildValidation = null;
             let latestWelcomeState = null;
             let latestPackageUpdate = null;
+            let packageUpdateInstallInProgress = false;
             let latestBackgroundTasks = null;
             let backgroundTaskPollTimer = null;
             let modalTarget = null;
@@ -1894,7 +1895,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     updateBackgroundTaskPolling(latestBackgroundTasks);
                     renderPublishStatusSummary(data.publish_status || null);
 
-                    if (typeof renderPackageUpdateStatus === 'function' && data.package_update) {
+                    if (typeof renderPackageUpdateStatus === 'function' && data.package_update && !packageUpdateInstallInProgress) {
                         renderPackageUpdateStatus({
                             ok: true,
                             ...data.package_update,
@@ -7354,6 +7355,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                function formatPackageUpdateBlockedMessage(data) {
+                    const checks = Array.isArray(data.checks) ? data.checks : [];
+                    const failed = checks.filter((check) => check && check.ok === false);
+                    if (failed.length === 0) {
+                        return 'Updates are not available on this hosting setup yet. Contact your host if this persists.';
+                    }
+                    const first = failed[0];
+                    const label = first.label || first.id || 'Hosting requirement';
+                    const detail = first.detail ? ` (${first.detail})` : '';
+                    return `${label} is not met${detail}. Fix this with your host before installing the update.`;
+                }
+
                 renderPackageUpdateStatus = function renderPackageUpdateCard(data) {
                     latestStatus = data;
                     refreshBtn.hidden = true;
@@ -7379,7 +7392,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     } else if (!data.ready) {
                         setCardMode('attention');
                         setStatusClass('is-warning');
-                        setStatusMessage('Updates are not available on this hosting setup yet. Contact your host if this persists.');
+                        setStatusMessage(formatPackageUpdateBlockedMessage(data));
                         refreshBtn.hidden = false;
                     } else if (data.update_available) {
                         setCardMode('attention');
@@ -7428,6 +7441,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 async function applyPackageUpdate() {
                     if (!latestStatus || !latestStatus.update_available) {
+                        setStatusClass('is-warning');
+                        setStatusMessage('Update status is still loading. Wait a moment, then try again.');
+                        refreshBtn.hidden = false;
+                        syncActionButtons();
                         return;
                     }
 
@@ -7439,6 +7456,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
 
+                    packageUpdateInstallInProgress = true;
                     refreshBtn.disabled = true;
                     applyBtn.disabled = true;
                     setCardMode('attention');
@@ -7461,6 +7479,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const data = await resp.json().catch(() => ({}));
 
                         if (!resp.ok || !data || data.ok !== true) {
+                            packageUpdateInstallInProgress = false;
                             setStatusClass('is-error');
                             let failureMessage = 'Update failed. Please try again.';
                             if (data && data.error) {
@@ -7486,9 +7505,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         window.setTimeout(() => {
+                            packageUpdateInstallInProgress = false;
                             window.location.reload();
                         }, 1800);
                     } catch (error) {
+                        packageUpdateInstallInProgress = false;
                         setStatusClass('is-error');
                         setStatusMessage('Network error: ' + error.message);
                         refreshBtn.hidden = false;
@@ -7506,6 +7527,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     applyPackageUpdate().catch(() => {});
                 });
 
-                refreshPackageUpdateStatus().catch(() => {});
+                if (latestPackageUpdate) {
+                    renderPackageUpdateStatus({
+                        ok: true,
+                        ...latestPackageUpdate,
+                    });
+                } else {
+                    refreshPackageUpdateStatus().catch(() => {});
+                }
             })();
         })();
