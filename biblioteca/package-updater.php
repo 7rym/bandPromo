@@ -143,11 +143,13 @@ function bandpromo_package_copy_tree(string $sourceRoot, string $targetRoot, str
 }
 
 function bandpromo_package_collect_environment_checks(string $root): array {
+    require_once __DIR__ . '/environment-checks.php';
     $downloadSupport = bandpromo_release_https_download_available();
     $downloadDetail = $downloadSupport
         ? (extension_loaded('curl') ? 'curl available' : 'allow_url_fopen + openssl available')
         : bandpromo_release_https_download_setup_hint();
     $zipAvailable = class_exists('ZipArchive');
+    $pdoSqliteCheck = bandpromo_environment_check_pdo_sqlite();
     $isLocalDev = bandpromo_is_local_dev_host();
     $rootWritable = bandpromo_install_path_is_writable($root);
 
@@ -157,6 +159,13 @@ function bandpromo_package_collect_environment_checks(string $root): array {
             'label' => 'PHP 8+',
             'ok' => PHP_VERSION_ID >= 80000,
             'detail' => 'Running ' . PHP_VERSION,
+            'blocking' => true,
+        ],
+        [
+            'id' => 'pdo_sqlite',
+            'label' => $pdoSqliteCheck['label'],
+            'ok' => $pdoSqliteCheck['ok'],
+            'detail' => $pdoSqliteCheck['detail'],
             'blocking' => true,
         ],
         [

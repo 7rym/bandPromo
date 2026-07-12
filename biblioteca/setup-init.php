@@ -13,6 +13,7 @@ require_once __DIR__ . '/array-helpers.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/setup-state.php';
 require_once __DIR__ . '/template-bootstrap.php';
+require_once __DIR__ . '/environment-checks.php';
 
 if (bandpromo_is_setup_complete()) {
     http_response_code(403);
@@ -82,6 +83,12 @@ if (strlen($password) < 6) {
 }
 if (!$responsibilityAcknowledged) {
     echo json_encode(['ok' => false, 'error' => 'Please confirm the license and operator responsibility note before continuing.']);
+    exit;
+}
+
+if (!bandpromo_environment_pdo_sqlite_available()) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => bandpromo_environment_pdo_sqlite_setup_error()]);
     exit;
 }
 

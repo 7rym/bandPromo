@@ -9,6 +9,8 @@ It exists for two reasons:
 
 This file should be updated whenever a third-party dependency is added, removed, vendored, bundled, or loaded from a remote service.
 
+Related: [README_LICENSE_NOTICE.md](README_LICENSE_NOTICE.md), [TRADEMARKS.md](TRADEMARKS.md), [OPERATOR-RESPONSIBILITY.md](OPERATOR-RESPONSIBILITY.md).
+
 ## Scope
 
 This notice file distinguishes between:
@@ -16,6 +18,7 @@ This notice file distinguishes between:
 - bundled or direct code dependencies used by bandPromo
 - external tools required by the build pipeline
 - hosted third-party services loaded at runtime
+- runtime platform components required by PHP (extensions), not separate vendored packages
 
 Planned future dependencies should not be listed here until they are actually added to the repository or required by the runtime/build workflow.
 
@@ -39,38 +42,42 @@ Planned future dependencies should not be listed here until they are actually ad
 - Homepage: <https://mutagen.readthedocs.io/>
 - Source: <https://github.com/quodlibet/mutagen>
 - License: GPL-2.0-or-later
-- Notes: this is already a copyleft build dependency in the current project; keep that visible in future licensing decisions
+- Notes: copyleft build-time dependency; keep visible in future licensing decisions
 
 ### Chart.js
 
 - Purpose: admin analytics charts
-- Used by: `admin.php` via jsDelivr CDN (`chart.js@4.4.1`)
+- Used by: `admin.php`
+- Version: 4.4.1
+- Vendored path: `vendor/chart.js`
+- Upstream license file: `vendor/chart.js/LICENSE`
 - Homepage: <https://www.chartjs.org/>
 - Source: <https://github.com/chartjs/Chart.js>
 - License: MIT
-- Notes: currently loaded from CDN, not vendored in the repository
-
-### TinyMCE Community
-
-- Purpose: rich text editing for admin-managed static page content
-- Used by: `admin.php`, `biblioteca/admin.js`
-- Version: 8.5.0
-- Vendored path: `vendor/tinymce`
-- Homepage: <https://www.tiny.cloud/>
-- Source: <https://github.com/tinymce/tinymce>
-- License: GPL-2.0-or-later
-- Notes: self-hosted community build; currently powers the Pages editor for Bio/FAQ in the server-rendered PHP admin and supports a practical source-mode fallback
+- Notes: self-hosted UMD build (`chart.umd.min.js`); admin no longer loads Chart.js from a CDN
 
 ### HTML Purifier
 
-- Purpose: server-side sanitization of admin-managed HTML content before storage and rendering
-- Used by: `biblioteca/save-page.php`
+- Purpose: server-side sanitization of stored page HTML before persistence and public rendering
+- Used by: `biblioteca/page-text-sanitize.php` (called from `page-blocks.php`, `page-renderer.php`, and the page save pipeline)
 - Version: 4.19.0
 - Vendored path: `vendor/htmlpurifier`
+- Upstream license file: `vendor/htmlpurifier/LICENSE`
 - Homepage: <http://htmlpurifier.org/>
 - Source: <https://github.com/ezyang/htmlpurifier>
 - License: LGPL-2.1-or-later
-- Notes: used as the actual security boundary for stored page HTML; editor-side filtering is treated only as convenience, not trust
+- Notes: this is the security boundary for stored page HTML; editor-side filtering is convenience only, not trust
+
+## Runtime platform components
+
+### SQLite (via PHP `pdo_sqlite`)
+
+- Purpose: local listener activity and admin audit event store (`data/analytics/events.sqlite`)
+- Used by: `biblioteca/activity-store.php`
+- Requirement: PHP `pdo_sqlite` extension (checked in bootstrap/setup preflight)
+- Homepage: <https://www.sqlite.org/>
+- License: SQLite is public domain; the PHP PDO driver ships with PHP itself
+- Notes: not a separate vendored library in this repository
 
 ## External build tools
 
@@ -89,16 +96,29 @@ Planned future dependencies should not be listed here until they are actually ad
 
 ## Hosted third-party services
 
+### GitHub Releases and API
+
+- Purpose: published install/update packages and release discovery
+- Used by: `bootstrap.php`, `biblioteca/release-package.php`, `biblioteca/package-updater.php`
+- Endpoints include:
+  - `https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json`
+  - `https://api.github.com/repos/7rym/bandPromo/releases`
+- Homepage: <https://github.com/>
+- Notes:
+  - outbound HTTPS download support is required for bootstrap install and Site update
+  - usage is governed by GitHub's service terms and the operator's hosting/network policy
+
 ### Ko-fi overlay widget
 
-- Purpose: floating support widget on the player page
-- Used by: `play/index.php`
+- Purpose: optional floating support widget on the player page
+- Used by: `play/index.php` when Support mode is set to `floating_widget`
 - Script source: `https://storage.ko-fi.com/cdn/scripts/overlay-widget.js`
 - Homepage: <https://ko-fi.com/>
 - Notes:
   - this is a hosted remote script, not a vendored library in the repository
   - usage is governed by Ko-fi's service terms and hosted script behavior
-  - deployments with strict privacy, CSP, or third-party-script restrictions may choose to remove or disable this integration
+  - operators can use link-button support mode instead to avoid loading Ko-fi's script
+  - deployments with strict privacy, CSP, or third-party-script restrictions may choose to disable this integration
 
 ### Cloudflare speed test endpoint
 
@@ -116,3 +136,4 @@ Planned future dependencies should not be listed here until they are actually ad
 - If a dependency is vendored or bundled, include its upstream license text or a clear reference to where that license is shipped.
 - If a remote script or hosted service is added, record it here even if no source code is committed to the repository.
 - If FFmpeg binaries are redistributed with bandPromo, document the exact source and build details used for that binary.
+- If a vendored package remains in the tree but is no longer loaded, mark it explicitly here until it is removed.

@@ -20,6 +20,7 @@ Confirm that a non-technical operator can upload `bootstrap.php`, open it in the
 - [ ] A disposable test folder or test site exists.
 - [ ] The target folder is writable by PHP.
 - [ ] The host runs PHP 8+.
+- [ ] `pdo_sqlite` is available.
 - [ ] `ZipArchive` is available.
 - [ ] Outbound HTTPS requests work from PHP.
 - [ ] The folder does not already contain another application that could be overwritten.

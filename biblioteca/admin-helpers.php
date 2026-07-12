@@ -16,31 +16,83 @@ require_once __DIR__ . '/auth.php';
 bandpromo_require_admin_session(false);
 
 /**
- * Render filter bar with date inputs and preset buttons
+ * Normalize a request date parameter to ISO YYYY-MM-DD.
+ */
+function bandpromo_admin_normalize_date_param(string $value, string $fallback): string {
+    $value = trim($value);
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        return $value;
+    }
+    if (preg_match('/^\d{4}$/', $value)) {
+        return $value . '-01-01';
+    }
+    if (preg_match('/^(\d{4})\.(\d{2})\.(\d{2})$/', $value, $matches)) {
+        return $matches[1] . '-' . $matches[2] . '-' . $matches[3];
+    }
+    return $fallback;
+}
+
+/**
+ * Render a compact ISO date field with native calendar picker support.
+ */
+function bandpromo_admin_render_iso_date_field(string $name, string $value, string $id = ''): void {
+    $value = bandpromo_admin_normalize_date_param($value, '');
+    $fieldId = $id !== '' ? $id : $name;
+    ?>
+    <span class="iso-date-field">
+        <input type="text" class="iso-date-input" name="<?php echo htmlspecialchars($name); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" value="<?php echo htmlspecialchars($value); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false" required>
+        <input type="date" class="iso-date-picker-native" value="<?php echo htmlspecialchars($value); ?>" tabindex="-1" aria-hidden="true">
+        <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">&#128197;</button>
+    </span>
+    <?php
+}
+
+/**
+ * Render filter bar with ISO date inputs, calendar picker, and preset buttons.
  *
  * @param string $tabName   Primary tab identifier
  * @param string $dateStart Start date (YYYY-MM-DD)
  * @param string $dateEnd   End date (YYYY-MM-DD)
  * @param string $atab      Optional analytics sub-tab identifier
+ * @param array  $options   Optional extras: activity_types, activity_filter, entry_summary
  */
-function renderFilterBar($tabName, $dateStart, $dateEnd, $atab = '') {
+function renderFilterBar($tabName, $dateStart, $dateEnd, $atab = '', array $options = []) {
+    $activityTypes = $options['activity_types'] ?? null;
+    $activityFilter = (string) ($options['activity_filter'] ?? '');
+    $entrySummary = $options['entry_summary'] ?? null;
+    $dateFieldPrefix = $atab !== '' ? $atab . '-' : '';
     ?>
     <div class="filter-bar">
-        <form method="GET" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <form method="GET" class="filter-bar-form">
             <input type="hidden" name="tab" value="<?php echo htmlspecialchars($tabName); ?>">
-            <?php if (!empty($atab)): ?>
+            <?php if ($atab !== ''): ?>
                 <input type="hidden" name="atab" value="<?php echo htmlspecialchars($atab); ?>">
             <?php endif; ?>
-            <label>Start</label>
-            <input type="date" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>">
-            <label>End</label>
-            <input type="date" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>">
             <div class="filter-preset-btns">
-                <button type="button" class="preset-btn" data-range="day">Day</button>
-                <button type="button" class="preset-btn" data-range="week">Week</button>
+                <button type="button" class="preset-btn" data-range="all">All</button>
                 <button type="button" class="preset-btn" data-range="month">Month</button>
-                <button type="button" class="preset-btn" data-range="all">All Time</button>
+                <button type="button" class="preset-btn" data-range="week">Week</button>
+                <button type="button" class="preset-btn" data-range="day">Day</button>
             </div>
+            <div class="filter-bar-dates">
+                <?php bandpromo_admin_render_iso_date_field('date_start', $dateStart, $dateFieldPrefix . 'date-start'); ?>
+                <span class="filter-bar-date-sep" aria-hidden="true">&#8594;</span>
+                <?php bandpromo_admin_render_iso_date_field('date_end', $dateEnd, $dateFieldPrefix . 'date-end'); ?>
+            </div>
+            <?php if (is_array($activityTypes)): ?>
+                <label class="filter-bar-extra-label" for="<?php echo htmlspecialchars($dateFieldPrefix . 'activity-filter'); ?>">Activity</label>
+                <select name="activity_filter" id="<?php echo htmlspecialchars($dateFieldPrefix . 'activity-filter'); ?>" class="filter-bar-select">
+                    <option value="">All</option>
+                    <?php foreach ($activityTypes as $type): ?>
+                        <option value="<?php echo htmlspecialchars($type); ?>" <?php echo $activityFilter === $type ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($type); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
+            <?php if ($entrySummary !== null && $entrySummary !== ''): ?>
+                <span class="filter-bar-meta"><?php echo htmlspecialchars((string) $entrySummary); ?></span>
+            <?php endif; ?>
         </form>
     </div>
     <?php

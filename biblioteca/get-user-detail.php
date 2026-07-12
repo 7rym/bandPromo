@@ -11,19 +11,16 @@ require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/analytics.php';
 require_once __DIR__ . '/admin-helpers.php';
+require_once __DIR__ . '/time-helpers.php';
 
 $username   = trim($_GET['username'] ?? '');
-$dateStart  = $_GET['date_start'] ?? date('Y-m-d', strtotime('-30 days'));
-$dateEnd    = $_GET['date_end']   ?? date('Y-m-d');
+$dateStart  = bandpromo_admin_normalize_date_param((string) ($_GET['date_start'] ?? ''), gmdate('Y-m-d', strtotime('-30 days')));
+$dateEnd    = bandpromo_admin_normalize_date_param((string) ($_GET['date_end'] ?? ''), gmdate('Y-m-d'));
 
-if (empty($username)) {
+if ($username === '') {
     http_response_code(400);
     exit('Username required');
 }
-
-// Validate dates
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStart)) $dateStart = date('Y-m-d', strtotime('-30 days'));
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateEnd))   $dateEnd   = date('Y-m-d');
 
 $analytics = new PlaybackAnalytics();
 
@@ -42,7 +39,7 @@ $activityTypes = $analytics->getActivityTypes($dateStart, $dateEnd);
 ?>
 <div class="user-detail-header">
     <h3>👤 <?php echo htmlspecialchars($username); ?></h3>
-    <span class="detail-period"><?php echo htmlspecialchars($dateStart); ?> → <?php echo htmlspecialchars($dateEnd); ?></span>
+    <span class="detail-period"><?php echo htmlspecialchars($dateStart); ?> → <?php echo htmlspecialchars($dateEnd); ?> (UTC dates)</span>
 </div>
 
 <?php if ($userStats): ?>
@@ -84,7 +81,7 @@ $activityTypes = $analytics->getActivityTypes($dateStart, $dateEnd);
             <tbody>
                 <?php foreach ($logEntries as $entry): ?>
                 <tr>
-                    <td style="white-space:nowrap; color:#666;"><?php echo htmlspecialchars($entry['timestamp'] ?? ''); ?></td>
+                    <td style="white-space:nowrap; color:#666;"><?php echo htmlspecialchars(bandpromo_admin_format_timestamp($entry)); ?></td>
                     <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['activity'] ?? ''); ?></span></td>
                     <td>
                         <?php

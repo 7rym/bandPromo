@@ -55,15 +55,25 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
     });
 });
 
-// Auto-submit on date input change
+// Auto-submit on date or activity filter change
 document.querySelectorAll('input[name="date_start"], input[name="date_end"]').forEach(input => {
     input.addEventListener('change', function() {
         const form = this.closest('form');
+        if (!form) {
+            return;
+        }
+        const presetBtnsContainer = form.querySelector('.filter-preset-btns');
+        if (presetBtnsContainer) {
+            presetBtnsContainer.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        }
+        form.submit();
+    });
+});
+
+document.querySelectorAll('.filter-bar-select[name="activity_filter"]').forEach(select => {
+    select.addEventListener('change', function() {
+        const form = this.closest('form');
         if (form) {
-            const presetBtnsContainer = form.querySelector('.filter-preset-btns');
-            if (presetBtnsContainer) {
-                presetBtnsContainer.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-            }
             form.submit();
         }
     });
@@ -87,6 +97,8 @@ function initChart() {
         data.push(hourlyDistributionData[i] || 0);
     }
     
+    const axisLabel = typeof adminTimeAxisLabel === 'string' ? adminTimeAxisLabel : 'UTC';
+    
     try {
         const ctx = hourlyChartCanvas.getContext('2d');
         new Chart(ctx, {
@@ -94,7 +106,7 @@ function initChart() {
             data: {
                 labels,
                 datasets: [{
-                    label: 'Activity Count',
+                    label: `Activity (${axisLabel})`,
                     data,
                     backgroundColor: 'rgba(102, 126, 234, 0.7)',
                     borderColor:     'rgba(102, 126, 234, 1)',
@@ -108,7 +120,11 @@ function initChart() {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: true, position: 'top' } },
                 scales: {
-                    x: { offset: true, ticks: { color: '#aaa', maxRotation: 0 } },
+                    x: {
+                        offset: true,
+                        title: { display: true, text: `Hour (${axisLabel})`, color: '#aaa' },
+                        ticks: { color: '#aaa', maxRotation: 0 },
+                    },
                     y: { beginAtZero: true, min: 0 }
                 }
             }
@@ -3763,6 +3779,67 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     return false;
                 }
+            }
+
+            const cfgOperatorTimeSaveBtn = document.getElementById('cfgOperatorTimeSaveBtn');
+            const cfgOperatorTimeStatus = document.getElementById('cfgOperatorTimeStatus');
+            const cfgOperatorTimezoneInput = document.getElementById('cfg_operator_timezone');
+            const operatorTimezonePreview = document.getElementById('operatorTimezonePreview');
+            const detectedTimezone = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
+                ? Intl.DateTimeFormat().resolvedOptions().timeZone
+                : 'UTC';
+
+            if (operatorTimezonePreview && detectedTimezone) {
+                const currentTz = cfgOperatorTimezoneInput instanceof HTMLInputElement
+                    ? cfgOperatorTimezoneInput.value.trim()
+                    : '';
+                operatorTimezonePreview.textContent = currentTz !== '' ? currentTz : detectedTimezone;
+            }
+
+            if (cfgOperatorTimeSaveBtn) {
+                cfgOperatorTimeSaveBtn.addEventListener('click', async () => {
+                    if (cfgOperatorTimeStatus) {
+                        cfgOperatorTimeStatus.textContent = 'Saving…';
+                        cfgOperatorTimeStatus.style.color = '#aaa';
+                    }
+
+                    const selected = document.querySelector('input[name="operator_time_display"]:checked');
+                    const timeDisplay = selected instanceof HTMLInputElement ? selected.value : 'utc';
+                    let timezone = cfgOperatorTimezoneInput instanceof HTMLInputElement
+                        ? cfgOperatorTimezoneInput.value.trim()
+                        : '';
+                    if (timeDisplay === 'local' && (timezone === '' || timezone === 'UTC')) {
+                        timezone = detectedTimezone || 'UTC';
+                    }
+                    if (timezone === '') {
+                        timezone = 'UTC';
+                    }
+
+                    try {
+                        const resp = await fetch('/biblioteca/save-operator-prefs.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                time_display: timeDisplay,
+                                timezone,
+                            }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || 'Save failed');
+                        }
+                        if (cfgOperatorTimeStatus) {
+                            cfgOperatorTimeStatus.textContent = '✅ Saved. Reloading…';
+                            cfgOperatorTimeStatus.style.color = '#6f6';
+                        }
+                        window.setTimeout(() => window.location.reload(), 500);
+                    } catch (error) {
+                        if (cfgOperatorTimeStatus) {
+                            cfgOperatorTimeStatus.textContent = '❌ ' + error.message;
+                            cfgOperatorTimeStatus.style.color = '#f55';
+                        }
+                    }
+                });
             }
 
             const cfgDemoCatalogVisible = document.getElementById('cfgDemoCatalogVisible');

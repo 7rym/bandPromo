@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-12 17:05 - Follow-up cleanup: removed unused `vendor/tinymce`; self-hosted Chart.js 4.4.1 under `vendor/chart.js`; refreshed SECURITY-AUDIT for SQLite activity store.
+
+2026-07-12 16:55 - Legal/docs audit: refreshed THIRD-PARTY-NOTICES (SQLite, GitHub Releases, jsDelivr, HTML Purifier paths; TinyMCE marked vendored-not-loaded); wrote TRADEMARKS.md; linked license notice to third-party/trademark docs.
+
+2026-07-12 16:45 - Setup/bootstrap preflight: require PHP `pdo_sqlite`; docs updated for SQLite activity store (`data/analytics/events.sqlite`).
+
+2026-07-12 16:35 - Activity store migration hardening: strip UTF-8 BOM from legacy JSONL lines; fail import when a file has content but no parseable rows (prevents silent delete).
+
+2026-07-12 16:30 - Activity log storage: SQLite at `data/analytics/events.sqlite`; one-shot import of legacy daily JSONL logs with delete; listener/audit ingest and analytics reads wired through `activity-store.php`.
+
+2026-07-12 16:15 - Analytics migration policy: one-shot JSONL import into SQLite on upgrade, then delete legacy log files (no dual-write).
+
+2026-07-12 16:00 - Lock analytics storage to v0.8: ANALYTICS-STORAGE.md (ActivityStore, SQLite events, rollups, legacy log migration); TODO priority 5; v0.9 limited to offline sync on top of the new store.
+
+2026-07-12 15:45 - UTC time foundation: listener/audit logs store ISO UTC; analytics buckets on UTC; Settings → Basics adds admin UTC/local display toggle with timezone; release/playlist date hints document UTC calendar-day gates.
+
+2026-07-12 15:25 - Analytics filter bar: period presets left of date pickers, order reversed (All → Day).
+
+2026-07-12 15:20 - Analytics and audit filter bars: compact single-row layout; ISO `YYYY-MM-DD` text display with calendar picker button; merged activity filter into analytics log bar.
+
 2026-07-12 15:05 - Checkpoint v0.8.6 build 321: admin read-performance caches and PHP playlist preview; compact operator dashboard (site update strip + icon quick actions); brands editor narrative fields; system shell vs brand overlay docs.
 
 2026-07-12 15:00 - Dashboard layout: Site update above Quick actions; compact icon tiles for quick actions with shorter labels.

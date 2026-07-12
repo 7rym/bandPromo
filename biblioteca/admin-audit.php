@@ -5,6 +5,9 @@
  * Stores admin-only mutation records separately from listener activity logs.
  */
 
+require_once __DIR__ . '/time-helpers.php';
+require_once __DIR__ . '/activity-store.php';
+
 function bandpromo_admin_audit_dir(): string
 {
     return dirname(__DIR__) . '/log/admin-audit';
@@ -78,8 +81,8 @@ function bandpromo_admin_audit_log(string $action, array $context = []): bool
         $overrideIp = trim((string) ($context['ip'] ?? ''));
         $overrideUserAgent = trim((string) ($context['user_agent'] ?? ''));
         $entry = [
-            'timestamp' => gmdate('Y-m-d H:i:s'),
-            'timestamp_unix' => time(),
+            'timestamp' => bandpromo_utc_now_iso(),
+            'timestamp_unix' => bandpromo_utc_now_unix(),
             'actor' => $overrideActor !== '' ? $overrideActor : bandpromo_admin_audit_actor(),
             'action' => trim($action),
             'target_type' => trim((string) ($context['target_type'] ?? '')),
@@ -90,8 +93,7 @@ function bandpromo_admin_audit_log(string $action, array $context = []): bool
             'data' => bandpromo_admin_audit_sanitize_data(is_array($context['data'] ?? null) ? $context['data'] : []),
         ];
 
-        $line = json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
-        return file_put_contents(bandpromo_admin_audit_file_for_date(gmdate('Y-m-d')), $line, FILE_APPEND | LOCK_EX) !== false;
+        return bandpromo_activity_store_append_audit(dirname(__DIR__), $entry);
     } catch (Throwable $e) {
         error_log('bandPromo admin audit error: ' . $e->getMessage());
         return false;
@@ -116,75 +118,40 @@ function bandpromo_admin_audit_iter_dates(string $startDate, string $endDate): a
 
 function bandpromo_admin_audit_read_entries(string $startDate, string $endDate, string $action = '', string $actor = '', int $limit = 200, int $offset = 0): array
 {
-    $entries = [];
-    $action = trim($action);
-    $actor = trim($actor);
-
-    foreach (bandpromo_admin_audit_iter_dates($startDate, $endDate) as $date) {
-        $file = bandpromo_admin_audit_file_for_date($date);
-        if (!file_exists($file)) {
-            continue;
-        }
-
-        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if (!is_array($lines)) {
-            continue;
-        }
-
-        foreach ($lines as $line) {
-            $decoded = json_decode($line, true);
-            if (!is_array($decoded)) {
-                continue;
-            }
-            if ($action !== '' && (($decoded['action'] ?? '') !== $action)) {
-                continue;
-            }
-            if ($actor !== '' && (($decoded['actor'] ?? '') !== $actor)) {
-                continue;
-            }
-            $entries[] = $decoded;
-        }
+    try {
+        return bandpromo_activity_store_fetch_audit_entries(
+            dirname(__DIR__),
+            $startDate,
+            $endDate,
+            $action,
+            $actor,
+            $limit,
+            $offset
+        );
+    } catch (Throwable $e) {
+        error_log('bandPromo admin audit read error: ' . $e->getMessage());
+        return ['entries' => [], 'total' => 0];
     }
-
-    usort($entries, static function (array $left, array $right): int {
-        return ($right['timestamp_unix'] ?? 0) <=> ($left['timestamp_unix'] ?? 0);
-    });
-
-    $total = count($entries);
-    return [
-        'entries' => array_slice($entries, max(0, $offset), max(1, $limit)),
-        'total' => $total,
-    ];
 }
 
 function bandpromo_admin_audit_get_action_types(string $startDate, string $endDate): array
 {
-    $types = [];
-    $result = bandpromo_admin_audit_read_entries($startDate, $endDate, '', '', 5000, 0);
-    foreach ($result['entries'] as $entry) {
-        $type = trim((string) ($entry['action'] ?? ''));
-        if ($type !== '') {
-            $types[$type] = true;
-        }
+    try {
+        return bandpromo_activity_store_distinct_audit_actions(dirname(__DIR__), $startDate, $endDate);
+    } catch (Throwable $e) {
+        error_log('bandPromo admin audit action lookup error: ' . $e->getMessage());
+        return [];
     }
-    $list = array_keys($types);
-    sort($list, SORT_STRING);
-    return $list;
 }
 
 function bandpromo_admin_audit_get_actors(string $startDate, string $endDate): array
 {
-    $actors = [];
-    $result = bandpromo_admin_audit_read_entries($startDate, $endDate, '', '', 5000, 0);
-    foreach ($result['entries'] as $entry) {
-        $actor = trim((string) ($entry['actor'] ?? ''));
-        if ($actor !== '') {
-            $actors[$actor] = true;
-        }
+    try {
+        return bandpromo_activity_store_distinct_audit_actors(dirname(__DIR__), $startDate, $endDate);
+    } catch (Throwable $e) {
+        error_log('bandPromo admin audit actor lookup error: ' . $e->getMessage());
+        return [];
     }
-    $list = array_keys($actors);
-    sort($list, SORT_STRING);
-    return $list;
 }
 
 function bandpromo_admin_audit_format_detail(array $entry): string

@@ -96,7 +96,8 @@ Installed phone experience should beat browser tab for:
 
 ## Logging and analytics delivery
 
-- Playback logs post to existing endpoints; offline queue is optional follow-up.
+- Playback logs post to the **ActivityStore** ingest API (SQLite in v0.8; see [ANALYTICS-STORAGE.md](ANALYTICS-STORAGE.md)).
+- Offline queue + sync when the client is offline is **v0.9**; it reuses the same ingest path into SQLite.
 - Delivery grants must not leak in logs beyond coarse `grant_issued` / `grant_denied`.
 
 ## Security
@@ -118,7 +119,7 @@ Installed phone experience should beat browser tab for:
 
 1. Service worker audio cache with eviction.
 2. Cast sender for full in-scope media.
-3. Offline log sync (if prioritized).
+3. Offline log sync (client queue → existing ingest API).
 
 ## Related removal
 

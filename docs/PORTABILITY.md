@@ -18,9 +18,9 @@ bandPromo offers **two distinct portability services**, not one combined ZIP:
 
 - `web-config.json`
 - `.env` (if present)
-- entire `data/` tree (assets registry, releases, playlists, galleries, pages, themes, users, install state)
+- entire `data/` tree (assets registry, releases, playlists, galleries, pages, themes, users, install state, **`data/analytics/events.sqlite`** activity store)
 - entire `media/` tree (original, master, delivery, icons, special)
-- `log/` (optional toggle; default include for support continuity)
+- `log/` (optional toggle; default include for support continuity — build/dev logs; listener/audit activity is in `data/analytics/`)
 - install identity (`data/install/identity.json` or equivalent runtime identity state)
 
 **Excludes:**

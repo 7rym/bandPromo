@@ -318,6 +318,8 @@ if (!$authenticated) {
 }
 
 require_once 'biblioteca/admin-helpers.php';
+require_once 'biblioteca/time-helpers.php';
+require_once 'biblioteca/activity-store.php';
 
 $message = '';
 $error = '';
@@ -555,9 +557,9 @@ if (!in_array($systemTab, ['publish', 'audit'], true)) {
     $systemTab = 'publish';
 }
 
-// Date range
-$dateStart = $_GET['date_start'] ?? date('Y-m-d', strtotime('-30 days'));
-$dateEnd   = $_GET['date_end']   ?? date('Y-m-d');
+// Date range (ISO YYYY-MM-DD)
+$dateStart = bandpromo_admin_normalize_date_param((string) ($_GET['date_start'] ?? ''), date('Y-m-d', strtotime('-30 days')));
+$dateEnd   = bandpromo_admin_normalize_date_param((string) ($_GET['date_end'] ?? ''), date('Y-m-d'));
 
 $auditActionFilter = trim((string) ($_GET['audit_action'] ?? ''));
 $auditUserFilter = trim((string) ($_GET['audit_user'] ?? ''));
@@ -579,11 +581,10 @@ if ($tab === 'docs') {
     $documentationView = bandpromo_docs_render_selected((string) ($_GET['doc'] ?? ''), $documentationScope);
 }
 
-// Initialize analytics engine
+// Initialize analytics engine (also triggers legacy log import on first use)
 $analytics = new PlaybackAnalytics();
-
-// Always load platform stats (needed for dashboard chart)
 $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
+$activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -593,7 +594,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
     <?php echo bandpromo_theme_render_css(__DIR__); ?>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="vendor/chart.js/chart.umd.min.js?v=<?php echo filemtime(__DIR__ . '/vendor/chart.js/chart.umd.min.js'); ?>"></script>
     <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-content.css'); ?>">
     <?php endif; ?>
@@ -629,6 +630,12 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         <?php endif; ?>
         <?php if ($error): ?>
             <div class="message error"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+        <?php if (empty($activityStoreStatus['ok'])): ?>
+            <div class="message error">
+                Activity log storage needs attention: <?php echo htmlspecialchars((string) ($activityStoreStatus['message'] ?? 'Unknown error')); ?>.
+                Analytics and listener logging may be incomplete until this is resolved.
+            </div>
         <?php endif; ?>
 
         <!-- Primary Tab Navigation -->
@@ -765,7 +772,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <button class="help-toggle-btn collapsed" id="helpBtn-analytics" onclick="toggleHelp('analytics')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-analytics">
-                <strong>Dash</strong> gives a quick overview of platform stats. The other tabs show detailed reports — <strong>Hitlist</strong> ranks your most-played songs, <strong>Patterns</strong> shows where people stop or skip, and <strong>Log</strong> shows raw activity entries.
+                <strong>Dash</strong> gives a quick overview of platform stats. The other tabs show detailed reports — <strong>Hitlist</strong> ranks your most-played songs, <strong>Patterns</strong> shows where people stop or skip, and <strong>Log</strong> shows raw activity entries. All timestamps are stored in UTC; choose UTC or local display in Settings → Basics.
             </div>
 
             <?php if ($analyticsTab === 'dashboard'): ?>
@@ -799,6 +806,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             </div>
             <div class="section">
                 <h2>Hourly Activity Distribution</h2>
+                <p class="hint">Activity by hour (<?php echo htmlspecialchars(bandpromo_admin_time_axis_label()); ?>). <?php echo htmlspecialchars(bandpromo_admin_time_policy_note()); ?></p>
                 <div class="chart-container">
                     <canvas id="hourlyChart"></canvas>
                 </div>
@@ -936,27 +944,14 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 $logEntries        = $rawLog['entries'];
                 $logTotal          = $rawLog['total'];
             ?>
-            <?php renderFilterBar('analytics', $dateStart, $dateEnd, 'log'); ?>
-
-            <!-- Activity type filter -->
-            <form method="GET" class="filter-bar">
-                <input type="hidden" name="tab"        value="analytics">
-                <input type="hidden" name="atab"       value="log">
-                <input type="hidden" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>">
-                <input type="hidden" name="date_end"   value="<?php echo htmlspecialchars($dateEnd); ?>">
-                <label>Activity</label>
-                <select name="activity_filter" onchange="this.form.submit()">
-                    <option value="">All activities</option>
-                    <?php foreach ($activityTypes as $type): ?>
-                        <option value="<?php echo htmlspecialchars($type); ?>" <?php echo $logActivityFilter === $type ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($type); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <span class="text-muted">
-                    <?php echo $logTotal > 200 ? 'Showing 200 of ' . number_format($logTotal) : number_format($logTotal); ?> entries
-                </span>
-            </form>
+            <?php
+                $logEntrySummary = ($logTotal > 200 ? 'Showing 200 of ' . number_format($logTotal) : number_format($logTotal)) . ' entries';
+                renderFilterBar('analytics', $dateStart, $dateEnd, 'log', [
+                    'activity_types' => $activityTypes,
+                    'activity_filter' => $logActivityFilter,
+                    'entry_summary' => $logEntrySummary,
+                ]);
+            ?>
 
             <?php if (empty($logEntries)): ?>
                 <p class="empty-msg">No log entries found.</p>
@@ -967,7 +962,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <tbody>
                         <?php foreach ($logEntries as $entry): ?>
                         <tr>
-                            <td class="text-muted nowrap"><?php echo htmlspecialchars($entry['timestamp'] ?? ''); ?></td>
+                            <td class="text-muted nowrap"><?php echo htmlspecialchars(bandpromo_admin_format_timestamp($entry)); ?></td>
                             <td><strong><?php echo htmlspecialchars($entry['username'] ?? ''); ?></strong></td>
                             <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['activity'] ?? ''); ?></span></td>
                             <td>
@@ -1472,6 +1467,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                                     <input type="text" class="iso-date-input" id="releaseSettingsDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                                                 </div>
                                             </label>
+                                            <p class="hint">Fans can play from the start of this <strong>UTC calendar day</strong>. Timed worldwide drops (hour/minute) are planned for v2 marketing.</p>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
                                                 <span>Brand</span>
                                                 <select id="releaseSettingsBrandId" aria-label="Release brand">
@@ -1657,6 +1653,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                                                     <input type="text" class="iso-date-input" id="playlistSettingsPublishDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
                                                 </div>
                                             </label>
+                                            <p class="hint">Playlist promotion uses this <strong>UTC calendar day</strong>; track playability still follows each release date.</p>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
                                                 <span>Slug</span>
                                                 <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
@@ -2193,6 +2190,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
             <?php
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSite = $cfgFull['site'] ?? [];
+            $operatorPrefs = bandpromo_operator_prefs($cfgFull);
+            $operatorTimeDisplay = $operatorPrefs['time_display'];
+            $operatorTimezone = $operatorPrefs['timezone'];
             $cfgSiteEmailAuto = !array_key_exists('email_auto', $cfgSite) || $cfgSite['email_auto'] !== false;
             require_once __DIR__ . '/biblioteca/site-contact.php';
             $cfgSiteContact = trim((string) ($cfgSite['email'] ?? ''));
@@ -2240,6 +2240,29 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 <div class="card-actions">
                     <button id="cfgBasicsSaveBtn" class="btn btn-primary">💾 Save basics</button>
                     <span id="cfgBasicsStatus" class="status-text"></span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🕐 Admin time display</h3>
+                <p class="card-note">
+                    <?php echo htmlspecialchars(bandpromo_admin_time_policy_note()); ?>
+                    Choose how timestamps appear in Analytics, Audit, and activity logs. Storage always stays UTC.
+                </p>
+                <div class="operator-time-options">
+                    <label class="config-checkbox-row">
+                        <input type="radio" name="operator_time_display" value="utc"<?php echo $operatorTimeDisplay === 'utc' ? ' checked' : ''; ?>>
+                        <span>UTC (recommended for worldwide audiences)</span>
+                    </label>
+                    <label class="config-checkbox-row">
+                        <input type="radio" name="operator_time_display" value="local"<?php echo $operatorTimeDisplay === 'local' ? ' checked' : ''; ?>>
+                        <span>My local time (<code id="operatorTimezonePreview"><?php echo htmlspecialchars($operatorTimezone); ?></code>)</span>
+                    </label>
+                </div>
+                <input type="hidden" id="cfg_operator_timezone" value="<?php echo htmlspecialchars($operatorTimezone); ?>">
+                <div class="card-actions">
+                    <button type="button" id="cfgOperatorTimeSaveBtn" class="btn btn-primary">💾 Save time display</button>
+                    <span id="cfgOperatorTimeStatus" class="status-text"></span>
                 </div>
             </div>
 
@@ -2591,15 +2614,16 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                 Separate admin audit trail for management actions only. Use this to trace who changed users, content, settings, files, and publish runs, without mixing those records into listener activity analytics.
             </div>
 
-            <form method="GET" class="filter-bar">
+            <form method="GET" class="filter-bar filter-bar-form">
                 <input type="hidden" name="tab" value="system">
                 <input type="hidden" name="stab" value="audit">
-                <label>Start</label>
-                <input type="text" class="iso-date-input" name="date_start" value="<?php echo htmlspecialchars($dateStart); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
-                <label>End</label>
-                <input type="text" class="iso-date-input" name="date_end" value="<?php echo htmlspecialchars($dateEnd); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
-                <label>Action</label>
-                <select name="audit_action" onchange="this.form.submit()">
+                <div class="filter-bar-dates">
+                    <?php bandpromo_admin_render_iso_date_field('date_start', $dateStart, 'audit-date-start'); ?>
+                    <span class="filter-bar-date-sep" aria-hidden="true">&#8594;</span>
+                    <?php bandpromo_admin_render_iso_date_field('date_end', $dateEnd, 'audit-date-end'); ?>
+                </div>
+                <label class="filter-bar-extra-label" for="audit-action-filter">Action</label>
+                <select name="audit_action" id="audit-action-filter" class="filter-bar-select" onchange="this.form.submit()">
                     <option value="">All actions</option>
                     <?php foreach ($auditActions as $auditAction): ?>
                     <option value="<?php echo htmlspecialchars($auditAction); ?>" <?php echo $auditActionFilter === $auditAction ? 'selected' : ''; ?>>
@@ -2607,8 +2631,8 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     </option>
                     <?php endforeach; ?>
                 </select>
-                <label>User</label>
-                <select name="audit_user" onchange="this.form.submit()">
+                <label class="filter-bar-extra-label" for="audit-user-filter">User</label>
+                <select name="audit_user" id="audit-user-filter" class="filter-bar-select" onchange="this.form.submit()">
                     <option value="">All admins</option>
                     <?php foreach ($auditActors as $auditActor): ?>
                     <option value="<?php echo htmlspecialchars($auditActor); ?>" <?php echo $auditUserFilter === $auditActor ? 'selected' : ''; ?>>
@@ -2616,7 +2640,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     </option>
                     <?php endforeach; ?>
                 </select>
-                <span class="text-muted">
+                <span class="filter-bar-meta">
                     <?php echo $auditEntries['total'] > 200 ? 'Showing 200 of ' . number_format($auditEntries['total']) : number_format($auditEntries['total']); ?> records
                 </span>
             </form>
@@ -2630,7 +2654,7 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
                     <tbody>
                         <?php foreach ($auditEntries['entries'] as $entry): ?>
                         <tr>
-                            <td class="text-muted nowrap"><?php echo htmlspecialchars($entry['timestamp'] ?? ''); ?></td>
+                            <td class="text-muted nowrap"><?php echo htmlspecialchars(bandpromo_admin_format_timestamp($entry)); ?></td>
                             <td><strong><?php echo htmlspecialchars($entry['actor'] ?? ''); ?></strong></td>
                             <td><span class="badge activity-badge"><?php echo htmlspecialchars($entry['action'] ?? ''); ?></span></td>
                             <td>
@@ -2889,6 +2913,9 @@ $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
         const adminDateEnd   = <?php echo json_encode($dateEnd); ?>;
         const adminActivePanel = <?php echo json_encode($filesPanel); ?>;
         const adminCsrfToken = <?php echo json_encode($adminCsrfToken); ?>;
+        const adminTimeDisplay = <?php echo json_encode(bandpromo_admin_time_display_mode()); ?>;
+        const adminTimeAxisLabel = <?php echo json_encode(bandpromo_admin_time_axis_label()); ?>;
+        const adminOperatorTimezone = <?php echo json_encode(bandpromo_admin_timezone()); ?>;
     </script>
     <script>
         window.BANDPROMO_SESSION_AUTH = {

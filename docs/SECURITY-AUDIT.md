@@ -1,16 +1,18 @@
 # bandPromo Security Audit Report
 
 Current review target: `v0.8`  
-Review date: 2026-06-12  
-Previous review: 2026-04-25
+Review date: 2026-07-12  
+Previous review: 2026-06-12
 
 ## Summary
 
-bandPromo is a closed, session-authenticated PHP application with file/JSON storage (no SQL). Path handling, upload routing, HTTPS enforcement, and page HTML sanitization are generally sound. The **2026-06-12 release checkpoint** adds a shared **admin-role guard** on `admin.php` and admin biblioteca APIs so listener accounts cannot reach operator surfaces.
+bandPromo is a closed, session-authenticated PHP application with file/JSON storage for site content and a **local SQLite activity store** (`data/analytics/events.sqlite`) for listener/audit analytics. Path handling, upload routing, HTTPS enforcement, and page HTML sanitization are generally sound. The **2026-06-12 release checkpoint** adds a shared **admin-role guard** on `admin.php` and admin biblioteca APIs so listener accounts cannot reach operator surfaces.
 
 Remaining release risks are mostly **session abuse hardening** (CSRF, login rate limits, password hashing, explicit server-side session lifetime policy) rather than missing authorization on admin endpoints.
 
 **2026-06-13 UX note:** Admin and player now include a lightweight client-side session watchdog (`biblioteca/session-auth.js` + `biblioteca/session-check.php`) that redirects expired sessions to login. This improves operator clarity but is not a substitute for explicit server-side timeout configuration.
+
+**2026-07-12 storage note:** Analytics and audit events now use PDO SQLite through `biblioteca/activity-store.php`. This is a local append-only store, not a shared multi-tenant database. Queries use prepared statements; there is no operator-facing SQL surface.
 
 ## Fixed in v0.7 build 276 checkpoint
 
@@ -43,19 +45,21 @@ _None open after the admin-role guard. Re-verify on each release._
 | Sensitive build debug in API | `build.php`, `get-build-log.php` | Paths and environment hints in JSON responses |
 | Quiz answer leakage | `quiz.php` | Correct answers sent to client |
 | IP header trust | `rate-limit.php`, `admin-audit.php` | `X-Forwarded-For` accepted without trusted-proxy boundary |
+| SQLite file permissions | `data/analytics/events.sqlite` | Relies on `data/.htaccess` and host filesystem permissions; verify on each deployment |
 
 ## Low / informational
 
 | Area | Status |
 | --- | --- |
-| SQL injection | Not applicable (no database layer) |
+| SQL injection | Low risk for current surface: activity-store uses PDO prepared statements only; no ad-hoc SQL from request input |
 | Path traversal on upload/delete/download | `basename()`, extension routing, fixed directories |
-| Page HTML XSS | HTMLPurifier in `save-page.php` |
-| `data/` HTTP exposure | Denied via `data/.htaccess` |
+| Page HTML XSS | HTMLPurifier in `biblioteca/page-text-sanitize.php` (page save/render pipeline) |
+| `data/` HTTP exposure | Denied via `data/.htaccess` (includes analytics SQLite under `data/analytics/`) |
 | HTTPS | Enforced except localhost (`https.php`) |
 | Direct JSON access | Root `.htaccess` rewrites for config/highscores/quiz |
 | Quiz score integrity | Server-side validation + rate limits |
 | Command injection in build | `proc_open` with fixed script paths |
+| Third-party admin scripts | Chart.js is self-hosted under `vendor/chart.js`; Ko-fi widget remains optional operator-controlled remote script on the player |
 
 ## Listener vs admin surfaces
 
@@ -73,7 +77,8 @@ _None open after the admin-role guard. Re-verify on each release._
 4. `session_regenerate_id()` on login
 5. Validate gallery `src` / `alt` on save; escape on render
 6. Gate or remove debug endpoints in production builds
+7. Re-verify SQLite directory permissions and backup scope after analytics migration on beta hosts
 
 ## Review method
 
-Static code review of auth/session flows, biblioteca API guards, upload/delete/download paths, and operator documentation. No external penetration test was performed for this checkpoint.
+Static code review of auth/session flows, biblioteca API guards, upload/delete/download paths, activity-store SQL usage, and operator documentation. No external penetration test was performed for this checkpoint.

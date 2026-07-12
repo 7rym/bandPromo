@@ -15,7 +15,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - User-friendly admin panel for managing users, files, and site content
 - **Notifications** operator inbox modal with plain-language tasks (header bell is the primary entry point on completed installs)
 - Quick actions on the completed-install dashboard (Analytics, Files, Content, live preview, Documentation)
-- Built-in analytics for playback and user behavior
+- Built-in analytics for playback and user behavior (SQLite activity store at `data/analytics/events.sqlite`)
 - Guided **Settings** forms (Basics, Theme, Support, Sharing) instead of raw JSON editing *(Theme settings migrate to Brand in v0.8 management slice)*
 - **Content → Themes** editor *(transitional — becomes **Content → Brands**: pool, tokens, mood narrative, live preview, duplicate/delete, Set active)*
 - **Block-based Pages editor** (v0.8 beta): Text, Picture, and List blocks; rich formatting; fraction picture widths and Flow placement; live player-styled preview; delete confirmations for pages and blocks

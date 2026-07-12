@@ -32,8 +32,9 @@ Rules for this file:
 | 3a | Unified Content editors + upload-time delivery automation | **Shipped** |
 | 3b | Platform model: multi-playlist/gallery, module blocks, delivery architecture | **Active** |
 | 4 | v0.8 management slice: Brand, Visual pool, role tags, content AI wizards | **Active — primary focus** |
+| 5 | Analytics storage: ActivityStore, SQLite events, rollups, legacy log migration | **Active — v0.8 data foundation** |
 
-Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first.
+Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first. **Analytics storage implementation** also belongs to **v0.8** so beta installs are not crushed when v0.9 opens access.
 
 Reference: see `ROADMAP.md` for milestone structure and beta-tester expectations.
 
@@ -121,6 +122,35 @@ Implementation order:
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses active brand CSS tokens.
 - [x] **Welcome nudge** — post-install checklist item to duplicate default brand and customize.
+
+### Analytics and activity log storage (v0.8 data foundation)
+
+Policy locked 2026-07-12 — see [ANALYTICS-STORAGE.md](ANALYTICS-STORAGE.md). **Ship in v0.8**, not v0.9: v0.9 opens wider access and higher concurrent load; beta sites must not still rely on full JSONL scans.
+
+Policy — **lock before implementation**:
+
+- [x] Lock **UTC at rest** for listener and audit timestamps (see [ACCESS-MODEL.md](ACCESS-MODEL.md)).
+- [x] Lock **ActivityStore abstraction** — one ingest/query interface; no new features reading `log/*.log` directly.
+- [x] Lock **SQLite as primary event store** at `data/analytics/events.sqlite` (WAL).
+- [x] Lock **rollup-first admin reads** — dashboards and charts query materialized aggregates, not raw event scans.
+- [x] Lock **legacy migration** — detect old JSONL logs on upgrade, import once into SQLite, delete legacy files (no dual-write).
+- [ ] Lock **retention defaults** — raw events 90 days, rollups indefinite; export path in [PORTABILITY.md](PORTABILITY.md).
+
+Implementation order:
+
+- [x] **Activity store module** + SQLite schema/indexes + legacy import on first use.
+- [x] **Wire ingest** — `log.php`, `admin-audit.php` append through activity store.
+- [x] **PlaybackAnalytics rewrite** — query SQLite; hourly chart uses SQL aggregation.
+- [x] **Legacy import** — migrate existing `log/` and `log/admin-audit/` into SQLite, delete JSONL daily files.
+- [x] **Setup/bootstrap preflight** — require `pdo_sqlite` before install and setup continue.
+- [ ] **Rollup maintainer** — expand daily user/track/device rollups beyond hourly.
+- [ ] **Client batching** — player buffers warm events; rate limit on ingest endpoint.
+- [ ] **Admin export** — JSONL/CSV dump for operator backup.
+
+Deferred (uses the v0.8 store, not part of storage core):
+
+- [ ] Offline log queue + sync (v0.9 — [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md)).
+- [ ] Drop-moment / concurrent-listener rollups (v2 marketing).
 
 ### Visual pool + delivery
 

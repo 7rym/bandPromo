@@ -5,7 +5,7 @@ This guide is for operators who want to run bandPromo without relying on Git, SS
 ## What this guide assumes
 
 - You can upload files into the folder where your site should live.
-- Your host can run PHP 8+.
+- Your host can run PHP 8+ with `pdo_sqlite` enabled.
 - Your host allows outbound HTTPS requests so the bootstrap installer can download the published release package and query the GitHub Releases API for beta prereleases.
 - You can open a URL in the browser after uploading the installer file.
 
@@ -40,6 +40,7 @@ The preferred operator install flow is a one-file bootstrap installer.
 The current bootstrap installer checks at least:
 
 - PHP 8+
+- `pdo_sqlite` (listener activity logs and analytics)
 - `ZipArchive`
 - HTTPS-capable download support
 - writable target folder access
@@ -81,6 +82,7 @@ After package install, open `setup.php`.
 
 Setup should then:
 
+- verify required PHP extensions (including `pdo_sqlite` for activity logging)
 - create the first admin account
 - seed the required runtime files from tracked templates
 - download the required default theme package if its starter assets are not already present on the server
@@ -97,6 +99,7 @@ Common causes:
 
 - no published release manifest is available yet
 - the target folder is not writable
+- `pdo_sqlite` is missing
 - `ZipArchive` is missing
 - the host cannot make outbound HTTPS requests
 - the package download fails

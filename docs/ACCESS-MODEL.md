@@ -120,6 +120,13 @@ Authenticated-only shares redirect to login with `return` preserving the target 
 - Play events always bind to **track → release**, not playlist.
 - Tier at time of play may be recorded for reporting (v0.9).
 
+## Time semantics (v0.8)
+
+- **Storage:** listener activity, admin audit events, and analytics aggregation use **UTC** (`timestamp` ISO-8601 `Z` + `timestamp_unix`) in SQLite at `data/analytics/events.sqlite` (see [ANALYTICS-STORAGE.md](ANALYTICS-STORAGE.md)).
+- **Admin display:** operators choose **UTC** or **local time** in Settings → Basics. Local mode uses the saved browser timezone (`operator.timezone` in `web-config.json`). Storage never changes.
+- **Release / playlist dates:** date-only gates (`YYYY-MM-DD`) unlock at the **start of that UTC calendar day**. This is not a timed drop (no hour/minute).
+- **Timed worldwide drops** (operator-local or UTC instant, fan countdown, pre/post-drop chat) are **v2 marketing** scope — see [ROADMAP.md](ROADMAP.md).
+
 ## Implementation notes (v0.9)
 
 - Centralize availability in one server helper (for example `bandpromo_track_playable_for_user()`).

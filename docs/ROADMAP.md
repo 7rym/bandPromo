@@ -185,7 +185,7 @@ Preferred operator install/update direction:
 Bootstrap installer contract for v0.7 exit:
 
 - operator entry point should be one uploaded PHP bootstrap file placed in the target web folder
-- the bootstrap should check minimum PHP capabilities first: writable target folder, `ZipArchive`, HTTPS-capable remote download support, and the required extensions already documented by the project
+- the bootstrap should check minimum PHP capabilities first: writable target folder, `pdo_sqlite`, `ZipArchive`, HTTPS-capable remote download support, and the required extensions already documented by the project
 - the bootstrap should fetch a package manifest or equivalent lightweight metadata first, then verify what package URL and version it is about to install before downloading the ZIP
 - the bootstrap should unpack into a staging folder, validate the expected application structure, and only then copy the tracked application files into place
 - first install should seed required runtime files from tracked templates after extraction, not rely on example files being used directly as runtime fallbacks
@@ -802,6 +802,7 @@ Theme: integrations, **marketing machine** automation, and campaign tooling buil
 Examples:
 
 - semi-automatic marketing campaigns from existing releases and pages
+- **timed worldwide drops** (`release_at_utc` or operator-local instant) with fan countdown, pre/post-drop chat, and drop-moment analytics
 - social/share copy and image series scheduled from catalog state
 - newsletters and mailing integrations tied to tour/release calendars
 - QR and shortlink generation for campaigns

@@ -1,21 +1,24 @@
 <?php
 /**
  * Analytics Engine for bandPromo
- * Parses log files and provides aggregated statistics
+ * Reads listener activity from SQLite via activity-store.php
  */
 
+require_once __DIR__ . '/time-helpers.php';
+require_once __DIR__ . '/activity-store.php';
+
 class PlaybackAnalytics {
-    private $logDir;
-    
-    // Cache for performance
-    private $logsCache = [];
-    private $cacheExpire = 3600; // 1 hour
-    
+    private $root;
+    private $entryCache = [];
+
     public function __construct($logDir = null) {
-        if ($logDir === null) {
-            $logDir = dirname(__DIR__) . '/log';
+        $this->root = dirname(__DIR__);
+        if ($logDir !== null) {
+            $candidate = realpath($logDir);
+            if ($candidate !== false) {
+                $this->root = dirname($candidate);
+            }
         }
-        $this->logDir = $logDir;
     }
 
     private function isTrackExitEvent($entry) {
@@ -99,18 +102,27 @@ class PlaybackAnalytics {
         foreach ($entries as $entry) {
             $username = $entry['username'];
             if (!isset($users[$username])) {
+                $entryUnix = bandpromo_entry_unix_timestamp($entry);
                 $users[$username] = [
                     'username' => $username,
                     'listening_time' => 0,
                     'play_count' => 0,
                     'sessions' => 0,
-                    'last_activity' => $entry['timestamp'],
-                    'first_activity' => $entry['timestamp'],
+                    'last_activity_unix' => $entryUnix,
+                    'first_activity_unix' => $entryUnix,
                     'devices' => []
                 ];
             }
-            
-            $users[$username]['last_activity'] = $entry['timestamp'];
+
+            $entryUnix = bandpromo_entry_unix_timestamp($entry);
+            if ($entryUnix > 0) {
+                if ($entryUnix >= (int) ($users[$username]['last_activity_unix'] ?? 0)) {
+                    $users[$username]['last_activity_unix'] = $entryUnix;
+                }
+                if ($entryUnix <= (int) ($users[$username]['first_activity_unix'] ?? $entryUnix)) {
+                    $users[$username]['first_activity_unix'] = $entryUnix;
+                }
+            }
             
             // Count plays
             if ($entry['activity'] === 'play_start') {
@@ -139,6 +151,13 @@ class PlaybackAnalytics {
         usort($users, function($a, $b) {
             return $b['listening_time'] - $a['listening_time'];
         });
+
+        foreach ($users as &$user) {
+            $user['last_activity'] = bandpromo_admin_format_timestamp((int) ($user['last_activity_unix'] ?? 0));
+            $user['first_activity'] = bandpromo_admin_format_timestamp((int) ($user['first_activity_unix'] ?? 0));
+            unset($user['last_activity_unix'], $user['first_activity_unix']);
+        }
+        unset($user);
         
         return array_slice($users, 0, $limit);
     }
@@ -235,6 +254,13 @@ class PlaybackAnalytics {
      * Get overall platform statistics
      */
     public function getPlatformStats($dateStart = null, $dateEnd = null) {
+        if ($dateStart === null) {
+            $dateStart = gmdate('Y-m-d', strtotime('-30 days'));
+        }
+        if ($dateEnd === null) {
+            $dateEnd = gmdate('Y-m-d');
+        }
+
         $entries = $this->getLogEntries($dateStart, $dateEnd);
         
         $stats = [
@@ -244,7 +270,7 @@ class PlaybackAnalytics {
             'total_sessions' => 0,
             'device_breakdown' => [],
             'quality_estimate' => [],
-            'hourly_distribution' => [],
+            'hourly_distribution' => bandpromo_activity_store_hourly_distribution($this->root, $dateStart, $dateEnd),
             'daily_distribution' => [],
             'activity_types' => []
         ];
@@ -283,27 +309,20 @@ class PlaybackAnalytics {
             $this->incrementCounter($qualityEstimate, $quality);
             $stats['quality_estimate'] = $qualityEstimate;
             
-            // Time distribution
-            $hour = (int)date('H', strtotime($entry['timestamp']));
-            $stats['hourly_distribution'][$hour] = ($stats['hourly_distribution'][$hour] ?? 0) + 1;
-            
-            $day = date('Y-m-d', strtotime($entry['timestamp']));
-            /** @var array<string,int> $dailyDistribution */
-            $dailyDistribution = $stats['daily_distribution'];
-            $this->incrementCounter($dailyDistribution, $day);
-            $stats['daily_distribution'] = $dailyDistribution;
+            // Daily distribution (hourly chart uses rollup/query helper above)
+            $entryUnix = bandpromo_entry_unix_timestamp($entry);
+            if ($entryUnix > 0) {
+                $bucketTz = bandpromo_analytics_bucket_timezone();
+                $day = bandpromo_admin_day_from_unix($entryUnix, $bucketTz);
+                /** @var array<string,int> $dailyDistribution */
+                $dailyDistribution = $stats['daily_distribution'];
+                $this->incrementCounter($dailyDistribution, $day);
+                $stats['daily_distribution'] = $dailyDistribution;
+            }
         }
         
         // Convert unique users to count
         $stats['unique_users'] = count($stats['unique_users']);
-        
-        // Fill in missing hours/days with zeros
-        for ($i = 0; $i < 24; $i++) {
-            if (!isset($stats['hourly_distribution'][$i])) {
-                $stats['hourly_distribution'][$i] = 0;
-            }
-        }
-        ksort($stats['hourly_distribution']);
         
         return $stats;
     }
@@ -316,7 +335,11 @@ class PlaybackAnalytics {
         $trends = [];
         
         foreach ($entries as $entry) {
-            $date = date('Y-m-d', strtotime($entry['timestamp']));
+            $entryUnix = bandpromo_entry_unix_timestamp($entry);
+            $bucketTz = bandpromo_analytics_bucket_timezone();
+            $date = $entryUnix > 0
+                ? bandpromo_admin_day_from_unix($entryUnix, $bucketTz)
+                : bandpromo_admin_day_from_unix(time(), $bucketTz);
             
             if (!isset($trends[$date])) {
                 $trends[$date] = [
@@ -600,13 +623,19 @@ class PlaybackAnalytics {
      * Get all distinct activity types present in the log
      */
     public function getActivityTypes($dateStart = null, $dateEnd = null) {
-        $entries = $this->getLogEntries($dateStart, $dateEnd);
-        $types = [];
-        foreach ($entries as $entry) {
-            $types[$entry['activity']] = true;
+        if ($dateStart === null) {
+            $dateStart = gmdate('Y-m-d', strtotime('-30 days'));
         }
-        ksort($types);
-        return array_keys($types);
+        if ($dateEnd === null) {
+            $dateEnd = gmdate('Y-m-d');
+        }
+
+        try {
+            return bandpromo_activity_store_distinct_listener_activities($this->root, $dateStart, $dateEnd);
+        } catch (Throwable $e) {
+            error_log('bandPromo activity type lookup error: ' . $e->getMessage());
+            return [];
+        }
     }
 
     /**
@@ -634,37 +663,26 @@ class PlaybackAnalytics {
     
     private function getLogEntries($dateStart = null, $dateEnd = null, $username = null) {
         if ($dateStart === null) {
-            $dateStart = date('Y-m-d');
+            $dateStart = gmdate('Y-m-d');
         }
         if ($dateEnd === null) {
             $dateEnd = $dateStart;
         }
-        
-        // Convert to timestamps for comparison
-        $startTs = strtotime($dateStart . ' 00:00:00');
-        $endTs = strtotime($dateEnd . ' 23:59:59');
-        
-        $entries = [];
-        $current = strtotime($dateStart);
-        
-        // Get all logs for the date range
-        while ($current <= $endTs) {
-            $date = date('Y-m-d', $current);
-            $logFile = $this->logDir . '/' . $date . '.log';
-            
-            if (file_exists($logFile)) {
-                $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                foreach ($lines as $line) {
-                    $entry = json_decode($line, true);
-                    if ($entry && ($username === null || $entry['username'] === $username)) {
-                        $entries[] = $entry;
-                    }
-                }
-            }
-            
-            $current = strtotime('+1 day', $current);
+
+        $cacheKey = $dateStart . '|' . $dateEnd . '|' . ($username ?? '');
+        if (isset($this->entryCache[$cacheKey])) {
+            return $this->entryCache[$cacheKey];
         }
-        
+
+        try {
+            $entries = bandpromo_activity_store_fetch_listener_entries($this->root, $dateStart, $dateEnd, $username);
+        } catch (Throwable $e) {
+            error_log('bandPromo analytics read error: ' . $e->getMessage());
+            $entries = [];
+        }
+
+        $this->entryCache[$cacheKey] = $entries;
+
         return $entries;
     }
     

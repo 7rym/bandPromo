@@ -9,7 +9,7 @@ The product's preferred install story is the bootstrap installer plus published 
 Use this path when you are working from the source tree instead of the published bootstrap package flow.
 
 1. Upload or clone the repository contents to the target web folder.
-2. Ensure the server can run PHP 8+. For bootstrap/package flows and multi-file downloads, make sure `ZipArchive` is available. If you are testing the bootstrap path, also make sure outbound HTTPS download support (`curl` or `allow_url_fopen`) and a writable target folder are available.
+2. Ensure the server can run PHP 8+ with `pdo_sqlite` enabled (activity logs and analytics). For bootstrap/package flows and multi-file downloads, make sure `ZipArchive` is available. If you are testing the bootstrap path, also make sure outbound HTTPS download support (`curl` or `allow_url_fopen`) and a writable target folder are available.
 3. Open `setup.php` in the browser.
 4. Create the first admin account and finish the setup wizard.
 5. Use the admin panel to upload media, edit content, and run builds.

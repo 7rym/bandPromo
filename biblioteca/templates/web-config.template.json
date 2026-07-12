@@ -85,5 +85,9 @@
       "gallery": { "enabled": false },
       "pages": { "enabled": true }
     }
+  },
+  "operator": {
+    "time_display": "utc",
+    "timezone": "UTC"
   }
 }

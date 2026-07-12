@@ -84,16 +84,23 @@ function bandpromo_bootstrap_runtime_dirs(): array {
 function bandpromo_bootstrap_collect_environment_checks(string $root): array {
     require_once __DIR__ . '/biblioteca/json-file-helpers.php';
     require_once __DIR__ . '/biblioteca/release-package.php';
+    require_once __DIR__ . '/biblioteca/environment-checks.php';
     $downloadSupport = bandpromo_release_https_download_available();
     $downloadDetail = $downloadSupport
         ? (extension_loaded('curl') ? 'curl available' : 'allow_url_fopen + openssl available')
         : bandpromo_release_https_download_setup_hint();
+    $pdoSqliteCheck = bandpromo_environment_check_pdo_sqlite();
 
     return [
         [
             'label' => 'PHP 8+',
             'ok' => PHP_VERSION_ID >= 80000,
             'detail' => 'Running ' . PHP_VERSION,
+        ],
+        [
+            'label' => $pdoSqliteCheck['label'],
+            'ok' => $pdoSqliteCheck['ok'],
+            'detail' => $pdoSqliteCheck['detail'],
         ],
         [
             'label' => 'ZipArchive available',
@@ -148,6 +155,15 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
       ];
     }
 
+    if ($label === 'PDO SQLite available') {
+      return [
+        'title' => 'Activity log storage',
+        'success' => 'Your hosting can store listener activity and analytics locally.',
+        'failure' => 'bandPromo needs PDO SQLite before installation can begin.',
+        'detail' => $ok ? 'PDO SQLite is available.' : 'The PHP pdo_sqlite extension is required.',
+      ];
+    }
+
     if ($label === 'HTTPS-capable download support') {
       return [
         'title' => 'Secure download support',
@@ -191,6 +207,11 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
 
       if ($label === 'ZipArchive available') {
         $requests[] = 'Please enable the PHP ZipArchive extension for this site so bandPromo can unpack its install package.';
+        continue;
+      }
+
+      if ($label === 'PDO SQLite available') {
+        $requests[] = 'Please enable the PHP pdo_sqlite extension for this site so bandPromo can store listener activity logs and analytics.';
         continue;
       }
 

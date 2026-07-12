@@ -3,6 +3,7 @@ session_start();
 
 require_once __DIR__ . '/biblioteca/setup-state.php';
 require_once __DIR__ . '/biblioteca/template-bootstrap.php';
+require_once __DIR__ . '/biblioteca/environment-checks.php';
 
 define('TERCES_FILE',         __DIR__ . '/data/terces');
 define('SETUP_COMPLETE_FILE', __DIR__ . '/data/.setup_complete');
@@ -19,6 +20,7 @@ if (bandpromo_is_setup_complete()) {
 // ─── Auto-create required directories ────────────────────────────────────────
 $requiredDirs = [
     'data',
+    'data/analytics',
     'log',
     'play',
     'media',
@@ -62,6 +64,9 @@ $setupErrors = array_merge($setupErrors, bandpromo_ensure_runtime_files_seeded()
 // ─────────────────────────────────────────────────────────────────────────────
 
 $setupWarnings = [];
+if (!bandpromo_environment_pdo_sqlite_available()) {
+    $setupErrors[] = bandpromo_environment_pdo_sqlite_setup_error();
+}
 if (!class_exists('ZipArchive')) {
   $setupWarnings[] = 'ZipArchive is missing. Setup can continue, but bootstrap package installs, future package updates, and multi-file downloads will stay unavailable until your host enables the PHP ZipArchive extension.';
 }
@@ -575,8 +580,8 @@ $siteContactHtml = htmlspecialchars($siteContact);
   <div style="background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);color:#f44336;
               border-radius:8px;padding:20px 24px;margin-bottom:24px;font-size:14px;">
     <strong>Setup could not prepare the server environment.</strong><br>
-    This is usually a file permissions issue. Contact your hosting provider and ask them to make
-    the site folder writable by the web server.<br><br>
+    Fix the issues below before continuing. If you are unsure how, contact your hosting provider
+    with the exact messages shown here.<br><br>
     <code style="font-size:12px;"><?= implode('<br>', array_map('htmlspecialchars', $setupErrors)) ?></code>
   </div>
 <?php endif; ?>
