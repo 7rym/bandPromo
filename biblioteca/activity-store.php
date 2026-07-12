@@ -118,11 +118,34 @@ SQL
     bandpromo_activity_store_set_meta($pdo, 'schema_version', '1');
 }
 
+function bandpromo_activity_store_is_unique_violation(PDOException $exception): bool
+{
+    if ($exception->getCode() === '23000') {
+        return true;
+    }
+
+    return str_contains($exception->getMessage(), 'UNIQUE constraint failed');
+}
+
 function bandpromo_activity_store_set_meta(PDO $pdo, string $key, string $value): void
 {
-    $stmt = $pdo->prepare('INSERT INTO schema_meta (key, value) VALUES (:key, :value)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value');
-    $stmt->execute(['key' => $key, 'value' => $value]);
+    $update = $pdo->prepare('UPDATE schema_meta SET value = :value WHERE key = :key');
+    $update->execute(['key' => $key, 'value' => $value]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare('INSERT INTO schema_meta (key, value) VALUES (:key, :value)');
+    try {
+        $insert->execute(['key' => $key, 'value' => $value]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+
+        $update = $pdo->prepare('UPDATE schema_meta SET value = :value WHERE key = :key');
+        $update->execute(['key' => $key, 'value' => $value]);
+    }
 }
 
 function bandpromo_activity_store_get_meta(PDO $pdo, string $key, string $default = ''): string
@@ -161,6 +184,9 @@ function bandpromo_activity_store_operator_status_message(array $status): string
     $raw = trim((string) ($status['message'] ?? ''));
     if (stripos($raw, 'pdo_sqlite') !== false || stripos($raw, 'PDO SQLite') !== false) {
         return 'This server is missing PHP SQLite support (pdo_sqlite). Ask your hosting provider to enable it so listener activity and analytics can be stored.';
+    }
+    if (stripos($raw, 'syntax error') !== false && stripos($raw, 'SQLSTATE') !== false) {
+        return 'bandPromo could not initialize the local activity database on this server. Contact support with the technical message below if it persists after reloading admin.';
     }
     if ($raw === 'Legacy JSON log files are still present and need import.') {
         return 'bandPromo is still upgrading older activity log files to the new local database. Reload this page in a moment; if the message stays, contact support before deleting anything in log/.';
@@ -553,15 +579,37 @@ function bandpromo_activity_store_append_audit(string $root, array $entry): bool
 function bandpromo_activity_store_increment_hourly_rollup(PDO $pdo, int $tsUtc, string $activity): void
 {
     $bucket = intdiv($tsUtc, 3600) * 3600;
-    $stmt = $pdo->prepare(
-        'INSERT INTO rollup_hourly (bucket_start_utc, activity, event_count)
-         VALUES (:bucket, :activity, 1)
-         ON CONFLICT(bucket_start_utc, activity) DO UPDATE SET event_count = event_count + 1'
+    $update = $pdo->prepare(
+        'UPDATE rollup_hourly SET event_count = event_count + 1
+         WHERE bucket_start_utc = :bucket AND activity = :activity'
     );
-    $stmt->execute([
+    $update->execute([
         'bucket' => $bucket,
         'activity' => $activity,
     ]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO rollup_hourly (bucket_start_utc, activity, event_count)
+         VALUES (:bucket, :activity, 1)'
+    );
+    try {
+        $insert->execute([
+            'bucket' => $bucket,
+            'activity' => $activity,
+        ]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+
+        $update->execute([
+            'bucket' => $bucket,
+            'activity' => $activity,
+        ]);
+    }
 }
 
 function bandpromo_activity_store_rebuild_hourly_rollups(PDO $pdo): void

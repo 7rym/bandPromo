@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-12 19:00 - Hotfix v0.8.6 build 324: replace SQLite UPSERT (`ON CONFLICT`) with portable UPDATE/INSERT for older bundled SQLite on shared hosts.
+
 2026-07-12 18:45 - Hotfix v0.8.6 build 323: admin survives SQLite migration failures; Site update validates published `release-manifest.json` requirements before apply; install UI no longer resets during background refresh. Recovery for broken admin: `git pull` then reload.
 
 2026-07-12 18:15 - Hotfix: admin no longer fatals when SQLite activity migration fails on first load after upgrade; legacy import records failure instead of throwing. Site update install UI ignores background refresh while installing (fixes first-click appears to do nothing).
