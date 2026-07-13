@@ -1088,7 +1088,7 @@ The orchestration layer should treat these as concrete task units instead of col
 
 The intended task units are:
 
-- `playlist-scan`: read source audio, infer ordering, refresh `play/playlist.json`, and update `play/playlist-validation.json`
+- `playlist-scan`: read source audio, infer ordering, and update `data/validation/playlist-validation.json`
 - `audio-delivery`: generate or refresh publish-ready audio derivatives from the approved source/master path
 - `image-delivery`: generate or refresh publish-ready covers, photos, and illustration derivatives
 - `social-assets`: regenerate social/share image derivatives
@@ -1106,7 +1106,7 @@ In practice, the heavy work is mostly media transcoding and image recompression.
 
 Current implementation note:
 
-- Files -> Audio metadata saves already run `playlist-scan` automatically after a real change so `play/playlist.json` and `play/playlist-validation.json` refresh immediately.
+- Files -> Audio metadata saves already run `playlist-scan` automatically after a real change so `data/validation/playlist-validation.json` refreshes immediately.
 - The save flow now preserves an existing embedded `tracknumber` or backfills it from the current playlist position when the master tag is blank.
 - A true no-op metadata save is treated as a no-op and does not create a fresh build-required reason.
 - Build-required state now also records concrete task units (`playlist-scan`, `audio-delivery`, `image-delivery`, `social-assets`, `manifest`) alongside the legacy `full` / `optimize` action so the operator inbox and save/upload feedback can speak in task terms even before the manual build controls are fully split by task.
@@ -1277,7 +1277,7 @@ The current writer sets:
 
 ## Current validation output
 
-Playlist generation writes `play/playlist-validation.json` with:
+Playlist generation writes `data/validation/playlist-validation.json` with:
 
 - supported source extensions
 - skipped unsupported source files

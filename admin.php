@@ -1510,10 +1510,7 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                                         <div class="playlist-settings-fields release-catalog-meta-fields">
                                             <label class="playlist-settings-field release-catalog-meta-field--date">
                                                 <span>Release date</span>
-                                                <div class="date-input-shell">
-                                                    <span class="date-input-icon" aria-hidden="true">📅</span>
-                                                    <input type="text" class="iso-date-input" id="releaseSettingsDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
-                                                </div>
+                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'releaseSettingsDate'); ?>
                                             </label>
                                             <p class="hint">Fans can play from the start of this <strong>UTC calendar day</strong>. Timed worldwide drops (hour/minute) are planned for v2 marketing.</p>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
@@ -3166,6 +3163,7 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
         const adminTimeDisplay = <?php echo json_encode(bandpromo_admin_time_display_mode()); ?>;
         const adminTimeAxisLabel = <?php echo json_encode(bandpromo_admin_time_axis_label()); ?>;
         const adminOperatorTimezone = <?php echo json_encode(bandpromo_admin_timezone()); ?>;
+        window.bandpromoDemoCatalogVisible = <?php echo json_encode((bool) $demoCatalogVisible); ?>;
     </script>
     <script>
         window.BANDPROMO_SESSION_AUTH = {
@@ -3194,14 +3192,16 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
     <script src="biblioteca/content-admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-admin.js'); ?>"></script>
     <?php endif; ?>
 
-    <div id="mediaPickerModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeMediaPickerModal()">
-        <div class="modal-box modal-wide">
-            <button class="modal-close" onclick="closeMediaPickerModal()">✕</button>
-            <h3 id="mediaPickerTitle">Choose file</h3>
-            <p class="card-note" id="mediaPickerHint">Pick an uploaded file. The internal storage path stays hidden from operators.</p>
-            <div id="mediaPickerTabs" class="tabs sub-tabs media-picker-tabs"></div>
+    <div id="mediaPickerModal" class="modal-overlay" style="display:none">
+        <div class="modal-box modal-wide media-picker-modal-box">
+            <div class="media-picker-modal-header">
+                <button type="button" class="modal-close" id="mediaPickerCloseBtn" aria-label="Close">✕</button>
+                <h3 id="mediaPickerTitle">Choose file</h3>
+                <p class="card-note" id="mediaPickerHint">Pick an uploaded file. The internal storage path stays hidden from operators.</p>
+                <div id="mediaPickerTabs" class="tabs sub-tabs media-picker-tabs"></div>
+            </div>
             <div id="mediaPickerList" class="media-file-list media-picker-list"><span class="text-muted">Choose a media type to browse files.</span></div>
-            <div class="modal-actions">
+            <div class="modal-actions media-picker-modal-actions">
                 <button type="button" id="mediaPickerUploadBtn" class="icon-btn">Upload new file</button>
                 <span id="mediaPickerStatus" class="status-text"></span>
             </div>

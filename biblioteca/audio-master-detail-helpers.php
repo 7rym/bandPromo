@@ -161,8 +161,12 @@ function bandpromo_audio_display_label_for_listing(
     }
 
     $version = '';
-    if ($display['title'] !== '') {
-        $title = $display['title'];
+    $cachedTitle = trim((string) ($display['title'] ?? ''));
+    $useCachedDisplay = $cachedTitle !== ''
+        && !bandpromo_release_title_needs_metadata_refresh($cachedTitle, $filename)
+        && !bandpromo_release_title_looks_like_asset_id($cachedTitle, $filename);
+    if ($useCachedDisplay) {
+        $title = $cachedTitle;
         $version = $display['version'];
     } else {
         if ($title !== '') {

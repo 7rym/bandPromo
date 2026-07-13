@@ -59,6 +59,7 @@ function bandpromo_reason_tasks(string $reason): array {
         'social_config_changed' => ['social-assets', 'manifest'],
         'media_image_upload' => ['image-delivery'],
         'playlist_order_changed' => ['audio-delivery'],
+        'release_tags_sync' => ['playlist-scan'],
         'package_update' => ['manifest'],
     ];
 
@@ -146,6 +147,7 @@ function bandpromo_reason_action(string $reason): string {
         'site_config_changed' => 'full',
         'social_config_changed' => 'full',
         'media_image_upload' => 'optimize',
+        'release_tags_sync' => 'full',
     ];
     return $map[$reason] ?? 'none';
 }

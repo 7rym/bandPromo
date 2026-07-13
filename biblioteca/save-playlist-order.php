@@ -3,7 +3,7 @@
  * Save playlist order.
  *
  * Accepts a JSON array of master filenames (desired track order) via POST body.
- * Persists data/playlists/{id}.json (containers are the edit surface; play/playlist.json refreshes on Publish).
+ * Persists data/playlists/{id}.json (containers are the edit surface).
  * Admin-only.
  */
 require_once __DIR__ . '/admin-audit.php';

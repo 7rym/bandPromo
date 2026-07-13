@@ -274,6 +274,13 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         closeUserModal();
         closeUserDetail();
+        const previewEl = document.getElementById('adminPreviewLightbox');
+        if (previewEl && previewEl.classList.contains('active')) {
+            if (typeof closeAdminPreview === 'function') {
+                closeAdminPreview();
+            }
+            return;
+        }
         if (typeof closeMediaPickerModal === 'function') {
             closeMediaPickerModal();
         }
@@ -2391,6 +2398,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const mediaPickerList = document.getElementById('mediaPickerList');
             const mediaPickerStatus = document.getElementById('mediaPickerStatus');
             const mediaPickerUploadBtn = document.getElementById('mediaPickerUploadBtn');
+            const mediaPickerCloseBtn = document.getElementById('mediaPickerCloseBtn');
             let filesTabDragDepth = 0;
 
             if (mediaPickerModal && mediaPickerModal.parentElement !== document.body) {
@@ -2433,7 +2441,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 mediaPickerList.innerHTML = '<span class="text-muted">Loading…</span>';
 
                 try {
-                    const files = await fetchMediaFiles(target);
+                    const includeHidden = window.bandpromoDemoCatalogVisible === true;
+                    const files = await fetchMediaFiles(target, { release: 'all', includeHidden });
                     setAdminPreviewItems(files, target);
 
                     if (!files.length) {
@@ -2474,8 +2483,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             window.openMediaPicker = function(fieldId, title, targets) {
+                const pickerModal = document.getElementById('mediaPickerModal');
                 const input = document.getElementById(fieldId);
-                if (!input || !mediaPickerModal) return;
+                if (!input || !pickerModal) return;
+
+                if (pickerModal.parentElement !== document.body) {
+                    document.body.appendChild(pickerModal);
+                }
 
                 const allowedTargets = String(targets || '')
                     .split(',')
@@ -2489,19 +2503,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     activeTarget: inferMediaTargetFromPath(input.value, allowedTargets),
                 };
 
-                mediaPickerTitle.textContent = mediaPickerState.title;
-                mediaPickerModal.style.display = 'flex';
+                if (mediaPickerTitle) {
+                    mediaPickerTitle.textContent = mediaPickerState.title;
+                }
+                pickerModal.style.display = 'flex';
+                pickerModal.classList.add('media-picker-modal--open');
                 renderMediaPickerTabs();
                 renderMediaPickerList(mediaPickerState.activeTarget);
             };
 
             window.closeMediaPickerModal = function() {
-                if (mediaPickerModal) mediaPickerModal.style.display = 'none';
+                if (typeof window.closeAdminPreview === 'function') {
+                    window.closeAdminPreview();
+                }
+                const pickerModal = document.getElementById('mediaPickerModal');
+                if (pickerModal) {
+                    pickerModal.style.display = 'none';
+                    pickerModal.classList.remove('media-picker-modal--open');
+                }
                 if (mediaPickerTabs) mediaPickerTabs.innerHTML = '';
                 if (mediaPickerList) mediaPickerList.innerHTML = '<span class="text-muted">Choose a media type to browse files.</span>';
                 if (mediaPickerStatus) mediaPickerStatus.textContent = '';
                 mediaPickerState = null;
             };
+
+            if (mediaPickerCloseBtn) {
+                mediaPickerCloseBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeMediaPickerModal();
+                });
+            }
+
+            if (mediaPickerModal) {
+                mediaPickerModal.addEventListener('click', (event) => {
+                    if (event.target === mediaPickerModal) {
+                        closeMediaPickerModal();
+                    }
+                });
+            }
 
             document.addEventListener('click', (event) => {
                 const openBtn = event.target instanceof Element
@@ -2509,6 +2549,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : null;
                 if (openBtn && openBtn.dataset.field) {
                     event.preventDefault();
+                    event.stopPropagation();
                     window.openMediaPicker(openBtn.dataset.field, openBtn.dataset.title, openBtn.dataset.targets || 'special');
                     return;
                 }
@@ -2547,6 +2588,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const target = selectBtn.dataset.pickerTarget;
                         const filename = decodeURIComponent(selectBtn.dataset.filename || '');
                         setPickerFieldValue(mediaPickerState.fieldId, buildMediaPath(target, filename));
+                        if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
+                            syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                        }
                         closeMediaPickerModal();
                     }
                 });

@@ -24,8 +24,7 @@ ROOT_DIR      = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR  = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'
-OUTPUT_FILE   = ROOT_DIR / 'play' / 'playlist.json'
-VALIDATION_FILE = ROOT_DIR / 'play' / 'playlist-validation.json'
+VALIDATION_FILE = ROOT_DIR / 'data' / 'validation' / 'playlist-validation.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 PLAYLIST_REGISTRY_FILE = ROOT_DIR / 'data' / 'playlists' / 'registry.json'
@@ -537,23 +536,41 @@ def get_description(filename):
     Used to display track description in the player.
     """
     try:
-        audio = File(filename)
+        path = Path(str(filename))
+        suffix = path.suffix.lower()
+
+        if suffix == '.mp3':
+            from mutagen.id3 import ID3, ID3NoHeaderError
+
+            try:
+                tags = ID3(str(path))
+            except ID3NoHeaderError:
+                return ''
+
+            for key in tags.keys():
+                if str(key).startswith('COMM'):
+                    text = str(tags[key]).strip()
+                    if text:
+                        return text
+            return ''
+
+        audio = File(str(path))
         if audio and audio.tags:
             tags = audio.tags
-            
+
             # Check DESCRIPTION first (standard for FLAC/Vorbis)
             if 'DESCRIPTION' in tags:
                 val = tags['DESCRIPTION']
                 return val[0] if isinstance(val, list) else str(val)
-            
+
             # Fallback to COMMENT
             if 'COMMENT' in tags:
                 val = tags['COMMENT']
                 return val[0] if isinstance(val, list) else str(val)
-    
+
     except Exception as e:
         print(f"Could not read description tag from {filename}: {e}")
-    
+
     return ""
 
 def get_track_number(filename):
@@ -1009,7 +1026,7 @@ def generate_playlist():
 
     # Ensure output directories exist
     IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    VALIDATION_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     # Collect playlist work items from the playlist document when available.
     unsupported_files = []
@@ -1145,13 +1162,8 @@ def generate_playlist():
         warning_suffix = f" [metadata warnings: {', '.join(metadata_warnings)}]" if metadata_warnings else ''
         print(f"Track {disp_track}: {info['title']}{warning_suffix}")
 
-    # Save to JSON
-    try:
-        with open(str(OUTPUT_FILE), 'w', encoding='utf-8') as f:
-            json.dump(playlist, f, indent=4, ensure_ascii=False)
-        print(f"\nSuccess! Playlist saved to {OUTPUT_FILE}")
-    except Exception as e:
-        print(f"Error saving file: {e}")
+    # Legacy play/playlist.json has been removed. The runtime player reads playlist documents
+    # via biblioteca/get-player-playlist.php. We only write playlist-validation.json here.
 
     # Write/update data/playlist-order.json so future builds preserve current order
     try:

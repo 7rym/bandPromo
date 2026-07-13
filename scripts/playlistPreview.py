@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-import makePlaylists
+from scripts import makePlaylists
 
 
 ROOT_DIR = Path(__file__).parent.parent
@@ -71,35 +71,9 @@ def load_playlist_document_active_files(playlist_id):
 
 
 def load_playlist_by_file():
-    playlist_file = ROOT_DIR / 'play' / 'playlist.json'
-    if not playlist_file.exists():
-        return {}
-    try:
-        with open(str(playlist_file), 'r', encoding='utf-8') as handle:
-            payload = json.load(handle)
-    except Exception:
-        return {}
-    if not isinstance(payload, list):
-        return {}
-
-    by_file = {}
-    for entry in payload:
-        if not isinstance(entry, dict):
-            continue
-        filename = str(entry.get('file') or '').strip()
-        if not filename:
-            continue
-        is_bundled = makePlaylists.is_bundled_placeholder(filename)
-        by_file[filename] = {
-            'file': filename,
-            'title': str(entry.get('title') or filename),
-            'artist': str(entry.get('artist') or ''),
-            'album': str(entry.get('album') or ''),
-            'duration': int(entry.get('duration') or 0),
-            'origin': 'bundled-placeholder' if is_bundled else 'user-upload',
-            'sourceTier': 'built-playlist',
-        }
-    return by_file
+    # Legacy play/playlist.json has been removed. Preview should come from playlist documents
+    # (data/playlists/*.json), the saved order, or current pool scan.
+    return {}
 
 
 def build_track_entry(filename):

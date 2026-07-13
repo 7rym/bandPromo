@@ -402,7 +402,7 @@ data/
   player/layout.json                   # tab order (from web-config player branch)
 ```
 
-Legacy paths (`play/playlist.json`, `data/playlist-order.json`, `data/gallery.json`) are **publish/build artifacts or repair outputs** only. Admin save paths and runtime readers use `data/playlists/`, `data/galleries/`, and the asset registry instead.
+Legacy paths (`data/playlist-order.json`, `data/gallery.json`) are **publish/build artifacts or repair outputs** only. Admin save paths and runtime readers use `data/playlists/`, `data/galleries/`, and the asset registry instead.
 
 ## URLs and deep links
 
@@ -537,7 +537,7 @@ These behaviours come from the old single-playlist / filename-key model and must
 
 1. Asset registry + ULID intake for new uploads; migrate existing masters to `asset_id`.
 2. `data/releases` + required track membership; release locking.
-3. `data/playlists` + remove playlist→master sync; migrate off `play/playlist.json`.
+3. `data/playlists` + remove playlist→master sync; migrate off legacy playlist artifacts.
 4. Player: playlist selector, default-by-`publish_date`, path URLs with per-release slugs.
 5. Embargoed tracks visible but non-playable in playlist UI.
 6. `data/galleries` + page `gallery` block (grid preset minimum).

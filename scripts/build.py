@@ -10,7 +10,7 @@ Output (new structure):
     media/audio/optimal/  - publish-ready audio delivery files (generated here)
     media/img/original/     - source cover/artwork files (uploaded by admin)
     media/img/optimal/   - publish-ready cover/artwork delivery files (generated here)
-  play/playlist.json  - publish-time player artifact (from playlist containers)
+  (removed) play/playlist.json  - legacy player artifact (replaced by playlist documents)
     media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   media/special/    - platform-specific social share images (generated here)
 """
@@ -594,7 +594,7 @@ Output:
     media/img/original/    — source cover/artwork files
     media/img/optimal/    — publish-ready cover/artwork delivery files
     media/video/optimal/  — publish-ready video delivery files
-  play/playlist.json — player playlist
+  (removed) play/playlist.json — legacy player playlist artifact
     media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   site.webmanifest — PWA manifest
 

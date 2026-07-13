@@ -9,7 +9,9 @@ require_once __DIR__ . '/publish-status-helpers.php';
 require_once __DIR__ . '/catalog-repair-auto.php';
 
 $rootDir = dirname(__DIR__);
-$validationFile = $rootDir . '/play/playlist-validation.json';
+$validationFile = is_file($rootDir . '/data/validation/playlist-validation.json')
+    ? $rootDir . '/data/validation/playlist-validation.json'
+    : $rootDir . '/play/playlist-validation.json';
 $metadataValidation = null;
 
 function bandpromo_filter_metadata_validation_for_notifications(string $rootDir, ?array $validation): ?array

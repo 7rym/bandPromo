@@ -1779,6 +1779,41 @@ canvas { max-width: 100%; height: auto; }
     z-index: 1100;
 }
 
+#mediaPickerModal.media-picker-modal--open {
+    z-index: 1200;
+}
+
+#audioMasterModal {
+    z-index: 1050;
+}
+
+#mediaPickerModal .media-picker-modal-box {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: min(90vh, 820px);
+    padding-top: 18px;
+}
+
+#mediaPickerModal .media-picker-modal-header {
+    position: relative;
+    flex-shrink: 0;
+    z-index: 2;
+    padding-right: 44px;
+    background: var(--surface);
+}
+
+#mediaPickerModal .media-picker-modal-header .modal-close {
+    z-index: 3;
+    background: var(--surface);
+    box-shadow: -8px 0 12px var(--surface);
+}
+
+#mediaPickerModal .media-picker-modal-actions {
+    flex-shrink: 0;
+    margin-top: 12px;
+}
+
 .audio-master-cover-layout {
     display: grid;
     grid-template-columns: 180px minmax(0, 1fr);
@@ -2683,7 +2718,7 @@ canvas { max-width: 100%; height: auto; }
     flex-direction: column;
     gap: 12px;
 }
-#adminPreviewLightbox.active { display: flex; }
+#adminPreviewLightbox.active { display: flex; z-index: 13000; }
 #adminPreviewClose {
     position: fixed;
     top: 18px;
@@ -2694,6 +2729,7 @@ canvas { max-width: 100%; height: auto; }
     font-size: 28px;
     cursor: pointer;
     line-height: 1;
+    z-index: 13001;
 }
 #adminPreviewPrev,
 #adminPreviewNext {
@@ -3700,8 +3736,10 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .media-picker-list {
-    margin-top: 14px;
-    max-height: 480px;
+    margin-top: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
 }
 
@@ -3780,6 +3818,7 @@ canvas { max-width: 100%; height: auto; }
     height: 28px;
     padding: 0;
     opacity: 0;
+    pointer-events: none;
     background: rgba(20, 20, 20, 0.78);
     border-color: rgba(255, 255, 255, 0.18);
     transition: opacity 0.15s;
@@ -3788,6 +3827,7 @@ canvas { max-width: 100%; height: auto; }
 .media-picker-tile:hover .media-picker-tile-preview,
 .media-picker-tile:focus-within .media-picker-tile-preview {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .media-picker-tile:focus-visible {

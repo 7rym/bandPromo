@@ -1043,7 +1043,9 @@ function bandpromo_release_track_entry_for_asset(string $root, string $releaseId
 
 function bandpromo_release_find_track_number_for_master(string $root, string $masterFilename): string
 {
-    $asset = bandpromo_asset_lookup_by_original_filename($root, $masterFilename);
+    $masterFilename = basename(trim($masterFilename));
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $masterFilename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $masterFilename);
     if ($asset === null) {
         return '';
     }
@@ -1401,6 +1403,11 @@ function bandpromo_release_polish_track_title(string $title, string $artist = ''
             $remainder = trim(substr($title, strlen($prefix)));
             $remainder = ltrim($remainder, "-–— \t");
             if ($remainder !== '' && !str_starts_with($remainder, '[')) {
+                // Serial releases often share a release-name prefix ("the Retroscopy hour #08").
+                // Do not reduce those titles to a bare episode number in listings.
+                if (preg_match('/^#?\d{1,3}$/', $remainder) === 1) {
+                    continue;
+                }
                 $title = $remainder;
             }
         }
@@ -1458,7 +1465,7 @@ function bandpromo_asset_build_audio_display_from_fields(array $fields, array $i
     $artist = trim((string) ($fields['artist'] ?? ''));
     $album = trim((string) ($fields['album'] ?? ''));
     $rawTitle = trim((string) ($fields['title'] ?? ''));
-    $labels = bandpromo_release_resolve_track_display_labels($rawTitle, $artist, $album);
+    $labels = bandpromo_release_resolve_track_display_labels($rawTitle, $artist, '');
 
     return [
         'title' => $labels['title'],

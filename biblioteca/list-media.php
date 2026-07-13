@@ -58,7 +58,9 @@ function bandpromo_default_audio_metadata_health(): array {
 
 function bandpromo_load_audio_validation_map(string $root): array {
     $default = [];
-    $validation_file = $root . '/play/playlist-validation.json';
+    $validation_file = is_file($root . '/data/validation/playlist-validation.json')
+        ? $root . '/data/validation/playlist-validation.json'
+        : $root . '/play/playlist-validation.json';
     $playlist_map = bandpromo_playlist_merged_built_track_map($root);
 
     if (!is_file($validation_file)) {

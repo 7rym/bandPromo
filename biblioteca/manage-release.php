@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/build-required.php';
 
 session_write_close();
 
@@ -66,11 +68,26 @@ try {
             ],
         ]);
 
-        echo json_encode([
+        $playlistScan = bandpromo_run_light_task('scripts/makePlaylists.py');
+        $buildState = $playlistScan['ok']
+            ? bandpromo_clear_build_required_tasks(['playlist-scan'])
+            : bandpromo_get_build_required_state();
+
+        $response = [
             'ok' => true,
             'release' => $entry,
             'releases' => bandpromo_release_admin_registry_entries($root),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            'build_required' => !empty($buildState['required']),
+            'build_required_state' => $buildState,
+        ];
+        if ($playlistScan['ok']) {
+            $response['auto_tasks'] = ['playlist-scan'];
+        } else {
+            $response['warning'] = 'Release settings were saved, but the automatic playlist refresh failed.';
+            $response['task_output'] = trim((string) ($playlistScan['output'] ?? ''));
+        }
+
+        echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
 

@@ -12,7 +12,7 @@ The admin **Publish** flow mixes three different concerns:
 2. **Silent catalog repair** (`content-autofix` mutating releases/playlists/registry)
 3. **Delivery + player artifacts** (Python pipeline)
 
-The Python pipeline is still **playlist-first**: `makePlaylists.py` runs before `optimizeMedia.py`, and audio deliverables are scoped to `play/playlist.json`, not the full Files pool. That contradicts the platform model (pool → master → deliverable → containers).
+The Python pipeline is still **playlist-first**: `makePlaylists.py` runs before `optimizeMedia.py`, and audio deliverables are scoped to the asset registry queue, not the full Files pool. That contradicts the platform model (pool → master → deliverable → containers).
 
 Operators see uploads in **Files** but builds only process **playlist membership** — the system feels broken even when individual scripts work.
 
@@ -24,7 +24,7 @@ Operators see uploads in **Files** but builds only process **playlist membership
 | **Master** | Canonical packaged file (`ast_{ULID}` + registry) |
 | **Deliverable** | Playback/display derivative (`media/*/optimal/`, etc.) |
 | **Container** | Operator document: release, playlist, gallery, page, theme |
-| **Artifact** | Generated runtime file consumed by the site (`play/playlist.json`, `site.webmanifest`, share JPGs) |
+| **Artifact** | Generated runtime file consumed by the site (`site.webmanifest`, share JPGs) |
 | **Initial site seed** | See below — not delivery, not catalog repair |
 
 ### What “initial site seed” means (formerly “compose”)
@@ -39,7 +39,7 @@ When it does run, it **only fills empty container documents** from disk:
 - Seeds `data/galleries/bandpromo-demo.json` when the demo gallery document has no entries
 - Patches `web-config.json` player modules/tab order (enable gallery + pages)
 
-It does **not** write `play/playlist.json`, `data/playlist-order.json`, or `data/gallery.json`.
+It does **not** write legacy playlist artifacts like `play/playlist.json`, `data/playlist-order.json`, or `data/gallery.json`.
 
 Initial site seed is **not**:
 
@@ -105,7 +105,7 @@ Publish should run **staged**, **logged**, and **skippable** stages. Default ful
 Scope rules (locked):
 
 - **In scope:** all assets in `data/assets/registry.json` (per kind), regardless of release/playlist membership
-- **Out of scope:** using `play/playlist.json` or `data/playlists/main.json` as the primary filter for whether delivery runs
+- **Out of scope:** using legacy playlist artifacts or `data/playlists/*.json` as the primary filter for whether delivery runs
 
 Playlist membership must **not** be the driver for whether an uploaded song gets a deliverable.
 
@@ -113,8 +113,8 @@ Playlist membership must **not** be the driver for whether an uploaded song gets
 
 **Purpose:** Export operator container documents to player/site runtime JSON.
 
-- `play/playlist.json` from **playlist documents** (`data/playlists/*.json`), not folder scan
-- `play/playlist-validation.json` (validation report; playlist-scoped is OK here)
+- Playlist validation from **playlist documents** (`data/playlists/*.json`), not folder scan
+- `data/validation/playlist-validation.json` (validation report; playlist-scoped is OK here)
 - Social share renditions (`makeSocial.py`) from config + deliverable sources
 - `site.webmanifest` (`makePWA.py`)
 - Release/catalog JSON is already in `data/releases/` — build validates, does not rewrite membership
@@ -208,7 +208,7 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase D — Deliverables stage (registry-scoped)
 
-- [x] Refactor `optimizeMedia.py` full-mode audio delivery to use the asset registry queue, not `play/playlist.json` scope.
+- [x] Refactor `optimizeMedia.py` full-mode audio delivery to use the asset registry queue, not legacy playlist artifacts.
 - [x] Playlist JSON used only for track-cover linkage during delivery; `playlistAudioDelivery.py` resolves registry assets instead of requiring playlist membership.
 - [ ] `audioSourceDelivery.py` per-upload path already filename/registry-based; keep aligned as registry helpers evolve.
 

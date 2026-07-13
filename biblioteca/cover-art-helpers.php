@@ -78,7 +78,9 @@ function bandpromo_cover_art_load_playlist_context(string $root): array
         'configured_in_use' => false,
     ];
 
-    $validation_file = $root . '/play/playlist-validation.json';
+    $validation_file = is_file($root . '/data/validation/playlist-validation.json')
+        ? $root . '/data/validation/playlist-validation.json'
+        : $root . '/play/playlist-validation.json';
     $validation_map = [];
     if (is_file($validation_file)) {
         $validation_decoded = json_decode(file_get_contents($validation_file) ?: '[]', true);

@@ -47,12 +47,12 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Block-based page editor | Shipped |
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
-| Brand containers + semantic player colors (replaces Theme) | Defined; migration in progress |
+| Brand containers + semantic player colors (replaces Theme) | Core shipped (Brands editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
 | Visual pool + role tags + registry-scoped delivery | Defined; implementation in progress |
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** v0.8 **management machine** — Brand replaces Theme, unified Visual pool with explicit role tags, release `brand_id` links (many releases per brand), content AI wizards, and visual delivery rework. **Still open:** backup/export MVP, page container metadata, OG/share wiring. See [TODO.md](TODO.md).
+**Next focus:** v0.8 **management machine** — unified Visual pool with explicit role tags, content AI wizards, visual delivery rework, and analytics rollup/export finish. Brand core and backup/export MVP shipped (2026-07-13). **Still open:** page container metadata, OG/share wiring (v0.9). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -544,10 +544,9 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 - **News module** (v1+) = dated tour/diary posts that archive forever; pages + galleries cover this pattern until then.
 - **Sharing** (playlist `/play/{id}`, track deep links, page `/pages/{id}`) gets richer cards after description + poster fields ship — not before core trust work.
 
-- **Shipped now:** package updater; block-based Pages editor; unified Content editors (Playlist, Gallery, Pages, Player layout) with pool/result UX; upload-time background delivery; delivery-ready pool gates; Notifications for background video jobs; improved player page presentation; delete confirmations; platform storage/API hotfix (build 292).
-- **In progress in v0.8.3:** invisible maintenance (auto-repair + Publish preflight), playlist `kind` fix, Release editor, backup/export, Content editor UX parity, container marketing metadata.
-- **Planned v0.8 management slice:** Brand replaces Theme; Visual pool + role tags; release `brand_id`; content AI wizards; visual delivery rework.
-- **In progress in v0.8:** gallery module blocks on pages, track deep links, playback/delivery architecture, theme semantic color tokens.
+- **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Brands, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
+- **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
+- **Planned v0.8 management slice (remaining):** unified Visual tab; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
@@ -770,6 +769,7 @@ Expected capabilities:
 - usable admin experience with **multiple playlists and galleries**
 - page composition with core blocks + shipped module blocks (gallery layouts, etc.)
 - dependable build and media workflow
+- garbage collection for derived helper artifacts (for example cached validation reports under `data/validation/`), so stale reports can be regenerated and old caches pruned safely before v1.0.
 - tours/events support
 - simple merch/shop support or clear merch integration path
 - brand shell override support sufficient for different-looking installs (token overlay in v0.8; full shell asset runtime in v1)

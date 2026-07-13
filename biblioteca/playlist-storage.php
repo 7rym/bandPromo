@@ -565,35 +565,9 @@ function bandpromo_playlist_resolve_id(string $root, string $requestedId = ''): 
     return $requestedId !== '' ? $requestedId : bandpromo_playlist_default_active_id($root);
 }
 
-function bandpromo_playlist_built_path(string $root): string
-{
-    return $root . '/play/playlist.json';
-}
-
 function bandpromo_playlist_legacy_order_path(string $root): string
 {
     return $root . '/data/playlist-order.json';
-}
-
-function bandpromo_playlist_load_built_tracks(string $root): array
-{
-    $decoded = bandpromo_json_read_array_file(bandpromo_playlist_built_path($root));
-    if ($decoded === null) {
-        return [];
-    }
-
-    $tracks = [];
-    foreach ($decoded as $track) {
-        if (!is_array($track)) {
-            continue;
-        }
-        $file = trim((string) ($track['file'] ?? ''));
-        if ($file !== '') {
-            $tracks[$file] = $track;
-        }
-    }
-
-    return $tracks;
 }
 
 function bandpromo_playlist_seed_from_template(string $root): void
@@ -916,10 +890,6 @@ function bandpromo_playlist_materialize_entries(array $filenames): array
 
 function bandpromo_playlist_build_track_list(string $root, array $document, array $builtTracks = []): array
 {
-    if ($builtTracks === []) {
-        $builtTracks = bandpromo_playlist_load_built_tracks($root);
-    }
-
     $materializeQueue = [];
     foreach ($document['entries'] as $entry) {
         $masterFile = (string) ($entry['master_file'] ?? '');
@@ -957,37 +927,6 @@ function bandpromo_playlist_build_track_list(string $root, array $document, arra
     return $tracks;
 }
 
-function bandpromo_playlist_sync_legacy_artifacts(string $root, string $playlistId, array $tracks): void
-{
-    // Publish/build only — do not call from admin save paths.
-    $playlistId = bandpromo_playlist_normalize_id($playlistId);
-    $order = [];
-    foreach ($tracks as $track) {
-        if (!is_array($track)) {
-            continue;
-        }
-        $file = trim((string) ($track['file'] ?? ''));
-        if ($file !== '') {
-            $order[] = $file;
-        }
-    }
-
-    $builtPath = bandpromo_playlist_built_path($root);
-    $builtDir = dirname($builtPath);
-    if (!is_dir($builtDir) && !mkdir($builtDir, 0755, true) && !is_dir($builtDir)) {
-        throw new RuntimeException('Could not create play directory.');
-    }
-
-    $encoded = json_encode($tracks, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if (!is_string($encoded) || file_put_contents($builtPath, $encoded) === false) {
-        throw new RuntimeException('Could not write play/playlist.json');
-    }
-
-    if (!bandpromo_json_write_file(bandpromo_playlist_legacy_order_path($root), $order)) {
-        throw new RuntimeException('Could not write data/playlist-order.json');
-    }
-}
-
 function bandpromo_playlist_save_order(string $root, string $playlistId, array $masterFiles): array
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);
@@ -999,26 +938,18 @@ function bandpromo_playlist_save_order(string $root, string $playlistId, array $
     }
 
     $document = bandpromo_playlist_load_document($root, $playlistId);
-    $builtTracks = bandpromo_playlist_load_built_tracks($root);
+    $materializeQueue = array_values(array_unique(array_filter(array_map(
+        static fn($masterFile): string => basename((string) $masterFile),
+        $masterFiles
+    ), static fn(string $masterFile): bool => $masterFile !== '')));
 
-    $materializeQueue = [];
-    foreach ($masterFiles as $masterFile) {
-        $masterFile = basename((string) $masterFile);
-        if ($masterFile === '' || isset($builtTracks[$masterFile])) {
-            continue;
-        }
-        $materializeQueue[] = $masterFile;
+    $materialized = $materializeQueue !== []
+        ? bandpromo_playlist_materialize_entries($materializeQueue)
+        : ['entries' => [], 'missing' => [], 'error' => ''];
+    if ($materialized['error'] !== '') {
+        throw new RuntimeException($materialized['error']);
     }
-
-    if ($materializeQueue !== []) {
-        $materialized = bandpromo_playlist_materialize_entries($materializeQueue);
-        if ($materialized['error'] !== '') {
-            throw new RuntimeException($materialized['error']);
-        }
-        foreach ($materialized['entries'] as $file => $track) {
-            $builtTracks[$file] = $track;
-        }
-    }
+    $builtTracks = $materialized['entries'];
 
     $entries = [];
     $skipped = [];

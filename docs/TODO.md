@@ -17,7 +17,7 @@ Rules for this file:
 
 **v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and content AI wizards. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Still open from earlier slices:** backup/export MVP, page container metadata + OG wiring, v0.8 management slice (Brand, Visual pool, AI wizards).
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool, content AI wizards, analytics rollup/export tail.
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
@@ -81,7 +81,7 @@ Reference: [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md).
 
 Policy — **lock before implementation**:
 
-- [x] Lock **target stage order**: preflight (tools) → site shell (theme/config/social/PWA inputs) → catalog (masters/registry) → deliverables (from registry) → artifacts (playlist.json, share crops, manifest) → initial layout seed (setup/recovery only).
+- [x] Lock **target stage order**: preflight (tools) → site shell (theme/config/social/PWA inputs) → catalog (masters/registry) → deliverables (from registry) → artifacts (playlist validation report, share crops, manifest) → initial layout seed (setup/recovery only).
 - [x] Lock **deliverable scope**: **every registered asset**, independent of release/playlist membership.
 - [x] Lock **prune rule**: deliverables removed **only on asset delete**, not on playlist/release membership change.
 - [x] Lock **publish must not mutate catalog**: move `content-autofix` out of publish preflight; catalog repair now runs automatically in the background when needed.
@@ -252,7 +252,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement `data/assets` registry with `ast_{ULID}` IDs; migrate filename-keyed references to `asset_id`.
 - [x] Implement `data/releases` + required track membership + release `locked` guards.
 - [x] Remove playlist-save → master tag sync (`bandpromo_sync_playlist_order_to_audio_masters`) and `playlist_tracknumber` metadata fallbacks.
-- [x] Implement `data/playlists` + registry; admin/runtime reads use containers (`play/playlist.json` remains a publish artifact refreshed by build/repair only).
+- [x] Implement `data/playlists` + registry; admin/runtime reads use containers (legacy playlist artifacts removed).
 - [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`. Selector renders when two or more `kind: "system"` playlists exist.
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
@@ -396,7 +396,7 @@ Scope: operator-facing editing and control surfaces. Put items here when the que
 - [x] Implement gallery editing
 - [x] Replace Playlist placeholder with real drag-and-drop track ordering UI.
 - [x] Add playlist-style drag placeholder rows to the Gallery editor so reordering active gallery items shows empty drop targets between rows, matching the Playlist editor reorder UX.
-- [x] Persist manual playlist order in `play/playlist.json` from admin edits.
+- [x] Persist manual playlist order in playlist documents from admin edits.
 - [x] Update build generation so existing manual playlist order is preserved and new tracks are appended at the end.
 - [x] Replace Bio/FAQ-only editing with a Pages feature for editing multiple HTML pages.
 - [x] Add WYSIWYG page editing mode with safe HTML handling and fallback source mode.
@@ -415,7 +415,7 @@ Policy already locked in docs:
 - [x] Define the practical source-media policy: accepted source formats, weak-source scenarios, and what the platform repairs vs only warns about.
 - [x] Formalize the three media tiers: `original` (untouched upload), `master` (bandPromo-authored canonical package), and `delivery` (publish-ready derivatives).
 - [x] Define clear issue severity in media validation: hard blockers vs publish blockers vs warnings vs autofixable issues.
-- [x] Decide how build-time metadata validation should warn operators about missing or weak tags: `play/playlist-validation.json`, build-log output, and admin build-log summary.
+- [x] Decide how build-time metadata validation should warn operators about missing or weak tags: `data/validation/playlist-validation.json`, build-log output, and admin build-log summary.
 - [x] Decide when WAV should be converted into a tagged FLAC master and how lossy sources should be handled without false "quality upgrade" claims.
 - [x] Define the master-tier rules for audio packaging: metadata, artwork, lyrics, naming, and downloadable corrected masters.
 - [x] Lock the preferred operator workflow: preserve originals untouched, create or queue masters immediately after upload where supported, then treat masters as the normal admin-facing working assets while delivery variants regenerate in the background.
