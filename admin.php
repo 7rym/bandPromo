@@ -449,7 +449,7 @@ if (in_array($requestedTab, ['config', 'build', 'audit'], true)) {
         $redirectQuery['tab'] = 'settings';
     } else {
         $redirectQuery['tab'] = 'system';
-        $redirectQuery['stab'] = $requestedTab === 'audit' ? 'audit' : 'publish';
+        $redirectQuery['stab'] = $requestedTab === 'audit' ? 'audit' : 'deliverables';
     }
     header('Location: /admin.php?' . http_build_query($redirectQuery));
     exit;
@@ -552,13 +552,19 @@ if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'], true)) {
 }
 
 // System sub-tab
-$allowedSystemTabs = ['publish', 'audit', 'backup'];
-$systemTab = $_GET['stab'] ?? 'publish';
+$allowedSystemTabs = ['deliverables', 'publish', 'audit', 'backup'];
+$systemTab = $_GET['stab'] ?? 'deliverables';
 if ($systemTab === 'activity') {
     $systemTab = 'backup';
 }
+if ($systemTab === 'publish') {
+    $redirectQuery = $_GET;
+    $redirectQuery['stab'] = 'deliverables';
+    header('Location: /admin.php?' . http_build_query($redirectQuery));
+    exit;
+}
 if (!in_array($systemTab, $allowedSystemTabs, true)) {
-    $systemTab = 'publish';
+    $systemTab = 'deliverables';
 }
 
 $siteBackupStatus = null;
@@ -690,7 +696,7 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                 <?php if ($welcomeSetupComplete): ?>
                     This page is your dashboard. Use <strong>Notifications</strong> in the header for open tasks, then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Publish</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Deliverables</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
             </div>
 
@@ -2601,10 +2607,10 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
         <!-- ===================== SYSTEM TAB ===================== -->
         <div id="tab-system" class="tab-content <?php echo $tab === 'system' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
-                <a href="?tab=system&amp;stab=publish" class="tab-link <?php echo $systemTab === 'publish' ? 'active' : ''; ?>">🚀 Publish</a>
+                <a href="?tab=system&amp;stab=deliverables" class="tab-link <?php echo $systemTab === 'deliverables' ? 'active' : ''; ?>">📦 Deliverables</a>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
                 <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup &amp; export</a>
-                <?php if ($systemTab === 'publish'): ?>
+                <?php if ($systemTab === 'deliverables'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
                 <?php elseif ($systemTab === 'audit'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
@@ -2613,16 +2619,16 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                 <?php endif; ?>
             </div>
 
-            <?php if ($systemTab === 'publish'): ?>
+            <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                <strong>Run Publish Build</strong> regenerates delivery files and player artifacts from your current Content setup. It checks site settings first, then runs the Python publish pipeline. It does <strong>not</strong> repair the asset catalog automatically — use <strong>Repair catalog</strong> in Publish actions when uploads need masters or registry fixes.<br><br>
-                <strong>Publish status</strong> is site-wide: catalog registration, delivery coverage for registered audio, and pending publish work. Track metadata quality for a specific playlist belongs in Content → Playlists or Files → Audio.<br><br>
-                Use <strong>Refresh Image Files</strong> when only publish-ready photos, illustrations, or theme images need to be regenerated.
+                bandPromo usually keeps listener-ready files current automatically after uploads and saves. This page shows delivery health and lets you rebuild everything when you want extra reassurance.<br><br>
+                <strong>Delivery status</strong> summarizes your catalog and whether streaming files are ready.<br><br>
+                Use <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.
             </div>
 
             <div id="publishStatusCard" class="card publish-status-card">
                 <div class="build-validation-head">
-                    <h3>📊 Publish status</h3>
+                    <h3>📊 Delivery status</h3>
                     <span id="publishStatusOverall" class="badge audit-status-badge status-neutral">Checking…</span>
                 </div>
                 <div id="publishStatusSummary" class="publish-status-summary"></div>
@@ -2630,30 +2636,25 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
 
             <div id="publishActionsCard" class="card publish-actions-card">
                 <div class="build-validation-head">
-                    <h3>⚡ Publish actions</h3>
+                    <h3>⚡ When you want reassurance</h3>
                 </div>
                 <div class="publish-actions-toolbar">
-                    <button type="button" id="buildBtn" class="btn">▶️ Run Publish Build</button>
-                    <button type="button" id="optimizeBtn" class="btn">🖼️ Refresh Image Files</button>
-                    <button type="button" id="contentAutofixPreviewBtn" class="btn">🛠️ Repair catalog</button>
+                    <button type="button" id="buildBtn" class="btn btn-primary">▶️ Rebuild all deliverables</button>
                     <button type="button" id="recommendedBuildBtn" class="btn" style="display:none"></button>
-                    <button type="button" id="contentAutofixApplyBtn" class="btn" hidden>Apply repairs</button>
                 </div>
-                <p id="contentAutofixStatus" class="build-log-status publish-action-status"></p>
-                <ul id="contentAutofixReport" class="content-autofix-report" hidden></ul>
+                <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
             </div>
 
-            <div id="build-log-card" class="card">
-                <div class="build-log-head">
-                    <h3>📋 Build Log</h3>
-                    <div class="build-log-meta">
+            <details id="build-log-card" class="card deliverables-log-card">
+                <summary class="deliverables-log-summary">
+                    <span>📋 Build log</span>
+                    <span class="build-log-meta">
                         <span id="buildSpinner" class="build-log-spinner" style="display:none">⏳ Building…</span>
-                        <span id="optimizeSpinner" class="build-log-spinner" style="display:none">⏳ Optimizing…</span>
                         <span id="buildStatus" class="build-log-status"></span>
-                    </div>
-                </div>
+                    </span>
+                </summary>
                 <pre id="buildLog" class="build-log">No build output yet.</pre>
-            </div>
+            </details>
             <?php elseif ($systemTab === 'audit'): ?>
             <div class="admin-help-box collapsed" id="help-audit">
                 Separate admin audit trail for management actions only. Use this to trace who changed users, content, settings, files, and publish runs, without mixing those records into listener activity analytics.
@@ -2740,7 +2741,7 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Create backups with the component picker, or import a bandPromo ZIP from this site or another install. Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, run <strong>Publish</strong>. See <code>docs/PORTABILITY.md</code>.
+                Create backups with the component picker, or import a bandPromo ZIP from this site or another install. Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Deliverables</strong> if you want to refresh listener-ready files. See <code>docs/PORTABILITY.md</code>.
             </div>
 
             <div class="card site-backup-card">

@@ -177,8 +177,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'severity' => 'blocking',
             'complete' => $starterPackInstalled,
             'detail' => $starterPackDetail,
-            'href' => '?tab=system&stab=publish',
-            'next' => 'Open System → Publish and run a full build so bandPromo can install the starter design files.',
+            'href' => '?tab=system&stab=deliverables',
+            'next' => 'Open System → Deliverables and run a full build so bandPromo can install the starter design files.',
         ],
         [
             'label' => 'The full build process ran successfully',
@@ -188,8 +188,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'detail' => $fullBuildSucceeded
                 ? 'The latest full build finished successfully.'
                 : 'No successful full build has been recorded yet, or the last full build failed.',
-            'href' => '?tab=system&stab=publish',
-            'next' => 'Open System → Publish and run a full build until it completes successfully.',
+            'href' => '?tab=system&stab=deliverables',
+            'next' => 'Open System → Deliverables and run a full build until it completes successfully.',
         ],
         [
             'label' => 'Delivery files are created and ready',
@@ -199,8 +199,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'detail' => $deliveryReady
                 ? 'Publish-ready delivery files exist for catalogued audio and artwork.'
                 : $missingDeliveryCount . ' catalogued audio file' . ($missingDeliveryCount === 1 ? '' : 's') . ' still lack streaming MP3 delivery.',
-            'href' => '?tab=system&stab=publish',
-            'next' => 'Open System → Publish and run Publish Build so listeners stream MP3s instead of large originals.',
+            'href' => '?tab=system&stab=deliverables',
+            'next' => 'Open System → Deliverables and rebuild all deliverables so listeners stream MP3s instead of large originals.',
         ],
         [
             'label' => $hasOperatorMedia ? 'Your own media is present' : 'Your own media is not present yet',

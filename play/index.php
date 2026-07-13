@@ -247,8 +247,8 @@ if ($supportEnabled && $supportUrl !== '') {
 
     <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>
         <strong>Publish build required.</strong>
-        <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Run System → Publish Build.</span>
-        <a href="/admin.php?tab=system&amp;stab=publish">Open Publish</a>
+        <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Open System → Deliverables.</span>
+        <a href="/admin.php?tab=system&amp;stab=deliverables">Open Deliverables</a>
     </div>
 
     <div id="mediaplayer">

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-13 19:20 - Deliverables: remove manual Refresh image files button (image delivery runs automatically after uploads and edits).
+
+2026-07-13 19:18 - Deliverables: remove redundant intro paragraph from delivery status card (inventory panel carries the message).
+
+2026-07-13 19:15 - Deliverables delivery status: rich site inventory tiles (releases, playlists, tracks, media, galleries, pages, brands) with encouraging headline and stream-ready ring.
+
+2026-07-13 19:05 - Rename System → Publish to Deliverables: status-first page, auto catalog repair in background, hide Repair catalog button, rebuild-all reassurance copy.
+
 2026-07-13 18:45 - Welcome flow: auto-duplicate default brand to "Your own brand"; reorder setup checklist by install importance; fix false-positive operator media detection; suggest upload, FAQ, Pages, and backup import after core setup.
 
 2026-07-13 18:30 - Fix bootstrap install package discovery: resolve newest GitHub release tag (including beta prereleases) instead of GitHub `releases/latest` stable-only URL.

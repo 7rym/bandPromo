@@ -43,7 +43,7 @@ function bandpromo_run_publish_preflight(string $root, ?callable $logger = null)
     } else {
         bandpromo_publish_preflight_log_line('[preflight] Site settings check passed.', $logger);
         bandpromo_publish_preflight_log_line(
-            '[preflight] Catalog repair is not run automatically. Use Repair catalog on the Publish tab if uploads need registry or master fixes.',
+            '[preflight] Catalog preparation runs automatically in the background when uploads need registry or master fixes.',
             $logger
         );
     }

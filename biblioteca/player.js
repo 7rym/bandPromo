@@ -1115,7 +1115,7 @@ function updateOperatorDeliveryNotice(summary) {
     }
 
     if (noticeText) {
-        noticeText.textContent = `${pendingCount} track${pendingCount === 1 ? '' : 's'} in this playlist need streaming MP3 delivery. Run System → Publish Build before listeners stream on mobile data.`;
+        noticeText.textContent = `${pendingCount} track${pendingCount === 1 ? '' : 's'} in this playlist need streaming MP3 delivery. Open System → Deliverables before listeners stream on mobile data.`;
     }
     notice.hidden = false;
 }

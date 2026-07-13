@@ -502,7 +502,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'message' => $dryRun
             ? 'Preview complete. Apply repairs only if you intend to change catalog or container links.'
             : ($changedTotal > 0
-                ? 'Catalog repair finished. Run Publish Build when you are ready to regenerate delivery files.'
+                ? 'Catalog repair finished. bandPromo will refresh delivery files automatically when needed.'
                 : 'Catalog already matches the current registry and container links.'),
     ];
 }

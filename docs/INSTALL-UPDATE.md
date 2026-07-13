@@ -203,8 +203,8 @@ Package update **preserves** your content. It replaces application PHP/JS only. 
 
 **What to do next (normal workflow):**
 
-1. Open **Notifications** or **System → Publish**.
-2. Run **Update the live site** once. After every package update, bandPromo marks publish work as pending — this refreshes delivery files and the site manifest. It is expected, not an error.
+1. Open **Notifications** or **System → Deliverables**.
+2. Run **Rebuild all deliverables** once. After every package update, bandPromo marks delivery work as pending — this refreshes listener-ready files and the site manifest. It is expected, not an error.
 3. Smoke-test admin and playback.
 
 **What Site update does not do:**
@@ -213,8 +213,8 @@ Package update **preserves** your content. It replaces application PHP/JS only. 
 
 **After Site update (v0.8.3+):**
 
-1. Open **Notifications** or **System → Publish**.
-2. Run **Update the live site** once. bandPromo prepares your content links automatically during that publish step — there is no separate content-model upgrade card.
+1. Open **Notifications** or **System → Deliverables**.
+2. Run **Rebuild all deliverables** once. bandPromo prepares your content links automatically during that step — there is no separate content-model upgrade card.
 3. Config structure updates happen silently in the background when you open admin.
 
 **Before updating:** use **Admin → System → Backup & export** to **create** a full site backup, wait until it shows **Ready**, then download it. On hosts without ZipArchive, use your hosting panel to ZIP `data/`, `media/`, and `web-config.json` instead.

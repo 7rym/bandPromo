@@ -317,13 +317,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 special:        { accept: '.mp3,.mp4,.png,.jpg,.jpeg,.webp,.svg', target: 'special' },
             };
             window.activeMediaPanel = adminActivePanel;
-            function isPublishViewActive() {
+            function isDeliverablesViewActive() {
                 const systemTab = document.getElementById('tab-system');
                 if (!systemTab?.classList.contains('active')) {
                     return false;
                 }
-                const stab = new URLSearchParams(window.location.search).get('stab') || 'publish';
-                return stab !== 'audit';
+                const stab = new URLSearchParams(window.location.search).get('stab') || 'deliverables';
+                return stab === 'deliverables' || stab === 'publish';
             }
 
             const systemTabLink = document.querySelector('.primary-tabs .tab-link[href*="tab=system"]');
@@ -467,11 +467,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function buildBuildTabUrl() {
-                return `${buildAdminUrl({ tab: 'system', stab: 'publish' })}#build-log-card`;
+                return `${buildAdminUrl({ tab: 'system', stab: 'deliverables' })}#build-log-card`;
             }
 
             function buildRecommendedRunUrl() {
-                return `${buildAdminUrl({ tab: 'system', stab: 'publish', run_recommended: '1' })}#build-log-card`;
+                return `${buildAdminUrl({ tab: 'system', stab: 'deliverables', run_recommended: '1' })}#build-log-card`;
             }
 
             function formatBuildTaskLabel(task) {
@@ -519,7 +519,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     return `Some preparation could not finish automatically (${tasks.join(', ')}). Check Notifications.`;
                 }
-                const action = String(state && state.action || 'full').toLowerCase() === 'optimize' ? 'Refresh Image Files' : 'Run Publish Build';
+                const action = 'Rebuild all deliverables';
                 if (!tasks.length) {
                     return `Next: run ${action}.`;
                 }
@@ -531,14 +531,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return `Next: run ${action} to finish ${tasks.length} pending tasks.`;
             }
 
-            function getBuildActionLabel(action) {
-                return String(action || 'full').toLowerCase() === 'optimize'
-                    ? 'Refresh Image Files'
-                    : 'Run Publish Build';
+            function getBuildActionLabel() {
+                return 'Rebuild all deliverables';
             }
 
             function formatBuildHintMessage(state) {
-                const actionLabel = getBuildActionLabel(state && state.action || 'full');
+                const actionLabel = getBuildActionLabel();
                 const tasks = formatBuildTaskList(state);
                 if (tasks.length === 1) {
                     return `⚠ ${tasks[0]} Use ${actionLabel} when you are ready.`;
@@ -546,9 +544,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (tasks.length > 1) {
                     return `⚠ ${tasks.length} steps are waiting. Use ${actionLabel} when you are ready.`;
                 }
-                return String(state && state.action || 'none').toLowerCase() === 'optimize'
-                    ? '⚠ New photos or artwork are not live yet. Refresh them when you are ready.'
-                    : '⚠ Your latest changes are not on the public site yet. Update the site when you are ready.';
+                return '⚠ Your latest changes may need refreshed delivery files. Rebuild all deliverables when you are ready.';
             }
 
             function closeOperatorNotifications() {
@@ -596,8 +592,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : [{ text: formatBuildTaskSummary(buildState) }];
                 const reasons = Array.isArray(buildState.reasons) ? buildState.reasons : [];
                 const afterPackageUpdate = reasons.includes('package_update');
-                const action = String(buildState.action || 'full').toLowerCase() === 'optimize' ? 'optimize' : 'full';
-                const actionLabel = getBuildActionLabel(action);
+                const action = 'full';
+                const actionLabel = getBuildActionLabel();
 
                 if (setupComplete && afterPackageUpdate) {
                     return {
@@ -606,12 +602,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your content and settings were preserved. Run Update the live site once so delivery files and the site manifest match the new version.' },
+                            { text: 'Your content and settings were preserved. Rebuild all deliverables once so listener-ready files and the site manifest match the new version.' },
                             ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
                         ],
                         actions: [
                             { label: actionLabel, action: 'run-recommended-build' },
-                            { label: 'Go to Publish', href: buildBuildTabUrl() },
+                            { label: 'Go to Deliverables', href: buildBuildTabUrl() },
                         ],
                     };
                 }
@@ -627,29 +623,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your edits are saved in admin. Update the live site when you are ready for visitors to get the latest files.' },
+                            { text: 'Your edits are saved in admin. Rebuild all deliverables when you are ready for visitors to get the latest files.' },
                             { text: taskIntro },
                         ],
                         actions: [
                             { label: actionLabel, action: 'run-recommended-build' },
-                            { label: 'Go to Publish', href: buildBuildTabUrl() },
+                            { label: 'Go to Deliverables', href: buildBuildTabUrl() },
                         ],
                     };
                 }
 
-                const introDetail = action === 'optimize'
-                    ? { text: 'You changed photos or artwork. Visitors will not see the new versions until you refresh them.' }
-                    : { text: 'You made changes that are saved in admin but not yet on the website fans visit.' };
+                const introDetail = { text: 'You made changes that are saved in admin but may still need refreshed delivery files for visitors.' };
 
                 return {
                     severity: 'build-step',
-                    title: action === 'optimize' ? 'New images are not live yet' : 'Your site is not up to date',
+                    title: 'Delivery files may need a refresh',
                     file: '',
                     checkedAt: String(buildState.updated_at || '').trim(),
                     details: [introDetail, ...summaryDetails],
                     actions: [
                         { label: actionLabel, action: 'run-recommended-build' },
-                        { label: 'Go to Publish', href: buildBuildTabUrl() },
+                        { label: 'Go to Deliverables', href: buildBuildTabUrl() },
                     ],
                 };
             }
@@ -755,10 +749,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
                             details: [
                                 { text: String(item.error || 'bandPromo could not prepare the publish-ready video file.').trim() },
-                                { text: 'Go to System → Publish and run the recommended update to retry video preparation. If it fails again, re-upload the source file or remove it from Files → Video.' },
+                                { text: 'Go to System → Deliverables and run the recommended update to retry video preparation. If it fails again, re-upload the source file or remove it from Files → Video.' },
                             ],
                             actions: [
-                                { label: 'Go to Publish', href: buildBuildTabUrl() },
+                                { label: 'Go to Deliverables', href: buildBuildTabUrl() },
                                 ...(focusFile
                                     ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'video', focus_file: focusFile }) }]
                                     : [{ label: 'Open Files', href: '?tab=files&fpanel=video' }]),
@@ -1059,7 +1053,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (action === 'run-recommended-build') {
                     event.preventDefault();
                     closeOperatorNotifications();
-                    const publishViewActive = isPublishViewActive();
+                    const publishViewActive = isDeliverablesViewActive();
                     if (!publishViewActive) {
                         window.location.href = buildRecommendedRunUrl();
                         return;
@@ -1844,10 +1838,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 systemTabLink.addEventListener('click', (event) => {
                     if (!currentBuildRequired) return;
 
-                    if (isPublishViewActive()) {
+                    if (isDeliverablesViewActive()) {
                         event.preventDefault();
                         const logCard = document.getElementById('build-log-card');
                         if (logCard) {
+                            if (logCard.tagName === 'DETAILS') {
+                                logCard.open = true;
+                            }
                             logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
                         return;
@@ -1874,7 +1871,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 recommendedBuildBtn.style.display = '';
-                recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel(currentBuildAction)}`;
+                recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel()}`;
             }
 
             let renderPackageUpdateStatus = null;
@@ -1893,7 +1890,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
                     renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks, data.uncatalogued_audio_failures || []);
                     updateBackgroundTaskPolling(latestBackgroundTasks);
-                    renderPublishStatusSummary(data.publish_status || null);
+                    renderPublishStatusSummary(data.publish_status || null, data.catalog_repair || null);
 
                     if (typeof renderPackageUpdateStatus === 'function' && data.package_update && !packageUpdateInstallInProgress) {
                         renderPackageUpdateStatus({
@@ -6701,10 +6698,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             // ── Build ─────────────────────────────────────────────────────────
             const buildBtn     = document.getElementById('buildBtn');
-            const optimizeBtn  = document.getElementById('optimizeBtn');
             const buildHelpBox = document.getElementById('help-build');
             const buildSpinner = document.getElementById('buildSpinner');
-            const optimizeSpinner = document.getElementById('optimizeSpinner');
             const buildLog     = document.getElementById('buildLog');
             const buildStatus  = document.getElementById('buildStatus');
             const publishStatusCard = document.getElementById('publishStatusCard');
@@ -6716,10 +6711,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function runRecommendedAction() {
                 if (pollTimer) return;
-                if (currentBuildAction === 'optimize' && optimizeBtn && !optimizeBtn.disabled) {
-                    optimizeBtn.click();
-                    return;
-                }
                 if (buildBtn && !buildBtn.disabled) {
                     buildBtn.click();
                 }
@@ -6752,21 +6743,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function refreshBuildActionCopy() {
                 if (buildBtn) {
-                    buildBtn.textContent = '▶️ Run Publish Build';
-                }
-                if (optimizeBtn) {
-                    optimizeBtn.textContent = '🖼️ Refresh Image Files';
+                    buildBtn.textContent = '▶️ Rebuild all deliverables';
                 }
                 if (buildHelpBox) {
                     if (currentBuildRequired) {
                         const tasks = formatBuildTaskList({ tasks: currentBuildTasks });
-                        const actionLabel = getBuildActionLabel(currentBuildAction);
+                        const actionLabel = getBuildActionLabel();
                         const taskLine = tasks.length
                             ? `Pending now: <strong>${bandpromoAdminEscapeHtml(tasks.join(' · '))}</strong>.`
-                            : 'Pending now: bandPromo still has publish work to finish.';
+                            : 'Pending now: bandPromo still has delivery work to finish.';
                         buildHelpBox.innerHTML = `${actionLabel} is the recommended next step for the current pending work. ${taskLine} Jobs continue in the background while this log updates.`;
                     } else {
-                        buildHelpBox.innerHTML = 'Use <strong>Refresh Image Files</strong> when only publish-ready photo, illustration, or theme-image files need to be regenerated. Use <strong>Run Publish Build</strong> for delivery files and player artifacts. Use <strong>Repair catalog</strong> when uploads need masters or registry fixes — not during every publish.';
+                        buildHelpBox.innerHTML = 'bandPromo usually keeps deliverables current automatically after uploads and saves. Use <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.';
                     }
                 }
             }
@@ -6795,7 +6783,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (buildLog) buildLog.scrollTop = buildLog.scrollHeight;
             }
 
-            function renderPublishStatusSummary(status) {
+            function renderPublishStatusSummary(status, catalogRepair) {
                 if (!publishStatusSummary || !publishStatusOverall) {
                     return;
                 }
@@ -6803,37 +6791,91 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!status || typeof status !== 'object') {
                     publishStatusOverall.textContent = 'Unavailable';
                     publishStatusOverall.className = 'badge audit-status-badge status-neutral';
-                    publishStatusSummary.innerHTML = '<p class="publish-status-empty">Publish status is not available right now.</p>';
+                    publishStatusSummary.innerHTML = '<p class="publish-status-empty">Delivery status is not available right now.</p>';
                     return;
                 }
 
-                const ok = status.ok === true;
-                publishStatusOverall.textContent = ok ? 'All clear' : 'Needs attention';
+                const repairStatus = catalogRepair && typeof catalogRepair === 'object' ? String(catalogRepair.status || '') : '';
+                const repairMessage = catalogRepair && typeof catalogRepair === 'object' ? String(catalogRepair.message || '').trim() : '';
+                const ok = status.ok === true && repairStatus !== 'running' && repairStatus !== 'warning' && repairStatus !== 'error';
+                publishStatusOverall.textContent = repairStatus === 'running'
+                    ? 'Preparing uploads'
+                    : (ok ? 'All clear' : 'Needs attention');
                 publishStatusOverall.className = `badge audit-status-badge ${ok ? 'status-ok' : 'status-warning'}`;
 
-                const summary = status.summary || {};
-                const metrics = [
-                    `<span class="publish-status-metric">${Number(summary.registered_audio || 0)} registered audio</span>`,
-                    `<span class="publish-status-metric">${Number(summary.uncatalogued_uploads || 0)} uncatalogued uploads</span>`,
-                    `<span class="publish-status-metric">${Number(summary.missing_delivery || 0)} missing delivery</span>`,
-                ];
+                const inventory = status.inventory && typeof status.inventory === 'object' ? status.inventory : null;
+                const delivery = inventory && inventory.delivery ? inventory.delivery : {};
+                const tiles = inventory && Array.isArray(inventory.tiles) ? inventory.tiles : [];
+                const headline = inventory ? String(inventory.headline || '').trim() : '';
+                const subheadline = inventory ? String(inventory.subheadline || '').trim() : '';
+
+                let inventoryHtml = '';
+                if (inventory) {
+                    const audioReady = Number(delivery.audio_ready || 0);
+                    const audioTotal = Number(delivery.audio_total || 0);
+                    const deliveryPercent = Number(delivery.percent || 0);
+                    const deliveryComplete = delivery.complete === true;
+
+                    inventoryHtml += `
+                        <div class="delivery-inventory-hero ${deliveryComplete ? 'is-complete' : ''}">
+                            <div class="delivery-inventory-copy">
+                                <strong>${bandpromoAdminEscapeHtml(headline || 'Your site inventory')}</strong>
+                                ${subheadline ? `<span>${bandpromoAdminEscapeHtml(subheadline)}</span>` : ''}
+                            </div>
+                            ${audioTotal > 0 ? `
+                                <div class="delivery-readiness" aria-label="Streaming readiness ${deliveryPercent} percent">
+                                    <div class="delivery-readiness-ring" style="--delivery-progress:${deliveryPercent}">
+                                        <span>${deliveryPercent}%</span>
+                                    </div>
+                                    <div class="delivery-readiness-copy">
+                                        <strong>${audioReady}/${audioTotal}</strong>
+                                        <span>tracks stream-ready</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    if (tiles.length) {
+                        const coreTileIds = new Set(['releases', 'playlists', 'tracks', 'audio']);
+                        const visibleTiles = tiles.filter((tile) => {
+                            const value = Number(tile.value || 0);
+                            return value > 0 || coreTileIds.has(String(tile.id || ''));
+                        });
+                        inventoryHtml += `
+                            <div class="delivery-inventory-grid">
+                                ${visibleTiles.map((tile) => `
+                                    <article class="delivery-stat-tile">
+                                        <span class="delivery-stat-icon" aria-hidden="true">${bandpromoAdminEscapeHtml(tile.icon || '•')}</span>
+                                        <span class="delivery-stat-value">${Number(tile.value || 0).toLocaleString()}</span>
+                                        <span class="delivery-stat-label">${bandpromoAdminEscapeHtml(tile.label || tile.id || 'Item')}</span>
+                                        ${tile.detail ? `<span class="delivery-stat-detail">${bandpromoAdminEscapeHtml(tile.detail)}</span>` : ''}
+                                    </article>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                }
 
                 const checks = Array.isArray(status.checks) ? status.checks : [];
                 let checksHtml = '';
+                if (repairMessage !== '') {
+                    checksHtml += `<p class="publish-status-note">${bandpromoAdminEscapeHtml(repairMessage)}</p>`;
+                }
                 if (checks.length) {
-                    checksHtml = checks.map((check) => `
+                    checksHtml += `<div class="delivery-status-checks">${checks.map((check) => `
                         <article class="publish-status-check">
                             <strong>${bandpromoAdminEscapeHtml(check.label || check.id || 'Issue')} (${Number(check.count || 0)})</strong>
                             <p>${bandpromoAdminEscapeHtml(check.detail || '')}</p>
                             <p>${bandpromoAdminEscapeHtml(check.action || '')}</p>
                         </article>
-                    `).join('');
-                } else {
-                    checksHtml = '<p class="publish-status-empty">Catalog and delivery look ready for publish. Run Publish Build whenever you want to refresh site output.</p>';
+                    `).join('')}</div>`;
+                } else if (ok) {
+                    checksHtml += '<p class="publish-status-empty">Listener-ready files look current. Rebuild all deliverables whenever you want extra reassurance.</p>';
                 }
 
                 publishStatusSummary.innerHTML = `
-                    <div class="publish-status-metrics">${metrics.join('')}</div>
+                    ${inventoryHtml}
                     ${checksHtml}
                 `;
             }
@@ -7001,12 +7043,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function stopPolling(success) {
                 if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
                 if (buildBtn) buildBtn.disabled = false;
-                if (optimizeBtn) optimizeBtn.disabled = false;
                 if (buildSpinner) buildSpinner.style.display = 'none';
-                if (optimizeSpinner) optimizeSpinner.style.display = 'none';
                 if (buildStatus) {
-                    const successLabel = currentRunMode === 'optimize' ? '✅ Media optimization complete!' : '✅ Build complete!';
-                    const failLabel = currentRunMode === 'optimize' ? '❌ Media optimization failed.' : '❌ Build failed.';
+                    const successLabel = '✅ Deliverables rebuild complete!';
+                    const failLabel = '❌ Deliverables rebuild failed.';
                     buildStatus.textContent = success === true ? successLabel : success === false ? failLabel : '';
                     buildStatus.style.color = success === true ? 'var(--success, #4ade80)' : '#f55';
                     buildStatus.removeAttribute('data-mode');
@@ -7020,14 +7060,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 if (buildBtn) buildBtn.disabled = true;
-                if (optimizeBtn) optimizeBtn.disabled = true;
-                if (currentRunMode === 'optimize') {
-                    if (optimizeSpinner) optimizeSpinner.style.display = 'inline';
-                    if (buildSpinner) buildSpinner.style.display = 'none';
-                } else {
-                    if (buildSpinner) buildSpinner.style.display = 'inline';
-                    if (optimizeSpinner) optimizeSpinner.style.display = 'none';
-                }
+                if (buildSpinner) buildSpinner.style.display = 'inline';
                 pollTimer = setInterval(pollLog, 1000);
                 pollLog();
             }
@@ -7073,7 +7106,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     if (data.publish_status) {
-                        renderPublishStatusSummary(data.publish_status);
+                        renderPublishStatusSummary(data.publish_status, data.catalog_repair || null);
                     }
 
                     if (data.build_required_state) {
@@ -7100,11 +7133,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     currentRunMode = 'full';
                     console.groupCollapsed('[build] Start button clicked');
                     buildBtn.disabled  = true;
-                    if (optimizeBtn) optimizeBtn.disabled = true;
                     buildSpinner.style.display = 'inline';
-                    if (optimizeSpinner) optimizeSpinner.style.display = 'none';
                     buildStatus.textContent = '';
                     buildLog.textContent = '⏳ Starting build…\n';
+                    const logCard = document.getElementById('build-log-card');
+                    if (logCard && logCard.tagName === 'DETAILS') {
+                        logCard.open = true;
+                    }
 
                     try {
                         const resp = await fetch('/biblioteca/build.php', {
@@ -7160,78 +7195,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         console.groupEnd();
                     } catch (e) {
                         console.error('[build] network/launch error', e);
-                        buildLog.textContent = '❌ Network error: ' + e.message;
-                        stopPolling(false);
-                        console.groupEnd();
-                    }
-                });
-            }
-
-            if (optimizeBtn) {
-                optimizeBtn.addEventListener('click', async () => {
-                    currentRunMode = 'optimize';
-                    console.groupCollapsed('[optimize] Start button clicked');
-                    optimizeBtn.disabled = true;
-                    if (buildBtn) buildBtn.disabled = true;
-                    optimizeSpinner.style.display = 'inline';
-                    if (buildSpinner) buildSpinner.style.display = 'none';
-                    buildStatus.textContent = '';
-                    buildLog.textContent = '⏳ Starting media optimization…\n';
-
-                    try {
-                        const resp = await fetch('/biblioteca/build.php', {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ mode: 'optimize' }),
-                        });
-                        const raw = await resp.text();
-                        let data = null;
-                        try {
-                            data = JSON.parse(raw);
-                        } catch (parseErr) {
-                            console.error('[optimize] build.php returned non-JSON response', {
-                                status: resp.status,
-                                raw,
-                                parseError: parseErr,
-                            });
-                            buildLog.textContent = '❌ Invalid response from optimize endpoint';
-                            stopPolling(false);
-                            console.groupEnd();
-                            return;
-                        }
-
-                        console.debug('[optimize] build.php response', {
-                            status: resp.status,
-                            ok: data?.ok,
-                            error: data?.error,
-                            debug: data?.debug,
-                        });
-
-                        if (data.error) {
-                            if (data.running) {
-                                if (data.content && buildLog) {
-                                    buildLog.textContent = data.content;
-                                    scrollLog();
-                                }
-                                beginBuildPolling(data.mode || 'optimize');
-                                console.groupEnd();
-                                return;
-                            }
-                            buildLog.textContent = '❌ ' + data.error;
-                            if (data.debug) {
-                                console.error('[optimize] launcher failure debug', data.debug);
-                            }
-                            stopPolling(false);
-                            console.groupEnd();
-                            return;
-                        }
-                        beginBuildPolling('optimize');
-                        console.groupEnd();
-                    } catch (e) {
-                        console.error('[optimize] network/launch error', e);
                         buildLog.textContent = '❌ Network error: ' + e.message;
                         stopPolling(false);
                         console.groupEnd();

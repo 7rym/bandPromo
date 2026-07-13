@@ -84,7 +84,7 @@ Policy — **lock before implementation**:
 - [x] Lock **target stage order**: preflight (tools) → site shell (theme/config/social/PWA inputs) → catalog (masters/registry) → deliverables (from registry) → artifacts (playlist.json, share crops, manifest) → initial layout seed (setup/recovery only).
 - [x] Lock **deliverable scope**: **every registered asset**, independent of release/playlist membership.
 - [x] Lock **prune rule**: deliverables removed **only on asset delete**, not on playlist/release membership change.
-- [x] Lock **publish must not mutate catalog**: move `content-autofix` out of publish preflight; explicit **Repair catalog** action with dry-run.
+- [x] Lock **publish must not mutate catalog**: move `content-autofix` out of publish preflight; catalog repair now runs automatically in the background when needed.
 - [x] Lock **initial layout seed** (formerly “compose”): **setup** + explicit **recover layout from disk** only; never routine publish; rename in UI/docs.
 
 Implementation order:
