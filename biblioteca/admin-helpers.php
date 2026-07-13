@@ -60,6 +60,7 @@ function renderFilterBar($tabName, $dateStart, $dateEnd, $atab = '', array $opti
     $activityTypes = $options['activity_types'] ?? null;
     $activityFilter = (string) ($options['activity_filter'] ?? '');
     $entrySummary = $options['entry_summary'] ?? null;
+    $exportLinks = $options['export_links'] ?? [];
     $dateFieldPrefix = $atab !== '' ? $atab . '-' : '';
     ?>
     <div class="filter-bar">
@@ -92,6 +93,16 @@ function renderFilterBar($tabName, $dateStart, $dateEnd, $atab = '', array $opti
             <?php endif; ?>
             <?php if ($entrySummary !== null && $entrySummary !== ''): ?>
                 <span class="filter-bar-meta"><?php echo htmlspecialchars((string) $entrySummary); ?></span>
+            <?php endif; ?>
+            <?php if (is_array($exportLinks) && $exportLinks !== []): ?>
+                <span class="filter-bar-export-links">
+                    <?php foreach ($exportLinks as $link): ?>
+                        <?php if (!is_array($link) || empty($link['href']) || empty($link['label'])) { continue; } ?>
+                        <a class="btn btn-secondary filter-bar-export-btn" href="<?php echo htmlspecialchars((string) $link['href']); ?>">
+                            <?php echo htmlspecialchars((string) $link['label']); ?>
+                        </a>
+                    <?php endforeach; ?>
+                </span>
             <?php endif; ?>
         </form>
     </div>

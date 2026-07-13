@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-13 23:30 - Checkpoint v0.8.7 build 332: analytics SQLite rollups, retention, batch ingest, and Log export.
+
+2026-07-13 22:45 - Analytics SQLite tail: daily rollups (user/track/device/totals), 90-day raw retention maintainer, player warm-event batching + ingest rate limit, Analytics Log export (JSONL/CSV).
+
+2026-07-13 22:35 - Planning: add v0.8 exit gate after analytics tail + Visual pool — sync 3 remote beta sites to latest build, then full legacy/fallback/hack codebase audit (TODO + ROADMAP).
+
 2026-07-13 22:25 - Docs sync before build 331 checkpoint: ROADMAP/TODO/FEATURES reflect shipped backup/export, Brand core, playlist.json removal; clarify remaining Visual pool vs analytics tail.
 
 2026-07-13 21:27 - Fix release editor date picker: use shared ISO date field wrapper (native calendar button) instead of inert icon-only shell.

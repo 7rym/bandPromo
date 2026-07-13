@@ -96,6 +96,22 @@ class PlaybackAnalytics {
      * Get all users with their listening times (sorted)
      */
     public function getUsersListeningStats($dateStart = null, $dateEnd = null, $limit = 100) {
+        if ($dateStart === null) {
+            $dateStart = gmdate('Y-m-d', strtotime('-30 days'));
+        }
+        if ($dateEnd === null) {
+            $dateEnd = gmdate('Y-m-d');
+        }
+
+        try {
+            $users = bandpromo_activity_store_users_listening_stats($this->root, $dateStart, $dateEnd, $limit);
+            if ($users !== []) {
+                return $users;
+            }
+        } catch (Throwable $e) {
+            error_log('bandPromo analytics user rollup read error: ' . $e->getMessage());
+        }
+
         $entries = $this->getLogEntries($dateStart, $dateEnd);
         $users = [];
         
@@ -166,6 +182,22 @@ class PlaybackAnalytics {
      * Get most played tracks
      */
     public function getTopTracks($dateStart = null, $dateEnd = null, $limit = 50) {
+        if ($dateStart === null) {
+            $dateStart = gmdate('Y-m-d', strtotime('-30 days'));
+        }
+        if ($dateEnd === null) {
+            $dateEnd = gmdate('Y-m-d');
+        }
+
+        try {
+            $tracks = bandpromo_activity_store_top_tracks($this->root, $dateStart, $dateEnd, $limit);
+            if ($tracks !== []) {
+                return $tracks;
+            }
+        } catch (Throwable $e) {
+            error_log('bandPromo analytics track rollup read error: ' . $e->getMessage());
+        }
+
         $entries = $this->getLogEntries($dateStart, $dateEnd);
         $tracks = [];
         
@@ -259,6 +291,15 @@ class PlaybackAnalytics {
         }
         if ($dateEnd === null) {
             $dateEnd = gmdate('Y-m-d');
+        }
+
+        try {
+            $stats = bandpromo_activity_store_platform_stats($this->root, $dateStart, $dateEnd);
+            if (($stats['total_sessions'] ?? 0) > 0 || ($stats['total_plays'] ?? 0) > 0 || !empty($stats['activity_types'])) {
+                return $stats;
+            }
+        } catch (Throwable $e) {
+            error_log('bandPromo analytics platform rollup read error: ' . $e->getMessage());
         }
 
         $entries = $this->getLogEntries($dateStart, $dateEnd);
@@ -649,6 +690,27 @@ class PlaybackAnalytics {
      * Get all activity types breakdown
      */
     public function getActivityBreakdown($dateStart = null, $dateEnd = null) {
+        if ($dateStart === null) {
+            $dateStart = gmdate('Y-m-d', strtotime('-30 days'));
+        }
+        if ($dateEnd === null) {
+            $dateEnd = gmdate('Y-m-d');
+        }
+
+        try {
+            $stats = bandpromo_activity_store_platform_stats($this->root, $dateStart, $dateEnd);
+            $activities = $stats['activity_types'] ?? [];
+            if ($activities !== []) {
+                arsort($activities);
+                return [
+                    'activities' => $activities,
+                    'total_events' => array_sum($activities),
+                ];
+            }
+        } catch (Throwable $e) {
+            error_log('bandPromo analytics activity rollup read error: ' . $e->getMessage());
+        }
+
         $entries = $this->getLogEntries($dateStart, $dateEnd);
         $activities = [];
         

@@ -112,10 +112,66 @@ CREATE TABLE IF NOT EXISTS rollup_hourly (
     event_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (bucket_start_utc, activity)
 );
+
+CREATE TABLE IF NOT EXISTS rollup_daily_user (
+    day_key TEXT NOT NULL,
+    username TEXT NOT NULL,
+    sessions INTEGER NOT NULL DEFAULT 0,
+    play_count INTEGER NOT NULL DEFAULT 0,
+    listening_seconds INTEGER NOT NULL DEFAULT 0,
+    event_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day_key, username)
+);
+
+CREATE TABLE IF NOT EXISTS rollup_daily_track (
+    day_key TEXT NOT NULL,
+    track_key TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    artist TEXT NOT NULL DEFAULT '',
+    play_count INTEGER NOT NULL DEFAULT 0,
+    total_seconds INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day_key, track_key)
+);
+
+CREATE TABLE IF NOT EXISTS rollup_daily_device (
+    day_key TEXT NOT NULL,
+    device TEXT NOT NULL,
+    event_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day_key, device)
+);
+
+CREATE TABLE IF NOT EXISTS rollup_daily_totals (
+    day_key TEXT NOT NULL PRIMARY KEY,
+    sessions INTEGER NOT NULL DEFAULT 0,
+    play_count INTEGER NOT NULL DEFAULT 0,
+    listening_seconds INTEGER NOT NULL DEFAULT 0,
+    event_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS rollup_daily_activity (
+    day_key TEXT NOT NULL,
+    activity TEXT NOT NULL,
+    event_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day_key, activity)
+);
 SQL
     );
 
-    bandpromo_activity_store_set_meta($pdo, 'schema_version', '1');
+    if (bandpromo_activity_store_get_meta($pdo, 'schema_version', '') === '') {
+        bandpromo_activity_store_set_meta($pdo, 'schema_version', '1');
+    }
+    bandpromo_activity_store_migrate_schema($pdo);
+}
+
+function bandpromo_activity_store_migrate_schema(PDO $pdo): void
+{
+    $version = (int) bandpromo_activity_store_get_meta($pdo, 'schema_version', '0');
+    if ($version >= 2) {
+        return;
+    }
+
+    bandpromo_activity_store_rebuild_daily_rollups($pdo);
+    bandpromo_activity_store_set_meta($pdo, 'schema_version', '2');
 }
 
 function bandpromo_activity_store_is_unique_violation(PDOException $exception): bool
@@ -170,6 +226,7 @@ function bandpromo_activity_store_ensure_ready(string $root): PDO
     } catch (Throwable $e) {
         error_log('bandPromo activity log migration failed: ' . $e->getMessage());
     }
+    bandpromo_activity_store_maybe_run_maintenance($root, $pdo);
     $connections[$root] = $pdo;
 
     return $pdo;
@@ -347,6 +404,7 @@ function bandpromo_activity_store_migrate_legacy_files(string $root, PDO $pdo): 
         }
 
         bandpromo_activity_store_rebuild_hourly_rollups($pdo);
+        bandpromo_activity_store_rebuild_daily_rollups($pdo);
         bandpromo_activity_store_set_meta($pdo, 'legacy_import_completed_at', bandpromo_utc_now_iso());
         bandpromo_activity_store_set_meta($pdo, 'legacy_import_listener_rows', (string) $listenerSourceCount);
         bandpromo_activity_store_set_meta($pdo, 'legacy_import_audit_rows', (string) $auditSourceCount);
@@ -555,6 +613,12 @@ function bandpromo_activity_store_append_listener(string $root, array $entry): b
     );
     $stmt->execute($normalized);
     bandpromo_activity_store_increment_hourly_rollup($pdo, (int) $normalized['ts_utc'], (string) $normalized['activity']);
+    $data = json_decode((string) $normalized['data_json'], true);
+    bandpromo_activity_store_apply_daily_rollups(
+        $pdo,
+        $normalized,
+        is_array($data) ? $data : []
+    );
 
     return true;
 }
@@ -741,9 +805,9 @@ function bandpromo_activity_store_hourly_distribution(
 
     if ($timezone === 'UTC') {
         $stmt = $pdo->prepare(
-            'SELECT ((ts_utc / 3600) * 3600) AS bucket_start_utc, COUNT(*) AS event_count
-             FROM listener_events
-             WHERE ts_utc >= :start_ts AND ts_utc <= :end_ts
+            'SELECT bucket_start_utc, SUM(event_count) AS event_count
+             FROM rollup_hourly
+             WHERE bucket_start_utc >= :start_ts AND bucket_start_utc <= :end_ts
              GROUP BY bucket_start_utc'
         );
         $stmt->execute([
@@ -870,4 +934,680 @@ function bandpromo_activity_store_distinct_audit_actors(
     }
 
     return $actors;
+}
+
+function bandpromo_activity_store_raw_retention_days(): int
+{
+    return 90;
+}
+
+function bandpromo_activity_store_day_key(int $tsUtc): string
+{
+    return bandpromo_admin_day_from_unix($tsUtc, bandpromo_analytics_bucket_timezone());
+}
+
+function bandpromo_activity_store_is_track_exit_activity(string $activity): bool
+{
+    return $activity === 'track_exited'
+        || in_array($activity, ['track_ended', 'track_change_next', 'track_change_prev', 'track_interrupted'], true);
+}
+
+function bandpromo_activity_store_is_track_progress_activity(string $activity, array $data): bool
+{
+    if (bandpromo_activity_store_is_track_exit_activity($activity)) {
+        return true;
+    }
+
+    return $activity === 'session_end'
+        && trim((string) ($data['track_title'] ?? '')) !== ''
+        && isset($data['current_time']);
+}
+
+function bandpromo_activity_store_listening_seconds(string $activity, array $data): int
+{
+    if (!bandpromo_activity_store_is_track_progress_activity($activity, $data)) {
+        return 0;
+    }
+
+    if ((int) ($data['completion_rate'] ?? 0) < 5) {
+        return 0;
+    }
+
+    return (int) ($data['current_time'] ?? 0);
+}
+
+function bandpromo_activity_store_device_type(string $userAgent): string
+{
+    if (preg_match('/iPhone/i', $userAgent)) {
+        return 'iPhone';
+    }
+    if (preg_match('/iPad/i', $userAgent)) {
+        return 'iPad';
+    }
+    if (preg_match('/Android/i', $userAgent)) {
+        return 'Android';
+    }
+    if (preg_match('/Windows Phone/i', $userAgent)) {
+        return 'Windows Phone';
+    }
+    if (preg_match('/BlackBerry/i', $userAgent)) {
+        return 'BlackBerry';
+    }
+    if (preg_match('/Windows|Win64|Win32/i', $userAgent)) {
+        return 'Windows';
+    }
+    if (preg_match('/Macintosh|Mac OS/i', $userAgent)) {
+        return 'macOS';
+    }
+    if (preg_match('/Linux/i', $userAgent)) {
+        return 'Linux';
+    }
+
+    return 'Unknown';
+}
+
+function bandpromo_activity_store_track_key(array $data): string
+{
+    $title = strtolower(trim((string) ($data['track_title'] ?? '')));
+    $artist = strtolower(trim((string) ($data['track_artist'] ?? '')));
+
+    return $title . '|' . $artist;
+}
+
+function bandpromo_activity_store_apply_daily_rollups(PDO $pdo, array $normalized, array $data): void
+{
+    $dayKey = bandpromo_activity_store_day_key((int) $normalized['ts_utc']);
+    $activity = (string) $normalized['activity'];
+    $username = (string) $normalized['username'];
+    $listeningSeconds = bandpromo_activity_store_listening_seconds($activity, $data);
+    $sessionDelta = $activity === 'play_start' ? 1 : 0;
+    $playDelta = $activity === 'track_started' ? 1 : 0;
+
+    bandpromo_activity_store_upsert_daily_activity($pdo, $dayKey, $activity, 1);
+    bandpromo_activity_store_upsert_daily_totals(
+        $pdo,
+        $dayKey,
+        1,
+        $sessionDelta,
+        $playDelta,
+        $listeningSeconds
+    );
+    bandpromo_activity_store_upsert_daily_user(
+        $pdo,
+        $dayKey,
+        $username,
+        1,
+        $sessionDelta,
+        $playDelta,
+        $listeningSeconds
+    );
+
+    $userAgent = (string) ($normalized['user_agent'] ?? '');
+    if ($userAgent !== '') {
+        bandpromo_activity_store_upsert_daily_device(
+            $pdo,
+            $dayKey,
+            bandpromo_activity_store_device_type($userAgent),
+            1
+        );
+    }
+
+    if (
+        bandpromo_activity_store_is_track_progress_activity($activity, $data)
+        && trim((string) ($data['track_title'] ?? '')) !== ''
+        && (int) ($data['completion_rate'] ?? 0) >= 5
+    ) {
+        bandpromo_activity_store_upsert_daily_track(
+            $pdo,
+            $dayKey,
+            bandpromo_activity_store_track_key($data),
+            (string) ($data['track_title'] ?? ''),
+            (string) ($data['track_artist'] ?? 'Unknown'),
+            1,
+            $listeningSeconds
+        );
+    }
+}
+
+function bandpromo_activity_store_upsert_daily_activity(PDO $pdo, string $dayKey, string $activity, int $delta): void
+{
+    $update = $pdo->prepare(
+        'UPDATE rollup_daily_activity SET event_count = event_count + :delta
+         WHERE day_key = :day_key AND activity = :activity'
+    );
+    $update->execute([
+        'delta' => $delta,
+        'day_key' => $dayKey,
+        'activity' => $activity,
+    ]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO rollup_daily_activity (day_key, activity, event_count)
+         VALUES (:day_key, :activity, :delta)'
+    );
+    try {
+        $insert->execute([
+            'day_key' => $dayKey,
+            'activity' => $activity,
+            'delta' => $delta,
+        ]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+        $update->execute([
+            'delta' => $delta,
+            'day_key' => $dayKey,
+            'activity' => $activity,
+        ]);
+    }
+}
+
+function bandpromo_activity_store_upsert_daily_totals(
+    PDO $pdo,
+    string $dayKey,
+    int $eventDelta,
+    int $sessionDelta,
+    int $playDelta,
+    int $listeningDelta
+): void {
+    $update = $pdo->prepare(
+        'UPDATE rollup_daily_totals
+         SET event_count = event_count + :event_delta,
+             sessions = sessions + :session_delta,
+             play_count = play_count + :play_delta,
+             listening_seconds = listening_seconds + :listening_delta
+         WHERE day_key = :day_key'
+    );
+    $update->execute([
+        'event_delta' => $eventDelta,
+        'session_delta' => $sessionDelta,
+        'play_delta' => $playDelta,
+        'listening_delta' => $listeningDelta,
+        'day_key' => $dayKey,
+    ]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO rollup_daily_totals (day_key, event_count, sessions, play_count, listening_seconds)
+         VALUES (:day_key, :event_delta, :session_delta, :play_delta, :listening_delta)'
+    );
+    try {
+        $insert->execute([
+            'day_key' => $dayKey,
+            'event_delta' => $eventDelta,
+            'session_delta' => $sessionDelta,
+            'play_delta' => $playDelta,
+            'listening_delta' => $listeningDelta,
+        ]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+        $update->execute([
+            'event_delta' => $eventDelta,
+            'session_delta' => $sessionDelta,
+            'play_delta' => $playDelta,
+            'listening_delta' => $listeningDelta,
+            'day_key' => $dayKey,
+        ]);
+    }
+}
+
+function bandpromo_activity_store_upsert_daily_user(
+    PDO $pdo,
+    string $dayKey,
+    string $username,
+    int $eventDelta,
+    int $sessionDelta,
+    int $playDelta,
+    int $listeningDelta
+): void {
+    $update = $pdo->prepare(
+        'UPDATE rollup_daily_user
+         SET event_count = event_count + :event_delta,
+             sessions = sessions + :session_delta,
+             play_count = play_count + :play_delta,
+             listening_seconds = listening_seconds + :listening_delta
+         WHERE day_key = :day_key AND username = :username'
+    );
+    $update->execute([
+        'event_delta' => $eventDelta,
+        'session_delta' => $sessionDelta,
+        'play_delta' => $playDelta,
+        'listening_delta' => $listeningDelta,
+        'day_key' => $dayKey,
+        'username' => $username,
+    ]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO rollup_daily_user (day_key, username, event_count, sessions, play_count, listening_seconds)
+         VALUES (:day_key, :username, :event_delta, :session_delta, :play_delta, :listening_delta)'
+    );
+    try {
+        $insert->execute([
+            'day_key' => $dayKey,
+            'username' => $username,
+            'event_delta' => $eventDelta,
+            'session_delta' => $sessionDelta,
+            'play_delta' => $playDelta,
+            'listening_delta' => $listeningDelta,
+        ]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+        $update->execute([
+            'event_delta' => $eventDelta,
+            'session_delta' => $sessionDelta,
+            'play_delta' => $playDelta,
+            'listening_delta' => $listeningDelta,
+            'day_key' => $dayKey,
+            'username' => $username,
+        ]);
+    }
+}
+
+function bandpromo_activity_store_upsert_daily_device(PDO $pdo, string $dayKey, string $device, int $delta): void
+{
+    $update = $pdo->prepare(
+        'UPDATE rollup_daily_device SET event_count = event_count + :delta
+         WHERE day_key = :day_key AND device = :device'
+    );
+    $update->execute([
+        'delta' => $delta,
+        'day_key' => $dayKey,
+        'device' => $device,
+    ]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO rollup_daily_device (day_key, device, event_count)
+         VALUES (:day_key, :device, :delta)'
+    );
+    try {
+        $insert->execute([
+            'day_key' => $dayKey,
+            'device' => $device,
+            'delta' => $delta,
+        ]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+        $update->execute([
+            'delta' => $delta,
+            'day_key' => $dayKey,
+            'device' => $device,
+        ]);
+    }
+}
+
+function bandpromo_activity_store_upsert_daily_track(
+    PDO $pdo,
+    string $dayKey,
+    string $trackKey,
+    string $title,
+    string $artist,
+    int $playDelta,
+    int $secondsDelta
+): void {
+    $update = $pdo->prepare(
+        'UPDATE rollup_daily_track
+         SET play_count = play_count + :play_delta,
+             total_seconds = total_seconds + :seconds_delta,
+             title = CASE WHEN title = \'\' THEN :title ELSE title END,
+             artist = CASE WHEN artist = \'\' OR artist = \'Unknown\' THEN :artist ELSE artist END
+         WHERE day_key = :day_key AND track_key = :track_key'
+    );
+    $update->execute([
+        'play_delta' => $playDelta,
+        'seconds_delta' => $secondsDelta,
+        'title' => $title,
+        'artist' => $artist !== '' ? $artist : 'Unknown',
+        'day_key' => $dayKey,
+        'track_key' => $trackKey,
+    ]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO rollup_daily_track (day_key, track_key, title, artist, play_count, total_seconds)
+         VALUES (:day_key, :track_key, :title, :artist, :play_delta, :seconds_delta)'
+    );
+    try {
+        $insert->execute([
+            'day_key' => $dayKey,
+            'track_key' => $trackKey,
+            'title' => $title,
+            'artist' => $artist !== '' ? $artist : 'Unknown',
+            'play_delta' => $playDelta,
+            'seconds_delta' => $secondsDelta,
+        ]);
+    } catch (PDOException $exception) {
+        if (!bandpromo_activity_store_is_unique_violation($exception)) {
+            throw $exception;
+        }
+        $update->execute([
+            'play_delta' => $playDelta,
+            'seconds_delta' => $secondsDelta,
+            'title' => $title,
+            'artist' => $artist !== '' ? $artist : 'Unknown',
+            'day_key' => $dayKey,
+            'track_key' => $trackKey,
+        ]);
+    }
+}
+
+function bandpromo_activity_store_rebuild_daily_rollups(PDO $pdo): void
+{
+    $pdo->exec('DELETE FROM rollup_daily_user');
+    $pdo->exec('DELETE FROM rollup_daily_track');
+    $pdo->exec('DELETE FROM rollup_daily_device');
+    $pdo->exec('DELETE FROM rollup_daily_totals');
+    $pdo->exec('DELETE FROM rollup_daily_activity');
+
+    $stmt = $pdo->query(
+        'SELECT ts_utc, username, activity, user_agent, data_json
+         FROM listener_events
+         ORDER BY ts_utc ASC, id ASC'
+    );
+    if ($stmt === false) {
+        return;
+    }
+
+    while ($row = $stmt->fetch()) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $data = json_decode((string) ($row['data_json'] ?? '{}'), true);
+        bandpromo_activity_store_apply_daily_rollups(
+            $pdo,
+            [
+                'ts_utc' => (int) ($row['ts_utc'] ?? 0),
+                'username' => (string) ($row['username'] ?? ''),
+                'activity' => (string) ($row['activity'] ?? ''),
+                'user_agent' => (string) ($row['user_agent'] ?? ''),
+                'data_json' => (string) ($row['data_json'] ?? '{}'),
+            ],
+            is_array($data) ? $data : []
+        );
+    }
+}
+
+function bandpromo_activity_store_day_range_keys(string $dateStart, string $dateEnd): array
+{
+    $bounds = bandpromo_utc_date_range_bounds($dateStart, $dateEnd);
+    $timezone = bandpromo_analytics_bucket_timezone();
+    $keys = [];
+    $cursor = $bounds['start_unix'];
+    while ($cursor <= $bounds['end_unix']) {
+        $keys[] = bandpromo_admin_day_from_unix($cursor, $timezone);
+        $cursor += 86400;
+    }
+
+    return array_values(array_unique($keys));
+}
+
+function bandpromo_activity_store_platform_stats(string $root, string $dateStart, string $dateEnd): array
+{
+    $dayKeys = bandpromo_activity_store_day_range_keys($dateStart, $dateEnd);
+    if ($dayKeys === []) {
+        return [
+            'total_plays' => 0,
+            'total_listening_time' => 0,
+            'unique_users' => 0,
+            'total_sessions' => 0,
+            'device_breakdown' => [],
+            'hourly_distribution' => [],
+            'daily_distribution' => [],
+            'activity_types' => [],
+        ];
+    }
+
+    $pdo = bandpromo_activity_store_ensure_ready($root);
+    $placeholders = implode(',', array_fill(0, count($dayKeys), '?'));
+
+    $totalsStmt = $pdo->prepare(
+        "SELECT COALESCE(SUM(sessions), 0) AS sessions,
+                COALESCE(SUM(play_count), 0) AS play_count,
+                COALESCE(SUM(listening_seconds), 0) AS listening_seconds
+         FROM rollup_daily_totals
+         WHERE day_key IN ($placeholders)"
+    );
+    $totalsStmt->execute($dayKeys);
+    $totals = $totalsStmt->fetch() ?: [];
+
+    $usersStmt = $pdo->prepare(
+        "SELECT COUNT(DISTINCT username) AS unique_users
+         FROM rollup_daily_user
+         WHERE day_key IN ($placeholders)"
+    );
+    $usersStmt->execute($dayKeys);
+    $uniqueUsers = (int) ($usersStmt->fetchColumn() ?: 0);
+
+    $deviceStmt = $pdo->prepare(
+        "SELECT device, SUM(event_count) AS event_count
+         FROM rollup_daily_device
+         WHERE day_key IN ($placeholders)
+         GROUP BY device
+         ORDER BY event_count DESC"
+    );
+    $deviceStmt->execute($dayKeys);
+    $deviceBreakdown = [];
+    while ($row = $deviceStmt->fetch()) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $deviceBreakdown[(string) $row['device']] = (int) ($row['event_count'] ?? 0);
+    }
+
+    $dailyStmt = $pdo->prepare(
+        "SELECT day_key, play_count
+         FROM rollup_daily_totals
+         WHERE day_key IN ($placeholders)
+         ORDER BY day_key ASC"
+    );
+    $dailyStmt->execute($dayKeys);
+    $dailyDistribution = [];
+    while ($row = $dailyStmt->fetch()) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $dailyDistribution[(string) $row['day_key']] = (int) ($row['play_count'] ?? 0);
+    }
+
+    $activityStmt = $pdo->prepare(
+        "SELECT activity, SUM(event_count) AS event_count
+         FROM rollup_daily_activity
+         WHERE day_key IN ($placeholders)
+         GROUP BY activity
+         ORDER BY event_count DESC"
+    );
+    $activityStmt->execute($dayKeys);
+    $activityTypes = [];
+    while ($row = $activityStmt->fetch()) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $activityTypes[(string) $row['activity']] = (int) ($row['event_count'] ?? 0);
+    }
+
+    try {
+        $hourlyDistribution = bandpromo_activity_store_hourly_distribution($root, $dateStart, $dateEnd);
+    } catch (Throwable $e) {
+        error_log('bandPromo analytics hourly distribution error: ' . $e->getMessage());
+        $hourlyDistribution = [];
+    }
+
+    return [
+        'total_plays' => (int) ($totals['play_count'] ?? 0),
+        'total_listening_time' => (int) ($totals['listening_seconds'] ?? 0),
+        'unique_users' => $uniqueUsers,
+        'total_sessions' => (int) ($totals['sessions'] ?? 0),
+        'device_breakdown' => $deviceBreakdown,
+        'quality_estimate' => [],
+        'hourly_distribution' => $hourlyDistribution,
+        'daily_distribution' => $dailyDistribution,
+        'activity_types' => $activityTypes,
+    ];
+}
+
+function bandpromo_activity_store_users_listening_stats(
+    string $root,
+    string $dateStart,
+    string $dateEnd,
+    int $limit = 100
+): array {
+    $dayKeys = bandpromo_activity_store_day_range_keys($dateStart, $dateEnd);
+    if ($dayKeys === []) {
+        return [];
+    }
+
+    $pdo = bandpromo_activity_store_ensure_ready($root);
+    $placeholders = implode(',', array_fill(0, count($dayKeys), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT username,
+                SUM(listening_seconds) AS listening_time,
+                SUM(play_count) AS play_count,
+                SUM(sessions) AS sessions
+         FROM rollup_daily_user
+         WHERE day_key IN ($placeholders)
+         GROUP BY username
+         ORDER BY listening_time DESC, play_count DESC
+         LIMIT " . max(1, $limit)
+    );
+    $stmt->execute($dayKeys);
+
+    $users = [];
+    while ($row = $stmt->fetch()) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $users[] = [
+            'username' => (string) ($row['username'] ?? ''),
+            'listening_time' => (int) ($row['listening_time'] ?? 0),
+            'play_count' => (int) ($row['play_count'] ?? 0),
+            'sessions' => (int) ($row['sessions'] ?? 0),
+            'last_activity' => '',
+            'first_activity' => '',
+            'devices' => [],
+        ];
+    }
+
+    return $users;
+}
+
+function bandpromo_activity_store_top_tracks(
+    string $root,
+    string $dateStart,
+    string $dateEnd,
+    int $limit = 50
+): array {
+    $dayKeys = bandpromo_activity_store_day_range_keys($dateStart, $dateEnd);
+    if ($dayKeys === []) {
+        return [];
+    }
+
+    $pdo = bandpromo_activity_store_ensure_ready($root);
+    $placeholders = implode(',', array_fill(0, count($dayKeys), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT title, artist, track_key,
+                SUM(play_count) AS play_count,
+                SUM(total_seconds) AS total_time
+         FROM rollup_daily_track
+         WHERE day_key IN ($placeholders)
+         GROUP BY track_key
+         ORDER BY play_count DESC, total_time DESC
+         LIMIT " . max(1, $limit)
+    );
+    $stmt->execute($dayKeys);
+
+    $tracks = [];
+    while ($row = $stmt->fetch()) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $playCount = (int) ($row['play_count'] ?? 0);
+        $totalTime = (int) ($row['total_time'] ?? 0);
+        $tracks[] = [
+            'title' => (string) ($row['title'] ?? ''),
+            'artist' => (string) ($row['artist'] ?? 'Unknown'),
+            'play_count' => $playCount,
+            'total_time' => $totalTime,
+            'unique_users' => 0,
+            'avg_time' => $playCount > 0 ? round($totalTime / $playCount, 1) : 0,
+        ];
+    }
+
+    return $tracks;
+}
+
+function bandpromo_activity_store_maybe_run_maintenance(string $root, PDO $pdo): void
+{
+    $lastRun = (int) bandpromo_activity_store_get_meta($pdo, 'maintenance_last_run_utc', '0');
+    $now = time();
+    if ($lastRun > 0 && ($now - $lastRun) < 86400) {
+        return;
+    }
+
+    try {
+        bandpromo_activity_store_run_retention($pdo);
+        bandpromo_activity_store_set_meta($pdo, 'maintenance_last_run_utc', (string) $now);
+        bandpromo_activity_store_set_meta($pdo, 'retention_raw_days', (string) bandpromo_activity_store_raw_retention_days());
+    } catch (Throwable $e) {
+        error_log('bandPromo activity store maintenance failed: ' . $e->getMessage());
+    }
+}
+
+function bandpromo_activity_store_run_retention(PDO $pdo): void
+{
+    $cutoff = time() - (bandpromo_activity_store_raw_retention_days() * 86400);
+    $stmt = $pdo->prepare('DELETE FROM listener_events WHERE ts_utc < :cutoff');
+    $stmt->execute(['cutoff' => $cutoff]);
+}
+
+function bandpromo_activity_store_stream_listener_export(
+    string $root,
+    string $dateStart,
+    string $dateEnd,
+    string $format,
+    $output
+): int {
+    $entries = bandpromo_activity_store_fetch_listener_entries($root, $dateStart, $dateEnd);
+    $count = 0;
+    $format = strtolower($format) === 'csv' ? 'csv' : 'jsonl';
+
+    if ($format === 'csv') {
+        fputcsv($output, ['timestamp', 'username', 'activity', 'ip', 'user_agent', 'data_json']);
+    }
+
+    foreach ($entries as $entry) {
+        if ($format === 'csv') {
+            fputcsv($output, [
+                (string) ($entry['timestamp'] ?? ''),
+                (string) ($entry['username'] ?? ''),
+                (string) ($entry['activity'] ?? ''),
+                (string) ($entry['ip'] ?? ''),
+                (string) ($entry['user_agent'] ?? ''),
+                json_encode($entry['data'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}',
+            ]);
+        } else {
+            fwrite($output, json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
+        }
+        $count++;
+    }
+
+    return $count;
 }

@@ -17,7 +17,7 @@ Rules for this file:
 
 **v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and content AI wizards. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool, content AI wizards, analytics rollup/export tail.
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool, content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13).
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
@@ -32,7 +32,8 @@ Rules for this file:
 | 3a | Unified Content editors + upload-time delivery automation | **Shipped** |
 | 3b | Platform model: multi-playlist/gallery, module blocks, delivery architecture | **Active** |
 | 4 | v0.8 management slice: Brand, Visual pool, role tags, content AI wizards | **Active — primary focus** |
-| 5 | Analytics storage: ActivityStore, SQLite events, rollups, legacy log migration | **Active — v0.8 data foundation** |
+| 5 | Analytics storage: ActivityStore, SQLite events, rollups, legacy log migration | **Shipped (2026-07-13)** |
+| 6 | Beta fleet sync + legacy/fallback codebase audit | **Gate — after analytics tail + Visual pool (Phases 0b–3)** |
 
 Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first. **Analytics storage implementation** also belongs to **v0.8** so beta installs are not crushed when v0.9 opens access.
 
@@ -134,7 +135,7 @@ Policy — **lock before implementation**:
 - [x] Lock **SQLite as primary event store** at `data/analytics/events.sqlite` (WAL).
 - [x] Lock **rollup-first admin reads** — dashboards and charts query materialized aggregates, not raw event scans.
 - [x] Lock **legacy migration** — detect old JSONL logs on upgrade, import once into SQLite, delete legacy files (no dual-write).
-- [ ] Lock **retention defaults** — raw events 90 days, rollups indefinite; export path in [PORTABILITY.md](PORTABILITY.md).
+- [x] Lock **retention defaults** — raw events 90 days, rollups indefinite; export path in [PORTABILITY.md](PORTABILITY.md).
 
 Implementation order:
 
@@ -143,9 +144,9 @@ Implementation order:
 - [x] **PlaybackAnalytics rewrite** — query SQLite; hourly chart uses SQL aggregation.
 - [x] **Legacy import** — migrate existing `log/` and `log/admin-audit/` into SQLite, delete JSONL daily files.
 - [x] **Setup/bootstrap preflight** — require `pdo_sqlite` and bundled SQLite **3.8.0+** before install and setup continue.
-- [ ] **Rollup maintainer** — expand daily user/track/device rollups beyond hourly.
-- [ ] **Client batching** — player buffers warm events; rate limit on ingest endpoint.
-- [ ] **Admin export** — JSONL/CSV dump for operator backup.
+- [x] **Rollup maintainer** — daily user/track/device/totals rollups; dashboard, hitlist, and activities read rollups first.
+- [x] **Client batching** — player buffers warm events; rate limit on ingest endpoint.
+- [x] **Admin export** — JSONL/CSV dump from Analytics → Log tab.
 
 Deferred (uses the v0.8 store, not part of storage core):
 
@@ -168,6 +169,26 @@ Implementation order:
 - [ ] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten.
 - [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest.
 - [ ] **Phase 3 — Files → Visual** — single tab with brand/role/type filters; context pickers; variant gating in Content pools.
+
+### Beta fleet sync + legacy audit gate (v0.8 exit)
+
+**Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
+
+Closed-beta fleet today: **3 remote test sites** (one vanilla demo-content install, two operator-populated installs).
+
+Policy — **lock before implementation**:
+
+- [ ] Lock **fleet baseline** — all remote beta sites must report the same published GitHub Release build via Site update before the audit starts; smoke-checklist per site (login, player, Deliverables, Backup & export).
+- [ ] Lock **audit scope** — legacy artifact paths, silent runtime fallbacks, compatibility shims, and “dirty hack” workarounds accumulated during v0.8 migration (not new feature work).
+- [ ] Lock **remediation bar** — remove or fail loud; no new silent template/example fallbacks; keep documented dual-read paths only when migration is explicitly still open.
+- [ ] Lock **deliverable** — findings triaged into fix-now vs defer-with-ticket; remediation checkpoint before v0.9 access-tier implementation.
+
+Implementation order:
+
+- [ ] **Fleet sync** — bring all 3 remote beta sites to latest published build; record build number, update date, and per-site smoke results.
+- [ ] **Legacy path inventory** — audit code + docs for removed or renamed artifacts (`play/playlist.json`, `data/themes/`, folder-category media paths, stale `theme-*` operator surfaces, validation report fallbacks past migration window).
+- [ ] **Fallback + hack audit** — grep and manual pass for silent example/template fallbacks, dead compatibility branches, and host-specific hacks; cross-check [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md) and [AGENTS.md](AGENTS.md) fail-loud rules.
+- [ ] **Remediation checkpoint** — fix or explicitly ticket each finding; optional `docs/LEGACY-AUDIT.md` snapshot if the list is large.
 
 ### Content AI wizards (v0.8)
 

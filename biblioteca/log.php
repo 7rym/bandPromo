@@ -45,6 +45,38 @@ class UserActivityLogger {
         }
     }
 
+    /**
+     * @param array<int,array{activity:string,data?:array}> $events
+     * @return array{accepted:int,rejected:int}
+     */
+    public function logBatch(array $events): array {
+        $accepted = 0;
+        $rejected = 0;
+
+        foreach ($events as $event) {
+            if (!is_array($event)) {
+                $rejected++;
+                continue;
+            }
+            $activity = trim((string) ($event['activity'] ?? ''));
+            if ($activity === '') {
+                $rejected++;
+                continue;
+            }
+            $data = is_array($event['data'] ?? null) ? $event['data'] : [];
+            if ($this->log($activity, $data)) {
+                $accepted++;
+            } else {
+                $rejected++;
+            }
+        }
+
+        return [
+            'accepted' => $accepted,
+            'rejected' => $rejected,
+        ];
+    }
+
     private function getClientIP() {
         $ip = 'unknown';
         if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
@@ -58,6 +90,22 @@ class UserActivityLogger {
     }
 }
 
+function bandpromo_log_rate_limit_allows(int $maxPerMinute = 180): bool
+{
+    $now = time();
+    if (!isset($_SESSION['log_rate']) || !is_array($_SESSION['log_rate'])) {
+        $_SESSION['log_rate'] = ['window' => $now, 'count' => 0];
+    }
+
+    if (($now - (int) ($_SESSION['log_rate']['window'] ?? 0)) >= 60) {
+        $_SESSION['log_rate'] = ['window' => $now, 'count' => 0];
+    }
+
+    $_SESSION['log_rate']['count'] = (int) ($_SESSION['log_rate']['count'] ?? 0) + 1;
+
+    return $_SESSION['log_rate']['count'] <= $maxPerMinute;
+}
+
 // API endpoint for logging activity from JavaScript
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'log') {
     session_start();
@@ -68,16 +116,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['ac
         exit;
     }
 
+    if (!bandpromo_log_rate_limit_allows()) {
+        http_response_code(429);
+        echo json_encode(['error' => 'Too many log events. Try again shortly.']);
+        exit;
+    }
+
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid JSON body']);
+        exit;
+    }
+
     $logger = new UserActivityLogger();
+
+    if (isset($input['events']) && is_array($input['events'])) {
+        $events = array_values(array_filter($input['events'], 'is_array'));
+        if (count($events) > 50) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Batch too large (max 50 events)']);
+            exit;
+        }
+        $result = $logger->logBatch($events);
+        echo json_encode([
+            'success' => $result['accepted'] > 0,
+            'accepted' => $result['accepted'],
+            'rejected' => $result['rejected'],
+        ]);
+        exit;
+    }
 
     if (isset($input['activity'])) {
         $success = $logger->log($input['activity'], $input['data'] ?? []);
         echo json_encode(['success' => $success]);
-    } else {
-        http_response_code(400);
-        echo json_encode(['error' => 'Missing activity parameter']);
+        exit;
     }
+
+    http_response_code(400);
+    echo json_encode(['error' => 'Missing activity parameter']);
     exit;
 }
 ?>

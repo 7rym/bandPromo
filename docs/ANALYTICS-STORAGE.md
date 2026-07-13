@@ -2,7 +2,7 @@
 
 Source of truth for how bandPromo stores, queries, and retains listener activity and admin audit events.
 
-**Status:** core store shipped (2026-07-12). Rollup maintainer, client batching, and admin export remain open.
+**Status:** rollup maintainer, client batching, admin export, and retention shipped (2026-07-13). Drill-down tabs (patterns, quality, raw log) still scan raw events where rollups are insufficient.
 
 Related: [ACCESS-MODEL.md](ACCESS-MODEL.md) (time semantics), [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) (offline log sync), [PORTABILITY.md](PORTABILITY.md) (backup/export).
 
@@ -80,7 +80,7 @@ Default policy (operator-configurable later):
 
 - Raw `events`: 90 days (rollup data kept longer)
 - Rollups: indefinite
-- Export: JSONL/CSV from admin or CLI; included in [PORTABILITY.md](PORTABILITY.md) backup scope
+- Export: JSONL/CSV from **Analytics → Log** tab (`biblioteca/export-activity-log.php`); `data/analytics/events.sqlite` included in Data backup component
 
 ## Migration
 
@@ -110,5 +110,5 @@ If import fails, block analytics with a plain-language admin notice and keep leg
 - [x] New listener and audit events write only through `activity-store.php` → SQLite.
 - [x] Existing installs can import legacy daily JSONL logs without data loss (one-shot import + delete).
 - [x] Bootstrap and setup preflight require `pdo_sqlite`.
-- [ ] Admin dashboard for a 30-day range reads rollups for all hot-path cards (hourly chart uses SQL; other aggregates still scan fetched rows).
-- [ ] Documented retention and export path for operators.
+- [x] Admin dashboard for a 30-day range reads rollups for hot-path cards (dashboard, hitlist, activities); patterns/quality/log tabs still use raw events where needed.
+- [x] Documented retention and export path for operators.

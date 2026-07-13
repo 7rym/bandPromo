@@ -760,10 +760,60 @@ async function clearAppCache() {
 }
 
 // Logging Function
-async function logActivity(activity, trackData = null) {
+const LOG_HOT_ACTIVITIES = new Set(['play_start', 'track_started', 'track_exited', 'session_end']);
+const LOG_FLUSH_MS = 5000;
+const logEventBuffer = [];
+let logFlushTimer = null;
+
+function buildLogPayload(activity, trackData = null) {
     const extraData = trackData && typeof trackData === 'object' && !Array.isArray(trackData)
         ? Object.fromEntries(Object.entries(trackData).filter(([, value]) => value !== undefined))
         : {};
+
+    return {
+        activity,
+        data: {
+            track_title: trackData?.title || null,
+            track_artist: trackData?.artist || null,
+            track_index: trackData?.index ?? null,
+            current_time: trackData?.currentTime || null,
+            duration: trackData?.duration || null,
+            quality: PATH_VARIANT || 'unknown',
+            completion_rate: trackData?.completionRate || null,
+            exit_reason: trackData?.exitReason || null,
+            action_source: trackData?.actionSource || null,
+            ...extraData
+        }
+    };
+}
+
+function scheduleLogFlush() {
+    if (logFlushTimer !== null) {
+        return;
+    }
+    logFlushTimer = window.setTimeout(() => {
+        flushLogBuffer().catch(() => {});
+    }, LOG_FLUSH_MS);
+}
+
+async function flushLogBuffer({ useBeacon = false } = {}) {
+    if (logFlushTimer !== null) {
+        clearTimeout(logFlushTimer);
+        logFlushTimer = null;
+    }
+    if (logEventBuffer.length === 0) {
+        return true;
+    }
+
+    const batch = logEventBuffer.splice(0);
+    const body = JSON.stringify({ events: batch });
+
+    if (useBeacon && navigator.sendBeacon) {
+        return navigator.sendBeacon(
+            '/biblioteca/log.php?action=log',
+            new Blob([body], { type: 'application/json' })
+        );
+    }
 
     try {
         const response = await fetch('/biblioteca/log.php?action=log', {
@@ -771,28 +821,38 @@ async function logActivity(activity, trackData = null) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                activity: activity,
-                data: {
-                    track_title: trackData?.title || null,
-                    track_artist: trackData?.artist || null,
-                    track_index: trackData?.index ?? null,
-                    current_time: trackData?.currentTime || null,
-                    duration: trackData?.duration || null,
-                    quality: PATH_VARIANT || 'unknown', // HQ or optimal
-                    completion_rate: trackData?.completionRate || null, // For skip pattern analysis
-                    exit_reason: trackData?.exitReason || null,
-                    action_source: trackData?.actionSource || null,
-                    ...extraData
-                }
-            })
+            body,
         });
-        if (!response.ok) {
-            // Logging failed silently
-        }
+        return response.ok;
     } catch (error) {
-        // Logging error silently
+        return false;
     }
+}
+
+async function logActivity(activity, trackData = null) {
+    const payload = buildLogPayload(activity, trackData);
+
+    if (LOG_HOT_ACTIVITIES.has(activity)) {
+        await flushLogBuffer();
+        try {
+            const response = await fetch('/biblioteca/log.php?action=log', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                // Logging failed silently
+            }
+        } catch (error) {
+            // Logging error silently
+        }
+        return;
+    }
+
+    logEventBuffer.push(payload);
+    scheduleLogFlush();
 }
 
 function getCurrentTrackSnapshot(extra = {}) {
@@ -1950,21 +2010,22 @@ function logSessionEnd({ actionSource = 'pagehide', useBeacon = false } = {}) {
         return;
     }
 
-    const payload = JSON.stringify({
-        activity: 'session_end',
-        data: {
-            track_title: trackData.title || null,
-            track_artist: trackData.artist || null,
-            track_index: trackData.index ?? null,
-            current_time: trackData.currentTime || null,
-            duration: trackData.duration || null,
-            quality: PATH_VARIANT || 'unknown',
-            completion_rate: trackData.completionRate || null,
-            action_source: trackData.actionSource || null,
-            exit_reason: null
-        }
-    });
-    navigator.sendBeacon('/biblioteca/log.php?action=log', new Blob([payload], { type: 'application/json' }));
+    if (logFlushTimer !== null) {
+        clearTimeout(logFlushTimer);
+        logFlushTimer = null;
+    }
+    if (logEventBuffer.length > 0) {
+        const batch = logEventBuffer.splice(0);
+        navigator.sendBeacon(
+            '/biblioteca/log.php?action=log',
+            new Blob([JSON.stringify({ events: batch })], { type: 'application/json' })
+        );
+    }
+
+    navigator.sendBeacon(
+        '/biblioteca/log.php?action=log',
+        new Blob([JSON.stringify(buildLogPayload('session_end', trackData))], { type: 'application/json' })
+    );
 }
 
 window.addEventListener('beforeunload', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));

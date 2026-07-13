@@ -998,6 +998,16 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                     'activity_types' => $activityTypes,
                     'activity_filter' => $logActivityFilter,
                     'entry_summary' => $logEntrySummary,
+                    'export_links' => [
+                        [
+                            'label' => 'Export JSONL',
+                            'href' => 'biblioteca/export-activity-log.php?format=jsonl&date_start=' . rawurlencode($dateStart) . '&date_end=' . rawurlencode($dateEnd),
+                        ],
+                        [
+                            'label' => 'Export CSV',
+                            'href' => 'biblioteca/export-activity-log.php?format=csv&date_start=' . rawurlencode($dateStart) . '&date_end=' . rawurlencode($dateEnd),
+                        ],
+                    ],
                 ]);
             ?>
 

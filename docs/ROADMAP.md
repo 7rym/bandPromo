@@ -547,6 +547,7 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 - **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Brands, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
 - **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
 - **Planned v0.8 management slice (remaining):** unified Visual tab; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
+- **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
