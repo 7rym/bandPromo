@@ -75,7 +75,7 @@ Preserved runtime paths include at least:
 - `media/`
 - `log/`
 
-Bundled demo content (locked release `bandpromo-demo`) is installed from the setup starter pack and first publish build on the host. It is not tracked in git; only runtime folders such as `media/audio/original/` are preserved across updates.
+Bundled demo content (locked release `bandpromo-demo`) is installed from the setup starter pack before the first publish build on the host. That package includes demo audio (`media/audio/original/bandPromo_*.flac`), visuals, and icons. Demo media is not tracked as general operator uploads in git.
 
 ### 6. Continue into setup
 

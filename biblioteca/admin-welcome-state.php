@@ -49,6 +49,7 @@ function bandpromo_admin_starter_pack_files_present(string $root): bool
         $root . '/media/special/bandPromo_share.png',
         $root . '/media/img/original/bandPromo_vocalist.png',
         $root . '/media/audio/original/bandPromo_the_very_first_song.flac',
+        $root . '/media/audio/original/bandPromo_the_second_song.flac',
     ];
 
     foreach ($representativePaths as $path) {
@@ -111,6 +112,7 @@ function bandpromo_admin_write_inferred_starter_pack_marker(string $root): bool
             'media/special/bandPromo_share.png',
             'media/img/original/bandPromo_vocalist.png',
             'media/audio/original/bandPromo_the_very_first_song.flac',
+            'media/audio/original/bandPromo_the_second_song.flac',
         ],
         'installed_at_utc' => gmdate('c'),
         'source' => 'inferred-from-local-files',

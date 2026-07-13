@@ -101,6 +101,7 @@ media/icons/*
 !biblioteca/quizbase-*.json
 # Runtime media stays local. Demo content is installed from the setup starter pack, not git.
 !media/audio/original/
+!media/audio/original/bandPromo_*.flac
 !media/photo/original/
 !media/video/original/
 media/special/*
