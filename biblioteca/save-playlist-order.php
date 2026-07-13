@@ -124,6 +124,10 @@ $playlistId = bandpromo_playlist_resolve_id($root, (string) ($_GET['playlist'] ?
 
 try {
     $saved = bandpromo_playlist_save_order($root, $playlistId, $order);
+} catch (InvalidArgumentException $throwable) {
+    http_response_code(400);
+    echo json_encode(['error' => $throwable->getMessage()]);
+    exit;
 } catch (Throwable $throwable) {
     http_response_code(500);
     echo json_encode(['error' => $throwable->getMessage()]);

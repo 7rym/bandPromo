@@ -6508,8 +6508,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 saveBtn.addEventListener('click', async () => {
                     syncActiveOrderFromDOM();
-                    saveUi?.markSaving();
                     const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
+                    if (!order.length) {
+                        showAdminToast('Add at least one track before saving the playlist.', 'error');
+                        return;
+                    }
+                    saveUi?.markSaving();
                     try {
                         const resp = await fetch('/biblioteca/save-playlist-order.php' + playlistQueryString(), {
                             method: 'POST',
@@ -6532,9 +6536,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await loadPlaylistPreview({ preserveSavedState: true });
                         } else {
                             saveUi?.markFailed();
+                            showAdminToast(data.error || data.warning || 'Could not save playlist.', 'error');
                         }
                     } catch (e) {
                         saveUi?.markFailed();
+                        showAdminToast(e.message || 'Could not save playlist.', 'error');
                     }
                 });
 
@@ -7537,117 +7543,554 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             })();
 
-            (function initActivityLogPortability() {
-                const exportBtn = document.getElementById('activityLogExportBtn');
-                const importFile = document.getElementById('activityLogImportFile');
-                const importMode = document.getElementById('activityLogImportMode');
-                const statusEl = document.getElementById('activityLogPortabilityStatus');
-                if (!exportBtn && !importFile) {
-                    return;
+            (function initBackupExportTab() {
+                const jobsWrap = document.getElementById('siteBackupJobsWrap');
+                const jobsStatus = document.getElementById('siteBackupJobsStatus');
+                const createBtn = document.getElementById('siteBackupCreateBtn');
+                const createStatus = document.getElementById('siteBackupCreateStatus');
+                const fullCheckbox = document.getElementById('siteBackupComponentFull');
+                const componentInputs = Array.from(document.querySelectorAll('.site-backup-component-input'));
+                const allComponentIds = ['platform', 'data', 'media', 'logs'];
+                let backupPollTimer = null;
+                let syncingFullCheckbox = false;
+
+                function escapeHtml(value) {
+                    return bandpromoAdminEscapeHtml(value);
                 }
 
-                function setStatus(message, isError) {
-                    if (!statusEl) {
-                        return;
-                    }
-                    statusEl.textContent = message || '';
-                    statusEl.classList.toggle('is-error', Boolean(isError));
+                function selectedComponents() {
+                    return componentInputs
+                        .filter((input) => input.checked)
+                        .map((input) => String(input.getAttribute('data-component') || '').trim())
+                        .filter(Boolean);
                 }
 
-                function updateCounts(counts) {
-                    if (!counts) {
+                function syncFullCheckbox() {
+                    if (!fullCheckbox) {
                         return;
                     }
-                    const card = document.querySelector('.activity-log-counts');
-                    if (!card) {
-                        return;
-                    }
-                    const badges = card.querySelectorAll('.badge');
-                    if (badges[0]) {
-                        badges[0].textContent = 'Listener events: ' + Number(counts.listener || 0).toLocaleString();
-                    }
-                    if (badges[1]) {
-                        badges[1].textContent = 'Audit events: ' + Number(counts.audit || 0).toLocaleString();
+                    syncingFullCheckbox = true;
+                    const allChecked = allComponentIds.every((component) => {
+                        const input = componentInputs.find((el) => el.getAttribute('data-component') === component);
+                        return input ? input.checked : false;
+                    });
+                    fullCheckbox.checked = allChecked;
+                    syncingFullCheckbox = false;
+                }
+
+                function setAllComponents(checked) {
+                    componentInputs.forEach((input) => {
+                        input.checked = checked;
+                    });
+                }
+
+                if (fullCheckbox) {
+                    fullCheckbox.addEventListener('change', () => {
+                        if (syncingFullCheckbox) {
+                            return;
+                        }
+                        setAllComponents(fullCheckbox.checked);
+                    });
+                }
+
+                componentInputs.forEach((input) => {
+                    input.addEventListener('change', () => {
+                        syncFullCheckbox();
+                    });
+                });
+
+                function statusMeta(job) {
+                    const status = String((job && job.status) || '');
+                    const direction = String((job && job.direction) || 'export');
+                    switch (status) {
+                        case 'building':
+                            return {
+                                label: direction === 'import' ? 'Importing…' : 'Building…',
+                                className: 'status-warning',
+                            };
+                        case 'ready':
+                            return {
+                                label: direction === 'import' ? 'Imported' : 'Ready',
+                                className: 'status-ok',
+                            };
+                        case 'failed':
+                            return { label: 'Failed', className: 'status-error' };
+                        default:
+                            return { label: 'Queued', className: 'status-neutral' };
                     }
                 }
 
-                if (exportBtn) {
-                    exportBtn.addEventListener('click', async () => {
-                        exportBtn.disabled = true;
-                        setStatus('Preparing export…');
-                        try {
-                            const resp = await fetch('/biblioteca/export-activity-log.php', {
-                                credentials: 'same-origin',
+                function renderBackupJobs(jobs) {
+                    if (!jobsWrap) {
+                        return;
+                    }
+
+                    if (!Array.isArray(jobs) || jobs.length === 0) {
+                        jobsWrap.innerHTML = '<p id="siteBackupJobsEmpty" class="empty-msg">No backup jobs yet. Create or import one below.</p>';
+                        return;
+                    }
+
+                    const rows = jobs.map((job) => {
+                        const meta = statusMeta(job);
+                        const errorHtml = job.status === 'failed' && job.error
+                            ? `<div class="text-muted site-backup-job-error">${escapeHtml(job.error)}</div>`
+                            : '';
+                        const noteHtml = job.status === 'ready' && job.direction === 'import' && job.import_summary
+                            ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>`
+                            : '';
+                        const downloadHtml = job.download_ready
+                            ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">⬇️ Download</a>`
+                            : '';
+                        const deleteHtml = job.status !== 'building'
+                            ? `<button type="button" class="btn btn-secondary site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}">🗑️ Delete</button>`
+                            : '';
+
+                        return `<tr data-backup-id="${escapeHtml(job.id)}">
+                            <td>${escapeHtml(job.type_label || job.type || '')}</td>
+                            <td><span class="badge audit-status-badge ${meta.className}">${escapeHtml(meta.label)}</span>${noteHtml}${errorHtml}</td>
+                            <td class="text-muted nowrap">${escapeHtml(job.created_at_utc || '')}</td>
+                            <td class="nowrap">${escapeHtml(job.size_label || '—')}</td>
+                            <td class="site-backup-job-actions">${downloadHtml}${deleteHtml}</td>
+                        </tr>`;
+                    }).join('');
+
+                    jobsWrap.innerHTML = `<div class="table-scroll">
+                        <table class="site-backup-jobs-table" id="siteBackupJobsTable">
+                            <thead>
+                                <tr>
+                                    <th>Contents</th>
+                                    <th>Status</th>
+                                    <th>Created (UTC)</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siteBackupJobsBody">${rows}</tbody>
+                        </table>
+                    </div>`;
+                }
+
+                function jobsNeedPolling(jobs) {
+                    return Array.isArray(jobs) && jobs.some((job) => {
+                        const status = String(job.status || '');
+                        return status === 'pending' || status === 'building';
+                    });
+                }
+
+                function syncBackupPolling(jobs) {
+                    if (!jobsWrap) {
+                        return;
+                    }
+                    if (jobsNeedPolling(jobs)) {
+                        if (!backupPollTimer) {
+                            backupPollTimer = window.setInterval(() => {
+                                refreshBackupJobs().catch(() => {});
+                            }, 3000);
+                        }
+                        return;
+                    }
+                    if (backupPollTimer) {
+                        window.clearInterval(backupPollTimer);
+                        backupPollTimer = null;
+                    }
+                }
+
+                async function refreshBackupJobs() {
+                    if (!jobsWrap) {
+                        return [];
+                    }
+                    const resp = await fetch('/biblioteca/list-site-backups.php', {
+                        credentials: 'same-origin',
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data || data.ok !== true || !Array.isArray(data.jobs)) {
+                        throw new Error((data && data.error) || 'Could not refresh backup list.');
+                    }
+                    renderBackupJobs(data.jobs);
+                    syncBackupPolling(data.jobs);
+                    return data.jobs;
+                }
+
+                async function queueBackup(statusEl, buttonEl) {
+                    const components = selectedComponents();
+                    if (components.length === 0) {
+                        if (statusEl) {
+                            statusEl.textContent = 'Select at least one component to include.';
+                            statusEl.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (buttonEl) {
+                        buttonEl.disabled = true;
+                    }
+                    if (statusEl) {
+                        statusEl.textContent = 'Queueing backup…';
+                        statusEl.classList.remove('is-error');
+                    }
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const resp = await fetch('/biblioteca/create-site-backup.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken,
+                                components,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            throw new Error((data && data.error) || 'Could not queue backup.');
+                        }
+                        if (statusEl) {
+                            statusEl.textContent = data.message || 'Backup queued.';
+                        }
+                        if (jobsStatus) {
+                            jobsStatus.textContent = 'Building in background. This list refreshes automatically.';
+                            jobsStatus.classList.remove('is-error');
+                        }
+                        await refreshBackupJobs();
+                    } catch (error) {
+                        if (statusEl) {
+                            statusEl.textContent = error.message;
+                            statusEl.classList.add('is-error');
+                        }
+                    } finally {
+                        if (buttonEl) {
+                            buttonEl.disabled = false;
+                        }
+                    }
+                }
+
+                async function deleteBackup(jobId) {
+                    const confirmed = window.confirm('Delete this backup archive from the server?');
+                    if (!confirmed) {
+                        return;
+                    }
+                    if (jobsStatus) {
+                        jobsStatus.textContent = 'Deleting backup…';
+                        jobsStatus.classList.remove('is-error');
+                    }
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const resp = await fetch('/biblioteca/delete-site-backup.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken,
+                                id: jobId,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            throw new Error((data && data.error) || 'Could not delete backup.');
+                        }
+                        if (jobsStatus) {
+                            jobsStatus.textContent = data.message || 'Backup deleted.';
+                        }
+                        renderBackupJobs(data.jobs || []);
+                        syncBackupPolling(data.jobs || []);
+                    } catch (error) {
+                        if (jobsStatus) {
+                            jobsStatus.textContent = error.message;
+                            jobsStatus.classList.add('is-error');
+                        }
+                    }
+                }
+
+                if (jobsWrap) {
+                    jobsWrap.addEventListener('click', (event) => {
+                        const target = event.target;
+                        if (!(target instanceof HTMLElement)) {
+                            return;
+                        }
+                        const deleteBtn = target.closest('.site-backup-delete-btn');
+                        if (!deleteBtn) {
+                            return;
+                        }
+                        const jobId = deleteBtn.getAttribute('data-backup-id');
+                        if (!jobId) {
+                            return;
+                        }
+                        deleteBackup(jobId).catch(() => {});
+                    });
+
+                    refreshBackupJobs().catch(() => {});
+                }
+
+                if (createBtn) {
+                    createBtn.addEventListener('click', () => {
+                        queueBackup(createStatus, createBtn).catch(() => {});
+                    });
+                }
+
+                const importFile = document.getElementById('siteBackupImportFile');
+                const importFilename = document.getElementById('siteBackupImportFilename');
+                const importPreview = document.getElementById('siteBackupImportPreview');
+                const importPreviewMeta = document.getElementById('siteBackupImportPreviewMeta');
+                const importMode = document.getElementById('siteBackupImportMode');
+                const importBtn = document.getElementById('siteBackupImportBtn');
+                const importStatus = document.getElementById('siteBackupImportStatus');
+                const importRepairUrl = document.getElementById('siteBackupImportRepairUrl');
+                const importFullCheckbox = document.getElementById('siteBackupImportComponentFull');
+                const importComponentInputs = Array.from(document.querySelectorAll('.site-backup-import-component-input'));
+                let importStagingId = '';
+                let importAvailableComponents = [];
+                let syncingImportFullCheckbox = false;
+
+                function selectedImportComponents() {
+                    return importComponentInputs
+                        .filter((input) => !input.disabled && input.checked)
+                        .map((input) => String(input.getAttribute('data-component') || '').trim())
+                        .filter(Boolean);
+                }
+
+                function syncImportFullCheckbox() {
+                    if (!importFullCheckbox) {
+                        return;
+                    }
+                    syncingImportFullCheckbox = true;
+                    const enabled = importComponentInputs.filter((input) => !input.disabled);
+                    const allChecked = enabled.length > 0 && enabled.every((input) => input.checked);
+                    importFullCheckbox.checked = allChecked;
+                    syncingImportFullCheckbox = false;
+                }
+
+                function setImportComponents(components) {
+                    const selected = new Set(Array.isArray(components) ? components : []);
+                    importComponentInputs.forEach((input) => {
+                        const component = String(input.getAttribute('data-component') || '');
+                        const available = importAvailableComponents.includes(component);
+                        input.disabled = !available;
+                        input.checked = available && selected.has(component);
+                        input.closest('.site-backup-component-row')?.classList.toggle('is-disabled', !available);
+                    });
+                    if (importFullCheckbox) {
+                        importFullCheckbox.disabled = importAvailableComponents.length === 0;
+                    }
+                    syncImportFullCheckbox();
+                }
+
+                function applyImportModeDefaults() {
+                    const mode = importMode ? importMode.value : 'restore';
+                    if (mode === 'migrate') {
+                        const migrateDefaults = ['platform', 'data', 'media'].filter((component) => (
+                            importAvailableComponents.includes(component)
+                        ));
+                        setImportComponents(migrateDefaults);
+                        if (importRepairUrl) {
+                            importRepairUrl.checked = true;
+                        }
+                    } else {
+                        setImportComponents(importAvailableComponents);
+                        if (importRepairUrl) {
+                            importRepairUrl.checked = false;
+                        }
+                    }
+                }
+
+                if (importFullCheckbox) {
+                    importFullCheckbox.addEventListener('change', () => {
+                        if (syncingImportFullCheckbox) {
+                            return;
+                        }
+                        if (importFullCheckbox.checked) {
+                            setImportComponents(importAvailableComponents);
+                        } else {
+                            importComponentInputs.forEach((input) => {
+                                if (!input.disabled) {
+                                    input.checked = false;
+                                }
                             });
-                            if (!resp.ok) {
-                                const data = await resp.json().catch(() => ({}));
-                                throw new Error((data && data.error) || 'Export failed.');
-                            }
-                            const blob = await resp.blob();
-                            let filename = 'bandpromo-activity-log-export.json';
-                            const disposition = resp.headers.get('Content-Disposition') || '';
-                            const match = disposition.match(/filename="([^"]+)"/i);
-                            if (match) {
-                                filename = match[1];
-                            }
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = filename;
-                            document.body.appendChild(link);
-                            link.click();
-                            link.remove();
-                            URL.revokeObjectURL(url);
-                            setStatus('Export downloaded.');
-                        } catch (error) {
-                            setStatus(error.message, true);
-                        } finally {
-                            exportBtn.disabled = false;
                         }
                     });
                 }
 
+                importComponentInputs.forEach((input) => {
+                    input.addEventListener('change', () => {
+                        syncImportFullCheckbox();
+                    });
+                });
+
+                if (importMode) {
+                    importMode.addEventListener('change', () => {
+                        applyImportModeDefaults();
+                    });
+                }
+
+                async function inspectImportArchive(file) {
+                    if (!file) {
+                        return;
+                    }
+                    if (importStatus) {
+                        importStatus.textContent = 'Inspecting archive…';
+                        importStatus.classList.remove('is-error');
+                    }
+                    if (importPreview) {
+                        importPreview.hidden = true;
+                    }
+                    importStagingId = '';
+                    importAvailableComponents = [];
+
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const formData = new FormData();
+                        formData.append('csrf_token', csrfToken);
+                        formData.append('archive', file);
+                        const resp = await fetch('/biblioteca/inspect-site-backup.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            body: formData,
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            throw new Error((data && data.error) || 'Could not inspect archive.');
+                        }
+
+                        importStagingId = String(data.staging_id || '');
+                        importAvailableComponents = Array.isArray(data.available_components)
+                            ? data.available_components
+                            : [];
+
+                        if (importFilename) {
+                            importFilename.textContent = data.original_filename || file.name;
+                        }
+                        if (importPreviewMeta) {
+                            const lines = [
+                                data.components_label ? `Archive: ${data.components_label}` : '',
+                                data.bandpromo_version ? `Exported from bandPromo ${data.bandpromo_version}` : '',
+                                data.exported_at_utc ? `Created ${data.exported_at_utc}` : '',
+                                data.size_label ? `Size ${data.size_label}` : '',
+                                data.same_install
+                                    ? 'Matches this install identity.'
+                                    : 'From another install (migrate mode recommended).',
+                            ].filter(Boolean);
+                            importPreviewMeta.innerHTML = lines.map((line) => escapeHtml(line)).join('<br>');
+                        }
+                        if (importMode) {
+                            importMode.value = data.suggested_mode === 'migrate' ? 'migrate' : 'restore';
+                        }
+                        if (importRepairUrl) {
+                            importRepairUrl.checked = Boolean(data.url_mismatch) || data.suggested_mode === 'migrate';
+                        }
+                        applyImportModeDefaults();
+                        if (importPreview) {
+                            importPreview.hidden = false;
+                        }
+                        if (importStatus) {
+                            importStatus.textContent = 'Archive ready to import.';
+                        }
+                    } catch (error) {
+                        if (importStatus) {
+                            importStatus.textContent = error.message;
+                            importStatus.classList.add('is-error');
+                        }
+                        if (importFilename) {
+                            importFilename.textContent = '';
+                        }
+                    }
+                }
+
                 if (importFile) {
-                    importFile.addEventListener('change', async () => {
+                    importFile.addEventListener('change', () => {
                         const file = importFile.files && importFile.files[0];
-                        if (!file) {
-                            return;
+                        inspectImportArchive(file).catch(() => {});
+                    });
+                }
+
+                async function queueImport() {
+                    const components = selectedImportComponents();
+                    if (!importStagingId) {
+                        if (importStatus) {
+                            importStatus.textContent = 'Choose and inspect an archive first.';
+                            importStatus.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (components.length === 0) {
+                        if (importStatus) {
+                            importStatus.textContent = 'Select at least one component to import.';
+                            importStatus.classList.add('is-error');
+                        }
+                        return;
+                    }
+
+                    const mode = importMode ? importMode.value : 'restore';
+                    const componentLabels = components.join(', ');
+                    const confirmed = window.confirm(
+                        `Import ${componentLabels} from this archive?\n\nThis overwrites matching files on this site.`
+                    );
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    if (importBtn) {
+                        importBtn.disabled = true;
+                    }
+                    if (importStatus) {
+                        importStatus.textContent = 'Queueing import…';
+                        importStatus.classList.remove('is-error');
+                    }
+
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const resp = await fetch('/biblioteca/import-site-backup.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken,
+                                staging_id: importStagingId,
+                                components,
+                                mode,
+                                repair_site_url: importRepairUrl && importRepairUrl.checked ? '1' : '0',
+                            }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            throw new Error((data && data.error) || 'Could not queue import.');
                         }
 
-                        const mode = importMode ? importMode.value : 'merge';
-                        if (mode === 'replace') {
-                            const confirmed = window.confirm(
-                                'Replace mode deletes all local listener and audit events before import. Continue?'
-                            );
-                            if (!confirmed) {
-                                importFile.value = '';
-                                return;
-                            }
-                        }
-
-                        setStatus('Importing package…');
-                        try {
-                            const csrfToken = await refreshAdminCsrfToken();
-                            const formData = new FormData();
-                            formData.append('csrf_token', csrfToken);
-                            formData.append('mode', mode);
-                            formData.append('package', file);
-                            const resp = await fetch('/biblioteca/import-activity-log.php', {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                body: formData,
-                            });
-                            const data = await resp.json().catch(() => ({}));
-                            if (!resp.ok || !data || data.ok !== true) {
-                                throw new Error((data && data.error) || 'Import failed.');
-                            }
-                            setStatus(data.message || 'Import completed.');
-                            updateCounts(data.counts);
-                        } catch (error) {
-                            setStatus(error.message, true);
-                        } finally {
+                        importStagingId = '';
+                        if (importFile) {
                             importFile.value = '';
                         }
+                        if (importPreview) {
+                            importPreview.hidden = true;
+                        }
+                        if (importFilename) {
+                            importFilename.textContent = '';
+                        }
+                        if (importStatus) {
+                            importStatus.textContent = data.message || 'Import queued.';
+                        }
+                        if (jobsStatus) {
+                            jobsStatus.textContent = 'Import running in background. This list refreshes automatically.';
+                            jobsStatus.classList.remove('is-error');
+                        }
+                        await refreshBackupJobs();
+                    } catch (error) {
+                        if (importStatus) {
+                            importStatus.textContent = error.message;
+                            importStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        if (importBtn) {
+                            importBtn.disabled = false;
+                        }
+                    }
+                }
+
+                if (importBtn) {
+                    importBtn.addEventListener('click', () => {
+                        queueImport().catch(() => {});
                     });
                 }
             })();

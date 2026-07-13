@@ -57,6 +57,7 @@ function bandpromo_package_update_preserve_paths(): array {
         'data',
         'log',
         'media',
+        'backups',
         '.bandpromo-bootstrap',
         BANDPROMO_PACKAGE_UPDATE_WORKDIR,
         BANDPROMO_DEFAULT_THEME_WORKDIR,

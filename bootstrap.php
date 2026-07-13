@@ -26,6 +26,7 @@ function bandpromo_bootstrap_runtime_preserve_paths(): array {
         'data',
         'log',
         'media',
+        'backups',
         BANDPROMO_BOOTSTRAP_WORKDIR,
         basename(__FILE__),
     ];
@@ -81,16 +82,135 @@ function bandpromo_bootstrap_runtime_dirs(): array {
     ];
 }
 
+function bandpromo_bootstrap_sqlite_min_version(): string
+{
+    return '3.8.0';
+}
+
+function bandpromo_bootstrap_sqlite_library_version(): ?string
+{
+    if (!extension_loaded('pdo_sqlite')) {
+        return null;
+    }
+
+    try {
+        $pdo = new PDO('sqlite::memory:');
+        $version = $pdo->query('SELECT sqlite_version()')->fetchColumn();
+        if (!is_string($version)) {
+            return null;
+        }
+
+        $version = trim($version);
+
+        return $version !== '' ? $version : null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function bandpromo_bootstrap_https_download_available(): bool
+{
+    if (extension_loaded('curl')) {
+        return true;
+    }
+
+    return filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN)
+        && extension_loaded('openssl');
+}
+
+function bandpromo_bootstrap_https_download_setup_hint(): string
+{
+    if (bandpromo_bootstrap_https_download_available()) {
+        return '';
+    }
+
+    $missing = [];
+    if (!extension_loaded('curl')) {
+        $missing[] = 'curl';
+    }
+    if (!extension_loaded('openssl')) {
+        $missing[] = 'openssl';
+    }
+
+    if ($missing === []) {
+        return 'Enable allow_url_fopen or the PHP curl extension in php.ini.';
+    }
+
+    return 'Enable outbound HTTPS downloads (PHP ' . implode(' and ', $missing) . ').';
+}
+
+function bandpromo_bootstrap_install_path_is_writable(string $root): bool
+{
+    $root = rtrim($root, '/\\');
+    if ($root !== '' && @is_writable($root)) {
+        return true;
+    }
+
+    $candidates = [
+        $root . DIRECTORY_SEPARATOR . 'log',
+        $root . DIRECTORY_SEPARATOR . 'data',
+    ];
+
+    foreach ($candidates as $dir) {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        if (!is_dir($dir)) {
+            continue;
+        }
+
+        $probe = $dir . DIRECTORY_SEPARATOR . '.bandpromo-write-test';
+        if (@file_put_contents($probe, 'ok') !== false) {
+            @unlink($probe);
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function bandpromo_bootstrap_collect_environment_checks(string $root): array {
-    require_once __DIR__ . '/biblioteca/json-file-helpers.php';
-    require_once __DIR__ . '/biblioteca/release-package.php';
-    require_once __DIR__ . '/biblioteca/environment-checks.php';
-    $downloadSupport = bandpromo_release_https_download_available();
+    $downloadSupport = bandpromo_bootstrap_https_download_available();
     $downloadDetail = $downloadSupport
         ? (extension_loaded('curl') ? 'curl available' : 'allow_url_fopen + openssl available')
-        : bandpromo_release_https_download_setup_hint();
-    $pdoSqliteCheck = bandpromo_environment_check_pdo_sqlite();
-    $sqliteVersionCheck = bandpromo_environment_check_sqlite_version();
+        : bandpromo_bootstrap_https_download_setup_hint();
+
+    $pdoSqliteOk = extension_loaded('pdo_sqlite');
+    $pdoSqliteCheck = [
+        'label' => 'PDO SQLite available',
+        'ok' => $pdoSqliteOk,
+        'detail' => $pdoSqliteOk
+            ? 'Available'
+            : 'Missing pdo_sqlite extension (required for listener activity logs and analytics)',
+    ];
+
+    $sqliteMin = bandpromo_bootstrap_sqlite_min_version();
+    if (!$pdoSqliteOk) {
+        $sqliteVersionCheck = [
+            'label' => 'SQLite library ' . $sqliteMin . '+',
+            'ok' => false,
+            'detail' => 'pdo_sqlite is not loaded',
+        ];
+    } else {
+        $actual = bandpromo_bootstrap_sqlite_library_version();
+        if ($actual === null) {
+            $sqliteVersionCheck = [
+                'label' => 'SQLite library ' . $sqliteMin . '+',
+                'ok' => false,
+                'detail' => 'Could not read the SQLite library version bundled with PHP',
+            ];
+        } else {
+            $sqliteOk = version_compare($actual, $sqliteMin, '>=');
+            $sqliteVersionCheck = [
+                'label' => 'SQLite library ' . $sqliteMin . '+',
+                'ok' => $sqliteOk,
+                'detail' => $sqliteOk
+                    ? ('Bundled SQLite ' . $actual)
+                    : ('Bundled SQLite ' . $actual . '; SQLite ' . $sqliteMin . ' or newer is required'),
+            ];
+        }
+    }
 
     return [
         [
@@ -98,16 +218,8 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
             'ok' => PHP_VERSION_ID >= 80000,
             'detail' => 'Running ' . PHP_VERSION,
         ],
-        [
-            'label' => $pdoSqliteCheck['label'],
-            'ok' => $pdoSqliteCheck['ok'],
-            'detail' => $pdoSqliteCheck['detail'],
-        ],
-        [
-            'label' => $sqliteVersionCheck['label'],
-            'ok' => $sqliteVersionCheck['ok'],
-            'detail' => $sqliteVersionCheck['detail'],
-        ],
+        $pdoSqliteCheck,
+        $sqliteVersionCheck,
         [
             'label' => 'ZipArchive available',
             'ok' => class_exists('ZipArchive'),
@@ -120,7 +232,7 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
         ],
         [
             'label' => 'Target folder writable',
-            'ok' => bandpromo_install_path_is_writable($root),
+            'ok' => bandpromo_bootstrap_install_path_is_writable($root),
             'detail' => $root,
         ],
     ];
@@ -175,7 +287,7 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
         'title' => 'SQLite library version',
         'success' => 'The SQLite library bundled with PHP is new enough for activity storage.',
         'failure' => 'The SQLite library bundled with PHP is too old for bandPromo.',
-        'detail' => $ok ? $detail : ('SQLite ' . bandpromo_environment_sqlite_min_version() . ' or newer is required.'),
+        'detail' => $ok ? $detail : ('SQLite ' . bandpromo_bootstrap_sqlite_min_version() . ' or newer is required.'),
       ];
     }
 
@@ -232,7 +344,7 @@ function bandpromo_bootstrap_collect_environment_checks(string $root): array {
 
       if (str_starts_with($label, 'SQLite library ')) {
         $requests[] = 'Please ask your host for a newer PHP build with SQLite '
-          . bandpromo_environment_sqlite_min_version()
+          . bandpromo_bootstrap_sqlite_min_version()
           . ' or newer so bandPromo can store listener activity logs and analytics.';
         continue;
       }

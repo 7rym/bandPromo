@@ -4,6 +4,51 @@ require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/cover-art-helpers.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/audio-master-helpers.php';
+
+function bandpromo_audio_master_canonical_filename(string $root, string $filename): string
+{
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return '';
+    }
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+    if ($asset !== null) {
+        $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($masterFilename !== '') {
+            return $masterFilename;
+        }
+    }
+
+    $master = bandpromo_find_audio_master($root, $filename);
+    if (!empty($master['exists'])) {
+        $masterFilename = basename(trim((string) ($master['filename'] ?? '')));
+        if ($masterFilename !== '') {
+            return $masterFilename;
+        }
+    }
+
+    return $filename;
+}
+
+function bandpromo_audio_master_sidecar_stems(string $root, string $filename): array
+{
+    $canonical = bandpromo_audio_master_canonical_filename($root, $filename);
+    $stems = [];
+    foreach ([$canonical, basename(trim($filename))] as $candidate) {
+        if ($candidate === '') {
+            continue;
+        }
+        $stem = pathinfo($candidate, PATHINFO_FILENAME);
+        if ($stem !== '' && !in_array($stem, $stems, true)) {
+            $stems[] = $stem;
+        }
+    }
+
+    return $stems;
+}
 
 function bandpromo_audio_master_playlist_map(string $root): array
 {
@@ -209,9 +254,26 @@ function bandpromo_audio_files_listing_sort(array $left, array $right): int
 
 function bandpromo_audio_master_enrich_detail(string $root, string $filename, array $detail): array
 {
+    $masterFilename = bandpromo_audio_master_canonical_filename($root, $filename);
     $playlistMap = bandpromo_audio_master_playlist_map($root);
-    $playlistEntry = is_array($playlistMap[$filename] ?? null) ? $playlistMap[$filename] : [];
-    $currentCover = trim((string) ($playlistEntry['cover'] ?? ''));
+    $playlistEntry = is_array($playlistMap[$masterFilename] ?? null)
+        ? $playlistMap[$masterFilename]
+        : (is_array($playlistMap[$filename] ?? null) ? $playlistMap[$filename] : []);
+    $sidecarCover = trim((string) ($detail['sidecar_cover'] ?? ''));
+    if ($sidecarCover === '' && $masterFilename !== '') {
+        foreach (bandpromo_audio_master_sidecar_stems($root, $filename) as $stem) {
+            foreach (['jpg', 'jpeg', 'png'] as $extension) {
+                $candidate = $stem . '.' . $extension;
+                if (is_file($root . '/media/img/original/' . $candidate)) {
+                    $sidecarCover = $candidate;
+                    break 2;
+                }
+            }
+        }
+    }
+    $currentCover = $sidecarCover !== ''
+        ? $sidecarCover
+        : trim((string) ($playlistEntry['cover'] ?? ''));
     $releaseTracknumber = bandpromo_release_find_track_number_for_master($root, $filename);
     $embeddedTracknumber = trim((string) ($detail['tracknumber'] ?? ''));
 
@@ -220,9 +282,11 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
         ? $embeddedTracknumber
         : $releaseTracknumber;
     $detail['release_locked'] = bandpromo_release_is_master_locked($root, $filename);
+    $detail['master_filename'] = $masterFilename;
+    $detail['sidecar_cover'] = $sidecarCover;
     $detail['current_cover'] = $currentCover;
     $detail['current_cover_url'] = bandpromo_audio_master_resolve_current_cover_url($currentCover);
-    $detail['sidecar_cover_url'] = bandpromo_audio_master_resolve_sidecar_cover_url($root, $detail['sidecar_cover'] ?? '');
+    $detail['sidecar_cover_url'] = bandpromo_audio_master_resolve_sidecar_cover_url($root, $sidecarCover);
 
     return $detail;
 }
@@ -243,25 +307,36 @@ function bandpromo_audio_master_validate_release_date(string $value): bool
 
 function bandpromo_audio_master_clear_sidecar_cover(string $root, string $audioFilename): void
 {
-    $stem = pathinfo($audioFilename, PATHINFO_FILENAME);
     $imgDir = $root . '/media/img/original';
 
-    foreach (['jpg', 'jpeg', 'png'] as $extension) {
-        $candidate = $imgDir . '/' . $stem . '.' . $extension;
-        if (is_file($candidate)) {
-            @unlink($candidate);
+    foreach (bandpromo_audio_master_sidecar_stems($root, $audioFilename) as $stem) {
+        foreach (['jpg', 'jpeg', 'png'] as $extension) {
+            $candidate = $imgDir . '/' . $stem . '.' . $extension;
+            if (is_file($candidate)) {
+                @unlink($candidate);
+            }
         }
     }
 }
 
 function bandpromo_audio_master_apply_cover_selection(string $root, string $audioFilename, string $coverPath): array
 {
+    $masterFilename = bandpromo_audio_master_canonical_filename($root, $audioFilename);
+    if ($masterFilename === '') {
+        return [
+            'ok' => false,
+            'error' => 'Could not resolve audio master file',
+        ];
+    }
+
     $relativePath = ltrim(trim($coverPath), '/\\');
     if ($relativePath === '') {
-        bandpromo_audio_master_clear_sidecar_cover($root, $audioFilename);
+        bandpromo_audio_master_clear_sidecar_cover($root, $masterFilename);
+        bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, '');
         return [
             'ok' => true,
             'sidecar_cover' => '',
+            'master_filename' => $masterFilename,
         ];
     }
 
@@ -335,9 +410,9 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         ];
     }
 
-    bandpromo_audio_master_clear_sidecar_cover($root, $audioFilename);
+    bandpromo_audio_master_clear_sidecar_cover($root, $masterFilename);
 
-    $stem = pathinfo($audioFilename, PATHINFO_FILENAME);
+    $stem = pathinfo($masterFilename, PATHINFO_FILENAME);
     $targetFilename = $stem . '.' . $extension;
     $targetPath = $targetDir . '/' . $targetFilename;
     if (!copy($sourcePath, $targetPath)) {
@@ -347,14 +422,55 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         ];
     }
 
+    $embeddedSync = bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, $targetPath);
+    if (!($embeddedSync['ok'] ?? false)) {
+        return [
+            'ok' => false,
+            'error' => (string) ($embeddedSync['error'] ?? 'Could not update embedded track cover'),
+        ];
+    }
+
     bandpromo_cover_art_record_build_asset($targetFilename, 'track-cover', 'build-sidecar-copy', [
-        'linked_audio' => $audioFilename,
+        'linked_audio' => $masterFilename,
     ]);
 
     return [
         'ok' => true,
         'sidecar_cover' => $targetFilename,
+        'master_filename' => $masterFilename,
     ];
+}
+
+function bandpromo_audio_master_sync_embedded_cover(string $root, string $masterFilename, string $imagePath): array
+{
+    require_once __DIR__ . '/light-build-tasks.php';
+
+    $masterFilename = bandpromo_audio_master_canonical_filename($root, $masterFilename);
+    if ($masterFilename === '') {
+        return [
+            'ok' => false,
+            'error' => 'Could not resolve audio master file',
+        ];
+    }
+
+    $payload = [
+        'action' => 'sync_cover',
+        'filename' => $masterFilename,
+        'image_path' => trim($imagePath),
+    ];
+    $result = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', $payload);
+    $data = is_array($result['data'] ?? null) ? $result['data'] : null;
+    if (!$result['ok'] || !is_array($data) || empty($data['ok'])) {
+        $error = is_array($data) ? (string) ($data['error'] ?? '') : '';
+        $output = trim((string) ($result['output'] ?? ''));
+
+        return [
+            'ok' => false,
+            'error' => $error !== '' ? $error : ($output !== '' ? $output : 'Could not update embedded track cover'),
+        ];
+    }
+
+    return ['ok' => true];
 }
 
 function bandpromo_audio_master_clear_cover_reference(string $root, string $coverBasename): array

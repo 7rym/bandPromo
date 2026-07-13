@@ -31,6 +31,10 @@ $activePlaylistId = $resolvedPlaylistId !== ''
 if (!bandpromo_playlist_is_player_visible($playerRoot, $activePlaylistId, $operatorBypass)) {
     $activePlaylistId = bandpromo_playlist_default_active_id($playerRoot);
 }
+if (!bandpromo_playlist_is_player_visible($playerRoot, $activePlaylistId, $operatorBypass)) {
+    header('Location: /');
+    exit;
+}
 try {
     bandpromo_playlist_load_document($playerRoot, $activePlaylistId);
 } catch (Throwable $throwable) {

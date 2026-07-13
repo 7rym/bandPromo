@@ -64,9 +64,11 @@ site.webmanifest
 # Data folders (runtime/server-managed, always preserve on install/update)
 data/*
 log/
+backups/
 # But track the .htaccess files that protect runtime folders
 !data/.htaccess
 !log/.htaccess
+!backups/.htaccess
 
 # Media files (runtime/operator-managed, always preserve on install/update unless explicitly
 # shipped as bundled demo assets kept by the allow-rules below)

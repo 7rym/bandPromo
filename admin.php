@@ -552,19 +552,22 @@ if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'], true)) {
 }
 
 // System sub-tab
-$allowedSystemTabs = ['publish', 'audit'];
-if ($currentUserRole === 'developer') {
-    $allowedSystemTabs[] = 'activity';
-}
+$allowedSystemTabs = ['publish', 'audit', 'backup'];
 $systemTab = $_GET['stab'] ?? 'publish';
+if ($systemTab === 'activity') {
+    $systemTab = 'backup';
+}
 if (!in_array($systemTab, $allowedSystemTabs, true)) {
     $systemTab = 'publish';
 }
 
-$activityLogCounts = null;
-if ($tab === 'system' && $systemTab === 'activity' && $currentUserRole === 'developer') {
-    require_once __DIR__ . '/biblioteca/activity-log-portability.php';
-    $activityLogCounts = bandpromo_activity_log_store_counts(__DIR__);
+$siteBackupStatus = null;
+$siteBackupJobs = [];
+if ($tab === 'system' && $systemTab === 'backup') {
+    require_once __DIR__ . '/biblioteca/site-backup-portability.php';
+    bandpromo_site_backup_process_pending(__DIR__);
+    $siteBackupStatus = bandpromo_site_backup_status(__DIR__);
+    $siteBackupJobs = $siteBackupStatus['jobs'] ?? [];
 }
 
 // Date range (ISO YYYY-MM-DD)
@@ -2586,15 +2589,13 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
             <div class="tabs sub-tabs">
                 <a href="?tab=system&amp;stab=publish" class="tab-link <?php echo $systemTab === 'publish' ? 'active' : ''; ?>">🚀 Publish</a>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
-                <?php if ($currentUserRole === 'developer'): ?>
-                <a href="?tab=system&amp;stab=activity" class="tab-link <?php echo $systemTab === 'activity' ? 'active' : ''; ?>">📈 Activity logs</a>
-                <?php endif; ?>
+                <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup &amp; export</a>
                 <?php if ($systemTab === 'publish'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
                 <?php elseif ($systemTab === 'audit'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
                 <?php else: ?>
-                <button class="help-toggle-btn collapsed" id="helpBtn-activity-log" onclick="toggleHelp('activity-log')" title="Show/hide help">ⓘ</button>
+                <button class="help-toggle-btn collapsed" id="helpBtn-backup-export" onclick="toggleHelp('backup-export')" title="Show/hide help">ⓘ</button>
                 <?php endif; ?>
             </div>
 
@@ -2723,33 +2724,209 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                 </table>
             </div>
             <?php endif; ?>
-            <?php elseif ($systemTab === 'activity' && $currentUserRole === 'developer'): ?>
-            <div class="admin-help-box collapsed" id="help-activity-log">
-                Export listener activity and admin audit events from this install as one JSON package, then import it on another dev or staging site. Use <strong>Merge</strong> to add missing rows without deleting local data. Use <strong>Replace</strong> to wipe local activity/audit tables first. Hourly analytics rollups are rebuilt after import.
+            <?php elseif ($systemTab === 'backup'): ?>
+            <div class="admin-help-box collapsed" id="help-backup-export">
+                Create backups with the component picker, or import a bandPromo ZIP from this site or another install. Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, run <strong>Publish</strong>. See <code>docs/PORTABILITY.md</code>.
             </div>
 
-            <div class="card activity-log-portability-card">
-                <h3>📈 Activity log portability</h3>
+            <div class="card site-backup-card">
+                <h3>📦 Jobs</h3>
                 <p class="card-note">
-                    Developer tool for copying SQLite activity data between installs (for example twistedchronicles.eu → local).
-                    This does not touch your music, pages, or settings.
+                    Queued export and import jobs for this install. Leave this tab open while a job runs.
                 </p>
-                <div class="activity-log-counts">
-                    <span class="badge">Listener events: <?php echo number_format((int) ($activityLogCounts['listener'] ?? 0)); ?></span>
-                    <span class="badge">Audit events: <?php echo number_format((int) ($activityLogCounts['audit'] ?? 0)); ?></span>
+                <div id="siteBackupJobsWrap" class="site-backup-jobs-wrap">
+                    <?php if (empty($siteBackupJobs)): ?>
+                    <p id="siteBackupJobsEmpty" class="empty-msg">No backup jobs yet. Create or import one below.</p>
+                    <?php else: ?>
+                    <div class="table-scroll">
+                        <table class="site-backup-jobs-table" id="siteBackupJobsTable">
+                            <thead>
+                                <tr>
+                                    <th>Contents</th>
+                                    <th>Status</th>
+                                    <th>Created (UTC)</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siteBackupJobsBody">
+                                <?php foreach ($siteBackupJobs as $backupJob): ?>
+                                <?php
+                                    $jobStatus = (string) ($backupJob['status'] ?? '');
+                                    $jobDirection = (string) ($backupJob['direction'] ?? 'export');
+                                    $statusClass = 'status-neutral';
+                                    $statusLabel = 'Queued';
+                                    if ($jobStatus === 'building') {
+                                        $statusClass = 'status-warning';
+                                        $statusLabel = $jobDirection === 'import' ? 'Importing…' : 'Building…';
+                                    } elseif ($jobStatus === 'ready') {
+                                        $statusClass = 'status-ok';
+                                        $statusLabel = $jobDirection === 'import' ? 'Imported' : 'Ready';
+                                    } elseif ($jobStatus === 'failed') {
+                                        $statusClass = 'status-error';
+                                        $statusLabel = 'Failed';
+                                    }
+                                ?>
+                                <tr data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>">
+                                    <td><?php echo htmlspecialchars((string) ($backupJob['type_label'] ?? '')); ?></td>
+                                    <td>
+                                        <span class="badge audit-status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
+                                        <?php if ($jobStatus === 'ready' && $jobDirection === 'import' && trim((string) ($backupJob['import_summary'] ?? '')) !== ''): ?>
+                                        <div class="text-muted site-backup-job-note"><?php echo htmlspecialchars((string) $backupJob['import_summary']); ?></div>
+                                        <?php endif; ?>
+                                        <?php if ($jobStatus === 'failed' && trim((string) ($backupJob['error'] ?? '')) !== ''): ?>
+                                        <div class="text-muted site-backup-job-error"><?php echo htmlspecialchars((string) $backupJob['error']); ?></div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-muted nowrap"><?php echo htmlspecialchars((string) ($backupJob['created_at_utc'] ?? '')); ?></td>
+                                    <td class="nowrap"><?php echo htmlspecialchars((string) ($backupJob['size_label'] ?? '—')); ?></td>
+                                    <td class="site-backup-job-actions">
+                                        <?php if (!empty($backupJob['download_ready'])): ?>
+                                        <a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=<?php echo urlencode((string) ($backupJob['id'] ?? '')); ?>">⬇️ Download</a>
+                                        <?php endif; ?>
+                                        <?php if ($jobStatus !== 'building'): ?>
+                                        <button type="button" class="btn btn-secondary site-backup-action-btn site-backup-delete-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>">🗑️ Delete</button>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                <div class="card-actions activity-log-portability-actions">
-                    <button type="button" class="btn" id="activityLogExportBtn">⬇️ Export package</button>
-                    <label class="btn btn-secondary activity-log-import-label">
-                        ⬆️ Import package
-                        <input type="file" id="activityLogImportFile" accept="application/json,.json" hidden>
+                <p id="siteBackupJobsStatus" class="status-text"></p>
+            </div>
+
+            <div class="backup-action-grid">
+            <div class="card site-backup-card backup-builder-card">
+                <h3>📦 Create backup</h3>
+                <p class="card-note backup-builder-note">
+                    Select components. <strong>Full</strong> checks all. Archives stay in <code>backups/</code> until downloaded or deleted.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="status-text is-error">ZipArchive is not available on this host.</p>
+                <?php else: ?>
+                <div class="site-backup-component-grid" id="siteBackupComponentGrid">
+                    <label class="site-backup-component-row site-backup-component-row--full">
+                        <input type="checkbox" id="siteBackupComponentFull" checked>
+                        <span class="site-backup-component-label">
+                            <strong>Full</strong>
+                            <span class="site-backup-component-hint">platform, data, media, logs</span>
+                        </span>
                     </label>
-                    <select id="activityLogImportMode" class="filter-bar-select" aria-label="Import mode">
-                        <option value="merge">Merge (keep local rows)</option>
-                        <option value="replace">Replace (wipe local activity first)</option>
-                    </select>
+                    <div class="site-backup-component-subgrid">
+                        <label class="site-backup-component-row">
+                            <input type="checkbox" id="siteBackupComponentPlatform" class="site-backup-component-input" data-component="platform" checked>
+                            <span class="site-backup-component-label">
+                                <strong>Platform</strong>
+                                <span class="site-backup-component-hint"><code>web-config.json</code><?php if (!empty($siteBackupStatus['has_env'])): ?>, <code>.env</code><?php endif; ?></span>
+                            </span>
+                        </label>
+                        <label class="site-backup-component-row">
+                            <input type="checkbox" id="siteBackupComponentData" class="site-backup-component-input" data-component="data" checked>
+                            <span class="site-backup-component-label">
+                                <strong>Data</strong>
+                                <span class="site-backup-component-hint"><code>data/</code><?php echo !empty($siteBackupStatus['has_data']) ? '' : ' (missing)'; ?></span>
+                            </span>
+                        </label>
+                        <label class="site-backup-component-row">
+                            <input type="checkbox" id="siteBackupComponentMedia" class="site-backup-component-input" data-component="media" checked>
+                            <span class="site-backup-component-label">
+                                <strong>Media</strong>
+                                <span class="site-backup-component-hint"><code>media/</code><?php echo !empty($siteBackupStatus['has_media']) ? '' : ' (missing)'; ?></span>
+                            </span>
+                        </label>
+                        <label class="site-backup-component-row">
+                            <input type="checkbox" id="siteBackupComponentLogs" class="site-backup-component-input" data-component="logs" checked>
+                            <span class="site-backup-component-label">
+                                <strong>Logs</strong>
+                                <span class="site-backup-component-hint"><code>log/</code><?php echo !empty($siteBackupStatus['has_log']) ? '' : ' (missing)'; ?></span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
-                <p id="activityLogPortabilityStatus" class="status-text"></p>
+                <div class="card-actions site-backup-actions backup-builder-actions">
+                    <button type="button" class="btn" id="siteBackupCreateBtn">▶️ Create backup</button>
+                </div>
+                <p id="siteBackupCreateStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="card site-backup-card backup-import-card">
+                <h3>📥 Import backup</h3>
+                <p class="card-note backup-builder-note">
+                    Upload a bandPromo ZIP from this site or another install. Inspect, then restore or migrate.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="status-text is-error">ZipArchive is not available on this host.</p>
+                <?php else: ?>
+                <div class="site-backup-import-upload">
+                    <label class="btn btn-secondary site-backup-import-file-label" for="siteBackupImportFile">
+                        📂 Choose archive…
+                    </label>
+                    <input type="file" id="siteBackupImportFile" accept=".zip,application/zip" hidden>
+                    <span id="siteBackupImportFilename" class="site-backup-import-filename text-muted"></span>
+                </div>
+                <div id="siteBackupImportPreview" class="site-backup-import-preview" hidden>
+                    <div id="siteBackupImportPreviewMeta" class="site-backup-import-preview-meta text-muted"></div>
+                    <div class="site-backup-import-mode-row">
+                        <label class="site-backup-import-mode-label" for="siteBackupImportMode">Import mode</label>
+                        <select id="siteBackupImportMode" class="filter-bar-select site-backup-import-mode-select">
+                            <option value="restore">Restore (same install)</option>
+                            <option value="migrate">Import from another site</option>
+                        </select>
+                    </div>
+                    <div class="site-backup-component-grid" id="siteBackupImportComponentGrid">
+                        <label class="site-backup-component-row site-backup-component-row--full">
+                            <input type="checkbox" id="siteBackupImportComponentFull">
+                            <span class="site-backup-component-label">
+                                <strong>Full</strong>
+                                <span class="site-backup-component-hint">all components in archive</span>
+                            </span>
+                        </label>
+                        <div class="site-backup-component-subgrid">
+                            <label class="site-backup-component-row">
+                                <input type="checkbox" id="siteBackupImportComponentPlatform" class="site-backup-import-component-input" data-component="platform">
+                                <span class="site-backup-component-label">
+                                    <strong>Platform</strong>
+                                    <span class="site-backup-component-hint"><code>web-config.json</code></span>
+                                </span>
+                            </label>
+                            <label class="site-backup-component-row">
+                                <input type="checkbox" id="siteBackupImportComponentData" class="site-backup-import-component-input" data-component="data">
+                                <span class="site-backup-component-label">
+                                    <strong>Data</strong>
+                                    <span class="site-backup-component-hint"><code>data/</code></span>
+                                </span>
+                            </label>
+                            <label class="site-backup-component-row">
+                                <input type="checkbox" id="siteBackupImportComponentMedia" class="site-backup-import-component-input" data-component="media">
+                                <span class="site-backup-component-label">
+                                    <strong>Media</strong>
+                                    <span class="site-backup-component-hint"><code>media/</code></span>
+                                </span>
+                            </label>
+                            <label class="site-backup-component-row">
+                                <input type="checkbox" id="siteBackupImportComponentLogs" class="site-backup-import-component-input" data-component="logs">
+                                <span class="site-backup-component-label">
+                                    <strong>Logs</strong>
+                                    <span class="site-backup-component-hint"><code>log/</code></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <label class="site-backup-import-repair-row">
+                        <input type="checkbox" id="siteBackupImportRepairUrl">
+                        <span>Update site URL to this host after import</span>
+                    </label>
+                    <div class="card-actions site-backup-actions backup-builder-actions">
+                        <button type="button" class="btn" id="siteBackupImportBtn">📥 Import selected</button>
+                    </div>
+                </div>
+                <p id="siteBackupImportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
             </div>
             <?php endif; ?>
         </div>

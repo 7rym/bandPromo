@@ -2,7 +2,7 @@
 
 Source of truth for operator backup, data export/import, and host migration.
 
-**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** v0.8+ operator feature (after core `data/` model lands). **v0.8.3 priority:** betatesters need in-app backup before trusting large updates — see [TODO.md](TODO.md) → v0.8.3.
+**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** Admin → System → **Backup & export** ships component picker export, ZIP import (restore + cross-site migrate), ready/job list with download/delete (2026-07-13). Setup-time import and richer URL repair remain planned.
 
 Related: [INSTALL-UPDATE.md](INSTALL-UPDATE.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
 
@@ -27,6 +27,7 @@ bandPromo offers **two distinct portability services**, not one combined ZIP:
 
 - tracked application PHP/JS (reinstalled from release package)
 - `vendor/` (regenerated or shipped with package)
+- `backups/` (operator archive staging area; never packed into another backup)
 
 **Restore flow:**
 
@@ -75,18 +76,41 @@ When restored or copied runtime data references a different host than the live r
 
 Package updater and bootstrap already preserve:
 
-`web-config.json`, `.env`, `data/`, `media/`, `log/`
+`web-config.json`, `.env`, `data/`, `media/`, `log/`, `backups/`
 
 Full backup is a **superset** operators control on demand. Data export is a **selective** portability tool.
 
 ## Operator UX (target)
 
-| Action | Location | Output |
-|--------|----------|--------|
-| Create full backup | Admin → System (or Dashboard) | Timestamped `.zip` download |
-| Create data export | Admin → System | Smaller `.zip` with manifest |
-| Import data export | Setup or Admin (post-install) | Guided merge + URL repair |
-| Restore full backup | Documented restore + optional admin upload | Replace runtime paths |
+Archives are written to `backups/` on the server (HTTP-blocked, gitignored, excluded from backup ZIP contents). Operators choose components in one **Create backup** panel, queue the archive, wait until status is **Ready**, then **download** separately.
+
+| Component | ZIP contents |
+|-----------|----------------|
+| **bandPromo platform** | `web-config.json`, optional `.env` |
+| **Data** | `data/` (containers, users, activity SQLite) |
+| **Media** | `media/` (originals, masters, delivery) |
+| **Logs** | `log/` (build and support logs) |
+| **Full** | All four (master checkbox) |
+
+Presets: all four = full site backup; platform + data = legacy data export tier.
+
+| Action | Location | Output | Status |
+|--------|----------|--------|--------|
+| Queue backup (component picker) | Admin → System → Backup & export | Job in `backups/` | **Shipped** |
+| Import backup ZIP | Admin → System → Backup & export | Restore or migrate selected components | **Shipped** |
+| Download ready archive | Admin → System → Backup & export | `.zip` download | **Shipped** |
+| Delete server archive | Admin → System → Backup & export | Removes `backups/{id}.zip` | **Shipped** |
+| Import during setup | Setup wizard | Guided merge + URL repair | Planned |
+| Restore full backup | Manual extract or admin import | Replace runtime paths | **Shipped** (admin import) |
+
+Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
+
+**Import modes**
+
+| Mode | Use when | Behaviour |
+|------|----------|-----------|
+| **Restore** | Same install (disaster recovery) | Overwrites selected components; keeps source install identity from archive |
+| **Migrate** | Another site or new host | Overwrites selected components; **keeps this site's install identity**; logs usually skipped; optional site URL repair |
 
 ## Security
 

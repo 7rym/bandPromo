@@ -55,7 +55,7 @@ Trust and operator calm:
 - [x] **Config auto-repair** — silently deep-merge missing `web-config.json` sections from template on admin load (same as Settings → Repair today); audit-log only; remove scary “Incomplete config” banner for operators.
 - [x] **Publish preflight** — before build tasks, run content-model preparation (`content-autofix` pipeline); apply when needed; plain-language Publish status only; hide Dashboard **Content model upgrade** card once integrated.
 - [x] **Post-update notification copy** — after Site update, nudge **Update the live site** once with success-first wording (not “Publish prep did not finish automatically”).
-- [ ] **Backup/export MVP** — first operator-facing full backup or data export per [PORTABILITY.md](PORTABILITY.md) (betatesters need a safety net before big releases).
+- [x] **Backup/export MVP** — Admin → System → Backup & export: queue export archives in `backups/`, poll until ready, download/delete; import ZIP with restore/migrate modes and component picker (2026-07-13). Setup-time import wizard remains open per [PORTABILITY.md](PORTABILITY.md).
 
 Platform fixes:
 

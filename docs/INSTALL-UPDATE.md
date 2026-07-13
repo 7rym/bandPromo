@@ -217,7 +217,7 @@ Package update **preserves** your content. It replaces application PHP/JS only. 
 2. Run **Update the live site** once. bandPromo prepares your content links automatically during that publish step — there is no separate content-model upgrade card.
 3. Config structure updates happen silently in the background when you open admin.
 
-**Interim safety on large installs:** until Admin → backup ships, download a ZIP of `data/`, `media/`, and `web-config.json` from your hosting panel before updating if you want an extra safety copy.
+**Before updating:** use **Admin → System → Backup & export** to **create** a full site backup, wait until it shows **Ready**, then download it. On hosts without ZipArchive, use your hosting panel to ZIP `data/`, `media/`, and `web-config.json` instead.
 
 ## Manual operator fallback
 

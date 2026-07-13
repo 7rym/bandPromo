@@ -801,10 +801,6 @@ function bandpromo_release_sync_demo_audio_assets(string $root): void
                 $changed = true;
                 $releaseId = BANDPROMO_RELEASE_DEMO_ID;
             }
-        } elseif ($releaseId === '') {
-            $registry['assets'][$assetId]['release_id'] = BANDPROMO_RELEASE_DEFAULT_ID;
-            $changed = true;
-            $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
         }
 
         if ($releaseId === BANDPROMO_RELEASE_DEMO_ID) {
@@ -1052,13 +1048,13 @@ function bandpromo_release_find_track_number_for_master(string $root, string $ma
         return '';
     }
 
-    $releaseId = trim((string) ($asset['release_id'] ?? ''));
-    if ($releaseId === '') {
-        $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
+    $memberships = bandpromo_release_memberships_for_asset($root, (string) ($asset['id'] ?? ''));
+    if ($memberships === []) {
+        return '';
     }
 
-    $track = bandpromo_release_track_entry_for_asset($root, $releaseId, (string) $asset['id']);
-    if ($track === null) {
+    $track = $memberships[0]['track'] ?? null;
+    if (!is_array($track)) {
         return '';
     }
 
@@ -1074,18 +1070,24 @@ function bandpromo_release_is_master_locked(string $root, string $masterFilename
         return false;
     }
 
-    $releaseId = trim((string) ($asset['release_id'] ?? ''));
-    if ($releaseId === '') {
-        $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
+    foreach (bandpromo_release_memberships_for_asset($root, (string) ($asset['id'] ?? '')) as $membership) {
+        $releaseId = bandpromo_release_normalize_id((string) ($membership['release_id'] ?? ''));
+        if ($releaseId === '') {
+            continue;
+        }
+
+        try {
+            $document = bandpromo_release_load_document($root, $releaseId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        if (!empty($document['locked'])) {
+            return true;
+        }
     }
 
-    try {
-        $document = bandpromo_release_load_document($root, $releaseId);
-    } catch (Throwable $throwable) {
-        return false;
-    }
-
-    return !empty($document['locked']);
+    return false;
 }
 
 function bandpromo_release_assert_master_editable(string $root, string $masterFilename): void
@@ -1315,6 +1317,10 @@ function bandpromo_release_title_needs_metadata_refresh(string $title, string $m
         return true;
     }
 
+    if (preg_match('/^\d{1,3}$/', $title) === 1) {
+        return true;
+    }
+
     return strlen($title) > 48 && preg_match('/^\d+\s+/', $title) === 1;
 }
 
@@ -1475,7 +1481,8 @@ function bandpromo_asset_sync_audio_display_from_fields(
         return;
     }
 
-    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename);
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
     if ($asset === null) {
         return;
     }
@@ -1564,9 +1571,29 @@ function bandpromo_release_enrich_track_row_labels(string $root, array $row, str
         $duration = $display['duration'];
     }
 
-    if ($display['title'] !== '') {
-        $row['title'] = $display['title'];
-        $row['version'] = $display['version'];
+    $title = trim((string) ($display['title'] ?? ''));
+    $version = trim((string) ($display['version'] ?? ''));
+    $needsInspect = $title === ''
+        || bandpromo_release_title_needs_metadata_refresh($title, $masterFile)
+        || bandpromo_release_title_looks_like_asset_id($title, $masterFile);
+    if ($needsInspect) {
+        $inspect = bandpromo_release_inspect_master_metadata($root, $masterFile);
+        $fromInspect = bandpromo_asset_build_audio_display_from_inspect($inspect, $releaseTitle);
+        if (trim((string) ($fromInspect['title'] ?? '')) !== '') {
+            $title = trim((string) $fromInspect['title']);
+            $version = trim((string) ($fromInspect['version'] ?? ''));
+            if ($artist === '' && trim((string) ($fromInspect['artist'] ?? '')) !== '') {
+                $artist = trim((string) $fromInspect['artist']);
+            }
+            if ($duration <= 0 && (int) ($fromInspect['duration'] ?? 0) > 0) {
+                $duration = (int) $fromInspect['duration'];
+            }
+        }
+    }
+
+    if ($title !== '') {
+        $row['title'] = $title;
+        $row['version'] = $version;
     } else {
         $rawTitle = trim((string) ($row['title'] ?? ''));
         if ($rawTitle === '') {
@@ -1685,9 +1712,6 @@ function bandpromo_release_pool_map_from_asset_registry(string $root, array $poo
         }
 
         $releaseId = trim((string) ($asset['release_id'] ?? ''));
-        if ($releaseId === '') {
-            $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
-        }
 
         $row = bandpromo_release_track_row_from_asset($root, $asset, $releaseId);
         $row['file'] = $masterFile;
@@ -1863,12 +1887,11 @@ function bandpromo_release_admin_editor_state(
         if (bandpromo_release_is_demo_filename((string) $file)) {
             continue;
         }
-        $trackReleaseId = bandpromo_release_normalize_id(trim((string) ($track['release_id'] ?? '')));
-        if ($trackReleaseId === '') {
-            $trackReleaseId = bandpromo_release_normalize_id(
-                bandpromo_release_id_for_master_filename($root, (string) $file)
-            );
-        }
+        // Membership is defined by release document tracks, not asset release_id alone
+        // (catalog repair may set release_id before an operator adds the track).
+        $trackReleaseId = bandpromo_release_normalize_id(
+            bandpromo_release_id_for_master_filename($root, (string) $file)
+        );
         if ($trackReleaseId !== '' && $trackReleaseId !== $releaseId) {
             continue;
         }
@@ -2049,23 +2072,14 @@ function bandpromo_release_save_tracks(string $root, string $releaseId, array $m
         if (!isset($registry['assets'][$assetId]) || !is_array($registry['assets'][$assetId])) {
             continue;
         }
-        if ((string) ($registry['assets'][$assetId]['release_id'] ?? '') !== BANDPROMO_RELEASE_DEFAULT_ID) {
-            $registry['assets'][$assetId]['release_id'] = BANDPROMO_RELEASE_DEFAULT_ID;
+        if (trim((string) ($registry['assets'][$assetId]['release_id'] ?? '')) !== '') {
+            $registry['assets'][$assetId]['release_id'] = '';
             $registryChanged = true;
         }
     }
 
     if ($registryChanged) {
         bandpromo_asset_write_registry($root, $registry);
-    }
-
-    foreach (array_keys($oldAssetIds) as $assetId) {
-        if (isset($assetIds[$assetId])) {
-            continue;
-        }
-        if ($releaseId !== BANDPROMO_RELEASE_DEFAULT_ID) {
-            bandpromo_release_append_track_to_document($root, BANDPROMO_RELEASE_DEFAULT_ID, $assetId);
-        }
     }
 
     $tagsSynced = bandpromo_release_sync_member_audio_tags($root, $releaseId);
@@ -2239,10 +2253,54 @@ function bandpromo_release_delete(string $root, string $releaseId): void
         if ((string) ($asset['release_id'] ?? '') !== $releaseId) {
             continue;
         }
-        $registryAssets['assets'][$assetId]['release_id'] = BANDPROMO_RELEASE_DEFAULT_ID;
+        $registryAssets['assets'][$assetId]['release_id'] = '';
         $changed = true;
     }
     if ($changed) {
         bandpromo_asset_write_registry($root, $registryAssets);
     }
+}
+
+function bandpromo_release_repair_catalog_release_ids(string $root): int
+{
+    $registry = bandpromo_asset_load_registry($root);
+    $membershipIndex = bandpromo_release_asset_membership_index($root);
+    $changed = 0;
+
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+
+        $assetId = trim((string) $assetId);
+        if ($assetId === '') {
+            continue;
+        }
+
+        $assignedReleaseId = bandpromo_release_normalize_id(trim((string) ($asset['release_id'] ?? '')));
+        $memberships = $membershipIndex[$assetId] ?? [];
+        $documentReleaseId = '';
+        if (count($memberships) === 1) {
+            $documentReleaseId = bandpromo_release_normalize_id((string) ($memberships[0]['release_id'] ?? ''));
+        }
+
+        if ($documentReleaseId === '') {
+            if ($assignedReleaseId !== '') {
+                $registry['assets'][$assetId]['release_id'] = '';
+                $changed++;
+            }
+            continue;
+        }
+
+        if ($assignedReleaseId !== $documentReleaseId) {
+            $registry['assets'][$assetId]['release_id'] = $documentReleaseId;
+            $changed++;
+        }
+    }
+
+    if ($changed > 0) {
+        bandpromo_asset_write_registry($root, $registry);
+    }
+
+    return $changed;
 }

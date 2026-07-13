@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-13 18:15 - Fix bootstrap.php HTTP 500 on fresh install: environment checks are self-contained (no biblioteca/ require before package download).
+
+2026-07-13 18:05 - Backup & export: Create and Import panels side-by-side on desktop.
+
+2026-07-13 18:00 - Backup import: upload ZIP, inspect manifest, restore or cross-site migrate with component picker, async import jobs, optional site URL repair.
+
+2026-07-13 17:45 - Remove developer Activity log package card; listener/audit SQLite is covered by the Data backup component.
+
+2026-07-13 17:40 - Backup builder UI: compact dark-theme checkbox rows (fix light-on-light contrast); 2-column sub-grid for components.
+
+2026-07-13 17:30 - Backup & export: single Create backup panel with Full | platform | data | media | logs checkboxes (Full selects all); component-driven archive jobs replace separate full/data cards.
+
+2026-07-13 17:10 - Fix track cover replacement: save sidecar and embedded artwork on the canonical master filename (not the original upload name); refresh release/playlist pool titles from live master tags when cached display data is stale.
+
+2026-07-13 16:25 - Fix empty playlists: reject saving a playlist with no tracks; hide trackless playlists from the player catalog, default playlist resolution, and direct /play URLs.
+
+2026-07-13 16:10 - Fix release editor available pool: stop auto-assigning uploaded audio to the primary release on publish/reconcile; restore document-membership filtering for Available content; repair stale catalog release_id values during catalog repair.
+
+2026-07-13 15:00 - Fix Windows video upload: launch background delivery via cmd.exe instead of opening the .bat with Start-Process (avoids "choose app" dialog).
+
+2026-07-13 14:05 - Backup & export UI: three action panels in one desktop row; compact copy and stacked controls per panel.
+
+2026-07-13 11:15 - Backup & export: split create vs download; archives build in `backups/` with queued/ready status, polling, and delete.
+
+2026-07-12 19:50 - System → Backup & export: operator full site backup ZIP, data export ZIP (config + data/), developer activity log package; aligns with PORTABILITY.md.
+
 2026-07-12 19:40 - Checkpoint v0.8.6 build 325: developer activity log export/import, SQLite 3.8.0+ preflight, analytics filter bar UX.
 
 2026-07-12 19:35 - Developer-only System → Activity logs: export/import listener activity and audit events as a JSON package (merge or replace) for copying data between installs.

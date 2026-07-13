@@ -672,7 +672,7 @@ function bandpromo_asset_registry_ensure_migrated(string $root): void
         }
 
         $assetId = bandpromo_asset_id_from_master_filename($entry) ?? bandpromo_generate_asset_id();
-        $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : 'primary';
+        $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : '';
         $normalized = bandpromo_asset_normalize_entry([
             'id' => $assetId,
             'kind' => 'audio',
@@ -838,7 +838,7 @@ function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
     }
 
     if ($result['changed'] > 0) {
-        bandpromo_release_sync_primary_audio_assets($root);
+        bandpromo_release_repair_catalog_release_ids($root);
         bandpromo_mark_build_required('media_audio_upload');
     }
 

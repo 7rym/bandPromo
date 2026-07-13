@@ -247,9 +247,6 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
 
             $assetId = (string) ($asset['id'] ?? '');
             $releaseId = trim((string) ($asset['release_id'] ?? ''));
-            if ($releaseId === '') {
-                $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
-            }
 
             $currentAssetId = trim((string) ($entry['asset_id'] ?? ''));
             $currentReleaseId = trim((string) ($entry['release_id'] ?? ''));
@@ -285,60 +282,49 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
     return $step;
 }
 
-function bandpromo_release_assign_default_release_ids(string $root): void
-{
-    $registry = bandpromo_asset_load_registry($root);
-    $registryChanged = false;
-
-    foreach ($registry['assets'] as $assetId => $asset) {
-        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
-            continue;
-        }
-        $releaseId = trim((string) ($asset['release_id'] ?? ''));
-        if ($releaseId !== '') {
-            continue;
-        }
-        $registry['assets'][$assetId]['release_id'] = BANDPROMO_RELEASE_DEFAULT_ID;
-        $registryChanged = true;
-    }
-
-    if ($registryChanged) {
-        bandpromo_asset_write_registry($root, $registry);
-    }
-}
-
 function bandpromo_release_sync_primary_audio_assets(string $root): void
 {
-    bandpromo_release_assign_default_release_ids($root);
+    bandpromo_release_repair_catalog_release_ids($root);
 }
 
 function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): array
 {
-    $step = bandpromo_content_autofix_step_result('release_membership', 'Assign default catalog release on audio assets');
+    $step = bandpromo_content_autofix_step_result('release_membership', 'Repair catalog release links on audio assets');
     if ($dryRun) {
         $registry = bandpromo_asset_load_registry($root);
-        $primaryCount = 0;
-        $demoCount = 0;
-        foreach ($registry['assets'] as $asset) {
+        $membershipIndex = bandpromo_release_asset_membership_index($root);
+        $staleCount = 0;
+        foreach ($registry['assets'] as $assetId => $asset) {
             if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
                 continue;
             }
-            $releaseId = trim((string) ($asset['release_id'] ?? BANDPROMO_RELEASE_DEFAULT_ID));
-            if ($releaseId === BANDPROMO_RELEASE_DEMO_ID) {
-                $demoCount++;
-            } else {
-                $primaryCount++;
+            $assignedReleaseId = bandpromo_release_normalize_id(trim((string) ($asset['release_id'] ?? '')));
+            $memberships = $membershipIndex[(string) $assetId] ?? [];
+            $documentReleaseId = '';
+            if (count($memberships) === 1) {
+                $documentReleaseId = bandpromo_release_normalize_id((string) ($memberships[0]['release_id'] ?? ''));
+            }
+            if ($documentReleaseId === '') {
+                if ($assignedReleaseId !== '') {
+                    $staleCount++;
+                }
+                continue;
+            }
+            if ($assignedReleaseId !== $documentReleaseId) {
+                $staleCount++;
             }
         }
-        $step['changed'] = $primaryCount + $demoCount;
-        $step['items'][] = ['primary_tracks' => $primaryCount, 'demo_tracks' => $demoCount];
+        $step['changed'] = $staleCount;
+        $step['items'][] = ['stale_catalog_links' => $staleCount];
         return $step;
     }
 
     bandpromo_release_sync_demo_audio_assets($root);
-    bandpromo_release_sync_primary_audio_assets($root);
-    $step['changed'] = 1;
-    $step['items'][] = ['primary' => true, 'demo' => true];
+    $repaired = bandpromo_release_repair_catalog_release_ids($root);
+    $step['changed'] = $repaired > 0 ? $repaired : 0;
+    if ($repaired > 0) {
+        $step['items'][] = ['repaired_catalog_links' => $repaired];
+    }
 
     return $step;
 }

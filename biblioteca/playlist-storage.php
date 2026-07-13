@@ -168,6 +168,10 @@ function bandpromo_playlist_is_player_visible(string $root, string $playlistId, 
         return false;
     }
 
+    if (bandpromo_playlist_document_is_empty($root, $playlistId)) {
+        return false;
+    }
+
     return bandpromo_playlist_publish_date_is_public(
         (string) ($document['publish_date'] ?? ''),
         $operatorBypass
@@ -189,6 +193,9 @@ function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorB
             continue;
         }
         if (!bandpromo_playlist_publish_date_is_public((string) ($entry['publish_date'] ?? ''), $operatorBypass)) {
+            continue;
+        }
+        if (bandpromo_playlist_document_is_empty($root, $id)) {
             continue;
         }
         $entries[] = [
@@ -440,6 +447,9 @@ function bandpromo_playlist_first_visible_non_demo_id(string $root): string
         if ($publishValue <= 0 || $publishValue > $now) {
             continue;
         }
+        if (bandpromo_playlist_document_is_empty($root, $id)) {
+            continue;
+        }
 
         return $id;
     }
@@ -450,6 +460,9 @@ function bandpromo_playlist_first_visible_non_demo_id(string $root): string
         }
         $id = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
         if ($id === '' || bandpromo_demo_catalog_is_demo_entity_id($id)) {
+            continue;
+        }
+        if (bandpromo_playlist_document_is_empty($root, $id)) {
             continue;
         }
 
@@ -508,6 +521,9 @@ function bandpromo_playlist_default_active_id(string $root): string
             continue;
         }
         if (!bandpromo_demo_catalog_entity_is_visible($root, $id)) {
+            continue;
+        }
+        if ((int) ($entry['track_count'] ?? 0) <= 0) {
             continue;
         }
         $candidates[] = [
@@ -975,6 +991,13 @@ function bandpromo_playlist_sync_legacy_artifacts(string $root, string $playlist
 function bandpromo_playlist_save_order(string $root, string $playlistId, array $masterFiles): array
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);
+    $masterFiles = array_values(array_filter($masterFiles, static function ($masterFile): bool {
+        return is_string($masterFile) && trim($masterFile) !== '';
+    }));
+    if ($masterFiles === []) {
+        throw new InvalidArgumentException('A playlist must include at least one track.');
+    }
+
     $document = bandpromo_playlist_load_document($root, $playlistId);
     $builtTracks = bandpromo_playlist_load_built_tracks($root);
 
@@ -1014,6 +1037,10 @@ function bandpromo_playlist_save_order(string $root, string $playlistId, array $
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => (string) ($asset['release_id'] ?? ''),
         ];
+    }
+
+    if ($entries === []) {
+        throw new InvalidArgumentException('A playlist must include at least one valid track.');
     }
 
     $document['entries'] = $entries;

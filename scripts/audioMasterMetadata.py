@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from mutagen import File
-from mutagen.flac import FLAC
+from mutagen.flac import FLAC, Picture
 from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, USLT
 
 
@@ -333,6 +333,62 @@ def update_mp3(path, fields):
     tags.save(str(path), v2_version=3)
 
 
+def clear_embedded_cover(path):
+    suffix = path.suffix.lower()
+    if suffix == '.flac':
+        audio = FLAC(str(path))
+        audio.clear_pictures()
+        audio.save()
+        return
+
+    if suffix == '.mp3':
+        try:
+            tags = ID3(str(path))
+        except ID3NoHeaderError:
+            return
+        tags.delall('APIC')
+        tags.save(str(path), v2_version=3)
+
+
+def sync_embedded_cover(path, image_path):
+    image_path = str(image_path or '').strip()
+    if image_path == '':
+        clear_embedded_cover(path)
+        return
+
+    source = Path(image_path)
+    if not source.is_file():
+        respond({'ok': False, 'error': 'Cover image file not found'}, 1)
+
+    data = source.read_bytes()
+    mime = 'image/png' if source.suffix.lower() == '.png' else 'image/jpeg'
+    suffix = path.suffix.lower()
+
+    if suffix == '.flac':
+        audio = FLAC(str(path))
+        audio.clear_pictures()
+        picture = Picture()
+        picture.type = 3
+        picture.mime = mime
+        picture.desc = 'Cover'
+        picture.data = data
+        audio.add_picture(picture)
+        audio.save()
+        return
+
+    if suffix == '.mp3':
+        try:
+            tags = ID3(str(path))
+        except ID3NoHeaderError:
+            tags = ID3()
+        tags.delall('APIC')
+        tags.add(APIC(encoding=3, mime=mime, type=3, desc='Cover', data=data))
+        tags.save(str(path), v2_version=3)
+        return
+
+    respond({'ok': False, 'error': 'Unsupported audio master format'}, 1)
+
+
 def main():
     payload = read_payload()
     action = str(payload.get('action') or '').strip().lower()
@@ -355,6 +411,11 @@ def main():
             respond({'ok': False, 'error': 'Unsupported audio master format'}, 1)
 
         respond(inspect_master(path))
+
+    if action == 'sync_cover':
+        image_path = str(payload.get('image_path') or '').strip()
+        sync_embedded_cover(path, image_path)
+        respond({'ok': True, 'filename': path.name})
 
     respond({'ok': False, 'error': 'Unsupported action'}, 1)
 

@@ -319,6 +319,55 @@ function bandpromo_reconcile_background_tasks(): array
     return bandpromo_read_background_tasks();
 }
 
+function bandpromo_launch_windows_batch_detached(string $batchPath, string $workingDirectory): bool
+{
+    if (!is_file($batchPath)) {
+        return false;
+    }
+
+    $batchPath = realpath($batchPath) ?: $batchPath;
+    $workingDirectory = realpath($workingDirectory) ?: $workingDirectory;
+
+    if (bandpromo_can_proc_open()) {
+        $null = 'NUL';
+        $pipes = [];
+        $process = @proc_open(
+            ['cmd.exe', '/c', $batchPath],
+            [
+                0 => ['file', $null, 'r'],
+                1 => ['file', $null, 'w'],
+                2 => ['file', $null, 'w'],
+            ],
+            $pipes,
+            $workingDirectory,
+            null,
+            ['bypass_shell' => true, 'create_new_console' => false]
+        );
+
+        if (is_resource($process)) {
+            foreach ($pipes as $pipe) {
+                if (is_resource($pipe)) {
+                    fclose($pipe);
+                }
+            }
+            $status = proc_get_status($process);
+
+            return is_array($status) && (int) ($status['pid'] ?? 0) > 0;
+        }
+    }
+
+    if (!function_exists('exec')) {
+        return false;
+    }
+
+    $command = 'cmd /c start "" /B ' . escapeshellarg($batchPath);
+    $output = [];
+    $exitCode = 1;
+    exec($command . ' 1>NUL 2>NUL', $output, $exitCode);
+
+    return $exitCode === 0;
+}
+
 function bandpromo_spawn_async_video_delivery(array $filenames): array
 {
     $requested = bandpromo_filter_uploaded_filenames($filenames, ['mp4', 'mov', 'webm']);
@@ -404,12 +453,7 @@ function bandpromo_spawn_async_video_delivery(array $filenames): array
         $bat[] = 'del /f /q "' . str_replace('"', '""', $lockFile) . '" >nul 2>&1';
         file_put_contents($runnerBat, implode("\r\n", $bat) . "\r\n");
 
-        $psCommand = "Start-Process -FilePath '" . str_replace("'", "''", $runnerBat) . "' -WindowStyle Hidden";
-        $launchCmd = 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ' . escapeshellarg($psCommand);
-        $out = [];
-        $rc = 1;
-        exec($launchCmd . ' 2>&1', $out, $rc);
-        $started = $rc === 0;
+        $started = bandpromo_launch_windows_batch_detached($runnerBat, $root);
     } else {
         $inner = 'cd ' . escapeshellarg($root)
             . ' && FFMPEG_PATH=' . escapeshellarg($ffmpeg)
