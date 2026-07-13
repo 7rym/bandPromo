@@ -7,6 +7,9 @@ declare(strict_types=1);
  */
 require_once __DIR__ . '/theme-storage.php';
 
+const BANDPROMO_BRAND_OPERATOR_DEFAULT_ID = 'your-own-brand';
+const BANDPROMO_BRAND_OPERATOR_DEFAULT_TITLE = 'Your own brand';
+
 function bandpromo_brand_storage_root(string $root): string
 {
     return bandpromo_theme_storage_root($root);
@@ -182,4 +185,40 @@ function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): a
     }
 
     return $styles;
+}
+
+function bandpromo_brand_has_operator_brand(string $root): bool
+{
+    bandpromo_brand_ensure_seeded($root);
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (empty($entry['system'])) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function bandpromo_brand_ensure_operator_brand(string $root): ?array
+{
+    bandpromo_brand_ensure_seeded($root);
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (empty($entry['system'])) {
+            $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+            if ($brandId !== '') {
+                return bandpromo_brand_registry_entry($root, $brandId);
+            }
+        }
+    }
+
+    $brandId = BANDPROMO_BRAND_OPERATOR_DEFAULT_ID;
+    bandpromo_brand_duplicate(
+        $root,
+        BANDPROMO_BRAND_DEFAULT_ID,
+        $brandId,
+        BANDPROMO_BRAND_OPERATOR_DEFAULT_TITLE
+    );
+    bandpromo_brand_set_active_id($root, $brandId);
+
+    return bandpromo_brand_registry_entry($root, $brandId);
 }

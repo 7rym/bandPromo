@@ -727,6 +727,20 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
                     <?php endforeach; ?>
                 </ul>
             </div>
+
+            <?php if ($welcomeNextSteps !== []): ?>
+            <div class="card welcome-card welcome-card-dashboard">
+                <h3 class="welcome-dashboard-heading">What to do next</h3>
+                <ol class="welcome-list welcome-list-numbered">
+                    <?php foreach ($welcomeNextSteps as $step): ?>
+                        <li>
+                            <a class="welcome-link is-<?php echo htmlspecialchars((string) ($step['severity'] ?? 'nonblocking')); ?>" href="<?php echo htmlspecialchars($step['href']); ?>"><strong><?php echo htmlspecialchars($step['label']); ?></strong></a>
+                            <span><?php echo htmlspecialchars($step['description']); ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
+            </div>
+            <?php endif; ?>
             <?php else: ?>
             <div class="card welcome-card">
                 <h2>🌍 Welcome to bandPromo</h2>

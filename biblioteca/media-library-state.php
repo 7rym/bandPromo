@@ -141,7 +141,93 @@ function bandpromo_media_target_dir(string $target): ?string
     return $dirs[$target] ?? null;
 }
 
-function bandpromo_media_has_visible_user_uploads(string $target): bool
+function bandpromo_media_starter_pack_basenames(string $root): array
+{
+    $basenames = [];
+    $markerPath = rtrim($root, '/\\') . '/data/default-theme-package.json';
+    if (is_file($markerPath)) {
+        $decoded = json_decode((string) file_get_contents($markerPath), true);
+        if (is_array($decoded) && is_array($decoded['paths'] ?? null)) {
+            foreach ($decoded['paths'] as $path) {
+                if (!is_string($path) || strpos($path, 'media/') !== 0) {
+                    continue;
+                }
+                $basename = basename(str_replace('\\', '/', $path));
+                if ($basename !== '') {
+                    $basenames[$basename] = true;
+                }
+            }
+        }
+    }
+
+    if ($basenames === []) {
+        foreach ([
+            'bandPromo_share.png',
+            'bandPromo_vocalist.png',
+            'bandPromo_the_very_first_song.flac',
+            'bandPromo_the_second_song.flac',
+        ] as $fallback) {
+            $basenames[$fallback] = true;
+        }
+    }
+
+    return array_keys($basenames);
+}
+
+function bandpromo_media_is_generated_delivery_artifact(string $filename): bool
+{
+    return preg_match('/^bandPromo_.+_(facebook|twitter)\.jpe?g$/i', $filename) === 1;
+}
+
+function bandpromo_media_is_operator_upload_filename(string $root, string $target, string $filename): bool
+{
+    if (strcasecmp($filename, 'desktop.ini') === 0) {
+        return false;
+    }
+
+    $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if ($extension === '' || $extension === 'htaccess') {
+        return false;
+    }
+
+    static $starterLookup = null;
+    static $starterRoot = '';
+    if ($starterRoot !== $root || !is_array($starterLookup)) {
+        $starterRoot = $root;
+        $starterLookup = array_fill_keys(bandpromo_media_starter_pack_basenames($root), true);
+    }
+
+    if (isset($starterLookup[$filename])) {
+        return false;
+    }
+
+    if (bandpromo_media_is_bundled_placeholder($filename)) {
+        return false;
+    }
+
+    if (bandpromo_media_is_generated_delivery_artifact($filename)) {
+        return false;
+    }
+
+    if (bandpromo_media_is_hidden_for_install($target, $filename)) {
+        return false;
+    }
+
+    if ($target === 'illustrations') {
+        require_once __DIR__ . '/cover-art-helpers.php';
+        $manifest = bandpromo_cover_art_manifest_record($filename);
+        $playlistContext = bandpromo_cover_art_load_playlist_context($root);
+        $role = $manifest['role'] !== '' ? $manifest['role'] : bandpromo_cover_art_infer_role($filename, $playlistContext);
+        $origin = bandpromo_cover_art_infer_origin($filename, $manifest, $role);
+        if (in_array($origin, ['build-extracted', 'build-configured', 'build-sidecar-copy', 'bundled-placeholder'], true)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function bandpromo_media_target_has_operator_uploads(string $root, string $target): bool
 {
     $dir = bandpromo_media_target_dir($target);
     if ($dir === null || !is_dir($dir)) {
@@ -153,23 +239,28 @@ function bandpromo_media_has_visible_user_uploads(string $target): bool
             continue;
         }
 
-        $filename = $entry->getFilename();
-        if (strcasecmp($filename, 'desktop.ini') === 0) {
-            continue;
+        if (bandpromo_media_is_operator_upload_filename($root, $target, $entry->getFilename())) {
+            return true;
         }
-
-        if (bandpromo_media_is_bundled_placeholder($filename)) {
-            continue;
-        }
-
-        if (bandpromo_media_is_hidden_for_install($target, $filename)) {
-            continue;
-        }
-
-        return true;
     }
 
     return false;
+}
+
+function bandpromo_media_install_has_operator_uploads(string $root): bool
+{
+    foreach (['audio', 'illustrations', 'photos', 'special'] as $target) {
+        if (bandpromo_media_target_has_operator_uploads($root, $target)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function bandpromo_media_has_visible_user_uploads(string $target): bool
+{
+    return bandpromo_media_target_has_operator_uploads(dirname(__DIR__), $target);
 }
 
 function bandpromo_media_is_effectively_hidden_for_install(string $target, string $filename): bool

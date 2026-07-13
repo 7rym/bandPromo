@@ -109,7 +109,7 @@ Policy — **locked**:
 - [x] Lock **Brand replaces Theme**: colors, typography, mood narrative, and asset refs live in `data/brands/` — not a separate Theme container.
 - [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era).
 - [x] Lock **release cover on release**: `poster_asset_id` picked from Visual pool with brand filter; not stored inside the brand document.
-- [x] Lock **install default brand**: seed locked `bandpromo-default` on first install; duplicate as suggested first customization task.
+- [x] Lock **install default brand**: seed locked `bandpromo-default` on first install; auto-duplicate to editable operator brand (`Your own brand`).
 - [x] Lock **upload role tagging**: contextual uploads inherit role + brand; bulk Visual uploads default to `role: unassigned` — never block upload on role selection.
 - [x] Lock **`special` is legacy intake only**, not a brand role — migrate `media/special/` into Visual pool with explicit role tags.
 - [x] Lock **system shell vs brand overlay**: platform owns layout and dark-shell baseline; brand replaces enumerated identity slots only; broken brand degrades to default, not a broken site (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands).
@@ -121,7 +121,7 @@ Implementation order:
 - [x] **Release editor brand picker** — `brand_id` on releases; inherit install default when empty.
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses active brand CSS tokens.
-- [x] **Welcome nudge** — post-install checklist item to duplicate default brand and customize.
+- [x] **Welcome nudge** — auto-provision editable operator brand from bandPromo Default; post-setup suggestions for media, FAQ, Pages, and backup import.
 
 ### Analytics and activity log storage (v0.8 data foundation)
 

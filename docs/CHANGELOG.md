@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-13 18:45 - Welcome flow: auto-duplicate default brand to "Your own brand"; reorder setup checklist by install importance; fix false-positive operator media detection; suggest upload, FAQ, Pages, and backup import after core setup.
+
 2026-07-13 18:30 - Fix bootstrap install package discovery: resolve newest GitHub release tag (including beta prereleases) instead of GitHub `releases/latest` stable-only URL.
 
 2026-07-13 18:20 - Fix fresh-install setup build: ship bundled demo FLACs in the default theme package (track `media/audio/original/bandPromo_*.flac`).
