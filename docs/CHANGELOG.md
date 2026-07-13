@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-13 18:30 - Fix bootstrap install package discovery: resolve newest GitHub release tag (including beta prereleases) instead of GitHub `releases/latest` stable-only URL.
+
 2026-07-13 18:20 - Fix fresh-install setup build: ship bundled demo FLACs in the default theme package (track `media/audio/original/bandPromo_*.flac`).
 
 2026-07-13 18:15 - Fix bootstrap.php HTTP 500 on fresh install: environment checks are self-contained (no biblioteca/ require before package download).

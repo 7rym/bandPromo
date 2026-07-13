@@ -5,6 +5,8 @@ header('Content-Type: text/html; charset=utf-8');
 
 const BANDPROMO_BOOTSTRAP_WORKDIR = '.bandpromo-bootstrap';
 const BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
+const BANDPROMO_BOOTSTRAP_GITHUB_REPOSITORY = '7rym/bandPromo';
+const BANDPROMO_BOOTSTRAP_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=100';
 
 function bandpromo_bootstrap_h(string $value): string {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -530,8 +532,214 @@ function bandpromo_bootstrap_fetch_text(string $url): string {
   return $body;
 }
 
+function bandpromo_bootstrap_is_latest_manifest_url(string $manifestUrl): bool {
+  return preg_match('#/releases/latest/download/release-manifest\.json$#i', $manifestUrl) === 1;
+}
+
+function bandpromo_bootstrap_manifest_url_for_tag(string $repository, string $tag): string {
+  return 'https://github.com/' . trim($repository, '/') . '/releases/download/' . rawurlencode($tag) . '/release-manifest.json';
+}
+
+function bandpromo_bootstrap_parse_version(string $version): ?array {
+  $version = trim($version);
+
+  if (preg_match('/^v(\d+)\.(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) === 1) {
+    return [
+      'major' => (int) $matches[1],
+      'minor' => (int) $matches[2],
+      'session' => (int) $matches[3],
+      'build' => (int) $matches[4],
+    ];
+  }
+
+  if (preg_match('/^v(\d+)\.(\d+)\s+build\s+(\d+)$/i', $version, $matches) === 1) {
+    return [
+      'major' => (int) $matches[1],
+      'minor' => (int) $matches[2],
+      'session' => 0,
+      'build' => (int) $matches[3],
+    ];
+  }
+
+  return null;
+}
+
+function bandpromo_bootstrap_compare_versions(string $leftVersion, string $rightVersion): int {
+  $left = bandpromo_bootstrap_parse_version($leftVersion);
+  $right = bandpromo_bootstrap_parse_version($rightVersion);
+
+  if ($left === null || $right === null) {
+    return strcasecmp($leftVersion, $rightVersion);
+  }
+
+  if ($left['build'] !== $right['build']) {
+    return $left['build'] <=> $right['build'];
+  }
+
+  foreach (['major', 'minor', 'session'] as $key) {
+    if ($left[$key] !== $right[$key]) {
+      return $left[$key] <=> $right[$key];
+    }
+  }
+
+  return 0;
+}
+
+function bandpromo_bootstrap_version_text_from_tag(string $tag): ?string {
+  $tag = trim($tag);
+
+  if (preg_match('/^v(\d+)\.(\d+)\.(\d+)-build-(\d+)$/i', $tag, $matches) === 1) {
+    return sprintf('v%s.%s.%s build %s', $matches[1], $matches[2], $matches[3], $matches[4]);
+  }
+
+  if (preg_match('/^v(\d+)\.(\d+)-build-(\d+)$/i', $tag, $matches) === 1) {
+    return sprintf('v%s.%s build %s', $matches[1], $matches[2], $matches[3]);
+  }
+
+  return null;
+}
+
+function bandpromo_bootstrap_parse_github_next_link(string $headers): string {
+  foreach (preg_split('/\r\n|\n|\r/', $headers) ?: [] as $line) {
+    if (stripos($line, 'Link:') !== 0) {
+      continue;
+    }
+    if (preg_match('/<([^>]+)>;\s*rel="next"/i', $line, $matches) === 1) {
+      return trim((string) ($matches[1] ?? ''));
+    }
+  }
+
+  return '';
+}
+
+function bandpromo_bootstrap_fetch_github_releases_page(string $apiUrl): array {
+  $nextUrl = '';
+
+  if (extension_loaded('curl')) {
+    $handle = curl_init($apiUrl);
+    if ($handle === false) {
+      throw new RuntimeException('Could not initialize cURL for GitHub releases fetch.');
+    }
+
+    curl_setopt_array($handle, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_FOLLOWLOCATION => true,
+      CURLOPT_CONNECTTIMEOUT => 15,
+      CURLOPT_TIMEOUT => 30,
+      CURLOPT_USERAGENT => 'bandPromo bootstrap installer',
+      CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json'],
+      CURLOPT_HEADER => true,
+      CURLOPT_FAILONERROR => false,
+    ]);
+
+    $response = curl_exec($handle);
+    $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+    $headerSize = (int) curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+    $error = curl_error($handle);
+    curl_close($handle);
+
+    if ($response === false) {
+      throw new RuntimeException('GitHub releases fetch failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
+    }
+
+    if ($status >= 400) {
+      throw new RuntimeException('GitHub releases fetch failed with HTTP status ' . $status . '.');
+    }
+
+    $headers = substr((string) $response, 0, $headerSize);
+    $body = substr((string) $response, $headerSize);
+    $nextUrl = bandpromo_bootstrap_parse_github_next_link($headers);
+  } else {
+    $context = stream_context_create([
+      'http' => [
+        'timeout' => 30,
+        'follow_location' => 1,
+        'user_agent' => 'bandPromo bootstrap installer',
+        'header' => "Accept: application/vnd.github+json\r\n",
+      ],
+      'ssl' => [
+        'verify_peer' => true,
+        'verify_peer_name' => true,
+      ],
+    ]);
+
+    $body = @file_get_contents($apiUrl, false, $context);
+    if ($body === false) {
+      throw new RuntimeException('GitHub releases fetch failed. Check outbound HTTPS support.');
+    }
+  }
+
+  $decoded = json_decode((string) $body, true);
+  if (!is_array($decoded)) {
+    throw new RuntimeException('GitHub releases response is not valid JSON.');
+  }
+
+  return [
+    'releases' => $decoded,
+    'next_url' => $nextUrl,
+  ];
+}
+
+function bandpromo_bootstrap_fetch_github_releases(string $apiUrl = BANDPROMO_BOOTSTRAP_GITHUB_RELEASES_API_URL): array {
+  $releases = [];
+  $nextUrl = $apiUrl;
+  $pages = 0;
+
+  while ($nextUrl !== '' && $pages < 5) {
+    $pages++;
+    $page = bandpromo_bootstrap_fetch_github_releases_page($nextUrl);
+    $releases = array_merge($releases, $page['releases']);
+    $nextUrl = $page['next_url'];
+  }
+
+  return $releases;
+}
+
+function bandpromo_bootstrap_pick_newest_release_tag(array $releases): ?string {
+  $bestTag = null;
+  $bestVersion = null;
+
+  foreach ($releases as $release) {
+    if (!is_array($release)) {
+      continue;
+    }
+
+    $tag = trim((string) ($release['tag_name'] ?? ''));
+    $versionText = bandpromo_bootstrap_version_text_from_tag($tag);
+    if ($versionText === null) {
+      continue;
+    }
+
+    if ($bestVersion === null || bandpromo_bootstrap_compare_versions($bestVersion, $versionText) < 0) {
+      $bestVersion = $versionText;
+      $bestTag = $tag;
+    }
+  }
+
+  return $bestTag;
+}
+
+function bandpromo_bootstrap_resolve_manifest_url(string $manifestUrl): string {
+  if (!bandpromo_bootstrap_is_latest_manifest_url($manifestUrl)) {
+    return $manifestUrl;
+  }
+
+  try {
+    $releases = bandpromo_bootstrap_fetch_github_releases();
+    $tag = bandpromo_bootstrap_pick_newest_release_tag($releases);
+    if ($tag !== null) {
+      return bandpromo_bootstrap_manifest_url_for_tag(BANDPROMO_BOOTSTRAP_GITHUB_REPOSITORY, $tag);
+    }
+  } catch (Throwable $throwable) {
+    // Fall back to GitHub's latest stable release URL when the API is unavailable.
+  }
+
+  return $manifestUrl;
+}
+
 function bandpromo_bootstrap_load_manifest(string $manifestUrl): array {
-  $body = bandpromo_bootstrap_fetch_text($manifestUrl);
+  $resolvedUrl = bandpromo_bootstrap_resolve_manifest_url($manifestUrl);
+  $body = bandpromo_bootstrap_fetch_text($resolvedUrl);
   $decoded = json_decode($body, true);
   if (!is_array($decoded)) {
     throw new RuntimeException('Release manifest is not valid JSON.');
@@ -544,6 +752,8 @@ function bandpromo_bootstrap_load_manifest(string $manifestUrl): array {
   if (empty($decoded['version']) || !is_string($decoded['version'])) {
     throw new RuntimeException('Release manifest is missing version.');
   }
+
+  $decoded['resolved_manifest_url'] = $resolvedUrl;
 
   return $decoded;
 }
@@ -1143,7 +1353,7 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
           <?php if ($releaseManifest !== null): ?>
             <strong class="ok">Ready</strong>
             Latest install package<br>
-            <span>bandPromo has found the latest published install package automatically.</span><br>
+            <span>bandPromo found the newest published install package (including beta prereleases).</span><br>
             <span>Version <?= bandpromo_bootstrap_h((string) ($releaseManifest['version'] ?? 'unknown')) ?><?= !empty($releaseManifest['release_tag']) ? ' · ' . bandpromo_bootstrap_h((string) $releaseManifest['release_tag']) : '' ?></span>
           <?php else: ?>
             <strong class="bad">Needs attention</strong>

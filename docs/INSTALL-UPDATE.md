@@ -51,7 +51,7 @@ If one of these checks fails, stop and fix that problem first. The installer is 
 ### 4. Let the bootstrap discover the published release package
 
 - The operator installer now uses the published `release-manifest.json` as the authoritative source.
-- It should automatically discover the latest published immutable release package.
+- During v0.8 beta, it resolves the newest published release tag through the GitHub Releases API (including prereleases). GitHub `releases/latest` alone points only at the newest stable release.
 - It should show the release version before install.
 
 Normal operator installs should not use mutable branch snapshots such as `main.zip`.
