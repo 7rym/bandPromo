@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/https.php';
-require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/release-storage.php';
 bandpromo_enforce_https();
@@ -12,8 +11,6 @@ session_write_close();
 
 $root = dirname(__DIR__);
 $playlistId = bandpromo_playlist_resolve_id($root, (string) ($_GET['playlist'] ?? ''));
-
-bandpromo_ensure_bundled_demo_audio_delivery($root);
 
 try {
     bandpromo_playlist_ensure_seeded($root);

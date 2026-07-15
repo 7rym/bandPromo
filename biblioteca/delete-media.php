@@ -252,6 +252,7 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
     }
 
     bandpromo_media_set_hidden_for_install($target, $safe, false);
+    bandpromo_media_files_index_remove($target, $safe);
 
     bandpromo_admin_audit_log('media_deleted', [
         'target_type' => 'media',

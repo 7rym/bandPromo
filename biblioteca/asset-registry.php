@@ -109,6 +109,7 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
         'slug' => trim((string) ($entry['slug'] ?? '')),
         'display' => is_array($entry['display'] ?? null) ? $entry['display'] : [],
         'tags' => is_array($entry['tags'] ?? null) ? array_values($entry['tags']) : [],
+        'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [],
         'created_at' => trim((string) ($entry['created_at'] ?? gmdate('c'))),
     ];
 }
@@ -342,6 +343,10 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
         $existingDisplay = is_array($entry['display'] ?? null) ? $entry['display'] : [];
         $entry['display'] = array_merge($existingDisplay, $changes['display']);
     }
+    if (isset($changes['delivery']) && is_array($changes['delivery'])) {
+        $existingDelivery = is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [];
+        $entry['delivery'] = array_merge($existingDelivery, $changes['delivery']);
+    }
     if (isset($changes['tags']) && is_array($changes['tags'])) {
         $entry['tags'] = array_values($changes['tags']);
     }
@@ -367,6 +372,15 @@ function bandpromo_asset_read_audio_display(?array $asset): array
             'artist' => '',
             'album' => '',
             'duration' => 0,
+            'date' => '',
+            'tracknumber' => '',
+            'bpm' => '',
+            'initialkey' => '',
+            'genre' => '',
+            'comment' => '',
+            'lyrics' => '',
+            'living_cover' => '',
+            'cover' => '',
             'synced_at' => '',
         ];
     }
@@ -379,6 +393,15 @@ function bandpromo_asset_read_audio_display(?array $asset): array
         'artist' => trim((string) ($display['artist'] ?? '')),
         'album' => trim((string) ($display['album'] ?? '')),
         'duration' => max(0, (int) ($display['duration'] ?? 0)),
+        'date' => trim((string) ($display['date'] ?? '')),
+        'tracknumber' => trim((string) ($display['tracknumber'] ?? '')),
+        'bpm' => trim((string) ($display['bpm'] ?? '')),
+        'initialkey' => trim((string) ($display['initialkey'] ?? '')),
+        'genre' => trim((string) ($display['genre'] ?? '')),
+        'comment' => trim((string) ($display['comment'] ?? '')),
+        'lyrics' => (string) ($display['lyrics'] ?? ''),
+        'living_cover' => trim((string) ($display['living_cover'] ?? '')),
+        'cover' => basename(trim((string) ($display['cover'] ?? ''))),
         'synced_at' => trim((string) ($display['synced_at'] ?? '')),
     ];
 }

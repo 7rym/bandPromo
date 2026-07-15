@@ -10,6 +10,7 @@ else:
 import os
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from mutagen import File
@@ -1207,8 +1208,8 @@ def generate_playlist():
         warning_suffix = f" [metadata warnings: {', '.join(metadata_warnings)}]" if metadata_warnings else ''
         print(f"Track {disp_track}: {info['title']}{warning_suffix}")
 
-    # Legacy play/playlist.json has been removed. The runtime player reads playlist documents
-    # via biblioteca/get-player-playlist.php. We only write playlist-validation.json here.
+    # Player playlists are published into data/playlists/{id}.json at build time.
+    # Runtime player endpoints read that static payload only.
 
     # Write/update data/playlist-order.json so future builds preserve current order
     try:
@@ -1243,6 +1244,44 @@ def generate_playlist():
         print(f"   Validation report saved to {VALIDATION_FILE}")
     if unsupported_files:
         print(f"⚠️  Unsupported source files were skipped. Current supported source formats: {', '.join(ext.upper().lstrip('.') for ext in SUPPORTED_EXTENSIONS)}")
+
+    publish_player_playlist_payloads()
+
+
+def publish_player_playlist_payloads():
+    script = ROOT_DIR / 'biblioteca' / 'build-player-playlists.php'
+    if not script.exists():
+        print(f"⚠️  Player playlist publish script not found: {script}")
+        return
+
+    print('Publishing static player playlist payloads...')
+    try:
+        result = subprocess.run(
+            ['php', str(script)],
+            cwd=str(ROOT_DIR),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False,
+        )
+    except Exception as exc:
+        print(f"❌ Could not publish player playlist payloads: {exc}")
+        return
+
+    if result.stdout:
+        for line in result.stdout.splitlines():
+            if line.strip():
+                print(line)
+    if result.returncode != 0:
+        if result.stderr:
+            for line in result.stderr.splitlines():
+                if line.strip():
+                    print(line)
+        print('❌ Player playlist publish failed.')
+        return
+
+    print('✓ Player playlist payloads published.')
 
 
 def generate_validation_scan():

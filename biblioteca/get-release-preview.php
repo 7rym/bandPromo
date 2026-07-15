@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/https.php';
-require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
 
@@ -16,8 +15,6 @@ $releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? BANDPR
 if ($releaseId === '') {
     $releaseId = BANDPROMO_RELEASE_DEFAULT_ID;
 }
-
-bandpromo_ensure_bundled_demo_audio_delivery($root);
 
 try {
     bandpromo_release_ensure_seeded($root);

@@ -6,6 +6,7 @@ require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/audio-master-detail-helpers.php';
 require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/playlist-storage.php';
 bandpromo_enforce_https();
 
 function bandpromo_text_length(string $value): int {
@@ -132,21 +133,25 @@ try {
     exit;
 }
 
-$inspect_result = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', [
-    'action' => 'inspect',
-    'filename' => $filename,
-]);
-$inspect_data = is_array($inspect_result['data'] ?? null) ? $inspect_result['data'] : null;
-$existing_tracknumber = is_array($inspect_data) ? trim((string) ($inspect_data['tracknumber'] ?? '')) : '';
+try {
+    $current_detail = bandpromo_audio_master_detail_from_registry($root, $filename);
+} catch (Throwable $throwable) {
+    http_response_code(404);
+    echo json_encode(['error' => $throwable->getMessage()]);
+    exit;
+}
+
+$existing_tracknumber = trim((string) ($current_detail['tracknumber'] ?? ''));
+if ($existing_tracknumber === '') {
+    $existing_tracknumber = trim((string) ($current_detail['suggested_tracknumber'] ?? ''));
+}
 if ($normalized_fields['tracknumber'] === '') {
     $normalized_fields['tracknumber'] = $existing_tracknumber !== ''
         ? $existing_tracknumber
         : bandpromo_release_find_track_number_for_master($root, $filename);
 }
 
-$existing_living_cover = is_array($inspect_data)
-    ? bandpromo_living_cover_normalize_video_filename((string) ($inspect_data['living_cover'] ?? ''))
-    : '';
+$existing_living_cover = bandpromo_living_cover_normalize_video_filename((string) ($current_detail['living_cover'] ?? ''));
 $new_living_cover = $existing_living_cover;
 if ($living_cover_mode === 'clear') {
     $new_living_cover = '';
@@ -163,22 +168,22 @@ $normalized_fields['living_cover'] = $new_living_cover;
 
 $current_fields = [];
 foreach ($allowed_keys as $key) {
-    $current_fields[$key] = is_array($inspect_data) ? trim((string) ($inspect_data[$key] ?? '')) : '';
+    $current_fields[$key] = trim((string) ($current_detail[$key] ?? ''));
 }
 $current_fields['living_cover'] = $existing_living_cover;
 
 $metadata_changed = $current_fields !== $normalized_fields;
-$sidecar_cover = is_array($inspect_data) ? trim((string) ($inspect_data['sidecar_cover'] ?? '')) : '';
+$sidecar_cover = trim((string) ($current_detail['sidecar_cover'] ?? ''));
 $cover_changed = ($cover_mode === 'clear' && $sidecar_cover !== '') || $cover_mode === 'set';
 
 if (!$metadata_changed && !$cover_changed) {
-    $data = is_array($inspect_data) ? $inspect_data : [];
-    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename);
+    $data = $current_detail;
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
     $display = bandpromo_asset_read_audio_display($asset);
     if (!bandpromo_asset_audio_display_is_complete($display)) {
         bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, $data);
     }
-    $data = bandpromo_audio_master_enrich_detail($root, $filename, $data);
     $build_state = bandpromo_get_build_required_state();
 
     bandpromo_admin_audit_log('audio_master_metadata_saved', [
@@ -241,10 +246,19 @@ $updatedSidecarCover = array_key_exists('sidecar_cover', $cover_result)
 $data['sidecar_cover'] = $updatedSidecarCover;
 
 bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, is_array($data) ? $data : []);
-
-$playlist_scan = bandpromo_run_light_task('scripts/makePlaylists.py');
+bandpromo_playlist_invalidate_player_payloads_for_master($root, $filename);
 
 $data = bandpromo_audio_master_enrich_detail($root, $filename, $data);
+// Prefer freshly saved fields in the response (registry is authoritative after sync).
+$data['date'] = $normalized_fields['date'];
+$data['tracknumber'] = $normalized_fields['tracknumber'];
+$data['bpm'] = $normalized_fields['bpm'];
+$data['initialkey'] = $normalized_fields['initialkey'];
+$data['genre'] = $normalized_fields['genre'];
+$data['comment'] = $normalized_fields['comment'];
+$data['lyrics'] = $normalized_fields['lyrics'];
+$data['living_cover'] = $normalized_fields['living_cover'];
+$data = bandpromo_living_cover_enrich_detail($root, $data);
 
 $build_state = bandpromo_mark_build_required('media_audio_master_changed');
 
@@ -255,17 +269,10 @@ $response = [
     'build_required_state' => $build_state,
 ];
 
-if ($playlist_scan['ok']) {
-    $response['auto_tasks'] = ['playlist-scan'];
-} else {
-    $response['warning'] = 'Track details were saved, but the automatic playlist refresh failed.';
-    $response['task_output'] = trim((string) ($playlist_scan['output'] ?? ''));
-}
-
 bandpromo_admin_audit_log('audio_master_metadata_saved', [
     'target_type' => 'audio_master',
     'target_id' => $filename,
-    'status' => $playlist_scan['ok'] ? 'ok' : 'warning',
+    'status' => 'ok',
     'data' => [
         'title' => $normalized_fields['title'],
         'artist' => $normalized_fields['artist'],
@@ -275,8 +282,7 @@ bandpromo_admin_audit_log('audio_master_metadata_saved', [
         'living_cover_mode' => $living_cover_mode,
         'living_cover_path' => $living_cover_path,
         'living_cover' => $new_living_cover,
-        'auto_tasks' => $playlist_scan['ok'] ? ['playlist-scan'] : [],
-        'playlist_refresh_failed' => !$playlist_scan['ok'],
+        'auto_tasks' => [],
     ],
 ]);
 

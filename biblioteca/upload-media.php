@@ -20,6 +20,7 @@ require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/cover-art-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/build-catalog-helpers.php';
+require_once __DIR__ . '/media-library-state.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -105,10 +106,47 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
     }
 
     if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
+        // visual (and bare image uploads) land in the legacy illustrations intake bucket
         return $root_dir . '/media/img/original/' . $safe_name;
     }
 
     return null;
+}
+
+/**
+ * Resolve the on-disk files-index bucket for an upload.
+ * Operator UI may send target=visual; index rows still live under illustrations|photos|video|…
+ */
+function bandpromo_upload_resolve_files_index_target(string $target_hint, string $ext, string $saved_path): string
+{
+    $hint = trim($target_hint);
+    if (in_array($hint, ['audio', 'special', 'illustrations', 'photos', 'video'], true)) {
+        return $hint;
+    }
+
+    $ext = strtolower(trim($ext));
+    if (in_array($ext, ['mp4', 'webm', 'mov'], true)) {
+        return 'video';
+    }
+    if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
+        return 'audio';
+    }
+
+    $normalized = str_replace('\\', '/', $saved_path);
+    if (stripos($normalized, '/media/photo/') !== false) {
+        return 'photos';
+    }
+    if (stripos($normalized, '/media/video/') !== false) {
+        return 'video';
+    }
+    if (stripos($normalized, '/media/special/') !== false) {
+        return 'special';
+    }
+    if (stripos($normalized, '/media/img/') !== false) {
+        return 'illustrations';
+    }
+
+    return 'illustrations';
 }
 
 function bandpromo_is_video_extension(string $ext): bool {
@@ -267,10 +305,11 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
     }
 
     if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
-        if (($target_hint === 'illustrations' || $target_hint === '') && image_matches_audio_basename($filename)) {
+        $imagePoolHint = in_array($target_hint, ['illustrations', 'photos', 'visual', ''], true);
+        if (($target_hint === 'illustrations' || $target_hint === 'visual' || $target_hint === '') && image_matches_audio_basename($filename)) {
             return 'media_cover_upload';
         }
-        if ($target_hint === 'illustrations' || $target_hint === 'photos' || $target_hint === '') {
+        if ($imagePoolHint) {
             return 'media_image_upload';
         }
     }
@@ -368,6 +407,11 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $videoPoster = bandpromo_is_video_extension($savedExt)
         ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
         : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
+    bandpromo_media_files_index_sync_file(
+        $root_dir,
+        bandpromo_upload_resolve_files_index_target((string) $target_hint, $savedExt, $savedPath),
+        $savedName
+    );
     $response = [
         'ok' => true,
         'status' => 'complete',
@@ -527,6 +571,11 @@ foreach ($files as $file) {
         $videoPoster = bandpromo_is_video_extension($saved_ext)
             ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
             : bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
+        bandpromo_media_files_index_sync_file(
+            $root_dir,
+            bandpromo_upload_resolve_files_index_target((string) $target_hint, $saved_ext, $saved_path),
+            $saved_name
+        );
         $result = ['name' => $original, 'ok' => true, 'saved_as' => $saved_name];
         if (!empty($master['attempted'])) {
             $result['master_prepared'] = !empty($master['prepared']);

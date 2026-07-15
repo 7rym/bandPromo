@@ -115,7 +115,7 @@ The intended product concepts are expressed as **explicit role tags** on registr
 
 **Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic use **tags + brand_id**, not Illustrations/Photos/Video/Theme tabs.
+Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Visual (merged image/video pool) and Files → Brand assets (`special`); folder paths remain under the hood until registry migration.
 
 ### Current exposed model vs prepared internal model
 
@@ -135,7 +135,7 @@ The practical distinction is:
 - prepared internally: **brand containers**, release `brand_id` links, Visual pool role tags
 - exposed later: multiple brands and era-scoped release catalogs in full
 
-Legacy **`media/special/`** and the Files → Theme tab are **not** a brand role — they are intake workarounds migrating into the Visual pool with explicit role tags and `brand_id`.
+Legacy **`media/special/`** and the Files → **Brand assets** tab are **not** a brand role — they are intake workarounds migrating into the Visual pool with explicit role tags and `brand_id`.
 
 ## Inheritance model
 
@@ -1010,8 +1010,9 @@ Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regene
 #### Phase 3 — resolver + UI wiring
 
 - extend asset registry helpers and `media-delivery-helpers.php` for visual `asset_id` + variant resolution
-- replace Files → Illustrations / Photos / Video with **Files → Visual** (filters for image/video, orphan, alpha, references)
-- update Content pickers to query the Visual pool with context filters instead of hard-coded `data-targets="illustrations,photos,special"`
+- [x] replace Files → Illustrations / Photos / Video with **Files → Visual** (operator UX 2026-07-15; thumbnail-first + type filters 2026-07-16)
+- [x] Files → **Brand assets** label for legacy `media/special/` (2026-07-16)
+- update Content pickers to query the Visual pool with context filters / registry brand filter instead of hard-coded folder `data-targets` alone (partial: Visual browse merge shipped; brand filter waits on registry)
 - Content pools gate on **required variants present**, not merely “some file in optimal/”
 - validation messages name the missing variant (“card delivery missing for track cover”) not “run Build”
 

@@ -3,83 +3,13 @@
  * Save playlist order.
  *
  * Accepts a JSON array of master filenames (desired track order) via POST body.
- * Persists data/playlists/{id}.json (containers are the edit surface).
+ * Persists data/playlists/{id}.json entry refs only (no tag parse / delivery).
  * Admin-only.
  */
 require_once __DIR__ . '/admin-audit.php';
-require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/playlist-storage.php';
-
-function bandpromo_playlist_optimal_delivery_basename(string $sourceFilename): string
-{
-    return pathinfo($sourceFilename, PATHINFO_FILENAME) . '.mp3';
-}
-
-function bandpromo_playlist_optimal_delivery_path(string $root, string $sourceFilename): string
-{
-    return $root . '/media/audio/optimal/' . bandpromo_playlist_optimal_delivery_basename($sourceFilename);
-}
-
-function bandpromo_playlist_missing_optimal_delivery(array $tracks, string $root): array
-{
-    $missing = [];
-    foreach ($tracks as $track) {
-        if (!is_array($track)) {
-            continue;
-        }
-        $file = trim((string) ($track['file'] ?? ''));
-        if ($file === '') {
-            continue;
-        }
-        if (!is_file(bandpromo_playlist_optimal_delivery_path($root, $file))) {
-            $missing[] = $file;
-        }
-    }
-
-    return $missing;
-}
-
-function bandpromo_prepare_playlist_audio_delivery(array $filenames, string $root): array
-{
-    $requested = array_values(array_filter($filenames, static function ($entry) {
-        return is_string($entry) && $entry !== '' && strpbrk($entry, '/\\') === false;
-    }));
-    if (!$requested) {
-        return [
-            'ok' => true,
-            'prepared' => [],
-            'failed' => [],
-            'still_missing' => [],
-            'error' => '',
-        ];
-    }
-
-    $result = bandpromo_run_light_json_task('scripts/playlistAudioDelivery.py', [
-        'filenames' => $requested,
-    ]);
-    $data = is_array($result['data'] ?? null) ? $result['data'] : null;
-    if (!$result['ok'] || !is_array($data)) {
-        $error = is_array($data) ? (string) ($data['error'] ?? '') : '';
-        $output = trim((string) ($result['output'] ?? ''));
-
-        return [
-            'ok' => false,
-            'prepared' => [],
-            'failed' => array_map(static fn($file) => ['file' => $file, 'error' => 'delivery_task_failed'], $requested),
-            'still_missing' => $requested,
-            'error' => $error !== '' ? $error : ($output !== '' ? $output : 'Could not prepare playlist audio delivery files'),
-        ];
-    }
-
-    return [
-        'ok' => !empty($data['ok']),
-        'prepared' => is_array($data['prepared'] ?? null) ? array_values($data['prepared']) : [],
-        'failed' => is_array($data['failed'] ?? null) ? $data['failed'] : [],
-        'still_missing' => is_array($data['still_missing'] ?? null) ? array_values($data['still_missing']) : [],
-        'error' => empty($data['ok']) ? 'Some playlist delivery files could not be prepared' : '',
-    ];
-}
+require_once __DIR__ . '/publish-status-helpers.php';
 
 require_once __DIR__ . '/admin-api-guard.php';
 session_write_close();
@@ -136,20 +66,21 @@ try {
 
 $reordered = $saved['tracks'];
 $skipped = $saved['skipped'];
-
-$missing_delivery = bandpromo_playlist_missing_optimal_delivery($reordered, $root);
-$delivery_result = [
-    'ok' => true,
-    'prepared' => [],
-    'failed' => [],
-    'still_missing' => [],
-    'error' => '',
-];
-if ($missing_delivery) {
-    $delivery_result = bandpromo_prepare_playlist_audio_delivery($missing_delivery, $root);
-}
-
 $final_order = array_values(array_filter($order, static fn($entry) => is_string($entry) && $entry !== ''));
+
+$missing_delivery = [];
+foreach ($reordered as $track) {
+    if (!is_array($track)) {
+        continue;
+    }
+    $file = trim((string) ($track['file'] ?? ''));
+    if ($file === '') {
+        continue;
+    }
+    if (!bandpromo_asset_audio_delivery_ready($root, $file)) {
+        $missing_delivery[] = $file;
+    }
+}
 
 $response = [
     'ok' => true,
@@ -157,27 +88,21 @@ $response = [
     'count' => count($reordered),
     'requested' => count($final_order),
     'skipped' => $skipped,
-    'delivery_prepared' => $delivery_result['prepared'],
-    'delivery_failed' => $delivery_result['failed'],
-    'delivery_missing' => $delivery_result['still_missing'],
+    'delivery_prepared' => [],
+    'delivery_failed' => [],
+    'delivery_missing' => $missing_delivery,
 ];
 
 $warnings = [];
 if ($skipped) {
-    $warnings[] = 'Some tracks could not be added to the playlist because their source audio was not found';
+    $warnings[] = 'Some tracks could not be added to the playlist because they are not in the asset registry';
 }
-if ($delivery_result['still_missing']) {
-    $warnings[] = 'Some tracks are saved in the playlist but still need audio delivery before playback will work';
-    $response['build_required'] = true;
-    $response['build_required_state'] = bandpromo_mark_build_required('playlist_order_changed');
-} elseif ($delivery_result['prepared']) {
-    $response['auto_tasks'] = ['audio-delivery'];
-    $response['build_required_state'] = bandpromo_clear_build_required_tasks(['audio-delivery']);
-    $response['build_required'] = !empty($response['build_required_state']['required']);
+$response['build_required_state'] = bandpromo_mark_build_required('playlist_order_changed');
+$response['build_required'] = true;
+if ($missing_delivery) {
+    $warnings[] = 'Some tracks are saved in the playlist but still need audio delivery before playback will work. Run System → Publish.';
 }
-if ($delivery_result['error'] !== '') {
-    $warnings[] = $delivery_result['error'];
-}
+
 if ($warnings) {
     $response['warning'] = implode('. ', $warnings);
 }

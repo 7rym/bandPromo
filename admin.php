@@ -458,18 +458,24 @@ if (!in_array($tab, ['welcome', 'analytics', 'users', 'files', 'content', 'setti
 
 // Files sub-tab
 $filesPanel = $_GET['fpanel'] ?? 'audio';
-if (!in_array($filesPanel, ['audio', 'photos', 'video', 'illustrations', 'special'])) {
+// Legacy Illustrations / Photos / Video tabs → unified Visual pool.
+if (in_array($filesPanel, ['photos', 'video', 'illustrations'], true)) {
+    $filesPanel = 'visual';
+}
+if (!in_array($filesPanel, ['audio', 'visual', 'special'], true)) {
     $filesPanel = 'audio';
 }
 
 if ($tab === 'welcome') {
     $welcomeState = bandpromo_admin_welcome_state(__DIR__);
 } else {
+    // Non-Welcome tabs: latch file only — never run the install checklist scanner.
     $welcomeState = [
         'checklist' => [],
         'completed_count' => 0,
         'total_count' => 0,
-        'setup_complete' => bandpromo_is_setup_complete() && bandpromo_admin_runtime_files_present(__DIR__),
+        'setup_complete' => bandpromo_admin_welcome_setup_is_complete(__DIR__),
+        'setup_latched' => bandpromo_admin_welcome_setup_is_complete(__DIR__),
         'next_steps' => [],
     ];
 }
@@ -728,9 +734,9 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard. Use <strong>Notifications</strong> in the header for open tasks, then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
+                    This page is your dashboard. Use <strong>Notifications</strong> in the header for live tasks (track/video preparation, Site update, validation), then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step. Open <strong>Notifications</strong> in the header for the same checklist items plus any published site update. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Deliverables</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome. <strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Deliverables</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
             </div>
 
@@ -1144,11 +1150,9 @@ if ($tab === 'analytics') {
             <div class="tabs sub-tabs">
                 <?php
                 $filePanels = [
-                    'audio'         => ['🎵', 'Audio'],
-                    'photos'        => ['📷', 'Photo'],
-                    'video'         => ['🎬', 'Video'],
-                    'illustrations' => ['🖼️', 'Illustrations'],
-                    'special'       => ['✨', 'Theme'],
+                    'audio'   => ['🎵', 'Audio'],
+                    'visual'  => ['🎨', 'Visual'],
+                    'special' => ['✨', 'Brand assets'],
                 ];
                 foreach ($filePanels as $fp => [$emoji, $label]):
                     $active = $fp === $filesPanel ? 'active' : '';
@@ -1171,18 +1175,13 @@ if ($tab === 'analytics') {
                     <br>Click a tag bullet to edit short fields such as artist, title, version, release, track, release date, genre, BPM, or key. Use the pencil button for cover art, description, lyrics, and packaging details.
                     <br>
                     <br><strong>After upload:</strong> bandPromo prepares delivery files automatically. Tracks appear in Content pools only after they are ready. Check <strong>Notifications</strong> only if preparation fails.
-                <?php elseif ($filesPanel === 'photos'): ?>
-                    Drop band and promo photos here (PNG, JPG, WEBP). Use your best quality images. Unreferenced uploads are flagged as orphans so you can clean them up safely.
-                    <br><strong>After upload:</strong> bandPromo prepares publish-ready photo files automatically.
-                <?php elseif ($filesPanel === 'video'): ?>
-                    Drop videos here (MP4, WEBM, MOV). bandPromo keeps the original here and prepares a publish-ready MP4 automatically after upload. Delivery and poster generation run in the background for all video types. Videos appear in Content pools only after delivery is ready.
-                    <br><strong>After upload:</strong> check <strong>Notifications</strong> for background progress or any preparation failure.
-                <?php elseif ($filesPanel === 'illustrations'): ?>
-                    Drop artwork, track covers, and illustrations here (PNG, JPG, JPEG). Rows show whether each file is a track cover, release fallback, or general artwork, plus where it is referenced.
-                    <br><strong>After upload:</strong> bandPromo prepares publish-ready artwork automatically.
+                <?php elseif ($filesPanel === 'visual'): ?>
+                    One pool for still images and video — covers, photos, artwork, living covers, and gallery media.
+                    <br>Browse thumbnails, filter by type or usage, and open any asset for preview and details. Filenames stay hidden.
+                    <br><strong>After upload:</strong> bandPromo prepares image and video delivery files automatically. Check <strong>Notifications</strong> for video progress or failures.
                 <?php elseif ($filesPanel === 'special'): ?>
-                    This is for theme assets such as share images, icons, logos, and similar install-specific design files.
-                    <br><strong>After upload:</strong> usually no build needed.
+                    Brand assets for your site look — logos, share images, icons, welcome audio, and similar install branding files.
+                    <br><strong>After upload:</strong> usually no build needed. Transparent logos stay here until the Visual registry migration lands.
                 <?php endif; ?>
             </div>
 
@@ -1230,153 +1229,66 @@ if ($tab === 'analytics') {
                 <div class="media-panel-footer"><span id="audio-count" class="media-count"></span></div>
             </div>
 
-            <!-- Video -->
-            <div class="media-panel card" id="panel-video" <?php echo $filesPanel !== 'video' ? 'style="display:none"' : ''; ?>>
+            <!-- Visual pool (images + video) -->
+            <div class="media-panel card" id="panel-visual" <?php echo $filesPanel !== 'visual' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
                             <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>Drag and drop video files here to add them directly. Rows show whether each file is used by the gallery or theme background video. Use the filters to review orphans.
+                            <br>One visual pool for stills and video. Browse by look — tap a thumbnail for preview and details. Filenames stay hidden.
                         </span>
                     </div>
                 </div>
-                <div class="media-file-row media-file-list-header" data-media-list-header="video">
-                    <div class="media-file-row-main">
-                        <label class="media-file-select-wrap" title="Select or clear all visible files">
-                            <input type="checkbox" class="media-file-select-all" data-target="video" aria-label="Select all visible files">
+                <div class="visual-pool-toolbar" data-media-list-header="visual">
+                    <div class="visual-pool-toolbar-main">
+                        <label class="media-file-select-wrap visual-pool-select-all" title="Select or clear all visible files">
+                            <input type="checkbox" class="media-file-select-all" data-target="visual" aria-label="Select all visible visual assets">
                         </label>
-                        <span class="media-file-list-header-thumb" aria-hidden="true"></span>
-                        <div class="media-file-list-header-filters">
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter video files</span>
-                                <select class="media-filter-select" data-media-filter-target="video" aria-label="Filter video files">
-                                    <option value="all">All files</option>
-                                    <option value="referenced">In use</option>
-                                    <option value="orphans">Orphans</option>
-                                </select>
-                            </label>
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter by release</span>
-                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
-                                    <option value="all">All releases</option>
-                                </select>
-                            </label>
+                        <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
+                            <button type="button" class="visual-filter-chip is-active" data-visual-type-filter="all" aria-pressed="true">All</button>
+                            <button type="button" class="visual-filter-chip" data-visual-type-filter="image" aria-pressed="false">Images</button>
+                            <button type="button" class="visual-filter-chip" data-visual-type-filter="video" aria-pressed="false">Video</button>
                         </div>
-                        <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
-                        <span class="media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('video')" aria-label="Upload video files" title="Upload video files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="video" data-download-variant="original" disabled aria-label="Download selected video files" title="Download selected video files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="video" disabled aria-label="Delete selected video files" title="Delete selected video files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
-                        </span>
+                        <label class="media-filter-label visual-pool-usage-filter">
+                            <span class="visually-hidden">Filter by usage</span>
+                            <select class="media-filter-select" data-media-filter-target="visual" aria-label="Filter visual assets by usage">
+                                <option value="all">All usage</option>
+                                <option value="referenced">In use</option>
+                                <option value="orphans">Orphans</option>
+                                <option value="track-covers">Track covers</option>
+                                <option value="living-covers">Living covers</option>
+                                <option value="build-generated">Build-generated</option>
+                            </select>
+                        </label>
+                        <div class="visual-view-toggle" role="group" aria-label="Visual pool layout">
+                            <button type="button" class="visual-view-btn is-active" data-visual-view="grid" aria-pressed="true" title="Grid view">Grid</button>
+                            <button type="button" class="visual-view-btn" data-visual-view="list" aria-pressed="false" title="List view">List</button>
+                        </div>
+                    </div>
+                    <div class="visual-pool-toolbar-actions">
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('visual')" aria-label="Upload visual files" title="Upload images or videos"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                     </div>
                 </div>
-                <div id="filelist-video" class="media-file-list"><span class="text-muted">Loading…</span></div>
-                <div class="media-panel-footer"><span id="video-count" class="media-count"></span></div>
+                <div id="filelist-visual" class="visual-pool-list visual-pool-list--grid" data-visual-layout="grid"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="visual-count" class="media-count"></span></div>
             </div>
 
-            <!-- Illustrations -->
-            <div class="media-panel card" id="panel-illustrations" <?php echo $filesPanel !== 'illustrations' ? 'style="display:none"' : ''; ?>>
-                <div class="media-panel-header">
-                    <div class="media-panel-summary">
-                        <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>Drag and drop artwork here to add track covers and illustrations. Use the filters to review track covers, build-generated files, or orphans.
-                        </span>
-                    </div>
-                </div>
-                <div class="media-file-row media-file-list-header" data-media-list-header="illustrations">
-                    <div class="media-file-row-main">
-                        <label class="media-file-select-wrap" title="Select or clear all visible files">
-                            <input type="checkbox" class="media-file-select-all" data-target="illustrations" aria-label="Select all visible files">
-                        </label>
-                        <span class="media-file-list-header-thumb" aria-hidden="true"></span>
-                        <div class="media-file-list-header-filters">
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter illustration files</span>
-                                <select class="media-filter-select" data-media-filter-target="illustrations" aria-label="Filter illustration files">
-                                    <option value="all">All files</option>
-                                    <option value="track-covers">Track covers</option>
-                                    <option value="orphans">Orphans</option>
-                                    <option value="build-generated">Build-generated</option>
-                                </select>
-                            </label>
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter by release</span>
-                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
-                                    <option value="all">All releases</option>
-                                </select>
-                            </label>
-                        </div>
-                        <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
-                        <span class="media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('illustrations')" aria-label="Upload illustration files" title="Upload illustration files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="illustrations" data-download-variant="original" disabled aria-label="Download selected illustration files" title="Download selected illustration files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="illustrations" disabled aria-label="Delete selected illustration files" title="Delete selected illustration files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
-                        </span>
-                    </div>
-                </div>
-                <div id="filelist-illustrations" class="media-file-list"><span class="text-muted">Loading…</span></div>
-                <div class="media-panel-footer"><span id="illustrations-count" class="media-count"></span></div>
-            </div>
-
-            <!-- Photos -->
-            <div class="media-panel card" id="panel-photos" <?php echo $filesPanel !== 'photos' ? 'style="display:none"' : ''; ?>>
-                <div class="media-panel-header">
-                    <div class="media-panel-summary">
-                        <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>Drag and drop photo files here to add them directly. Rows show whether each file is used by the gallery or theme settings. Use the filters to review orphans.
-                        </span>
-                    </div>
-                </div>
-                <div class="media-file-row media-file-list-header" data-media-list-header="photos">
-                    <div class="media-file-row-main">
-                        <label class="media-file-select-wrap" title="Select or clear all visible files">
-                            <input type="checkbox" class="media-file-select-all" data-target="photos" aria-label="Select all visible files">
-                        </label>
-                        <span class="media-file-list-header-thumb" aria-hidden="true"></span>
-                        <div class="media-file-list-header-filters">
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter photo files</span>
-                                <select class="media-filter-select" data-media-filter-target="photos" aria-label="Filter photo files">
-                                    <option value="all">All files</option>
-                                    <option value="referenced">In use</option>
-                                    <option value="orphans">Orphans</option>
-                                </select>
-                            </label>
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter by release</span>
-                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
-                                    <option value="all">All releases</option>
-                                </select>
-                            </label>
-                        </div>
-                        <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
-                        <span class="media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('photos')" aria-label="Upload photo files" title="Upload photo files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="photos" data-download-variant="original" disabled aria-label="Download selected photo files" title="Download selected photo files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="photos" disabled aria-label="Delete selected photo files" title="Delete selected photo files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
-                        </span>
-                    </div>
-                </div>
-                <div id="filelist-photos" class="media-file-list"><span class="text-muted">Loading…</span></div>
-                <div class="media-panel-footer"><span id="photos-count" class="media-count"></span></div>
-            </div>
-
-            <!-- Special -->
+            <!-- Brand assets (legacy special intake) -->
             <div class="media-panel card" id="panel-special" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
                             <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>Drag and drop theme files here to add them directly. Select multiple files for group download or deletion.
+                            <br>Drag and drop brand assets here — logos, share images, icons, and related branding files. Select multiple files for group download or deletion.
                         </span>
                     </div>
                 </div>
                 <div class="media-file-row media-file-list-header" data-media-list-header="special">
                     <div class="media-file-row-main">
                         <label class="media-file-select-wrap" title="Select or clear all visible files">
-                            <input type="checkbox" class="media-file-select-all" data-target="special" aria-label="Select all visible files">
+                            <input type="checkbox" class="media-file-select-all" data-target="special" aria-label="Select all visible brand assets">
                         </label>
                         <span class="media-file-list-header-thumb" aria-hidden="true"></span>
                         <div class="media-file-list-header-filters">
@@ -1389,9 +1301,9 @@ if ($tab === 'analytics') {
                         </div>
                         <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
                         <span class="media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('special')" aria-label="Upload theme files" title="Upload theme files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected theme files" title="Download selected theme files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected theme files" title="Delete selected theme files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('special')" aria-label="Upload brand assets" title="Upload brand assets"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected brand assets" title="Download selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected brand assets" title="Delete selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </span>
                     </div>
                 </div>
@@ -1428,6 +1340,26 @@ if ($tab === 'analytics') {
                         <button id="mediaDeleteConfirmBtn" class="btn btn-primary icon-btn danger">Delete</button>
                         <button class="btn" onclick="closeDeleteModal()">Cancel</button>
                         <span id="mediaDeleteStatus" class="status-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual asset drilldown -->
+            <div id="visualAssetModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeVisualAssetModal()">
+                <div class="modal-box visual-asset-modal-box">
+                    <button type="button" class="modal-close" onclick="closeVisualAssetModal()" aria-label="Close">✕</button>
+                    <div class="visual-asset-modal-layout">
+                        <div class="visual-asset-modal-preview" id="visualAssetPreview"></div>
+                        <div class="visual-asset-modal-side">
+                            <h3 id="visualAssetTitle">Visual asset</h3>
+                            <div id="visualAssetBadges" class="visual-asset-badges"></div>
+                            <dl id="visualAssetDetails" class="visual-asset-details"></dl>
+                            <div class="modal-actions visual-asset-modal-actions">
+                                <button type="button" class="btn btn-primary" id="visualAssetDownloadBtn">Download</button>
+                                <button type="button" class="btn icon-btn danger" id="visualAssetDeleteBtn">Delete</button>
+                                <button type="button" class="btn" onclick="closeVisualAssetModal()">Close</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1554,7 +1486,11 @@ if ($tab === 'analytics') {
                                         <div class="playlist-settings-fields release-catalog-meta-fields">
                                             <label class="playlist-settings-field release-catalog-meta-field--date">
                                                 <span>Release date</span>
-                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'releaseSettingsDate'); ?>
+                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'releaseSettingsDate', [
+                                                    'variant' => 'form',
+                                                    'required' => true,
+                                                    'allow_year_only' => true,
+                                                ]); ?>
                                             </label>
                                             <p class="hint">Fans can play from the start of this <strong>UTC calendar day</strong>. Timed worldwide drops (hour/minute) are planned for v2 marketing.</p>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
@@ -1739,10 +1675,11 @@ if ($tab === 'analytics') {
                                         <div class="playlist-settings-fields release-catalog-meta-fields">
                                             <label class="playlist-settings-field release-catalog-meta-field--date">
                                                 <span>Publish date</span>
-                                                <div class="date-input-shell">
-                                                    <span class="date-input-icon" aria-hidden="true">📅</span>
-                                                    <input type="text" class="iso-date-input" id="playlistSettingsPublishDate" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false">
-                                                </div>
+                                                <?php bandpromo_admin_render_iso_date_field('publish_date', '', 'playlistSettingsPublishDate', [
+                                                    'variant' => 'form',
+                                                    'required' => true,
+                                                    'allow_year_only' => true,
+                                                ]); ?>
                                             </label>
                                             <p class="hint">Playlist promotion uses this <strong>UTC calendar day</strong>; track playability still follows each release date.</p>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
@@ -2278,7 +2215,7 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- ── BASICS ──────────────────────────────────────────────────── -->
-            <?php if ($configTab === 'basics'): ?>
+            <?php if ($tab === 'settings' && $configTab === 'basics'): ?>
             <?php
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSite = $cfgFull['site'] ?? [];
@@ -2373,7 +2310,7 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- ── THEME ───────────────────────────────────────────────────── -->
-            <?php elseif ($configTab === 'theme'): ?>
+            <?php elseif ($tab === 'settings' && $configTab === 'theme'): ?>
             <?php
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgTheme = $cfgFull['media'] ?? [];
@@ -2475,7 +2412,7 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- ── SUPPORT ─────────────────────────────────────────────────── -->
-            <?php elseif ($configTab === 'support'): ?>
+            <?php elseif ($tab === 'settings' && $configTab === 'support'): ?>
             <?php
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSupport = $cfgFull['support'] ?? [];
@@ -2540,7 +2477,7 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- ── SHARING ─────────────────────────────────────────────────── -->
-            <?php elseif ($configTab === 'sharing'): ?>
+            <?php elseif ($tab === 'settings' && $configTab === 'sharing'): ?>
             <?php
             require_once __DIR__ . '/biblioteca/config-loader.php';
             $ogTitle   = get_config('release.identity.title', 'bandPromo');
@@ -3160,9 +3097,10 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="form-group form-group-date">
                         <label for="audioMasterFieldDate">* Release date</label>
-                        <div class="date-input-shell">
-                            <span class="date-input-icon" aria-hidden="true">📅</span>
-                            <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false" required>
+                        <div class="date-input-shell iso-date-field">
+                            <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
+                            <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
+                            <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">📅</button>
                         </div>
                     </div>
                     <div class="form-group">

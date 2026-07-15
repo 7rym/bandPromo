@@ -47,29 +47,25 @@ function bandpromo_cover_art_img_path_basename_exists(string $root, string $base
 
 function bandpromo_cover_art_collect_audio_stems(string $root): array
 {
+    require_once __DIR__ . '/media-library-state.php';
+
     $stems = [];
-    $audioDir = $root . '/media/audio/original';
-    if (!is_dir($audioDir)) {
-        return $stems;
-    }
-
-    foreach (new DirectoryIterator($audioDir) as $entry) {
-        if ($entry->isDot() || $entry->isDir()) {
+    bandpromo_media_files_index_ensure_target($root, 'audio');
+    foreach (bandpromo_media_files_index_list($root, 'audio') as $entry) {
+        if (!is_array($entry)) {
             continue;
         }
-
-        $filename = $entry->getFilename();
-        if (strcasecmp($filename, 'desktop.ini') === 0) {
+        $filename = (string) ($entry['name'] ?? '');
+        if ($filename === '' || strcasecmp($filename, 'desktop.ini') === 0) {
             continue;
         }
-
         $stems[pathinfo($filename, PATHINFO_FILENAME)] = $filename;
     }
 
     return $stems;
 }
 
-function bandpromo_cover_art_load_playlist_context(string $root): array
+function bandpromo_cover_art_load_playlist_context(string $root, ?array $trackVisualIndex = null): array
 {
     $context = [
         'cover_refs' => [],
@@ -77,6 +73,27 @@ function bandpromo_cover_art_load_playlist_context(string $root): array
         'audio_stems' => bandpromo_cover_art_collect_audio_stems($root),
         'configured_in_use' => false,
     ];
+
+    require_once __DIR__ . '/media-reference-helpers.php';
+    $trackVisualIndex = is_array($trackVisualIndex)
+        ? $trackVisualIndex
+        : bandpromo_media_reference_build_track_visual_index($root);
+
+    // Live registry assignments (updated immediately on track-editor save).
+    foreach ($trackVisualIndex['covers'] ?? [] as $coverBasename => $refs) {
+        if (!is_array($refs) || $coverBasename === '') {
+            continue;
+        }
+        if (!isset($context['cover_refs'][$coverBasename])) {
+            $context['cover_refs'][$coverBasename] = [];
+        }
+        foreach ($refs as $reference) {
+            if (!is_array($reference)) {
+                continue;
+            }
+            $context['cover_refs'][$coverBasename][] = $reference;
+        }
+    }
 
     $validation_map = bandpromo_playlist_cover_source_validation_map($root);
 
@@ -95,12 +112,25 @@ function bandpromo_cover_art_load_playlist_context(string $root): array
             $context['cover_refs'][$coverBasename] = [];
         }
 
-        $context['cover_refs'][$coverBasename][] = [
-            'scope' => 'playlist',
-            'kind' => 'playlist-cover',
-            'label' => $label !== '' ? $label : $coverBasename,
-            'audio_file' => $audioFile,
-        ];
+        // Avoid duplicate playlist refs when registry already lists the same master/cover.
+        $alreadyListed = false;
+        foreach ($context['cover_refs'][$coverBasename] as $existing) {
+            if (
+                ($existing['kind'] ?? '') === 'track-cover'
+                && ($existing['audio_file'] ?? '') === $audioFile
+            ) {
+                $alreadyListed = true;
+                break;
+            }
+        }
+        if (!$alreadyListed) {
+            $context['cover_refs'][$coverBasename][] = [
+                'scope' => 'playlist',
+                'kind' => 'playlist-cover',
+                'label' => $label !== '' ? $label : $coverBasename,
+                'audio_file' => $audioFile,
+            ];
+        }
 
         $coverSource = $validation_map[$audioFile] ?? '';
         if ($coverSource !== '') {
@@ -258,14 +288,14 @@ function bandpromo_cover_art_infer_origin(string $filename, array $manifest, str
     return 'user-upload';
 }
 
-function bandpromo_cover_art_collect_references(string $root, string $filename): array
+function bandpromo_cover_art_collect_references(string $root, string $filename, ?array $trackVisualIndex = null): array
 {
     $safe = basename($filename);
     if ($safe === '' || $safe === '.' || $safe === '..') {
         return [];
     }
 
-    $playlistContext = bandpromo_cover_art_load_playlist_context($root);
+    $playlistContext = bandpromo_cover_art_load_playlist_context($root, $trackVisualIndex);
     $references = [];
 
     if (!empty($playlistContext['cover_refs'][$safe])) {
@@ -311,17 +341,23 @@ function bandpromo_cover_art_collect_references(string $root, string $filename):
     return $references;
 }
 
-function bandpromo_cover_art_describe_file(string $root, string $filename, ?array $playlistContext = null): array
-{
+function bandpromo_cover_art_describe_file(
+    string $root,
+    string $filename,
+    ?array $playlistContext = null,
+    ?array $trackVisualIndex = null
+): array {
     $safe = basename($filename);
-    $playlistContext = is_array($playlistContext) ? $playlistContext : bandpromo_cover_art_load_playlist_context($root);
+    $playlistContext = is_array($playlistContext)
+        ? $playlistContext
+        : bandpromo_cover_art_load_playlist_context($root, $trackVisualIndex);
     $manifest = bandpromo_cover_art_manifest_record($safe);
     $role = $manifest['role'] !== '' ? $manifest['role'] : bandpromo_cover_art_infer_role($safe, $playlistContext);
     $origin = bandpromo_cover_art_infer_origin($safe, $manifest, $role);
-    $references = bandpromo_cover_art_collect_references($root, $safe);
+    $references = bandpromo_cover_art_collect_references($root, $safe, $trackVisualIndex);
     $linkedAudio = $manifest['linked_audio'];
 
-    if ($linkedAudio === '' && $role === 'track-cover') {
+    if ($linkedAudio === '' && ($role === 'track-cover' || $references !== [])) {
         $stem = pathinfo($safe, PATHINFO_FILENAME);
         if ($stem !== '' && isset($playlistContext['audio_stems'][$stem])) {
             $linkedAudio = $playlistContext['audio_stems'][$stem];
@@ -332,6 +368,15 @@ function bandpromo_cover_art_describe_file(string $root, string $filename, ?arra
                     $linkedAudio = $audioFile;
                     break;
                 }
+            }
+        }
+    }
+
+    if ($role === '' && $references !== []) {
+        foreach ($references as $reference) {
+            if (in_array(($reference['kind'] ?? ''), ['track-cover', 'playlist-cover'], true)) {
+                $role = 'track-cover';
+                break;
             }
         }
     }

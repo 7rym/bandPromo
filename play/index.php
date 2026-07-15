@@ -11,8 +11,6 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 
 // Load playlist
 require_once __DIR__ . '/../biblioteca/playlist-storage.php';
-require_once __DIR__ . '/../biblioteca/auto-build-tasks.php';
-require_once __DIR__ . '/../biblioteca/media-delivery-helpers.php';
 require_once __DIR__ . '/../biblioteca/auth.php';
 
 $playerRoot = dirname(__DIR__);
@@ -91,15 +89,10 @@ $preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] 
 
 $playlistTracks = [];
 try {
-    if ($activePlaylistId === BANDPROMO_PLAYLIST_DEMO_ID) {
-        bandpromo_ensure_bundled_demo_audio_delivery($playerRoot);
-    }
-    $playlistTracks = bandpromo_playlist_materialize_for_player(
-        $playerRoot,
-        $activePlaylistId,
-        false,
-        $preferredAudioVariant
-    );
+    $playlistDocument = bandpromo_playlist_load_document($playerRoot, $activePlaylistId);
+    $playlistTracks = is_array($playlistDocument['tracks'] ?? null)
+        ? bandpromo_playlist_normalize_stored_tracks($playlistDocument['tracks'])
+        : [];
 } catch (Throwable $throwable) {
     $playlistTracks = [];
 }

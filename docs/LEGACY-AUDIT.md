@@ -17,7 +17,7 @@ _Date: 2026-07-15 — post fleet sync (build 332)_
 | Default release labeled `system` in registry template | Removed — only `bandpromo-demo` is system-managed in admin |
 | Operator copy "Primary Release" / "move to primary release" | Renamed to **Default release**; delete copy matches behavior (tracks stay in audio library) |
 
-## Intentional migration shims (keep until visual pool / v0.9)
+## Intentional migration shims (keep until visual registry / v0.9)
 
 | Item | Reason |
 |------|--------|
@@ -30,11 +30,12 @@ _Date: 2026-07-15 — post fleet sync (build 332)_
 | Hardcoded share/player meta defaults | v0.9 public-share work |
 | `release-fallback` cover role | Documented install-level identity policy |
 
-## Deferred to unified visual pool
+## Deferred to unified visual registry / delivery
 
-- Illustrations / Photos / Video folder-category split in Files tab
+- On-disk Illustrations / Photos / Video intake buckets (`media/img|photo|video`) — **operator Files tab split removed (2026-07-15)**; folders remain until Phases 0b–2
 - Sidecar image/video resolution paths in build scripts
-- Visual `ast_{ULID}` registry-first pickers
+- Visual `ast_{ULID}` registry-first pickers + brand filter chip
+- Folding Brand assets (`media/special`) into Visual
 
 ## Fail-loud bar (AGENTS.md)
 

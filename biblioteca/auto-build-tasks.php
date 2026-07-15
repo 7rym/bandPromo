@@ -583,6 +583,13 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
     ]);
 
     if ($ok) {
+        require_once __DIR__ . '/media-library-state.php';
+        foreach ($files as $filename) {
+            $safe = basename(trim((string) $filename));
+            if ($safe !== '') {
+                bandpromo_media_files_index_sync_file($root, 'video', $safe);
+            }
+        }
         bandpromo_clear_build_required_tasks_if_no_background_video_pending();
     }
 
@@ -627,7 +634,7 @@ function bandpromo_prune_background_tasks(int $doneRetentionSeconds = 120): void
     bandpromo_write_background_tasks(['items' => $kept]);
 }
 
-function bandpromo_reconcile_background_tasks(): array
+function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): array
 {
     $jobsDir = bandpromo_video_delivery_job_dir();
     if (!is_dir($jobsDir)) {
@@ -695,7 +702,10 @@ function bandpromo_reconcile_background_tasks(): array
 
     bandpromo_prune_background_tasks();
 
-    bandpromo_maybe_auto_queue_video_delivery(dirname(__DIR__));
+    // Notifications polls must not spawn new work — that keeps the UI in a forever "busy" loop.
+    if ($allowAutoQueue) {
+        bandpromo_maybe_auto_queue_video_delivery(dirname(__DIR__));
+    }
 
     return bandpromo_read_background_tasks();
 }
@@ -940,6 +950,24 @@ function bandpromo_run_audio_source_delivery(array $filenames): array
     ];
 }
 
+function bandpromo_run_audio_source_delivery_and_refresh(array $filenames): array
+{
+    $delivery = bandpromo_run_audio_source_delivery($filenames);
+    require_once __DIR__ . '/publish-status-helpers.php';
+    $root = dirname(__DIR__);
+    $prepared = is_array($delivery['prepared'] ?? null) ? $delivery['prepared'] : [];
+    if ($prepared !== []) {
+        bandpromo_delivery_mark_audio_ready($root, $prepared, true);
+    }
+    $stillMissing = is_array($delivery['still_missing'] ?? null) ? $delivery['still_missing'] : [];
+    if ($stillMissing !== []) {
+        bandpromo_delivery_mark_audio_ready($root, $stillMissing, false);
+    }
+    bandpromo_delivery_refresh_inventory_snapshot($root);
+
+    return $delivery;
+}
+
 function bandpromo_list_missing_bundled_demo_audio_delivery(string $root): array
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
@@ -1071,6 +1099,11 @@ function bandpromo_maybe_run_auto_image_delivery(array $reasons, ?array $state):
         'BANDPROMO_OPTIMIZE_MODE' => 'image-only',
     ]);
     if ($task['ok']) {
+        require_once __DIR__ . '/media-library-state.php';
+        $root = dirname(__DIR__);
+        bandpromo_media_files_index_rebuild_target($root, 'illustrations');
+        bandpromo_media_files_index_rebuild_target($root, 'photos');
+
         return [
             'state' => bandpromo_clear_build_required_tasks(['image-delivery']),
             'auto_tasks' => ['image-delivery'],
@@ -1112,7 +1145,7 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         $outputs[] = trim((string) ($scan['output'] ?? ''));
     }
 
-    $delivery = bandpromo_run_audio_source_delivery($uploadedFilenames);
+    $delivery = bandpromo_run_audio_source_delivery_and_refresh($uploadedFilenames);
     if ($delivery['ok']) {
         $autoTasks[] = 'audio-delivery';
         $state = bandpromo_clear_build_required_tasks(['audio-delivery']);

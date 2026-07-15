@@ -5,15 +5,15 @@ require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/admin-welcome-state.php';
 require_once __DIR__ . '/package-updater.php';
-require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/publish-status-helpers.php';
 require_once __DIR__ . '/catalog-repair-auto.php';
 
 $rootDir = dirname(__DIR__);
-$scope = strtolower(trim((string) ($_GET['scope'] ?? 'full')));
+$scope = strtolower(trim((string) ($_GET['scope'] ?? 'lite')));
 if (!in_array($scope, ['lite', 'full'], true)) {
-    $scope = 'full';
+    $scope = 'lite';
 }
+$includeInventory = isset($_GET['inventory']) && (string) $_GET['inventory'] === '1';
 
 $validationFile = bandpromo_playlist_validation_report_path($rootDir);
 $metadataValidation = null;
@@ -63,17 +63,53 @@ function bandpromo_filter_metadata_validation_for_notifications(string $rootDir,
     return $validation;
 }
 
+/**
+ * Read-only catalog repair status for Notifications — never starts repair/Python from this endpoint.
+ */
+function bandpromo_notifications_catalog_repair_snapshot(string $root): array
+{
+    if (bandpromo_catalog_repair_is_locked($root)) {
+        return [
+            'status' => 'running',
+            'message' => 'bandPromo is preparing uploads in the background.',
+        ];
+    }
+
+    $state = bandpromo_catalog_repair_load_state($root);
+    $errors = is_array($state['last_errors'] ?? null) ? $state['last_errors'] : [];
+    if ($errors !== []) {
+        return [
+            'status' => 'warning',
+            'message' => 'bandPromo could not finish preparing every upload automatically.',
+            'errors' => array_slice($errors, 0, 5),
+        ];
+    }
+
+    return [
+        'status' => 'idle',
+        'message' => '',
+    ];
+}
+
 $buildState = bandpromo_get_build_required_state();
-$backgroundTasks = bandpromo_reconcile_background_tasks();
+// Finalize/prune only — never auto-spawn video jobs from Notifications polling.
+$backgroundTasks = bandpromo_reconcile_background_tasks(false);
+$packageUpdate = bandpromo_package_check_update_cached($rootDir);
+$welcomeSetupComplete = bandpromo_admin_welcome_setup_is_complete($rootDir);
 
 if ($scope === 'lite') {
-    $packageUpdate = bandpromo_package_check_update_cached($rootDir);
     echo json_encode([
         'ok' => true,
         'scope' => 'lite',
         'build_required' => !empty($buildState['required']),
         'build_required_state' => $buildState,
         'background_tasks' => $backgroundTasks,
+        'welcome' => [
+            'setup_complete' => $welcomeSetupComplete,
+            'setup_latched' => $welcomeSetupComplete,
+            'completed_count' => 0,
+            'total_count' => 0,
+        ],
         'package_update' => [
             'installed_version' => $packageUpdate['installed_version'] ?? null,
             'remote_version' => $packageUpdate['remote_version'] ?? null,
@@ -108,16 +144,14 @@ if ($validationFile !== null && file_exists($validationFile)) {
 
 $metadataValidation = bandpromo_filter_metadata_validation_for_notifications($rootDir, $metadataValidation);
 
+// Read-only only — catalog repair / uncatalogued materialize must not run here.
+$catalogRepair = bandpromo_notifications_catalog_repair_snapshot($rootDir);
 $uncataloguedAudioFailures = [];
-$uncataloguedReconcile = bandpromo_reconcile_uncatalogued_audio_originals($rootDir);
-if (!empty($uncataloguedReconcile['failed']) && is_array($uncataloguedReconcile['failed'])) {
-    $uncataloguedAudioFailures = $uncataloguedReconcile['failed'];
-}
 
-$catalogRepair = bandpromo_catalog_repair_maybe_run($rootDir, $uncataloguedReconcile);
-$publishStatus = bandpromo_publish_status_summary($rootDir);
-$welcomeState = bandpromo_admin_welcome_state($rootDir);
-$packageUpdate = bandpromo_package_check_update_cached($rootDir);
+$publishStatus = bandpromo_publish_status_summary($rootDir, [
+    'include_inventory' => $includeInventory,
+    'include_uncatalogued_scan' => false,
+]);
 
 echo json_encode([
     'ok' => true,
@@ -129,7 +163,12 @@ echo json_encode([
     'publish_status' => $publishStatus,
     'catalog_repair' => $catalogRepair,
     'uncatalogued_audio_failures' => $uncataloguedAudioFailures,
-    'welcome' => $welcomeState,
+    'welcome' => [
+        'setup_complete' => $welcomeSetupComplete,
+        'setup_latched' => $welcomeSetupComplete,
+        'completed_count' => 0,
+        'total_count' => 0,
+    ],
     'package_update' => [
         'installed_version' => $packageUpdate['installed_version'] ?? null,
         'remote_version' => $packageUpdate['remote_version'] ?? null,

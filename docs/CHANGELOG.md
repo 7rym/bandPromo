@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-16 00:25 - Docs audit close-out: PLATFORM-MODEL / MEDIA-HANDLING / ROADMAP / TODO / FEATURES / LEGACY-AUDIT aligned with shipped Files → Visual operator UX and Files → Brand assets rename; Phases 0b–2 remain deferred; note this checkpoint is push-only (no Site-update release package).
+
+2026-07-16 00:20 - Files tab: rename Theme → Brand assets (operator label for legacy `media/special/` intake; internal target unchanged).
+
+2026-07-16 00:15 - Content Catalog + Playlists date fields: shared form ISO date control (text + calendar button) matching track-editor shell; Playlists no longer uses a decorative-only calendar icon.
+
+2026-07-16 00:05 - Files → Visual: muted looping video preview on hover/focus in pool tiles and the asset drilldown (respects prefers-reduced-motion; preview MP4 loads lazily on first hover).
+
+2026-07-15 23:55 - Files → Visual UI: thumbnail-first grid (list toggle), clickable Image/Video filter chips, no filenames in the pool; thumbnail opens a drilldown with preview + usage/details; preview eye icon removed from Visual rows.
+
+2026-07-15 23:45 - Files → Visual operator pool: collapse Illustrations/Photos/Video into one Files tab with type/usage/role filters; `list-media.php?target=visual` merges legacy intake buckets; uploads/deletes still target `img`/`photo`/`video` on disk; Theme/`special` stays separate; old `fpanel=` URLs redirect. Docs mark Phase 3 operator UX shipped; Phases 0b–2 remain.
+
+2026-07-15 23:30 - Pool orphan detection: treat asset-registry track covers and living covers as live references immediately after track-editor save (no longer dependent on stale published playlist payloads); PHP playlist track rebuild now carries cover/living_cover from registry display.
+
+2026-07-15 23:20 - Media picker: drop tile hover scale (was distorting video thumbnails in the living-cover picker); hover is border/shadow only.
+
+2026-07-15 23:15 - Track editor: living-cover picker updates preview/form state immediately (uses delivery preview URL when available); release date uses real calendar picker again and keeps YYYY year-only values.
+
+2026-07-15 23:05 - Files index: Admin Files GET reads `media-library-state.json` → `files` only (size/mtime/format/audio_master/pool_ready/video_meta) — no DirectoryIterator or filesize probes; write-back on upload/delete/delivery/Publish; inventory counts use the same index.
+
+2026-07-15 22:55 - Track editor: store date/living_cover/lyrics and related editor fields in `assets[].display` on save; load them from the registry on open (fixes empty date + living cover lost after save); accept YYYY or YYYY-MM-DD in the date field; preview .mov living covers from original.
+
+2026-07-15 22:45 - Registry-first lookups: admin GET paths (playlist/release preview, Files audio list, track detail) read `assets[].display` / stored docs only — no `playlistTrackEntries.py` or `audioMasterMetadata.py` inspect on load; playlist reorder and tag save update registry + clear player payloads without sync `makePlaylists`/delivery; Publish + delivery jobs write `assets[].delivery` and `data/delivery/inventory-snapshot.json` for Deliverables/notifications.
+
+2026-07-15 22:20 - Static player playlists: Publish now writes full player-ready `tracks`, `brand_styles`, and `delivery_summary` into `data/playlists/{id}.json`; player endpoints only read that payload (no Python/materialize on request); reorder/edit clears stale payload until next Publish; operators bypass embargo client-side via stored `embargoed` flag.
+
+2026-07-15 21:15 - Deliverables inventory chips: Catalog tracks count unique release members from live release documents (not stale registry track_count); Brands chip shows custom brands only.
+
+2026-07-15 21:05 - Admin load speed: Notifications remain read-only (no catalog repair/materialize); list-media GET never materializes audio or auto-queues video; publish inventory only when Deliverables asks; default notifications scope is lite; Settings config PHP loads only on Settings tab.
+
+2026-07-15 20:55 - Welcome checklist is one-shot: after core setup latches, Dashboard never rebuilds the install checklist (empty archival state + light “what next” tips only); Notifications/other tabs read the latch file instead of rescanning.
+
+2026-07-15 20:50 - Welcome setup no longer reopens when a later track awaits delivery: latch core setup after install + starter + successful full build; delivery readiness becomes nonblocking live ops afterward.
+
+2026-07-15 20:45 - Notifications hygiene: keep Welcome setup checklist on Welcome only; stop poll-time video auto-queue; throttle catalog repair scans; preserve cached welcome on lite polls; slow background prep polling to 8s; clearer “your track/video is preparing” copy.
+
 2026-07-15 20:05 - Force-stop stuck video delivery loops that block Site update: require posters for delivery success, pause incomplete auto-retries, operator Stop retrying in Notifications, auto-clear running video jobs before package install, and invalidate stale package-update cache when VERSION already moved on.
 
 2026-07-15 19:45 - Portability strategy: lock release package export/import as third operator service (masters + tags + linked visuals); document ambassador/demo handoff and optional paid release-prep services in PORTABILITY.md, MARKETING-STRATEGY.md, ROADMAP.md, PLATFORM-MODEL.md, FEATURES.md, and TODO.md.

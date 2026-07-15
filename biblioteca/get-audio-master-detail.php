@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/https.php';
-require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/audio-master-detail-helpers.php';
 bandpromo_enforce_https();
 
@@ -15,21 +14,13 @@ if ($filename === '' || strpbrk($filename, '/\\') !== false) {
 
 session_write_close();
 
-$result = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', [
-    'action' => 'inspect',
-    'filename' => $filename,
-]);
-
-$data = is_array($result['data'] ?? null) ? $result['data'] : null;
-if (!$result['ok'] || !is_array($data) || empty($data['ok'])) {
-    $error = is_array($data) ? (string) ($data['error'] ?? '') : '';
-    $output = trim((string) ($result['output'] ?? ''));
-    $message = $error !== '' ? $error : ($output !== '' ? $output : 'Could not load audio master details');
-    http_response_code(stripos($message, 'not found') !== false ? 404 : 500);
-    echo json_encode(['error' => $message]);
-    exit;
+try {
+    $data = bandpromo_audio_master_detail_from_registry(dirname(__DIR__), $filename);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+} catch (InvalidArgumentException $throwable) {
+    http_response_code(400);
+    echo json_encode(['error' => $throwable->getMessage()]);
+} catch (Throwable $throwable) {
+    http_response_code(404);
+    echo json_encode(['error' => $throwable->getMessage()]);
 }
-
-$data = bandpromo_audio_master_enrich_detail(dirname(__DIR__), $filename, $data);
-
-echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -33,17 +33,64 @@ function bandpromo_admin_normalize_date_param(string $value, string $fallback): 
 }
 
 /**
- * Render a compact ISO date field with native calendar picker support.
+ * Render an ISO date field with native calendar picker support.
+ *
+ * Options:
+ * - variant: 'compact' (filter bars) | 'form' (content editors)
+ * - required: bool (default true)
+ * - allow_year_only: bool (default true for form, false for compact analytics ranges)
+ * - title: string (input title attribute)
  */
-function bandpromo_admin_render_iso_date_field(string $name, string $value, string $id = ''): void {
-    $value = bandpromo_admin_normalize_date_param($value, '');
+function bandpromo_admin_render_iso_date_field(string $name, string $value, string $id = '', array $options = []): void {
+    $variant = (($options['variant'] ?? 'compact') === 'form') ? 'form' : 'compact';
+    $required = array_key_exists('required', $options) ? (bool) $options['required'] : true;
+    $allowYearOnly = array_key_exists('allow_year_only', $options)
+        ? (bool) $options['allow_year_only']
+        : ($variant === 'form');
+    $title = trim((string) ($options['title'] ?? ''));
+    if ($title === '') {
+        $title = $allowYearOnly ? 'ISO date: YYYY or YYYY-MM-DD' : 'ISO date: YYYY-MM-DD';
+    }
+
+    $value = trim($value);
+    if ($value !== '') {
+        $value = bandpromo_admin_normalize_date_param($value, $value);
+        if (!$allowYearOnly && preg_match('/^\d{4}$/', $value)) {
+            $value = $value . '-01-01';
+        }
+    }
+
     $fieldId = $id !== '' ? $id : $name;
+    $nativeValue = '';
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        $nativeValue = $value;
+    } elseif (preg_match('/^\d{4}$/', $value)) {
+        $nativeValue = $value . '-01-01';
+    }
+
+    $pattern = $allowYearOnly ? '^\d{4}(-\d{2}-\d{2})?$' : '^\d{4}-\d{2}-\d{2}$';
+    $wrapperClass = $variant === 'form' ? 'date-input-shell iso-date-field' : 'iso-date-field';
+    $wrapperTag = $variant === 'form' ? 'div' : 'span';
     ?>
-    <span class="iso-date-field">
-        <input type="text" class="iso-date-input" name="<?php echo htmlspecialchars($name); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" value="<?php echo htmlspecialchars($value); ?>" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
-        <input type="date" class="iso-date-picker-native" value="<?php echo htmlspecialchars($value); ?>" tabindex="-1" aria-hidden="true">
+    <<?php echo $wrapperTag; ?> class="<?php echo htmlspecialchars($wrapperClass); ?>">
+        <input
+            type="text"
+            class="iso-date-input"
+            name="<?php echo htmlspecialchars($name); ?>"
+            id="<?php echo htmlspecialchars($fieldId); ?>"
+            value="<?php echo htmlspecialchars($value); ?>"
+            inputmode="numeric"
+            placeholder="<?php echo $allowYearOnly ? 'YYYY-MM-DD' : 'YYYY-MM-DD'; ?>"
+            pattern="<?php echo htmlspecialchars($pattern); ?>"
+            title="<?php echo htmlspecialchars($title); ?>"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="10"
+            <?php echo $required ? 'required' : ''; ?>
+        >
+        <input type="date" class="iso-date-picker-native" value="<?php echo htmlspecialchars($nativeValue); ?>" tabindex="-1" aria-hidden="true">
         <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">&#128197;</button>
-    </span>
+    </<?php echo $wrapperTag; ?>>
     <?php
 }
 

@@ -273,6 +273,7 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
 
         if ($changed && !$dryRun) {
             $document['entries'] = $entries;
+            $document = bandpromo_playlist_clear_player_payload_fields($document);
             bandpromo_playlist_write_document($root, $document);
         }
     }

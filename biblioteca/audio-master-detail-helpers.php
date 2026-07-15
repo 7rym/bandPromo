@@ -296,6 +296,75 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
     return bandpromo_living_cover_enrich_detail($root, $detail);
 }
 
+/**
+ * Build track detail from the asset registry + stored playlist/cover refs.
+ * Read path for admin GET — does not spawn Python or parse master tags.
+ */
+function bandpromo_audio_master_detail_from_registry(string $root, string $filename): array
+{
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        throw new InvalidArgumentException('Invalid filename');
+    }
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+    if ($asset === null || ($asset['kind'] ?? '') !== 'audio') {
+        throw new RuntimeException('Audio asset not found in registry: ' . $filename);
+    }
+
+    $masterFilename = basename(trim((string) ($asset['master_filename'] ?? $filename)));
+    $display = bandpromo_asset_read_audio_display($asset);
+    $playlistMap = bandpromo_audio_master_playlist_map($root);
+    $playlistEntry = is_array($playlistMap[$masterFilename] ?? null)
+        ? $playlistMap[$masterFilename]
+        : [];
+
+    $title = trim((string) ($display['title'] ?? ''));
+    $version = trim((string) ($display['version'] ?? ''));
+    if ($version !== '' && $title !== '' && stripos($title, $version) === false) {
+        $title = $title . "\n" . $version;
+    }
+    if ($title === '') {
+        $title = trim((string) ($playlistEntry['title'] ?? $masterFilename));
+    }
+
+    $masterPath = $root . '/media/audio/master/' . $masterFilename;
+    $masterExists = is_file($masterPath);
+
+    $detail = [
+        'ok' => true,
+        'filename' => $filename,
+        'master_filename' => $masterFilename,
+        'original_filename' => basename(trim((string) ($asset['original_filename'] ?? ''))),
+        'format' => (string) ($asset['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION)),
+        'title' => $title,
+        'artist' => trim((string) ($display['artist'] !== '' ? $display['artist'] : ($playlistEntry['artist'] ?? ''))),
+        'album' => trim((string) ($display['album'] !== '' ? $display['album'] : ($playlistEntry['album'] ?? ''))),
+        'date' => trim((string) ($display['date'] ?? '')),
+        'tracknumber' => trim((string) ($display['tracknumber'] ?? '')),
+        'bpm' => trim((string) ($display['bpm'] ?? '')),
+        'initialkey' => trim((string) ($display['initialkey'] ?? '')),
+        'genre' => trim((string) ($display['genre'] ?? '')),
+        'comment' => trim((string) ($display['comment'] !== '' ? $display['comment'] : ($playlistEntry['description'] ?? ''))),
+        'lyrics' => (string) ($display['lyrics'] !== '' ? $display['lyrics'] : ($playlistEntry['lyrics'] ?? '')),
+        'duration_seconds' => max(0, (int) ($display['duration'] > 0 ? $display['duration'] : ($playlistEntry['duration'] ?? 0))),
+        'bitrate_kbps' => 0,
+        'sample_rate_hz' => 0,
+        'bit_depth' => 0,
+        'file_size_bytes' => $masterExists ? (int) filesize($masterPath) : 0,
+        'sidecar_cover' => trim((string) ($display['cover'] ?? '')),
+        'living_cover' => trim((string) (
+            $display['living_cover'] !== ''
+                ? $display['living_cover']
+                : ($playlistEntry['living_cover'] ?? '')
+        )),
+        'source' => 'asset-registry',
+    ];
+
+    return bandpromo_audio_master_enrich_detail($root, $filename, $detail);
+}
+
 function bandpromo_audio_master_validate_release_date(string $value): bool
 {
     if ($value === '') {

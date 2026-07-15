@@ -91,7 +91,7 @@ function bandpromo_video_admin_preview_relative_url(string $root, string $source
     }
 
     $extension = strtolower((string) pathinfo($safe, PATHINFO_EXTENSION));
-    if (in_array($extension, ['mp4', 'webm'], true)) {
+    if (in_array($extension, ['mp4', 'webm', 'mov'], true)) {
         return '/media/video/original/' . $safe;
     }
 

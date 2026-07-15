@@ -192,10 +192,102 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
     return $references;
 }
 
-function bandpromo_media_reference_collect_references(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null): array
+/**
+ * Live track assignments from the asset registry (still cover + living cover).
+ * Source of truth after track-editor save — not the published playlist payload.
+ *
+ * @return array{covers: array<string, list<array>>, living_covers: array<string, list<array>>}
+ */
+function bandpromo_media_reference_build_track_visual_index(string $root): array
+{
+    static $cache = [];
+    if (isset($cache[$root])) {
+        return $cache[$root];
+    }
+
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/living-cover-helpers.php';
+
+    $covers = [];
+    $livingCovers = [];
+
+    foreach (bandpromo_asset_load_registry($root)['assets'] as $asset) {
+        if (!is_array($asset) || strtolower((string) ($asset['kind'] ?? '')) !== 'audio') {
+            continue;
+        }
+
+        $display = bandpromo_asset_read_audio_display($asset);
+        $masterFile = basename(trim((string) ($asset['master_filename'] ?? '')));
+        $label = trim((string) ($display['title'] ?? ''));
+        if ($label === '') {
+            $label = $masterFile !== '' ? $masterFile : (string) ($asset['id'] ?? 'track');
+        }
+
+        $cover = basename(trim((string) ($display['cover'] ?? '')));
+        if ($cover !== '') {
+            if (!isset($covers[$cover])) {
+                $covers[$cover] = [];
+            }
+            $covers[$cover][] = [
+                'scope' => 'track',
+                'kind' => 'track-cover',
+                'label' => $label,
+                'audio_file' => $masterFile,
+                'asset_id' => (string) ($asset['id'] ?? ''),
+            ];
+        }
+
+        $living = bandpromo_living_cover_normalize_video_filename((string) ($display['living_cover'] ?? ''));
+        if ($living !== '') {
+            if (!isset($livingCovers[$living])) {
+                $livingCovers[$living] = [];
+            }
+            $livingCovers[$living][] = [
+                'scope' => 'track',
+                'kind' => 'track-living-cover',
+                'label' => $label,
+                'audio_file' => $masterFile,
+                'asset_id' => (string) ($asset['id'] ?? ''),
+            ];
+        }
+    }
+
+    return $cache[$root] = [
+        'covers' => $covers,
+        'living_covers' => $livingCovers,
+    ];
+}
+
+function bandpromo_media_reference_collect_track_visual_references(
+    string $root,
+    string $target,
+    string $filename,
+    ?array $trackVisualIndex = null
+): array {
+    $safe = basename(trim($filename));
+    if ($safe === '') {
+        return [];
+    }
+
+    $index = is_array($trackVisualIndex)
+        ? $trackVisualIndex
+        : bandpromo_media_reference_build_track_visual_index($root);
+
+    if ($target === 'illustrations' || $target === 'photos') {
+        return is_array($index['covers'][$safe] ?? null) ? $index['covers'][$safe] : [];
+    }
+
+    if ($target === 'video') {
+        return is_array($index['living_covers'][$safe] ?? null) ? $index['living_covers'][$safe] : [];
+    }
+
+    return [];
+}
+
+function bandpromo_media_reference_collect_references(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null, ?array $trackVisualIndex = null): array
 {
     if ($target === 'illustrations') {
-        return bandpromo_cover_art_collect_references($root, $filename);
+        return bandpromo_cover_art_collect_references($root, $filename, $trackVisualIndex);
     }
 
     $safe = basename($filename);
@@ -211,14 +303,23 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
     foreach (bandpromo_media_reference_collect_config_references($root, $target, $safe) as $reference) {
         $references[] = $reference;
     }
+    foreach (bandpromo_media_reference_collect_track_visual_references($root, $target, $safe, $trackVisualIndex) as $reference) {
+        $references[] = $reference;
+    }
 
     return $references;
 }
 
-function bandpromo_media_reference_describe_file(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null, ?array $playlistCoverContext = null): array
-{
+function bandpromo_media_reference_describe_file(
+    string $root,
+    string $target,
+    string $filename,
+    ?array $galleryReferenceIndex = null,
+    ?array $playlistCoverContext = null,
+    ?array $trackVisualIndex = null
+): array {
     if ($target === 'illustrations') {
-        $coverInfo = bandpromo_cover_art_describe_file($root, $filename, $playlistCoverContext);
+        $coverInfo = bandpromo_cover_art_describe_file($root, $filename, $playlistCoverContext, $trackVisualIndex);
         return [
             'filename' => (string) ($coverInfo['filename'] ?? basename($filename)),
             'role' => (string) ($coverInfo['role'] ?? ''),
@@ -233,12 +334,28 @@ function bandpromo_media_reference_describe_file(string $root, string $target, s
     }
 
     $safe = basename($filename);
-    $references = bandpromo_media_reference_collect_references($root, $target, $safe, $galleryReferenceIndex);
+    $references = bandpromo_media_reference_collect_references(
+        $root,
+        $target,
+        $safe,
+        $galleryReferenceIndex,
+        $trackVisualIndex
+    );
     $orphan = $references === [] && !bandpromo_media_is_bundled_placeholder($safe);
+
+    $role = '';
+    if ($target === 'video') {
+        foreach ($references as $reference) {
+            if (($reference['kind'] ?? '') === 'track-living-cover') {
+                $role = 'living-cover';
+                break;
+            }
+        }
+    }
 
     return [
         'filename' => $safe,
-        'role' => '',
+        'role' => $role,
         'origin' => bandpromo_media_origin($safe),
         'references' => $references,
         'reference_count' => count($references),

@@ -37,7 +37,7 @@ function bandpromo_living_cover_validate_video_path(string $root, string $path):
     if (stripos($relative, 'media/video/original/') !== 0) {
         return [
             'ok' => false,
-            'error' => 'Living cover must be a video from Files → Video',
+            'error' => 'Living cover must be a video from Files → Visual',
         ];
     }
 

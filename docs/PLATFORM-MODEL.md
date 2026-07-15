@@ -201,6 +201,26 @@ All containers, registries, playlists, releases, and deep links reference **`ass
 
 Human-readable export names (for future distributor handover ZIPs) are generated at **export time** from registry fields, not used as on-disk paths.
 
+### Registry-first lookups (no JIT enrichment)
+
+Admin UI, player, and notifications **read** the registry and published container documents only. They must not spawn Python, parse master tags, or walk `media/` “in case something changed.”
+
+**Allowed write triggers** (anything else that updates registry metadata is a bug):
+
+| Trigger | What updates |
+|---------|----------------|
+| Audio/image/video **upload** | Register asset; queue delivery job; **files index** entry (size/mtime/format/delivery flags) |
+| **Tag / cover / living-cover save** | `assets[].display` (+ cover/living refs); clear player playlist payloads that include the track |
+| **Delivery job success/fail** | `assets[].delivery.audio_optimal` + `data/delivery/inventory-snapshot.json`; **files index** pool_ready / video meta |
+| **Catalog register / autofix** (explicit operator action) | Membership, masters |
+| **Publish** | Player playlist payloads in `data/playlists/{id}.json`, validation report, inventory snapshot / delivery flags, **full files-index rebuild** |
+| **Playlist reorder / release membership save** | Entry refs only (`master_file` / `asset_id` / `release_id`); clear player payload; mark build required — **no** tag parse |
+| **Media delete** | Unregister asset; remove **files index** entry |
+
+`assets[].delivery.audio_optimal` and `data/delivery/inventory-snapshot.json` are refreshed on delivery completion and Publish. Inbox / Deliverables inventory reads the snapshot, not live directory walks.
+
+**Files listing** reads `data/media-library-state.json` → `files` only (size, mtime, audio_master, pool_ready, video_meta). Empty target triggers a one-time disk rebuild migration; after that, GET never walks `media/` or probes filesize/tags.
+
 ### Unified media pools
 
 Two **media families** at the platform level — because intake, packaging, and delivery pipelines differ materially:
@@ -210,7 +230,7 @@ Two **media families** at the platform level — because intake, packaging, and 
 | **Audio** | Music, spoken word, theme welcome audio | Files → Audio; playlist/release references |
 | **Visual** | Still images **and** video | Files → Visual (single pool); gallery/page/brand/release references |
 
-**Scheduled v0.8.4:** collapse today's constructed split — **Illustrations** (`media/img/`), **Photos** (`media/photo/`), and **Video** (`media/video/`) — into one **Visual** library. The old folder names are legacy intake buckets, not product categories. Anything visual can share one pool as long as assets are tagged and pickers apply context filters.
+**Scheduled v0.8.4 (remaining):** unify on-disk intake under visual registry identity (`ast_{ULID}`), format-aware delivery, and brand-filtered pickers. **Operator surface (2026-07-15/16):** Files → Visual is live (thumbnail pool; Illustrations/Photos/Video tabs removed); Files → **Brand assets** is the operator name for legacy `media/special/`. Folders on disk remain until Phases 0b–2.
 
 **Audio stays separate** — masters, metadata repair, playlist coupling, and MP3 delivery are a different pipeline from visual scaling and transcode.
 
@@ -245,7 +265,7 @@ Registry **`tags`**, **`brand_id`**, and derived facets replace folder location 
 - **Bulk upload** to Visual pool: `role: unassigned`, `brand_id` = install active brand until operator retags.
 - Uploads never require role selection up front; Notifications may nudge when assets remain `unassigned`.
 
-**Legacy intake:** today's Illustrations / Photos / Video / Theme (`media/special/`) tabs and `target=special` upload hints are **legacy buckets**, not product roles. Migration registers existing files, assigns provisional roles, and retires folder-based mental models. **`special` is not a brand role.**
+**Legacy intake:** on-disk folders `media/img/`, `media/photo/`, `media/video/`, and `media/special/` remain the storage buckets under Files → Visual and Files → Brand assets. They are **legacy intake paths**, not product categories. Migration registers existing files, assigns provisional roles, and retires folder-based mental models. **`special` is not a brand role** — Brand assets is only the operator label for that workaround path.
 
 ### Picker and admin filter contract
 
@@ -262,7 +282,7 @@ Media pickers declare a **context**; the backend returns assets from the Visual 
 | Shell background video | `media_type=video`, `brand_id` match, role `shell-background-image` or `shell-background-video` |
 | Share / poster source | `media_type=image`, large enough for share variant |
 
-Admin **Files → Visual** exposes the same pool with operator filters: brand, role, type (image/video), in-use/orphan, alpha, delivery-ready — replacing separate Illustrations/Photos/Video/Theme tabs after migration.
+Admin **Files → Visual** exposes the image+video pool with operator filters: type (image/video), usage (in-use/orphan), role facets (track covers / living covers / build-generated). Brand filter arrives with the visual registry. **Files → Brand assets** remains a separate tab for legacy `media/special/` branding files until special migration.
 
 `media/special/` and direct config paths migrate into the Visual pool as brand-scoped assets during v0.8; until then they remain a legacy workaround that bypasses the JPEG optimizer.
 
@@ -347,6 +367,7 @@ Playlists are **containers** of track references. They are independent of releas
 - v0.8: **system playlists only** (`kind: "system"`). User/VIP playlists later (v0.9+).
 - Operator-created playlists in admin use `kind: "system"` until user playlists ship (v0.9+).
 - Player playlist selector appears only when **two or more** system playlists exist in the registry.
+- **Player payloads** (`tracks`, `brand_styles`, `delivery_summary`) are written into `data/playlists/{id}.json` at Publish. Player GETs read that static payload only. Admin editors load titles from `assets[].display`, not by re-parsing masters.
 
 ### Presentation metadata (v0.8.3+)
 
@@ -475,7 +496,7 @@ Short, silent, looping video on the **main flip-card cover** when the operator a
 
 ### Operator control
 
-Assign in **Files → Audio → track editor → Living cover**. Pick any video from **Files → Video**. The association is written into the **audio master tags** and travels with the file.
+Assign in **Files → Audio → track editor → Living cover**. Pick any video from **Files → Visual** (video type filter / living-cover picker). The association is written into the **audio master tags** and travels with the file.
 
 ### Storage contract (master tags)
 

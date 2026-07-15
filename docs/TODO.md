@@ -17,7 +17,7 @@ Rules for this file:
 
 **v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and content AI wizards. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool, content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13).
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual registry/delivery Phases 0b–2, content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Brand assets rename + content date-field unification shipped (2026-07-15/16) — **not published as a Site-update package yet**.
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
@@ -168,7 +168,8 @@ Implementation order:
 - [ ] **Phase 0b — visual registry + migration** — register visual uploads at intake; backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility.
 - [ ] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten.
 - [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest.
-- [ ] **Phase 3 — Files → Visual** — single tab with brand/role/type filters; context pickers; variant gating in Content pools.
+- [x] **Phase 3 — Files → Visual (operator UX)** — single Files tab merging Illustrations/Photos/Video with type/usage/role filters; old `fpanel=` URLs redirect; pickers browse Visual for image/video contexts. **Brand assets** (`special`) stays a separate legacy intake tab. *(2026-07-15; rename from Theme 2026-07-16)*
+- [ ] **Phase 3 remainders** — brand filter chip (needs visual registry `brand_id`), variant gating in Content pools, fold Brand assets into Visual after special migration.
 
 ### Player Markdown (closed-beta feedback)
 
@@ -197,7 +198,7 @@ Policy locked 2026-07-15 — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Anim
 
 Policy — **locked**:
 
-- [x] Lock **operator assignment** — track editor living-cover picker (Files → Video).
+- [x] Lock **operator assignment** — track editor living-cover picker (Files → Visual, video filter).
 - [x] Lock **master tag storage** — `BANDPROMO_LIVING_COVER` in ID3 `TXXX` / FLAC Vorbis; value = video original filename.
 - [x] Lock **no stem guessing** — explicit assignment only; no sidecar filename pairing.
 - [x] Lock **loop on main card only** — silent muted loop; reflection stays static image.
@@ -210,7 +211,7 @@ Implementation order:
 - [x] **Resolve helper** — `living-cover-helpers.php`; player payload `animated_cover` from `living_cover` tag.
 - [x] **Track editor UI** — living cover picker + preview + save/clear modes.
 - [x] **Player loop** — existing `<video>` on flip-card cover.
-- [ ] **Visual registry IDs (deferred)** — store visual asset id instead of video filename when Visual pool ships.
+- [ ] **Visual registry IDs (deferred)** — store visual asset id instead of video filename after Phases 0b–2.
 
 ### Release package export / import (ambassador + demo handoff)
 
@@ -285,7 +286,7 @@ Implementation order (v0.8.4):
 - [ ] **Phase 0b — registry + migration design**: visual asset registration at upload; autofix backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility layer.
 - [ ] **Phase 1 — format-aware delivery**: preserve alpha (PNG/WebP); sanity max dimensions per role; stop white-background flatten.
 - [ ] **Phase 2 — multi-variant storage**: `media/visual/delivery/{asset_id}/{variant}`; migrate off flat `optimal/*.jpg` and stem-based video paths.
-- [ ] **Phase 3 — admin + pickers**: Files → Visual tab; context-filtered pickers; pool gating and validation on variant manifest.
+- [ ] **Phase 3 — admin + pickers**: Files → Visual operator tab **shipped (2026-07-15)**; remaining: brand-filtered registry pickers + Content pool variant gating after Phases 0b–2.
 
 ## v0.8 active work
 
@@ -551,6 +552,7 @@ Scope: first real tester/operator experience. Put items here when they concern h
   - [x] Files tab: standardized permanent-action warning line across sub-tabs
   - [x] Files tab: list-header filters, master checkbox selection, and labeled Upload/Download/Delete bulk actions
   - [x] Welcome tab: setup checklist vs completed-install dashboard help text and layout; completed installs rely on the header inbox instead of duplicate dashboard task cards
+  - [x] **Notifications ≠ Welcome checklist** — setup checklist stays on Welcome only; Notifications is live ops (prep, Site update, publish/validation); poll paths no longer auto-spawn video jobs or scan catalog every few seconds (2026-07-15).
   - [x] Login/player session expiry redirects back to login with a clear message
   - [x] Operator inbox: open focused modal instead of inline expanding drawer
   - [x] Operator inbox: plain-language copy for non-technical operators

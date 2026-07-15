@@ -865,6 +865,9 @@
             if (releaseSettingsDate instanceof HTMLInputElement) {
                 releaseSettingsDate.value = releaseDate;
                 releaseSettingsDate.disabled = systemManaged;
+                if (typeof window.bandpromoSyncIsoDateField === 'function') {
+                    window.bandpromoSyncIsoDateField(releaseSettingsDate);
+                }
             }
             if (releaseSettingsCatalogId instanceof HTMLInputElement) {
                 releaseSettingsCatalogId.value = catalogId;

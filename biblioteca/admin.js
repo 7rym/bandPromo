@@ -329,9 +329,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 video:          { accept: '.mp4,.webm,.mov',               target: 'video'         },
                 illustrations:  { accept: '.png,.jpg,.jpeg',               target: 'illustrations' },
                 photos:         { accept: '.png,.jpg,.jpeg,.webp',         target: 'photos'        },
+                visual:         { accept: '.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov', target: 'visual' },
                 special:        { accept: '.mp3,.mp4,.png,.jpg,.jpeg,.webp,.svg', target: 'special' },
             };
-            window.activeMediaPanel = adminActivePanel;
+            const VISUAL_INTAKE_BUCKETS = ['illustrations', 'photos', 'video'];
+            function normalizeFilesPanel(panel) {
+                const value = String(panel || '').trim();
+                return VISUAL_INTAKE_BUCKETS.includes(value) ? 'visual' : (value || 'audio');
+            }
+            window.activeMediaPanel = normalizeFilesPanel(adminActivePanel);
             function isDeliverablesViewActive() {
                 const systemTab = document.getElementById('tab-system');
                 if (!systemTab?.classList.contains('active')) {
@@ -370,12 +376,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     releaseFilterListeners.push(listener);
                 }
             }
-            let illustrationsCoverFilter = 'all';
+            let visualTypeFilter = 'all';
+            let visualViewMode = (() => {
+                try {
+                    const stored = String(window.localStorage.getItem('bandpromo_visual_pool_view') || '').trim();
+                    return stored === 'list' ? 'list' : 'grid';
+                } catch (error) {
+                    return 'grid';
+                }
+            })();
+            let activeVisualAssetKey = null;
             const mediaReferenceFilters = {
+                visual: 'all',
                 photos: 'all',
                 video: 'all',
             };
-            const mediaReferenceFilterTypes = new Set(['illustrations', 'photos', 'video']);
+            const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video']);
             let audioDisplayMode = 'master';
             let expandedAudioFile = null;
             const mediaSelectionState = new Map();
@@ -417,9 +433,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const mediaTypeLabels = {
                 audio: 'Audio',
                 video: 'Video',
+                visual: 'Visual',
                 illustrations: 'Illustrations',
                 photos: 'Photos',
-                special: 'Theme Assets',
+                special: 'Brand assets',
             };
             const mediaPathMap = {
                 audio: '/media/audio/original',
@@ -428,6 +445,75 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 photos: '/media/photo/original',
                 special: '/media/special',
             };
+
+            function resolveFileIntakeBucket(file, panelType = '') {
+                if (panelType === 'visual' || VISUAL_INTAKE_BUCKETS.includes(panelType)) {
+                    const bucket = String(file?.intake_bucket || '').trim();
+                    if (VISUAL_INTAKE_BUCKETS.includes(bucket)) {
+                        return bucket;
+                    }
+                    return isVideo(file?.name) ? 'video' : 'illustrations';
+                }
+                return panelType || String(file?.intake_bucket || '').trim();
+            }
+
+            function mediaFileSelectionKey(panelType, fileOrName, intakeBucket = '') {
+                if (panelType !== 'visual') {
+                    return typeof fileOrName === 'string'
+                        ? String(fileOrName || '')
+                        : String(fileOrName?.name || '');
+                }
+                if (typeof fileOrName === 'object' && fileOrName) {
+                    const bucket = resolveFileIntakeBucket(fileOrName, 'visual');
+                    return `${bucket}::${fileOrName.name}`;
+                }
+                const bucket = String(intakeBucket || 'illustrations').trim() || 'illustrations';
+                return `${bucket}::${fileOrName}`;
+            }
+
+            function parseMediaSelectionKey(panelType, key) {
+                const raw = String(key || '');
+                if (panelType !== 'visual') {
+                    return { bucket: panelType, name: raw };
+                }
+                const sep = raw.indexOf('::');
+                if (sep < 0) {
+                    return { bucket: 'illustrations', name: raw };
+                }
+                return {
+                    bucket: raw.slice(0, sep) || 'illustrations',
+                    name: raw.slice(sep + 2),
+                };
+            }
+
+            function groupSelectionKeysByBucket(panelType, keys) {
+                const groups = new Map();
+                (Array.isArray(keys) ? keys : []).forEach((key) => {
+                    const parts = parseMediaSelectionKey(panelType, key);
+                    if (!parts.name) {
+                        return;
+                    }
+                    if (!groups.has(parts.bucket)) {
+                        groups.set(parts.bucket, []);
+                    }
+                    groups.get(parts.bucket).push(parts.name);
+                });
+                return groups;
+            }
+
+            function selectionDisplayName(panelType, key) {
+                return parseMediaSelectionKey(panelType, key).name || String(key || '');
+            }
+
+            function isVisualMediaRow(panelType, file = null) {
+                if (panelType === 'video') {
+                    return true;
+                }
+                if (panelType === 'visual') {
+                    return String(file?.media_type || '') === 'video' || isVideo(file?.name);
+                }
+                return false;
+            }
 
             function extIcon(name) {
                 const ext = String(name).split('.').pop().toLowerCase();
@@ -452,7 +538,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!isVideo(name)) {
                     return false;
                 }
-                if (type === 'video' && file) {
+                if (isVisualMediaRow(type, file) && file) {
                     return videoPreviewUrl(file) !== '' || videoPosterUrl(file) !== '';
                 }
                 return true;
@@ -714,29 +800,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
-            function buildNotificationFromWelcomeItem(item) {
-                if (!item || item.complete === true) {
-                    return null;
-                }
-
-                const severity = String(item.severity || 'nonblocking') === 'blocking'
-                    ? 'setup-step'
-                    : 'recommended-fix';
-
-                return {
-                    severity,
-                    title: item.label,
-                    file: '',
-                    checkedAt: String(item.updated_at || item.checked_at || '').trim(),
-                    details: [
-                        { text: String(item.next || item.detail || '').trim() },
-                    ].filter((detail) => detail.text !== ''),
-                    actions: [
-                        { label: item.action_label || 'Open step', href: item.href || '?tab=welcome' },
-                    ],
-                };
-            }
-
             function buildNotificationFromPackageUpdate(packageUpdate) {
                 if (!packageUpdate || packageUpdate.update_available !== true) {
                     return null;
@@ -774,17 +837,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? files.join(', ')
                         : 'video files';
 
-                    if (status === 'running') {
+                if (status === 'running') {
                         const taskId = String(item.id || '').trim();
+                        const taskName = String(item.task || '').trim();
+                        const isAudio = taskName === 'audio-delivery';
                         notifications.push({
                             severity: 'background-running',
-                            title: 'Preparing videos in the background',
+                            title: isAudio
+                                ? 'Your track is preparing'
+                                : 'Your video is preparing',
                             file: '',
                             taskId,
                             checkedAt: String(item.started_at || item.updated_at || '').trim(),
                             details: [
-                                { text: `bandPromo is preparing ${fileLine} in the background. You can keep working — no action needed.` },
-                                { text: 'If this never finishes and Site update stays stuck, stop retrying to unlock updates. Video prep can resume later.' },
+                                {
+                                    text: isAudio
+                                        ? `bandPromo is preparing streaming files for ${fileLine}. You can keep working — no action needed.`
+                                        : `bandPromo is preparing ${fileLine} for the website. You can keep working — no action needed.`,
+                                },
+                                { text: 'If this never finishes and Site update stays stuck, stop retrying to unlock updates.' },
                             ],
                             actions: [
                                 { label: 'Stop retrying (unlock updates)', action: 'force-stop-video-delivery' },
@@ -794,16 +865,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     if (status === 'done') {
+                        const taskName = String(item.task || '').trim();
+                        const isAudio = taskName === 'audio-delivery';
                         notifications.push({
                             severity: 'background-done',
-                            title: 'Video preparation finished',
+                            title: isAudio ? 'Track preparation finished' : 'Video preparation finished',
                             file: '',
                             checkedAt: String(item.finished_at || item.updated_at || '').trim(),
                             details: [
-                                { text: `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for preview and gallery use.` },
+                                {
+                                    text: isAudio
+                                        ? `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for listeners.`
+                                        : `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for preview and gallery use.`,
+                                },
                             ],
                             actions: [
-                                { label: 'Open Files', href: '?tab=files&fpanel=video' },
+                                {
+                                    label: isAudio ? 'Open Files' : 'Open Files',
+                                    href: isAudio ? '?tab=files&fpanel=audio' : '?tab=files&fpanel=visual',
+                                },
                             ],
                         });
                         return;
@@ -830,8 +910,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ],
                             actions: [
                                 ...(focusFile
-                                    ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'video', focus_file: focusFile }) }]
-                                    : [{ label: 'Open Files', href: '?tab=files&fpanel=video' }]),
+                                    ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'visual', focus_file: focusFile }) }]
+                                    : [{ label: 'Open Files', href: '?tab=files&fpanel=visual' }]),
                                 ...(taskId ? [{ label: 'Stop retrying', action: 'force-stop-video-delivery', taskId }] : []),
                                 ...(taskId ? [{ label: 'Dismiss', action: 'dismiss-background-task', taskId }] : []),
                             ],
@@ -862,7 +942,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 backgroundTaskPollTimer = setInterval(() => {
                     refreshBuildRequiredState({ scope: 'lite' });
-                }, 4000);
+                }, 8000);
             }
 
             function buildOperatorNotificationModel(buildState, validation, welcome, packageUpdate, backgroundTasks, uncataloguedAudioFailures) {
@@ -884,20 +964,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                if (welcome && welcome.setup_complete !== true && Array.isArray(welcome.checklist)) {
-                    welcome.checklist.forEach((item) => {
-                        const notification = buildNotificationFromWelcomeItem(item);
-                        if (!notification) {
-                            return;
-                        }
-
-                        if (notification.severity === 'recommended-fix') {
-                            recommended.push(notification);
-                        } else {
-                            attention.push(notification);
-                        }
-                    });
-                }
+                // Setup checklist stays on Welcome only — never mirror it into Notifications.
+                // Live inbox = package update, publish follow-up, validation, background prep.
 
                 const validationModel = buildValidationSummaryModel(validation);
                 const validationCheckedAt = String(
@@ -1102,7 +1170,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             if (operatorNotificationsToggle && operatorNotificationsModal) {
                 operatorNotificationsToggle.addEventListener('click', async () => {
                     openOperatorNotifications();
-                    await refreshBuildRequiredState({ full: true });
+                    await refreshBuildRequiredState({
+                        full: true,
+                        inventory: isDeliverablesViewActive(),
+                    });
                 });
             }
 
@@ -1266,7 +1337,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function getMediaReferenceFilter(type) {
                 if (type === 'illustrations') {
-                    return illustrationsCoverFilter;
+                    return mediaReferenceFilters.visual || 'all';
                 }
                 return mediaReferenceFilters[type] || 'all';
             }
@@ -1293,7 +1364,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (info.orphan === true) {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by playlist, gallery, or theme settings">Orphan</span>');
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by a track, playlist, gallery, or theme settings">Orphan</span>');
                 }
 
                 return badges.join(' ');
@@ -1307,14 +1378,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const info = getFileReferenceInfo(file);
                 const references = Array.isArray(info.references) ? info.references : [];
                 const badges = [];
+                const isVisualPanel = type === 'visual';
+                const isImageRow = isVisualPanel
+                    ? String(file?.media_type || '') !== 'video' && !isVideo(file?.name)
+                    : type === 'illustrations' || type === 'photos';
+
+                if (isVisualPanel && isImageRow && (info.role || info.origin)) {
+                    const coverBits = formatCoverInfoBadges(file);
+                    if (coverBits) {
+                        return coverBits;
+                    }
+                }
 
                 if (info.orphan === true) {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by gallery or theme settings">Orphan</span>');
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by a track, gallery, or theme settings">Orphan</span>');
                 } else if (references.length) {
-                    badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Referenced by gallery or theme settings">In use</span>');
+                    badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Referenced by a track, gallery, or theme settings">In use</span>');
                 }
 
                 const kinds = new Set(references.map((reference) => String(reference.kind || '')));
+                if (kinds.has('track-living-cover') || kinds.has('track-cover')) {
+                    badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Assigned to one or more tracks">Track</span>');
+                }
                 if (kinds.has('gallery-item')) {
                     badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by a gallery item">Gallery</span>');
                 }
@@ -1338,21 +1423,34 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (filter === 'referenced') {
                     return Number(info.reference_count || 0) > 0;
                 }
-                if (type === 'illustrations' && filter === 'track-covers') {
-                    return info.role === 'track-cover';
+                if ((type === 'visual' || type === 'illustrations') && filter === 'track-covers') {
+                    return info.role === 'track-cover'
+                        || (Array.isArray(info.references) && info.references.some((reference) => String(reference.kind || '') === 'track-cover'));
                 }
-                if (type === 'illustrations' && filter === 'build-generated') {
+                if ((type === 'visual' || type === 'illustrations') && filter === 'build-generated') {
                     return ['build-extracted', 'build-configured', 'build-sidecar-copy'].includes(String(info.origin || ''));
+                }
+                if (type === 'visual' && filter === 'living-covers') {
+                    return Array.isArray(info.references)
+                        && info.references.some((reference) => String(reference.kind || '') === 'track-living-cover');
                 }
 
                 return true;
             }
 
             function filterReferencedMediaFiles(type, files) {
+                const list = Array.isArray(files) ? files : [];
                 if (!mediaReferenceFilterTypes.has(type)) {
-                    return Array.isArray(files) ? files : [];
+                    return list;
                 }
-                return (Array.isArray(files) ? files : []).filter((file) => matchesMediaReferenceFilter(type, file));
+                let filtered = list.filter((file) => matchesMediaReferenceFilter(type, file));
+                if (type === 'visual' && visualTypeFilter !== 'all') {
+                    filtered = filtered.filter((file) => {
+                        const mediaType = String(file?.media_type || (isVideo(file?.name) ? 'video' : 'image'));
+                        return mediaType === visualTypeFilter;
+                    });
+                }
+                return filtered;
             }
 
             function syncMediaReferenceFilterUi() {
@@ -1792,18 +1890,41 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function maybeApplyMediaFocusFromQuery(type) {
-                if (appliedMediaFocusFromQuery || !pendingMediaFocusFromQuery || type !== 'audio') {
+                if (appliedMediaFocusFromQuery || !pendingMediaFocusFromQuery) {
                     return;
                 }
-                const rows = Array.from(document.querySelectorAll('#filelist-audio .media-file-row'));
-                const targetRow = rows.find((row) => String(row.dataset.file || '') === pendingMediaFocusFromQuery);
+                if (type !== 'audio' && type !== 'visual' && type !== 'special') {
+                    return;
+                }
+                const listEl = document.getElementById('filelist-' + type);
+                if (!listEl) {
+                    return;
+                }
+                const rows = Array.from(listEl.querySelectorAll('.media-file-row[data-file], .visual-pool-card[data-file]'));
+                const targetRow = rows.find((row) => {
+                    const key = String(row.dataset.file || '');
+                    if (key === pendingMediaFocusFromQuery) {
+                        return true;
+                    }
+                    if (type === 'visual') {
+                        return selectionDisplayName('visual', key) === pendingMediaFocusFromQuery;
+                    }
+                    return false;
+                });
                 if (!targetRow) {
                     return;
                 }
                 appliedMediaFocusFromQuery = true;
-                rows.forEach((row) => row.classList.remove('media-file-row-focus'));
+                rows.forEach((row) => {
+                    row.classList.remove('media-file-row-focus');
+                    row.classList.remove('visual-pool-card-focus');
+                });
                 targetRow.classList.add('media-file-row-focus');
+                targetRow.classList.add('visual-pool-card-focus');
                 targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if (type === 'visual') {
+                    openVisualAssetModal(String(targetRow.dataset.file || ''));
+                }
             }
 
             function getMediaBasePath(type) {
@@ -1820,6 +1941,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function inferMediaTargetFromPath(path, allowedTargets) {
                 const targets = Array.isArray(allowedTargets) ? allowedTargets : [];
+                if (targets.includes('visual')) {
+                    const raw = String(path || '');
+                    if (
+                        raw.startsWith('/media/img/')
+                        || raw.startsWith('/media/photo/')
+                        || raw.startsWith('/media/video/')
+                    ) {
+                        return 'visual';
+                    }
+                }
                 const match = targets.find((target) => String(path || '').startsWith(getMediaBasePath(target) + '/'));
                 return match || targets[0] || 'special';
             }
@@ -1919,9 +2050,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 window._adminPreviewItems = files
                     .filter((file) => isPreviewable(file.name, file, type))
                     .map((file) => {
-                        if (type !== 'video') {
+                        const pathType = resolveFileIntakeBucket(file, type) || type;
+                        if (!isVisualMediaRow(type, file)) {
                             return {
-                                src: buildMediaPath(type, file.name),
+                                src: buildMediaPath(pathType, file.name),
                                 name: file.name,
                                 type: 'image',
                             };
@@ -1999,36 +2131,52 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (options.scope === 'lite') {
                     return 'lite';
                 }
-                if (adminPrimaryTab === 'welcome' || adminPrimaryTab === 'system') {
-                    return 'full';
-                }
+                // Default lite everywhere — full only when explicitly requested (bell / Deliverables).
                 return 'lite';
+            }
+
+            function buildOperatorNotificationsUrl(scope, options = {}) {
+                const params = new URLSearchParams();
+                params.set('scope', scope);
+                if (scope === 'full' && (options.inventory === true || isDeliverablesViewActive())) {
+                    params.set('inventory', '1');
+                }
+                return '/biblioteca/get-operator-notifications.php?' + params.toString();
             }
 
             async function refreshBuildRequiredState(options = {}) {
                 const scope = resolveNotificationScope(options);
                 try {
-                    const resp = await fetch('/biblioteca/get-operator-notifications.php?scope=' + encodeURIComponent(scope));
+                    const resp = await fetch(buildOperatorNotificationsUrl(scope, options));
                     const data = await resp.json();
                     if (!resp.ok || !data || data.ok !== true) return;
 
                     const state = data.build_required_state || {};
-                    latestBuildValidation = data.metadata_validation || null;
-                    latestWelcomeState = data.welcome || null;
-                    latestPackageUpdate = data.package_update || null;
+                    if (Object.prototype.hasOwnProperty.call(data, 'metadata_validation')) {
+                        latestBuildValidation = data.metadata_validation || null;
+                    }
+                    // Lite polls omit welcome — never wipe cached setup_complete with null.
+                    if (data.welcome) {
+                        latestWelcomeState = data.welcome;
+                    }
+                    if (data.package_update) {
+                        latestPackageUpdate = data.package_update;
+                    }
                     latestBackgroundTasks = data.background_tasks || null;
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
                     renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks, data.uncatalogued_audio_failures || []);
                     updateBackgroundTaskPolling(latestBackgroundTasks);
-                    renderPublishStatusSummary(data.publish_status || null, data.catalog_repair || null);
+                    if (Object.prototype.hasOwnProperty.call(data, 'publish_status') || Object.prototype.hasOwnProperty.call(data, 'catalog_repair')) {
+                        renderPublishStatusSummary(data.publish_status || null, data.catalog_repair || null);
+                    }
 
                     const videoTasks = Array.isArray(latestBackgroundTasks?.items)
                         ? latestBackgroundTasks.items.filter((item) => item && item.task === 'video-delivery')
                         : [];
                     const videoRunning = videoTasks.some((item) => String(item.status || '') === 'running');
-                    if (adminFilesTabActive && activeMediaPanel === 'video') {
+                    if (adminFilesTabActive && activeMediaPanel === 'visual') {
                         if (window._videoDeliveryWasRunning && !videoRunning) {
-                            loadMediaList('video');
+                            loadMediaList('visual');
                         }
                     }
                     window._videoDeliveryWasRunning = videoRunning;
@@ -2112,12 +2260,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function getMediaRows(type) {
                 const listEl = document.getElementById('filelist-' + type);
                 if (!listEl) return [];
-                return Array.from(listEl.querySelectorAll('.media-file-row[data-file]'));
+                return Array.from(listEl.querySelectorAll('.media-file-row[data-file], .visual-pool-card[data-file]'));
             }
 
             function pruneMediaSelection(type, files) {
                 const state = getMediaSelectionState(type);
-                const allowed = new Set((Array.isArray(files) ? files : []).map((file) => String(file && file.name || '')).filter(Boolean));
+                const allowed = new Set(
+                    (Array.isArray(files) ? files : [])
+                        .map((file) => mediaFileSelectionKey(type, file))
+                        .filter(Boolean)
+                );
                 state.selected.forEach((filename) => {
                     if (!allowed.has(filename)) {
                         state.selected.delete(filename);
@@ -2143,9 +2295,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function getSelectedMediaDetails(type) {
-                const filesByName = new Map(getMediaFileState(type).map((file) => [String(file && file.name || ''), file]));
+                const filesByKey = new Map(
+                    getMediaFileState(type).map((file) => [mediaFileSelectionKey(type, file), file])
+                );
                 return getSelectedMediaFiles(type)
-                    .map((filename) => filesByName.get(filename))
+                    .map((key) => filesByKey.get(key))
                     .filter(Boolean);
             }
 
@@ -2174,7 +2328,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return data;
             }
 
-            async function submitMediaDownloadRequest(type, variant, files) {
+            async function submitMediaDownloadRequestForBucket(type, variant, files) {
                 const selectedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
                 if (!type || !selectedFiles.length) {
                     return;
@@ -2216,6 +2370,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 document.body.appendChild(form);
                 form.submit();
                 window.setTimeout(() => form.remove(), 0);
+            }
+
+            async function submitMediaDownloadRequest(type, variant, files) {
+                const selectedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
+                if (!type || !selectedFiles.length) {
+                    return;
+                }
+
+                if (type === 'visual') {
+                    const groups = groupSelectionKeysByBucket('visual', selectedFiles);
+                    for (const [bucket, names] of groups.entries()) {
+                        await submitMediaDownloadRequestForBucket(bucket, variant, names);
+                    }
+                    return;
+                }
+
+                await submitMediaDownloadRequestForBucket(type, variant, selectedFiles);
             }
 
             window.submitMediaDownloadRequest = submitMediaDownloadRequest;
@@ -2282,6 +2453,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const filename = String(row.dataset.file || '');
                     const selected = state.selected.has(filename);
                     row.classList.toggle('media-file-row-selected', selected);
+                    row.classList.toggle('visual-pool-card-selected', selected);
                     const checkbox = row.querySelector('.media-file-select');
                     if (checkbox) {
                         checkbox.checked = selected;
@@ -2335,6 +2507,362 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.selectAllVisibleMediaFiles = selectAllVisibleMediaFiles;
             window.clearMediaSelection = clearMediaSelection;
 
+            function visualAssetKind(file) {
+                return isVisualMediaRow('visual', file) ? 'video' : 'image';
+            }
+
+            function visualAssetHeadline(file) {
+                const kind = visualAssetKind(file);
+                const info = getFileReferenceInfo(file);
+                const references = Array.isArray(info.references) ? info.references : [];
+                const kinds = new Set(references.map((reference) => String(reference.kind || '')));
+                if (info.role === 'track-cover' || kinds.has('track-cover')) {
+                    return 'Track cover';
+                }
+                if (kinds.has('track-living-cover')) {
+                    return 'Living cover';
+                }
+                if (kinds.has('gallery-item')) {
+                    return kind === 'video' ? 'Gallery video' : 'Gallery image';
+                }
+                if ([...kinds].some((value) => value.startsWith('theme-') || value === 'share-image')) {
+                    return 'Theme media';
+                }
+                if (info.orphan === true || Number(info.reference_count || 0) === 0) {
+                    return kind === 'video' ? 'Unused video' : 'Unused image';
+                }
+                return kind === 'video' ? 'Video in use' : 'Image in use';
+            }
+
+            function visualAssetStatusPills(file) {
+                const info = getFileReferenceInfo(file);
+                const pills = [];
+                if (file.delivery_running) {
+                    pills.push({ text: 'Preparing', className: 'is-warning' });
+                } else if (file.delivery_pending) {
+                    pills.push({ text: 'Queued', className: 'is-warning' });
+                } else if (info.orphan === true) {
+                    pills.push({ text: 'Orphan', className: 'is-warning' });
+                } else if (Number(info.reference_count || 0) > 0) {
+                    pills.push({ text: 'In use', className: 'is-ok' });
+                }
+                return pills;
+            }
+
+            function visualHoverPreviewAllowed() {
+                try {
+                    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                } catch (error) {
+                    return true;
+                }
+            }
+
+            function ensureVisualHoverVideoSource(video) {
+                if (!(video instanceof HTMLVideoElement)) {
+                    return;
+                }
+                const pendingSrc = String(video.dataset.src || '').trim();
+                if (pendingSrc && !video.getAttribute('src')) {
+                    video.src = pendingSrc;
+                }
+                video.muted = true;
+                video.defaultMuted = true;
+                video.loop = true;
+                video.playsInline = true;
+                video.setAttribute('muted', '');
+                video.setAttribute('loop', '');
+                video.setAttribute('playsinline', '');
+            }
+
+            function playVisualHoverVideo(video) {
+                if (!(video instanceof HTMLVideoElement) || !visualHoverPreviewAllowed()) {
+                    return;
+                }
+                ensureVisualHoverVideoSource(video);
+                const playPromise = video.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {});
+                }
+            }
+
+            function stopVisualHoverVideo(video) {
+                if (!(video instanceof HTMLVideoElement)) {
+                    return;
+                }
+                try {
+                    video.pause();
+                } catch (error) {
+                    // Ignore pause failures on detached nodes.
+                }
+                try {
+                    if (video.readyState >= 1) {
+                        video.currentTime = 0;
+                    }
+                } catch (error) {
+                    // Ignore seek failures before metadata is ready.
+                }
+            }
+
+            function setVisualHoverPreviewActive(host, active) {
+                if (!(host instanceof Element)) {
+                    return;
+                }
+                const video = host.querySelector('video[data-src], video.visual-pool-card-video, video.visual-asset-loop');
+                host.classList.toggle('is-playing-preview', active === true);
+                if (active) {
+                    playVisualHoverVideo(video);
+                } else {
+                    stopVisualHoverVideo(video);
+                }
+            }
+
+            function visualAssetThumbInnerHtml(file, pathType) {
+                const kind = visualAssetKind(file);
+                const url = buildMediaUrl(pathType, file.name);
+                const poster = videoPosterUrl(file);
+                const preview = videoPreviewUrl(file);
+                if (kind === 'image') {
+                    return `<img src="${url}" alt="" loading="lazy">`;
+                }
+                if (file.delivery_running || (file.delivery_pending && !poster && !preview)) {
+                    return `<span class="visual-pool-card-thumb-placeholder is-preparing" title="Preparing in background">⏳</span>`;
+                }
+                if (preview) {
+                    if (poster) {
+                        return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy"><video class="visual-pool-card-video" data-src="${preview}" poster="${poster}" muted loop playsinline preload="none"></video>`;
+                    }
+                    return `<video class="visual-pool-card-video visual-pool-card-video--solo" src="${preview}" muted loop playsinline preload="metadata"></video>`;
+                }
+                if (poster) {
+                    return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy">`;
+                }
+                return `<span class="visual-pool-card-thumb-placeholder" title="Video waiting for preparation">▶</span>`;
+            }
+
+            function visualAssetReferenceLines(file) {
+                const info = getFileReferenceInfo(file);
+                const references = Array.isArray(info.references) ? info.references : [];
+                if (!references.length) {
+                    if (info.role === 'track-cover') {
+                        return ['Assigned as a track cover'];
+                    }
+                    return [];
+                }
+                const kindLabels = {
+                    'track-cover': 'Track cover',
+                    'track-living-cover': 'Living cover',
+                    'gallery-item': 'Gallery',
+                    'theme-cover': 'Theme cover',
+                    'theme-background': 'Theme background',
+                    'theme-background-video': 'Theme background video',
+                    'share-image': 'Share image',
+                    'release-fallback': 'Release fallback',
+                };
+                return references.slice(0, 8).map((reference) => {
+                    const kind = kindLabels[String(reference.kind || '')] || String(reference.kind || 'Reference');
+                    const label = String(reference.label || '').trim();
+                    return label ? `${kind}: ${label}` : kind;
+                });
+            }
+
+            function syncVisualTypeFilterUi() {
+                document.querySelectorAll('[data-visual-type-filter]').forEach((el) => {
+                    const value = String(el.getAttribute('data-visual-type-filter') || el.value || 'all');
+                    const active = value === visualTypeFilter;
+                    el.classList.toggle('is-active', active);
+                    if (el.tagName === 'BUTTON') {
+                        el.setAttribute('aria-pressed', active ? 'true' : 'false');
+                    } else {
+                        el.value = visualTypeFilter;
+                    }
+                });
+            }
+
+            function syncVisualViewUi() {
+                const listEl = document.getElementById('filelist-visual');
+                if (listEl) {
+                    listEl.classList.toggle('visual-pool-list--grid', visualViewMode === 'grid');
+                    listEl.classList.toggle('visual-pool-list--list', visualViewMode === 'list');
+                    listEl.dataset.visualLayout = visualViewMode;
+                }
+                document.querySelectorAll('[data-visual-view]').forEach((button) => {
+                    const value = String(button.getAttribute('data-visual-view') || 'grid');
+                    const active = value === visualViewMode;
+                    button.classList.toggle('is-active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+            }
+
+            function setVisualViewMode(nextValue) {
+                visualViewMode = nextValue === 'list' ? 'list' : 'grid';
+                try {
+                    window.localStorage.setItem('bandpromo_visual_pool_view', visualViewMode);
+                } catch (error) {
+                    // Ignore storage failures; view still works for this session.
+                }
+                syncVisualViewUi();
+            }
+
+            function buildVisualPoolCardMarkup(file, selection) {
+                const pathType = resolveFileIntakeBucket(file, 'visual') || 'illustrations';
+                const selectionKey = mediaFileSelectionKey('visual', file);
+                const safeKey = selectionKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const kind = visualAssetKind(file);
+                const selected = selection.selected.has(selectionKey);
+                const headline = visualAssetHeadline(file);
+                const sizeLabel = fmtSize(Number(file.size) || 0);
+                const pills = visualAssetStatusPills(file);
+                const statusHtml = pills.length
+                    ? `<span class="visual-pool-status-stack">${pills.map((pill) =>
+                        `<span class="visual-pool-status-pill ${pill.className || ''}">${bandpromoAdminEscapeHtml(pill.text)}</span>`
+                    ).join('')}</span>`
+                    : '';
+                const typeLabel = kind === 'video' ? 'Video' : 'Image';
+                const selectLabel = kind === 'video' ? 'Select video' : 'Select image';
+                return `<article class="visual-pool-card${selected ? ' media-file-row-selected visual-pool-card-selected' : ''}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" data-media-type="${kind}">
+                    <label class="media-file-select-wrap visual-pool-card-select" title="${selectLabel}" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="media-file-select" data-target="visual" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="${selectLabel}">
+                    </label>
+                    <button type="button" class="visual-pool-card-thumb" data-visual-open="${bandpromoAdminEscapeHtml(selectionKey)}" aria-label="Open ${typeLabel.toLowerCase()} details">
+                        ${visualAssetThumbInnerHtml(file, pathType)}
+                        ${statusHtml}
+                        <span class="visual-pool-type-badge">${typeLabel}</span>
+                    </button>
+                    <div class="visual-pool-card-meta">
+                        <div class="visual-pool-card-meta-copy">
+                            <span class="visual-pool-card-meta-title">${bandpromoAdminEscapeHtml(headline)}</span>
+                            <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
+                            <span class="media-file-meta">${formatMediaReferenceBadges('visual', file)}</span>
+                        </div>
+                        <div class="visual-pool-card-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('visual', '${safeKey}')">🗑️</button>
+                        </div>
+                    </div>
+                </article>`;
+            }
+
+            function renderVisualPoolList(files, selection) {
+                const listEl = document.getElementById('filelist-visual');
+                if (!listEl) {
+                    return;
+                }
+                syncVisualViewUi();
+                setAdminPreviewItems(files, 'visual');
+                listEl.innerHTML = files.map((file) => buildVisualPoolCardMarkup(file, selection)).join('');
+            }
+
+            function findVisualAssetByKey(selectionKey) {
+                const key = String(selectionKey || '');
+                return getMediaFileState('visual').find((file) => mediaFileSelectionKey('visual', file) === key) || null;
+            }
+
+            function openVisualAssetModal(selectionKey) {
+                const file = findVisualAssetByKey(selectionKey);
+                const modal = document.getElementById('visualAssetModal');
+                const previewEl = document.getElementById('visualAssetPreview');
+                const titleEl = document.getElementById('visualAssetTitle');
+                const badgesEl = document.getElementById('visualAssetBadges');
+                const detailsEl = document.getElementById('visualAssetDetails');
+                const downloadBtn = document.getElementById('visualAssetDownloadBtn');
+                const deleteBtn = document.getElementById('visualAssetDeleteBtn');
+                if (!file || !modal || !previewEl || !titleEl || !badgesEl || !detailsEl) {
+                    return;
+                }
+
+                activeVisualAssetKey = mediaFileSelectionKey('visual', file);
+                const pathType = resolveFileIntakeBucket(file, 'visual') || 'illustrations';
+                const kind = visualAssetKind(file);
+                const info = getFileReferenceInfo(file);
+                const referenceLines = visualAssetReferenceLines(file);
+
+                titleEl.textContent = visualAssetHeadline(file);
+                badgesEl.innerHTML = [
+                    `<span class="badge audit-status-badge status-neutral media-file-badge">${kind === 'video' ? 'Video' : 'Image'}</span>`,
+                    formatMediaReferenceBadges('visual', file),
+                ].filter(Boolean).join(' ');
+
+                if (kind === 'video') {
+                    const previewUrl = videoPreviewUrl(file);
+                    const posterUrl = videoPosterUrl(file);
+                    if (previewUrl) {
+                        if (posterUrl) {
+                            previewEl.classList.add('visual-asset-modal-preview--video');
+                            previewEl.innerHTML = `<img class="visual-asset-still" src="${posterUrl}" alt=""><video class="visual-asset-loop" data-src="${previewUrl}" poster="${posterUrl}" muted loop playsinline preload="metadata"></video>`;
+                        } else {
+                            previewEl.classList.add('visual-asset-modal-preview--video');
+                            previewEl.innerHTML = `<video class="visual-asset-loop visual-asset-loop--solo" src="${previewUrl}" muted loop playsinline preload="metadata"></video>`;
+                        }
+                        ensureVisualHoverVideoSource(previewEl.querySelector('video.visual-asset-loop'));
+                    } else if (posterUrl) {
+                        previewEl.classList.remove('visual-asset-modal-preview--video');
+                        previewEl.innerHTML = `<img src="${posterUrl}" alt="">`;
+                    } else {
+                        previewEl.classList.remove('visual-asset-modal-preview--video');
+                        previewEl.innerHTML = `<span class="text-muted">${file.delivery_running || file.delivery_pending ? 'Video is still preparing for preview.' : 'No preview is ready yet.'}</span>`;
+                    }
+                } else {
+                    previewEl.classList.remove('visual-asset-modal-preview--video');
+                    previewEl.innerHTML = `<img src="${buildMediaUrl(pathType, file.name)}" alt="">`;
+                }
+
+                const detailRows = [
+                    ['Type', kind === 'video' ? 'Video' : 'Still image'],
+                    ['Size', fmtSize(Number(file.size) || 0)],
+                    ['Usage', info.orphan === true
+                        ? 'Not referenced'
+                        : (Number(info.reference_count || 0) > 0 ? 'In use' : 'Not referenced')],
+                ];
+                if (kind === 'video') {
+                    let delivery = 'Ready';
+                    if (file.delivery_running) delivery = 'Preparing in background';
+                    else if (file.delivery_pending) delivery = 'Queued for preparation';
+                    else if (!videoPreviewUrl(file) && !videoPosterUrl(file)) delivery = 'Waiting for preparation';
+                    detailRows.push(['Delivery', delivery]);
+                }
+                if (referenceLines.length) {
+                    detailRows.push(['References', referenceLines.join('<br>')]);
+                }
+
+                detailsEl.innerHTML = detailRows.map(([label, value]) => {
+                    const isHtml = label === 'References';
+                    return `<dt>${bandpromoAdminEscapeHtml(label)}</dt><dd>${isHtml ? value : bandpromoAdminEscapeHtml(String(value))}</dd>`;
+                }).join('');
+
+                if (downloadBtn) {
+                    downloadBtn.onclick = () => {
+                        submitMediaDownloadRequest(pathType, 'original', [file.name]);
+                    };
+                }
+                if (deleteBtn) {
+                    deleteBtn.onclick = () => {
+                        closeVisualAssetModal();
+                        openDeleteModal('visual', activeVisualAssetKey);
+                    };
+                }
+
+                modal.style.display = 'flex';
+            }
+
+            window.openVisualAssetModal = openVisualAssetModal;
+
+            window.closeVisualAssetModal = function() {
+                const modal = document.getElementById('visualAssetModal');
+                const previewEl = document.getElementById('visualAssetPreview');
+                if (previewEl) {
+                    setVisualHoverPreviewActive(previewEl, false);
+                    previewEl.classList.remove('visual-asset-modal-preview--video');
+                    previewEl.querySelectorAll('video').forEach((video) => {
+                        stopVisualHoverVideo(video);
+                    });
+                    previewEl.innerHTML = '';
+                }
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+                activeVisualAssetKey = null;
+            };
+
             async function refreshAdminCsrfToken() {
                 const resp = await fetch('/biblioteca/get-admin-csrf.php', {
                     credentials: 'same-origin',
@@ -2372,17 +2900,32 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         syncMediaSelectionUi(type);
                         return;
                     }
-                    const basePath = getMediaBasePath(type);
+
+                    if (type === 'visual') {
+                        renderVisualPoolList(files, selection);
+                        syncMediaSelectionUi(type);
+                        maybeApplyMediaFocusFromQuery(type);
+                        if (typeof refreshBuildRequiredState === 'function') {
+                            refreshBuildRequiredState({ scope: 'lite' });
+                        }
+                        return;
+                    }
+
                     setAdminPreviewItems(files, type);
                     listEl.innerHTML = files.map(f => {
+                        const pathType = resolveFileIntakeBucket(f, type) || type;
+                        const basePath = getMediaBasePath(pathType);
+                        const selectionKey = mediaFileSelectionKey(type, f);
                         const safeName = f.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                        const url = buildMediaUrl(type, f.name);
+                        const safeKey = selectionKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                        const url = buildMediaUrl(pathType, f.name);
                         const displaySource = type === 'audio' ? audioFileForDisplay(f) : f;
                         const display = getDisplayedMediaInfo(type, displaySource);
-                        const selected = selection.selected.has(f.name);
+                        const selected = selection.selected.has(selectionKey);
                         const rowLabel = type === 'audio'
                             ? formatAudioListRowLabel(displaySource)
                             : String(display.name || f.name);
+                        const rowIsVideo = isVisualMediaRow(type, f);
                         let thumb;
                         if (isImage(f.name)) {
                             thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
@@ -2391,12 +2934,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         } else {
                             thumb = `<span class="media-file-icon">${extIcon(f.name)}</span>`;
                         }
-                        const previewSrc = type === 'video'
+                        const previewSrc = rowIsVideo
                             ? (videoPreviewUrl(f) || videoPosterUrl(f))
                             : `${basePath}/${safeName}`;
                         const preview = isPreviewable(f.name, f, type)
                             ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${previewSrc}', '${safeName}')">👁️</button>`
-                            : (type === 'video' && (f.delivery_pending || f.delivery_running)
+                            : (rowIsVideo && (f.delivery_pending || f.delivery_running)
                                 ? `<button class="icon-btn media-action-btn" title="Preparing in background" disabled>⏳</button>`
                                 : '');
                         const rowIsEditableAudio = type === 'audio' && audioRowIsEditable(f);
@@ -2418,15 +2961,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `media-file-row media-file-row-clickable${selected ? ' media-file-row-selected' : ''}${isExpandedAudio ? ' media-file-row-expanded' : ''}`
                             : `media-file-row${selected ? ' media-file-row-selected' : ''}`;
                         const expandedMarkup = isExpandedAudio ? buildAudioInlineDetailMarkup(f.name) : '';
-                        return `<div class="${rowClassName}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${rowAttributes}>
+                        return `<div class="${rowClassName}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" ${rowAttributes}>
                             <div class="media-file-row-main">
                                 <label class="media-file-select-wrap" title="Select for deletion" onclick="event.stopPropagation()">
-                                    <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(type)}" data-file="${bandpromoAdminEscapeHtml(f.name)}" ${selected ? 'checked' : ''} aria-label="Select ${bandpromoAdminEscapeHtml(rowLabel)} for deletion">
+                                    <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(type)}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="Select ${bandpromoAdminEscapeHtml(rowLabel)} for deletion">
                                 </label>
                                 ${thumb}
                                 ${nameCell}
                                 <span class="media-file-size">${fmtSize(display.size)}</span>
-                                <span class="media-file-actions">${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeName}')">🗑️</button></span>
+                                <span class="media-file-actions">${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeKey}')">🗑️</button></span>
                             </div>
                             ${expandedMarkup}
                         </div>`;
@@ -2448,9 +2991,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function setMediaReferenceFilter(type, nextValue) {
-                if (type === 'illustrations') {
+                if (type === 'visual') {
+                    const allowed = new Set(['all', 'referenced', 'orphans', 'track-covers', 'living-covers', 'build-generated']);
+                    mediaReferenceFilters.visual = allowed.has(nextValue) ? nextValue : 'all';
+                } else if (type === 'illustrations') {
                     const allowed = new Set(['all', 'track-covers', 'orphans', 'build-generated']);
-                    illustrationsCoverFilter = allowed.has(nextValue) ? nextValue : 'all';
+                    mediaReferenceFilters.visual = allowed.has(nextValue) ? nextValue : 'all';
                 } else if (type === 'photos' || type === 'video') {
                     const allowed = new Set(['all', 'referenced', 'orphans']);
                     mediaReferenceFilters[type] = allowed.has(nextValue) ? nextValue : 'all';
@@ -2458,8 +3004,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 syncMediaReferenceFilterUi();
-                if (activeMediaPanel === type) {
-                    loadMediaList(type);
+                if (activeMediaPanel === type || (type === 'illustrations' && activeMediaPanel === 'visual')) {
+                    loadMediaList(activeMediaPanel === 'visual' ? 'visual' : type);
                 }
             }
 
@@ -2469,6 +3015,119 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setMediaReferenceFilter(target, String(select.value || 'all'));
                 });
             });
+
+            function setVisualTypeFilter(nextValue) {
+                const allowed = new Set(['all', 'image', 'video']);
+                visualTypeFilter = allowed.has(nextValue) ? nextValue : 'all';
+                syncVisualTypeFilterUi();
+                if (activeMediaPanel === 'visual') {
+                    loadMediaList('visual');
+                }
+            }
+
+            document.querySelectorAll('[data-visual-type-filter]').forEach((el) => {
+                if (el.tagName === 'BUTTON') {
+                    el.addEventListener('click', () => {
+                        setVisualTypeFilter(String(el.getAttribute('data-visual-type-filter') || 'all'));
+                    });
+                } else {
+                    el.addEventListener('change', () => {
+                        setVisualTypeFilter(String(el.value || 'all'));
+                    });
+                }
+            });
+
+            document.querySelectorAll('[data-visual-view]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    setVisualViewMode(String(button.getAttribute('data-visual-view') || 'grid'));
+                });
+            });
+
+            syncVisualTypeFilterUi();
+            syncVisualViewUi();
+
+            const visualPoolListEl = document.getElementById('filelist-visual');
+            if (visualPoolListEl) {
+                visualPoolListEl.addEventListener('click', (event) => {
+                    const openBtn = event.target.closest('[data-visual-open]');
+                    if (!openBtn) {
+                        return;
+                    }
+                    event.preventDefault();
+                    openVisualAssetModal(String(openBtn.getAttribute('data-visual-open') || ''));
+                });
+
+                visualPoolListEl.addEventListener('mouseover', (event) => {
+                    const thumb = event.target.closest('.visual-pool-card-thumb');
+                    if (!thumb || !visualPoolListEl.contains(thumb) || !thumb.querySelector('video.visual-pool-card-video')) {
+                        return;
+                    }
+                    const from = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+                    if (from && thumb.contains(from)) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(thumb, true);
+                });
+
+                visualPoolListEl.addEventListener('mouseout', (event) => {
+                    const thumb = event.target.closest('.visual-pool-card-thumb');
+                    if (!thumb || !visualPoolListEl.contains(thumb)) {
+                        return;
+                    }
+                    const to = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+                    if (to && thumb.contains(to)) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(thumb, false);
+                });
+
+                visualPoolListEl.addEventListener('focusin', (event) => {
+                    const thumb = event.target.closest('.visual-pool-card-thumb');
+                    if (!thumb || !thumb.querySelector('video.visual-pool-card-video')) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(thumb, true);
+                });
+
+                visualPoolListEl.addEventListener('focusout', (event) => {
+                    const thumb = event.target.closest('.visual-pool-card-thumb');
+                    if (!thumb) {
+                        return;
+                    }
+                    if (event.relatedTarget && thumb.contains(event.relatedTarget)) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(thumb, false);
+                });
+            }
+
+            const visualAssetPreviewEl = document.getElementById('visualAssetPreview');
+            if (visualAssetPreviewEl) {
+                if (!visualAssetPreviewEl.hasAttribute('tabindex')) {
+                    visualAssetPreviewEl.setAttribute('tabindex', '0');
+                }
+                visualAssetPreviewEl.addEventListener('mouseenter', () => {
+                    if (!visualAssetPreviewEl.querySelector('video.visual-asset-loop')) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(visualAssetPreviewEl, true);
+                });
+                visualAssetPreviewEl.addEventListener('mouseleave', () => {
+                    setVisualHoverPreviewActive(visualAssetPreviewEl, false);
+                });
+                visualAssetPreviewEl.addEventListener('focusin', () => {
+                    if (!visualAssetPreviewEl.querySelector('video.visual-asset-loop')) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(visualAssetPreviewEl, true);
+                });
+                visualAssetPreviewEl.addEventListener('focusout', (event) => {
+                    if (event.relatedTarget && visualAssetPreviewEl.contains(event.relatedTarget)) {
+                        return;
+                    }
+                    setVisualHoverPreviewActive(visualAssetPreviewEl, false);
+                });
+            }
 
             function setPoolReleaseFilter(nextValue) {
                 poolReleaseFilter = String(nextValue || 'all').trim() || 'all';
@@ -2555,7 +3214,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             window.openUploadModal = function(type) {
                 modalTarget = type;
-                const labels = { audio: 'Add Audio', video: 'Add Video', illustrations: 'Add Illustrations', photos: 'Add Photos', special: 'Add Theme Assets' };
+                const labels = {
+                    audio: 'Add Audio',
+                    video: 'Add Video',
+                    visual: 'Add Visual Files',
+                    illustrations: 'Add Illustrations',
+                    photos: 'Add Photos',
+                    special: 'Add Brand Assets',
+                };
                 if (modalTitle)  modalTitle.textContent = labels[type] || 'Add Files';
                 if (modalInput)  modalInput.accept = (mediaCfg[type] || {}).accept || '*';
                 modalFiles = [];
@@ -2590,7 +3256,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 try {
                     const includeHidden = window.bandpromoDemoCatalogVisible === true;
-                    const files = await fetchMediaFiles(target, { release: 'all', includeHidden });
+                    let files = await fetchMediaFiles(target, { release: 'all', includeHidden });
+                    if (target === 'visual' && Array.isArray(mediaPickerState.visualBuckets) && mediaPickerState.visualBuckets.length) {
+                        const allowed = new Set(mediaPickerState.visualBuckets);
+                        files = files.filter((file) => allowed.has(resolveFileIntakeBucket(file, 'visual')));
+                    }
                     setAdminPreviewItems(files, target);
 
                     if (!files.length) {
@@ -2601,9 +3271,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     mediaPickerStatus.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}. Click a thumbnail to use it.`;
                     mediaPickerList.innerHTML = `<div class="media-picker-grid">${files.map((file) => {
+                        const pathType = resolveFileIntakeBucket(file, target) || target;
                         const encodedName = encodeURIComponent(file.name);
                         const safeName = bandpromoAdminEscapeHtml(file.name);
-                        const url = buildMediaUrl(target, file.name);
+                        const url = buildMediaUrl(pathType, file.name);
                         let mediaMarkup;
 
                         if (isImage(file.name)) {
@@ -2615,10 +3286,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         const previewBtn = isPreviewable(file.name, file, target)
-                            ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${target}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeName}">👁️</button>`
+                            ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${pathType}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeName}">👁️</button>`
                             : '';
 
-                        return `<button type="button" class="media-picker-tile" data-picker-target="${target}" data-filename="${encodedName}" title="${safeName}" aria-label="${safeName}">
+                        return `<button type="button" class="media-picker-tile" data-picker-target="${pathType}" data-filename="${encodedName}" title="${safeName}" aria-label="${safeName}">
                             <span class="media-picker-tile-media">${mediaMarkup}${previewBtn}</span>
                         </button>`;
                     }).join('')}</div>`;
@@ -2630,6 +3301,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
+            function normalizeMediaPickerTargets(targets) {
+                const allowedTargets = Array.isArray(targets) ? targets.filter(Boolean) : [];
+                const visualHits = allowedTargets.filter((target) => VISUAL_INTAKE_BUCKETS.includes(target));
+                const otherHits = allowedTargets.filter((target) => !VISUAL_INTAKE_BUCKETS.includes(target));
+                if (!visualHits.length) {
+                    return {
+                        targets: allowedTargets.length ? allowedTargets : ['special'],
+                        visualBuckets: null,
+                    };
+                }
+                return {
+                    targets: ['visual', ...otherHits],
+                    visualBuckets: visualHits,
+                };
+            }
+
             window.openMediaPicker = function(fieldId, title, targets) {
                 const pickerModal = document.getElementById('mediaPickerModal');
                 const input = document.getElementById(fieldId);
@@ -2639,16 +3326,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     document.body.appendChild(pickerModal);
                 }
 
-                const allowedTargets = String(targets || '')
+                const rawTargets = String(targets || '')
                     .split(',')
                     .map((value) => value.trim())
                     .filter(Boolean);
+                const normalized = normalizeMediaPickerTargets(rawTargets);
 
                 mediaPickerState = {
                     fieldId,
                     title: title || 'Choose file',
-                    targets: allowedTargets.length ? allowedTargets : ['special'],
-                    activeTarget: inferMediaTargetFromPath(input.value, allowedTargets),
+                    targets: normalized.targets,
+                    visualBuckets: normalized.visualBuckets,
+                    activeTarget: inferMediaTargetFromPath(input.value, normalized.targets),
                 };
 
                 if (mediaPickerTitle) {
@@ -2735,13 +3424,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (selectBtn && mediaPickerState) {
                         const target = selectBtn.dataset.pickerTarget;
                         const filename = decodeURIComponent(selectBtn.dataset.filename || '');
-                        setPickerFieldValue(mediaPickerState.fieldId, buildMediaPath(target, filename));
-                        if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
-                            syncAudioMasterCoverUi(activeAudioMasterDetail || {});
-                        }
+                        const selectedPath = buildMediaPath(target, filename);
                         if (mediaPickerState.fieldId === 'audioMasterFieldLivingCoverPath') {
-                            setAudioMasterLivingCoverMode('set');
-                            syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
+                            applyAudioMasterLivingCoverSelection(selectedPath);
+                        } else {
+                            setPickerFieldValue(mediaPickerState.fieldId, selectedPath);
+                            if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
+                                syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                            }
                         }
                         closeMediaPickerModal();
                     }
@@ -2914,15 +3604,93 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
-            function audioMasterLivingCoverPreviewUrl(detail) {
-                const selected = audioMasterLivingCoverPath ? String(audioMasterLivingCoverPath.value || '').trim() : '';
-                if (selected) {
-                    return selected;
+            function audioMasterLivingCoverBasename(pathOrName) {
+                const raw = String(pathOrName || '').trim().replace(/\\/g, '/');
+                if (!raw) {
+                    return '';
                 }
-                if (detail && detail.living_cover_preview_url) {
-                    return String(detail.living_cover_preview_url);
+                return raw.split('/').pop() || '';
+            }
+
+            function audioMasterLivingCoverStoragePath(filename) {
+                const safe = audioMasterLivingCoverBasename(filename);
+                return safe ? `/media/video/original/${safe}` : '';
+            }
+
+            function audioMasterLivingCoverPreviewFromPicker(filename) {
+                const safe = audioMasterLivingCoverBasename(filename);
+                if (!safe) {
+                    return '';
+                }
+                const items = Array.isArray(window._adminPreviewItems) ? window._adminPreviewItems : [];
+                const match = items.find((item) => audioMasterLivingCoverBasename(item?.name) === safe);
+                if (!match) {
+                    return '';
+                }
+                if (match.type === 'video' && match.src) {
+                    return String(match.src);
+                }
+                if (match.poster) {
+                    return String(match.poster);
+                }
+                if (match.src) {
+                    return String(match.src);
                 }
                 return '';
+            }
+
+            function audioMasterLivingCoverPreviewUrl(detail) {
+                if (audioMasterLivingCoverMode === 'clear') {
+                    return '';
+                }
+
+                const selected = audioMasterLivingCoverPath ? String(audioMasterLivingCoverPath.value || '').trim() : '';
+                const selectedName = audioMasterLivingCoverBasename(selected);
+                const data = detail || {};
+                const assignedName = audioMasterLivingCoverBasename(data.living_cover || '');
+
+                if (selectedName) {
+                    const pickerPreview = audioMasterLivingCoverPreviewFromPicker(selectedName);
+                    if (pickerPreview) {
+                        return pickerPreview;
+                    }
+                    if (selectedName === assignedName && data.living_cover_preview_url) {
+                        return String(data.living_cover_preview_url);
+                    }
+                    // Prefer absolute original path so the <video> element can load it.
+                    return selected.startsWith('/') ? selected : `/${selected.replace(/^\/*/, '')}`;
+                }
+
+                if (data.living_cover_preview_url) {
+                    return String(data.living_cover_preview_url);
+                }
+                return '';
+            }
+
+            function applyAudioMasterLivingCoverSelection(path, options = {}) {
+                const storagePath = audioMasterLivingCoverStoragePath(path);
+                const filename = audioMasterLivingCoverBasename(storagePath);
+                const previewUrl = audioMasterLivingCoverPreviewFromPicker(filename)
+                    || (storagePath ? storagePath : '');
+
+                setAudioMasterLivingCoverMode(filename ? 'set' : 'preserve');
+                if (audioMasterLivingCoverPath) {
+                    // Avoid input-handler races: set value directly, then sync once.
+                    audioMasterLivingCoverPath.value = storagePath;
+                    updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
+                }
+
+                activeAudioMasterDetail = {
+                    ...(activeAudioMasterDetail || {}),
+                    living_cover: filename,
+                    living_cover_preview_url: previewUrl,
+                    living_cover_delivery_ready: previewUrl.includes('/media/video/optimal/'),
+                    living_cover_delivery_pending: filename !== '' && !previewUrl.includes('/media/video/optimal/'),
+                };
+
+                if (options.sync !== false) {
+                    syncAudioMasterLivingCoverUi(activeAudioMasterDetail);
+                }
             }
 
             function syncAudioMasterLivingCoverUi(detail) {
@@ -2960,22 +3728,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
+                const previewLooksLikeVideo = /\.(mp4|webm|mov)(\?|$)/i.test(previewUrl)
+                    || previewUrl.includes('/media/video/optimal/')
+                    || previewUrl.includes('/media/video/original/');
+
                 if (previewUrl && audioMasterLivingCoverMode !== 'clear') {
-                    if (audioMasterLivingCoverPreview.dataset.src !== previewUrl) {
-                        audioMasterLivingCoverPreview.dataset.src = previewUrl;
-                        audioMasterLivingCoverPreview.src = previewUrl;
+                    if (previewLooksLikeVideo) {
+                        if (audioMasterLivingCoverPreview.dataset.src !== previewUrl) {
+                            audioMasterLivingCoverPreview.dataset.src = previewUrl;
+                            audioMasterLivingCoverPreview.src = previewUrl;
+                        }
+                        audioMasterLivingCoverPreview.style.display = 'block';
+                        audioMasterLivingCoverPreview.play().catch(() => {});
+                        if (audioMasterLivingCoverPreviewShell) {
+                            audioMasterLivingCoverPreviewShell.style.backgroundImage = '';
+                        }
+                    } else {
+                        audioMasterLivingCoverPreview.pause();
+                        audioMasterLivingCoverPreview.removeAttribute('src');
+                        delete audioMasterLivingCoverPreview.dataset.src;
+                        audioMasterLivingCoverPreview.style.display = 'none';
+                        if (audioMasterLivingCoverPreviewShell) {
+                            audioMasterLivingCoverPreviewShell.style.backgroundImage = `url("${previewUrl}")`;
+                            audioMasterLivingCoverPreviewShell.style.backgroundSize = 'cover';
+                            audioMasterLivingCoverPreviewShell.style.backgroundPosition = 'center';
+                        }
                     }
-                    audioMasterLivingCoverPreview.style.display = 'block';
-                    audioMasterLivingCoverPreview.play().catch(() => {});
                 } else {
                     audioMasterLivingCoverPreview.pause();
                     audioMasterLivingCoverPreview.removeAttribute('src');
                     delete audioMasterLivingCoverPreview.dataset.src;
                     audioMasterLivingCoverPreview.style.display = 'none';
+                    if (audioMasterLivingCoverPreviewShell) {
+                        audioMasterLivingCoverPreviewShell.style.backgroundImage = '';
+                    }
                 }
 
                 if (audioMasterLivingCoverPlaceholder) {
-                    const showPlaceholder = audioMasterLivingCoverMode === 'clear' || !previewUrl;
+                    const showPlaceholder = audioMasterLivingCoverMode === 'clear'
+                        || !previewUrl;
                     audioMasterLivingCoverPlaceholder.style.display = showPlaceholder ? 'block' : 'none';
                     audioMasterLivingCoverPlaceholder.textContent = audioMasterLivingCoverMode === 'clear'
                         ? 'Will use still cover only'
@@ -2985,7 +3776,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function normalizeAudioMasterDateValue(value) {
                 const normalized = String(value || '').trim();
-                return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : '';
+                if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+                    return normalized;
+                }
+                if (/^\d{4}$/.test(normalized)) {
+                    return normalized;
+                }
+                return '';
             }
 
             function splitAudioTitleParts(value) {
@@ -3084,7 +3881,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     setAudioMasterLivingCoverMode('preserve');
                     if (audioMasterLivingCoverPath) {
-                        setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
+                        const assignedLivingCover = String(detail.living_cover || '').trim();
+                        // Set without firing the input handler so mode stays 'preserve'.
+                        audioMasterLivingCoverPath.value = audioMasterLivingCoverStoragePath(assignedLivingCover);
+                        updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
                     }
                     setAudioMasterSummary(detail);
                     setAudioMasterFormValues(detail);
@@ -3358,6 +4158,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!input || key === 'title') return;
                     if (key === 'date') {
                         input.value = normalizeAudioMasterDateValue(detail && typeof detail[key] === 'string' ? detail[key] : '');
+                        const native = input.closest('.iso-date-field')?.querySelector('.iso-date-picker-native');
+                        if (native instanceof HTMLInputElement) {
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(input.value)) {
+                                native.value = input.value;
+                            } else if (/^\d{4}$/.test(input.value)) {
+                                native.value = `${input.value}-01-01`;
+                            } else {
+                                native.value = '';
+                            }
+                        }
                         return;
                     }
                     input.value = detail && typeof detail[key] === 'string' ? detail[key] : '';
@@ -3375,13 +4185,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 setAudioMasterLivingCoverMode('preserve');
                 if (audioMasterLivingCoverPath) {
-                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
+                    audioMasterLivingCoverPath.value = '';
+                    updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
                 }
                 try {
                     const data = await fetchAudioMasterDetailData(filename);
                     audioInlineDetailCache.set(filename, data);
                     audioInlineDetailErrors.delete(filename);
                     if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(data);
+                    setAudioMasterLivingCoverMode('preserve');
+                    if (audioMasterLivingCoverPath) {
+                        const assignedLivingCover = String(data.living_cover || '').trim();
+                        audioMasterLivingCoverPath.value = audioMasterLivingCoverStoragePath(assignedLivingCover);
+                        updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
+                    }
                     setAudioMasterSummary(data);
                     setAudioMasterFormValues(data);
                     setAudioMasterStatus('Ready to edit.', 'success');
@@ -3447,9 +4264,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             if (audioMasterLivingCoverPath) {
                 audioMasterLivingCoverPath.addEventListener('input', () => {
-                    if (audioMasterLivingCoverMode !== 'clear') {
-                        setAudioMasterLivingCoverMode(String(audioMasterLivingCoverPath.value || '').trim() !== '' ? 'set' : 'preserve', { refreshLabel: false });
+                    // Selection path goes through applyAudioMasterLivingCoverSelection.
+                    // Keep this for any other callers that mutate the hidden input.
+                    if (audioMasterLivingCoverMode === 'clear') {
+                        syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
+                        return;
                     }
+                    const value = String(audioMasterLivingCoverPath.value || '').trim();
+                    if (value !== '') {
+                        applyAudioMasterLivingCoverSelection(value);
+                        return;
+                    }
+                    setAudioMasterLivingCoverMode('preserve');
                     syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
                 });
             }
@@ -3458,9 +4284,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 audioMasterLivingCoverClearBtn.addEventListener('click', () => {
                     if (audioMasterLivingCoverPath) {
                         audioMasterLivingCoverPath.value = '';
+                        updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
                     }
                     setAudioMasterLivingCoverMode('clear');
-                    syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
+                    activeAudioMasterDetail = {
+                        ...(activeAudioMasterDetail || {}),
+                        living_cover: '',
+                        living_cover_preview_url: '',
+                        living_cover_delivery_ready: false,
+                        living_cover_delivery_pending: false,
+                    };
+                    syncAudioMasterLivingCoverUi(activeAudioMasterDetail);
                 });
             }
 
@@ -3547,7 +4381,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
-            document.querySelectorAll('.media-file-list').forEach((listEl) => {
+            document.querySelectorAll('.media-file-list, #filelist-visual').forEach((listEl) => {
                 listEl.addEventListener('click', (event) => {
                     const checkbox = event.target.closest('.media-file-select');
                     if (!checkbox) return;
@@ -3600,7 +4434,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const files = Array.isArray(data.files) ? data.files : [];
-                const selected = new Set((Array.isArray(filenames) ? filenames : []).map((name) => String(name || '')));
+                const selected = new Set(
+                    (Array.isArray(filenames) ? filenames : [])
+                        .map((name) => selectionDisplayName(target, name))
+                        .filter(Boolean)
+                );
                 const selectedFiles = files.filter((entry) => selected.has(String(entry.filename || '')));
                 const extras = [];
                 const themeKinds = new Set(['theme-cover', 'theme-background', 'theme-background-video', 'share-image']);
@@ -3623,22 +4461,139 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return extras;
             }
 
+            function emptyDeleteReferenceSummary() {
+                return {
+                    total: 0,
+                    playlist_tracks: 0,
+                    playlist_covers: 0,
+                    gallery_items: 0,
+                    theme_assets: 0,
+                    release_fallbacks: 0,
+                };
+            }
+
+            function mergeDeleteReferenceSummaries(left, right) {
+                const a = left && typeof left === 'object' ? left : {};
+                const b = right && typeof right === 'object' ? right : {};
+                const merged = emptyDeleteReferenceSummary();
+                Object.keys(merged).forEach((key) => {
+                    merged[key] = Math.max(0, Number(a[key] || 0)) + Math.max(0, Number(b[key] || 0));
+                });
+                return merged;
+            }
+
+            async function requestDeleteMediaOperation(panelType, selectionKeys, options = {}) {
+                const mode = options.mode === 'preview' ? 'preview' : 'delete';
+                const detachReferences = options.detach_references === true;
+                const keys = (Array.isArray(selectionKeys) ? selectionKeys : []).filter(Boolean);
+                if (!panelType || !keys.length) {
+                    throw new Error('No files selected');
+                }
+
+                const groups = panelType === 'visual'
+                    ? groupSelectionKeysByBucket('visual', keys)
+                    : new Map([[panelType, keys.map((key) => parseMediaSelectionKey(panelType, key).name)]]);
+
+                const merged = {
+                    ok: true,
+                    reference_summary: emptyDeleteReferenceSummary(),
+                    references: [],
+                    files: [],
+                    failed_count: 0,
+                    message: '',
+                    deleted: [],
+                };
+
+                for (const [bucket, names] of groups.entries()) {
+                    const payload = names.length > 1
+                        ? {
+                            target: bucket,
+                            filenames: names,
+                            mode: mode === 'preview' ? 'preview' : undefined,
+                            detach_references: detachReferences,
+                        }
+                        : {
+                            target: bucket,
+                            filename: names[0],
+                            mode: mode === 'preview' ? 'preview' : undefined,
+                            detach_references: detachReferences,
+                        };
+                    if (mode !== 'preview') {
+                        delete payload.mode;
+                        payload.detach_references = true;
+                    }
+
+                    const resp = await fetch('/biblioteca/delete-media.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && data.error) || ('Request failed: ' + resp.status));
+                    }
+
+                    merged.reference_summary = mergeDeleteReferenceSummaries(
+                        merged.reference_summary,
+                        data.reference_summary || {}
+                    );
+                    if (Array.isArray(data.references)) {
+                        merged.references.push(...data.references);
+                    }
+                    if (Array.isArray(data.files)) {
+                        merged.files.push(...data.files);
+                    }
+                    merged.failed_count += Number(data.failed_count || 0);
+                    if (data.message) {
+                        merged.message = data.message;
+                    }
+                    if (Array.isArray(data.deleted)) {
+                        merged.deleted.push(...data.deleted);
+                    }
+                }
+
+                if (!merged.message) {
+                    merged.message = mode === 'preview'
+                        ? 'Preview ready'
+                        : (merged.failed_count ? 'Some files could not be deleted.' : 'File removed.');
+                }
+                return merged;
+            }
+
             window.openDeleteModal = function(type, filename) {
                 deleteTarget = type;
                 deleteFiles  = Array.isArray(filename) ? filename.filter(Boolean) : [filename].filter(Boolean);
                 deleteReferencePreview = null;
+                const displayNames = deleteFiles.map((key) => selectionDisplayName(deleteTarget, key));
+                const visualFriendly = deleteTarget === 'visual';
                 if (deleteTitleEl) {
-                    deleteTitleEl.textContent = deleteFiles.length > 1 ? 'Delete selected files?' : 'Delete file?';
+                    deleteTitleEl.textContent = deleteFiles.length > 1
+                        ? (visualFriendly ? 'Delete selected visuals?' : 'Delete selected files?')
+                        : (visualFriendly ? 'Delete this visual?' : 'Delete file?');
                 }
                 if (deleteNameEl) {
-                    deleteNameEl.textContent = deleteFiles.length > 1
-                        ? `${deleteFiles.length} files selected`
-                        : (deleteFiles[0] || '');
+                    if (visualFriendly) {
+                        deleteNameEl.textContent = deleteFiles.length > 1
+                            ? `${deleteFiles.length} visuals selected`
+                            : visualAssetHeadline(findVisualAssetByKey(deleteFiles[0]) || { media_type: 'image' });
+                    } else {
+                        deleteNameEl.textContent = deleteFiles.length > 1
+                            ? `${deleteFiles.length} files selected`
+                            : (displayNames[0] || '');
+                    }
                 }
                 if (deleteListEl) {
-                    if (deleteFiles.length > 1) {
+                    if (deleteFiles.length > 1 && !visualFriendly) {
                         deleteListEl.style.display = 'block';
-                        deleteListEl.innerHTML = deleteFiles.map((name, index) => `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(name)}</div>`).join('');
+                        deleteListEl.innerHTML = displayNames.map((name, index) => `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(name)}</div>`).join('');
+                    } else if (deleteFiles.length > 1 && visualFriendly) {
+                        deleteListEl.style.display = 'block';
+                        deleteListEl.innerHTML = deleteFiles.map((key, index) => {
+                            const file = findVisualAssetByKey(key);
+                            const label = file ? visualAssetHeadline(file) : 'Visual asset';
+                            const kind = file ? visualAssetKind(file) : 'image';
+                            return `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(label)} <span class="text-muted">(${kind === 'video' ? 'video' : 'image'})</span></div>`;
+                        }).join('');
                     } else {
                         deleteListEl.style.display = 'none';
                         deleteListEl.innerHTML = '';
@@ -3659,19 +4614,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 (async () => {
                     try {
-                        const payload = deleteFiles.length > 1
-                            ? { target: deleteTarget, filenames: deleteFiles, mode: 'preview' }
-                            : { target: deleteTarget, filename: deleteFiles[0], mode: 'preview' };
-                        const resp = await fetch('/biblioteca/delete-media.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload),
-                        });
-                        const data = await resp.json();
-                        if (!resp.ok || !data.ok) {
-                            throw new Error(data.error || ('Request failed: ' + resp.status));
-                        }
-
+                        const data = await requestDeleteMediaOperation(deleteTarget, deleteFiles, { mode: 'preview' });
                         deleteReferencePreview = data;
                         const summary = data.reference_summary || {};
                         const total = Number(summary.total || 0);
@@ -3723,26 +4666,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     deleteConfirmBtn.disabled = true;
                     deleteStatusEl.textContent = 'Deleting…';
                     try {
-                        const resp = await fetch('/biblioteca/delete-media.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(deleteFiles.length > 1
-                                ? { target: deleteTarget, filenames: deleteFiles, detach_references: true }
-                                : { target: deleteTarget, filename: deleteFiles[0], detach_references: true }),
+                        const data = await requestDeleteMediaOperation(deleteTarget, deleteFiles, {
+                            detach_references: true,
                         });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            clearMediaSelection(deleteTarget);
-                            closeDeleteModal();
-                            await loadMediaList(activeMediaPanel);
-                            const toastType = data.failed_count ? 'warning' : 'success';
-                            showAdminToast(data.message || 'File removed.', toastType);
-                        } else {
-                            deleteStatusEl.innerHTML = `<span class="text-error">❌ ${data.error || 'Failed'}</span>`;
-                            deleteConfirmBtn.disabled = false;
-                        }
+                        clearMediaSelection(deleteTarget);
+                        closeDeleteModal();
+                        await loadMediaList(activeMediaPanel);
+                        const toastType = data.failed_count ? 'warning' : 'success';
+                        showAdminToast(data.message || 'File removed.', toastType);
                     } catch(e) {
-                        deleteStatusEl.innerHTML = `<span class="text-error">❌ Network error: ${bandpromoAdminEscapeHtml(e && e.message ? e.message : 'Request failed')}</span>`;
+                        deleteStatusEl.innerHTML = `<span class="text-error">❌ ${bandpromoAdminEscapeHtml(e && e.message ? e.message : 'Request failed')}</span>`;
                         deleteConfirmBtn.disabled = false;
                     }
                 });
@@ -5654,6 +6587,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     if (playlistSettingsPublishDate instanceof HTMLInputElement) {
                         playlistSettingsPublishDate.value = publish;
+                        if (typeof window.bandpromoSyncIsoDateField === 'function') {
+                            window.bandpromoSyncIsoDateField(playlistSettingsPublishDate);
+                        }
                     }
                     if (playlistSettingsSlug instanceof HTMLInputElement) {
                         playlistSettingsSlug.value = slug;
@@ -7543,7 +8479,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             attachBuildLogIfRunning();
-            refreshBuildRequiredState();
+            refreshBuildRequiredState(
+                isDeliverablesViewActive()
+                    ? { full: true, inventory: true }
+                    : { scope: 'lite' }
+            );
 
             (function initContentAutofix() {
                 const statusEl = document.getElementById('contentAutofixStatus');

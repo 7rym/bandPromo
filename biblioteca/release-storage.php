@@ -6,6 +6,7 @@ require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/site-contact.php';
 require_once __DIR__ . '/demo-catalog-state.php';
 require_once __DIR__ . '/brand-storage.php';
+require_once __DIR__ . '/living-cover-helpers.php';
 
 const BANDPROMO_RELEASE_REGISTRY_VERSION = 1;
 /** Default operator release slot id (legacy on-disk name: primary). */
@@ -1457,6 +1458,15 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
         'artist' => $artist,
         'album' => trim((string) ($inspect['album'] ?? '')),
         'duration' => max(0, (int) ($inspect['duration_seconds'] ?? $inspect['duration'] ?? 0)),
+        'date' => trim((string) ($inspect['date'] ?? '')),
+        'tracknumber' => trim((string) ($inspect['tracknumber'] ?? '')),
+        'bpm' => trim((string) ($inspect['bpm'] ?? '')),
+        'initialkey' => trim((string) ($inspect['initialkey'] ?? '')),
+        'genre' => trim((string) ($inspect['genre'] ?? '')),
+        'comment' => trim((string) ($inspect['comment'] ?? '')),
+        'lyrics' => (string) ($inspect['lyrics'] ?? ''),
+        'living_cover' => bandpromo_living_cover_normalize_video_filename((string) ($inspect['living_cover'] ?? '')),
+        'cover' => basename(trim((string) ($inspect['sidecar_cover'] ?? $inspect['cover'] ?? ''))),
         'synced_at' => gmdate('c'),
      ];
 }
@@ -1474,6 +1484,17 @@ function bandpromo_asset_build_audio_display_from_fields(array $fields, array $i
         'artist' => $artist,
         'album' => $album,
         'duration' => max(0, (int) ($inspectData['duration_seconds'] ?? $inspectData['duration'] ?? 0)),
+        'date' => trim((string) ($fields['date'] ?? '')),
+        'tracknumber' => trim((string) ($fields['tracknumber'] ?? '')),
+        'bpm' => trim((string) ($fields['bpm'] ?? '')),
+        'initialkey' => trim((string) ($fields['initialkey'] ?? '')),
+        'genre' => trim((string) ($fields['genre'] ?? '')),
+        'comment' => trim((string) ($fields['comment'] ?? '')),
+        'lyrics' => (string) ($fields['lyrics'] ?? ''),
+        'living_cover' => bandpromo_living_cover_normalize_video_filename(
+            (string) ($fields['living_cover'] ?? ($inspectData['living_cover'] ?? ''))
+        ),
+        'cover' => basename(trim((string) ($inspectData['sidecar_cover'] ?? $inspectData['cover'] ?? ''))),
         'synced_at' => gmdate('c'),
     ];
 }
@@ -1581,23 +1602,6 @@ function bandpromo_release_enrich_track_row_labels(string $root, array $row, str
 
     $title = trim((string) ($display['title'] ?? ''));
     $version = trim((string) ($display['version'] ?? ''));
-    $needsInspect = $title === ''
-        || bandpromo_release_title_needs_metadata_refresh($title, $masterFile)
-        || bandpromo_release_title_looks_like_asset_id($title, $masterFile);
-    if ($needsInspect) {
-        $inspect = bandpromo_release_inspect_master_metadata($root, $masterFile);
-        $fromInspect = bandpromo_asset_build_audio_display_from_inspect($inspect, $releaseTitle);
-        if (trim((string) ($fromInspect['title'] ?? '')) !== '') {
-            $title = trim((string) $fromInspect['title']);
-            $version = trim((string) ($fromInspect['version'] ?? ''));
-            if ($artist === '' && trim((string) ($fromInspect['artist'] ?? '')) !== '') {
-                $artist = trim((string) $fromInspect['artist']);
-            }
-            if ($duration <= 0 && (int) ($fromInspect['duration'] ?? 0) > 0) {
-                $duration = (int) $fromInspect['duration'];
-            }
-        }
-    }
 
     if ($title !== '') {
         $row['title'] = $title;
@@ -1605,11 +1609,26 @@ function bandpromo_release_enrich_track_row_labels(string $root, array $row, str
     } else {
         $rawTitle = trim((string) ($row['title'] ?? ''));
         if ($rawTitle === '') {
-            $rawTitle = $masterFile;
+            if ($asset !== null) {
+                $labels = bandpromo_release_track_display_from_asset($asset, $masterFile);
+                $rawTitle = trim((string) ($labels['title'] ?? ''));
+                if ($artist === '') {
+                    $artist = trim((string) ($labels['artist'] ?? ''));
+                }
+                if ($duration <= 0) {
+                    $duration = (int) ($labels['duration'] ?? 0);
+                }
+                if ($version === '') {
+                    $version = trim((string) ($labels['version'] ?? ''));
+                }
+            }
+            if ($rawTitle === '') {
+                $rawTitle = $masterFile;
+            }
         }
         $labels = bandpromo_release_resolve_track_display_labels($rawTitle, $artist, $releaseTitle);
         $row['title'] = $labels['title'];
-        $row['version'] = $labels['version'];
+        $row['version'] = $version !== '' ? $version : $labels['version'];
     }
 
     $row['artist'] = $artist;

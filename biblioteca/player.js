@@ -6,6 +6,16 @@ let brandStylesById = {};
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
 const IMAGE_PATH_VARIANT = 'optimal';
 
+function isTrackPlayable(song) {
+    if (!song) {
+        return false;
+    }
+    if (song.playable !== false) {
+        return true;
+    }
+    return Boolean(window.BANDPROMO_IS_OPERATOR && song.embargoed === true);
+}
+
 function playerMarkdownApi() {
     return window.bandpromoPlayerMarkdown || null;
 }
@@ -1295,7 +1305,7 @@ function showPlayerLoadError(message) {
 }
 
 function playlistLockLabel(song) {
-    if (!song || song.playable !== false) {
+    if (!song || isTrackPlayable(song)) {
         return '';
     }
     if (song.lock_reason === 'delivery_pending') {
@@ -1365,7 +1375,7 @@ async function loadConfig() {
         if (playList.length > 0) {
             currentIndex = getTrackFromUrl();
             if (currentIndex >= playList.length) {
-                currentIndex = playList.findIndex((song) => song.playable !== false);
+                currentIndex = playList.findIndex((song) => isTrackPlayable(song));
                 if (currentIndex < 0) {
                     currentIndex = 0;
                 }
@@ -1602,7 +1612,7 @@ function findNextPlayableIndex(startIndex, direction) {
         const idx = direction === 'next'
             ? (startIndex + step) % len
             : (startIndex - step + len) % len;
-        if (playList[idx] && playList[idx].playable !== false) {
+        if (playList[idx] && isTrackPlayable(playList[idx])) {
             return idx;
         }
     }
@@ -1613,7 +1623,7 @@ function findNextPlayableIndex(startIndex, direction) {
 function initPlayer(index) {
     updateVisuals(index);
     const song = playList[index];
-    if (song && song.playable !== false && song.file) {
+    if (song && isTrackPlayable(song) && song.file) {
         setAudioSrc(song.file);
     } else {
         audioPlayer.removeAttribute('src');
@@ -1658,7 +1668,7 @@ let isChangingSong = false;
 
 function applySongChange(newIndex, direction) {
     const song = playList[newIndex];
-    if (!song || song.playable === false) {
+    if (!song || !isTrackPlayable(song)) {
         isChangingSong = false;
         return;
     }
@@ -1697,7 +1707,7 @@ function triggerSongChange(direction) {
     } else {
         newIndex = findNextPlayableIndex(currentIndex, 'prev');
     }
-    if (newIndex < 0 || playList[newIndex]?.playable === false) {
+    if (newIndex < 0 || !isTrackPlayable(playList[newIndex])) {
         isChangingSong = false;
         return;
     }
@@ -1752,9 +1762,9 @@ function prevSong() {
 function togglePlay() {
     if (playList.length === 0) return;
     const song = playList[currentIndex];
-    if (!song || song.playable === false) {
+    if (!song || !isTrackPlayable(song)) {
         const playableIndex = findNextPlayableIndex(currentIndex, 'next');
-        if (playableIndex >= 0 && playList[playableIndex]?.playable !== false) {
+        if (playableIndex >= 0 && isTrackPlayable(playList[playableIndex])) {
             currentIndex = playableIndex;
             initPlayer(currentIndex);
             renderPlaylist();
@@ -1821,7 +1831,7 @@ function renderPlaylist() {
     let html = '<div class="playlist-tracks">';
     playList.forEach((song, index) => {
         const isCurrentTrack = index === currentIndex ? 'current' : '';
-        const isLocked = song.playable === false ? 'playlist-item--locked' : '';
+        const isLocked = !isTrackPlayable(song) ? 'playlist-item--locked' : '';
         const lockLabel = playlistLockLabel(song);
         
         const coverCandidates = buildCoverUrlCandidates(song.cover);
@@ -1855,7 +1865,7 @@ function playTrackFromPlaylist(index) {
     if (!song) {
         return;
     }
-    if (song.playable === false) {
+    if (!isTrackPlayable(song)) {
         return;
     }
     if (index === currentIndex) {

@@ -158,6 +158,12 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
     $publishStatus = bandpromo_publish_status_summary($root);
     $missingDeliveryCount = (int) ($publishStatus['summary']['missing_delivery'] ?? 0);
     $deliveryReady = $missingDeliveryCount === 0;
+    // Install + starter + one successful full build = first-run done. Later missing delivery is live ops.
+    if ($installationRunning && $starterPackInstalled && $fullBuildSucceeded) {
+        bandpromo_admin_latch_core_setup($root);
+    }
+    $setupLatched = bandpromo_admin_is_core_setup_latched($root);
+    $deliverySeverity = $setupLatched ? 'nonblocking' : 'blocking';
 
     return [
         [
@@ -194,7 +200,7 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
         [
             'label' => 'Delivery files are created and ready',
             'action_label' => 'Build delivery files',
-            'severity' => 'blocking',
+            'severity' => $deliverySeverity,
             'complete' => $deliveryReady,
             'detail' => $deliveryReady
                 ? 'Publish-ready delivery files exist for catalogued audio and artwork.'
@@ -225,6 +231,38 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'next' => 'Open Content → Pages and replace the starter FAQ with your own login info copy.',
         ],
     ];
+}
+
+function bandpromo_admin_core_setup_latch_path(string $root): string
+{
+    return $root . '/data/install/welcome-core-setup-complete.json';
+}
+
+function bandpromo_admin_is_core_setup_latched(string $root): bool
+{
+    return is_file(bandpromo_admin_core_setup_latch_path($root));
+}
+
+function bandpromo_admin_latch_core_setup(string $root): void
+{
+    $path = bandpromo_admin_core_setup_latch_path($root);
+    if (is_file($path)) {
+        return;
+    }
+
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0750, true);
+    }
+
+    file_put_contents(
+        $path,
+        json_encode([
+            'completed_at' => gmdate('c'),
+            'note' => 'Core Welcome setup completed once. Later missing delivery files must not reopen first-install mode.',
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        LOCK_EX
+    );
 }
 
 function bandpromo_admin_core_setup_complete(array $checklist): bool
@@ -325,6 +363,14 @@ function bandpromo_admin_build_incomplete_setup_steps(array $checklist): array
     return $nextSteps;
 }
 
+/**
+ * Fast path for Notifications / badge wording — never rebuilds the first-install checklist.
+ */
+function bandpromo_admin_welcome_setup_is_complete(string $root): bool
+{
+    return bandpromo_admin_is_core_setup_latched($root);
+}
+
 function bandpromo_admin_welcome_state(string $root): array
 {
     bandpromo_admin_write_inferred_starter_pack_marker($root);
@@ -335,22 +381,61 @@ function bandpromo_admin_welcome_state(string $root): array
         // Welcome should still render if brand auto-provision fails.
     }
 
-    $checklist = bandpromo_admin_build_welcome_checklist($root);
-    $coreSetupComplete = bandpromo_admin_core_setup_complete($checklist);
-    $completedCount = 0;
+    // Once first-install is done, never recompute the checklist (Dashboard speed + no reopen).
+    if (bandpromo_admin_is_core_setup_latched($root)) {
+        $nextSteps = bandpromo_admin_build_post_setup_suggestions($root);
+        if ($nextSteps === []) {
+            $nextSteps[] = [
+                'label' => 'Documentation',
+                'href' => '?tab=docs&doc_scope=operator',
+                'severity' => 'nonblocking',
+                'description' => 'You are in a good place. Use Documentation when you want the deeper explanations and workflow guides.',
+            ];
+        }
 
+        return [
+            'checklist' => [],
+            'completed_count' => 0,
+            'total_count' => 0,
+            'setup_complete' => true,
+            'setup_latched' => true,
+            'next_steps' => $nextSteps,
+        ];
+    }
+
+    $checklist = bandpromo_admin_build_welcome_checklist($root);
+    $checklistComplete = bandpromo_admin_core_setup_complete($checklist);
+    if ($checklistComplete || bandpromo_admin_is_core_setup_latched($root)) {
+        bandpromo_admin_latch_core_setup($root);
+
+        $nextSteps = bandpromo_admin_build_post_setup_suggestions($root);
+        if ($nextSteps === []) {
+            $nextSteps[] = [
+                'label' => 'Documentation',
+                'href' => '?tab=docs&doc_scope=operator',
+                'severity' => 'nonblocking',
+                'description' => 'You are in a good place. Use Documentation when you want the deeper explanations and workflow guides.',
+            ];
+        }
+
+        return [
+            'checklist' => [],
+            'completed_count' => count($checklist),
+            'total_count' => count($checklist),
+            'setup_complete' => true,
+            'setup_latched' => true,
+            'next_steps' => $nextSteps,
+        ];
+    }
+
+    $completedCount = 0;
     foreach ($checklist as $item) {
         if (!empty($item['complete'])) {
             $completedCount++;
         }
     }
 
-    if ($coreSetupComplete) {
-        $nextSteps = bandpromo_admin_build_post_setup_suggestions($root);
-    } else {
-        $nextSteps = bandpromo_admin_build_incomplete_setup_steps($checklist);
-    }
-
+    $nextSteps = bandpromo_admin_build_incomplete_setup_steps($checklist);
     if ($nextSteps === []) {
         $nextSteps[] = [
             'label' => 'Documentation',
@@ -360,13 +445,12 @@ function bandpromo_admin_welcome_state(string $root): array
         ];
     }
 
-    $totalCount = count($checklist);
-
     return [
         'checklist' => $checklist,
         'completed_count' => $completedCount,
-        'total_count' => $totalCount,
-        'setup_complete' => $coreSetupComplete,
+        'total_count' => count($checklist),
+        'setup_complete' => false,
+        'setup_latched' => false,
         'next_steps' => $nextSteps,
     ];
 }

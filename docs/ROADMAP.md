@@ -48,11 +48,11 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
 | Brand containers + semantic player colors (replaces Theme) | Core shipped (Brands editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
-| Visual pool + role tags + registry-scoped delivery | Defined; implementation in progress |
+| Visual pool + role tags + registry-scoped delivery | Operator Files UX shipped; registry/delivery Phases 0b–2 open |
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** v0.8 **management machine** — unified Visual pool with explicit role tags, content AI wizards, visual delivery rework, and analytics rollup/export finish. Brand core and backup/export MVP shipped (2026-07-13). **Still open:** page container metadata, OG/share wiring (v0.9). See [TODO.md](TODO.md).
+**Next focus:** v0.8 **management machine** — Visual registry/delivery Phases 0b–2, content AI wizards, brand-filter remainders. Files → Visual operator UX + Brand assets label shipped (2026-07-15/16). Brand core, backup/export, analytics SQLite tail shipped. **Still open:** page container metadata, OG/share wiring (v0.9). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -528,7 +528,7 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 **Checkpoint 2026-06-16 (v0.8.3 docs):** all betatesters are on the latest build (292+). Legacy HTML pages (`data/bio.html`, `data/faq.html`) are **not** imported automatically — content lives in `data/pages/*.json` only. If you still have old HTML files on the host from backups, copy text into the Pages editor manually.
 
-**Image delivery (v0.8 visual slice):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Planned:** unify Illustrations/Photos/Video/Theme into one **Visual** pool with `ast_{ULID}` naming, explicit role tags, brand filter, and format/dimension-aware delivery. Policy in [MEDIA-HANDLING.md](MEDIA-HANDLING.md) and [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Workaround until migration: store transparent logos in legacy **Theme Assets** (`media/special/`).
+**Image delivery (v0.8 visual slice):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Operator UX shipped (2026-07-15/16):** Files → Visual merges the old Illustrations/Photos/Video tabs; Files → Brand assets is the label for legacy `media/special/`. **Still planned (Phases 0b–2):** `ast_{ULID}` visual identity, format-aware multi-variant delivery, brand filter. Workaround until migration: store transparent logos under **Brand assets** (`media/special/`).
 
 **Updating safely:**
 
