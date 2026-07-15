@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-15 20:05 - Force-stop stuck video delivery loops that block Site update: require posters for delivery success, pause incomplete auto-retries, operator Stop retrying in Notifications, auto-clear running video jobs before package install, and invalidate stale package-update cache when VERSION already moved on.
+
+2026-07-15 19:45 - Portability strategy: lock release package export/import as third operator service (masters + tags + linked visuals); document ambassador/demo handoff and optional paid release-prep services in PORTABILITY.md, MARKETING-STRATEGY.md, ROADMAP.md, PLATFORM-MODEL.md, FEATURES.md, and TODO.md.
+
 2026-07-15 19:28 - Player living cover: show still cover when idle or paused; loop living cover only while audio is actively playing.
 
 2026-07-15 19:22 - Track editor polish: cleaner modal header (drop generic subtitle), center-aligned cover pair, shared living-cover status row, compact centered metadata chips, single-line description helpers.

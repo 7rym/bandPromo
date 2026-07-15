@@ -44,7 +44,19 @@ $root = dirname(__DIR__);
 $stage = 'precheck';
 
 try {
+    // Video delivery auto-retry can spin forever on broken hosts; clear it first so
+    // package extraction is not fighting ffmpeg/python lock files.
+    require_once __DIR__ . '/auto-build-tasks.php';
+    if (bandpromo_has_running_background_video_tasks()) {
+        bandpromo_force_stop_video_delivery([
+            'pause_seconds' => 3600,
+            'reason' => 'Force-stopped automatically so Site update can install the new package.',
+        ]);
+    }
+
     $status = bandpromo_package_check_update($root);
+    // Refresh the notifications cache so Dashboard does not keep advertising the old build.
+    bandpromo_package_write_update_cache($root, $status);
     if (empty($status['ready'])) {
         throw new RuntimeException('This hosting setup is not ready for package updates yet. Fix the requirements shown in the update panel first.');
     }
@@ -86,6 +98,9 @@ try {
     if (($postUpdate['follow_up'] ?? '') === 'open_build_tab') {
         $message .= ' Open Build and run a build so the latest application changes reach your public site.';
     }
+
+    // Re-check and rewrite cache so Notifications immediately show up to date.
+    bandpromo_package_write_update_cache($root, bandpromo_package_check_update($root));
 
     echo json_encode([
         'ok' => true,

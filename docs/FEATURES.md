@@ -92,6 +92,7 @@ These are **directional** — betatesters should check `ROADMAP.md` → **Beta t
 Platform and policy docs: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ACCESS-MODEL.md](ACCESS-MODEL.md), [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md), [PORTABILITY.md](PORTABILITY.md)
 
 ### v0.9
+- **Release package export/import** — move one finished release (masters, tags, linked visuals, release metadata) between installs for demos, ambassador handoffs, and optional paid release-prep services ([PORTABILITY.md](PORTABILITY.md))
 - **Implement** access tiers: admin/dev, VIP pre-access, registered fan, anonymous (released-only)
 - Login page with **restricted anonymous entry**; shared URLs → login + FAQ
 - Chromecast / cast send on the new delivery stack

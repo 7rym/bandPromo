@@ -212,6 +212,25 @@ Implementation order:
 - [x] **Player loop** — existing `<video>` on flip-card cover.
 - [ ] **Visual registry IDs (deferred)** — store visual asset id instead of video filename when Visual pool ships.
 
+### Release package export / import (ambassador + demo handoff)
+
+Policy locked 2026-07-15 — see [PORTABILITY.md](PORTABILITY.md) → Release package export / import.
+
+Policy — **locked**:
+
+- [x] Lock **release-scoped handoff** — third portability service beside full backup and site data export; not a full-site ZIP.
+- [x] Lock **master tags as portable truth** — lyrics, Markdown descriptions, embedded cover art, `BANDPROMO_LIVING_COVER` travel in masters; target Publish regenerates delivery tier.
+- [x] Lock **import creates new release slot** — no silent overwrite on target without explicit operator confirm.
+- [x] Lock **ambassador workflow** — experienced testers prepare releases on own installs, export, seed demo/prospect installs; optional paid release-prep services enabled by portable handoff (bandPromo takes no marketplace cut).
+- [x] Lock **export-time human names** — manifest and ZIP labels use readable titles; on-disk paths remain `ast_{ULID}`.
+
+Implementation order (v0.9):
+
+- [ ] **Export builder** — validate release completeness; ZIP masters, linked visuals, registry subset, manifest.
+- [ ] **Import flow** — version check, new release slot, registry merge, brand remap prompt, post-import Publish checklist.
+- [ ] **Admin UI** — Releases → Export / Import entry points; progress and validation errors in operator language.
+- [ ] **Ambassador docs** — short operator-facing how-to in admin help or [MARKETING-STRATEGY.md](MARKETING-STRATEGY.md) cross-link.
+
 ### Beta fleet sync + legacy audit gate (v0.8 exit)
 
 **Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
@@ -291,6 +310,7 @@ Priority 3a — Content editors and delivery automation (**complete**):
 - [x] Unify Content editors (Playlist, Gallery, Pages, Player layout) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls.
 - [x] Auto-run upload-time delivery tasks (audio, image, video) and gate Content pools on delivery-ready assets.
 - [x] Surface background video delivery progress and failures in Notifications instead of blocking uploads.
+- [x] **Force-stop stuck video delivery** — false “done” without posters could auto-requeue forever and stall Site update; require poster for success, pause incomplete retries, Notifications → Stop retrying, and auto-clear running jobs before package install (2026-07-15).
 - [x] Playlist save materializes pool tracks without requiring a full build; `initialSiteSeed.py` seeds initial playlist/gallery containers and player layout on setup (not legacy `play/playlist.json` / `data/gallery.json`).
 
 Priority 3b — platform model (**active**):

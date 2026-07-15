@@ -13,6 +13,7 @@ $root = dirname(__DIR__);
 
 try {
     $status = bandpromo_package_check_update($root);
+    bandpromo_package_write_update_cache($root, $status);
     echo json_encode([
         'ok' => true,
         ...$status,

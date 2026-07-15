@@ -2,13 +2,13 @@
 
 Source of truth for operator backup, data export/import, and host migration.
 
-**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** Admin → System → **Backup & export** ships component picker export, ZIP import (restore + cross-site migrate), ready/job list with download/delete (2026-07-13). Setup-time import and richer URL repair remain planned.
+**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** Admin → System → **Backup & export** ships component picker export, ZIP import (restore + cross-site migrate), ready/job list with download/delete (2026-07-13). **Release package** export/import policy locked (2026-07-15); implementation planned v0.9. Setup-time import and richer URL repair remain planned.
 
 Related: [INSTALL-UPDATE.md](INSTALL-UPDATE.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
 
-## Two operator services
+## Three operator services
 
-bandPromo offers **two distinct portability services**, not one combined ZIP:
+bandPromo offers **three distinct portability services**, not one combined ZIP:
 
 ### 1. Full site backup
 
@@ -62,6 +62,72 @@ bandPromo offers **two distinct portability services**, not one combined ZIP:
 - overwrite application code from export package
 - silently merge with wrong schema version (require compatible `export_version`)
 
+### 3. Release package export / import
+
+**Purpose:** move **one release** — masters, packaging, visuals, and release metadata — between installs without a full site backup. This is the portability path for **demo handoffs**, **ambassador workflows**, and **paid release-prep services**.
+
+**Status:** policy locked (2026-07-15). Implementation planned v0.9.
+
+**Why a third service**
+
+Full backup moves an entire install. Data export moves config and containers (optionally all media). Operators and ambassadors often need something narrower: a **finished release** prepared on one site, imported on another, with all track extras intact — ready for Publish on the target host.
+
+That supports closed-beta motivation: experienced testers prepare real releases on their own installs, export them, and seed demo or prospect installs so new operators see a polished player experience (Markdown lyrics, living covers, EPK copy, embedded artwork) without rebuilding every asset by hand.
+
+**What travels in a release package**
+
+| Layer | Included | Notes |
+|-------|----------|-------|
+| **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id` reference, credits |
+| **Track masters** | `media/audio/master/*` for release tracks | Canonical packaging tier |
+| **Master tags** | Inside FLAC/MP3 | Title, artist, album, lyrics, description (Markdown source), embedded cover art, `BANDPROMO_LIVING_COVER` |
+| **Linked visuals** | Covers, living-cover videos, release poster | Originals + registry entries; target runs **Publish** to regenerate delivery MP4s/JPGs |
+| **Asset registry** | Subset in `data/assets/registry.json` | Only entries referenced by the release |
+| **Export manifest** | `release-manifest.json` in ZIP | Human-readable release title, `release_export_version`, `exported_at`, file checklist |
+
+Human-readable names (release title, track titles in manifest) are generated at **export time** only. On-disk paths stay `ast_{ULID}` — same nondestructive naming contract as the rest of the platform ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+**What does not travel**
+
+- Unrelated playlists, pages, galleries, brands (unless explicitly added in a later scope)
+- Listener accounts, analytics, or admin audit history
+- Whole-site `web-config.json` (target keeps its own install shell)
+- Delivery-tier files as the source of truth — target regenerates from masters on Publish
+
+**Export flow (source install)**
+
+1. Operator or ambassador finishes the release on **their** install: masters tagged, covers embedded, living covers assigned, release/EPK fields complete.
+2. Admin → **Releases** → **Export release package** (or equivalent entry under Backup & export).
+3. Platform validates completeness (masters present, registry consistent, referenced media exists).
+4. Download ZIP; store or send to target operator.
+
+**Import flow (target install)**
+
+1. Admin → **Import release package**.
+2. Platform validates `release_export_version` and bandPromo version compatibility.
+3. Import creates a **new release slot** on the target (no silent overwrite without explicit confirm).
+4. Extract masters and linked visuals; merge registry entries; remap `brand_id` to target active brand or prompt operator to choose.
+5. Operator runs **Publish** on the target for streaming MP3s, cover delivery, and living-cover video delivery.
+6. Smoke-check: player playback, living cover swap on play, Markdown lyrics/descriptions.
+
+**Ambassador and services model**
+
+bandPromo does not operate a marketplace or take a cut. The product enables a practical workflow:
+
+| Actor | Role |
+|-------|------|
+| **Ambassador** | Experienced beta tester who demos bandPromo to prospective operators using **real prepared releases** |
+| **Release preparer** | Anyone who packages metadata, artwork, living covers, and EPK copy on a source install |
+| **Target operator** | Imports the package, publishes on their domain, owns the live site |
+
+Ambassadors can advance from tester to demo helper by maintaining showcase releases on their own sites and transferring them to prospect demo installs. Operators who are skilled at release packaging may **sell preparation as a service** (freelance, label services, agency work) — bandPromo supplies the portable handoff; commercial terms stay between people.
+
+**Security and integrity**
+
+- Same zip-slip and path validation bar as site backup import.
+- Release packages contain masters and media — treat downloads like full backups (HTTPS, store safely).
+- Import refuses incompatible schema versions with plain-language upgrade instructions.
+
 ## Moved-site recovery
 
 When restored or copied runtime data references a different host than the live request:
@@ -78,7 +144,7 @@ Package updater and bootstrap already preserve:
 
 `web-config.json`, `.env`, `data/`, `media/`, `log/`, `backups/`
 
-Full backup is a **superset** operators control on demand. Data export is a **selective** portability tool.
+Full backup is a **superset** operators control on demand. Data export is a **selective** site portability tool. Release package export is a **release-scoped** handoff tool.
 
 ## Operator UX (target)
 
@@ -102,6 +168,8 @@ Presets: all four = full site backup; platform + data = legacy data export tier.
 | Delete server archive | Admin → System → Backup & export | Removes `backups/{id}.zip` | **Shipped** |
 | Import during setup | Setup wizard | Guided merge + URL repair | Planned |
 | Restore full backup | Manual extract or admin import | Replace runtime paths | **Shipped** (admin import) |
+| Export release package | Admin → Releases (planned) | Release-scoped ZIP | Planned |
+| Import release package | Admin → Releases or Backup & export (planned) | New release slot on target | Planned |
 
 Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
 
@@ -122,9 +190,10 @@ Listener and admin-audit SQLite live under **Data** (`data/`). Include that comp
 
 Export manifest includes:
 
-- `export_version`
+- `export_version` (site backup) or `release_export_version` (release package)
 - bandPromo `VERSION` at export time
 - `exported_at`
 - optional `install_id` (non-secret reference)
+- for release packages: human-readable release title and per-track checklist (export-time labels only)
 
 Import refuses incompatible major schema versions with plain-language upgrade instructions.

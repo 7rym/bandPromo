@@ -39,8 +39,10 @@ def process_filename(filename):
     else:
         ok = True
 
-    ov.ensure_video_poster(source_path, poster_path)
-    return ok, mode
+    if not ov.ensure_video_poster(source_path, poster_path) or not poster_path.is_file():
+        return False, 'poster_generation_failed'
+
+    return ok and target_path.is_file(), mode
 
 
 def main():
@@ -66,16 +68,21 @@ def main():
     ov.ensure_directories()
 
     needs_transcode = False
+    needs_poster = False
     for filename in requested:
         source_path = source_path_for(filename)
-        if source_path.exists() and ov.delivery_mode_for(source_path) == 'transcode':
+        if not source_path.exists():
+            continue
+        if ov.delivery_mode_for(source_path) == 'transcode':
             needs_transcode = True
-            break
+        poster_path = ov.poster_path_for(source_path)
+        if ov.needs_refresh(source_path, poster_path):
+            needs_poster = True
 
-    if needs_transcode and not ov.check_ffmpeg():
+    if (needs_transcode or needs_poster) and not ov.check_ffmpeg():
         print(json.dumps({
             'ok': False,
-            'error': 'ffmpeg is required to prepare delivery files for one or more videos',
+            'error': 'ffmpeg is required to prepare delivery files or posters for one or more videos',
         }, ensure_ascii=False))
         return
 
@@ -92,11 +99,14 @@ def main():
     still_missing = []
     for name in requested:
         delivery_name = Path(name).stem + '.mp4'
-        if not (ov.VIDEO_OPT_DIR / delivery_name).is_file():
+        poster_name = Path(name).stem + '.jpg'
+        delivery_ready = (ov.VIDEO_OPT_DIR / delivery_name).is_file()
+        poster_ready = (ov.VIDEO_POSTER_DIR / poster_name).is_file()
+        if not delivery_ready or not poster_ready:
             still_missing.append(name)
 
     print(json.dumps({
-        'ok': len(still_missing) == 0,
+        'ok': len(still_missing) == 0 and not failed,
         'prepared': prepared,
         'failed': failed,
         'still_missing': still_missing,

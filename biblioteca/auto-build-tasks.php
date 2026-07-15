@@ -195,6 +195,146 @@ function bandpromo_video_delivery_auto_save_state(string $root, array $state): v
     );
 }
 
+function bandpromo_video_delivery_paused_filenames(string $root = ''): array
+{
+    if ($root === '') {
+        $root = dirname(__DIR__);
+    }
+
+    $state = bandpromo_video_delivery_auto_load_state($root);
+    $paused = is_array($state['paused_files'] ?? null) ? $state['paused_files'] : [];
+    $now = time();
+    $active = [];
+
+    foreach ($paused as $filename => $until) {
+        $safe = basename(trim((string) $filename));
+        if ($safe === '') {
+            continue;
+        }
+        $untilTs = is_numeric($until) ? (int) $until : strtotime((string) $until);
+        if ($untilTs === false || $untilTs > $now) {
+            $active[$safe] = $untilTs === false ? ($now + 3600) : $untilTs;
+        }
+    }
+
+    return $active;
+}
+
+function bandpromo_video_delivery_pause_filenames(array $filenames, int $seconds = 3600, string $root = '', string $reason = ''): void
+{
+    if ($root === '') {
+        $root = dirname(__DIR__);
+    }
+
+    $seconds = max(60, $seconds);
+    $paused = bandpromo_video_delivery_paused_filenames($root);
+    $until = time() + $seconds;
+
+    foreach ($filenames as $filename) {
+        $safe = basename(trim((string) $filename));
+        if ($safe !== '') {
+            $paused[$safe] = $until;
+        }
+    }
+
+    bandpromo_video_delivery_auto_save_state($root, [
+        'paused_files' => $paused,
+        'paused_reason' => $reason !== '' ? $reason : 'operator_force_stop',
+        'paused_at' => gmdate('c'),
+    ]);
+}
+
+/**
+ * Force-stop running video delivery jobs and pause auto-retry so Site update / Publish can proceed.
+ */
+function bandpromo_force_stop_video_delivery(array $options = []): array
+{
+    $root = dirname(__DIR__);
+    $taskId = trim((string) ($options['task_id'] ?? ''));
+    $pauseSeconds = isset($options['pause_seconds']) ? (int) $options['pause_seconds'] : 3600;
+    $reason = trim((string) ($options['reason'] ?? 'Force-stopped so Site update and Publish can continue.'));
+    if ($reason === '') {
+        $reason = 'Force-stopped so Site update and Publish can continue.';
+    }
+
+    $stopped = [];
+    $files = [];
+    $jobsDir = bandpromo_video_delivery_job_dir();
+
+    foreach (bandpromo_read_background_tasks()['items'] as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        if ((string) ($item['task'] ?? '') !== 'video-delivery') {
+            continue;
+        }
+
+        $id = (string) ($item['id'] ?? '');
+        if ($id === '') {
+            continue;
+        }
+        if ($taskId !== '' && $id !== $taskId) {
+            continue;
+        }
+
+        $status = (string) ($item['status'] ?? '');
+        if ($status !== 'running' && $taskId === '') {
+            // Full force-stop only clears running jobs; single-task force may clear any status.
+            continue;
+        }
+
+        foreach ((array) ($item['files'] ?? []) as $file) {
+            $safe = basename(trim((string) $file));
+            if ($safe !== '') {
+                $files[$safe] = true;
+            }
+        }
+
+        $lock = bandpromo_video_delivery_lock_path($id);
+        if (is_file($lock)) {
+            @unlink($lock);
+        }
+        if (is_dir($jobsDir)) {
+            foreach ([$id . '.bat', $id . '.payload.json'] as $sidecar) {
+                $path = $jobsDir . '/' . $sidecar;
+                if (is_file($path)) {
+                    @unlink($path);
+                }
+            }
+        }
+
+        bandpromo_upsert_background_task($id, [
+            'task' => 'video-delivery',
+            'status' => 'failed',
+            'label' => 'Video delivery force-stopped',
+            'files' => is_array($item['files'] ?? null) ? $item['files'] : [],
+            'prepared' => is_array($item['prepared'] ?? null) ? $item['prepared'] : [],
+            'failed' => is_array($item['failed'] ?? null) ? $item['failed'] : [],
+            'started_at' => (string) ($item['started_at'] ?? gmdate('c')),
+            'finished_at' => gmdate('c'),
+            'error' => $reason,
+            'force_stopped' => true,
+        ]);
+        $stopped[] = $id;
+    }
+
+    $fileList = array_keys($files);
+    if ($fileList !== []) {
+        bandpromo_video_delivery_pause_filenames($fileList, $pauseSeconds, $root, $reason);
+    }
+
+    // Clear video-delivery follow-up so Publish / Site update are not gated on the loop.
+    bandpromo_clear_build_required_tasks(['video-delivery']);
+
+    return [
+        'ok' => true,
+        'stopped_task_ids' => $stopped,
+        'paused_files' => $fileList,
+        'pause_seconds' => max(60, $pauseSeconds),
+        'reason' => $reason,
+    ];
+}
+
 function bandpromo_video_delivery_recent_failed_filenames(int $cooldownSeconds = 120): array
 {
     $blocked = [];
@@ -249,18 +389,23 @@ function bandpromo_maybe_auto_queue_video_delivery(string $root): array
 
     $runningFiles = bandpromo_video_delivery_running_filename_map();
     $recentFailed = bandpromo_video_delivery_recent_failed_filenames();
+    $pausedFiles = bandpromo_video_delivery_paused_filenames($root);
     $toQueue = [];
     foreach ($missing as $filename) {
-        if (isset($runningFiles[$filename]) || isset($recentFailed[$filename])) {
+        if (isset($runningFiles[$filename]) || isset($recentFailed[$filename]) || isset($pausedFiles[$filename])) {
             continue;
         }
         $toQueue[] = $filename;
     }
 
     if ($toQueue === []) {
+        $reason = $pausedFiles !== [] && array_diff($missing, array_keys($pausedFiles)) === []
+            ? 'paused'
+            : 'pending';
+
         return [
             'queued' => false,
-            'reason' => 'pending',
+            'reason' => $reason,
             'files' => $missing,
             'task_id' => '',
             'error' => '',
@@ -367,26 +512,6 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
     $stillMissing = is_array($resultData['still_missing'] ?? null) ? array_values($resultData['still_missing']) : [];
     $errorMessage = '';
 
-    if (!$ok) {
-        if (is_array($resultData) && !empty($resultData['error'])) {
-            $errorMessage = (string) $resultData['error'];
-        } elseif ($stillMissing !== []) {
-            $errorMessage = 'Delivery files are still missing for: ' . implode(', ', $stillMissing);
-        } elseif ($failed !== []) {
-            $first = $failed[0];
-            $errorMessage = is_array($first)
-                ? ((string) ($first['file'] ?? 'video') . ': ' . (string) ($first['error'] ?? 'delivery_failed'))
-                : 'Video delivery failed';
-        } elseif ($errorTail !== '') {
-            $errorMessage = $errorTail;
-        } elseif ($resultFile !== '' && is_file($resultFile)) {
-            $raw = trim((string) file_get_contents($resultFile));
-            $errorMessage = $raw !== '' ? $raw : 'Video delivery task failed without a result payload';
-        } else {
-            $errorMessage = 'Video delivery task failed without a result payload';
-        }
-    }
-
     $state = bandpromo_read_background_tasks();
     $existing = null;
     foreach ($state['items'] as $item) {
@@ -397,6 +522,53 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
     }
 
     $files = is_array($existing['files'] ?? null) ? $existing['files'] : [];
+    if ($files === [] && $prepared !== []) {
+        $files = $prepared;
+    }
+
+    // Hard verify against PHP readiness (delivery MP4 + poster). Prevents false "done"
+    // success loops when Python reports ok but posters (or MP4s) are still missing.
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    $root = dirname(__DIR__);
+    $incomplete = [];
+    foreach ($files as $filename) {
+        $safe = basename(trim((string) $filename));
+        if ($safe === '') {
+            continue;
+        }
+        if (bandpromo_video_needs_delivery($root, $safe)) {
+            $incomplete[] = $safe;
+        }
+    }
+    if ($incomplete !== []) {
+        $ok = false;
+        $stillMissing = array_values(array_unique(array_merge($stillMissing, $incomplete)));
+        if ($errorMessage === '') {
+            $errorMessage = 'Delivery files are still missing for: ' . implode(', ', $stillMissing);
+        }
+        // Pause brief auto-retry storms when a job keeps finishing incomplete.
+        bandpromo_video_delivery_pause_filenames($incomplete, 300, $root, 'incomplete_delivery');
+    }
+
+    if (!$ok) {
+        if ($errorMessage === '' && is_array($resultData) && !empty($resultData['error'])) {
+            $errorMessage = (string) $resultData['error'];
+        } elseif ($errorMessage === '' && $stillMissing !== []) {
+            $errorMessage = 'Delivery files are still missing for: ' . implode(', ', $stillMissing);
+        } elseif ($errorMessage === '' && $failed !== []) {
+            $first = $failed[0];
+            $errorMessage = is_array($first)
+                ? ((string) ($first['file'] ?? 'video') . ': ' . (string) ($first['error'] ?? 'delivery_failed'))
+                : 'Video delivery failed';
+        } elseif ($errorMessage === '' && $errorTail !== '') {
+            $errorMessage = $errorTail;
+        } elseif ($errorMessage === '' && $resultFile !== '' && is_file($resultFile)) {
+            $raw = trim((string) file_get_contents($resultFile));
+            $errorMessage = $raw !== '' ? $raw : 'Video delivery task failed without a result payload';
+        } elseif ($errorMessage === '') {
+            $errorMessage = 'Video delivery task failed without a result payload';
+        }
+    }
 
     bandpromo_upsert_background_task($taskId, [
         'task' => 'video-delivery',
@@ -463,6 +635,9 @@ function bandpromo_reconcile_background_tasks(): array
         return bandpromo_read_background_tasks();
     }
 
+    $staleAfterSeconds = 45 * 60; // force-fail hung jobs so Site update is not blocked forever
+    $now = time();
+
     foreach (bandpromo_read_background_tasks()['items'] as $item) {
         if (!is_array($item)) {
             continue;
@@ -480,7 +655,36 @@ function bandpromo_reconcile_background_tasks(): array
         }
 
         $lock = bandpromo_video_delivery_lock_path($taskId);
-        if (is_file($lock)) {
+        $startedAt = strtotime((string) ($item['started_at'] ?? ''));
+        $isStale = $startedAt !== false && ($now - $startedAt) >= $staleAfterSeconds;
+
+        if (is_file($lock) && !$isStale) {
+            continue;
+        }
+
+        if ($isStale && is_file($lock)) {
+            @unlink($lock);
+            bandpromo_upsert_background_task($taskId, [
+                'task' => 'video-delivery',
+                'status' => 'failed',
+                'label' => 'Video delivery timed out',
+                'files' => is_array($item['files'] ?? null) ? $item['files'] : [],
+                'prepared' => [],
+                'failed' => [],
+                'started_at' => (string) ($item['started_at'] ?? gmdate('c')),
+                'finished_at' => gmdate('c'),
+                'error' => 'Background video preparation ran too long and was stopped automatically. Use Notifications → Stop retrying if Site update is waiting, then try Publish again later.',
+            ]);
+            $files = [];
+            foreach ((array) ($item['files'] ?? []) as $file) {
+                $safe = basename(trim((string) $file));
+                if ($safe !== '') {
+                    $files[] = $safe;
+                }
+            }
+            if ($files !== []) {
+                bandpromo_video_delivery_pause_filenames($files, 1800, dirname(__DIR__), 'stale_timeout');
+            }
             continue;
         }
 

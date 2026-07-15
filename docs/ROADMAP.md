@@ -306,6 +306,7 @@ Design constraints for that direction:
 - runtime migrations, cache refresh, build-required state, and post-update regeneration tasks must be part of the product contract, not left to manual shell steps
 - private-repo distribution should be treated as a developer path; the operator path should rely on release packages that do not require GitHub credentials or SSH keys
 - backup/restore should become a first-class operator feature: operators should be able to export their site state, move it to another host, and restore it there
+- **release package export/import** should let operators and ambassadors move a finished release (masters, tags, linked visuals, release metadata) between installs for demos and paid prep handoffs — see [PORTABILITY.md](PORTABILITY.md)
 - moved-site recovery should be explicit: when restored runtime data no longer matches the current host/base URL, setup/bootstrap should recognize that situation and offer to repair host-specific config rather than forcing manual file edits
 - maintenance telemetry consent must remain reversible and must never block install, update, playback, or admin use when disabled
 

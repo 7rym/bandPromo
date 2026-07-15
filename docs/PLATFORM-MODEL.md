@@ -746,7 +746,7 @@ Disabled modules: hide editor entry points; renderer skips block type with admin
 
 - **Access:** [ACCESS-MODEL.md](ACCESS-MODEL.md) — VIP per-release default + per-track override; anonymous sees embargoed tracks locked, not hidden.
 - **Delivery / PWA / cast:** [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — PHP authorizes, static delivery serves bytes; cast scope = full playable/viewable media (v0.9+).
-- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — separate full backup (DR) and data export (fresh install import).
+- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export (fresh install import), and **release package** export/import (planned v0.9).
 
 ## `web-config.json` target shape (install shell)
 

@@ -29,5 +29,16 @@ if ($type === 'background-task') {
     exit;
 }
 
+if ($type === 'force-stop-video-delivery') {
+    $taskId = trim((string) ($body['id'] ?? ''));
+    $result = bandpromo_force_stop_video_delivery([
+        'task_id' => $taskId,
+        'pause_seconds' => isset($body['pause_seconds']) ? (int) $body['pause_seconds'] : 3600,
+        'reason' => 'Force-stopped from Notifications so Site update and Publish can continue.',
+    ]);
+    echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 echo json_encode(['error' => 'Unknown notification type']);
 exit;

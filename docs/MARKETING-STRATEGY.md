@@ -209,13 +209,34 @@ The uphill battle against platform magnets is real. bandPromo's answer is not to
 
 ---
 
+## Ambassadors, demos, and release handoffs
+
+As bandPromo matures, experienced operators and beta testers can help **prospective operators** see a real site — not an empty shell.
+
+**Release package export/import** (planned — see [PORTABILITY.md](PORTABILITY.md)) supports that workflow:
+
+1. **Prepare on your install** — upload masters, embed artwork, write lyrics and descriptions (Markdown), assign living covers, complete release and EPK metadata.
+2. **Export the release** — one ZIP with masters, linked visuals, and registry entries; human-readable names in the manifest only.
+3. **Import on a demo or client install** — target operator gets a new release slot, runs Publish, and has a showcase-ready player.
+
+**Why this matters for marketing**
+
+- Ambassadors can demo bandPromo with **their own polished releases**, not generic placeholder content.
+- Prospects see living covers, lyrics, and release storytelling immediately — the product sells itself on their domain.
+- Skilled operators can offer **release preparation as a paid service** (metadata, artwork, living covers, EPK copy). bandPromo enables the portable handoff; pricing and contracts stay between you and your clients.
+
+This is independent publishing extended to **people helping people** — without a central bandPromo marketplace or lock-in.
+
+---
+
 ## Related documentation
 
 - [ROADMAP.md](ROADMAP.md) — milestones, beta expectations, platform model
 - [FEATURES.md](FEATURES.md) — what is shipped vs planned
+- [PORTABILITY.md](PORTABILITY.md) — backup, site export, and release package handoffs
 - [OPERATOR-RESPONSIBILITY.md](OPERATOR-RESPONSIBILITY.md) — legal and operational boundaries
 - [TODO.md](TODO.md) — implementation order for the product team
 
 ---
 
-_Last updated: 2026-06-15_
+_Last updated: 2026-07-15_

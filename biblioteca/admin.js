@@ -775,15 +775,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : 'video files';
 
                     if (status === 'running') {
+                        const taskId = String(item.id || '').trim();
                         notifications.push({
                             severity: 'background-running',
                             title: 'Preparing videos in the background',
                             file: '',
+                            taskId,
                             checkedAt: String(item.started_at || item.updated_at || '').trim(),
                             details: [
                                 { text: `bandPromo is preparing ${fileLine} in the background. You can keep working — no action needed.` },
+                                { text: 'If this never finishes and Site update stays stuck, stop retrying to unlock updates. Video prep can resume later.' },
                             ],
-                            actions: [],
+                            actions: [
+                                { label: 'Stop retrying (unlock updates)', action: 'force-stop-video-delivery' },
+                            ],
                         });
                         return;
                     }
@@ -807,20 +812,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (status === 'failed') {
                         const focusFile = files[0] || '';
                         const taskId = String(item.id || '').trim();
+                        const forceStopped = item.force_stopped === true
+                            || /force-stopped|Force-stopped/i.test(String(item.error || ''));
                         notifications.push({
                             severity: 'recommended-fix',
-                            title: 'Video preparation needs attention',
+                            title: forceStopped ? 'Video preparation paused' : 'Video preparation needs attention',
                             file: focusFile,
                             taskId,
                             checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
                             details: [
                                 { text: String(item.error || 'bandPromo could not prepare the video file in the background.').trim() },
-                                { text: 'bandPromo will retry automatically after a short pause. If this keeps failing, check that ffmpeg is available on the host or re-upload the source file.' },
+                                {
+                                    text: forceStopped
+                                        ? 'Auto-retry is paused for about an hour so you can install Site updates or Publish. It will resume later, or after a host refresh of stuck videos.'
+                                        : 'bandPromo pauses auto-retry briefly after failures. If the loop returns, use Stop retrying to unlock Site update.',
+                                },
                             ],
                             actions: [
                                 ...(focusFile
                                     ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'video', focus_file: focusFile }) }]
                                     : [{ label: 'Open Files', href: '?tab=files&fpanel=video' }]),
+                                ...(taskId ? [{ label: 'Stop retrying', action: 'force-stop-video-delivery', taskId }] : []),
                                 ...(taskId ? [{ label: 'Dismiss', action: 'dismiss-background-task', taskId }] : []),
                             ],
                         });
@@ -1135,6 +1147,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     dismissOperatorNotification('background-task', taskId);
+                    return;
+                }
+
+                if (action === 'force-stop-video-delivery') {
+                    event.preventDefault();
+                    const taskId = String(actionButton.dataset.operatorTaskId || '').trim();
+                    dismissOperatorNotification('force-stop-video-delivery', taskId);
                 }
             });
 
@@ -1143,11 +1162,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const resp = await fetch('/biblioteca/dismiss-operator-notification.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type, id }),
+                        body: JSON.stringify({ type, id: id || '' }),
                     });
                     const data = await resp.json();
                     if (!resp.ok || data.error) {
                         throw new Error(data.error || 'Could not dismiss notification');
+                    }
+                    if (type === 'force-stop-video-delivery') {
+                        showAdminToast('Video preparation stopped. Site update can continue.', 'success');
                     }
                     await refreshBuildRequiredState({ full: true });
                 } catch (error) {

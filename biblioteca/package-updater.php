@@ -370,20 +370,9 @@ function bandpromo_package_update_cache_path(string $root): string
     return $root . '/log/package-update-cache.json';
 }
 
-function bandpromo_package_check_update_cached(string $root, int $ttlSeconds = 900, bool $forceRefresh = false): array
+function bandpromo_package_write_update_cache(string $root, array $result): void
 {
     $cachePath = bandpromo_package_update_cache_path($root);
-    if (!$forceRefresh && is_file($cachePath)) {
-        $decoded = json_decode((string) file_get_contents($cachePath), true);
-        if (is_array($decoded) && is_array($decoded['result'] ?? null)) {
-            $checkedAt = strtotime((string) ($decoded['checked_at_utc'] ?? ''));
-            if ($checkedAt !== false && (time() - $checkedAt) < $ttlSeconds) {
-                return $decoded['result'];
-            }
-        }
-    }
-
-    $result = bandpromo_package_check_update($root);
     $cacheDir = dirname($cachePath);
     if (!is_dir($cacheDir)) {
         mkdir($cacheDir, 0750, true);
@@ -392,6 +381,28 @@ function bandpromo_package_check_update_cached(string $root, int $ttlSeconds = 9
         'checked_at_utc' => gmdate('c'),
         'result' => $result,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+function bandpromo_package_check_update_cached(string $root, int $ttlSeconds = 900, bool $forceRefresh = false): array
+{
+    $cachePath = bandpromo_package_update_cache_path($root);
+    $installedNow = bandpromo_package_read_installed_version($root);
+
+    if (!$forceRefresh && is_file($cachePath)) {
+        $decoded = json_decode((string) file_get_contents($cachePath), true);
+        if (is_array($decoded) && is_array($decoded['result'] ?? null)) {
+            $checkedAt = strtotime((string) ($decoded['checked_at_utc'] ?? ''));
+            $cachedInstalled = (string) ($decoded['result']['installed_version'] ?? '');
+            // Never trust a cache that still advertises an older installed build.
+            $cacheMatchesInstall = $cachedInstalled === '' || $cachedInstalled === $installedNow;
+            if ($cacheMatchesInstall && $checkedAt !== false && (time() - $checkedAt) < $ttlSeconds) {
+                return $decoded['result'];
+            }
+        }
+    }
+
+    $result = bandpromo_package_check_update($root);
+    bandpromo_package_write_update_cache($root, $result);
 
     return $result;
 }
