@@ -136,6 +136,181 @@ function bandpromo_has_running_background_video_tasks(): bool
     return false;
 }
 
+function bandpromo_video_delivery_running_filename_map(): array
+{
+    $map = [];
+
+    foreach (bandpromo_read_background_tasks()['items'] as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        if ((string) ($item['task'] ?? '') !== 'video-delivery') {
+            continue;
+        }
+        if ((string) ($item['status'] ?? '') !== 'running') {
+            continue;
+        }
+
+        foreach ((array) ($item['files'] ?? []) as $file) {
+            $safe = basename(trim((string) $file));
+            if ($safe !== '') {
+                $map[$safe] = true;
+            }
+        }
+    }
+
+    return $map;
+}
+
+function bandpromo_video_delivery_auto_state_path(string $root): string
+{
+    return $root . '/log/video-delivery-auto.json';
+}
+
+function bandpromo_video_delivery_auto_load_state(string $root): array
+{
+    $path = bandpromo_video_delivery_auto_state_path($root);
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $decoded = json_decode((string) file_get_contents($path), true);
+
+    return is_array($decoded) ? $decoded : [];
+}
+
+function bandpromo_video_delivery_auto_save_state(string $root, array $state): void
+{
+    $path = bandpromo_video_delivery_auto_state_path($root);
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0750, true);
+    }
+
+    $merged = array_merge(bandpromo_video_delivery_auto_load_state($root), $state);
+    file_put_contents(
+        $path,
+        json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        LOCK_EX
+    );
+}
+
+function bandpromo_video_delivery_recent_failed_filenames(int $cooldownSeconds = 120): array
+{
+    $blocked = [];
+    $now = time();
+
+    foreach (bandpromo_read_background_tasks()['items'] as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        if ((string) ($item['task'] ?? '') !== 'video-delivery' || (string) ($item['status'] ?? '') !== 'failed') {
+            continue;
+        }
+
+        $finishedAt = strtotime((string) ($item['finished_at'] ?? ''));
+        if ($finishedAt === false || ($now - $finishedAt) < $cooldownSeconds) {
+            foreach ((array) ($item['files'] ?? []) as $file) {
+                $safe = basename(trim((string) $file));
+                if ($safe !== '') {
+                    $blocked[$safe] = true;
+                }
+            }
+        }
+    }
+
+    return $blocked;
+}
+
+function bandpromo_maybe_auto_queue_video_delivery(string $root): array
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    if (bandpromo_has_running_background_video_tasks()) {
+        return [
+            'queued' => false,
+            'reason' => 'running',
+            'files' => [],
+            'task_id' => '',
+            'error' => '',
+        ];
+    }
+
+    $missing = bandpromo_list_videos_needing_delivery($root);
+    if ($missing === []) {
+        return [
+            'queued' => false,
+            'reason' => 'none',
+            'files' => [],
+            'task_id' => '',
+            'error' => '',
+        ];
+    }
+
+    $runningFiles = bandpromo_video_delivery_running_filename_map();
+    $recentFailed = bandpromo_video_delivery_recent_failed_filenames();
+    $toQueue = [];
+    foreach ($missing as $filename) {
+        if (isset($runningFiles[$filename]) || isset($recentFailed[$filename])) {
+            continue;
+        }
+        $toQueue[] = $filename;
+    }
+
+    if ($toQueue === []) {
+        return [
+            'queued' => false,
+            'reason' => 'pending',
+            'files' => $missing,
+            'task_id' => '',
+            'error' => '',
+        ];
+    }
+
+    $state = bandpromo_video_delivery_auto_load_state($root);
+    $lastQueueAt = (int) ($state['last_queue_at'] ?? 0);
+    if ($lastQueueAt > 0 && (time() - $lastQueueAt) < 15) {
+        return [
+            'queued' => false,
+            'reason' => 'cooldown',
+            'files' => $toQueue,
+            'task_id' => '',
+            'error' => '',
+        ];
+    }
+
+    $spawn = bandpromo_spawn_async_video_delivery($toQueue);
+    if (!empty($spawn['ok'])) {
+        bandpromo_video_delivery_auto_save_state($root, [
+            'last_queue_at' => time(),
+            'last_task_id' => (string) ($spawn['task_id'] ?? ''),
+            'last_files' => $toQueue,
+            'last_error' => '',
+        ]);
+
+        return [
+            'queued' => true,
+            'reason' => 'queued',
+            'files' => $toQueue,
+            'task_id' => (string) ($spawn['task_id'] ?? ''),
+            'error' => '',
+        ];
+    }
+
+    bandpromo_video_delivery_auto_save_state($root, [
+        'last_queue_at' => time(),
+        'last_error' => (string) ($spawn['error'] ?? 'Could not start background video delivery'),
+    ]);
+
+    return [
+        'queued' => false,
+        'reason' => 'spawn_failed',
+        'files' => $toQueue,
+        'task_id' => (string) ($spawn['task_id'] ?? ''),
+        'error' => (string) ($spawn['error'] ?? 'Could not start background video delivery'),
+    ];
+}
+
 function bandpromo_clear_build_required_tasks_if_no_background_video_pending(): array
 {
     if (bandpromo_has_running_background_video_tasks()) {
@@ -315,6 +490,8 @@ function bandpromo_reconcile_background_tasks(): array
     }
 
     bandpromo_prune_background_tasks();
+
+    bandpromo_maybe_auto_queue_video_delivery(dirname(__DIR__));
 
     return bandpromo_read_background_tasks();
 }

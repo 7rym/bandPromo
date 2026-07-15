@@ -39,7 +39,7 @@ When it does run, it **only fills empty container documents** from disk:
 - Seeds `data/galleries/bandpromo-demo.json` when the demo gallery document has no entries
 - Patches `web-config.json` player modules/tab order (enable gallery + pages)
 
-It does **not** write legacy playlist artifacts like `play/playlist.json`, `data/playlist-order.json`, or `data/gallery.json`.
+It does **not** write legacy playlist artifacts like `play/playlist.json`, `data/playlist-order.json`, or seed `data/gallery.json` (galleries use `data/galleries/` containers).
 
 Initial site seed is **not**:
 

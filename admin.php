@@ -70,12 +70,6 @@ $adminCsrfToken = get_csrf_token();
 $siteName  = get_config('release.identity.title', 'Admin');
 $siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
 $defaultThemeStatus = bandpromo_admin_get_default_theme_status(__DIR__);
-$welcomeState = bandpromo_admin_welcome_state(__DIR__);
-$welcomeChecklist = $welcomeState['checklist'];
-$welcomeCompletedChecks = $welcomeState['completed_count'];
-$welcomeTotalChecks = $welcomeState['total_count'];
-$welcomeSetupComplete = $welcomeState['setup_complete'];
-$welcomeNextSteps = $welcomeState['next_steps'];
 $demoCatalogVisible = bandpromo_demo_catalog_is_visible(__DIR__);
 $demoCatalogShouldSuggestHide = bandpromo_demo_catalog_should_suggest_hide(__DIR__);
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -122,11 +116,12 @@ $welcomeDashboardLinks = [
     ],
 ];
 
-if ($welcomeSetupComplete) {
-    $welcomePrimaryNotice = '';
-} else {
-    $welcomePrimaryNotice = $welcomeCompletedChecks . ' of ' . $welcomeTotalChecks . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
-}
+$welcomeChecklist = [];
+$welcomeCompletedChecks = 0;
+$welcomeTotalChecks = 0;
+$welcomeSetupComplete = false;
+$welcomeNextSteps = [];
+$welcomePrimaryNotice = '';
 
 // Ensure public media directories have world-readable permissions (0755) so the
 // HTTP server can serve static files.  This is a cheap no-op after the first run.
@@ -467,6 +462,28 @@ if (!in_array($filesPanel, ['audio', 'photos', 'video', 'illustrations', 'specia
     $filesPanel = 'audio';
 }
 
+if ($tab === 'welcome') {
+    $welcomeState = bandpromo_admin_welcome_state(__DIR__);
+} else {
+    $welcomeState = [
+        'checklist' => [],
+        'completed_count' => 0,
+        'total_count' => 0,
+        'setup_complete' => bandpromo_is_setup_complete() && bandpromo_admin_runtime_files_present(__DIR__),
+        'next_steps' => [],
+    ];
+}
+$welcomeChecklist = $welcomeState['checklist'];
+$welcomeCompletedChecks = $welcomeState['completed_count'];
+$welcomeTotalChecks = $welcomeState['total_count'];
+$welcomeSetupComplete = $welcomeState['setup_complete'];
+$welcomeNextSteps = $welcomeState['next_steps'];
+if ($welcomeSetupComplete) {
+    $welcomePrimaryNotice = '';
+} elseif ($welcomeNextSteps !== []) {
+    $welcomePrimaryNotice = $welcomeCompletedChecks . ' of ' . $welcomeTotalChecks . ' checks complete. Next: ' . $welcomeNextSteps[0]['description'];
+}
+
 // Analytics sub-tab
 $analyticsTab = $_GET['atab'] ?? 'dashboard';
 if (!in_array($analyticsTab, ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'quality', 'log'])) {
@@ -489,61 +506,72 @@ if (!in_array($contentTab, ['release', 'playlist', 'gallery', 'pages', 'themes',
 }
 
 $pageTabEntries = bandpromo_page_admin_tab_entries(__DIR__);
-$contentTheme = isset($_GET['theme']) ? bandpromo_theme_normalize_id((string) $_GET['theme']) : '';
-if ($contentTheme === '') {
-    try {
-        bandpromo_theme_ensure_seeded(__DIR__);
-        $contentTheme = bandpromo_theme_active_id(__DIR__);
-    } catch (Throwable $throwable) {
-        $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
-    }
-}
-$contentPlaylist = isset($_GET['playlist']) ? bandpromo_playlist_normalize_id((string) $_GET['playlist']) : '';
-if ($contentPlaylist !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentPlaylist)) {
-    $contentPlaylist = '';
-}
-if ($contentPlaylist === '') {
-    try {
-        bandpromo_playlist_ensure_seeded(__DIR__);
-        $contentPlaylist = bandpromo_playlist_default_active_id(__DIR__);
-    } catch (Throwable $throwable) {
-        $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
-    }
-}
-$contentRelease = isset($_GET['release']) ? bandpromo_release_normalize_id((string) $_GET['release']) : '';
-if ($contentRelease !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentRelease)) {
-    $contentRelease = '';
-}
-if ($contentRelease === '') {
-    try {
-        bandpromo_release_ensure_seeded(__DIR__);
-        $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
-    } catch (Throwable $throwable) {
-        $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
-    }
-}
-$contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((string) $_GET['gallery']) : '';
-if ($contentGallery !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentGallery)) {
-    $contentGallery = '';
-}
-if ($contentGallery === '') {
-    try {
-        bandpromo_gallery_ensure_seeded(__DIR__);
-        $contentGallery = bandpromo_gallery_default_admin_content_id(__DIR__);
-        if ($contentGallery === '') {
-            $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
+if ($tab === 'content') {
+    $contentTheme = isset($_GET['theme']) ? bandpromo_theme_normalize_id((string) $_GET['theme']) : '';
+    if ($contentTheme === '') {
+        try {
+            bandpromo_theme_ensure_seeded(__DIR__);
+            $contentTheme = bandpromo_theme_active_id(__DIR__);
+        } catch (Throwable $throwable) {
+            $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
         }
-    } catch (Throwable $throwable) {
-        $contentGallery = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_GALLERY_DEMO_ID : '';
     }
-}
-$contentPage = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'faq';
-if (!is_string($contentPage) || !array_key_exists($contentPage, $editablePages)) {
+    $contentPlaylist = isset($_GET['playlist']) ? bandpromo_playlist_normalize_id((string) $_GET['playlist']) : '';
+    if ($contentPlaylist !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentPlaylist)) {
+        $contentPlaylist = '';
+    }
+    if ($contentPlaylist === '') {
+        try {
+            bandpromo_playlist_ensure_seeded(__DIR__);
+            $contentPlaylist = bandpromo_playlist_default_active_id(__DIR__);
+        } catch (Throwable $throwable) {
+            $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
+        }
+    }
+    $contentRelease = isset($_GET['release']) ? bandpromo_release_normalize_id((string) $_GET['release']) : '';
+    if ($contentRelease !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentRelease)) {
+        $contentRelease = '';
+    }
+    if ($contentRelease === '') {
+        try {
+            bandpromo_release_ensure_seeded(__DIR__);
+            $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
+        } catch (Throwable $throwable) {
+            $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
+        }
+    }
+    $contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((string) $_GET['gallery']) : '';
+    if ($contentGallery !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentGallery)) {
+        $contentGallery = '';
+    }
+    if ($contentGallery === '') {
+        try {
+            bandpromo_gallery_ensure_seeded(__DIR__);
+            $contentGallery = bandpromo_gallery_default_admin_content_id(__DIR__);
+            if ($contentGallery === '') {
+                $contentGallery = BANDPROMO_GALLERY_DEMO_ID;
+            }
+        } catch (Throwable $throwable) {
+            $contentGallery = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_GALLERY_DEMO_ID : '';
+        }
+    }
+    $contentPage = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['page']) : 'faq';
+    if (!is_string($contentPage) || !array_key_exists($contentPage, $editablePages)) {
+        $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
+    }
+    $playerLayoutState = $contentTab === 'player'
+        ? bandpromo_player_layout_admin_state(__DIR__)
+        : ['locked' => [], 'active' => [], 'available' => []];
+} else {
+    $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
+    $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
+    $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
+    $contentGallery = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_GALLERY_DEMO_ID : '';
     $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
+    $playerLayoutState = ['locked' => [], 'active' => [], 'available' => []];
 }
 $activeContentPage = $editablePages[$contentPage];
 $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
-$playerLayoutState = bandpromo_player_layout_admin_state(__DIR__);
 
 // Settings sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
@@ -600,8 +628,8 @@ if ($tab === 'docs') {
     $documentationView = bandpromo_docs_render_selected((string) ($_GET['doc'] ?? ''), $documentationScope);
 }
 
-// Initialize analytics engine (also triggers legacy log import on first use)
-$analytics = new PlaybackAnalytics();
+// Initialize analytics only when the Analytics tab is active.
+$analytics = null;
 $platformStats = [
     'total_plays' => 0,
     'total_listening_time' => 0,
@@ -613,12 +641,16 @@ $platformStats = [
     'daily_distribution' => [],
     'activity_types' => [],
 ];
-try {
-    $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
-} catch (Throwable $e) {
-    error_log('bandPromo admin analytics init error: ' . $e->getMessage());
+$activityStoreStatus = ['ok' => true];
+if ($tab === 'analytics') {
+    $analytics = new PlaybackAnalytics();
+    try {
+        $platformStats = $analytics->getPlatformStats($dateStart, $dateEnd);
+    } catch (Throwable $e) {
+        error_log('bandPromo admin analytics init error: ' . $e->getMessage());
+    }
+    $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
 }
-$activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -628,7 +660,9 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
     <?php echo bandpromo_theme_render_css(__DIR__); ?>
+    <?php if ($tab === 'analytics'): ?>
     <script src="vendor/chart.js/chart.umd.min.js?v=<?php echo filemtime(__DIR__ . '/vendor/chart.js/chart.umd.min.js'); ?>"></script>
+    <?php endif; ?>
     <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-content.css'); ?>">
     <?php endif; ?>
@@ -2164,7 +2198,7 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
             <div class="modal-overlay" id="releaseDeleteModal" style="display:none;" aria-hidden="true">
                 <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="releaseDeleteModalTitle">
                     <h3 id="releaseDeleteModalTitle">Delete release?</h3>
-                    <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. Its tracks will move to the primary release. This cannot be undone.</p>
+                    <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. Its tracks will leave this release and stay in your audio library. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
                         <button type="button" class="btn btn-primary icon-btn danger" id="releaseDeleteConfirmBtn">Delete release</button>
                         <button type="button" class="btn" id="releaseDeleteCancelBtn">Cancel</button>
@@ -3169,6 +3203,8 @@ $activityStoreStatus = bandpromo_activity_store_migration_status(__DIR__);
         const adminDateStart = <?php echo json_encode($dateStart); ?>;
         const adminDateEnd   = <?php echo json_encode($dateEnd); ?>;
         const adminActivePanel = <?php echo json_encode($filesPanel); ?>;
+        const adminActiveTab = <?php echo json_encode($tab); ?>;
+        const adminContentTab = <?php echo json_encode($contentTab); ?>;
         const adminCsrfToken = <?php echo json_encode($adminCsrfToken); ?>;
         const adminTimeDisplay = <?php echo json_encode(bandpromo_admin_time_display_mode()); ?>;
         const adminTimeAxisLabel = <?php echo json_encode(bandpromo_admin_time_axis_label()); ?>;

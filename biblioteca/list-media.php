@@ -14,6 +14,7 @@ require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
+require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/playlist-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -41,6 +42,14 @@ $releaseFilter = bandpromo_release_normalize_pool_filter((string) ($_GET['releas
 $dir = $dirs[$target];
 $files = [];
 
+if ($target === 'video') {
+    bandpromo_reconcile_background_tasks();
+}
+
+$videoDeliveryRunning = $target === 'video'
+    ? bandpromo_video_delivery_running_filename_map()
+    : [];
+
 function bandpromo_default_audio_metadata_health(): array {
     return [
         'inspected' => false,
@@ -58,21 +67,9 @@ function bandpromo_default_audio_metadata_health(): array {
 
 function bandpromo_load_audio_validation_map(string $root): array {
     $default = [];
-    $validation_file = is_file($root . '/data/validation/playlist-validation.json')
-        ? $root . '/data/validation/playlist-validation.json'
-        : $root . '/play/playlist-validation.json';
     $playlist_map = bandpromo_playlist_merged_built_track_map($root);
+    $decoded = bandpromo_playlist_decode_validation_report($root);
 
-    if (!is_file($validation_file)) {
-        return $default;
-    }
-
-    $raw = file_get_contents($validation_file);
-    if ($raw === false) {
-        return $default;
-    }
-
-    $decoded = json_decode($raw, true);
     if (!is_array($decoded)) {
         return $default;
     }
@@ -185,12 +182,18 @@ function bandpromo_audio_master_info(string $root, string $filename): array {
 }
 
 if (is_dir($dir)) {
-    if ($target === 'audio') {
-        bandpromo_reconcile_uncatalogued_audio_originals($root);
-    }
-
     $audio_validation_map = $target === 'audio' ? bandpromo_load_audio_validation_map($root) : [];
     $audio_listing_context = $target === 'audio' ? bandpromo_audio_files_listing_context($root) : [];
+    $cataloguedAudio = $target === 'audio'
+        ? array_fill_keys(bandpromo_audio_catalogued_filenames($root), true)
+        : [];
+    $playlistCoverContext = $target === 'illustrations'
+        ? bandpromo_cover_art_load_playlist_context($root)
+        : null;
+    $galleryReferenceIndex = in_array($target, ['photos', 'video'], true)
+        ? bandpromo_media_reference_build_gallery_index($root, $target)
+        : null;
+
     $allFiles = [];
     foreach (new DirectoryIterator($dir) as $f) {
         if ($f->isDot() || $f->isDir()) continue;
@@ -216,16 +219,30 @@ if (is_dir($dir)) {
                 $entry,
                 bandpromo_audio_display_label_for_listing($root, $filename, $audio_validation_map, $audio_listing_context)
             );
-            $entry['in_catalog'] = bandpromo_audio_is_catalogued($root, $filename);
+            $entry['in_catalog'] = isset($cataloguedAudio[$filename]);
         }
         if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
-            $entry['reference_info'] = bandpromo_media_reference_describe_file($root, $target, $filename);
+            $entry['reference_info'] = bandpromo_media_reference_describe_file(
+                $root,
+                $target,
+                $filename,
+                $galleryReferenceIndex,
+                $playlistCoverContext
+            );
             if ($target === 'illustrations') {
                 $entry['cover_info'] = $entry['reference_info'];
             }
         }
         if (in_array($target, ['audio', 'photos', 'video'], true)) {
             $entry['pool_ready'] = bandpromo_media_pool_ready($root, $target, $filename);
+        }
+        if ($target === 'video') {
+            $videoMeta = bandpromo_video_admin_file_meta($root, $filename);
+            $entry['video_meta'] = $videoMeta;
+            $entry['poster_url'] = (string) ($videoMeta['poster_url'] ?? '');
+            $entry['preview_url'] = (string) ($videoMeta['preview_url'] ?? '');
+            $entry['delivery_pending'] = !empty($videoMeta['needs_delivery']);
+            $entry['delivery_running'] = isset($videoDeliveryRunning[$filename]);
         }
         $allFiles[] = $entry;
     }

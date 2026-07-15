@@ -1057,7 +1057,7 @@
             }
             const title = String(entry.title || releaseId);
             if (!releaseDeleteModal) {
-                if (!window.confirm(`Delete release "${title}"? Its tracks will move to the primary release. This cannot be undone.`)) {
+                if (!window.confirm(`Delete release "${title}"? Its tracks will leave this release and stay in your audio library. This cannot be undone.`)) {
                     return;
                 }
                 deleteRelease(releaseId).catch((error) => showReleaseToast(error.message || 'Could not delete release'));

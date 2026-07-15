@@ -62,7 +62,7 @@ These live in the **Visual pool** (or audio pool for shell audio), scoped by **`
 
 Assets and fields that belong to one release:
 
-- **primary release cover** (`poster_asset_id` on the release document — picked from Visual pool filtered by the release's linked brand)
+- **release cover** (`poster_asset_id` on the release document — picked from Visual pool filtered by the release's linked brand)
 - release-level gallery media when a gallery is scoped to that release
 - release-level packaging metadata and EPK fields
 - **`brand_id` link** — many releases may share one brand (singles, EPs, album, post-album singles in the same era)

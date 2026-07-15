@@ -274,8 +274,6 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
         if ($changed && !$dryRun) {
             $document['entries'] = $entries;
             bandpromo_playlist_write_document($root, $document);
-            $tracks = bandpromo_playlist_build_track_list($root, $document);
-            bandpromo_playlist_sync_legacy_artifacts($root, $playlistId, $tracks);
         }
     }
 

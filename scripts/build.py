@@ -50,7 +50,6 @@ KNOWN_AUDIO_EXTENSIONS = SUPPORTED_AUDIO_EXTENSIONS + ('.wav', '.aif', '.aiff', 
 
 RUNTIME_TEMPLATE_MAP = (
     ('biblioteca/templates/web-config.template.json', 'web-config.json', 'json'),
-    ('biblioteca/templates/gallery.template.json', 'data/gallery.json', 'json'),
 )
 
 PAGE_TEMPLATE_MAP = (

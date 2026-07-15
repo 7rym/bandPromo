@@ -25,11 +25,6 @@ function bandpromo_gallery_document_path(string $root, string $galleryId): strin
     return bandpromo_gallery_storage_root($root) . DIRECTORY_SEPARATOR . bandpromo_gallery_normalize_id($galleryId) . '.json';
 }
 
-function bandpromo_gallery_legacy_path(string $root): string
-{
-    return $root . '/data/gallery.json';
-}
-
 function bandpromo_gallery_registry_ensure_dir(string $root): void
 {
     $dir = bandpromo_gallery_storage_root($root);
@@ -296,20 +291,6 @@ function bandpromo_gallery_load_legacy_items(string $root): array
     }
 
     return $entries;
-}
-
-function bandpromo_gallery_sync_legacy_artifacts(string $root, array $items): void
-{
-    // Publish/build/repair only — do not call from admin save paths.
-    $legacyPath = bandpromo_gallery_legacy_path($root);
-    $legacyDir = dirname($legacyPath);
-    if (!is_dir($legacyDir) && !mkdir($legacyDir, 0750, true) && !is_dir($legacyDir)) {
-        throw new RuntimeException('Could not create data directory.');
-    }
-
-    if (!bandpromo_json_write_file($legacyPath, $items)) {
-        throw new RuntimeException('Could not write data/gallery.json');
-    }
 }
 
 function bandpromo_gallery_materialize_items(string $root, string $galleryId): array

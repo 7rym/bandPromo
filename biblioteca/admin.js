@@ -311,9 +311,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
 // =============================================================================
 // Tab panel logic — Files, Settings, System
-// (data vars injected by admin.php: adminActivePanel, adminDateStart, adminDateEnd)
+// (data vars injected by admin.php: adminActivePanel, adminActiveTab, adminContentTab, adminDateStart, adminDateEnd)
 // =============================================================================
         (function () {
+            const adminPrimaryTab = typeof adminActiveTab === 'string'
+                ? adminActiveTab
+                : (new URLSearchParams(window.location.search).get('tab') || 'welcome');
+            const adminContentSubTab = typeof adminContentTab === 'string'
+                ? adminContentTab
+                : (new URLSearchParams(window.location.search).get('cntab') || 'release');
+            const adminFilesTabActive = adminPrimaryTab === 'files';
+            const adminContentTabActive = adminPrimaryTab === 'content';
 
             // ── Media sub-panels ──────────────────────────────────────────────
             const mediaCfg = {
@@ -437,8 +445,59 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return ['mp4', 'mov', 'webm'].includes(String(name).split('.').pop().toLowerCase());
             }
 
-            function isPreviewable(name) {
-                return isImage(name) || isVideo(name);
+            function isPreviewable(name, file = null, type = '') {
+                if (isImage(name)) {
+                    return true;
+                }
+                if (!isVideo(name)) {
+                    return false;
+                }
+                if (type === 'video' && file) {
+                    return videoPreviewUrl(file) !== '' || videoPosterUrl(file) !== '';
+                }
+                return true;
+            }
+
+            function videoPosterUrl(file) {
+                return String(file?.poster_url || file?.video_meta?.poster_url || '').trim();
+            }
+
+            function videoPreviewUrl(file) {
+                return String(file?.preview_url || file?.video_meta?.preview_url || '').trim();
+            }
+
+            function buildVideoThumbMarkup(type, file, safeName, basePath) {
+                const poster = videoPosterUrl(file);
+                const previewSrc = videoPreviewUrl(file);
+                const openSrc = previewSrc || poster;
+                const openHandler = openSrc
+                    ? `onclick="event.stopPropagation(); openAdminPreview('${openSrc}', '${safeName}')"`
+                    : '';
+                if (file.delivery_running) {
+                    return `<span class="media-file-thumb media-file-thumb-video is-preparing" title="Preparing in background">⏳</span>`;
+                }
+                if (poster) {
+                    return `<img class="media-file-thumb" src="${poster}" alt="" loading="lazy" ${openHandler} title="Preview">`;
+                }
+                if (previewSrc) {
+                    return `<video class="media-file-thumb" src="${previewSrc}" preload="metadata" muted ${openHandler} title="Preview"></video>`;
+                }
+                if (file.delivery_pending) {
+                    return `<span class="media-file-thumb media-file-thumb-video is-preparing" title="Queued for background preparation">⏳</span>`;
+                }
+                return `<span class="media-file-thumb media-file-thumb-video" title="Waiting for background preparation">▶</span>`;
+            }
+
+            function buildVideoPickerMarkup(file) {
+                const poster = videoPosterUrl(file);
+                const previewSrc = videoPreviewUrl(file);
+                if (poster) {
+                    return `<img src="${poster}" alt="" loading="lazy"><span class="media-picker-tile-badge" aria-hidden="true">▶</span>`;
+                }
+                if (previewSrc) {
+                    return `<video src="${previewSrc}" preload="metadata" muted></video><span class="media-picker-tile-badge" aria-hidden="true">▶</span>`;
+                }
+                return `<span class="media-picker-tile-icon">▶</span>`;
             }
 
             function hasEditableAudioMaster(name) {
@@ -718,11 +777,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (status === 'running') {
                         notifications.push({
                             severity: 'background-running',
-                            title: 'Preparing video delivery',
+                            title: 'Preparing videos in the background',
                             file: '',
                             checkedAt: String(item.started_at || item.updated_at || '').trim(),
                             details: [
-                                { text: `bandPromo is preparing ${fileLine} in the background. This can take a few minutes for large uploads.` },
+                                { text: `bandPromo is preparing ${fileLine} in the background. You can keep working — no action needed.` },
                             ],
                             actions: [],
                         });
@@ -732,14 +791,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (status === 'done') {
                         notifications.push({
                             severity: 'background-done',
-                            title: 'Video delivery finished',
+                            title: 'Video preparation finished',
                             file: '',
                             checkedAt: String(item.finished_at || item.updated_at || '').trim(),
                             details: [
-                                { text: `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for the gallery pool.` },
+                                { text: `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for preview and gallery use.` },
                             ],
                             actions: [
-                                { label: 'Open Content', href: '?tab=content&content=gallery' },
+                                { label: 'Open Files', href: '?tab=files&fpanel=video' },
                             ],
                         });
                         return;
@@ -750,16 +809,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const taskId = String(item.id || '').trim();
                         notifications.push({
                             severity: 'recommended-fix',
-                            title: 'Video delivery failed',
+                            title: 'Video preparation needs attention',
                             file: focusFile,
                             taskId,
                             checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
                             details: [
-                                { text: String(item.error || 'bandPromo could not prepare the publish-ready video file.').trim() },
-                                { text: 'Go to System → Deliverables and run the recommended update to retry video preparation. If it fails again, re-upload the source file or remove it from Files → Video.' },
+                                { text: String(item.error || 'bandPromo could not prepare the video file in the background.').trim() },
+                                { text: 'bandPromo will retry automatically after a short pause. If this keeps failing, check that ffmpeg is available on the host or re-upload the source file.' },
                             ],
                             actions: [
-                                { label: 'Go to Deliverables', href: buildBuildTabUrl() },
                                 ...(focusFile
                                     ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'video', focus_file: focusFile }) }]
                                     : [{ label: 'Open Files', href: '?tab=files&fpanel=video' }]),
@@ -791,7 +849,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 backgroundTaskPollTimer = setInterval(() => {
-                    refreshBuildRequiredState();
+                    refreshBuildRequiredState({ scope: 'lite' });
                 }, 4000);
             }
 
@@ -1030,8 +1088,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             if (operatorNotificationsToggle && operatorNotificationsModal) {
-                operatorNotificationsToggle.addEventListener('click', () => {
+                operatorNotificationsToggle.addEventListener('click', async () => {
                     openOperatorNotifications();
+                    await refreshBuildRequiredState({ full: true });
                 });
             }
 
@@ -1090,7 +1149,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!resp.ok || data.error) {
                         throw new Error(data.error || 'Could not dismiss notification');
                     }
-                    await refreshBuildRequiredState();
+                    await refreshBuildRequiredState({ full: true });
                 } catch (error) {
                     window.alert(error.message || 'Could not dismiss notification');
                 }
@@ -1836,8 +1895,36 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function setAdminPreviewItems(files, type) {
                 window._adminPreviewItems = files
-                    .filter((file) => isPreviewable(file.name))
-                    .map((file) => ({ src: buildMediaPath(type, file.name), name: file.name }));
+                    .filter((file) => isPreviewable(file.name, file, type))
+                    .map((file) => {
+                        if (type !== 'video') {
+                            return {
+                                src: buildMediaPath(type, file.name),
+                                name: file.name,
+                                type: 'image',
+                            };
+                        }
+
+                        const previewUrl = videoPreviewUrl(file);
+                        const posterUrl = videoPosterUrl(file);
+                        if (previewUrl) {
+                            return {
+                                src: previewUrl,
+                                name: file.name,
+                                type: 'video',
+                                poster: posterUrl,
+                            };
+                        }
+                        if (posterUrl) {
+                            return {
+                                src: posterUrl,
+                                name: file.name,
+                                type: 'image',
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(Boolean);
                 window._adminPreviewIdx = -1;
             }
 
@@ -1883,9 +1970,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             let renderPackageUpdateStatus = null;
 
-            async function refreshBuildRequiredState() {
+            function resolveNotificationScope(options = {}) {
+                if (options.full === true || options.scope === 'full') {
+                    return 'full';
+                }
+                if (options.scope === 'lite') {
+                    return 'lite';
+                }
+                if (adminPrimaryTab === 'welcome' || adminPrimaryTab === 'system') {
+                    return 'full';
+                }
+                return 'lite';
+            }
+
+            async function refreshBuildRequiredState(options = {}) {
+                const scope = resolveNotificationScope(options);
                 try {
-                    const resp = await fetch('/biblioteca/get-operator-notifications.php');
+                    const resp = await fetch('/biblioteca/get-operator-notifications.php?scope=' + encodeURIComponent(scope));
                     const data = await resp.json();
                     if (!resp.ok || !data || data.ok !== true) return;
 
@@ -1898,6 +1999,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks, data.uncatalogued_audio_failures || []);
                     updateBackgroundTaskPolling(latestBackgroundTasks);
                     renderPublishStatusSummary(data.publish_status || null, data.catalog_repair || null);
+
+                    const videoTasks = Array.isArray(latestBackgroundTasks?.items)
+                        ? latestBackgroundTasks.items.filter((item) => item && item.task === 'video-delivery')
+                        : [];
+                    const videoRunning = videoTasks.some((item) => String(item.status || '') === 'running');
+                    if (adminFilesTabActive && activeMediaPanel === 'video') {
+                        if (window._videoDeliveryWasRunning && !videoRunning) {
+                            loadMediaList('video');
+                        }
+                    }
+                    window._videoDeliveryWasRunning = videoRunning;
 
                     if (typeof renderPackageUpdateStatus === 'function' && data.package_update && !packageUpdateInstallInProgress) {
                         renderPackageUpdateStatus({
@@ -2253,13 +2365,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (isImage(f.name)) {
                             thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
                         } else if (isVideo(f.name)) {
-                            thumb = `<video class="media-file-thumb" src="${url}" preload="metadata" muted onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')" title="Preview"></video>`;
+                            thumb = buildVideoThumbMarkup(type, f, safeName, basePath);
                         } else {
                             thumb = `<span class="media-file-icon">${extIcon(f.name)}</span>`;
                         }
-                        const preview = isPreviewable(f.name)
-                            ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">👁️</button>`
-                            : '';
+                        const previewSrc = type === 'video'
+                            ? (videoPreviewUrl(f) || videoPosterUrl(f))
+                            : `${basePath}/${safeName}`;
+                        const preview = isPreviewable(f.name, f, type)
+                            ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${previewSrc}', '${safeName}')">👁️</button>`
+                            : (type === 'video' && (f.delivery_pending || f.delivery_running)
+                                ? `<button class="icon-btn media-action-btn" title="Preparing in background" disabled>⏳</button>`
+                                : '');
                         const rowIsEditableAudio = type === 'audio' && audioRowIsEditable(f);
                         const editAction = rowIsEditableAudio
                             ? `<button class="icon-btn media-action-btn media-action-good" title="Open full metadata editor" onclick="event.stopPropagation(); openAudioMasterModal('${safeName}')">✎</button>`
@@ -2295,13 +2412,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     syncMediaSelectionUi(type);
                     maybeApplyMediaFocusFromQuery(type);
                     maybeOpenAudioDetailFromQuery(files);
+                    if (type === 'video' && typeof refreshBuildRequiredState === 'function') {
+                        refreshBuildRequiredState({ scope: 'lite' });
+                    }
                 } catch(e) {
                     listEl.innerHTML = `<span class="text-error">Network error</span>`;
                 }
             }
 
-            // Load active panel
-            loadMediaList(activeMediaPanel);
+            // Load active panel only when the Files tab is open.
+            if (adminFilesTabActive) {
+                loadMediaList(activeMediaPanel);
+            }
 
             function setMediaReferenceFilter(type, nextValue) {
                 if (type === 'illustrations') {
@@ -2365,9 +2487,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             syncReleaseFilterUi();
             syncMediaReferenceFilterUi();
             syncAudioDisplayToggleUi();
-            loadReleasesCatalog().catch(() => {
+            if (adminFilesTabActive || adminContentTabActive) {
+                loadReleasesCatalog().catch(() => {
+                    populateReleaseFilterSelects();
+                });
+            } else {
                 populateReleaseFilterSelects();
-            });
+            }
 
             document.querySelectorAll('.media-file-select-all').forEach((checkbox) => {
                 checkbox.addEventListener('change', () => {
@@ -2461,12 +2587,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (isImage(file.name)) {
                             mediaMarkup = `<img src="${url}" alt="" loading="lazy">`;
                         } else if (isVideo(file.name)) {
-                            mediaMarkup = `<video src="${url}" preload="metadata" muted></video><span class="media-picker-tile-badge" aria-hidden="true">▶</span>`;
+                            mediaMarkup = buildVideoPickerMarkup(file);
                         } else {
                             mediaMarkup = `<span class="media-picker-tile-icon">${extIcon(file.name)}</span>`;
                         }
 
-                        const previewBtn = isPreviewable(file.name)
+                        const previewBtn = isPreviewable(file.name, file, target)
                             ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${target}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeName}">👁️</button>`
                             : '';
 
@@ -2861,7 +2987,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         data.build_required_state.tasks || []
                     );
                 }
-                await refreshBuildRequiredState();
+                await refreshBuildRequiredState({ full: true });
                 updateAudioFileRowMetadata(filename, detail);
                 if (expandedAudioFile === filename) {
                     loadMediaList('audio');
@@ -3218,14 +3344,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const lightbox = getAdminLightbox();
                 if (!lightbox) return;
 
+                const normalizedSrc = String(src || '').trim();
+                if (!normalizedSrc) {
+                    showAdminToast('Video previews are being prepared in the background. Check Notifications for progress.', 'error');
+                    return;
+                }
+
                 const items = window._adminPreviewItems || [];
                 lightbox.setItems(items);
-                const idx = items.findIndex(i => i.src === src);
+                const idx = items.findIndex(i => i.src === normalizedSrc || i.name === name);
                 if (idx >= 0) {
                     lightbox.openAt(idx);
                 } else {
-                    const ext = name.split('.').pop().toLowerCase();
-                    lightbox.open(src, name, ['mp4','mov','webm'].includes(ext) ? 'video' : 'image');
+                    const isVideoSrc = /\.(mp4|webm)(\?.*)?$/i.test(normalizedSrc);
+                    lightbox.open(normalizedSrc, name, isVideoSrc ? 'video' : 'image');
                 }
             };
             window.prevAdminPreview  = (e) => {
@@ -3592,7 +3724,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             setBuildRequiredNudge(latestBuildState.required === true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
                         }
                         if (done > 0) {
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                         }
 
                         if (latestBuildState && latestBuildState.required) {
@@ -3621,7 +3753,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             setBuildRequiredNudge(latestBuildState.required === true, latestBuildState.reasons || [], latestBuildState.action || 'none', latestBuildState.tasks || []);
                         }
                         if (done > 0) {
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                         }
 
                         if (done > 0) {
@@ -3777,7 +3909,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const reasons = (data.build_required_state && data.build_required_state.reasons) || ['site_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
                             setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                             refreshBuildHint();
                         } else {
                             cfgBasicsStatus.textContent = '❌ ' + (data.error || 'Unknown error');
@@ -3952,7 +4084,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const reasons = (data.build_required_state && data.build_required_state.reasons) || ['theme_config_changed'];
                             const action = (data.build_required_state && data.build_required_state.action) || 'full';
                             setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                             refreshBuildHint();
                         } else {
                             cfgThemeStatus.textContent = '❌ ' + (data.error || 'Unknown error');
@@ -3966,6 +4098,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             (function () {
+                if (!adminContentTabActive) {
+                    return;
+                }
+
                 const editorCard = document.getElementById('galleryEditorCard');
                 const poolView = document.getElementById('galleryPoolView');
                 const itemsPoolView = document.getElementById('galleryItemsPoolView');
@@ -5103,6 +5239,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             // ── Playlist editor ───────────────────────────────────────────────
             (function () {
+                if (!adminContentTabActive) {
+                    return;
+                }
+
                 const editorCard  = document.getElementById('playlistEditorCard');
                 const poolView    = document.getElementById('playlistPoolView');
                 const tracksPoolView = document.getElementById('playlistTracksPoolView');
@@ -6572,7 +6712,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     state.tasks || []
                                 );
                             } else if (typeof refreshBuildRequiredState === 'function') {
-                                refreshBuildRequiredState();
+                                refreshBuildRequiredState({ full: true });
                             }
                             await loadPlaylistPreview({ preserveSavedState: true });
                         } else {
@@ -6726,7 +6866,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 const reasons = (data.build_required_state && data.build_required_state.reasons) || ['social_config_changed'];
                                 const action = (data.build_required_state && data.build_required_state.action) || 'full';
                                 setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
-                                await refreshBuildRequiredState();
+                                await refreshBuildRequiredState({ full: true });
                                 refreshBuildHint();
                             } else {
                                 status.textContent = '❌ ' + (data.error || 'Unknown error');
@@ -7311,7 +7451,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         renderAutofixReport(data);
                         applyBtn.hidden = dryRun ? Number(data.changed_total || 0) === 0 : true;
                         if (!dryRun && data.recommend_build) {
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                         }
                     } catch (error) {
                         statusEl.textContent = error.message || 'Catalog repair failed';
@@ -7439,7 +7579,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     try {
                         if (typeof refreshBuildRequiredState === 'function') {
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                         }
                     } catch (error) {
                         renderPackageUpdateStatus({
@@ -7511,7 +7651,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         applyBtn.hidden = true;
 
                         if (typeof refreshBuildRequiredState === 'function') {
-                            await refreshBuildRequiredState();
+                            await refreshBuildRequiredState({ full: true });
                         }
                         if (typeof refreshBuildHint === 'function') {
                             refreshBuildHint();

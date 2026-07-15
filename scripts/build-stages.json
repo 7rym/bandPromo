@@ -49,7 +49,7 @@
     },
     {
       "id": "playlist-artifacts",
-      "label": "Export play/playlist.json and validation",
+      "label": "Export playlist validation report",
       "group": "artifacts",
       "script": "makePlaylists.py",
       "skippable": true

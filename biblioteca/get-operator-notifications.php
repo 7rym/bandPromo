@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/admin-api-guard.php';
 
+require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/admin-welcome-state.php';
 require_once __DIR__ . '/package-updater.php';
@@ -9,9 +10,12 @@ require_once __DIR__ . '/publish-status-helpers.php';
 require_once __DIR__ . '/catalog-repair-auto.php';
 
 $rootDir = dirname(__DIR__);
-$validationFile = is_file($rootDir . '/data/validation/playlist-validation.json')
-    ? $rootDir . '/data/validation/playlist-validation.json'
-    : $rootDir . '/play/playlist-validation.json';
+$scope = strtolower(trim((string) ($_GET['scope'] ?? 'full')));
+if (!in_array($scope, ['lite', 'full'], true)) {
+    $scope = 'full';
+}
+
+$validationFile = bandpromo_playlist_validation_report_path($rootDir);
 $metadataValidation = null;
 
 function bandpromo_filter_metadata_validation_for_notifications(string $rootDir, ?array $validation): ?array
@@ -59,7 +63,34 @@ function bandpromo_filter_metadata_validation_for_notifications(string $rootDir,
     return $validation;
 }
 
-if (file_exists($validationFile)) {
+$buildState = bandpromo_get_build_required_state();
+$backgroundTasks = bandpromo_reconcile_background_tasks();
+
+if ($scope === 'lite') {
+    $packageUpdate = bandpromo_package_check_update_cached($rootDir);
+    echo json_encode([
+        'ok' => true,
+        'scope' => 'lite',
+        'build_required' => !empty($buildState['required']),
+        'build_required_state' => $buildState,
+        'background_tasks' => $backgroundTasks,
+        'package_update' => [
+            'installed_version' => $packageUpdate['installed_version'] ?? null,
+            'remote_version' => $packageUpdate['remote_version'] ?? null,
+            'update_available' => !empty($packageUpdate['update_available']),
+            'ahead_of_published' => !empty($packageUpdate['ahead_of_published']),
+            'up_to_date' => !empty($packageUpdate['up_to_date']),
+            'ready' => !empty($packageUpdate['ready']),
+            'manifest_error' => $packageUpdate['manifest_error'] ?? null,
+            'checks' => $packageUpdate['checks'] ?? [],
+            'release_notes' => $packageUpdate['release_notes'] ?? [],
+            'last_update' => $packageUpdate['last_update'] ?? null,
+        ],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($validationFile !== null && file_exists($validationFile)) {
     $validationJson = file_get_contents($validationFile);
     if ($validationJson !== false) {
         $decoded = json_decode($validationJson, true);
@@ -85,14 +116,12 @@ if (!empty($uncataloguedReconcile['failed']) && is_array($uncataloguedReconcile[
 
 $catalogRepair = bandpromo_catalog_repair_maybe_run($rootDir, $uncataloguedReconcile);
 $publishStatus = bandpromo_publish_status_summary($rootDir);
-
-$buildState = bandpromo_get_build_required_state();
 $welcomeState = bandpromo_admin_welcome_state($rootDir);
-$packageUpdate = bandpromo_package_check_update($rootDir);
-$backgroundTasks = bandpromo_reconcile_background_tasks();
+$packageUpdate = bandpromo_package_check_update_cached($rootDir);
 
 echo json_encode([
     'ok' => true,
+    'scope' => 'full',
     'build_required' => !empty($buildState['required']),
     'build_required_state' => $buildState,
     'background_tasks' => $backgroundTasks,

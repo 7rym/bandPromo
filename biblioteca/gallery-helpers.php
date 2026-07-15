@@ -3,6 +3,7 @@
 require_once __DIR__ . '/media-delivery-helpers.php';
 
 function bandpromo_gallery_file_path(string $root_dir): string {
+    // One-time import source only. Runtime gallery reads use data/galleries/ containers.
     return $root_dir . '/data/gallery.json';
 }
 
@@ -161,14 +162,5 @@ function bandpromo_load_gallery_items(string $root_dir, string $galleryId = 'ban
     require_once __DIR__ . '/gallery-storage.php';
     bandpromo_gallery_ensure_seeded($root_dir);
 
-    try {
-        return bandpromo_gallery_materialize_items($root_dir, $galleryId);
-    } catch (Throwable $throwable) {
-        $decoded = bandpromo_decode_gallery_items($root_dir);
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        return bandpromo_gallery_normalize_items($root_dir, $decoded);
-    }
+    return bandpromo_gallery_materialize_items($root_dir, $galleryId);
 }

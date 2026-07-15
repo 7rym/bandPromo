@@ -28,6 +28,47 @@ function bandpromo_playlist_document_path(string $root, string $playlistId): str
     return bandpromo_playlist_storage_root($root) . DIRECTORY_SEPARATOR . bandpromo_playlist_normalize_id($playlistId) . '.json';
 }
 
+function bandpromo_playlist_validation_report_path(string $root): ?string
+{
+    $path = $root . '/data/validation/playlist-validation.json';
+
+    return is_file($path) ? $path : null;
+}
+
+function bandpromo_playlist_decode_validation_report(string $root): ?array
+{
+    $path = bandpromo_playlist_validation_report_path($root);
+    if ($path === null) {
+        return null;
+    }
+
+    $decoded = json_decode((string) file_get_contents($path), true);
+
+    return is_array($decoded) ? $decoded : null;
+}
+
+function bandpromo_playlist_cover_source_validation_map(string $root): array
+{
+    $decoded = bandpromo_playlist_decode_validation_report($root);
+    if (!is_array($decoded) || !is_array($decoded['tracks'] ?? null)) {
+        return [];
+    }
+
+    $map = [];
+    foreach ($decoded['tracks'] as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $file = trim((string) ($track['file'] ?? ''));
+        if ($file === '') {
+            continue;
+        }
+        $map[$file] = strtolower(trim((string) ($track['coverSource'] ?? '')));
+    }
+
+    return $map;
+}
+
 function bandpromo_playlist_registry_ensure_dir(string $root): void
 {
     $dir = bandpromo_playlist_storage_root($root);
@@ -563,11 +604,6 @@ function bandpromo_playlist_resolve_id(string $root, string $requestedId = ''): 
     $requestedId = bandpromo_playlist_normalize_id($requestedId);
 
     return $requestedId !== '' ? $requestedId : bandpromo_playlist_default_active_id($root);
-}
-
-function bandpromo_playlist_legacy_order_path(string $root): string
-{
-    return $root . '/data/playlist-order.json';
 }
 
 function bandpromo_playlist_seed_from_template(string $root): void

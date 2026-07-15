@@ -20,10 +20,11 @@ jobs:
 
           required=(
             "biblioteca/templates/web-config.template.json"
-            "biblioteca/templates/gallery.template.json"
+            "biblioteca/templates/default.release.template.json"
             "biblioteca/templates/pages.registry.template.json"
             "biblioteca/templates/bio.template.json"
             "biblioteca/templates/faq.template.json"
+            "biblioteca/templates/legacy/gallery-flat-array.json"
           )
 
           for f in "${required[@]}"; do
@@ -34,7 +35,8 @@ jobs:
           done
 
           python -m json.tool biblioteca/templates/web-config.template.json >/dev/null
-          python -m json.tool biblioteca/templates/gallery.template.json >/dev/null
+          python -m json.tool biblioteca/templates/default.release.template.json >/dev/null
+          python -m json.tool biblioteca/templates/legacy/gallery-flat-array.json >/dev/null
           python -m json.tool biblioteca/templates/pages.registry.template.json >/dev/null
           python -m json.tool biblioteca/templates/bio.template.json >/dev/null
           python -m json.tool biblioteca/templates/faq.template.json >/dev/null

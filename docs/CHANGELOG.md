@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-15 15:10 - Naming hygiene: move legacy `gallery.template.json` to `templates/legacy/gallery-flat-array.json`; rename `primary.release.template.json` to `default.release.template.json`; remove orphan demo gallery template; fix default release registry (`system` flag, display title); align delete-release copy with behavior; update template-integrity CI and docs.
+
+2026-07-15 15:00 - Add **Mental model (read this first)** section to PLATFORM-MODEL.md: three actors (platform/operator/user), four layers, default slot vs demo vs operator catalog, provenance, ownership cheat sheet, and vocabulary traps.
+
+2026-07-15 14:20 - Legacy/fallback purge (post build 332 fleet): remove silent gallery.json runtime fallback and template seeding; drop play/playlist-validation.json fallback reads; centralize validation report helpers; update build stage label; add docs/LEGACY-AUDIT.md snapshot.
+
+2026-07-15 14:10 - Auto-queue background video delivery when originals are missing posters or optimal MP4s; Files → Video and notifications show in-progress status without operator action.
+
+2026-07-15 14:00 - Files → Video admin previews: use delivery MP4 + poster thumbnails instead of inline original MOV sources; show delivery-pending placeholder when neither exists yet.
+
+2026-07-15 13:50 - Admin performance + legacy cleanup (build 332 fleet): remove undefined playlist legacy sync from content autofix and dead legacy helper functions; slim operator notifications with lite/full scopes and cached package manifest checks; gate admin JS fetches and PHP work by active tab; fix list-media per-request catalog/reference rescans and stop reconcile side effects on file-list GET.
+
 2026-07-13 23:30 - Checkpoint v0.8.7 build 332: analytics SQLite rollups, retention, batch ingest, and Log export.
 
 2026-07-13 22:45 - Analytics SQLite tail: daily rollups (user/track/device/totals), 90-day raw retention maintainer, player warm-event batching + ingest rate limit, Analytics Log export (JSONL/CSV).

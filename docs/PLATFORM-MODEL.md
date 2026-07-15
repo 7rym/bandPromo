@@ -10,6 +10,141 @@ Companion policy docs:
 - [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — protected delivery, PWA, cast scope
 - [PORTABILITY.md](PORTABILITY.md) — full backup vs data export/import, moved-site repair
 
+## Mental model (read this first)
+
+**One sentence:** bandPromo is a platform shell that ships starter examples; operators own the install's creative truth; fans consume it with almost no ownership today.
+
+The sections below are policy detail. This page is the compass — three actors, four layers, and the vocabulary traps that old names still cause.
+
+### Three actors (who decides)
+
+| Actor | Who | Owns today | Interface |
+|-------|-----|------------|-----------|
+| **Platform / system** | bandPromo product | Code, player shell, build pipeline, bundled demo package, fail-safe defaults | `biblioteca/`, `scripts/`, templates, CI |
+| **Operator** | Band / site owner | Releases, playlists, pages, galleries, brands, uploads, publish | Admin panel |
+| **User** | Fan / listener | Almost nothing (session; future prefs) | Player, login |
+
+Operators are the content owners in v0.8. Fans have **access** to published material (tier rules in [ACCESS-MODEL.md](ACCESS-MODEL.md)), not containers or assets. Do not read "user content" as "fan-owned content" — registry `origin: user-upload` means **operator upload**.
+
+### Four layers (what exists)
+
+Think top-down:
+
+1. **Shell** — layout, playback, access rules, mandatory fallbacks (player, login, dark atmosphere).
+2. **Containers** — releases, playlists, pages, galleries, brands (`data/{type}/`).
+3. **Assets** — registry entries with metadata and references (`data/assets/`).
+4. **Files** — originals, masters, delivery on disk (`media/`).
+
+Containers reference assets; assets point at files. Operators edit containers and upload assets. Publish produces delivery files. The player reads containers + registry, not raw filenames.
+
+### Two platform-provided things (not operator creative work)
+
+| Platform provides | Purpose | Examples |
+|-------------------|---------|----------|
+| **Shell** | Site must never break | Player layout, login, install fallbacks (`bandPromo_logo.png`, etc.) |
+| **Starter examples** | First-run "it works" | `bandpromo-demo` release/playlist/gallery, `bandPromo_*` bundled audio |
+
+Operators inherit starter examples, may hide them ("Hide demo catalog"), and replace them with their own containers. That is different from authoring them.
+
+### Inside operator ownership: default slot vs real catalog
+
+| Slot | Id today | What it is |
+|------|----------|------------|
+| **Default release slot** | `primary` | Empty catalog workspace — upload fallback, admin landing, delete safety net. Display title **Default release** on new seeds. **Not** demo; **not** "most important album." |
+| **Operator catalog** | Any id they create | Real releases, playlists, galleries, pages, brands ("Summer EP", tour campaigns, etc.) |
+
+### Asset provenance (orthogonal to actor)
+
+Registry `origin` describes where a file came from, not who logged in:
+
+| Origin | Meaning |
+|--------|---------|
+| `bundled-placeholder` | Shipped demo files (`bandPromo_*`) |
+| `user-upload` | Operator uploaded |
+| `ai-generated` | Wizard output (operator confirms) |
+| `generated` | Build pipeline (optimized covers, share images, etc.) |
+
+An operator-owned install can still contain platform-bundled assets. Separation is **provenance**, not a second content owner.
+
+### Who owns what (cheat sheet)
+
+| Thing | Owner | Lives in |
+|-------|-------|----------|
+| PHP/JS/Python code | Platform | repo |
+| Templates / seeds | Platform | `biblioteca/templates/` |
+| Install config + pointers | Operator (on host) | `web-config.json`, `data/install/` |
+| Releases, playlists, pages, … | Operator | `data/{type}/` |
+| Asset registry + metadata | Operator | `data/assets/` |
+| Uploaded originals | Operator | `media/*/original/` |
+| Bundled demo media | Platform (shipped into install) | `media/` (`bandPromo_*`) |
+| Delivery files | Build output (derived) | `media/*/optimal/`, etc. |
+| Fan session / future prefs | User | session; future user stores |
+
+### Access vs ownership (users today)
+
+- **Ownership** — who creates/edits containers and assets → operators (platform for shell + demo seeds).
+- **Access** — who can play/read what → tier rules; operators always bypass.
+
+v0.8 labels operator-made playlists `kind: "system"` until **user playlists** ship (v0.9+). In code, "system playlist" often means **site playlist**, not platform demo.
+
+### Vocabulary traps
+
+| Word in code/docs | Read it as |
+|-------------------|------------|
+| `primary` (release id) | **Default operator slot** — display title **Default release** on new seeds |
+| `bandpromo-demo` | **Platform starter example** (hideable) |
+| `system` (playlist `kind`) | **Site-level playlist** until user playlists exist |
+| `system: true` (brand) | **Platform-shipped, locked** — duplicate to customize |
+| `user-upload` (origin) | **Operator upload** (not fan upload) |
+| `bundled-placeholder` | **Platform demo file** |
+| Theme | Legacy name for **Brand** |
+
+### How to read any path in five seconds
+
+1. **Git or host?** — Git → platform. `data/` + `media/` on host → operator install (may include bundled demo).
+2. **Edited or generated?** — `data/*.json` → edited. `media/*/optimal/` → generated delivery.
+3. **Who is the audience?** — Admin → operator. Player/login → user. Templates/migrations → platform.
+
+### Map
+
+```mermaid
+flowchart TB
+  subgraph platform [Platform / System]
+    shell[Shell: player, login, layout, fallbacks]
+    demo[Starter examples: bandpromo-demo + bandPromo_* files]
+    templates[Tracked seeds + code]
+  end
+
+  subgraph operator [Operator owns the install]
+    defaultSlot[Default slot: primary release]
+    catalog[Releases, playlists, pages, galleries, brands]
+    uploads[Uploads + AI-confirmed assets]
+  end
+
+  subgraph user [User / Fan — consume for now]
+    access[Access tier: VIP / registered / anonymous]
+    future[Future: own playlists, prefs]
+  end
+
+  templates -->|first-run seed| catalog
+  demo -->|parallel on fresh install| catalog
+  defaultSlot -->|empty until filled| catalog
+  uploads --> catalog
+  shell --> access
+  catalog -->|publish + release_date| access
+  future -.->|v0.9+| access
+```
+
+### What to read next
+
+| Question | Doc |
+|----------|-----|
+| What are releases, playlists, assets? | This file — **Terminology** and container sections below |
+| Who can play what? | [ACCESS-MODEL.md](ACCESS-MODEL.md) |
+| What does publish/build do? | [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md) |
+| What is legacy vs intentional shim? | [LEGACY-AUDIT.md](LEGACY-AUDIT.md) |
+| What are we building next? | [TODO.md](TODO.md), [ROADMAP.md](ROADMAP.md) |
+
 ## Terminology
 
 | Term | Meaning |
@@ -402,7 +537,7 @@ data/
   player/layout.json                   # tab order (from web-config player branch)
 ```
 
-Legacy paths (`data/playlist-order.json`, `data/gallery.json`) are **publish/build artifacts or repair outputs** only. Admin save paths and runtime readers use `data/playlists/`, `data/galleries/`, and the asset registry instead.
+Legacy paths (`data/playlist-order.json`, optional one-time `data/gallery.json` import) are **not runtime sources**. Admin save paths and readers use `data/playlists/`, `data/galleries/`, and the asset registry instead.
 
 ## URLs and deep links
 

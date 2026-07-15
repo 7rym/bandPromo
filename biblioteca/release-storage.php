@@ -8,6 +8,7 @@ require_once __DIR__ . '/demo-catalog-state.php';
 require_once __DIR__ . '/brand-storage.php';
 
 const BANDPROMO_RELEASE_REGISTRY_VERSION = 1;
+/** Default operator release slot id (legacy on-disk name: primary). */
 const BANDPROMO_RELEASE_DEFAULT_ID = 'primary';
 const BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo';
 
@@ -447,7 +448,7 @@ function bandpromo_release_default_document(): array
         'version' => BANDPROMO_RELEASE_REGISTRY_VERSION,
         'id' => BANDPROMO_RELEASE_DEFAULT_ID,
         'slug' => BANDPROMO_RELEASE_DEFAULT_ID,
-        'title' => 'Primary Release',
+        'title' => 'Default release',
         'release_date' => gmdate('Y-m-d'),
         'locked' => false,
         'vip_early_days' => 7,
@@ -475,7 +476,7 @@ function bandpromo_release_default_registry(): array
             ],
             [
                 'id' => BANDPROMO_RELEASE_DEFAULT_ID,
-                'title' => 'Primary Release',
+                'title' => 'Default release',
                 'slug' => BANDPROMO_RELEASE_DEFAULT_ID,
                 'sort_order' => 10,
                 'system' => true,
@@ -650,7 +651,7 @@ function bandpromo_release_ensure_seeded(string $root): void
             bandpromo_release_write_registry($root, $registry);
 
             $document = bandpromo_release_default_document();
-            $templateDocument = $root . '/biblioteca/templates/primary.release.template.json';
+            $templateDocument = $root . '/biblioteca/templates/default.release.template.json';
             if (is_file($templateDocument)) {
                 $decoded = bandpromo_json_read_array_file($templateDocument);
                 if ($decoded !== null) {

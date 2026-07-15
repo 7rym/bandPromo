@@ -2498,6 +2498,24 @@ canvas { max-width: 100%; height: auto; }
 }
 .media-file-thumb:hover { opacity: 0.8; }
 
+.media-file-thumb-video {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--text-muted, #aaa);
+    cursor: default;
+}
+
+.media-file-thumb-video.is-preparing {
+    animation: media-thumb-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes media-thumb-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+}
+
 .media-file-name {
     color: var(--text);
     overflow: hidden;

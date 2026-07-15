@@ -185,10 +185,10 @@ Policy — **lock before implementation**:
 
 Implementation order:
 
-- [ ] **Fleet sync** — bring all 3 remote beta sites to latest published build; record build number, update date, and per-site smoke results.
-- [ ] **Legacy path inventory** — audit code + docs for removed or renamed artifacts (`play/playlist.json`, `data/themes/`, folder-category media paths, stale `theme-*` operator surfaces, validation report fallbacks past migration window).
-- [ ] **Fallback + hack audit** — grep and manual pass for silent example/template fallbacks, dead compatibility branches, and host-specific hacks; cross-check [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md) and [AGENTS.md](AGENTS.md) fail-loud rules.
-- [ ] **Remediation checkpoint** — fix or explicitly ticket each finding; optional `docs/LEGACY-AUDIT.md` snapshot if the list is large.
+- [x] **Fleet sync** — bring all 3 remote beta sites to latest published build; record build number, update date, and per-site smoke results. *(Confirmed 2026-07-15: all sites on build 332.)*
+- [x] **Legacy path inventory** — audit code + docs for removed or renamed artifacts (`play/playlist.json`, `data/themes/`, folder-category media paths, stale `theme-*` operator surfaces, validation report fallbacks past migration window). *(2026-07-15: see [LEGACY-AUDIT.md](LEGACY-AUDIT.md).)*
+- [x] **Fallback + hack audit** — grep and manual pass for silent example/template fallbacks, dead compatibility branches, and host-specific hacks; cross-check [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md) and [AGENTS.md](AGENTS.md) fail-loud rules. *(2026-07-15 remediation pass.)*
+- [x] **Remediation checkpoint** — fix or explicitly ticket each finding; `docs/LEGACY-AUDIT.md` snapshot added 2026-07-15.
 
 ### Content AI wizards (v0.8)
 
@@ -349,7 +349,7 @@ Scope: runtime sturdiness and safe delivery. Put items here only when they affec
 - [x] Review remaining known issues in admin, build, auth, and player flow.
 - [x] Confirm media upload -> build -> playback works end to end after recent cleanup.
 - [x] Ensure that local user-specific files (e.g. configuration, uploaded media, personal data) are never overwritten by the repo during git pull, and are never committed back into the repository.
-- [x] Enforce strict setup seeding for required runtime files (`web-config.json`, `data/gallery.json`, and `data/pages/*.json`) from tracked templates.
+- [x] Enforce strict setup seeding for required runtime files (`web-config.json` and `data/pages/*.json`) from tracked templates. Gallery containers seed via `data/galleries/` (not legacy `data/gallery.json`).
 - [x] Remove silent runtime fallbacks for required content/config files and fail with actionable errors.
 - [x] Remove quiz from the required core player flow so non-core features cannot destabilize playback.
 - [ ] Add a pre-publish release guard: verify every `require_once` / `require` target in `admin.php` and other shipped entrypoints (`index.php`, `play/index.php`, `setup.php`) resolves to a **git-tracked** file before **Publish release package** runs (would have blocked builds 290–291 blank-admin incident).

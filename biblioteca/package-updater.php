@@ -365,6 +365,37 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
     ];
 }
 
+function bandpromo_package_update_cache_path(string $root): string
+{
+    return $root . '/log/package-update-cache.json';
+}
+
+function bandpromo_package_check_update_cached(string $root, int $ttlSeconds = 900, bool $forceRefresh = false): array
+{
+    $cachePath = bandpromo_package_update_cache_path($root);
+    if (!$forceRefresh && is_file($cachePath)) {
+        $decoded = json_decode((string) file_get_contents($cachePath), true);
+        if (is_array($decoded) && is_array($decoded['result'] ?? null)) {
+            $checkedAt = strtotime((string) ($decoded['checked_at_utc'] ?? ''));
+            if ($checkedAt !== false && (time() - $checkedAt) < $ttlSeconds) {
+                return $decoded['result'];
+            }
+        }
+    }
+
+    $result = bandpromo_package_check_update($root);
+    $cacheDir = dirname($cachePath);
+    if (!is_dir($cacheDir)) {
+        mkdir($cacheDir, 0750, true);
+    }
+    file_put_contents($cachePath, json_encode([
+        'checked_at_utc' => gmdate('c'),
+        'result' => $result,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    return $result;
+}
+
 function bandpromo_package_apply_release(string $root, array $manifest): array {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('ZipArchive is not available on this host.');

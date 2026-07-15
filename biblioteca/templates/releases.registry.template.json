@@ -10,10 +10,9 @@
         },
         {
             "id": "primary",
-            "title": "Primary Release",
+            "title": "Default release",
             "slug": "primary",
-            "sort_order": 10,
-            "system": true
+            "sort_order": 10
         }
     ]
 }

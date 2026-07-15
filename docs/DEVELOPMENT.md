@@ -133,10 +133,12 @@ The bootstrap installer and admin **Site update** both rely on the published `re
 First-time setup depends on tracked templates and examples being copied into runtime-managed locations. For the current seeded setup flow, the important tracked sources include:
 
 - `biblioteca/templates/web-config.template.json`
-- `biblioteca/templates/gallery.template.json`
+- `biblioteca/templates/default.release.template.json`
 - `biblioteca/templates/bio.template.json`
 - `biblioteca/templates/faq.template.json`
 - `.env.example`
+
+Legacy import shapes (not seeded on fresh installs) live under `biblioteca/templates/legacy/`.
 
 ## Related Docs
 

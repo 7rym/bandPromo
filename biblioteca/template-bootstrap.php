@@ -21,11 +21,6 @@ function bandpromo_template_map(): array {
             'target' => $root . '/web-config.json',
             'kind' => 'json',
         ],
-        [
-            'template' => $root . '/biblioteca/templates/gallery.template.json',
-            'target' => $root . '/data/gallery.json',
-            'kind' => 'json',
-        ],
     ];
 }
 

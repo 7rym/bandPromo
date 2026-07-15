@@ -78,25 +78,7 @@ function bandpromo_cover_art_load_playlist_context(string $root): array
         'configured_in_use' => false,
     ];
 
-    $validation_file = is_file($root . '/data/validation/playlist-validation.json')
-        ? $root . '/data/validation/playlist-validation.json'
-        : $root . '/play/playlist-validation.json';
-    $validation_map = [];
-    if (is_file($validation_file)) {
-        $validation_decoded = json_decode(file_get_contents($validation_file) ?: '[]', true);
-        if (is_array($validation_decoded) && is_array($validation_decoded['tracks'] ?? null)) {
-            foreach ($validation_decoded['tracks'] as $track) {
-                if (!is_array($track)) {
-                    continue;
-                }
-                $file = trim((string) ($track['file'] ?? ''));
-                if ($file === '') {
-                    continue;
-                }
-                $validation_map[$file] = strtolower(trim((string) ($track['coverSource'] ?? '')));
-            }
-        }
-    }
+    $validation_map = bandpromo_playlist_cover_source_validation_map($root);
 
     foreach (bandpromo_playlist_merged_built_track_map($root) as $audioFile => $track) {
         if (!is_array($track)) {
@@ -329,10 +311,10 @@ function bandpromo_cover_art_collect_references(string $root, string $filename):
     return $references;
 }
 
-function bandpromo_cover_art_describe_file(string $root, string $filename): array
+function bandpromo_cover_art_describe_file(string $root, string $filename, ?array $playlistContext = null): array
 {
     $safe = basename($filename);
-    $playlistContext = bandpromo_cover_art_load_playlist_context($root);
+    $playlistContext = is_array($playlistContext) ? $playlistContext : bandpromo_cover_art_load_playlist_context($root);
     $manifest = bandpromo_cover_art_manifest_record($safe);
     $role = $manifest['role'] !== '' ? $manifest['role'] : bandpromo_cover_art_infer_role($safe, $playlistContext);
     $origin = bandpromo_cover_art_infer_origin($safe, $manifest, $role);

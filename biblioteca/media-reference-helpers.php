@@ -75,13 +75,21 @@ function bandpromo_media_reference_gallery_matches_target(string $target, string
 
 function bandpromo_media_reference_collect_gallery_references(string $root, string $target, string $filename): array
 {
+    $index = bandpromo_media_reference_build_gallery_index($root, $target);
+    $safe = basename($filename);
+
+    return $index[$safe] ?? [];
+}
+
+function bandpromo_media_reference_build_gallery_index(string $root, string $target): array
+{
     require_once __DIR__ . '/gallery-storage.php';
-    $references = [];
+    $index = [];
 
     try {
         bandpromo_gallery_ensure_seeded($root);
     } catch (Throwable $throwable) {
-        return $references;
+        return $index;
     }
 
     foreach (bandpromo_gallery_registry_entries($root) as $registryEntry) {
@@ -97,20 +105,34 @@ function bandpromo_media_reference_collect_gallery_references(string $root, stri
         }
 
         foreach ($items as $item) {
-            if (!is_array($item) || !bandpromo_media_reference_gallery_matches_target($target, $filename, $item)) {
+            if (!is_array($item)) {
                 continue;
             }
 
-            $references[] = [
+            $src = trim((string) ($item['src'] ?? ''));
+            if ($src === '') {
+                continue;
+            }
+
+            $basename = basename($src);
+            if ($basename === '' || !bandpromo_media_reference_gallery_matches_target($target, $basename, $item)) {
+                continue;
+            }
+
+            if (!isset($index[$basename])) {
+                $index[$basename] = [];
+            }
+
+            $index[$basename][] = [
                 'scope' => 'gallery',
                 'kind' => 'gallery-item',
-                'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $filename)) ?: $filename,
+                'label' => trim((string) ($item['name'] ?? $item['alt'] ?? $basename)) ?: $basename,
                 'gallery_id' => $galleryId,
             ];
         }
     }
 
-    return $references;
+    return $index;
 }
 
 function bandpromo_media_reference_config_entries(string $target): array
@@ -170,7 +192,7 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
     return $references;
 }
 
-function bandpromo_media_reference_collect_references(string $root, string $target, string $filename): array
+function bandpromo_media_reference_collect_references(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null): array
 {
     if ($target === 'illustrations') {
         return bandpromo_cover_art_collect_references($root, $filename);
@@ -181,7 +203,11 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
         return [];
     }
 
-    $references = bandpromo_media_reference_collect_gallery_references($root, $target, $safe);
+    if (is_array($galleryReferenceIndex)) {
+        $references = $galleryReferenceIndex[$safe] ?? [];
+    } else {
+        $references = bandpromo_media_reference_collect_gallery_references($root, $target, $safe);
+    }
     foreach (bandpromo_media_reference_collect_config_references($root, $target, $safe) as $reference) {
         $references[] = $reference;
     }
@@ -189,10 +215,10 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
     return $references;
 }
 
-function bandpromo_media_reference_describe_file(string $root, string $target, string $filename): array
+function bandpromo_media_reference_describe_file(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null, ?array $playlistCoverContext = null): array
 {
     if ($target === 'illustrations') {
-        $coverInfo = bandpromo_cover_art_describe_file($root, $filename);
+        $coverInfo = bandpromo_cover_art_describe_file($root, $filename, $playlistCoverContext);
         return [
             'filename' => (string) ($coverInfo['filename'] ?? basename($filename)),
             'role' => (string) ($coverInfo['role'] ?? ''),
@@ -207,7 +233,7 @@ function bandpromo_media_reference_describe_file(string $root, string $target, s
     }
 
     $safe = basename($filename);
-    $references = bandpromo_media_reference_collect_references($root, $target, $safe);
+    $references = bandpromo_media_reference_collect_references($root, $target, $safe, $galleryReferenceIndex);
     $orphan = $references === [] && !bandpromo_media_is_bundled_placeholder($safe);
 
     return [
