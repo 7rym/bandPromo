@@ -447,6 +447,20 @@ body.debug-modal-open {
     transition: transform 0.2s ease;
 }
 
+.cover-art-video {
+    z-index: 2;
+}
+
+.cover-art-video[hidden] {
+    display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cover-art-video {
+        display: none !important;
+    }
+}
+
 /* Reflection under the image */
 .reflection {
     content: "";
@@ -679,8 +693,90 @@ button.pulse-guide {
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
     transition: opacity 0.3s;
-    white-space: pre-wrap;
     display: none;
+}
+
+.player-markdown {
+    text-align: left;
+    font-style: normal;
+    color: inherit;
+}
+
+.player-markdown--lyrics {
+    text-align: center;
+    font-style: italic;
+}
+
+.player-markdown p {
+    margin: 0 0 0.75em;
+}
+
+.player-markdown p:last-child {
+    margin-bottom: 0;
+}
+
+.player-markdown h1,
+.player-markdown h2,
+.player-markdown h3,
+.player-markdown h4,
+.player-markdown h5,
+.player-markdown h6 {
+    margin: 0 0 0.5em;
+    color: var(--primary-color);
+    font-style: normal;
+}
+
+.player-markdown ul,
+.player-markdown ol {
+    margin: 0 0 0.75em;
+    padding-left: 1.25em;
+}
+
+.player-markdown blockquote {
+    margin: 0 0 0.75em;
+    padding-left: 0.75em;
+    border-left: 2px solid var(--primary-a40);
+    color: #bbb;
+}
+
+.player-markdown code {
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 0.92em;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+}
+
+.player-markdown pre {
+    margin: 0 0 0.75em;
+    padding: 0.75em;
+    overflow-x: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+}
+
+.player-markdown pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.player-markdown a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.player-markdown hr {
+    border: 0;
+    border-top: 1px solid var(--primary-a20);
+    margin: 0.75em 0;
+}
+
+.playlist-track-description.player-markdown-host {
+    font-style: normal;
+}
+
+.playlist-track-description .player-markdown {
+    font-size: inherit;
 }
 
 .lyrics-box.active {

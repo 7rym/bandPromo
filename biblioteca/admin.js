@@ -2717,6 +2717,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
                             syncAudioMasterCoverUi(activeAudioMasterDetail || {});
                         }
+                        if (mediaPickerState.fieldId === 'audioMasterFieldLivingCoverPath') {
+                            setAudioMasterLivingCoverMode('set');
+                            syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
+                        }
                         closeMediaPickerModal();
                     }
                 });
@@ -2828,6 +2832,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioMasterCoverPlaceholder = document.getElementById('audioMasterCoverPlaceholder');
             const audioMasterCoverPath = document.getElementById('audioMasterFieldCoverPath');
             const audioMasterCoverClearBtn = document.getElementById('audioMasterCoverClearBtn');
+            const audioMasterLivingCoverPath = document.getElementById('audioMasterFieldLivingCoverPath');
+            const audioMasterLivingCoverClearBtn = document.getElementById('audioMasterLivingCoverClearBtn');
+            const audioMasterLivingCoverPreview = document.getElementById('audioMasterLivingCoverPreview');
+            const audioMasterLivingCoverPreviewShell = document.getElementById('audioMasterLivingCoverPreviewShell');
+            const audioMasterLivingCoverPlaceholder = document.getElementById('audioMasterLivingCoverPlaceholder');
+            const audioMasterLivingCoverStatus = document.getElementById('audioMasterLivingCoverStatus');
             const audioMasterDescriptionCount = document.getElementById('audioMasterDescriptionCount');
             const audioMasterVersionField = document.getElementById('audioMasterFieldVersion');
             const audioMasterForm = document.getElementById('audioMasterForm');
@@ -2836,6 +2846,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let activeAudioMasterFile = null;
             let activeAudioMasterDetail = null;
             let audioMasterCoverMode = 'preserve';
+            let audioMasterLivingCoverMode = 'preserve';
 
             const audioMasterFields = {
                 title: document.getElementById('audioMasterFieldTitle'),
@@ -2869,6 +2880,84 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     audioMasterCoverPath.dataset.emptyLabel = audioMasterCoverMode === 'clear'
                         ? 'Configured release cover will be used after save'
                         : 'No new cover selected';
+                }
+            }
+
+            function setAudioMasterLivingCoverMode(mode, options = {}) {
+                audioMasterLivingCoverMode = mode === 'set' || mode === 'clear' ? mode : 'preserve';
+                if (audioMasterLivingCoverPath) {
+                    audioMasterLivingCoverPath.dataset.emptyLabel = audioMasterLivingCoverMode === 'clear'
+                        ? 'Living cover will be removed after save'
+                        : 'No living cover assigned';
+                }
+            }
+
+            function audioMasterLivingCoverPreviewUrl(detail) {
+                const selected = audioMasterLivingCoverPath ? String(audioMasterLivingCoverPath.value || '').trim() : '';
+                if (selected) {
+                    return selected;
+                }
+                if (detail && detail.living_cover_preview_url) {
+                    return String(detail.living_cover_preview_url);
+                }
+                return '';
+            }
+
+            function syncAudioMasterLivingCoverUi(detail) {
+                const data = detail || activeAudioMasterDetail || {};
+                const previewUrl = audioMasterLivingCoverPreviewUrl(data);
+                const statusParts = [];
+                const hasAssigned = String(data.living_cover || '').trim() !== ''
+                    || (audioMasterLivingCoverPath && String(audioMasterLivingCoverPath.value || '').trim() !== '');
+
+                if (audioMasterLivingCoverMode === 'clear') {
+                    statusParts.push('Removed when you save.');
+                } else if (hasAssigned && !previewUrl) {
+                    statusParts.push('Publish required before preview and player loop.');
+                } else if (hasAssigned && data.living_cover_delivery_pending) {
+                    statusParts.push('Publish required before player loop.');
+                }
+
+                if (audioMasterLivingCoverPreviewShell) {
+                    const tooltipParts = ['Optional silent loop on the player flip-card cover.'];
+                    if (audioMasterLivingCoverMode === 'clear') {
+                        tooltipParts.push('Living cover will be removed when you save.');
+                    } else if (hasAssigned && data.living_cover_delivery_ready) {
+                        tooltipParts.push('Delivery MP4 is ready.');
+                    } else if (hasAssigned) {
+                        tooltipParts.push('Waiting for video delivery.');
+                    }
+                    audioMasterLivingCoverPreviewShell.title = tooltipParts.join(' ');
+                }
+
+                if (audioMasterLivingCoverStatus) {
+                    audioMasterLivingCoverStatus.textContent = statusParts.join(' ');
+                }
+
+                if (!audioMasterLivingCoverPreview) {
+                    return;
+                }
+
+                if (previewUrl && audioMasterLivingCoverMode !== 'clear') {
+                    if (audioMasterLivingCoverPreview.dataset.src !== previewUrl) {
+                        audioMasterLivingCoverPreview.dataset.src = previewUrl;
+                        audioMasterLivingCoverPreview.src = previewUrl;
+                    }
+                    audioMasterLivingCoverPreview.style.display = 'block';
+                    audioMasterLivingCoverPreview.play().catch(() => {});
+                } else {
+                    audioMasterLivingCoverPreview.pause();
+                    audioMasterLivingCoverPreview.removeAttribute('src');
+                    delete audioMasterLivingCoverPreview.dataset.src;
+                    audioMasterLivingCoverPreview.style.display = 'none';
+                }
+
+                if (audioMasterLivingCoverPlaceholder) {
+                    const showPlaceholder = audioMasterLivingCoverMode === 'clear' || !previewUrl;
+                    audioMasterLivingCoverPlaceholder.style.display = showPlaceholder ? 'block' : 'none';
+                    audioMasterLivingCoverPlaceholder.textContent = audioMasterLivingCoverMode === 'clear'
+                        ? 'Will use still cover only'
+                        : 'No living cover';
                 }
             }
 
@@ -2926,6 +3015,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             async function persistAudioMasterMetadata(filename, fields, options = {}) {
                 const coverPath = String(options.cover_path || '').trim();
                 const coverMode = String(options.cover_mode || 'preserve');
+                const livingCoverPath = String(options.living_cover_path || '').trim();
+                const livingCoverMode = String(options.living_cover_mode || 'preserve');
 
                 const saveMetadata = async (csrfToken) => {
                     const resp = await fetch('/biblioteca/save-audio-master-detail.php', {
@@ -2936,6 +3027,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             fields,
                             cover_path: coverPath,
                             cover_mode: coverMode,
+                            living_cover_path: livingCoverPath,
+                            living_cover_mode: livingCoverMode,
                             csrf_token: csrfToken,
                         }),
                     });
@@ -2966,6 +3059,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setAudioMasterCoverMode('preserve');
                     if (audioMasterCoverPath) {
                         setPickerFieldValue('audioMasterFieldCoverPath', '');
+                    }
+                    setAudioMasterLivingCoverMode('preserve');
+                    if (audioMasterLivingCoverPath) {
+                        setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
                     }
                     setAudioMasterSummary(detail);
                     setAudioMasterFormValues(detail);
@@ -3194,6 +3291,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 if (audioMasterCoverPlaceholder) {
                     audioMasterCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
+                    if (!previewUrl) {
+                        audioMasterCoverPlaceholder.textContent = 'No cover';
+                    }
                 }
             }
 
@@ -3221,6 +3321,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (audioMasterBitDepth) audioMasterBitDepth.textContent = detail.bit_depth ? `${detail.bit_depth}-bit` : '—';
                 if (audioMasterFilesize) audioMasterFilesize.textContent = detail.file_size_bytes ? fmtSize(detail.file_size_bytes) : '—';
                 syncAudioMasterCoverUi(detail);
+                syncAudioMasterLivingCoverUi(detail);
             }
 
             function setAudioMasterFormValues(detail) {
@@ -3250,6 +3351,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (audioMasterCoverPath) {
                     setPickerFieldValue('audioMasterFieldCoverPath', '');
                 }
+                setAudioMasterLivingCoverMode('preserve');
+                if (audioMasterLivingCoverPath) {
+                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
+                }
                 try {
                     const data = await fetchAudioMasterDetailData(filename);
                     audioInlineDetailCache.set(filename, data);
@@ -3273,6 +3378,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (audioMasterCoverPath) {
                     setPickerFieldValue('audioMasterFieldCoverPath', '');
                 }
+                setAudioMasterLivingCoverMode('preserve');
+                if (audioMasterLivingCoverPath) {
+                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
+                }
                 setAudioMasterSummary({});
                 setAudioMasterFormValues({});
                 loadAudioMasterDetails(filename);
@@ -3285,6 +3394,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 setAudioMasterCoverMode('preserve');
                 if (audioMasterCoverPath) {
                     setPickerFieldValue('audioMasterFieldCoverPath', '');
+                }
+                setAudioMasterLivingCoverMode('preserve');
+                if (audioMasterLivingCoverPath) {
+                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
                 }
                 if (audioMasterForm) audioMasterForm.reset();
                 setAudioMasterSummary({});
@@ -3307,6 +3420,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     setAudioMasterCoverMode('clear');
                     syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                });
+            }
+
+            if (audioMasterLivingCoverPath) {
+                audioMasterLivingCoverPath.addEventListener('input', () => {
+                    if (audioMasterLivingCoverMode !== 'clear') {
+                        setAudioMasterLivingCoverMode(String(audioMasterLivingCoverPath.value || '').trim() !== '' ? 'set' : 'preserve', { refreshLabel: false });
+                    }
+                    syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
+                });
+            }
+
+            if (audioMasterLivingCoverClearBtn) {
+                audioMasterLivingCoverClearBtn.addEventListener('click', () => {
+                    if (audioMasterLivingCoverPath) {
+                        audioMasterLivingCoverPath.value = '';
+                    }
+                    setAudioMasterLivingCoverMode('clear');
+                    syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
                 });
             }
 
@@ -3617,6 +3749,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const data = await persistAudioMasterMetadata(activeAudioMasterFile, fields, {
                             cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
                             cover_mode: audioMasterCoverMode,
+                            living_cover_path: audioMasterLivingCoverPath ? String(audioMasterLivingCoverPath.value || '').trim() : '',
+                            living_cover_mode: audioMasterLivingCoverMode,
                         });
                         await handleAudioMetadataSaveResult(activeAudioMasterFile, data);
                     } catch (error) {

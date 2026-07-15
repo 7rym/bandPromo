@@ -7,7 +7,7 @@ from pathlib import Path
 
 from mutagen import File
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, USLT
+from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, TXXX, USLT
 
 
 if hasattr(sys.stdout, 'reconfigure'):
@@ -22,6 +22,7 @@ AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 IMG_ORIG_DIR = ROOT_DIR / 'media' / 'img' / 'original'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
+LIVING_COVER_TAG = 'BANDPROMO_LIVING_COVER'
 
 
 def respond(payload, exit_code=0):
@@ -157,6 +158,47 @@ def read_mp3_lyrics(tags):
     return ''
 
 
+def read_living_cover_value(tags, audio=None):
+    if audio is not None:
+        text = read_text_tag(audio, LIVING_COVER_TAG)
+        if text != '':
+            return text
+
+    for key in tags.keys():
+        if not str(key).startswith('TXXX'):
+            continue
+        frame = tags[key]
+        desc = str(getattr(frame, 'desc', '') or '').strip()
+        if desc != LIVING_COVER_TAG:
+            continue
+        text = getattr(frame, 'text', [])
+        if isinstance(text, list) and text:
+            return str(text[0]).strip()
+        return str(text).strip()
+    return ''
+
+
+def set_living_cover_tag(tags, audio, value):
+    normalized = str(value or '').strip()
+    if audio is not None:
+        if normalized == '':
+            if LIVING_COVER_TAG in audio:
+                del audio[LIVING_COVER_TAG]
+        else:
+            audio[LIVING_COVER_TAG] = [normalized]
+
+    for key in list(tags.keys()):
+        if not str(key).startswith('TXXX'):
+            continue
+        frame = tags[key]
+        desc = str(getattr(frame, 'desc', '') or '').strip()
+        if desc == LIVING_COVER_TAG:
+            del tags[key]
+
+    if normalized != '':
+        tags.add(TXXX(encoding=3, desc=LIVING_COVER_TAG, text=[normalized]))
+
+
 def inspect_flac(path, audio):
     embedded_cover_present = bool(getattr(audio, 'pictures', None))
     return {
@@ -171,6 +213,7 @@ def inspect_flac(path, audio):
         'genre': read_text_tag(audio, 'genre', 'GENRE'),
         'comment': read_text_tag(audio, 'description', 'DESCRIPTION', 'comment', 'COMMENT'),
         'lyrics': read_flac_lyrics(audio),
+        'living_cover': read_text_tag(audio, LIVING_COVER_TAG),
         'embedded_cover_present': embedded_cover_present,
     }
 
@@ -200,6 +243,7 @@ def inspect_mp3(path):
         'genre': read_text_tag(tags, 'TCON'),
         'comment': comment_text,
         'lyrics': read_mp3_lyrics(tags),
+        'living_cover': read_living_cover_value(tags),
         'embedded_cover_present': embedded_cover_present,
     }
 
@@ -261,6 +305,7 @@ def update_flac(path, fields):
     genre = normalize_field_text(fields, 'genre')
     comment = normalize_field_text(fields, 'comment')
     lyrics = normalize_field_text(fields, 'lyrics')
+    living_cover = normalize_field_text(fields, 'living_cover')
 
     set_field('title', title)
     set_field('artist', artist)
@@ -287,6 +332,12 @@ def update_flac(path, fields):
         audio['lyrics'] = [lyrics]
         audio['unsyncedlyrics'] = [lyrics]
 
+    if living_cover == '':
+        if LIVING_COVER_TAG in audio:
+            del audio[LIVING_COVER_TAG]
+    else:
+        audio[LIVING_COVER_TAG] = [living_cover]
+
     audio.save()
 
 
@@ -312,6 +363,7 @@ def update_mp3(path, fields):
     genre = normalize_field_text(fields, 'genre')
     comment = normalize_field_text(fields, 'comment')
     lyrics = normalize_field_text(fields, 'lyrics')
+    living_cover = normalize_field_text(fields, 'living_cover')
 
     set_id3_text_frame(tags, 'TIT2', TIT2, title)
     set_id3_text_frame(tags, 'TPE1', TPE1, artist)
@@ -329,6 +381,8 @@ def update_mp3(path, fields):
     tags.delall('USLT')
     if lyrics != '':
         tags.add(USLT(encoding=3, lang='eng', desc='', text=lyrics))
+
+    set_living_cover_tag(tags, None, living_cover)
 
     tags.save(str(path), v2_version=3)
 

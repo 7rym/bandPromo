@@ -8,6 +8,7 @@ require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/publish-status-helpers.php';
 require_once __DIR__ . '/demo-catalog-state.php';
+require_once __DIR__ . '/living-cover-helpers.php';
 
 const BANDPROMO_PLAYLIST_REGISTRY_VERSION = 1;
 const BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo';
@@ -850,6 +851,7 @@ function bandpromo_playlist_build_php_track_entry(string $root, string $filename
         'lyrics' => '',
         'description' => '',
         'cover' => '',
+        'living_cover' => '',
     ];
 }
 
@@ -1357,6 +1359,11 @@ function bandpromo_playlist_enrich_tracks_for_player(
             $embargoPlayable
         );
 
+        $livingCover = bandpromo_living_cover_normalize_video_filename((string) ($track['living_cover'] ?? ''));
+        $animatedCover = $livingCover !== ''
+            ? bandpromo_living_cover_player_url($root, $livingCover)
+            : '';
+
         $enriched[] = array_merge($track, [
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => $releaseId,
@@ -1367,6 +1374,7 @@ function bandpromo_playlist_enrich_tracks_for_player(
             'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),
             'playable' => (bool) ($streamState['playable'] ?? false),
             'lock_reason' => (string) ($streamState['lock_reason'] ?? ''),
+            'animated_cover' => $animatedCover,
         ]);
     }
 

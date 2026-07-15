@@ -170,6 +170,48 @@ Implementation order:
 - [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest.
 - [ ] **Phase 3 — Files → Visual** — single tab with brand/role/type filters; context pickers; variant gating in Content pools.
 
+### Player Markdown (closed-beta feedback)
+
+Policy locked 2026-07-15 — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Player text (Markdown).
+
+Policy — **locked**:
+
+- [x] Lock **Markdown for player-shell text** — lyrics, track descriptions, release/playlist `description`, and EPK `credits` when shown in player surfaces; not page richtext blocks.
+- [x] Lock **plain-text storage** — source remains Markdown/plain UTF-8 in existing fields and master tags; no HTML baked into FLAC/ID3 or delivery MP3s.
+- [x] Lock **render at output** — restricted Markdown → sanitized HTML in player only; share/OG fields strip Markdown to plain text.
+- [x] Lock **lyrics line breaks** — single newlines render as hard breaks (lyrics mode); do not require blank-line paragraphs.
+- [x] Lock **plain fields unchanged** — `short_description`, titles, tagline, genre, and page HTML blocks stay non-Markdown.
+
+Implementation order:
+
+- [x] **Shared Markdown renderer** — restricted subset + sanitizer (reuse admin docs renderer spirit); PHP for server paths, JS for player.
+- [x] **Player lyrics panel** — replace `innerText` with sanitized Markdown HTML; lyrics-mode line breaks.
+- [x] **Playlist track descriptions** — sanitize/render Markdown; close unescaped `innerHTML` path in `player.js`.
+- [ ] **Container descriptions in player** — render release/playlist `description` (and EPK `credits` when surfaced) when those UI surfaces ship or expand.
+- [x] **Admin hints** — "Markdown supported" on lyrics, track description, release/playlist description textareas.
+- [x] **OG/share strip helper** — plain-text fallback when Markdown fields feed meta tags.
+
+### Animated track covers / living cover (closed-beta feedback)
+
+Policy locked 2026-07-15 — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Animated track covers (living cover).
+
+Policy — **locked**:
+
+- [x] Lock **operator assignment** — track editor living-cover picker (Files → Video).
+- [x] Lock **master tag storage** — `BANDPROMO_LIVING_COVER` in ID3 `TXXX` / FLAC Vorbis; value = video original filename.
+- [x] Lock **no stem guessing** — explicit assignment only; no sidecar filename pairing.
+- [x] Lock **loop on main card only** — silent muted loop; reflection stays static image.
+- [x] Lock **delivery MP4 only** — player uses optimal MP4 after Publish.
+- [x] Lock **reduced motion** — respect `prefers-reduced-motion`; pause when document hidden.
+
+Implementation order:
+
+- [x] **Master tag read/write** — `audioMasterMetadata.py`, `makePlaylists.py`, `playlistTrackEntries.py`.
+- [x] **Resolve helper** — `living-cover-helpers.php`; player payload `animated_cover` from `living_cover` tag.
+- [x] **Track editor UI** — living cover picker + preview + save/clear modes.
+- [x] **Player loop** — existing `<video>` on flip-card cover.
+- [ ] **Visual registry IDs (deferred)** — store visual asset id instead of video filename when Visual pool ships.
+
 ### Beta fleet sync + legacy audit gate (v0.8 exit)
 
 **Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.

@@ -1576,6 +1576,7 @@ if ($tab === 'analytics') {
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Description</span>
                                                 <textarea id="releaseSettingsDescription" rows="3" maxlength="4000" placeholder="Press blurb or release summary" autocomplete="off"></textarea>
+                                                <div class="field-note">Markdown supported (headings, emphasis, lists, links).</div>
                                             </label>
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Short description</span>
@@ -1593,6 +1594,7 @@ if ($tab === 'analytics') {
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Credits</span>
                                                 <textarea id="releaseSettingsCredits" rows="3" maxlength="4000" autocomplete="off"></textarea>
+                                                <div class="field-note">Markdown supported when shown in player surfaces.</div>
                                             </label>
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Press contact</span>
@@ -1753,6 +1755,7 @@ if ($tab === 'analytics') {
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Description</span>
                                                 <textarea id="playlistSettingsDescription" rows="3" maxlength="4000" placeholder="Campaign summary or listening notes" autocomplete="off"></textarea>
+                                                <div class="field-note">Markdown supported (headings, emphasis, lists, links).</div>
                                             </label>
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Short description</span>
@@ -3077,48 +3080,69 @@ if ($tab === 'analytics') {
     </div>
 
     <div id="audioMasterModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAudioMasterModal()">
-        <div class="modal-box modal-wide">
+        <div class="modal-box modal-wide audio-master-modal">
             <button class="modal-close" onclick="closeAudioMasterModal()">✕</button>
-            <h3 id="audioMasterTitle">Track details</h3>
-            <p class="card-note" id="audioMasterSubtitle">Update the track details shown on the site.</p>
+            <header class="audio-master-modal-header">
+                <h3 id="audioMasterTitle">Track details</h3>
+            </header>
 
-            <div class="audio-master-cover-layout">
-                <div class="audio-master-cover-preview-shell">
-                    <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
-                        <div class="audio-master-cover-overlay-actions">
-                            <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose cover">✎</button>
-                            <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use release cover" aria-label="Use release cover">↺</button>
+            <div class="audio-master-hero">
+                <div class="audio-master-cover-duo">
+                    <div class="audio-master-cover-card">
+                        <span class="audio-master-cover-card-label">Still cover</span>
+                        <div class="audio-master-cover-preview-shell">
+                            <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
+                                <div class="audio-master-cover-overlay-actions">
+                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose cover">✎</button>
+                                    <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use release cover" aria-label="Use release cover">↺</button>
+                                </div>
+                                <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
+                                <span id="audioMasterCoverPlaceholder" class="audio-master-cover-placeholder">No cover</span>
+                            </div>
                         </div>
-                        <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
-                        <span id="audioMasterCoverPlaceholder">No cover available</span>
+                    </div>
+                    <div class="audio-master-cover-card">
+                        <span class="audio-master-cover-card-label">Living cover</span>
+                        <div class="audio-master-cover-preview-shell">
+                            <div class="audio-master-cover-preview" id="audioMasterLivingCoverPreviewShell">
+                                <div class="audio-master-cover-overlay-actions">
+                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldLivingCoverPath" data-title="Choose living cover video" data-targets="video" title="Choose living cover" aria-label="Choose living cover">✎</button>
+                                    <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterLivingCoverClearBtn" title="Clear living cover" aria-label="Clear living cover">↺</button>
+                                </div>
+                                <video id="audioMasterLivingCoverPreview" class="audio-master-living-cover-preview" muted loop playsinline preload="metadata" style="display:none;"></video>
+                                <span id="audioMasterLivingCoverPlaceholder" class="audio-master-cover-placeholder">No living cover</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="audio-master-summary" id="audioMasterSummary">
+                <p class="field-note audio-master-cover-duo-status" id="audioMasterLivingCoverStatus"></p>
+
+                <div class="audio-master-summary audio-master-summary-compact" id="audioMasterSummary">
                     <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Track #</span>
                         <strong id="audioMasterTracknumber">—</strong>
                     </div>
-                    <div class="audio-master-stat">
+                    <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Duration</span>
                         <strong id="audioMasterDuration">—</strong>
                     </div>
-                    <div class="audio-master-stat">
+                    <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Format</span>
                         <strong id="audioMasterFormat">—</strong>
                     </div>
-                    <div class="audio-master-stat">
+                    <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Bitrate</span>
                         <strong id="audioMasterBitrate">—</strong>
                     </div>
-                    <div class="audio-master-stat">
+                    <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Sample rate</span>
                         <strong id="audioMasterSampleRate">—</strong>
                     </div>
-                    <div class="audio-master-stat">
+                    <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Bit depth</span>
                         <strong id="audioMasterBitDepth">—</strong>
                     </div>
-                    <div class="audio-master-stat">
+                    <div class="audio-master-stat audio-master-stat-compact">
                         <span class="audio-master-stat-label">Filesize</span>
                         <strong id="audioMasterFilesize">—</strong>
                     </div>
@@ -3126,6 +3150,7 @@ if ($tab === 'analytics') {
             </div>
 
             <input type="hidden" id="audioMasterFieldCoverPath" name="cover_path" data-empty-label="No new cover selected">
+            <input type="hidden" id="audioMasterFieldLivingCoverPath" data-empty-label="No living cover assigned">
 
             <form id="audioMasterForm">
                 <div class="audio-master-form-grid audio-master-form-grid-compact">
@@ -3170,11 +3195,15 @@ if ($tab === 'analytics') {
                 <div class="form-group">
                     <label for="audioMasterFieldComment">Track description</label>
                     <textarea id="audioMasterFieldComment" name="comment" rows="4" maxlength="300"></textarea>
-                    <div class="field-note audio-master-description-note"><span id="audioMasterDescriptionCount">0</span>/300 characters</div>
+                    <div class="audio-master-description-meta">
+                        <span class="field-note">Markdown supported in the player playlist view.</span>
+                        <span class="field-note"><span id="audioMasterDescriptionCount">0</span>/300 characters</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="audioMasterFieldLyrics">Lyrics</label>
                     <textarea id="audioMasterFieldLyrics" name="lyrics" rows="8"></textarea>
+                    <div class="field-note">Markdown supported. Single line breaks are preserved in the lyrics panel.</div>
                 </div>
             </form>
 

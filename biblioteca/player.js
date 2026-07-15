@@ -6,6 +6,43 @@ let brandStylesById = {};
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
 const IMAGE_PATH_VARIANT = 'optimal';
 
+function playerMarkdownApi() {
+    return window.bandpromoPlayerMarkdown || null;
+}
+
+function escapePlayerHtml(text) {
+    const api = playerMarkdownApi();
+    if (api && typeof api.escapeHtml === 'function') {
+        return api.escapeHtml(text);
+    }
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderPlayerMarkdown(text, mode) {
+    const api = playerMarkdownApi();
+    if (!api || typeof api.render !== 'function') {
+        return escapePlayerHtml(text);
+    }
+    return api.render(text, { mode: mode || 'default' });
+}
+
+function setPlayerMarkdownHtml(element, text, mode) {
+    if (!element) {
+        return;
+    }
+    const rendered = renderPlayerMarkdown(text, mode);
+    if (rendered === '') {
+        element.innerHTML = '';
+        return;
+    }
+    element.innerHTML = rendered;
+}
+
 // Path helpers — use window.MEDIA_AUDIO_BASE / window.MEDIA_IMG_BASE when set
 // (new /play/ structure), otherwise fall back to old sibling-folder relative paths.
 function resolveAudioDeliveryFilename(filename) {
@@ -70,6 +107,10 @@ function buildCoverUrlCandidates(rawCoverPath) {
     return candidates.filter((url, index, list) => list.indexOf(url) === index);
 }
 
+function prefersReducedMotion() {
+    return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
 function setImageWithFallback(image, rawCoverPath) {
     if (!image) return;
     const candidates = buildCoverUrlCandidates(rawCoverPath);
@@ -92,6 +133,108 @@ function setImageWithFallback(image, rawCoverPath) {
     };
 
     tryNext();
+}
+
+function pauseCoverVideo() {
+    if (!coverVideo) {
+        return;
+    }
+    coverVideo.pause();
+}
+
+function playCoverVideoIfReady() {
+    if (!coverVideo || coverVideo.hidden || !coverVideo.src) {
+        return;
+    }
+    if (document.hidden || prefersReducedMotion()) {
+        return;
+    }
+    coverVideo.play().catch(() => {
+        // Autoplay policies may block muted loop playback on some devices.
+    });
+}
+
+let currentLivingCoverUrl = '';
+
+function songHasLivingCover(song) {
+    const animatedUrl = typeof song?.animated_cover === 'string' ? song.animated_cover.trim() : '';
+    return animatedUrl !== '' && !prefersReducedMotion();
+}
+
+function isAudioActivelyPlaying() {
+    return !audioPlayer.paused && !audioPlayer.ended;
+}
+
+function showStillCoverVisual() {
+    if (coverImage) {
+        coverImage.hidden = false;
+    }
+    if (coverVideo) {
+        coverVideo.hidden = true;
+        pauseCoverVideo();
+    }
+}
+
+function showLivingCoverVisual() {
+    if (!coverVideo || currentLivingCoverUrl === '') {
+        showStillCoverVisual();
+        return;
+    }
+    if (coverImage) {
+        coverImage.hidden = true;
+    }
+    coverVideo.hidden = false;
+    playCoverVideoIfReady();
+}
+
+function syncCoverPlaybackVisual() {
+    const song = playList[currentIndex];
+    if (!songHasLivingCover(song)) {
+        showStillCoverVisual();
+        return;
+    }
+
+    if (isAudioActivelyPlaying() && !document.hidden) {
+        showLivingCoverVisual();
+    } else {
+        showStillCoverVisual();
+    }
+}
+
+function setCoverVisual(song) {
+    const animatedUrl = typeof song?.animated_cover === 'string' ? song.animated_cover.trim() : '';
+    currentLivingCoverUrl = animatedUrl !== '' && !prefersReducedMotion() ? animatedUrl : '';
+
+    setImageWithFallback(reflectionImage, song.cover);
+
+    if (!coverImage) {
+        return;
+    }
+
+    setImageWithFallback(coverImage, song.cover);
+
+    if (coverVideo) {
+        if (currentLivingCoverUrl) {
+            const posterUrl = buildCoverUrl(song.cover);
+            if (posterUrl) {
+                coverVideo.poster = posterUrl;
+            } else {
+                coverVideo.removeAttribute('poster');
+            }
+
+            if (coverVideo.dataset.src !== currentLivingCoverUrl) {
+                coverVideo.dataset.src = currentLivingCoverUrl;
+                coverVideo.src = currentLivingCoverUrl;
+            }
+        } else {
+            pauseCoverVideo();
+            coverVideo.removeAttribute('src');
+            coverVideo.removeAttribute('poster');
+            delete coverVideo.dataset.src;
+        }
+    }
+
+    syncCoverPlaybackVisual();
 }
 
 function hasDisplayableLyrics(song) {
@@ -128,6 +271,7 @@ function syncLyricsTab(song) {
 
 const audioPlayer = document.getElementById('audioPlayer');
 const coverImage = document.getElementById('coverImage');
+const coverVideo = document.getElementById('coverVideo');
 const reflectionImage = document.getElementById('reflectionImage');
 const prevCover = document.getElementById('prevCover');
 const nextCover = document.getElementById('nextCover');
@@ -1145,7 +1289,9 @@ function showPlayerLoadError(message) {
     }
     if (songTitle) songTitle.innerText = 'Error';
     if (artistName) artistName.innerText = 'Check setup';
-    if (lyricsBox) lyricsBox.innerText = message || 'Could not load playlist.';
+    if (lyricsBox) {
+        lyricsBox.innerText = message || 'Could not load playlist.';
+    }
 }
 
 function playlistLockLabel(song) {
@@ -1305,6 +1451,7 @@ audioPlayer.onpause = () => playBtn.innerText = "Play";
 audioPlayer.addEventListener('pause', () => {
     scheduleAnalyticsSessionEnd();
     updateMediaSessionPlaybackState();
+    syncCoverPlaybackVisual();
     if (document.hidden && wasPlayingBeforeVisibilityHidden) {
         resumeAfterVisibilityPause = true;
     }
@@ -1374,6 +1521,7 @@ audioPlayer.addEventListener('play', () => {
     resumeAfterVisibilityPause = false;
     updateMediaSessionPlaybackState();
     updateMediaSessionPositionState();
+    syncCoverPlaybackVisual();
 
     const actionSource = pendingPlayActionSource || 'player';
     pendingPlayActionSource = null;
@@ -1405,6 +1553,7 @@ audioPlayer.addEventListener('ended', () => {
     resumeAfterVisibilityPause = false;
     wasPlayingBeforeVisibilityHidden = false;
     updateMediaSessionPlaybackState();
+    syncCoverPlaybackVisual();
     logTrackExit('ended', 'auto');
 
     currentTrackChangeSource = 'auto_next';
@@ -1480,12 +1629,11 @@ function updateVisuals(index) {
     // Main info
     songTitle.innerText = song.title;
     artistName.innerText = song.artist;
-    lyricsBox.innerText = hasDisplayableLyrics(song) ? song.lyrics : '';
+    setPlayerMarkdownHtml(lyricsBox, hasDisplayableLyrics(song) ? song.lyrics : '', 'lyrics');
     lyricsBox.scrollTop = 0; // Reset scroll position to top
 
     // Build cover path
-    setImageWithFallback(coverImage, song.cover);
-    setImageWithFallback(reflectionImage, song.cover);
+    setCoverVisual(song);
     syncLyricsTab(song);
 
     // Scroll page to top
@@ -1679,17 +1827,17 @@ function renderPlaylist() {
         const coverCandidates = buildCoverUrlCandidates(song.cover);
         const coverPath = coverCandidates[0] || '';
         
-        // Parse title to extract track number and tale
-        const titleParts = song.title.split('\n');
-        const mainTitle = titleParts[0] || '';
-        const taleName = titleParts[1] || '';
+        const titleParts = String(song.title || '').split('\n');
+        const mainTitle = escapePlayerHtml(titleParts[0] || '');
+        const taleName = escapePlayerHtml(titleParts[1] || '');
+        const descriptionHtml = renderPlayerMarkdown(song.description || '', 'default');
         
         html += `
             <div class="playlist-item ${isCurrentTrack} ${isLocked}" onclick="playTrackFromPlaylist(${index})">
-                <img src="${coverPath}" alt="${mainTitle}" class="playlist-track-cover">
+                <img src="${escapePlayerHtml(coverPath)}" alt="${mainTitle}" class="playlist-track-cover">
                 <div class="playlist-track-content">
                     <h5 class="playlist-track-title">${mainTitle} <span class="playlist-track-tale">${taleName}</span></h5>
-                    <p class="playlist-track-description">${song.description || ''}${lockLabel}</p>
+                    <div class="playlist-track-description player-markdown-host">${descriptionHtml}${lockLabel}</div>
                 </div>
             </div>
         `;
@@ -1886,6 +2034,11 @@ if (coverImage) {
     console.error('❌ Cover image element not found!');
 }
 
+if (coverVideo) {
+    coverVideo.addEventListener('click', openAlbumCoverLightbox);
+    coverVideo.style.cursor = 'pointer';
+}
+
 // Remove pulse guide animation when user first interacts with controls
 function removePulseGuide() {
     playBtn.classList.remove('pulse-guide');
@@ -2042,6 +2195,7 @@ document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         scheduleEnvironmentSnapshot('visibility_return');
     }
+    syncCoverPlaybackVisual();
 });
 
 installMediaSessionHandlers();

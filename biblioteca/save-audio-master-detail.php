@@ -60,6 +60,18 @@ foreach ($allowed_keys as $key) {
     $normalized_fields[$key] = trim((string) $value);
 }
 
+$cover_path = trim((string) ($payload['cover_path'] ?? ''));
+$cover_mode = trim((string) ($payload['cover_mode'] ?? 'preserve'));
+if (!in_array($cover_mode, ['preserve', 'set', 'clear'], true)) {
+    $cover_mode = 'preserve';
+}
+
+$living_cover_path = trim((string) ($payload['living_cover_path'] ?? ''));
+$living_cover_mode = trim((string) ($payload['living_cover_mode'] ?? 'preserve'));
+if (!in_array($living_cover_mode, ['preserve', 'set', 'clear'], true)) {
+    $living_cover_mode = 'preserve';
+}
+
 if ($normalized_fields['album'] === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Release name is required']);
@@ -108,12 +120,6 @@ if ($normalized_fields['initialkey'] !== '' && bandpromo_text_length($normalized
     exit;
 }
 
-$cover_path = trim((string) ($payload['cover_path'] ?? ''));
-$cover_mode = trim((string) ($payload['cover_mode'] ?? 'preserve'));
-if (!in_array($cover_mode, ['preserve', 'set', 'clear'], true)) {
-    $cover_mode = 'preserve';
-}
-
 session_write_close();
 
 $root = dirname(__DIR__);
@@ -138,10 +144,28 @@ if ($normalized_fields['tracknumber'] === '') {
         : bandpromo_release_find_track_number_for_master($root, $filename);
 }
 
+$existing_living_cover = is_array($inspect_data)
+    ? bandpromo_living_cover_normalize_video_filename((string) ($inspect_data['living_cover'] ?? ''))
+    : '';
+$new_living_cover = $existing_living_cover;
+if ($living_cover_mode === 'clear') {
+    $new_living_cover = '';
+} elseif ($living_cover_mode === 'set') {
+    $living_cover_validation = bandpromo_living_cover_validate_video_path($root, $living_cover_path);
+    if (!($living_cover_validation['ok'] ?? false)) {
+        http_response_code(400);
+        echo json_encode(['error' => (string) ($living_cover_validation['error'] ?? 'Invalid living cover video')]);
+        exit;
+    }
+    $new_living_cover = (string) ($living_cover_validation['filename'] ?? '');
+}
+$normalized_fields['living_cover'] = $new_living_cover;
+
 $current_fields = [];
 foreach ($allowed_keys as $key) {
     $current_fields[$key] = is_array($inspect_data) ? trim((string) ($inspect_data[$key] ?? '')) : '';
 }
+$current_fields['living_cover'] = $existing_living_cover;
 
 $metadata_changed = $current_fields !== $normalized_fields;
 $sidecar_cover = is_array($inspect_data) ? trim((string) ($inspect_data['sidecar_cover'] ?? '')) : '';
@@ -248,6 +272,9 @@ bandpromo_admin_audit_log('audio_master_metadata_saved', [
         'album' => $normalized_fields['album'],
         'cover_mode' => $cover_mode,
         'cover_path' => $cover_path,
+        'living_cover_mode' => $living_cover_mode,
+        'living_cover_path' => $living_cover_path,
+        'living_cover' => $new_living_cover,
         'auto_tasks' => $playlist_scan['ok'] ? ['playlist-scan'] : [],
         'playlist_refresh_failed' => !$playlist_scan['ok'],
     ],

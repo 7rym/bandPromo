@@ -40,6 +40,8 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 ### Media Player
 - High-quality audio playback with seek/next/previous navigation
 - **Playlists** and **Lyrics** tabs (core player shell — not page-embedded)
+- **Markdown** in player lyrics and track descriptions (rendered at display; masters unchanged)
+- **Animated track covers (living cover)** — optional silent looping video on the main cover card when assigned in the track editor and delivery MP4 exists
 - Responsive design for mobile, tablet, and desktop
 - Compact two-column landscape layout for installed/mobile PWA playback
 - Artwork and lightbox support (including page images)

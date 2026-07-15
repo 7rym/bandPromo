@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/cover-art-helpers.php';
+require_once __DIR__ . '/living-cover-helpers.php';
 require_once __DIR__ . '/release-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/audio-master-helpers.php';
@@ -292,7 +293,7 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
     $detail['current_cover_url'] = bandpromo_audio_master_resolve_current_cover_url($currentCover);
     $detail['sidecar_cover_url'] = bandpromo_audio_master_resolve_sidecar_cover_url($root, $sidecarCover);
 
-    return $detail;
+    return bandpromo_living_cover_enrich_detail($root, $detail);
 }
 
 function bandpromo_audio_master_validate_release_date(string $value): bool

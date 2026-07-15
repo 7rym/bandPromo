@@ -36,6 +36,7 @@ def build_playlist_entry(filename):
         'lyrics': info.get('lyrics') or '',
         'description': info.get('description') or '',
         'cover': cover_file,
+        'living_cover': info.get('living_cover') or '',
     }
 
 

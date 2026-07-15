@@ -573,6 +573,48 @@ def get_description(filename):
 
     return ""
 
+LIVING_COVER_TAG = 'BANDPROMO_LIVING_COVER'
+
+def get_living_cover(filename):
+    """
+    Reads the BANDPROMO_LIVING_COVER tag from the audio master.
+    Value is the video original filename assigned in the track editor.
+    """
+    try:
+        path = Path(str(filename))
+        suffix = path.suffix.lower()
+
+        if suffix == '.mp3':
+            from mutagen.id3 import ID3, ID3NoHeaderError
+
+            try:
+                tags = ID3(str(path))
+            except ID3NoHeaderError:
+                return ''
+
+            for key in tags.keys():
+                if not str(key).startswith('TXXX'):
+                    continue
+                frame = tags[key]
+                desc = str(getattr(frame, 'desc', '') or '').strip()
+                if desc != LIVING_COVER_TAG:
+                    continue
+                text = getattr(frame, 'text', [])
+                if isinstance(text, list) and text:
+                    return os.path.basename(str(text[0]).strip())
+                return os.path.basename(str(text).strip())
+            return ''
+
+        audio = File(str(path))
+        if audio and audio.tags and LIVING_COVER_TAG in audio.tags:
+            val = audio.tags[LIVING_COVER_TAG]
+            text = val[0] if isinstance(val, list) else str(val)
+            return os.path.basename(str(text).strip())
+    except Exception as e:
+        print(f"Could not read living cover tag from {filename}: {e}")
+
+    return ''
+
 def get_track_number(filename):
     """
     Helper function to find track number for sorting.
@@ -873,6 +915,7 @@ def parse_audio_file(filename):
         'track': 999,
         'cover': None,
         'cover_source': 'missing',
+        'living_cover': '',
         'title_from_tag': False,
         'artist_from_tag': False,
         'album_from_tag': False,
@@ -1011,6 +1054,7 @@ def parse_audio_file(filename):
     # Get lyrics and description from tags
     info['lyrics'] = get_lyrics(filename)
     info['description'] = get_description(filename)
+    info['living_cover'] = get_living_cover(filename)
     
     # fallback: if still None, leave as None
     return info
@@ -1129,7 +1173,8 @@ def generate_playlist():
             "duration": info['duration'],
             "lyrics": info['lyrics'],
             "description": info['description'],
-            "cover": cover_file
+            "cover": cover_file,
+            "living_cover": info.get('living_cover') or '',
         }
         playlist.append(entry)
         validation_entries.append({

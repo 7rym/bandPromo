@@ -157,6 +157,8 @@ flowchart TB
 | **Module** | Editor + renderer for a block or container type. |
 | **Pool** | Available items when adding to a container (Content editor left column). |
 | **Registry** | Index listing containers or assets of one type. |
+| **Markdown (player text)** | Lightweight markup for player-shell operator copy (lyrics, descriptions). Stored as plain text; rendered to sanitized HTML at display — not used for page richtext blocks. |
+| **Animated track cover** | Short silent loop video on the player flip-card cover; operator assigns in track editor; stored as `BANDPROMO_LIVING_COVER` in master tags. |
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
@@ -399,6 +401,114 @@ Canonical storage: `data/pages/*.json` + `data/pages/registry.json` (shipped).
 | `gallery` | `gallery_id` + `preset` (`grid`, `list`, `carousel`, `parallax`, …) |
 
 All block types are implemented as **modules** (editor + renderer). Playlists and lyrics stay in the **player shell**; pages link in via deep links, not embedded players.
+
+## Player text (Markdown)
+
+**Status:** policy locked (2026-07-15 — closed-beta feedback). Implementation in [TODO.md](TODO.md).
+
+Pages use **sanitized HTML richtext** (TinyMCE + HTMLPurifier). Player-facing operator text uses **Markdown source** rendered to safe HTML at display time. Two authoring models, one security bar: never inject raw operator strings into the DOM.
+
+### Why Markdown here (not richtext)
+
+- Lyrics, track descriptions, and release/playlist blurbs are edited in plain textareas today.
+- Operators benefit from lightweight structure (`**emphasis**`, lists, links) without a page-style WYSIWYG.
+- Plain text already stored in masters and containers remains valid Markdown (backward compatible).
+
+### Storage contract (source stays Markdown/plain text)
+
+| Field | Stored as | Persistence |
+|-------|-----------|-------------|
+| **Lyrics** | Markdown/plain text | Master FLAC/MP3 tags (`USLT` / `unsyncedlyrics`) |
+| **Track description** | Markdown/plain text | Master tags (`COMM` / Vorbis `comment` / `description`) |
+| **Release `description`** | Markdown/plain text | `data/releases/{id}.json` only — **not** audio tags |
+| **Playlist `description`** | Markdown/plain text | `data/playlists/{id}.json` only |
+| **Release EPK `credits`** | Markdown/plain text (when rendered in player/EPK surfaces) | `data/releases/{id}.json` → `epk.credits` |
+
+**Do not** pre-render HTML into master tags or delivery MP3s. Exported files opened in other apps show raw Markdown syntax — expected and portable.
+
+### Fields that stay plain text (no Markdown render)
+
+| Field | Reason |
+|-------|--------|
+| `short_description` on releases, playlists, pages | Share cards, OG/meta previews need stripped one-line text |
+| Titles, artist, tagline, genre, catalog ids | Identity labels, not body copy |
+| Page `richtext` / `picture_richtext` blocks | Separate HTML authoring model (unchanged) |
+| Page `picture` captions | Plain caption only (unchanged) |
+
+### Rendering rules
+
+1. **Render at output** — player (and any future EPK panel) converts Markdown → HTML through a **restricted allowlist** (headings, emphasis, lists, links, code, blockquote — same spirit as admin docs renderer).
+2. **Sanitize** — strip scripts, event handlers, and arbitrary HTML from output; links get safe `rel` where external.
+3. **Lyrics mode** — single line breaks in lyrics render as hard breaks (do not require Markdown's blank-line paragraph rule).
+4. **Playlist track descriptions** — render through the same sanitizer; fix current unescaped `innerHTML` insertion.
+5. **Share/OG** — when a Markdown field feeds meta tags, strip Markdown to plain text (no `**` in `og:description`).
+
+### Master files and delivery (no tagging changes)
+
+Markdown support is **display-only**. The audio pipeline is unchanged:
+
+- Admin save → `audioMasterMetadata.py` writes UTF-8 text to master tags.
+- Publish → `optimizeMedia.py` copies tags to delivery MP3.
+- Build → `makePlaylists.py` reads tags into the player payload.
+
+No new Vorbis/ID3 frame types, re-encode, or master migration required.
+
+### Admin UX (v1)
+
+- Keep textareas; add helper copy: **Markdown supported**.
+- Live preview optional (later); not required for first ship.
+- Character limits unchanged (e.g. track description 300 chars counts Markdown source).
+
+### Module impact
+
+| module_id | Change |
+|-----------|--------|
+| `player.lyrics` | Render Markdown in lyrics panel |
+| `player.playlists` | Render Markdown in track description rows |
+| `container.release` / `container.playlist` | No storage change; descriptions render when surfaced in player |
+
+## Animated track covers (living cover)
+
+**Status:** policy locked (2026-07-15 — closed-beta feedback). Implementation in [TODO.md](TODO.md).
+
+Short, silent, looping video on the **main flip-card cover** when the operator assigns a **living cover** and video delivery is ready. Full music videos and gallery playback stay separate.
+
+### Operator control
+
+Assign in **Files → Audio → track editor → Living cover**. Pick any video from **Files → Video**. The association is written into the **audio master tags** and travels with the file.
+
+### Storage contract (master tags)
+
+| Format | Tag | Value |
+|--------|-----|-------|
+| **MP3** | ID3v2 `TXXX` description `BANDPROMO_LIVING_COVER` | Video **original filename** (basename under `media/video/original/`) |
+| **FLAC** | Vorbis comment `BANDPROMO_LIVING_COVER` | Same value |
+
+Value is the stable on-disk video filename, not a human title. No sidecar files. No playlist JSON field.
+
+**Do not** bake living-cover references into delivery MP3 tags in v1 unless the audio pipeline explicitly copies custom tags; player materialization reads the **master** tag via `playlistTrackEntries.py`.
+
+### Player resolution
+
+1. Read `living_cover` from master tags when materializing playlist entries.
+2. Resolve player URL only when `media/video/optimal/{stem}.mp4` delivery exists.
+3. Static cover image remains the video poster, reflection source, and the visible card cover while idle or paused.
+
+### Playback rules
+
+1. **Explicit assignment only** — no filename stem guessing or silent sidecar pairing.
+2. **Delivery only** — player uses optimal MP4 after Publish.
+3. **Silent loop** — `muted`, `loop`, `playsinline`.
+4. **Still while idle** — static cover when paused, stopped, or before first play.
+5. **Living while playing** — loop video only while audio is actively playing.
+6. **Reduced motion** — static cover when `prefers-reduced-motion: reduce`.
+7. **Background tab** — still cover while hidden; living cover resumes when visible and playing.
+
+### Deferred
+
+- Visual-registry asset IDs instead of video filenames (when Visual pool ships).
+- Per-track picker without opening full track editor (assignment already lives there).
+- Animated lightbox / side-card previews.
 
 ## Brands
 

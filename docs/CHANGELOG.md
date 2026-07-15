@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-15 19:28 - Player living cover: show still cover when idle or paused; loop living cover only while audio is actively playing.
+
+2026-07-15 19:22 - Track editor polish: cleaner modal header (drop generic subtitle), center-aligned cover pair, shared living-cover status row, compact centered metadata chips, single-line description helpers.
+
+2026-07-15 19:15 - Track editor UI: pair still + living cover previews at top with in-preview edit controls; compact metadata chips; hide living-cover filename row.
+
+2026-07-15 19:05 - Living cover: operator assigns looping video in track editor; store `BANDPROMO_LIVING_COVER` in master ID3 TXXX / FLAC Vorbis (video original filename); read through playlist materialization; remove stem-guessing linker; add `living-cover-helpers.php` and track editor picker UI.
+
+2026-07-15 18:45 - Animated track covers: resolve delivery MP4 by stem or manifest link, expose `animated_cover` in player playlist payload, loop muted video on main flip-card cover with static reflection, reduced-motion and visibility pause, Files → Video admin hint, and PLATFORM-MODEL/TODO policy.
+
+2026-07-15 18:25 - Player Markdown: add shared PHP/JS renderers, render lyrics and playlist track descriptions in the player, admin Markdown hints, OG/share plain-text strip helper, and player-markdown styles.
+
+2026-07-15 18:20 - Lock player Markdown policy in PLATFORM-MODEL.md (storage, render-at-output, master-tag unchanged, field scope) and add Player Markdown implementation slice to TODO.md (closed-beta feedback).
+
 2026-07-15 15:10 - Naming hygiene: move legacy `gallery.template.json` to `templates/legacy/gallery-flat-array.json`; rename `primary.release.template.json` to `default.release.template.json`; remove orphan demo gallery template; fix default release registry (`system` flag, display title); align delete-release copy with behavior; update template-integrity CI and docs.
 
 2026-07-15 15:00 - Add **Mental model (read this first)** section to PLATFORM-MODEL.md: three actors (platform/operator/user), four layers, default slot vs demo vs operator catalog, provenance, ownership cheat sheet, and vocabulary traps.

@@ -258,6 +258,7 @@ if ($supportEnabled && $supportUrl !== '') {
             </div>
             <div class="card-wrapper" id="cardWrapper">
                 <img src="" alt="Album Cover" class="cover-art" id="coverImage">
+                <video class="cover-art cover-art-video" id="coverVideo" loop muted playsinline preload="metadata" hidden></video>
                 <div class="reflection">
                     <img src="" alt="" id="reflectionImage">
                 </div>
@@ -397,6 +398,7 @@ if ($supportEnabled && $supportUrl !== '') {
         window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo');
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.MEDIA_IMG_BASE   = '/media/img';
+        window.MEDIA_VIDEO_BASE = '/media/video';
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
         window.BANDPROMO_IS_OPERATOR = <?php echo json_encode($showOperatorNotice); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
@@ -418,6 +420,7 @@ if ($supportEnabled && $supportUrl !== '') {
     </script>
     <script src="/biblioteca/session-auth.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
+    <script src="/biblioteca/player-markdown.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <?php if ($supportEnabled && $supportMode === 'floating_widget' && $supportKofiPageId !== ''): ?>
     <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>

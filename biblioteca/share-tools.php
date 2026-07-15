@@ -10,6 +10,7 @@
  */
 
 require_once 'config-loader.php';
+require_once __DIR__ . '/player-markdown.php';
 
 if (!function_exists('get_config')) {
     function get_config($key, $default = null) {
@@ -25,7 +26,9 @@ function generate_og_tags($title = '', $description = '', $image = '', $url = ''
     $site_name = get_config('release.identity.title', 'My Site');
     $og_image = $image ?: get_config('release.brand.poster', '/media/special/bandPromo_share.png');
     $og_url = $url ?: get_config('install.site.url', '');
-    $og_description = $description ?: get_config('release.identity.description', '');
+    $og_description = $description !== ''
+        ? bandpromo_player_markdown_strip_to_plain_text((string) $description)
+        : bandpromo_player_markdown_strip_to_plain_text((string) get_config('release.identity.description', ''));
     $og_title = $title ?: $site_name;
     
     // Convert relative image URL to absolute
@@ -57,7 +60,9 @@ function generate_twitter_tags($title = '', $description = '', $image = '', $typ
     $site_name = get_config('release.identity.title', 'My Site');
     $twitter_handle = get_config('install.social.twitter', '');
     $twitter_image = $image ?: get_config('release.brand.poster', '/media/special/bandPromo_share.png');
-    $twitter_description = $description ?: get_config('release.identity.description', '');
+    $twitter_description = $description !== ''
+        ? bandpromo_player_markdown_strip_to_plain_text((string) $description)
+        : bandpromo_player_markdown_strip_to_plain_text((string) get_config('release.identity.description', ''));
     $twitter_title = $title ?: $site_name;
     
     // Convert relative image URL to absolute
@@ -91,7 +96,7 @@ function generate_standard_meta_tags() {
     $tags = array();
     $tags[] = '    <meta charset="UTF-8">';
     $tags[] = '    <meta name="viewport" content="width=device-width, initial-scale=1.0">';
-    $tags[] = sprintf('    <meta name="description" content="%s">', htmlspecialchars(get_config('release.identity.description', 'A web application')));
+    $tags[] = sprintf('    <meta name="description" content="%s">', htmlspecialchars(bandpromo_player_markdown_strip_to_plain_text((string) get_config('release.identity.description', 'A web application'))));
     $tags[] = sprintf('    <meta name="keywords" content="%s">', htmlspecialchars($keywords));
     $tags[] = sprintf('    <meta name="author" content="%s">', htmlspecialchars(get_config('install.site.author', 'Author')));
     $tags[] = sprintf('    <meta name="theme-color" content="%s">', htmlspecialchars($config['branding']['theme_color'] ?? '#121212'));
