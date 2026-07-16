@@ -109,43 +109,83 @@ def optimized_audio_name(source_name):
     return Path(source_name).stem + '.mp3'
 
 
+def _copy_cover_fallback(source_path, dest_path, reason):
+    """Best-effort delivery cover when conversion crashes or fails."""
+    try:
+        shutil.copy2(source_path, dest_path)
+        print("    ⚠️  Cover conversion skipped ({}); copied source instead: {}".format(
+            reason, os.path.basename(dest_path)
+        ))
+        return os.path.basename(dest_path)
+    except Exception as copy_error:
+        print("    ❌ Cover fallback copy failed: {}".format(copy_error))
+        return None
+
+
 def convert_cover_to_jpeg(source_path, dest_path, quality=75):
     """
     Convert cover image to JPEG with medium quality.
-    JPEG quality 75 provides good balance between size and appearance.
+
+    Runs Pillow in a child process so a segfault on a corrupt/hostile image
+    cannot abort the whole deliverables-media stage (seen as exit code -11).
     """
+    if not os.path.exists(source_path):
+        print("    ⚠️  Source cover not found: {}".format(source_path))
+        return None
+
+    worker = (
+        "import sys\n"
+        "from PIL import Image\n"
+        "src, dest, quality = sys.argv[1], sys.argv[2], int(sys.argv[3])\n"
+        "img = Image.open(src)\n"
+        "if img.mode in ('RGBA', 'LA', 'P'):\n"
+        "    background = Image.new('RGB', img.size, (255, 255, 255))\n"
+        "    if img.mode == 'P':\n"
+        "        img = img.convert('RGBA')\n"
+        "    background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)\n"
+        "    img = background\n"
+        "elif img.mode != 'RGB':\n"
+        "    img = img.convert('RGB')\n"
+        "img.save(dest, 'JPEG', quality=quality, optimize=True)\n"
+    )
+
     try:
-        # Handle case where source doesn't exist (e.g., default_cover.png)
-        if not os.path.exists(source_path):
-            print(f"    ⚠️  Source cover not found: {source_path}")
-            return None
-        
-        img = Image.open(source_path)
-        
-        # Convert RGBA/other modes to RGB for JPEG
-        if img.mode in ('RGBA', 'LA', 'P'):
-            # Create white background
-            background = Image.new('RGB', img.size, (255, 255, 255))
-            if img.mode == 'P':
-                img = img.convert('RGBA')
-            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
-            img = background
-        elif img.mode != 'RGB':
-            img = img.convert('RGB')
-        
-        # Save as JPEG
-        img.save(dest_path, 'JPEG', quality=quality, optimize=True)
-        
-        # Calculate compression ratio for info
+        result = subprocess.run(
+            [sys.executable, '-c', worker, source_path, dest_path, str(quality)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False,
+        )
+    except Exception as e:
+        return _copy_cover_fallback(source_path, dest_path, 'launcher error: {}'.format(e))
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()
+        if result.returncode < 0:
+            reason = 'converter crashed (signal {})'.format(-result.returncode)
+        else:
+            reason = 'converter exited {}'.format(result.returncode)
+        if detail:
+            reason = '{}: {}'.format(reason, detail.splitlines()[-1][:200])
+        return _copy_cover_fallback(source_path, dest_path, reason)
+
+    if not os.path.exists(dest_path):
+        return _copy_cover_fallback(source_path, dest_path, 'converter produced no output')
+
+    try:
         source_size = os.path.getsize(source_path)
         dest_size = os.path.getsize(dest_path)
         ratio = (1 - dest_size / source_size) * 100 if source_size > 0 else 0
-        
-        print(f"    ✓ Converted cover: {source_path} → {os.path.basename(dest_path)} ({ratio:.0f}% smaller)")
-        return os.path.basename(dest_path)
-    except Exception as e:
-        print(f"    ❌ Error converting cover: {e}")
-        return None
+        print("    ✓ Converted cover: {} → {} ({:.0f}% smaller)".format(
+            source_path, os.path.basename(dest_path), ratio
+        ))
+    except Exception:
+        print("    ✓ Converted cover: {} → {}".format(
+            source_path, os.path.basename(dest_path)
+        ))
+
+    return os.path.basename(dest_path)
 
 
 def check_ffmpeg():

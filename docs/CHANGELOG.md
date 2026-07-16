@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-16 12:50 - Deliverables resilience: run cover JPEG conversion in a child process so a Pillow segfault on one corrupt image (exit -11) cannot abort the whole `deliverables-media` stage; fall back to copying the source cover when conversion crashes.
+
 2026-07-16 12:40 - Player publish fix: `bandpromo_playlist_materialize_for_player()` again runs `materialize_entries` (Python tag/sidecar read) so covers, lyrics, and descriptions are written into published playlist payloads. Also refresh sparse registry display before publish fallback.
 
 2026-07-16 12:30 - Host build fix: `makePlaylists.py` now resolves PHP via `php_cli.resolve_php_cli()` (Plesk hosts have no bare `php` on PATH). Also restore Python 3.6-safe `subprocess` args in `optimizeVideo.py` poster extraction (`universal_newlines` instead of `text=`).
