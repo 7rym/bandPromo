@@ -1259,15 +1259,14 @@ def publish_player_playlist_payloads():
         result = subprocess.run(
             ['php', str(script)],
             cwd=str(ROOT_DIR),
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
             check=False,
         )
     except Exception as exc:
         print(f"❌ Could not publish player playlist payloads: {exc}")
-        return
+        sys.exit(1)
 
     if result.stdout:
         for line in result.stdout.splitlines():
@@ -1279,7 +1278,7 @@ def publish_player_playlist_payloads():
                 if line.strip():
                     print(line)
         print('❌ Player playlist publish failed.')
-        return
+        sys.exit(1)
 
     print('✓ Player playlist payloads published.')
 

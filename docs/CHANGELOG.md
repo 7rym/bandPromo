@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-07-16 11:20 - Player track changes: audio always leads — load/play next track immediately on skip and auto-next; cover spin is non-blocking presentation only. Tail-cut fix: remove expected-duration `-0.5s` early cutoff; precise `ended` + tiny tail guard; preload next track for faster handoff.
+2026-07-16 12:00 - Hotfix: restore Python 3.6 host compatibility in `makePlaylists.py` player-payload publish (`capture_output` → `stdout`/`stderr` pipes + `universal_newlines`); fail the build when playlist publish fails instead of reporting success.
 
 2026-07-16 10:10 - Player auto-next timing: stop cutting tails by removing the old expected-duration `-0.5s` cutoff path, rely on precise media duration + native `ended`, and skip transition animation for auto-next handoff. Also warm the next track with `<link rel="preload" as="audio">` for faster start.
 
