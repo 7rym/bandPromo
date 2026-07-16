@@ -1553,7 +1553,26 @@ function bandpromo_playlist_materialize_for_player(
     string $preferredVariant = 'optimal'
 ): array {
     $document = bandpromo_playlist_load_document($root, $playlistId);
-    $tracks = bandpromo_playlist_build_track_list($root, $document);
+    $filenames = [];
+    foreach ($document['entries'] ?? [] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $masterFile = basename(trim((string) ($entry['master_file'] ?? '')));
+        if ($masterFile !== '') {
+            $filenames[] = $masterFile;
+        }
+    }
+
+    $builtTracks = [];
+    if ($filenames !== []) {
+        // Prefer tag/sidecar materialization (lyrics, description, embedded cover)
+        // over sparse registry display — publish must not ship empty player fields.
+        $materialized = bandpromo_playlist_materialize_entries($filenames);
+        $builtTracks = is_array($materialized['entries'] ?? null) ? $materialized['entries'] : [];
+    }
+
+    $tracks = bandpromo_playlist_build_track_list($root, $document, $builtTracks);
 
     return bandpromo_playlist_enrich_tracks_for_player($root, $tracks, $operatorBypass, $preferredVariant);
 }
@@ -1578,17 +1597,12 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         ];
     }
 
-    $tracks = bandpromo_playlist_materialize_for_player($root, $playlistId, false, 'optimal');
-    foreach ($tracks as $index => $track) {
-        if (!is_array($track)) {
+    // Refresh sparse registry display from master tags before PHP fallback materialization.
+    foreach ($entries as $entry) {
+        if (!is_array($entry)) {
             continue;
         }
-        if (($track['lock_reason'] ?? '') === 'embargoed') {
-            $tracks[$index]['embargoed'] = true;
-        }
-
-        // Publish write-back: fill editor fields (date, living cover, etc.) into registry display.
-        $masterFile = basename(trim((string) ($track['file'] ?? '')));
+        $masterFile = basename(trim((string) ($entry['master_file'] ?? '')));
         if ($masterFile === '') {
             continue;
         }
@@ -1597,11 +1611,22 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
             continue;
         }
         $display = bandpromo_asset_read_audio_display($asset);
-        if (trim((string) ($display['date'] ?? '')) !== ''
-            && trim((string) ($display['living_cover'] ?? '')) !== '') {
+        $lyrics = trim((string) ($display['lyrics'] ?? ''));
+        $cover = trim((string) ($display['cover'] ?? ''));
+        $comment = trim((string) ($display['comment'] ?? ''));
+        if ($lyrics === '' || $cover === '' || $comment === '') {
+            bandpromo_asset_refresh_audio_display($root, $masterFile);
+        }
+    }
+
+    $tracks = bandpromo_playlist_materialize_for_player($root, $playlistId, false, 'optimal');
+    foreach ($tracks as $index => $track) {
+        if (!is_array($track)) {
             continue;
         }
-        bandpromo_asset_refresh_audio_display($root, $masterFile);
+        if (($track['lock_reason'] ?? '') === 'embargoed') {
+            $tracks[$index]['embargoed'] = true;
+        }
     }
 
     $brandIds = [];
