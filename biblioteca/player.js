@@ -5,6 +5,9 @@ let currentIndex = 0;
 let brandStylesById = {};
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
 const IMAGE_PATH_VARIANT = 'optimal';
+const TRACK_END_GUARD_EPSILON_SECONDS = 0.02;
+const TRACK_END_AUTONEXT_COOLDOWN_MS = 1200;
+let lastAutoNextGuardAt = 0;
 
 function isTrackPlayable(song) {
     if (!song) {
@@ -1467,7 +1470,7 @@ audioPlayer.addEventListener('pause', () => {
     }
 });
 
-// guard using expected duration from config
+// Guard against browsers that miss the native `ended` event near the tail.
 function checkExpected() {
     // Avoid auto-next checks while scrubbing and immediately after seek settles.
     if (isUserSeeking || (Date.now() - lastSeekFinishedAt) < 700) {
@@ -1478,12 +1481,23 @@ function checkExpected() {
         currentTrackChangeSource = null;
     }
 
-    const exp = parseFloat(audioPlayer.dataset.expectedDuration);
-    if (!isNaN(exp)) {
-        if (audioPlayer.currentTime >= exp - 0.5) {
-            // jump to next song once we hit or go past the configured length
-            nextSong();
-        }
+    if (audioPlayer.paused || audioPlayer.ended || isChangingSong) {
+        return;
+    }
+
+    const duration = Number(audioPlayer.duration);
+    const now = Date.now();
+    if (!Number.isFinite(duration) || duration <= 0 || (now - lastAutoNextGuardAt) < TRACK_END_AUTONEXT_COOLDOWN_MS) {
+        return;
+    }
+
+    const remaining = duration - Number(audioPlayer.currentTime || 0);
+    if (remaining <= TRACK_END_GUARD_EPSILON_SECONDS) {
+        lastAutoNextGuardAt = now;
+        logTrackExit('ended_guard', 'auto');
+        currentTrackChangeSource = 'auto_next';
+        pendingPlayActionSource = 'auto_next';
+        triggerSongChange('next');
     }
 }
 audioPlayer.addEventListener('timeupdate', checkExpected);
@@ -1569,8 +1583,29 @@ audioPlayer.addEventListener('ended', () => {
     currentTrackChangeSource = 'auto_next';
     pendingPlayActionSource = 'auto_next';
     // Auto-play next song when current track ends
+    lastAutoNextGuardAt = Date.now();
     triggerSongChange('next');
 });
+
+function primeNextTrackPreload(startIndex) {
+    const baseIndex = Number.isInteger(startIndex) ? startIndex : currentIndex;
+    const nextIndex = findNextPlayableIndex(baseIndex, 'next');
+    if (nextIndex < 0 || !playList[nextIndex] || !playList[nextIndex].file) {
+        return;
+    }
+    const href = encodeURI(buildAudioUrl(playList[nextIndex].file));
+    let link = document.getElementById('nextTrackAudioPreload');
+    if (!(link instanceof HTMLLinkElement)) {
+        link = document.createElement('link');
+        link.id = 'nextTrackAudioPreload';
+        link.rel = 'preload';
+        link.as = 'audio';
+        document.head.appendChild(link);
+    }
+    if (link.href !== href) {
+        link.href = href;
+    }
+}
 
 // helper to safely set audio source with encoding and support check
 function setAudioSrc(filename) {
@@ -1582,6 +1617,7 @@ function setAudioSrc(filename) {
     const encoded = encodeURI(url);
     audioPlayer.dataset.sourceFile = filename;
     audioPlayer.dataset.deliveryFile = deliveryFilename;
+    audioPlayer.preload = 'auto';
     audioPlayer.src = encoded;
     hasStartedCurrentTrack = false;
     isUserSeeking = false;
@@ -1594,6 +1630,7 @@ function setAudioSrc(filename) {
     }
 
     updateMediaSessionMetadata();
+    primeNextTrackPreload(currentIndex);
 
     // Detect unsupported formats against the actual delivery file, not the source filename.
     const mime = getAudioMimeType(deliveryFilename);
@@ -1712,16 +1749,19 @@ function triggerSongChange(direction) {
         return;
     }
 
-    if (document.hidden && direction === 'next') {
-        updateVisuals(newIndex);
-        applySongChange(newIndex, direction);
+    // 3. Audio and visuals first, animation second (non-blocking presentation only)
+    updateVisuals(newIndex);
+    applySongChange(newIndex, direction);
+
+    const shouldAnimate = !document.hidden && !prefersReducedMotion();
+    if (!shouldAnimate) {
         return;
     }
 
-    // 3. Determine animation class based on direction
+    // 4. Determine animation class based on direction
     const animClass = direction === 'next' ? 'spin-left' : 'spin-right';
 
-    // 4. Start animation (reset class list first to re-trigger)
+    // 5. Start animation (reset class list first to re-trigger)
     // Main card
     cardWrapper.classList.remove('spin-right', 'spin-left');
     void cardWrapper.offsetWidth; // Force reflow
@@ -1733,16 +1773,6 @@ function triggerSongChange(direction) {
     void prevCover.offsetWidth; // Force reflow for side cards
     prevCover.classList.add('side-anim');
     nextCover.classList.add('side-anim');
-
-    // 5. Halfway through animation (400ms): Swap visual content
-    setTimeout(() => {
-        updateVisuals(newIndex);
-    }, 400);
-
-    // 6. When animation is done (800ms): Load new audio and play
-    setTimeout(() => {
-        applySongChange(newIndex, direction);
-    }, 800);
 }
 
 function nextSong() {

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-16 11:20 - Player track changes: audio always leads — load/play next track immediately on skip and auto-next; cover spin is non-blocking presentation only. Tail-cut fix: remove expected-duration `-0.5s` early cutoff; precise `ended` + tiny tail guard; preload next track for faster handoff.
+
+2026-07-16 10:10 - Player auto-next timing: stop cutting tails by removing the old expected-duration `-0.5s` cutoff path, rely on precise media duration + native `ended`, and skip transition animation for auto-next handoff. Also warm the next track with `<link rel="preload" as="audio">` for faster start.
+
 2026-07-16 00:25 - Docs audit close-out: PLATFORM-MODEL / MEDIA-HANDLING / ROADMAP / TODO / FEATURES / LEGACY-AUDIT aligned with shipped Files → Visual operator UX and Files → Brand assets rename; Phases 0b–2 remain deferred; note this checkpoint is push-only (no Site-update release package).
 
 2026-07-16 00:20 - Files tab: rename Theme → Brand assets (operator label for legacy `media/special/` intake; internal target unchanged).
