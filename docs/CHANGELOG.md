@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-16 12:15 - Player load failure UI: replace developer-only "PHP dev server" copy with a public-facing "music isn't ready yet" message. Operators still see a short Deliverables/rebuild hint under the public text.
+
 2026-07-16 12:00 - Hotfix: restore Python 3.6 host compatibility in `makePlaylists.py` player-payload publish (`capture_output` → `stdout`/`stderr` pipes + `universal_newlines`); fail the build when playlist publish fails instead of reporting success.
 
 2026-07-16 10:10 - Player auto-next timing: stop cutting tails by removing the old expected-duration `-0.5s` cutoff path, rely on precise media duration + native `ended`, and skip transition animation for auto-next handoff. Also warm the next track with `<link rel="preload" as="audio">` for faster start.

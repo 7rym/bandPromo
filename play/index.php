@@ -233,9 +233,9 @@ if ($supportEnabled && $supportUrl !== '') {
     <?php endif; ?>
 
     <div id="loading-msg">
-        <h2>Cannot load player</h2>
-        <p>The playlist could not be loaded. Check that you are logged in and the PHP dev server is running.</p>
-        <p>Local dev: <code>php -S localhost:8000</code> then open <a href="/play/">/play/</a>.</p>
+        <h2 id="loading-msg-title">Music isn't ready yet</h2>
+        <p id="loading-msg-detail">This playlist can't be played right now. Please try again later.</p>
+        <p id="loading-msg-operator" class="loading-msg-operator" hidden></p>
     </div>
 
     <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>

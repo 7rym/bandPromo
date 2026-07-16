@@ -970,6 +970,14 @@ audio {
     border-radius: 10px;
     z-index: 100;
     display: none;
+    max-width: min(32rem, calc(100vw - 2rem));
+}
+
+#loading-msg .loading-msg-operator {
+    margin: 0.85rem 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.92rem;
+    line-height: 1.4;
 }
 
 /* Lightbox Modal */

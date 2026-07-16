@@ -1293,17 +1293,85 @@ function bindPlaylistSelector() {
 
 // Test Download Speed and Select Quality Variant
 
+function playerLoadErrorCopy(rawMessage) {
+    const detail = String(rawMessage || '').trim();
+    const lower = detail.toLowerCase();
+    const isOperator = !!window.BANDPROMO_IS_OPERATOR;
+
+    if (window.location.protocol === 'file:') {
+        return {
+            title: 'Open the site in a browser',
+            detail: 'This player only works over the website, not as a downloaded HTML file.',
+            operator: isOperator
+                ? 'Local development: start the PHP site and open /play/ in your browser.'
+                : '',
+        };
+    }
+
+    if (lower.includes('not been published') || lower.includes('system → publish') || lower.includes('system -> publish')) {
+        return {
+            title: 'Music isn\'t ready yet',
+            detail: 'This playlist can\'t be played right now. Please try again later.',
+            operator: isOperator
+                ? 'Operator: run System → Rebuild all deliverables so player playlists are published.'
+                : '',
+        };
+    }
+
+    if (lower.includes('no playable tracks') || lower.includes('not available yet')) {
+        return {
+            title: 'Nothing to play yet',
+            detail: 'This playlist isn\'t available right now. Please try again later.',
+            operator: isOperator
+                ? 'Operator: check Content → Playlists and System → Deliverables.'
+                : '',
+        };
+    }
+
+    if (lower.includes('authentication') || lower.includes('http 401')) {
+        return {
+            title: 'Sign in required',
+            detail: 'Your session expired. Sign in again to keep listening.',
+            operator: '',
+        };
+    }
+
+    return {
+        title: 'Music isn\'t ready yet',
+        detail: 'This playlist can\'t be played right now. Please try again later.',
+        operator: isOperator && detail
+            ? `Operator detail: ${detail}`
+            : (isOperator ? 'Operator: check System → Deliverables and the build log.' : ''),
+    };
+}
+
 function showPlayerLoadError(message) {
+    const copy = playerLoadErrorCopy(message);
+    const titleEl = document.getElementById('loading-msg-title');
+    const detailEl = document.getElementById('loading-msg-detail');
+    const operatorEl = document.getElementById('loading-msg-operator');
+
+    if (titleEl) {
+        titleEl.textContent = copy.title;
+    }
+    if (detailEl) {
+        detailEl.textContent = copy.detail;
+    }
+    if (operatorEl) {
+        if (copy.operator) {
+            operatorEl.textContent = copy.operator;
+            operatorEl.hidden = false;
+        } else {
+            operatorEl.textContent = '';
+            operatorEl.hidden = true;
+        }
+    }
+
     if (loadingMsg) {
         loadingMsg.style.display = 'block';
     }
     if (mediaPlayerEl) {
         mediaPlayerEl.style.display = 'none';
-    }
-    if (songTitle) songTitle.innerText = 'Error';
-    if (artistName) artistName.innerText = 'Check setup';
-    if (lyricsBox) {
-        lyricsBox.innerText = message || 'Could not load playlist.';
     }
 }
 
@@ -1341,7 +1409,7 @@ function updateOperatorDeliveryNotice(summary) {
 
 async function loadConfig() {
     if (window.location.protocol === 'file:') {
-        showPlayerLoadError('Open http://localhost:8000/play/ after starting the PHP dev server.');
+        showPlayerLoadError('file-protocol');
         return;
     }
 
