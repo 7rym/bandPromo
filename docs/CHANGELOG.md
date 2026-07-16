@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-16 14:55 - Orphan detection: also scan page picture blocks, release posters/press photos, and playlist posters before labeling Visual pool files as orphans (stem-aware match for optimal vs original names).
+
 2026-07-16 12:50 - Deliverables resilience: run cover JPEG conversion in a child process so a Pillow segfault on one corrupt image (exit -11) cannot abort the whole `deliverables-media` stage; fall back to copying the source cover when conversion crashes.
 
 2026-07-16 12:40 - Player publish fix: `bandpromo_playlist_materialize_for_player()` again runs `materialize_entries` (Python tag/sidecar read) so covers, lyrics, and descriptions are written into published playlist payloads. Also refresh sparse registry display before publish fallback.

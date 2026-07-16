@@ -284,10 +284,311 @@ function bandpromo_media_reference_collect_track_visual_references(
     return [];
 }
 
+function bandpromo_media_reference_basename_stem(string $filename): string
+{
+    return strtolower(pathinfo(basename(trim($filename)), PATHINFO_FILENAME));
+}
+
+function bandpromo_media_reference_names_match(string $candidate, string $filename): bool
+{
+    $candidate = basename(trim($candidate));
+    $filename = basename(trim($filename));
+    if ($candidate === '' || $filename === '') {
+        return false;
+    }
+    if (strcasecmp($candidate, $filename) === 0) {
+        return true;
+    }
+
+    $candidateStem = bandpromo_media_reference_basename_stem($candidate);
+    $filenameStem = bandpromo_media_reference_basename_stem($filename);
+
+    return $candidateStem !== '' && $candidateStem === $filenameStem;
+}
+
+function bandpromo_media_reference_target_for_media_path(string $src): string
+{
+    $src = str_replace('\\', '/', trim($src));
+    if ($src === '') {
+        return '';
+    }
+    if (stripos($src, '/media/video/') !== false) {
+        return 'video';
+    }
+    if (stripos($src, '/media/photo/') !== false) {
+        return 'photos';
+    }
+    if (stripos($src, '/media/img/') !== false) {
+        return 'illustrations';
+    }
+
+    return '';
+}
+
+/**
+ * Page editor picture blocks reference /media/{img|photo}/optimal/… basenames.
+ *
+ * @return array<string, list<array>>
+ */
+function bandpromo_media_reference_build_page_index(string $root, string $target): array
+{
+    static $cache = [];
+    $cacheKey = $root . '|' . $target;
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
+    }
+
+    require_once __DIR__ . '/page-storage.php';
+    require_once __DIR__ . '/page-registry.php';
+
+    $index = [];
+    try {
+        bandpromo_page_seed_all_if_missing($root);
+        $pageIds = bandpromo_page_registry_ids($root);
+    } catch (Throwable $throwable) {
+        return $cache[$cacheKey] = $index;
+    }
+
+    foreach ($pageIds as $pageId) {
+        $pageId = trim((string) $pageId);
+        if ($pageId === '') {
+            continue;
+        }
+
+        try {
+            $document = bandpromo_page_load_document($root, $pageId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $pageTitle = trim((string) ($document['title'] ?? $pageId));
+        $blocks = is_array($document['blocks'] ?? null) ? $document['blocks'] : [];
+        foreach ($blocks as $block) {
+            if (!is_array($block)) {
+                continue;
+            }
+            $type = (string) ($block['type'] ?? '');
+            if (!in_array($type, ['picture', 'picture_richtext', 'image'], true)) {
+                continue;
+            }
+            $src = trim((string) ($block['src'] ?? ''));
+            if ($src === '') {
+                continue;
+            }
+            if (bandpromo_media_reference_target_for_media_path($src) !== $target) {
+                continue;
+            }
+            $basename = basename($src);
+            if ($basename === '') {
+                continue;
+            }
+            if (!isset($index[$basename])) {
+                $index[$basename] = [];
+            }
+            $index[$basename][] = [
+                'scope' => 'page',
+                'kind' => 'page-image',
+                'label' => $pageTitle !== '' ? $pageTitle : $pageId,
+                'page_id' => $pageId,
+            ];
+        }
+    }
+
+    return $cache[$cacheKey] = $index;
+}
+
+function bandpromo_media_reference_collect_page_references(string $root, string $target, string $filename): array
+{
+    $safe = basename(trim($filename));
+    if ($safe === '' || !in_array($target, ['illustrations', 'photos'], true)) {
+        return [];
+    }
+
+    $index = bandpromo_media_reference_build_page_index($root, $target);
+    $references = [];
+    $seen = [];
+    $stem = bandpromo_media_reference_basename_stem($safe);
+
+    foreach ($index as $indexedName => $entries) {
+        if (!bandpromo_media_reference_names_match((string) $indexedName, $safe)
+            && !($stem !== '' && bandpromo_media_reference_basename_stem((string) $indexedName) === $stem)
+        ) {
+            continue;
+        }
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $key = ($entry['page_id'] ?? '') . '|' . ($entry['kind'] ?? '');
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $references[] = $entry;
+        }
+    }
+
+    return $references;
+}
+
+/**
+ * Resolve release/playlist poster or press-photo asset ids to candidate basenames.
+ *
+ * @return list<string>
+ */
+function bandpromo_media_reference_poster_candidate_filenames(string $root, string $reference): array
+{
+    $reference = trim($reference);
+    if ($reference === '') {
+        return [];
+    }
+
+    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    if (preg_match('#^/media/#', $reference) === 1) {
+        $basename = basename($reference);
+
+        return $basename !== '' ? [$basename] : [];
+    }
+
+    $asset = null;
+    if (bandpromo_asset_is_asset_id($reference)) {
+        $asset = bandpromo_asset_lookup_by_id($root, $reference);
+    }
+
+    return bandpromo_release_poster_filename_candidates($reference, is_array($asset) ? $asset : null);
+}
+
+/**
+ * @return list<array{scope:string,kind:string,label:string,container_id?:string}>
+ */
+function bandpromo_media_reference_collect_poster_references(string $root, string $target, string $filename): array
+{
+    $safe = basename(trim($filename));
+    if ($safe === '' || !in_array($target, ['illustrations', 'photos'], true)) {
+        return [];
+    }
+
+    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/playlist-storage.php';
+
+    $references = [];
+    $seen = [];
+
+    $appendMatch = static function (array $entry, array $candidates) use (&$references, &$seen, $safe, $root, $target): void {
+        if (!bandpromo_media_reference_file_exists($root, $target, $safe)) {
+            return;
+        }
+        $matched = false;
+        foreach ($candidates as $candidate) {
+            if (bandpromo_media_reference_names_match((string) $candidate, $safe)) {
+                $matched = true;
+                break;
+            }
+        }
+        if (!$matched) {
+            return;
+        }
+        $key = ($entry['kind'] ?? '') . '|' . ($entry['container_id'] ?? '') . '|' . ($entry['label'] ?? '');
+        if (isset($seen[$key])) {
+            return;
+        }
+        $seen[$key] = true;
+        $references[] = $entry;
+    };
+
+    try {
+        bandpromo_release_ensure_seeded($root);
+        foreach (bandpromo_release_registry_entries($root) as $registryEntry) {
+            if (!is_array($registryEntry)) {
+                continue;
+            }
+            $releaseId = bandpromo_release_normalize_id((string) ($registryEntry['id'] ?? ''));
+            if ($releaseId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_release_load_document($root, $releaseId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $title = trim((string) ($document['title'] ?? $releaseId));
+            $posterId = trim((string) ($document['poster_asset_id'] ?? ''));
+            if ($posterId !== '') {
+                $appendMatch([
+                    'scope' => 'release',
+                    'kind' => 'release-poster',
+                    'label' => $title !== '' ? $title : $releaseId,
+                    'container_id' => $releaseId,
+                ], bandpromo_media_reference_poster_candidate_filenames($root, $posterId));
+            }
+            $pressIds = is_array($document['epk']['press_photo_asset_ids'] ?? null)
+                ? $document['epk']['press_photo_asset_ids']
+                : [];
+            foreach ($pressIds as $pressId) {
+                $pressId = trim((string) $pressId);
+                if ($pressId === '') {
+                    continue;
+                }
+                $appendMatch([
+                    'scope' => 'release',
+                    'kind' => 'release-press-photo',
+                    'label' => ($title !== '' ? $title : $releaseId) . ' (press)',
+                    'container_id' => $releaseId,
+                ], bandpromo_media_reference_poster_candidate_filenames($root, $pressId));
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Release registry may be missing during early setup.
+    }
+
+    try {
+        bandpromo_playlist_ensure_seeded($root);
+        foreach (bandpromo_playlist_registry_entries($root) as $registryEntry) {
+            if (!is_array($registryEntry)) {
+                continue;
+            }
+            $playlistId = bandpromo_playlist_normalize_id((string) ($registryEntry['id'] ?? ''));
+            if ($playlistId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_playlist_load_document($root, $playlistId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $title = trim((string) ($document['title'] ?? $playlistId));
+            $posterId = trim((string) ($document['poster_asset_id'] ?? ''));
+            if ($posterId === '') {
+                continue;
+            }
+            $appendMatch([
+                'scope' => 'playlist',
+                'kind' => 'playlist-poster',
+                'label' => $title !== '' ? $title : $playlistId,
+                'container_id' => $playlistId,
+            ], bandpromo_media_reference_poster_candidate_filenames($root, $posterId));
+        }
+    } catch (Throwable $throwable) {
+        // Playlist registry may be missing during early setup.
+    }
+
+    return $references;
+}
+
 function bandpromo_media_reference_collect_references(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null, ?array $trackVisualIndex = null): array
 {
     if ($target === 'illustrations') {
-        return bandpromo_cover_art_collect_references($root, $filename, $trackVisualIndex);
+        $references = bandpromo_cover_art_collect_references($root, $filename, $trackVisualIndex);
+        foreach (bandpromo_media_reference_collect_page_references($root, $target, $filename) as $reference) {
+            $references[] = $reference;
+        }
+        foreach (bandpromo_media_reference_collect_poster_references($root, $target, $filename) as $reference) {
+            $references[] = $reference;
+        }
+
+        return $references;
     }
 
     $safe = basename($filename);
@@ -306,6 +607,12 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
     foreach (bandpromo_media_reference_collect_track_visual_references($root, $target, $safe, $trackVisualIndex) as $reference) {
         $references[] = $reference;
     }
+    foreach (bandpromo_media_reference_collect_page_references($root, $target, $safe) as $reference) {
+        $references[] = $reference;
+    }
+    foreach (bandpromo_media_reference_collect_poster_references($root, $target, $safe) as $reference) {
+        $references[] = $reference;
+    }
 
     return $references;
 }
@@ -320,15 +627,28 @@ function bandpromo_media_reference_describe_file(
 ): array {
     if ($target === 'illustrations') {
         $coverInfo = bandpromo_cover_art_describe_file($root, $filename, $playlistCoverContext, $trackVisualIndex);
+        $references = bandpromo_media_reference_collect_references(
+            $root,
+            $target,
+            $filename,
+            $galleryReferenceIndex,
+            $trackVisualIndex
+        );
+        $safe = basename($filename);
+        $orphan = $references === [] && !bandpromo_media_is_bundled_placeholder($safe);
+        $regenerable = !empty($coverInfo['regenerable']);
+        $role = (string) ($coverInfo['role'] ?? '');
+        $safeToDelete = $orphan || ($regenerable && $role !== 'release-fallback');
+
         return [
-            'filename' => (string) ($coverInfo['filename'] ?? basename($filename)),
-            'role' => (string) ($coverInfo['role'] ?? ''),
+            'filename' => (string) ($coverInfo['filename'] ?? $safe),
+            'role' => $role,
             'origin' => (string) ($coverInfo['origin'] ?? ''),
-            'references' => is_array($coverInfo['references'] ?? null) ? $coverInfo['references'] : [],
-            'reference_count' => (int) ($coverInfo['reference_count'] ?? 0),
-            'orphan' => !empty($coverInfo['orphan']),
-            'regenerable' => !empty($coverInfo['regenerable']),
-            'safe_to_delete' => !empty($coverInfo['safe_to_delete']),
+            'references' => $references,
+            'reference_count' => count($references),
+            'orphan' => $orphan,
+            'regenerable' => $regenerable,
+            'safe_to_delete' => $safeToDelete,
             'linked_audio' => (string) ($coverInfo['linked_audio'] ?? ''),
         ];
     }

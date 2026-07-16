@@ -82,6 +82,10 @@ function bandpromo_summarize_reference_counts(array $references): array {
         'gallery_items' => 0,
         'theme_assets' => 0,
         'release_fallbacks' => 0,
+        'page_images' => 0,
+        'release_posters' => 0,
+        'release_press_photos' => 0,
+        'playlist_posters' => 0,
         'total' => 0,
     ];
 
@@ -97,6 +101,14 @@ function bandpromo_summarize_reference_counts(array $references): array {
             $summary['theme_assets']++;
         } elseif ($kind === 'release-fallback') {
             $summary['release_fallbacks']++;
+        } elseif ($kind === 'page-image') {
+            $summary['page_images']++;
+        } elseif ($kind === 'release-poster') {
+            $summary['release_posters']++;
+        } elseif ($kind === 'release-press-photo') {
+            $summary['release_press_photos']++;
+        } elseif ($kind === 'playlist-poster') {
+            $summary['playlist_posters']++;
         }
         $summary['total']++;
     }
