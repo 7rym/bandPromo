@@ -94,7 +94,8 @@ function bandpromo_notifications_catalog_repair_snapshot(string $root): array
 $buildState = bandpromo_get_build_required_state();
 // Finalize/prune only — never auto-spawn video jobs from Notifications polling.
 $backgroundTasks = bandpromo_reconcile_background_tasks(false);
-$packageUpdate = bandpromo_package_check_update_cached($rootDir);
+$packageForceRefresh = isset($_GET['force_package']) && (string) $_GET['force_package'] === '1';
+$packageUpdate = bandpromo_package_check_update_cached($rootDir, 900, $packageForceRefresh);
 $welcomeSetupComplete = bandpromo_admin_welcome_setup_is_complete($rootDir);
 
 if ($scope === 'lite') {

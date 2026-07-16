@@ -2141,6 +2141,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (scope === 'full' && (options.inventory === true || isDeliverablesViewActive())) {
                     params.set('inventory', '1');
                 }
+                if (options.forcePackage === true) {
+                    params.set('force_package', '1');
+                }
                 return '/biblioteca/get-operator-notifications.php?' + params.toString();
             }
 
@@ -8674,8 +8677,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setStatusMessage('Checking for updates…');
 
                     try {
+                        // Always hit GitHub for an explicit Check again — do not reuse the
+                        // 15-minute notifications cache (that made fresh tester builds look missing).
+                        const resp = await fetch('/biblioteca/check-package-update.php', {
+                            credentials: 'same-origin',
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            renderPackageUpdateStatus({
+                                ok: false,
+                                error: (data && data.error) ? data.error : 'Could not check for updates right now.',
+                            });
+                            return;
+                        }
+
+                        latestPackageUpdate = data;
+                        latestStatus = data;
+                        renderPackageUpdateStatus({
+                            ok: true,
+                            ...data,
+                        });
+
                         if (typeof refreshBuildRequiredState === 'function') {
-                            await refreshBuildRequiredState({ full: true });
+                            await refreshBuildRequiredState({ full: true, forcePackage: true });
                         }
                     } catch (error) {
                         renderPackageUpdateStatus({
