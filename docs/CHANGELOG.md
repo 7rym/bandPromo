@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-16 12:30 - Host build fix: `makePlaylists.py` now resolves PHP via `php_cli.resolve_php_cli()` (Plesk hosts have no bare `php` on PATH). Also restore Python 3.6-safe `subprocess` args in `optimizeVideo.py` poster extraction (`universal_newlines` instead of `text=`).
+
 2026-07-16 12:25 - Site update: "Check again" now force-refreshes the GitHub package check instead of reusing the 15-minute notifications cache, so freshly published tester builds appear immediately.
 
 2026-07-16 12:15 - Player load failure UI: replace developer-only "PHP dev server" copy with a public-facing "music isn't ready yet" message. Operators still see a short Deliverables/rebuild hint under the public text.

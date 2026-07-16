@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from mutagen import File
 
+from php_cli import resolve_php_cli
+
 # Supported audio file extensions
 SUPPORTED_EXTENSIONS = ('.flac', '.mp3', '.wav')
 KNOWN_AUDIO_EXTENSIONS = SUPPORTED_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg', '.wma')
@@ -1254,10 +1256,15 @@ def publish_player_playlist_payloads():
         print(f"⚠️  Player playlist publish script not found: {script}")
         return
 
+    php = resolve_php_cli()
+    if php == '':
+        print('❌ Could not resolve PHP CLI for player playlist publish.')
+        sys.exit(1)
+
     print('Publishing static player playlist payloads...')
     try:
         result = subprocess.run(
-            ['php', str(script)],
+            [php, str(script)],
             cwd=str(ROOT_DIR),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

@@ -81,9 +81,7 @@ def _run_ffmpeg_capture(command):
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
+        universal_newlines=True,
     )
 
 
