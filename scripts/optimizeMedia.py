@@ -38,12 +38,27 @@ AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 AUDIO_OPT_DIR  = ROOT_DIR / 'media' / 'audio' / 'optimal'
 IMG_ORIG_DIR   = ROOT_DIR / 'media' / 'img'   / 'original'
 IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
+IMG_THUMB_DIR  = ROOT_DIR / 'media' / 'img'   / 'thumb'
 PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
 PHOTO_OPT_DIR  = ROOT_DIR / 'media' / 'photo' / 'optimal'
+PHOTO_THUMB_DIR = ROOT_DIR / 'media' / 'photo' / 'thumb'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
+
+# Player card max CSS is 600px; deliver slightly above for sharpness.
+COVER_OPTIMAL_MAX_EDGE = 720
+# Playlist rows / cover-flow thumbs (~70–100 CSS px).
+COVER_THUMB_MAX_EDGE = 100
+
+# Shell media sanity sizes (reduce first-paint bytes).
+# These are directly referenced from /media/special/* and must be kept stable URLs.
+SHELL_LOGO_MAX_HEIGHT_PX = 180
+SHELL_BACKGROUND_MAX_HEIGHT_PX = 1080
+# If background is alpha-free PNG, we may optionally convert it to JPG for extra savings.
+SHELL_BACKGROUND_JPG_QUALITY = 70
+SHELL_BACKGROUND_JPG_MIN_IMPROVEMENT_RATIO = 0.10  # only switch if JPG is at least ~10% smaller
 
 try:
     from PIL import Image
@@ -51,6 +66,192 @@ except ImportError:
     print("❌ Error: Pillow (PIL) is required for image conversion")
     print("   Install with: pip install Pillow")
     sys.exit(1)
+
+
+def deep_get(config, dot_path):
+    if not isinstance(dot_path, str) or dot_path.strip() == '':
+        return None
+    parts = [p for p in dot_path.split('.') if p]
+    cur = config
+    for p in parts:
+        if not isinstance(cur, dict) or p not in cur:
+            return None
+        cur = cur[p]
+    if isinstance(cur, str):
+        return cur.strip()
+    return None
+
+
+def replace_string_values(obj, old_value, new_value):
+    """Recursively replace exact string matches in JSON-like structures."""
+    if isinstance(obj, str):
+        return new_value if obj == old_value else obj
+    if isinstance(obj, list):
+        return [replace_string_values(x, old_value, new_value) for x in obj]
+    if isinstance(obj, dict):
+        return {k: replace_string_values(v, old_value, new_value) for k, v in obj.items()}
+    return obj
+
+
+def resolve_web_media_path_to_abs(root_dir, web_path):
+    web_path = str(web_path or '').strip().replace('\\', '/')
+    if web_path == '' or not web_path.startswith('/media/'):
+        return None
+    abs_path = Path(root_dir) / web_path.lstrip('/')
+    return abs_path
+
+
+def png_has_visible_transparency(img):
+    # Detect alpha channel or palette transparency.
+    if img.mode in ('RGBA', 'LA'):
+        alpha = img.getchannel('A')
+        mn, mx = alpha.getextrema()
+        return mn < 255 and mx <= 255  # visible transparency present
+    if img.mode == 'P':
+        transparency = img.info.get('transparency')
+        return transparency is not None
+    return False
+
+
+def resize_image_to_max_height(img, max_height):
+    max_height = max(1, int(max_height))
+    w, h = img.size
+    if int(h) <= max_height:
+        return img, False
+    scale = float(max_height) / float(h)
+    new_w = max(1, int(round(w * scale)))
+    new_h = max_height
+    resample = getattr(getattr(Image, 'Resampling', None), 'LANCZOS', None) or Image.LANCZOS
+    return img.resize((new_w, new_h), resample=resample), True
+
+
+def save_png_optimized(img, dest_path):
+    tmp_path = Path(str(dest_path) + '.tmp')
+    try:
+        # Try best-effort compression knobs; Pillow support varies across builds.
+        try:
+            img.save(str(tmp_path), 'PNG', optimize=True, compress_level=9)
+        except Exception:
+            img.save(str(tmp_path), 'PNG', optimize=True)
+        tmp_path.replace(dest_path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+
+def save_jpg_optimized(img, dest_path, quality):
+    tmp_path = Path(str(dest_path) + '.tmp')
+    try:
+        # JPG cannot preserve alpha; caller must ensure image is alpha-free or intentionally flattened.
+        img.save(str(tmp_path), 'JPEG', quality=int(quality), optimize=True)
+        tmp_path.replace(dest_path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+
+def optimize_shell_brand_media_images():
+    """
+    Resize the active brand's shell logo/background images referenced in web-config.json.
+    Keeps logo as PNG (transparency), background can switch to JPG if alpha-free.
+
+    This reduces the multi-MB 'first paint' contention caused by /media/special/* assets.
+    """
+    web_cfg_path = ROOT_DIR / 'web-config.json'
+    if not web_cfg_path.exists():
+        print("ℹ️  web-config.json not found — skipping shell media optimization")
+        return
+
+    try:
+        config = json.loads(web_cfg_path.read_text(encoding='utf-8'))
+    except Exception as e:
+        print(f"⚠️  Could not parse web-config.json for shell media optimization: {e}")
+        return
+
+    logo_web = (
+        deep_get(config, 'install.brand.logo')
+        or deep_get(config, 'install.theme.logo')
+        or deep_get(config, 'media.logo')
+        or ''
+    )
+
+    background_web = (
+        deep_get(config, 'release.theme.background_image')
+        or deep_get(config, 'media.background_image')
+        or deep_get(config, 'install.theme.background_image')
+        or ''
+    )
+
+    # Only touch /media/special/* files referenced by config.
+    logo_abs = resolve_web_media_path_to_abs(ROOT_DIR, logo_web)
+    bg_abs = resolve_web_media_path_to_abs(ROOT_DIR, background_web)
+
+    changed_config = False
+
+    if logo_abs and logo_abs.exists() and logo_abs.suffix.lower() == '.png':
+        try:
+            img = Image.open(str(logo_abs))
+            resized_img, did_resize = resize_image_to_max_height(img, SHELL_LOGO_MAX_HEIGHT_PX)
+            # Always re-save to reduce file size a bit (optimize=True), but do not reformat.
+            save_png_optimized(resized_img, logo_abs)
+            print(f"  ✓ Shell logo optimized: {logo_abs.name} (max-height {SHELL_LOGO_MAX_HEIGHT_PX}px, resized={did_resize})")
+        except Exception as e:
+            print(f"  ⚠️  Shell logo optimize failed: {e}")
+
+    if bg_abs and bg_abs.exists() and bg_abs.suffix.lower() in ('.png', '.jpg', '.jpeg'):
+        try:
+            img = Image.open(str(bg_abs))
+            resized_img, did_resize = resize_image_to_max_height(img, SHELL_BACKGROUND_MAX_HEIGHT_PX)
+
+            # If PNG is alpha-free, we can consider switching to JPG.
+            if bg_abs.suffix.lower() in ('.png',):
+                has_alpha = png_has_visible_transparency(img)
+
+                if img.size != resized_img.size or did_resize:
+                    # Keep PNG as a fallback/compat: resize it in place.
+                    save_png_optimized(resized_img, bg_abs)
+                else:
+                    # No resize needed; still optimize to reduce bytes.
+                    save_png_optimized(img, bg_abs)
+
+                if not has_alpha:
+                    jpg_abs = bg_abs.with_name(bg_abs.stem + f"_bg{SHELL_BACKGROUND_MAX_HEIGHT_PX}.jpg")
+                    # Convert to RGB for JPG.
+                    rgb_img = resized_img.convert('RGB')
+                    save_jpg_optimized(rgb_img, jpg_abs, quality=SHELL_BACKGROUND_JPG_QUALITY)
+
+                    png_size = bg_abs.stat().st_size
+                    jpg_size = jpg_abs.stat().st_size
+                    if png_size > 0 and (png_size - jpg_size) / png_size >= SHELL_BACKGROUND_JPG_MIN_IMPROVEMENT_RATIO:
+                        new_web_path = str(jpg_abs).replace(str(ROOT_DIR), '').replace('\\', '/')
+                        if not new_web_path.startswith('/'):
+                            new_web_path = '/' + new_web_path
+                        if background_web and background_web != new_web_path:
+                            config = replace_string_values(config, background_web, new_web_path)
+                            changed_config = True
+                            print(f"  ✓ Shell background switched to JPG: {bg_abs.name} -> {jpg_abs.name} ({png_size/1024:.0f}KB -> {jpg_size/1024:.0f}KB)")
+            else:
+                # Background already JPG; just resize in place if needed.
+                if bg_abs.suffix.lower() in ('.jpg', '.jpeg'):
+                    # Flatten/convert to RGB before saving JPG.
+                    rgb_img = resized_img.convert('RGB')
+                    save_jpg_optimized(rgb_img, bg_abs, quality=SHELL_BACKGROUND_JPG_QUALITY)
+                    print(f"  ✓ Shell background JPG optimized: {bg_abs.name} (max-height {SHELL_BACKGROUND_MAX_HEIGHT_PX}px, resized={did_resize})")
+        except Exception as e:
+            print(f"  ⚠️  Shell background optimize failed: {e}")
+
+    if changed_config:
+        try:
+            web_cfg_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            print("  ✓ Updated web-config.json with optimized shell background path")
+        except Exception as e:
+            print(f"  ⚠️  Could not persist web-config.json shell background change: {e}")
 
 
 def load_track_cover_lookup():
@@ -122,21 +323,26 @@ def _copy_cover_fallback(source_path, dest_path, reason):
         return None
 
 
-def convert_cover_to_jpeg(source_path, dest_path, quality=75):
+def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None):
     """
-    Convert cover image to JPEG with medium quality.
+    Convert cover image to JPEG with medium quality and optional max edge resize.
 
     Runs Pillow in a child process so a segfault on a corrupt/hostile image
     cannot abort the whole deliverables-media stage (seen as exit code -11).
+    Does not upscale; only shrinks when either side exceeds max_edge.
     """
     if not os.path.exists(source_path):
         print("    ⚠️  Source cover not found: {}".format(source_path))
         return None
 
+    if max_edge is None:
+        max_edge = COVER_OPTIMAL_MAX_EDGE
+    max_edge = max(1, int(max_edge))
+
     worker = (
         "import sys\n"
         "from PIL import Image\n"
-        "src, dest, quality = sys.argv[1], sys.argv[2], int(sys.argv[3])\n"
+        "src, dest, quality, max_edge = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])\n"
         "img = Image.open(src)\n"
         "if img.mode in ('RGBA', 'LA', 'P'):\n"
         "    background = Image.new('RGB', img.size, (255, 255, 255))\n"
@@ -146,12 +352,19 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75):
         "    img = background\n"
         "elif img.mode != 'RGB':\n"
         "    img = img.convert('RGB')\n"
+        "w, h = img.size\n"
+        "longest = max(w, h)\n"
+        "if longest > max_edge:\n"
+        "    scale = float(max_edge) / float(longest)\n"
+        "    new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))\n"
+        "    resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)\n"
+        "    img = img.resize(new_size, resample)\n"
         "img.save(dest, 'JPEG', quality=quality, optimize=True)\n"
     )
 
     try:
         result = subprocess.run(
-            [sys.executable, '-c', worker, source_path, dest_path, str(quality)],
+            [sys.executable, '-c', worker, source_path, dest_path, str(quality), str(max_edge)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
@@ -177,8 +390,8 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75):
         source_size = os.path.getsize(source_path)
         dest_size = os.path.getsize(dest_path)
         ratio = (1 - dest_size / source_size) * 100 if source_size > 0 else 0
-        print("    ✓ Converted cover: {} → {} ({:.0f}% smaller)".format(
-            source_path, os.path.basename(dest_path), ratio
+        print("    ✓ Converted cover: {} → {} (max {}px, {:.0f}% smaller)".format(
+            source_path, os.path.basename(dest_path), max_edge, ratio
         ))
     except Exception:
         print("    ✓ Converted cover: {} → {}".format(
@@ -186,6 +399,54 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75):
         ))
 
     return os.path.basename(dest_path)
+
+
+def delivery_image_is_fresh(source_path, dest_path, max_edge):
+    """True when dest exists, is newer than source, and longest edge <= max_edge."""
+    try:
+        source = Path(source_path)
+        dest = Path(dest_path)
+        if not source.is_file() or not dest.is_file():
+            return False
+        if dest.stat().st_mtime < source.stat().st_mtime:
+            return False
+        with Image.open(str(dest)) as img:
+            w, h = img.size
+        return max(w, h) <= int(max_edge)
+    except Exception:
+        return False
+
+
+def write_cover_delivery_variants(source_path, optimal_path, thumb_path, quality=75):
+    """Write optimal (720) and thumb (100) JPEG derivatives for one source image."""
+    wrote = []
+    if not delivery_image_is_fresh(source_path, optimal_path, COVER_OPTIMAL_MAX_EDGE):
+        Path(optimal_path).parent.mkdir(parents=True, exist_ok=True)
+        name = convert_cover_to_jpeg(
+            source_path,
+            optimal_path,
+            quality=quality,
+            max_edge=COVER_OPTIMAL_MAX_EDGE,
+        )
+        if name:
+            wrote.append('optimal')
+    else:
+        print("    ✓ Optimal fresh: {}".format(os.path.basename(optimal_path)))
+
+    if not delivery_image_is_fresh(source_path, thumb_path, COVER_THUMB_MAX_EDGE):
+        Path(thumb_path).parent.mkdir(parents=True, exist_ok=True)
+        name = convert_cover_to_jpeg(
+            source_path,
+            thumb_path,
+            quality=max(60, int(quality) - 10),
+            max_edge=COVER_THUMB_MAX_EDGE,
+        )
+        if name:
+            wrote.append('thumb')
+    else:
+        print("    ✓ Thumb fresh: {}".format(os.path.basename(thumb_path)))
+
+    return wrote
 
 
 def check_ffmpeg():
@@ -495,9 +756,16 @@ def process_track_cover(cover_filename):
         return
 
     orig_cover_path = IMG_ORIG_DIR / cover_filename
-    lq_cover_path = IMG_OPT_DIR / (Path(cover_filename).stem + '.jpg')
+    stem = Path(cover_filename).stem
+    optimal_path = IMG_OPT_DIR / (stem + '.jpg')
+    thumb_path = IMG_THUMB_DIR / (stem + '.jpg')
     print(f"  → Processing cover: {cover_filename}")
-    convert_cover_to_jpeg(str(orig_cover_path), str(lq_cover_path), quality=75)
+    write_cover_delivery_variants(
+        str(orig_cover_path),
+        str(optimal_path),
+        str(thumb_path),
+        quality=75,
+    )
 
 
 def process_audio_delivery(master_filename, cover_filename=None):
@@ -544,6 +812,11 @@ def main():
     """Main media optimization function."""
     # Verify source directories exist
     include_audio = OPTIMIZE_MODE == 'full'
+    special_only = os.environ.get('BANDPROMO_OPTIMIZE_SPECIAL_ASSETS_ONLY', '').strip() == '1'
+
+    if special_only:
+        optimize_shell_brand_media_images()
+        return 0
 
     if include_audio and not AUDIO_ORIG_DIR.exists():
         print(f"❌ Error: Audio original directory not found at {AUDIO_ORIG_DIR}")
@@ -552,7 +825,9 @@ def main():
     # Create output directories if they don't exist
     AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
     IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
+    IMG_THUMB_DIR.mkdir(parents=True, exist_ok=True)
     PHOTO_OPT_DIR.mkdir(parents=True, exist_ok=True)
+    PHOTO_THUMB_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"🧭 Optimize mode: {OPTIMIZE_MODE}")
     if include_audio:
@@ -561,15 +836,20 @@ def main():
             print(f"📁 Audio master: {AUDIO_MASTER_DIR}")
         print(f"📁 Audio (optimized): {AUDIO_OPT_DIR}")
     print(f"📁 Image original: {IMG_ORIG_DIR}")
-    print(f"📁 Image (optimized): {IMG_OPT_DIR}")
+    print(f"📁 Image (optimized): {IMG_OPT_DIR} (max {COVER_OPTIMAL_MAX_EDGE}px)")
+    print(f"📁 Image (thumb): {IMG_THUMB_DIR} (max {COVER_THUMB_MAX_EDGE}px)")
     print(f"📁 Photo original: {PHOTO_ORIG_DIR}")
-    print(f"📁 Photo (optimized): {PHOTO_OPT_DIR}")
+    print(f"📁 Photo (optimized): {PHOTO_OPT_DIR} (max {COVER_OPTIMAL_MAX_EDGE}px)")
+    print(f"📁 Photo (thumb): {PHOTO_THUMB_DIR} (max {COVER_THUMB_MAX_EDGE}px)")
     if include_audio:
         print("ℹ️  This full optimize pass refreshes audio delivery files plus track covers, photos, and illustrations.")
         print("ℹ️  Theme/share assets in media/special are used directly; social share variants are generated by makeSocial.py.")
     else:
         print("ℹ️  This image-only pass refreshes track covers, photos, and illustrations.")
         print("ℹ️  Theme/share assets in media/special are used directly; social share variants are generated by makeSocial.py.")
+
+    # Reduce first-paint contention from large /media/special shell assets.
+    optimize_shell_brand_media_images()
 
     audio_queue = []
     cover_lookup = load_track_cover_lookup()
@@ -632,18 +912,20 @@ def main():
         for src in sorted(PHOTO_ORIG_DIR.iterdir()):
             if src.is_file() and src.suffix.lower() in photo_exts:
                 dest = PHOTO_OPT_DIR / (src.stem + '.jpg')
-                print(f"  Processing: {src.name} → {dest.name}")
-                convert_cover_to_jpeg(str(src), str(dest), quality=80)
+                thumb = PHOTO_THUMB_DIR / (src.stem + '.jpg')
+                print(f"  Processing: {src.name} → {dest.name} + thumb")
+                write_cover_delivery_variants(str(src), str(dest), str(thumb), quality=80)
                 photo_count += 1
         if photo_count == 0:
             print("  ✓ No photos found in original/")
     else:
         print(f"  ⚠️  Photo original directory not found: {PHOTO_ORIG_DIR}")
 
-    # ── User illustrations (img/original/ → img/optimal/) ────────────────────────
+    # ── User illustrations (img/original/ → img/optimal/ + img/thumb/) ─────────────
     # These are user-supplied images for use in Bio HTML and other custom content.
     print("\n🖼️  Processing user illustrations (img/original/)...")
     IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
+    IMG_THUMB_DIR.mkdir(parents=True, exist_ok=True)
     img_illus_count = 0
     # Skip cover art filenames that belong to tracks (already handled above)
     track_covers = set(cover_lookup.values()) if cover_lookup else set()
@@ -651,8 +933,9 @@ def main():
         for src in sorted(IMG_ORIG_DIR.iterdir()):
             if src.is_file() and src.suffix.lower() in photo_exts and src.name not in track_covers:
                 dest = IMG_OPT_DIR / (src.stem + '.jpg')
-                print(f"  Processing: {src.name} → {dest.name}")
-                convert_cover_to_jpeg(str(src), str(dest), quality=80)
+                thumb = IMG_THUMB_DIR / (src.stem + '.jpg')
+                print(f"  Processing: {src.name} → {dest.name} + thumb")
+                write_cover_delivery_variants(str(src), str(dest), str(thumb), quality=80)
                 img_illus_count += 1
         if img_illus_count == 0:
             print("  ✓ No user illustrations found in img/original/")
@@ -674,21 +957,24 @@ def main():
                 except Exception as e:
                     print(f"  ⚠️  Could not remove {item.name}: {e}")
 
-    # Keep all jpg/jpeg in IMG_OPT_DIR (they're all valid covers)
+    # Keep all jpg/jpeg in IMG_OPT_DIR / IMG_THUMB_DIR (they're all valid covers)
 
     # Clean up photos whose originals no longer exist
     if PHOTO_ORIG_DIR.exists():
         allowed_photos = {src.stem + '.jpg'
                           for src in PHOTO_ORIG_DIR.iterdir()
                           if src.is_file() and src.suffix.lower() in photo_exts}
-        for item in PHOTO_OPT_DIR.iterdir():
-            if item.is_file() and item.name not in allowed_photos:
-                try:
-                    item.unlink()
-                    print(f"  🗑️  Removed photo: {item.name}")
-                    removed += 1
-                except Exception as e:
-                    print(f"  ⚠️  Could not remove {item.name}: {e}")
+        for folder in (PHOTO_OPT_DIR, PHOTO_THUMB_DIR):
+            if not folder.exists():
+                continue
+            for item in folder.iterdir():
+                if item.is_file() and item.name not in allowed_photos:
+                    try:
+                        item.unlink()
+                        print(f"  🗑️  Removed photo: {item.name}")
+                        removed += 1
+                    except Exception as e:
+                        print(f"  ⚠️  Could not remove {item.name}: {e}")
 
     if removed == 0:
         print("  ✓ Optimized directories are clean")
@@ -707,8 +993,8 @@ def main():
     print(f"   Cleaned up files       : {removed}")
     if include_audio:
         print(f"   Audio output     : {AUDIO_OPT_DIR}")
-    print(f"   Image output     : {IMG_OPT_DIR}")
-    print(f"   Photo output     : {PHOTO_OPT_DIR}")
+    print(f"   Image output     : {IMG_OPT_DIR} / {IMG_THUMB_DIR}")
+    print(f"   Photo output     : {PHOTO_OPT_DIR} / {PHOTO_THUMB_DIR}")
 
     if (MEDIA_DIR / 'share.jpg').exists():
         print(f"\n   ⚠️  Legacy media/share.jpg found — safe to delete (now handled by makeSocial.py)")

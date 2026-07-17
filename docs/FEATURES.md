@@ -16,16 +16,17 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - **Notifications** operator inbox for **live** work only: media preparation, Site update, publish follow-ups, validation. The Welcome setup checklist stays on the Welcome page and is not mirrored into the bell. Hot paths stay read-only (lite by default; no catalog repair / materialize from the inbox).
 - Quick actions on the completed-install dashboard (Analytics, Files, Content, live preview, Documentation)
 - Built-in analytics for playback and user behavior (SQLite activity store at `data/analytics/events.sqlite`)
-- Guided **Settings** forms (Basics, Theme, Support, Sharing) instead of raw JSON editing *(site shell settings; brand identity lives in Content → Brands — legacy Settings “Theme” tab rename still open)*
-- **Content → Themes** editor *(transitional — becomes **Content → Brands**: pool, tokens, mood narrative, live preview, duplicate/delete, Set active)*
+- Guided **Settings** forms (Basics, Support, Sharing) instead of raw JSON editing *(site shell text/SEO/support; brand identity and shell media live in Content → Branding)*
+- **Content → Branding** editor: pool, colors/typography tokens, mood narrative; **Shell media** assignment slots (logo, poster, still/living backgrounds, welcome/logged-in audio) fed from a sibling **Brand assets** assignable pool (Still/Living/Audio chips; upload via Files). Live preview shows tokens plus shell chrome (logo/backdrop), not a second asset browser. Duplicating a brand (including setup’s “Your own brand” from bandPromo Default) **clones shell media files** into Brand assets the operator can delete or replace. Saving the active brand syncs shell paths into `web-config.json`. Old `?tab=settings&ctab=theme` redirects here.
 - **Block-based Pages editor** (v0.8 beta): Text, Picture, and List blocks; rich formatting; fraction picture widths and Flow placement; live player-styled preview; delete confirmations for pages and blocks
 - Page registry in `data/pages/registry.json`: operators can add, rename, and remove optional pages; **FAQ remains required** for login info / shared-link context
 - Content → **Playlist**, **Gallery**, **Pages**, and **Player layout** share one pool/result editor pattern: **Available content** pool on the left, active order/layout on the right, multi-select drag-and-drop, demo filter on media pools only, and amber **Save** / green **Saved** header controls
 - Content → **Playlist** and **Gallery** management (multiple libraries in admin; player playlist selector when two or more **system** playlists exist)
 - **Player** loads playlist data from prebuilt static payloads in `data/playlists/{id}.json` (`tracks`, `brand_styles`, `delivery_summary` written at Publish). No Python or master-file parsing on player requests.
+- Player **page tabs** (Bio, Gallery, custom pages) ship as empty shells; HTML hydrates after `window.load` (idle) so gallery stills/posters do not contend with first paint. Opening a page tab early fetches immediately; gallery video files still load only in the lightbox.
 - **Registry-first admin**: Files lists, playlist/release editors, and track detail read stored indexes only — `data/assets/registry.json` display fields, published playlist tracks, and the **media files index** in `data/media-library-state.json` (`files`) for size/mtime/delivery listing. No DirectoryIterator, filesize, or tag parse on GET. Index/registry updates only on upload, delete, tag save, delivery jobs, Publish, and container membership saves.
-- Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
-- Files panels: **Audio | Visual | Brand assets**. Visual is a thumbnail-first pool (grid/list, type chips, usage filters) over legacy `media/img|photo|video` intake; filenames stay hidden — open a tile for preview/details. **Brand assets** is the operator name for legacy `media/special/` branding files (logos, share images) until special migration. Brand filter chip + ULID visual registry remain planned (Phases 0b–2).
+- Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Still / Living shell background** switch for the player surface; **Dropdown / Buttons / Cover flow** playlist selector when multiple playlists are available; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
+- Files panels: **Audio | Visual | Brand assets**. Visual and Brand assets both use a thumbnail-first pool (grid/list, type chips, usage filters); filenames stay hidden — open a tile for preview/details. Visual covers legacy `media/img|photo|video` intake; **Brand assets** keeps `media/special/` storage (`target=special`) with theme/config reference scanning for In use / Orphans. Brand filter chip + ULID visual registry remain planned (Phases 0b–2).
 - **Planned (v0.8 management slice remainders):** Brand containers polish, release `brand_id` links (many releases per era), explicit role tags on visuals, **content AI wizards**, visual delivery rewrite — see [TODO.md](TODO.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
 - Files list header row aligned with file items: master select-all checkbox, compact filter dropdowns (`All` / usage filters plus `User files` / `Include demo`), and labeled **Upload**, **Download**, and **Delete** bulk actions
 - Per-row selection with shift-range support, ZIP bulk download, and reference-aware delete warnings
@@ -43,11 +44,14 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - High-quality audio playback with seek/next/previous navigation
 - **Playlists** and **Lyrics** tabs (core player shell — not page-embedded)
 - **Markdown** in player lyrics and track descriptions (rendered at display; masters unchanged)
-- **Animated track covers (living cover)** — optional silent looping video on the main cover card when assigned in the track editor and delivery MP4 exists
+- **Animated track covers (living cover)** — optional silent looping video on the main cover card while audio plays, when assigned and delivery MP4 exists (independent of shell Still/Living background; still cover when paused/idle or reduced motion). Publish fills empty master tags from the asset registry when needed.
+- Cover delivery: **720px optimal** for the player card / lightbox; **100px thumb** for playlist rows and cover-flow (Publish / optimizeMedia)
 - Responsive design for mobile, tablet, and desktop
 - Compact two-column landscape layout for installed/mobile PWA playback
 - Artwork and lightbox support (including page images)
 - Post-login splash shows the install logo with **Preparing your experience…** before entering the player
+- Shell **background image/video** from theme settings on both **login and player** (video when connection is fast; image on slow links / reduced motion)
+- Player brand colors resolve **live** from brand documents (Content → Branding edits apply without waiting for a full Publish)
 
 ### Build & Delivery
 - Automated build pipeline for optimized audio and images
@@ -83,7 +87,7 @@ These are **directional** — betatesters should check `ROADMAP.md` → **Beta t
 **Still in progress (implementation only — policy complete):**
 - Asset registry (`ast_{ULID}`) and `data/` containers for releases, playlists, galleries, themes
 - Multiple playlist and gallery libraries in admin
-- Playlist selector in the player **Playlists** tab; default = latest public system playlist by `publish_date`
+- Playlist selector in the player **Playlists** tab (dropdown, title buttons, or cover flow); default = latest public system playlist by `publish_date`
 - Path deep links: `/play/{playlist}/{release-slug}/{track-slug}` and `/pages/{page-id}`
 - Gallery **module blocks** on pages (grid, carousel, parallax, etc.)
 - Release locking; playlist reorder no longer mutates master tags

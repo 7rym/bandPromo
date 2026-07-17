@@ -330,7 +330,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 illustrations:  { accept: '.png,.jpg,.jpeg',               target: 'illustrations' },
                 photos:         { accept: '.png,.jpg,.jpeg,.webp',         target: 'photos'        },
                 visual:         { accept: '.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov', target: 'visual' },
-                special:        { accept: '.mp3,.mp4,.png,.jpg,.jpeg,.webp,.svg', target: 'special' },
+                special:        { accept: '.flac,.mp3,.wav,.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.svg,.gif', target: 'special' },
             };
             const VISUAL_INTAKE_BUCKETS = ['illustrations', 'photos', 'video'];
             function normalizeFilesPanel(panel) {
@@ -376,22 +376,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     releaseFilterListeners.push(listener);
                 }
             }
-            let visualTypeFilter = 'all';
-            let visualViewMode = (() => {
-                try {
-                    const stored = String(window.localStorage.getItem('bandpromo_visual_pool_view') || '').trim();
-                    return stored === 'list' ? 'list' : 'grid';
-                } catch (error) {
-                    return 'grid';
-                }
-            })();
-            let activeVisualAssetKey = null;
+            let poolTypeFilters = {
+                visual: 'all',
+                special: 'all',
+            };
+            let poolViewModes = {
+                visual: (() => {
+                    try {
+                        const stored = String(window.localStorage.getItem('bandpromo_visual_pool_view') || '').trim();
+                        return stored === 'list' ? 'list' : 'grid';
+                    } catch (error) {
+                        return 'grid';
+                    }
+                })(),
+                special: (() => {
+                    try {
+                        const stored = String(window.localStorage.getItem('bandpromo_brand_pool_view') || '').trim();
+                        return stored === 'list' ? 'list' : 'grid';
+                    } catch (error) {
+                        return 'grid';
+                    }
+                })(),
+            };
+            let activePoolAsset = { panel: null, key: null };
             const mediaReferenceFilters = {
                 visual: 'all',
+                special: 'all',
                 photos: 'all',
                 video: 'all',
             };
-            const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video']);
+            const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video', 'special']);
+            const poolPanelTypes = new Set(['visual', 'special']);
             let audioDisplayMode = 'master';
             let expandedAudioFile = null;
             const mediaSelectionState = new Map();
@@ -524,11 +539,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function isImage(name) {
-                return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(String(name).split('.').pop().toLowerCase());
+                return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'avif'].includes(String(name).split('.').pop().toLowerCase());
             }
 
             function isVideo(name) {
-                return ['mp4', 'mov', 'webm'].includes(String(name).split('.').pop().toLowerCase());
+                return ['mp4', 'mov', 'webm', 'm4v', 'ogv'].includes(String(name).split('.').pop().toLowerCase());
+            }
+
+            function isAudio(name) {
+                return ['mp3', 'flac', 'ogg', 'wav', 'aac', 'm4a', 'aif', 'aiff'].includes(String(name).split('.').pop().toLowerCase());
             }
 
             function isPreviewable(name, file = null, type = '') {
@@ -1403,7 +1422,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (kinds.has('gallery-item')) {
                     badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by a gallery item">Gallery</span>');
                 }
-                if ([...kinds].some((kind) => kind.startsWith('theme-') || kind === 'share-image')) {
+                if ([...kinds].some((kind) => kind.startsWith('theme-') || kind === 'share-image' || kind === 'brand-logo'
+                    || kind === 'welcome-audio' || kind === 'loggedin-audio')) {
                     badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by theme or share settings">Theme</span>');
                 }
 
@@ -1444,11 +1464,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return list;
                 }
                 let filtered = list.filter((file) => matchesMediaReferenceFilter(type, file));
-                if (type === 'visual' && visualTypeFilter !== 'all') {
-                    filtered = filtered.filter((file) => {
-                        const mediaType = String(file?.media_type || (isVideo(file?.name) ? 'video' : 'image'));
-                        return mediaType === visualTypeFilter;
-                    });
+                if (poolPanelTypes.has(type)) {
+                    const typeFilter = poolTypeFilters[type] || 'all';
+                    if (typeFilter !== 'all') {
+                        filtered = filtered.filter((file) => poolAssetKind(type, file) === typeFilter);
+                    }
                 }
                 return filtered;
             }
@@ -1922,8 +1942,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 targetRow.classList.add('media-file-row-focus');
                 targetRow.classList.add('visual-pool-card-focus');
                 targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                if (type === 'visual') {
-                    openVisualAssetModal(String(targetRow.dataset.file || ''));
+                if (type === 'visual' || type === 'special') {
+                    openPoolAssetModal(type, String(targetRow.dataset.file || ''));
                 }
             }
 
@@ -2510,15 +2530,75 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.selectAllVisibleMediaFiles = selectAllVisibleMediaFiles;
             window.clearMediaSelection = clearMediaSelection;
 
-            function visualAssetKind(file) {
-                return isVisualMediaRow('visual', file) ? 'video' : 'image';
+            function poolAssetKind(panelType, file) {
+                const declared = String(file?.media_type || '').trim();
+                if (declared === 'video' || declared === 'audio' || declared === 'image') {
+                    return declared;
+                }
+                if (isVideo(file?.name)) {
+                    return 'video';
+                }
+                if (isAudio(file?.name)) {
+                    return 'audio';
+                }
+                if (isImage(file?.name)) {
+                    return 'image';
+                }
+                return panelType === 'special' ? 'other' : 'image';
             }
 
-            function visualAssetHeadline(file) {
-                const kind = visualAssetKind(file);
+            function visualAssetKind(file) {
+                return poolAssetKind('visual', file);
+            }
+
+            function poolAssetKindLabel(kind, panelType = '') {
+                if (panelType === 'special') {
+                    if (kind === 'video') return 'Living';
+                    if (kind === 'audio') return 'Audio';
+                    if (kind === 'image') return 'Still';
+                    return 'File';
+                }
+                if (kind === 'video') return 'Video';
+                if (kind === 'audio') return 'Audio';
+                if (kind === 'image') return 'Image';
+                return 'File';
+            }
+
+            function poolAssetHeadline(panelType, file) {
+                const kind = poolAssetKind(panelType, file);
                 const info = getFileReferenceInfo(file);
                 const references = Array.isArray(info.references) ? info.references : [];
                 const kinds = new Set(references.map((reference) => String(reference.kind || '')));
+                const role = String(info.role || '').trim();
+
+                if (panelType === 'special') {
+                    if (role === 'brand-logo' || kinds.has('brand-logo')) {
+                        return 'Logo';
+                    }
+                    if (role === 'welcome-audio' || kinds.has('welcome-audio')) {
+                        return 'Welcome audio';
+                    }
+                    if (role === 'loggedin-audio' || kinds.has('loggedin-audio')) {
+                        return 'Logged-in audio';
+                    }
+                    if (role === 'share-image' || kinds.has('share-image')) {
+                        return 'Share image';
+                    }
+                    if (role === 'theme-cover' || kinds.has('theme-cover')) {
+                        return 'Cover image';
+                    }
+                    if (role === 'theme-background' || kinds.has('theme-background')) {
+                        return 'Still background';
+                    }
+                    if (role === 'theme-background-video' || kinds.has('theme-background-video')) {
+                        return 'Living background';
+                    }
+                    if (info.orphan === true || Number(info.reference_count || 0) === 0) {
+                        return 'Unused brand asset';
+                    }
+                    return 'Brand asset in use';
+                }
+
                 if (info.role === 'track-cover' || kinds.has('track-cover')) {
                     return 'Track cover';
                 }
@@ -2528,7 +2608,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (kinds.has('gallery-item')) {
                     return kind === 'video' ? 'Gallery video' : 'Gallery image';
                 }
-                if ([...kinds].some((value) => value.startsWith('theme-') || value === 'share-image')) {
+                if ([...kinds].some((value) => value.startsWith('theme-') || value === 'share-image' || value === 'brand-logo')) {
                     return 'Theme media';
                 }
                 if (info.orphan === true || Number(info.reference_count || 0) === 0) {
@@ -2537,7 +2617,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return kind === 'video' ? 'Video in use' : 'Image in use';
             }
 
-            function visualAssetStatusPills(file) {
+            function visualAssetHeadline(file) {
+                return poolAssetHeadline('visual', file);
+            }
+
+            function poolAssetStatusPills(file) {
                 const info = getFileReferenceInfo(file);
                 const pills = [];
                 if (file.delivery_running) {
@@ -2550,6 +2634,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pills.push({ text: 'In use', className: 'is-ok' });
                 }
                 return pills;
+            }
+
+            function visualAssetStatusPills(file) {
+                return poolAssetStatusPills(file);
             }
 
             function visualHoverPreviewAllowed() {
@@ -2619,30 +2707,44 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
-            function visualAssetThumbInnerHtml(file, pathType) {
-                const kind = visualAssetKind(file);
+            function poolAssetThumbInnerHtml(panelType, file, pathType) {
+                const kind = poolAssetKind(panelType, file);
                 const url = buildMediaUrl(pathType, file.name);
                 const poster = videoPosterUrl(file);
                 const preview = videoPreviewUrl(file);
                 if (kind === 'image') {
                     return `<img src="${url}" alt="" loading="lazy">`;
                 }
-                if (file.delivery_running || (file.delivery_pending && !poster && !preview)) {
-                    return `<span class="visual-pool-card-thumb-placeholder is-preparing" title="Preparing in background">⏳</span>`;
+                if (kind === 'audio') {
+                    return `<span class="visual-pool-card-thumb-placeholder is-audio" title="Audio brand asset">♪</span>`;
                 }
-                if (preview) {
-                    if (poster) {
-                        return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy"><video class="visual-pool-card-video" data-src="${preview}" poster="${poster}" muted loop playsinline preload="none"></video>`;
+                if (kind === 'video') {
+                    if (file.delivery_running || (file.delivery_pending && !poster && !preview)) {
+                        return `<span class="visual-pool-card-thumb-placeholder is-preparing" title="Preparing in background">⏳</span>`;
                     }
-                    return `<video class="visual-pool-card-video visual-pool-card-video--solo" src="${preview}" muted loop playsinline preload="metadata"></video>`;
+                    if (preview) {
+                        if (poster) {
+                            return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy"><video class="visual-pool-card-video" data-src="${preview}" poster="${poster}" muted loop playsinline preload="none"></video>`;
+                        }
+                        return `<video class="visual-pool-card-video visual-pool-card-video--solo" src="${preview}" muted loop playsinline preload="metadata"></video>`;
+                    }
+                    if (poster) {
+                        return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy">`;
+                    }
+                    // Brand video in special is served directly from media/special (no delivery pipeline).
+                    if (panelType === 'special') {
+                        return `<video class="visual-pool-card-video visual-pool-card-video--solo" src="${url}" muted loop playsinline preload="metadata"></video>`;
+                    }
+                    return `<span class="visual-pool-card-thumb-placeholder" title="Video waiting for preparation">▶</span>`;
                 }
-                if (poster) {
-                    return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy">`;
-                }
-                return `<span class="visual-pool-card-thumb-placeholder" title="Video waiting for preparation">▶</span>`;
+                return `<span class="visual-pool-card-thumb-placeholder" title="File">📄</span>`;
             }
 
-            function visualAssetReferenceLines(file) {
+            function visualAssetThumbInnerHtml(file, pathType) {
+                return poolAssetThumbInnerHtml('visual', file, pathType);
+            }
+
+            function poolAssetReferenceLines(file) {
                 const info = getFileReferenceInfo(file);
                 const references = Array.isArray(info.references) ? info.references : [];
                 if (!references.length) {
@@ -2659,6 +2761,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     'theme-background': 'Theme background',
                     'theme-background-video': 'Theme background video',
                     'share-image': 'Share image',
+                    'brand-logo': 'Logo',
+                    'welcome-audio': 'Welcome audio',
+                    'loggedin-audio': 'Logged-in audio',
                     'release-fallback': 'Release fallback',
                 };
                 return references.slice(0, 8).map((reference) => {
@@ -2668,66 +2773,84 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            function syncVisualTypeFilterUi() {
-                document.querySelectorAll('[data-visual-type-filter]').forEach((el) => {
-                    const value = String(el.getAttribute('data-visual-type-filter') || el.value || 'all');
-                    const active = value === visualTypeFilter;
-                    el.classList.toggle('is-active', active);
-                    if (el.tagName === 'BUTTON') {
-                        el.setAttribute('aria-pressed', active ? 'true' : 'false');
-                    } else {
-                        el.value = visualTypeFilter;
+            function visualAssetReferenceLines(file) {
+                return poolAssetReferenceLines(file);
+            }
+
+            function syncPoolTypeFilterUi(panelType = null) {
+                const panels = panelType ? [panelType] : ['visual', 'special'];
+                panels.forEach((panel) => {
+                    const current = poolTypeFilters[panel] || 'all';
+                    document.querySelectorAll(`[data-pool-type-filter][data-pool-panel="${panel}"]`).forEach((el) => {
+                        const value = String(el.getAttribute('data-pool-type-filter') || el.value || 'all');
+                        const active = value === current;
+                        el.classList.toggle('is-active', active);
+                        if (el.tagName === 'BUTTON') {
+                            el.setAttribute('aria-pressed', active ? 'true' : 'false');
+                        } else {
+                            el.value = current;
+                        }
+                    });
+                });
+            }
+
+            function syncPoolViewUi(panelType = null) {
+                const panels = panelType ? [panelType] : ['visual', 'special'];
+                panels.forEach((panel) => {
+                    const mode = poolViewModes[panel] === 'list' ? 'list' : 'grid';
+                    const listEl = document.getElementById('filelist-' + panel);
+                    if (listEl) {
+                        listEl.classList.toggle('visual-pool-list--grid', mode === 'grid');
+                        listEl.classList.toggle('visual-pool-list--list', mode === 'list');
+                        listEl.dataset.visualLayout = mode;
                     }
+                    document.querySelectorAll(`[data-pool-view][data-pool-panel="${panel}"]`).forEach((button) => {
+                        const value = String(button.getAttribute('data-pool-view') || 'grid');
+                        const active = value === mode;
+                        button.classList.toggle('is-active', active);
+                        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                    });
                 });
             }
 
-            function syncVisualViewUi() {
-                const listEl = document.getElementById('filelist-visual');
-                if (listEl) {
-                    listEl.classList.toggle('visual-pool-list--grid', visualViewMode === 'grid');
-                    listEl.classList.toggle('visual-pool-list--list', visualViewMode === 'list');
-                    listEl.dataset.visualLayout = visualViewMode;
+            function setPoolViewMode(panelType, nextValue) {
+                if (!poolPanelTypes.has(panelType)) {
+                    return;
                 }
-                document.querySelectorAll('[data-visual-view]').forEach((button) => {
-                    const value = String(button.getAttribute('data-visual-view') || 'grid');
-                    const active = value === visualViewMode;
-                    button.classList.toggle('is-active', active);
-                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
-                });
-            }
-
-            function setVisualViewMode(nextValue) {
-                visualViewMode = nextValue === 'list' ? 'list' : 'grid';
+                poolViewModes[panelType] = nextValue === 'list' ? 'list' : 'grid';
+                const storageKey = panelType === 'special'
+                    ? 'bandpromo_brand_pool_view'
+                    : 'bandpromo_visual_pool_view';
                 try {
-                    window.localStorage.setItem('bandpromo_visual_pool_view', visualViewMode);
+                    window.localStorage.setItem(storageKey, poolViewModes[panelType]);
                 } catch (error) {
                     // Ignore storage failures; view still works for this session.
                 }
-                syncVisualViewUi();
+                syncPoolViewUi(panelType);
             }
 
-            function buildVisualPoolCardMarkup(file, selection) {
-                const pathType = resolveFileIntakeBucket(file, 'visual') || 'illustrations';
-                const selectionKey = mediaFileSelectionKey('visual', file);
+            function buildPoolCardMarkup(panelType, file, selection) {
+                const pathType = resolveFileIntakeBucket(file, panelType) || (panelType === 'visual' ? 'illustrations' : panelType);
+                const selectionKey = mediaFileSelectionKey(panelType, file);
                 const safeKey = selectionKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                const kind = visualAssetKind(file);
+                const kind = poolAssetKind(panelType, file);
                 const selected = selection.selected.has(selectionKey);
-                const headline = visualAssetHeadline(file);
+                const headline = poolAssetHeadline(panelType, file);
                 const sizeLabel = fmtSize(Number(file.size) || 0);
-                const pills = visualAssetStatusPills(file);
+                const pills = poolAssetStatusPills(file);
                 const statusHtml = pills.length
                     ? `<span class="visual-pool-status-stack">${pills.map((pill) =>
                         `<span class="visual-pool-status-pill ${pill.className || ''}">${bandpromoAdminEscapeHtml(pill.text)}</span>`
                     ).join('')}</span>`
                     : '';
-                const typeLabel = kind === 'video' ? 'Video' : 'Image';
-                const selectLabel = kind === 'video' ? 'Select video' : 'Select image';
+                const typeLabel = poolAssetKindLabel(kind, panelType);
+                const selectLabel = `Select ${typeLabel.toLowerCase()}`;
                 return `<article class="visual-pool-card${selected ? ' media-file-row-selected visual-pool-card-selected' : ''}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" data-media-type="${kind}">
                     <label class="media-file-select-wrap visual-pool-card-select" title="${selectLabel}" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="media-file-select" data-target="visual" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="${selectLabel}">
+                        <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(panelType)}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="${selectLabel}">
                     </label>
-                    <button type="button" class="visual-pool-card-thumb" data-visual-open="${bandpromoAdminEscapeHtml(selectionKey)}" aria-label="Open ${typeLabel.toLowerCase()} details">
-                        ${visualAssetThumbInnerHtml(file, pathType)}
+                    <button type="button" class="visual-pool-card-thumb" data-pool-open="${bandpromoAdminEscapeHtml(selectionKey)}" data-pool-panel="${bandpromoAdminEscapeHtml(panelType)}" aria-label="Open ${typeLabel.toLowerCase()} details">
+                        ${poolAssetThumbInnerHtml(panelType, file, pathType)}
                         ${statusHtml}
                         <span class="visual-pool-type-badge">${typeLabel}</span>
                     </button>
@@ -2735,58 +2858,77 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         <div class="visual-pool-card-meta-copy">
                             <span class="visual-pool-card-meta-title">${bandpromoAdminEscapeHtml(headline)}</span>
                             <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
-                            <span class="media-file-meta">${formatMediaReferenceBadges('visual', file)}</span>
+                            <span class="media-file-meta">${formatMediaReferenceBadges(panelType, file)}</span>
                         </div>
                         <div class="visual-pool-card-actions">
                             <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('visual', '${safeKey}')">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>
                         </div>
                     </div>
                 </article>`;
             }
 
-            function renderVisualPoolList(files, selection) {
-                const listEl = document.getElementById('filelist-visual');
+            function buildVisualPoolCardMarkup(file, selection) {
+                return buildPoolCardMarkup('visual', file, selection);
+            }
+
+            function renderPoolList(panelType, files, selection) {
+                const listEl = document.getElementById('filelist-' + panelType);
                 if (!listEl) {
                     return;
                 }
-                syncVisualViewUi();
-                setAdminPreviewItems(files, 'visual');
-                listEl.innerHTML = files.map((file) => buildVisualPoolCardMarkup(file, selection)).join('');
+                syncPoolViewUi(panelType);
+                setAdminPreviewItems(files, panelType);
+                listEl.innerHTML = files.map((file) => buildPoolCardMarkup(panelType, file, selection)).join('');
+            }
+
+            function renderVisualPoolList(files, selection) {
+                renderPoolList('visual', files, selection);
+            }
+
+            function findPoolAssetByKey(panelType, selectionKey) {
+                const key = String(selectionKey || '');
+                return getMediaFileState(panelType).find((file) => mediaFileSelectionKey(panelType, file) === key) || null;
             }
 
             function findVisualAssetByKey(selectionKey) {
-                const key = String(selectionKey || '');
-                return getMediaFileState('visual').find((file) => mediaFileSelectionKey('visual', file) === key) || null;
+                return findPoolAssetByKey('visual', selectionKey);
             }
 
-            function openVisualAssetModal(selectionKey) {
-                const file = findVisualAssetByKey(selectionKey);
-                const modal = document.getElementById('visualAssetModal');
-                const previewEl = document.getElementById('visualAssetPreview');
-                const titleEl = document.getElementById('visualAssetTitle');
-                const badgesEl = document.getElementById('visualAssetBadges');
-                const detailsEl = document.getElementById('visualAssetDetails');
-                const downloadBtn = document.getElementById('visualAssetDownloadBtn');
-                const deleteBtn = document.getElementById('visualAssetDeleteBtn');
+            function openPoolAssetModal(panelType, selectionKey) {
+                if (!poolPanelTypes.has(panelType)) {
+                    return;
+                }
+                const file = findPoolAssetByKey(panelType, selectionKey);
+                const modal = document.getElementById('poolAssetModal');
+                const previewEl = document.getElementById('poolAssetPreview');
+                const titleEl = document.getElementById('poolAssetTitle');
+                const badgesEl = document.getElementById('poolAssetBadges');
+                const detailsEl = document.getElementById('poolAssetDetails');
+                const downloadBtn = document.getElementById('poolAssetDownloadBtn');
+                const deleteBtn = document.getElementById('poolAssetDeleteBtn');
                 if (!file || !modal || !previewEl || !titleEl || !badgesEl || !detailsEl) {
                     return;
                 }
 
-                activeVisualAssetKey = mediaFileSelectionKey('visual', file);
-                const pathType = resolveFileIntakeBucket(file, 'visual') || 'illustrations';
-                const kind = visualAssetKind(file);
+                activePoolAsset = {
+                    panel: panelType,
+                    key: mediaFileSelectionKey(panelType, file),
+                };
+                const pathType = resolveFileIntakeBucket(file, panelType) || (panelType === 'visual' ? 'illustrations' : panelType);
+                const kind = poolAssetKind(panelType, file);
                 const info = getFileReferenceInfo(file);
-                const referenceLines = visualAssetReferenceLines(file);
+                const referenceLines = poolAssetReferenceLines(file);
+                const typeLabel = poolAssetKindLabel(kind, panelType);
 
-                titleEl.textContent = visualAssetHeadline(file);
+                titleEl.textContent = poolAssetHeadline(panelType, file);
                 badgesEl.innerHTML = [
-                    `<span class="badge audit-status-badge status-neutral media-file-badge">${kind === 'video' ? 'Video' : 'Image'}</span>`,
-                    formatMediaReferenceBadges('visual', file),
+                    `<span class="badge audit-status-badge status-neutral media-file-badge">${typeLabel}</span>`,
+                    formatMediaReferenceBadges(panelType, file),
                 ].filter(Boolean).join(' ');
 
                 if (kind === 'video') {
-                    const previewUrl = videoPreviewUrl(file);
+                    const previewUrl = videoPreviewUrl(file) || (panelType === 'special' ? buildMediaUrl(pathType, file.name) : '');
                     const posterUrl = videoPosterUrl(file);
                     if (previewUrl) {
                         if (posterUrl) {
@@ -2804,19 +2946,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         previewEl.classList.remove('visual-asset-modal-preview--video');
                         previewEl.innerHTML = `<span class="text-muted">${file.delivery_running || file.delivery_pending ? 'Video is still preparing for preview.' : 'No preview is ready yet.'}</span>`;
                     }
-                } else {
+                } else if (kind === 'audio') {
+                    previewEl.classList.remove('visual-asset-modal-preview--video');
+                    previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Audio brand asset">♪</div><audio controls src="${buildMediaUrl(pathType, file.name)}" preload="metadata"></audio>`;
+                } else if (kind === 'image') {
                     previewEl.classList.remove('visual-asset-modal-preview--video');
                     previewEl.innerHTML = `<img src="${buildMediaUrl(pathType, file.name)}" alt="">`;
+                } else {
+                    previewEl.classList.remove('visual-asset-modal-preview--video');
+                    previewEl.innerHTML = `<span class="text-muted">No preview for this file type.</span>`;
                 }
 
                 const detailRows = [
-                    ['Type', kind === 'video' ? 'Video' : 'Still image'],
+                    ['Type', typeLabel],
                     ['Size', fmtSize(Number(file.size) || 0)],
+                    ['Path', `${getMediaBasePath(pathType)}/${file.name}`],
                     ['Usage', info.orphan === true
                         ? 'Not referenced'
                         : (Number(info.reference_count || 0) > 0 ? 'In use' : 'Not referenced')],
                 ];
-                if (kind === 'video') {
+                if (kind === 'video' && panelType === 'visual') {
                     let delivery = 'Ready';
                     if (file.delivery_running) delivery = 'Preparing in background';
                     else if (file.delivery_pending) delivery = 'Queued for preparation';
@@ -2839,32 +2988,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 if (deleteBtn) {
                     deleteBtn.onclick = () => {
-                        closeVisualAssetModal();
-                        openDeleteModal('visual', activeVisualAssetKey);
+                        closePoolAssetModal();
+                        openDeleteModal(panelType, activePoolAsset.key);
                     };
                 }
 
                 modal.style.display = 'flex';
             }
 
+            function openVisualAssetModal(selectionKey) {
+                openPoolAssetModal('visual', selectionKey);
+            }
+
+            window.openPoolAssetModal = openPoolAssetModal;
             window.openVisualAssetModal = openVisualAssetModal;
 
-            window.closeVisualAssetModal = function() {
-                const modal = document.getElementById('visualAssetModal');
-                const previewEl = document.getElementById('visualAssetPreview');
+            window.closePoolAssetModal = function() {
+                const modal = document.getElementById('poolAssetModal');
+                const previewEl = document.getElementById('poolAssetPreview');
                 if (previewEl) {
                     setVisualHoverPreviewActive(previewEl, false);
                     previewEl.classList.remove('visual-asset-modal-preview--video');
                     previewEl.querySelectorAll('video').forEach((video) => {
                         stopVisualHoverVideo(video);
                     });
+                    previewEl.querySelectorAll('audio').forEach((audio) => {
+                        try {
+                            audio.pause();
+                        } catch (error) {
+                            // Ignore pause failures.
+                        }
+                    });
                     previewEl.innerHTML = '';
                 }
                 if (modal) {
                     modal.style.display = 'none';
                 }
-                activeVisualAssetKey = null;
+                activePoolAsset = { panel: null, key: null };
             };
+            window.closeVisualAssetModal = window.closePoolAssetModal;
 
             async function refreshAdminCsrfToken() {
                 const resp = await fetch('/biblioteca/get-admin-csrf.php', {
@@ -2899,16 +3061,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     if (!files.length) {
-                        listEl.innerHTML = '<span class="text-muted">No files match the current filter.</span>';
+                        const livingFilter = type === 'special' && (poolTypeFilters.special || 'all') === 'video';
+                        listEl.innerHTML = livingFilter
+                            ? '<span class="text-muted">No living Brand assets yet. Upload a video here, or assign living video from <a href="?tab=files&amp;fpanel=visual">Files → Visual</a> in Content → Branding → Shell media.</span>'
+                            : '<span class="text-muted">No files match the current filter.</span>';
                         syncMediaSelectionUi(type);
                         return;
                     }
 
-                    if (type === 'visual') {
-                        renderVisualPoolList(files, selection);
+                    if (poolPanelTypes.has(type)) {
+                        renderPoolList(type, files, selection);
                         syncMediaSelectionUi(type);
                         maybeApplyMediaFocusFromQuery(type);
-                        if (typeof refreshBuildRequiredState === 'function') {
+                        if (type === 'visual' && typeof refreshBuildRequiredState === 'function') {
                             refreshBuildRequiredState({ scope: 'lite' });
                         }
                         return;
@@ -2997,6 +3162,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (type === 'visual') {
                     const allowed = new Set(['all', 'referenced', 'orphans', 'track-covers', 'living-covers', 'build-generated']);
                     mediaReferenceFilters.visual = allowed.has(nextValue) ? nextValue : 'all';
+                } else if (type === 'special') {
+                    const allowed = new Set(['all', 'referenced', 'orphans']);
+                    mediaReferenceFilters.special = allowed.has(nextValue) ? nextValue : 'all';
                 } else if (type === 'illustrations') {
                     const allowed = new Set(['all', 'track-covers', 'orphans', 'build-generated']);
                     mediaReferenceFilters.visual = allowed.has(nextValue) ? nextValue : 'all';
@@ -3019,50 +3187,60 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
-            function setVisualTypeFilter(nextValue) {
-                const allowed = new Set(['all', 'image', 'video']);
-                visualTypeFilter = allowed.has(nextValue) ? nextValue : 'all';
-                syncVisualTypeFilterUi();
-                if (activeMediaPanel === 'visual') {
-                    loadMediaList('visual');
+            function setPoolTypeFilter(panelType, nextValue) {
+                if (!poolPanelTypes.has(panelType)) {
+                    return;
+                }
+                const allowed = panelType === 'special'
+                    ? new Set(['all', 'image', 'video', 'audio'])
+                    : new Set(['all', 'image', 'video']);
+                poolTypeFilters[panelType] = allowed.has(nextValue) ? nextValue : 'all';
+                syncPoolTypeFilterUi(panelType);
+                if (activeMediaPanel === panelType) {
+                    loadMediaList(panelType);
                 }
             }
 
-            document.querySelectorAll('[data-visual-type-filter]').forEach((el) => {
+            document.querySelectorAll('[data-pool-type-filter]').forEach((el) => {
+                const handler = () => {
+                    const panel = String(el.getAttribute('data-pool-panel') || 'visual');
+                    setPoolTypeFilter(panel, String(el.getAttribute('data-pool-type-filter') || el.value || 'all'));
+                };
                 if (el.tagName === 'BUTTON') {
-                    el.addEventListener('click', () => {
-                        setVisualTypeFilter(String(el.getAttribute('data-visual-type-filter') || 'all'));
-                    });
+                    el.addEventListener('click', handler);
                 } else {
-                    el.addEventListener('change', () => {
-                        setVisualTypeFilter(String(el.value || 'all'));
-                    });
+                    el.addEventListener('change', handler);
                 }
             });
 
-            document.querySelectorAll('[data-visual-view]').forEach((button) => {
+            document.querySelectorAll('[data-pool-view]').forEach((button) => {
                 button.addEventListener('click', () => {
-                    setVisualViewMode(String(button.getAttribute('data-visual-view') || 'grid'));
+                    const panel = String(button.getAttribute('data-pool-panel') || 'visual');
+                    setPoolViewMode(panel, String(button.getAttribute('data-pool-view') || 'grid'));
                 });
             });
 
-            syncVisualTypeFilterUi();
-            syncVisualViewUi();
+            syncPoolTypeFilterUi();
+            syncPoolViewUi();
 
-            const visualPoolListEl = document.getElementById('filelist-visual');
-            if (visualPoolListEl) {
-                visualPoolListEl.addEventListener('click', (event) => {
-                    const openBtn = event.target.closest('[data-visual-open]');
-                    if (!openBtn) {
+            function bindPoolListInteractions(panelType) {
+                const listEl = document.getElementById('filelist-' + panelType);
+                if (!listEl) {
+                    return;
+                }
+                listEl.addEventListener('click', (event) => {
+                    const openBtn = event.target.closest('[data-pool-open]');
+                    if (!openBtn || !listEl.contains(openBtn)) {
                         return;
                     }
                     event.preventDefault();
-                    openVisualAssetModal(String(openBtn.getAttribute('data-visual-open') || ''));
+                    const panel = String(openBtn.getAttribute('data-pool-panel') || panelType);
+                    openPoolAssetModal(panel, String(openBtn.getAttribute('data-pool-open') || ''));
                 });
 
-                visualPoolListEl.addEventListener('mouseover', (event) => {
+                listEl.addEventListener('mouseover', (event) => {
                     const thumb = event.target.closest('.visual-pool-card-thumb');
-                    if (!thumb || !visualPoolListEl.contains(thumb) || !thumb.querySelector('video.visual-pool-card-video')) {
+                    if (!thumb || !listEl.contains(thumb) || !thumb.querySelector('video.visual-pool-card-video')) {
                         return;
                     }
                     const from = event.relatedTarget instanceof Node ? event.relatedTarget : null;
@@ -3072,9 +3250,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setVisualHoverPreviewActive(thumb, true);
                 });
 
-                visualPoolListEl.addEventListener('mouseout', (event) => {
+                listEl.addEventListener('mouseout', (event) => {
                     const thumb = event.target.closest('.visual-pool-card-thumb');
-                    if (!thumb || !visualPoolListEl.contains(thumb)) {
+                    if (!thumb || !listEl.contains(thumb)) {
                         return;
                     }
                     const to = event.relatedTarget instanceof Node ? event.relatedTarget : null;
@@ -3084,7 +3262,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setVisualHoverPreviewActive(thumb, false);
                 });
 
-                visualPoolListEl.addEventListener('focusin', (event) => {
+                listEl.addEventListener('focusin', (event) => {
                     const thumb = event.target.closest('.visual-pool-card-thumb');
                     if (!thumb || !thumb.querySelector('video.visual-pool-card-video')) {
                         return;
@@ -3092,7 +3270,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     setVisualHoverPreviewActive(thumb, true);
                 });
 
-                visualPoolListEl.addEventListener('focusout', (event) => {
+                listEl.addEventListener('focusout', (event) => {
                     const thumb = event.target.closest('.visual-pool-card-thumb');
                     if (!thumb) {
                         return;
@@ -3104,31 +3282,34 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            const visualAssetPreviewEl = document.getElementById('visualAssetPreview');
-            if (visualAssetPreviewEl) {
-                if (!visualAssetPreviewEl.hasAttribute('tabindex')) {
-                    visualAssetPreviewEl.setAttribute('tabindex', '0');
+            bindPoolListInteractions('visual');
+            bindPoolListInteractions('special');
+
+            const poolAssetPreviewEl = document.getElementById('poolAssetPreview');
+            if (poolAssetPreviewEl) {
+                if (!poolAssetPreviewEl.hasAttribute('tabindex')) {
+                    poolAssetPreviewEl.setAttribute('tabindex', '0');
                 }
-                visualAssetPreviewEl.addEventListener('mouseenter', () => {
-                    if (!visualAssetPreviewEl.querySelector('video.visual-asset-loop')) {
+                poolAssetPreviewEl.addEventListener('mouseenter', () => {
+                    if (!poolAssetPreviewEl.querySelector('video.visual-asset-loop')) {
                         return;
                     }
-                    setVisualHoverPreviewActive(visualAssetPreviewEl, true);
+                    setVisualHoverPreviewActive(poolAssetPreviewEl, true);
                 });
-                visualAssetPreviewEl.addEventListener('mouseleave', () => {
-                    setVisualHoverPreviewActive(visualAssetPreviewEl, false);
+                poolAssetPreviewEl.addEventListener('mouseleave', () => {
+                    setVisualHoverPreviewActive(poolAssetPreviewEl, false);
                 });
-                visualAssetPreviewEl.addEventListener('focusin', () => {
-                    if (!visualAssetPreviewEl.querySelector('video.visual-asset-loop')) {
+                poolAssetPreviewEl.addEventListener('focusin', () => {
+                    if (!poolAssetPreviewEl.querySelector('video.visual-asset-loop')) {
                         return;
                     }
-                    setVisualHoverPreviewActive(visualAssetPreviewEl, true);
+                    setVisualHoverPreviewActive(poolAssetPreviewEl, true);
                 });
-                visualAssetPreviewEl.addEventListener('focusout', (event) => {
-                    if (event.relatedTarget && visualAssetPreviewEl.contains(event.relatedTarget)) {
+                poolAssetPreviewEl.addEventListener('focusout', (event) => {
+                    if (event.relatedTarget && poolAssetPreviewEl.contains(event.relatedTarget)) {
                         return;
                     }
-                    setVisualHoverPreviewActive(visualAssetPreviewEl, false);
+                    setVisualHoverPreviewActive(poolAssetPreviewEl, false);
                 });
             }
 
@@ -4568,17 +4749,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 deleteFiles  = Array.isArray(filename) ? filename.filter(Boolean) : [filename].filter(Boolean);
                 deleteReferencePreview = null;
                 const displayNames = deleteFiles.map((key) => selectionDisplayName(deleteTarget, key));
-                const visualFriendly = deleteTarget === 'visual';
+                const poolFriendly = poolPanelTypes.has(deleteTarget);
                 if (deleteTitleEl) {
                     deleteTitleEl.textContent = deleteFiles.length > 1
-                        ? (visualFriendly ? 'Delete selected visuals?' : 'Delete selected files?')
-                        : (visualFriendly ? 'Delete this visual?' : 'Delete file?');
+                        ? (poolFriendly
+                            ? (deleteTarget === 'special' ? 'Delete selected brand assets?' : 'Delete selected visuals?')
+                            : 'Delete selected files?')
+                        : (poolFriendly
+                            ? (deleteTarget === 'special' ? 'Delete this brand asset?' : 'Delete this visual?')
+                            : 'Delete file?');
                 }
                 if (deleteNameEl) {
-                    if (visualFriendly) {
+                    if (poolFriendly) {
                         deleteNameEl.textContent = deleteFiles.length > 1
-                            ? `${deleteFiles.length} visuals selected`
-                            : visualAssetHeadline(findVisualAssetByKey(deleteFiles[0]) || { media_type: 'image' });
+                            ? `${deleteFiles.length} ${deleteTarget === 'special' ? 'brand assets' : 'visuals'} selected`
+                            : poolAssetHeadline(deleteTarget, findPoolAssetByKey(deleteTarget, deleteFiles[0]) || { media_type: 'image' });
                     } else {
                         deleteNameEl.textContent = deleteFiles.length > 1
                             ? `${deleteFiles.length} files selected`
@@ -4586,16 +4771,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
                 if (deleteListEl) {
-                    if (deleteFiles.length > 1 && !visualFriendly) {
+                    if (deleteFiles.length > 1 && !poolFriendly) {
                         deleteListEl.style.display = 'block';
                         deleteListEl.innerHTML = displayNames.map((name, index) => `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(name)}</div>`).join('');
-                    } else if (deleteFiles.length > 1 && visualFriendly) {
+                    } else if (deleteFiles.length > 1 && poolFriendly) {
                         deleteListEl.style.display = 'block';
                         deleteListEl.innerHTML = deleteFiles.map((key, index) => {
-                            const file = findVisualAssetByKey(key);
-                            const label = file ? visualAssetHeadline(file) : 'Visual asset';
-                            const kind = file ? visualAssetKind(file) : 'image';
-                            return `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(label)} <span class="text-muted">(${kind === 'video' ? 'video' : 'image'})</span></div>`;
+                            const file = findPoolAssetByKey(deleteTarget, key);
+                            const label = file ? poolAssetHeadline(deleteTarget, file) : (deleteTarget === 'special' ? 'Brand asset' : 'Visual asset');
+                            const kind = file ? poolAssetKind(deleteTarget, file) : 'image';
+                            return `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(label)} <span class="text-muted">(${bandpromoAdminEscapeHtml(poolAssetKindLabel(kind, deleteTarget).toLowerCase())})</span></div>`;
                         }).join('');
                     } else {
                         deleteListEl.style.display = 'none';
@@ -5126,65 +5311,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const saved = await saveDemoCatalogVisible(false, demoCatalogHideStatus);
                     if (saved) {
                         window.setTimeout(() => window.location.reload(), 600);
-                    }
-                });
-            }
-
-            // ── Theme: media branch form ────────────────────────────────────
-            const cfgThemeFullSource = document.getElementById('cfgThemeFullSource');
-            const cfgThemeSaveBtn = document.getElementById('cfgThemeSaveBtn');
-            const cfgThemeStatus = document.getElementById('cfgThemeStatus');
-            if (cfgThemeSaveBtn) {
-                cfgThemeSaveBtn.addEventListener('click', async () => {
-                    cfgThemeStatus.textContent = 'Saving…';
-                    cfgThemeStatus.style.color = '#aaa';
-
-                    let fullConfig;
-                    try {
-                        fullConfig = parseAdminConfigSource(cfgThemeFullSource);
-                    } catch (e) {
-                        cfgThemeStatus.textContent = '❌ ' + e.message;
-                        cfgThemeStatus.style.color = '#f55';
-                        return;
-                    }
-
-                    fullConfig.media = assignConfigFields(fullConfig.media, {
-                        logo: (document.getElementById('cfg_theme_logo')?.value || '').trim(),
-                        cover: (document.getElementById('cfg_theme_cover')?.value || '').trim(),
-                        background_image: (document.getElementById('cfg_theme_background_image')?.value || '').trim(),
-                        background_video: (document.getElementById('cfg_theme_background_video')?.value || '').trim(),
-                        welcome_audio: (document.getElementById('cfg_theme_welcome_audio')?.value || '').trim(),
-                        loggedin_audio: (document.getElementById('cfg_theme_loggedin_audio')?.value || '').trim(),
-                    });
-
-                    try {
-                        const payload = JSON.stringify(fullConfig, null, 4);
-                        const resp = await fetch('/biblioteca/save-config-raw.php?branch=media', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: payload,
-                        });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            cfgThemeFullSource.value = payload;
-                            cfgThemeStatus.textContent = Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan') && data.auto_tasks.includes('image-delivery')
-                                ? '✅ Saved, playlist refreshed, and image files updated'
-                                : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                                    ? '✅ Saved and playlist refreshed'
-                                    : '✅ Saved';
-                            cfgThemeStatus.style.color = 'var(--success, #4ade80)';
-                            const reasons = (data.build_required_state && data.build_required_state.reasons) || ['theme_config_changed'];
-                            const action = (data.build_required_state && data.build_required_state.action) || 'full';
-                            setBuildRequiredNudge(data.build_required === true, reasons, action, (data.build_required_state && data.build_required_state.tasks) || []);
-                            await refreshBuildRequiredState({ full: true });
-                            refreshBuildHint();
-                        } else {
-                            cfgThemeStatus.textContent = '❌ ' + (data.error || 'Unknown error');
-                            cfgThemeStatus.style.color = '#f55';
-                        }
-                    } catch (e) {
-                        cfgThemeStatus.textContent = '❌ Network error: ' + e.message;
-                        cfgThemeStatus.style.color = '#f55';
                     }
                 });
             }

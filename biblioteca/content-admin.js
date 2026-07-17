@@ -160,6 +160,39 @@
         const activeCountEl = document.getElementById('playerLayoutActiveCount');
         const savePlayerLayoutBtn = document.getElementById('savePlayerLayoutBtn');
 
+        function readShellBackgroundMode() {
+            const checked = document.querySelector('input[name="playerShellBackground"]:checked');
+            const value = String(checked?.value || 'living').trim().toLowerCase();
+            return value === 'still' ? 'still' : 'living';
+        }
+
+        function setShellBackgroundMode(mode) {
+            const normalized = mode === 'still' ? 'still' : 'living';
+            document.querySelectorAll('input[name="playerShellBackground"]').forEach((input) => {
+                if (input instanceof HTMLInputElement) {
+                    input.checked = input.value === normalized;
+                }
+            });
+        }
+
+        function readPlaylistSelectorMode() {
+            const checked = document.querySelector('input[name="playerPlaylistSelector"]:checked');
+            const value = String(checked?.value || 'dropdown').trim().toLowerCase();
+            if (value === 'buttons' || value === 'coverflow') {
+                return value;
+            }
+            return 'dropdown';
+        }
+
+        function setPlaylistSelectorMode(mode) {
+            const normalized = mode === 'buttons' || mode === 'coverflow' ? mode : 'dropdown';
+            document.querySelectorAll('input[name="playerPlaylistSelector"]').forEach((input) => {
+                if (input instanceof HTMLInputElement) {
+                    input.checked = input.value === normalized;
+                }
+            });
+        }
+
         const saveUi = window.bandpromoContentSaveUi?.create(savePlayerLayoutBtn, {
             saveLabel: '💾 Save player layout',
             readFingerprint() {
@@ -187,6 +220,8 @@
                 });
 
                 return JSON.stringify({
+                    shell_background: readShellBackgroundMode(),
+                    playlist_selector: readPlaylistSelectorMode(),
                     tab_order: tabOrder,
                     modules: {
                         pages: { enabled: hasPages },
@@ -236,6 +271,12 @@
             availableItems = Array.isArray(layout.available)
                 ? layout.available.map(cloneItem).filter((item) => item.id !== 'gallery')
                 : [];
+            if (Object.prototype.hasOwnProperty.call(layout, 'shell_background')) {
+                setShellBackgroundMode(layout.shell_background);
+            }
+            if (Object.prototype.hasOwnProperty.call(layout, 'playlist_selector')) {
+                setPlaylistSelectorMode(layout.playlist_selector);
+            }
         }
 
         function itemTitle(item) {
@@ -811,6 +852,8 @@
                 try {
                     saveUi?.markSaving();
                     const data = await postJson('/biblioteca/save-player-layout.php', {
+                        shell_background: readShellBackgroundMode(),
+                        playlist_selector: readPlaylistSelectorMode(),
                         tab_order: tabOrder,
                         modules: {
                             pages: { enabled: hasPages },
@@ -820,6 +863,13 @@
                     if (data.layout) {
                         loadLayoutState(data.layout);
                         renderLists();
+                    } else {
+                        if (data.shell_background) {
+                            setShellBackgroundMode(data.shell_background);
+                        }
+                        if (data.playlist_selector) {
+                            setPlaylistSelectorMode(data.playlist_selector);
+                        }
                     }
                     saveUi?.markSaved();
                 } catch (error) {
@@ -830,6 +880,11 @@
 
         loadLayoutState(readInitialLayout());
         renderLists();
+        document.querySelectorAll('input[name="playerShellBackground"], input[name="playerPlaylistSelector"]').forEach((input) => {
+            input.addEventListener('change', () => {
+                saveUi?.reconcile();
+            });
+        });
         saveUi?.setBaseline();
     }
 })();

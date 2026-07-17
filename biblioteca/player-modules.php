@@ -161,6 +161,52 @@ function bandpromo_player_tab_from_key(string $root, string $key): ?array {
     ];
 }
 
+function bandpromo_player_shell_background_mode(?array $config = null): string
+{
+    if ($config === null) {
+        $raw = get_config('player.shell_background', 'living');
+    } else {
+        $raw = $config['player']['shell_background'] ?? 'living';
+    }
+    $mode = strtolower(trim((string) $raw));
+    if ($mode === 'still' || $mode === 'living') {
+        return $mode;
+    }
+
+    return 'living';
+}
+
+function bandpromo_player_normalize_shell_background_mode(mixed $value): string
+{
+    $mode = strtolower(trim((string) $value));
+    if ($mode === 'still' || $mode === 'living') {
+        return $mode;
+    }
+
+    return 'living';
+}
+
+function bandpromo_player_playlist_selector_mode(?array $config = null): string
+{
+    if ($config === null) {
+        $raw = get_config('player.playlist_selector', 'dropdown');
+    } else {
+        $raw = $config['player']['playlist_selector'] ?? 'dropdown';
+    }
+
+    return bandpromo_player_normalize_playlist_selector_mode($raw);
+}
+
+function bandpromo_player_normalize_playlist_selector_mode(mixed $value): string
+{
+    $mode = strtolower(trim((string) $value));
+    if ($mode === 'dropdown' || $mode === 'buttons' || $mode === 'coverflow') {
+        return $mode;
+    }
+
+    return 'dropdown';
+}
+
 function bandpromo_player_layout_admin_state(string $root): array {
     $modules = bandpromo_player_modules_config();
     $pagesMap = bandpromo_page_admin_pages_map($root);
@@ -258,6 +304,8 @@ function bandpromo_player_layout_admin_state(string $root): array {
     });
 
     return [
+        'shell_background' => bandpromo_player_shell_background_mode(),
+        'playlist_selector' => bandpromo_player_playlist_selector_mode(),
         'locked' => [
             [
                 'key' => 'module:playlist',
@@ -308,14 +356,22 @@ function bandpromo_page_player_visible_entries(string $root): array {
     return $ordered;
 }
 
-function bandpromo_player_content_tabs(string $root): array {
+function bandpromo_player_playlist_tab_label(string $root, bool $operatorBypass = false): string
+{
+    require_once __DIR__ . '/playlist-storage.php';
+    $count = count(bandpromo_playlist_player_catalog_entries($root, $operatorBypass));
+
+    return $count > 1 ? 'Playlists' : 'Playlist';
+}
+
+function bandpromo_player_content_tabs(string $root, bool $operatorBypass = false): array {
     $modules = bandpromo_player_modules_config();
     $tabs = [];
 
     if (!empty($modules['playlist']['enabled'])) {
         $tabs[] = [
             'view' => 'playlist',
-            'label' => (string) $modules['playlist']['label'],
+            'label' => bandpromo_player_playlist_tab_label($root, $operatorBypass),
             'kind' => 'module',
         ];
     }

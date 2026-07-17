@@ -62,7 +62,7 @@ if ($requestedFiles === []) {
 }
 
 function bandpromo_collect_media_references(string $root, string $target, string $filename): array {
-    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+    if (in_array($target, ['illustrations', 'photos', 'video', 'special'], true)) {
         return bandpromo_media_reference_collect_references($root, $target, $filename);
     }
 
@@ -322,7 +322,7 @@ if ($mode === 'preview') {
                 'reference_summary' => is_array($result['reference_summary'] ?? null) ? $result['reference_summary'] : bandpromo_summarize_reference_counts([]),
                 'references' => is_array($result['references'] ?? null) ? $result['references'] : [],
             ];
-            if (in_array($target, ['illustrations', 'photos', 'video'], true) && $payload['filename'] !== '') {
+            if (in_array($target, ['illustrations', 'photos', 'video', 'special'], true) && $payload['filename'] !== '') {
                 $payload['reference_info'] = bandpromo_media_reference_describe_file($root, $target, $payload['filename']);
                 if ($target === 'illustrations') {
                     $payload['cover_info'] = $payload['reference_info'];

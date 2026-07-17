@@ -126,8 +126,9 @@ $welcomePrimaryNotice = '';
 // Ensure public media directories have world-readable permissions (0755) so the
 // HTTP server can serve static files.  This is a cheap no-op after the first run.
 foreach (['media', 'media/audio', 'media/audio/original', 'media/audio/optimal',
-          'media/img', 'media/img/original', 'media/img/optimal',
-          'media/photo', 'media/video', 'media/special'] as $_d) {
+          'media/img', 'media/img/original', 'media/img/optimal', 'media/img/thumb',
+          'media/photo', 'media/photo/original', 'media/photo/optimal', 'media/photo/thumb',
+          'media/video', 'media/special'] as $_d) {
     $_p = __DIR__ . '/' . $_d;
     if (is_dir($_p)) @chmod($_p, 0755);
 }
@@ -581,7 +582,11 @@ $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
 
 // Settings sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
-if (!in_array($configTab, ['basics', 'theme', 'support', 'sharing'], true)) {
+if ($tab === 'settings' && $configTab === 'theme') {
+    header('Location: /admin.php?tab=content&cntab=themes');
+    exit;
+}
+if (!in_array($configTab, ['basics', 'support', 'sharing'], true)) {
     $configTab = 'basics';
 }
 
@@ -1245,9 +1250,9 @@ if ($tab === 'analytics') {
                             <input type="checkbox" class="media-file-select-all" data-target="visual" aria-label="Select all visible visual assets">
                         </label>
                         <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
-                            <button type="button" class="visual-filter-chip is-active" data-visual-type-filter="all" aria-pressed="true">All</button>
-                            <button type="button" class="visual-filter-chip" data-visual-type-filter="image" aria-pressed="false">Images</button>
-                            <button type="button" class="visual-filter-chip" data-visual-type-filter="video" aria-pressed="false">Video</button>
+                            <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="visual" aria-pressed="true">All</button>
+                            <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="visual" aria-pressed="false">Images</button>
+                            <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false">Video</button>
                         </div>
                         <label class="media-filter-label visual-pool-usage-filter">
                             <span class="visually-hidden">Filter by usage</span>
@@ -1261,8 +1266,8 @@ if ($tab === 'analytics') {
                             </select>
                         </label>
                         <div class="visual-view-toggle" role="group" aria-label="Visual pool layout">
-                            <button type="button" class="visual-view-btn is-active" data-visual-view="grid" aria-pressed="true" title="Grid view">Grid</button>
-                            <button type="button" class="visual-view-btn" data-visual-view="list" aria-pressed="false" title="List view">List</button>
+                            <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="visual" aria-pressed="true" title="Grid view">Grid</button>
+                            <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="visual" aria-pressed="false" title="List view">List</button>
                         </div>
                     </div>
                     <div class="visual-pool-toolbar-actions">
@@ -1281,33 +1286,41 @@ if ($tab === 'analytics') {
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
                             <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>Drag and drop brand assets here — logos, share images, icons, and related branding files. Select multiple files for group download or deletion.
+                            <br>Brand logos, share covers, still/living backgrounds, and shell audio. Living videos can also live under Visual and be assigned in Content → Branding. Filenames stay hidden.
                         </span>
                     </div>
                 </div>
-                <div class="media-file-row media-file-list-header" data-media-list-header="special">
-                    <div class="media-file-row-main">
-                        <label class="media-file-select-wrap" title="Select or clear all visible files">
+                <div class="visual-pool-toolbar" data-media-list-header="special">
+                    <div class="visual-pool-toolbar-main">
+                        <label class="media-file-select-wrap visual-pool-select-all" title="Select or clear all visible files">
                             <input type="checkbox" class="media-file-select-all" data-target="special" aria-label="Select all visible brand assets">
                         </label>
-                        <span class="media-file-list-header-thumb" aria-hidden="true"></span>
-                        <div class="media-file-list-header-filters">
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter by release</span>
-                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
-                                    <option value="all">All releases</option>
-                                </select>
-                            </label>
+                        <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
+                            <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="special" aria-pressed="true">All</button>
+                            <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="special" aria-pressed="false">Still</button>
+                            <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="special" aria-pressed="false">Living</button>
+                            <button type="button" class="visual-filter-chip" data-pool-type-filter="audio" data-pool-panel="special" aria-pressed="false">Audio</button>
                         </div>
-                        <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
-                        <span class="media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('special')" aria-label="Upload brand assets" title="Upload brand assets"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected brand assets" title="Download selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected brand assets" title="Delete selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
-                        </span>
+                        <label class="media-filter-label visual-pool-usage-filter">
+                            <span class="visually-hidden">Filter by usage</span>
+                            <select class="media-filter-select" data-media-filter-target="special" aria-label="Filter brand assets by usage">
+                                <option value="all">All usage</option>
+                                <option value="referenced">In use</option>
+                                <option value="orphans">Orphans</option>
+                            </select>
+                        </label>
+                        <div class="visual-view-toggle" role="group" aria-label="Brand assets layout">
+                            <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="special" aria-pressed="true" title="Grid view">Grid</button>
+                            <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="special" aria-pressed="false" title="List view">List</button>
+                        </div>
+                    </div>
+                    <div class="visual-pool-toolbar-actions">
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('special')" aria-label="Upload brand assets" title="Upload brand assets"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected brand assets" title="Download selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected brand assets" title="Delete selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                     </div>
                 </div>
-                <div id="filelist-special" class="media-file-list"><span class="text-muted">Loading…</span></div>
+                <div id="filelist-special" class="visual-pool-list visual-pool-list--grid" data-visual-layout="grid"><span class="text-muted">Loading…</span></div>
                 <div class="media-panel-footer"><span id="special-count" class="media-count"></span></div>
             </div>
 
@@ -1344,20 +1357,20 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
-            <!-- Visual asset drilldown -->
-            <div id="visualAssetModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeVisualAssetModal()">
+            <!-- Shared Visual / Brand assets drilldown -->
+            <div id="poolAssetModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePoolAssetModal()">
                 <div class="modal-box visual-asset-modal-box">
-                    <button type="button" class="modal-close" onclick="closeVisualAssetModal()" aria-label="Close">✕</button>
+                    <button type="button" class="modal-close" onclick="closePoolAssetModal()" aria-label="Close">✕</button>
                     <div class="visual-asset-modal-layout">
-                        <div class="visual-asset-modal-preview" id="visualAssetPreview"></div>
+                        <div class="visual-asset-modal-preview" id="poolAssetPreview"></div>
                         <div class="visual-asset-modal-side">
-                            <h3 id="visualAssetTitle">Visual asset</h3>
-                            <div id="visualAssetBadges" class="visual-asset-badges"></div>
-                            <dl id="visualAssetDetails" class="visual-asset-details"></dl>
+                            <h3 id="poolAssetTitle">Asset</h3>
+                            <div id="poolAssetBadges" class="visual-asset-badges"></div>
+                            <dl id="poolAssetDetails" class="visual-asset-details"></dl>
                             <div class="modal-actions visual-asset-modal-actions">
-                                <button type="button" class="btn btn-primary" id="visualAssetDownloadBtn">Download</button>
-                                <button type="button" class="btn icon-btn danger" id="visualAssetDeleteBtn">Delete</button>
-                                <button type="button" class="btn" onclick="closeVisualAssetModal()">Close</button>
+                                <button type="button" class="btn btn-primary" id="poolAssetDownloadBtn">Download</button>
+                                <button type="button" class="btn icon-btn danger" id="poolAssetDeleteBtn">Delete</button>
+                                <button type="button" class="btn" onclick="closePoolAssetModal()">Close</button>
                             </div>
                         </div>
                     </div>
@@ -1376,7 +1389,7 @@ if ($tab === 'analytics') {
                     'playlist' => ['🎵', 'Playlists'],
                     'gallery'  => ['🖼️', 'Galleries'],
                     'pages'    => ['📝', 'Pages'],
-                    'themes'   => ['🎨', 'Brands'],
+                    'themes'   => ['🎨', 'Branding'],
                     'player'   => ['🎛️', 'Player'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
@@ -1414,9 +1427,9 @@ if ($tab === 'analytics') {
                 <?php elseif ($contentTab === 'pages'): ?>
                     Use the page pool on the left to pick a page, preview it on the right, and click Edit to open the block editor. Add new pages from the pool header.
                 <?php elseif ($contentTab === 'themes'): ?>
-                    Pick a theme from the pool to preview it on the right. Click edit to open the token editor on the left. Duplicate Setup Default to create an editable copy.
+                    Pick a brand from the pool to preview it on the right. Click edit for colors, typography, narrative, and shell media (drag Brand assets into still/living/audio slots). Duplicate bandPromo Default to create an editable copy.
                 <?php elseif ($contentTab === 'player'): ?>
-                    Drag content from the pool into the player layout on the right. Reorder optional items like the playlist editor. Playlist and Lyrics always stay first.
+                    Choose Still or Living for the player shell background, then drag content into the layout. Playlist and Lyrics always stay first. Assign the actual still/living media under Content → Branding.
                 <?php endif; ?>
             </div>
 
@@ -2035,9 +2048,9 @@ if ($tab === 'analytics') {
             <?php elseif ($contentTab === 'themes'): ?>
             <div class="card content-editor-card" id="themeEditorRoot"
                  data-initial-theme="<?php echo htmlspecialchars($contentTheme, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🎨 Brands</h3>
+                <h3>🎨 Branding</h3>
                 <p class="card-note">
-                    Pick a brand from the pool to preview tokens on the right. Edit colors, typography, and narrative fields (mood, keywords, tone). bandPromo Default stays locked — duplicate it for your era. Shell asset paths still live under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during migration.
+                    Pick a brand from the pool to preview tokens on the right. Edit colors, typography, narrative fields, and shell media — drag still/living/audio Brand assets into the shell slots. bandPromo Default stays locked — duplicate it for your era. Saving the active brand syncs shell media into site config for login and player.
                 </p>
 
                 <div class="player-layout-editor theme-editor-layout playlist-editor-layout" id="themeEditorLayout">
@@ -2049,7 +2062,7 @@ if ($tab === 'analytics') {
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <p id="themeRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list theme-pool-list" id="themePoolList" aria-label="Themes"></ol>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list theme-pool-list" id="themePoolList" aria-label="Brands"></ol>
                                 </div>
                             </div>
 
@@ -2060,11 +2073,11 @@ if ($tab === 'analytics') {
                                         <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
                                     </div>
                                     <span class="status-text theme-editor-name-status content-editor-name-status" id="themeSettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Brands</button>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Branding</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body theme-editor-view-body">
                                     <div class="theme-editor-form" id="themeEditorForm">
-                                        <p class="theme-editor-locked-note">Loading theme…</p>
+                                        <p class="theme-editor-locked-note">Loading brand…</p>
                                     </div>
                                 </div>
                             </div>
@@ -2077,11 +2090,11 @@ if ($tab === 'analytics') {
                                 <h4 class="player-layout-col-title">Live preview</h4>
                                 <div class="player-layout-save-row theme-editor-actions">
                                     <button type="button" id="themeSetActiveBtn" class="btn" hidden>★ Set active</button>
-                                    <button type="button" id="themeSaveBtn" class="btn" hidden>💾 Save theme</button>
+                                    <button type="button" id="themeSaveBtn" class="btn" hidden>💾 Save brand</button>
                                 </div>
                             </div>
                             <div class="player-layout-panel-body theme-editor-preview-body">
-                                <p class="hint player-layout-hint" id="themeEditorHint">Select a theme from the pool, then click edit to change its tokens.</p>
+                                <p class="hint player-layout-hint" id="themeEditorHint">Select a brand from the pool, then click edit to change its tokens.</p>
                                 <div class="theme-editor-preview-frame" id="themeEditorPreview">
                                     <p class="theme-editor-empty">No theme selected.</p>
                                 </div>
@@ -2096,10 +2109,60 @@ if ($tab === 'analytics') {
                  data-layout="<?php echo htmlspecialchars(json_encode($playerLayoutState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎛️ Player layout</h3>
                 <p class="card-note">
-                    Drag content from the pool into the player layout, or back to hide it. Reorder optional items on the right.
+                    Choose the player shell background and playlist selector style, then drag content into the layout on the right.
                     Use Shift-click or Ctrl/Cmd-click to select multiple items and move them together.
-                    Playlist and Lyrics always stay first.
+                    Playlist and Lyrics always stay first. Shell media files themselves are assigned under Content → Branding.
                 </p>
+
+                <div class="player-layout-setting" id="playerShellBackgroundSettings">
+                    <div class="player-layout-setting-copy">
+                        <strong>Shell background</strong>
+                        <p class="hint">Still uses the brand still image. Living uses the brand living video (falls back to still when needed).</p>
+                    </div>
+                    <div class="player-layout-setting-toggle" role="group" aria-label="Player shell background">
+                        <?php
+                        $playerShellBackground = (string) ($playerLayoutState['shell_background'] ?? 'living');
+                        if ($playerShellBackground !== 'still' && $playerShellBackground !== 'living') {
+                            $playerShellBackground = 'living';
+                        }
+                        ?>
+                        <label class="player-layout-setting-option">
+                            <input type="radio" name="playerShellBackground" value="still" <?php echo $playerShellBackground === 'still' ? 'checked' : ''; ?>>
+                            <span>Still</span>
+                        </label>
+                        <label class="player-layout-setting-option">
+                            <input type="radio" name="playerShellBackground" value="living" <?php echo $playerShellBackground === 'living' ? 'checked' : ''; ?>>
+                            <span>Living</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="player-layout-setting" id="playerPlaylistSelectorSettings">
+                    <div class="player-layout-setting-copy">
+                        <strong>Playlist selector</strong>
+                        <p class="hint">Shown in the Playlists tab when more than one playlist is available. Cover flow uses each playlist’s poster.</p>
+                    </div>
+                    <div class="player-layout-setting-toggle" role="group" aria-label="Playlist selector style">
+                        <?php
+                        $playerPlaylistSelector = (string) ($playerLayoutState['playlist_selector'] ?? 'dropdown');
+                        if (!in_array($playerPlaylistSelector, ['dropdown', 'buttons', 'coverflow'], true)) {
+                            $playerPlaylistSelector = 'dropdown';
+                        }
+                        ?>
+                        <label class="player-layout-setting-option">
+                            <input type="radio" name="playerPlaylistSelector" value="dropdown" <?php echo $playerPlaylistSelector === 'dropdown' ? 'checked' : ''; ?>>
+                            <span>Dropdown</span>
+                        </label>
+                        <label class="player-layout-setting-option">
+                            <input type="radio" name="playerPlaylistSelector" value="buttons" <?php echo $playerPlaylistSelector === 'buttons' ? 'checked' : ''; ?>>
+                            <span>Buttons</span>
+                        </label>
+                        <label class="player-layout-setting-option">
+                            <input type="radio" name="playerPlaylistSelector" value="coverflow" <?php echo $playerPlaylistSelector === 'coverflow' ? 'checked' : ''; ?>>
+                            <span>Cover flow</span>
+                        </label>
+                    </div>
+                </div>
 
                 <div class="player-layout-editor" id="playerLayoutEditor">
                     <div class="player-layout-col player-layout-col--pool">
@@ -2188,7 +2251,6 @@ if ($tab === 'analytics') {
                 <?php
                 $cfgTabs = [
                     'basics'  => ['⚙️', 'Basics'],
-                    'theme'   => ['🎨', 'Theme'],
                     'support' => ['💛', 'Support'],
                     'sharing' => ['🔗', 'Sharing'],
                 ];
@@ -2205,12 +2267,10 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
                     Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalog</strong> below to hide or restore the shipped bandPromo demo release, playlist, gallery, and bundled demo media.
-                <?php elseif ($configTab === 'theme'): ?>
-                    Theme is the place for visible presentation assets such as the logo, primary cover image, welcome audio, and background media. <strong>Save validates only the theme fields</strong>, then writes them back into the full config. Most path-only changes apply immediately; changing the primary cover image may still queue follow-up image optimization.
                 <?php elseif ($configTab === 'support'): ?>
                     Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
-                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Make sure the <strong>share image path</strong> points to an existing file in the Theme panel.
+                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> on the active brand.
                 <?php endif; ?>
             </div>
 
@@ -2306,108 +2366,6 @@ if ($tab === 'analytics') {
                 </label>
                 <div class="card-actions">
                     <span id="cfgDemoCatalogStatus" class="status-text"></span>
-                </div>
-            </div>
-
-            <!-- ── THEME ───────────────────────────────────────────────────── -->
-            <?php elseif ($tab === 'settings' && $configTab === 'theme'): ?>
-            <?php
-            $cfgFull = bandpromo_load_runtime_config_raw();
-            $cfgTheme = $cfgFull['media'] ?? [];
-            $themeLogoPath = (string) ($cfgTheme['logo'] ?? '');
-            $themeCoverPath = (string) ($cfgTheme['cover'] ?? '');
-            $themeBackgroundImagePath = (string) ($cfgTheme['background_image'] ?? '');
-            $themeBackgroundVideoPath = (string) ($cfgTheme['background_video'] ?? '');
-            $themeWelcomeAudioPath = (string) ($cfgTheme['welcome_audio'] ?? '');
-            $themeLoggedinAudioPath = (string) ($cfgTheme['loggedin_audio'] ?? '');
-            $themeLogoLabel = $themeLogoPath !== '' ? basename(str_replace('\\', '/', $themeLogoPath)) : 'No logo selected';
-            $themeCoverLabel = $themeCoverPath !== '' ? basename(str_replace('\\', '/', $themeCoverPath)) : 'No cover selected';
-            $themeBackgroundImageLabel = $themeBackgroundImagePath !== '' ? basename(str_replace('\\', '/', $themeBackgroundImagePath)) : 'No background image selected';
-            $themeBackgroundVideoLabel = $themeBackgroundVideoPath !== '' ? basename(str_replace('\\', '/', $themeBackgroundVideoPath)) : 'No background video selected';
-            $themeWelcomeAudioLabel = $themeWelcomeAudioPath !== '' ? basename(str_replace('\\', '/', $themeWelcomeAudioPath)) : 'No welcome audio selected';
-            $themeLoggedinAudioLabel = $themeLoggedinAudioPath !== '' ? basename(str_replace('\\', '/', $themeLoggedinAudioPath)) : 'No logged-in audio selected';
-            ?>
-            <div class="card">
-                <h3>🎨 Theme / Media Presentation</h3>
-                <p class="card-note">
-                    Choose the visible presentation assets here, such as logo, primary cover image, welcome audio, and background media, without touching internal file paths. Most reference changes apply immediately; the primary cover image is the main field that can still require follow-up delivery refresh.
-                </p>
-                <div class="config-form-grid">
-                    <div class="form-group config-form-full">
-                        <label for="cfg_theme_logo_picker">Logo</label>
-                        <input type="hidden" id="cfg_theme_logo" value="<?php echo htmlspecialchars($themeLogoPath); ?>" data-empty-label="No logo selected">
-                        <div class="asset-picker-control" id="cfg_theme_logo_picker">
-                            <span id="cfg_theme_logo_label" class="asset-picker-value<?php echo $themeLogoPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeLogoLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_logo" data-title="Choose logo" data-targets="special">Choose file</button>
-                            </div>
-                        </div>
-                        <div class="field-note">Pick from uploaded theme assets. The internal storage path stays hidden.</div>
-                    </div>
-                    <div class="form-group config-form-full">
-                        <label for="cfg_theme_cover_picker">Primary cover</label>
-                        <input type="hidden" id="cfg_theme_cover" value="<?php echo htmlspecialchars($themeCoverPath); ?>" data-empty-label="No cover selected">
-                        <div class="asset-picker-control" id="cfg_theme_cover_picker">
-                            <span id="cfg_theme_cover_label" class="asset-picker-value<?php echo $themeCoverPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeCoverLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_cover" data-title="Choose primary cover" data-targets="special,illustrations,photos">Choose file</button>
-                            </div>
-                        </div>
-                        <div class="field-note">Changing the primary cover can trigger a follow-up image refresh for delivery assets.</div>
-                    </div>
-                    <div class="form-group config-form-full">
-                        <label for="cfg_theme_background_image_picker">Background image</label>
-                        <input type="hidden" id="cfg_theme_background_image" value="<?php echo htmlspecialchars($themeBackgroundImagePath); ?>" data-empty-label="No background image selected">
-                        <div class="asset-picker-control" id="cfg_theme_background_image_picker">
-                            <span id="cfg_theme_background_image_label" class="asset-picker-value<?php echo $themeBackgroundImagePath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeBackgroundImageLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_background_image" data-title="Choose background image" data-targets="special,illustrations,photos">Choose file</button>
-                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_background_image">Clear</button>
-                            </div>
-                        </div>
-                        <div class="field-note">Pick a still background from your uploaded theme, illustration, or photo assets, or clear it to run with no background image.</div>
-                    </div>
-                    <div class="form-group config-form-full">
-                        <label for="cfg_theme_background_video_picker">Background video</label>
-                        <input type="hidden" id="cfg_theme_background_video" value="<?php echo htmlspecialchars($themeBackgroundVideoPath); ?>" data-empty-label="No background video selected">
-                        <div class="asset-picker-control" id="cfg_theme_background_video_picker">
-                            <span id="cfg_theme_background_video_label" class="asset-picker-value<?php echo $themeBackgroundVideoPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeBackgroundVideoLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_background_video" data-title="Choose background video" data-targets="special,video">Choose file</button>
-                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_background_video">Clear</button>
-                            </div>
-                        </div>
-                        <div class="field-note">Pick a motion background from theme assets or uploaded videos, or clear it to disable background video entirely.</div>
-                    </div>
-                    <div class="form-group config-form-full">
-                        <label for="cfg_theme_welcome_audio_picker">Welcome audio</label>
-                        <input type="hidden" id="cfg_theme_welcome_audio" value="<?php echo htmlspecialchars($themeWelcomeAudioPath); ?>" data-empty-label="No welcome audio selected">
-                        <div class="asset-picker-control" id="cfg_theme_welcome_audio_picker">
-                            <span id="cfg_theme_welcome_audio_label" class="asset-picker-value<?php echo $themeWelcomeAudioPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeWelcomeAudioLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_welcome_audio" data-title="Choose welcome audio" data-targets="special,audio">Choose file</button>
-                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_welcome_audio">Clear</button>
-                            </div>
-                        </div>
-                        <div class="field-note">Use a short intro sound from theme assets or your uploaded audio library, or clear it to disable the intro sound.</div>
-                    </div>
-                    <div class="form-group config-form-full">
-                        <label for="cfg_theme_loggedin_audio_picker">Logged-in audio</label>
-                        <input type="hidden" id="cfg_theme_loggedin_audio" value="<?php echo htmlspecialchars($themeLoggedinAudioPath); ?>" data-empty-label="No logged-in audio selected">
-                        <div class="asset-picker-control" id="cfg_theme_loggedin_audio_picker">
-                            <span id="cfg_theme_loggedin_audio_label" class="asset-picker-value<?php echo $themeLoggedinAudioPath === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($themeLoggedinAudioLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="cfg_theme_loggedin_audio" data-title="Choose logged-in audio" data-targets="special,audio">Choose file</button>
-                                <button type="button" class="icon-btn media-picker-clear" data-field="cfg_theme_loggedin_audio">Clear</button>
-                            </div>
-                        </div>
-                        <div class="field-note">Choose the sound or loop used once visitors are inside the site, or clear it to skip that sound entirely.</div>
-                    </div>
-                </div>
-                <textarea id="cfgThemeFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
-                <div class="card-actions">
-                    <button id="cfgThemeSaveBtn" class="btn btn-primary">💾 Save theme</button>
-                    <span id="cfgThemeStatus" class="status-text"></span>
                 </div>
             </div>
 
@@ -2523,15 +2481,12 @@ if ($tab === 'analytics') {
                         <input type="text" id="soc_instagram" value="<?php echo htmlspecialchars($instagram); ?>">
                     </div>
                     <div class="form-group social-form-full">
-                        <label for="soc_share_image_picker">Share image</label>
-                        <input type="hidden" id="soc_share_image" value="<?php echo htmlspecialchars($ogImage); ?>" data-empty-label="No share image selected">
+                        <label>Share image</label>
+                        <input type="hidden" id="soc_share_image" value="<?php echo htmlspecialchars($ogImage); ?>">
                         <div class="asset-picker-control" id="soc_share_image_picker">
                             <span id="soc_share_image_label" class="asset-picker-value<?php echo $ogImage === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($ogImageLabel); ?></span>
-                            <div class="asset-picker-actions">
-                                <button type="button" class="icon-btn media-picker-open" data-field="soc_share_image" data-title="Choose share image" data-targets="special,illustrations,photos">Choose file</button>
-                            </div>
                         </div>
-                        <div class="field-note">Pick the image used when people share your page. The storage path stays internal.</div>
+                        <div class="field-note">Poster / share cover is edited under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> (active brand Shell media). Saving that brand updates the image used in these previews.</div>
                     </div>
                     <div class="form-group social-form-full">
                         <label for="soc_keywords">Keywords <span class="hint">(SEO meta keywords)</span></label>

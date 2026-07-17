@@ -221,6 +221,60 @@ function bandpromo_playlist_is_player_visible(string $root, string $playlistId, 
     );
 }
 
+function bandpromo_playlist_prefer_cover_delivery_url(
+    string $root,
+    string $previewUrl,
+    string $posterAssetId = ''
+): string {
+    $stems = [];
+    $previewUrl = trim($previewUrl);
+    if ($previewUrl !== '') {
+        $path = parse_url($previewUrl, PHP_URL_PATH);
+        $basename = basename(is_string($path) && $path !== '' ? $path : $previewUrl);
+        $stem = pathinfo($basename, PATHINFO_FILENAME);
+        if (is_string($stem) && $stem !== '') {
+            $stems[] = $stem;
+        }
+    }
+
+    $posterAssetId = trim($posterAssetId);
+    if ($posterAssetId !== '' && bandpromo_asset_is_asset_id($posterAssetId)) {
+        $stems[] = $posterAssetId;
+        $asset = bandpromo_asset_lookup_by_id($root, $posterAssetId);
+        if (is_array($asset)) {
+            foreach (['master_filename', 'original_filename'] as $key) {
+                $name = basename(trim((string) ($asset[$key] ?? '')));
+                $stem = pathinfo($name, PATHINFO_FILENAME);
+                if (is_string($stem) && $stem !== '') {
+                    $stems[] = $stem;
+                }
+            }
+        }
+    }
+
+    $stems = array_values(array_unique(array_filter($stems, static fn($stem): bool => is_string($stem) && $stem !== '')));
+    foreach ($stems as $stem) {
+        foreach (['/media/img/thumb/', '/media/photo/thumb/'] as $base) {
+            $relative = $base . $stem . '.jpg';
+            $absolute = $root . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if (is_file($absolute)) {
+                return $relative;
+            }
+        }
+    }
+    foreach ($stems as $stem) {
+        foreach (['/media/img/optimal/', '/media/photo/optimal/'] as $base) {
+            $relative = $base . $stem . '.jpg';
+            $absolute = $root . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if (is_file($absolute)) {
+                return $relative;
+            }
+        }
+    }
+
+    return $previewUrl;
+}
+
 function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorBypass = false): array
 {
     $entries = [];
@@ -241,10 +295,16 @@ function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorB
         if (bandpromo_playlist_document_is_empty($root, $id)) {
             continue;
         }
+        $preview = (string) ($entry['poster_preview_url'] ?? '');
         $entries[] = [
             'id' => $id,
             'title' => (string) ($entry['title'] ?? $id),
             'slug' => bandpromo_playlist_public_slug($root, $id),
+            'cover' => bandpromo_playlist_prefer_cover_delivery_url(
+                $root,
+                $preview,
+                (string) ($entry['poster_asset_id'] ?? '')
+            ),
         ];
     }
 
@@ -327,6 +387,83 @@ function bandpromo_playlist_normalize_stored_tracks(array $tracks): array
     }
 
     return $normalized;
+}
+
+/**
+ * Refresh stored brand_styles snippets in every playlist that references $brandId.
+ * Keeps published payloads aligned with Content → Branding without a full rematerialize.
+ *
+ * @return array{updated:list<string>,skipped:list<string>}
+ */
+function bandpromo_playlist_refresh_brand_styles_for_brand(string $root, string $brandId): array
+{
+    require_once __DIR__ . '/brand-storage.php';
+
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    $updated = [];
+    $skipped = [];
+    if ($brandId === '') {
+        return ['updated' => $updated, 'skipped' => $skipped];
+    }
+
+    $fresh = bandpromo_brand_player_styles_for_ids($root, [$brandId]);
+    if ($fresh === [] || !isset($fresh[$brandId])) {
+        return ['updated' => $updated, 'skipped' => $skipped];
+    }
+
+    try {
+        bandpromo_playlist_ensure_seeded($root);
+    } catch (Throwable $throwable) {
+        return ['updated' => $updated, 'skipped' => $skipped];
+    }
+
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            $skipped[] = $playlistId;
+            continue;
+        }
+
+        $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
+        $usesBrand = false;
+        foreach ($tracks as $track) {
+            if (!is_array($track)) {
+                continue;
+            }
+            if (bandpromo_brand_canonical_id((string) ($track['brand_id'] ?? '')) === $brandId) {
+                $usesBrand = true;
+                break;
+            }
+        }
+        if (!$usesBrand && is_array($document['brand_styles'] ?? null) && isset($document['brand_styles'][$brandId])) {
+            $usesBrand = true;
+        }
+        if (!$usesBrand) {
+            continue;
+        }
+
+        $styles = is_array($document['brand_styles'] ?? null)
+            ? bandpromo_playlist_normalize_stored_brand_styles($document['brand_styles'])
+            : [];
+        $styles[$brandId] = $fresh[$brandId];
+        $document['brand_styles'] = $styles;
+        try {
+            bandpromo_playlist_write_document($root, $document);
+            $updated[] = $playlistId;
+        } catch (Throwable $throwable) {
+            $skipped[] = $playlistId;
+        }
+    }
+
+    return ['updated' => $updated, 'skipped' => $skipped];
 }
 
 function bandpromo_playlist_normalize_stored_brand_styles(array $brandStyles): array
@@ -1110,7 +1247,19 @@ function bandpromo_playlist_build_track_list(string $root, array $document, arra
             continue;
         }
         if (isset($builtTracks[$masterFile]) && is_array($builtTracks[$masterFile])) {
-            $tracks[] = $builtTracks[$masterFile];
+            $built = $builtTracks[$masterFile];
+            // Tag materialization is preferred when present; fill empty living_cover from registry.
+            $builtLiving = bandpromo_living_cover_normalize_video_filename((string) ($built['living_cover'] ?? ''));
+            if ($builtLiving === '') {
+                $phpEntry = bandpromo_playlist_build_php_track_entry($root, $masterFile);
+                $registryLiving = is_array($phpEntry)
+                    ? bandpromo_living_cover_normalize_video_filename((string) ($phpEntry['living_cover'] ?? ''))
+                    : '';
+                if ($registryLiving !== '') {
+                    $built['living_cover'] = $registryLiving;
+                }
+            }
+            $tracks[] = $built;
             continue;
         }
         $phpEntry = bandpromo_playlist_build_php_track_entry($root, $masterFile);
@@ -1706,6 +1855,22 @@ function bandpromo_playlist_load_player_response(
     $deliverySummary = is_array($document['delivery_summary'] ?? null)
         ? bandpromo_playlist_normalize_stored_delivery_summary($document['delivery_summary'])
         : bandpromo_playlist_delivery_summary($tracks);
+
+    // Always resolve brand tokens live so Content → Branding edits show without a full Publish.
+    $brandIds = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $brandId = trim((string) ($track['brand_id'] ?? ''));
+        if ($brandId !== '') {
+            $brandIds[] = $brandId;
+        }
+    }
+    $liveBrandStyles = bandpromo_brand_player_styles_for_ids($root, $brandIds);
+    if ($liveBrandStyles !== []) {
+        $brandStyles = bandpromo_playlist_normalize_stored_brand_styles($liveBrandStyles);
+    }
 
     return [
         'playlist_id' => $playlistId,

@@ -115,7 +115,7 @@ The intended product concepts are expressed as **explicit role tags** on registr
 
 **Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Visual (merged image/video pool) and Files → Brand assets (`special`); folder paths remain under the hood until registry migration.
+Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Visual (merged image/video pool) and Files → Brand assets (Visual-like thumbnail cards over `media/special/`, with theme/config In use / Orphans); folder paths remain under the hood until registry migration.
 
 ### Current exposed model vs prepared internal model
 
@@ -124,7 +124,7 @@ Before bandPromo exposes true multi-release administration, operators should sti
 That means the current admin/UI model should remain:
 
 - one visible site identity
-- one visible set of shell/theme choices
+- one visible set of shell media choices under **Content → Branding** (active brand), not a separate Settings → Theme editor
 - no release-scope terminology exposed unless multi-release is a real product feature
 
 Under the hood, the code and docs should still prepare the future structure so later multi-release support is additive rather than a rewrite.
@@ -914,24 +914,24 @@ Guidance:
 - choose delivery **dimensions by display context**, not by source upload size: resize and compress to the largest size each UI surface actually needs, plus a sensible retina margin
 - keep the original upload and any corrected master artwork separately from delivery derivatives
 
-### Current implementation gap (beta feedback, 2026-06)
+### Current implementation (Phase 1 sanity sizes, 2026-07-16)
 
-Closed-beta feedback is valid: today's build pipeline does **not** yet follow the guidance above.
+What ships today for opaque track/illustration/photo delivery:
 
-What actually ships today:
+- `scripts/optimizeMedia.py` writes **two** JPEG derivatives per source image:
+  - `media/img|photo/optimal/{stem}.jpg` — max edge **720px** (player flip cover / lightbox for now)
+  - `media/img|photo/thumb/{stem}.jpg` — max edge **100px** (playlist rows + playlist cover-flow)
+- Conversion still uses `convert_cover_to_jpeg()`, which flattens RGBA/alpha to a **white background** before saving JPEG (alpha-preserving delivery remains later work)
+- Rebuild is incremental: regenerate when the source is newer or the delivery longest edge exceeds the target
+- `media/special/` brand/shell assets remain a **legacy intake path** until Visual registry migration; an interim optimize pass may resize the active logo (max-height 180px PNG, alpha kept) and still background (max-height 1080px, JPG when opaque) in place — this is not the long-term original/master/delivery model
+- Player loads **optimal** for the main cover and **thumb** for playlist list/cover-flow (fallback to optimal → original)
+- Product naming: pool is **Visual**; **Still** / **Living** are type filters. Do not introduce a top-level `stills/` folder that would exclude video.
 
-- `scripts/optimizeMedia.py` writes **one** delivery file per image: `media/img/optimal/{stem}.jpg` and `media/photo/optimal/{stem}.jpg`
-- conversion always uses `convert_cover_to_jpeg()`, which flattens RGBA/alpha to a **white background** before saving JPEG
-- delivery files are **not resized** to UI dimensions — a 4000×4000 upload becomes a 4000×4000 JPEG unless the source was already smaller
-- `media/special/` theme assets (logos, share sources) are **not** run through the image optimizer; they are referenced directly from config paths — but any logo or artwork picked from Illustrations/Photos pools still lands in the JPG-only `optimal/` pipeline
+Remaining debt (still v0.8.4 visual media slice):
 
-Operator impact:
-
-- a PNG logo saved for transparency is destroyed when it flows through Illustrations → Publish
-- even opaque photos are heavier than necessary because the player, gallery, and admin thumbs never render anywhere near full source resolution
-- the product docs already describe multi-variant delivery (`thumb`, `card`, `lightbox`, `share`), but the codebase still implements a single legacy `optimal/` bucket
-
-This gap is **documented policy vs implementation debt**, not intentional product behavior. Fix belongs in the **v0.8.4 visual media slice** (delivery scaling + unified pool + `ast_{ULID}` naming — see [TODO.md](TODO.md)).
+- format-by-content (keep PNG/WebP alpha for logos)
+- dedicated lightbox/share variants beyond the 720px optimal cap
+- unified Visual registry identity (`ast_{ULID}`) for all visuals
 
 ### Visual media rework plan (v0.8.4)
 
@@ -946,12 +946,12 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | Context | Where | Approx max display (CSS) | Notes |
 |---------|--------|--------------------------|-------|
 | `logo` | Player header `.content-logo-img` | 320px wide (+ 2× retina → ~640px delivery cap) | Often PNG with alpha; theme asset |
-| `thumb` | Playlist row `.playlist-track-cover`, bio track list `.track-cover` | 70×70px (+ 2× → 140px) | Square crop |
-| `card` | Player flip cover `.cover-art` inside `--card-size` | 320×320px (+ 2× → 640px) | Square; primary artwork view |
+| `thumb` | Playlist row `.playlist-track-cover`, cover-flow, bio track list | 70–100px (delivery max edge **100px**) | Square-ish; shipped |
+| `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped; lightbox shares optimal for now |
 | `card` | Admin/media file list `.media-file-thumb` | ~48–64px (verify) | Admin-only; low priority |
 | `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
-| `lightbox` | Player/page lightbox enlarged view | largest practical overlay (measure; likely ≤1200px wide) | Do not default to full source resolution |
+| `lightbox` | Player/page lightbox enlarged view | currently shares 720px optimal | Dedicated larger lightbox variant deferred |
 | `share` | `makeSocial.py` Facebook/Twitter crops | fixed aspect targets (1.91:1 etc.) | Separate from in-player artwork |
 
 Deliverable: a checked-in **delivery context registry** (JSON or markdown table) that maps each context → max pixel box → default variant name. All future resizers read from this registry, not ad hoc magic numbers in Python.
@@ -967,13 +967,12 @@ Lock alongside the display-context audit:
 - **Upload tagging:** contextual uploads inherit role + brand from picker; bulk Visual pool uploads default to `role: unassigned` and install active `brand_id` — never block upload on role selection.
 - **Migration rule:** dual-read legacy paths (`/media/img/original/…`, `/media/photo/original/…`, `/media/video/original/…`, `/media/special/…`); Publish/autofix registers existing files and assigns provisional role tags; retire folder split after backfill.
 
-#### Phase 1 — format-aware single delivery (quick win)
+#### Phase 1 — format-aware delivery + sanity sizes
 
-Stop harming transparency while multi-variant work is in progress:
+Shipped (2026-07-16): opaque JPEG **optimal max 720px** + **thumb max 100px** for img/photo pools. Remaining:
 
 - detect alpha / palette transparency in source; when present, emit PNG or WebP-with-alpha delivery instead of JPEG
-- for opaque sources, keep JPEG or WebP without alpha
-- apply a **sanity max dimension** per asset role (logo vs track cover vs gallery photo) even before full multi-variant lands — better one correctly sized PNG than one oversized JPG
+- for opaque sources, keep JPEG or WebP without alpha (already the default for optimal/thumb)
 
 Brand/logos: Visual pool assets with `brand-logo` (or contextual upload from brand editor); until migration, `media/special/` direct references remain a legacy workaround.
 
@@ -1012,6 +1011,7 @@ Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regene
 - extend asset registry helpers and `media-delivery-helpers.php` for visual `asset_id` + variant resolution
 - [x] replace Files → Illustrations / Photos / Video with **Files → Visual** (operator UX 2026-07-15; thumbnail-first + type filters 2026-07-16)
 - [x] Files → **Brand assets** label for legacy `media/special/` (2026-07-16)
+- [x] Files → Brand assets Visual-like manager: thumbnail cards, type chips (image/video/audio), usage filters, shared drilldown; theme/config `reference_info` for In use / Orphans (2026-07-16) — storage remains `media/special/` until migration
 - update Content pickers to query the Visual pool with context filters / registry brand filter instead of hard-coded folder `data-targets` alone (partial: Visual browse merge shipped; brand filter waits on registry)
 - Content pools gate on **required variants present**, not merely “some file in optimal/”
 - validation messages name the missing variant (“card delivery missing for track cover”) not “run Build”
@@ -1137,15 +1137,7 @@ This matrix defines the preferred future behavior.
 
 ### Naming guidance for admin UI
 
-The current Files sub-panel labeled `System` should move toward `Theme` if it remains the home for install-specific branding and presentation assets.
-
-Reasoning:
-
-- `System` sounds internal and implementation-oriented
-- these files are operator-owned and install-specific
-- assets such as logo, poster/share image, and background media are better understood as theme/design inputs than as system internals
-
-If the panel later grows to include truly technical install assets, the naming can be revisited. In the current product shape, `Theme` is the more accurate operator-facing label.
+Files → **Brand assets** is the legacy intake home for install branding files (`media/special/`). In **Content → Branding**, **Shell media** holds assignment slots only; a sibling **Brand assets** pool supplies Still / Living / Audio tiles for those slots (upload still happens under Files). Saving the active brand syncs those paths into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
 
 ### Nondestructive naming policy
 

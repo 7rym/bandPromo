@@ -80,6 +80,7 @@
                     mood: editorDocument?.mood || '',
                     keywords: editorDocument?.keywords || [],
                     tone_notes: editorDocument?.tone_notes || '',
+                    assets: editorDocument?.assets || previewDocument?.assets || {},
                 });
             },
         }) || null;
@@ -280,12 +281,50 @@
             `;
         }
 
+        function normalizeHexColor(value) {
+            const raw = String(value || '').trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
+                return raw.toLowerCase();
+            }
+            if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+                return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`.toLowerCase();
+            }
+            return '';
+        }
+
+        function syncColorChipPresentation(chip) {
+            if (!(chip instanceof HTMLElement)) {
+                return;
+            }
+            const hexInput = chip.querySelector('input.theme-color-hex-input');
+            const picker = chip.querySelector('input.theme-color-picker');
+            const controls = chip.querySelector('.theme-color-controls');
+            if (!(hexInput instanceof HTMLInputElement)) {
+                return;
+            }
+            const hex = normalizeHexColor(hexInput.value) || normalizeHexColor(picker?.value) || '#000000';
+            hexInput.value = hex.toUpperCase();
+            hexInput.classList.remove('is-invalid');
+            if (picker instanceof HTMLInputElement) {
+                picker.value = hex;
+            }
+            if (controls instanceof HTMLElement) {
+                controls.style.setProperty('--theme-swatch-color', hex);
+            }
+            const label = chip.querySelector('.theme-color-label');
+            const labelText = label ? String(label.textContent || '').trim() : 'Color';
+            chip.title = `${labelText}: ${hex.toUpperCase()}`;
+        }
+
         function renderCompactColors(locked) {
             return `<div class="theme-color-compact-grid">${COLOR_FIELDS.map(([key, label]) => {
-                const value = tokenValue(editorDocument, `color.${key}`) || '#000000';
-                return `<label class="theme-color-chip" title="${escapeHtml(label)}">
-                    <input type="color" data-token-path="color.${key}" value="${escapeHtml(value)}" ${locked ? 'disabled' : ''}>
-                    <span>${escapeHtml(label)}</span>
+                const value = normalizeHexColor(tokenValue(editorDocument, `color.${key}`) || '#000000') || '#000000';
+                return `<label class="theme-color-chip" title="${escapeHtml(label)}: ${escapeHtml(value.toUpperCase())}">
+                    <span class="theme-color-label">${escapeHtml(label)}</span>
+                    <span class="theme-color-controls" style="--theme-swatch-color:${escapeHtml(value)}">
+                        <input type="text" class="theme-color-hex-input" data-token-path="color.${key}" value="${escapeHtml(value.toUpperCase())}" maxlength="7" spellcheck="false" autocomplete="off" inputmode="text" aria-label="${escapeHtml(label)} hex" ${locked ? 'disabled' : ''}>
+                        <input type="color" class="theme-color-picker" value="${escapeHtml(value)}" tabindex="-1" aria-label="${escapeHtml(label)} color picker" title="Open color picker" ${locked ? 'disabled' : ''}>
+                    </span>
                 </label>`;
             }).join('')}</div>`;
         }
@@ -438,28 +477,572 @@
                 : '';
         }
 
-        function renderAssetPreview(document) {
-            const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
-            const imageKeys = [
-                ['logo', 'Logo'],
-                ['poster', 'Cover art'],
-                ['background_image', 'Background image'],
-            ];
-            const items = imageKeys
-                .map(([key, label]) => {
-                    const src = String(assets[key] || '').trim();
-                    if (!src) return '';
-                    return `<figure class="theme-preview-asset">
-                        <img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">
-                        <figcaption>${escapeHtml(label)}</figcaption>
-                    </figure>`;
-                })
-                .filter(Boolean)
-                .join('');
-            if (!items) {
-                return '<p class="theme-preview-muted">Brand assets use paths from Config → Theme or this theme document when saved as active.</p>';
+        function assetBasename(path) {
+            const raw = String(path || '').trim().replace(/\\/g, '/');
+            if (!raw) return '';
+            const parts = raw.split('/');
+            return parts[parts.length - 1] || raw;
+        }
+
+        function mediaKindFromPath(path) {
+            const name = assetBasename(path).toLowerCase();
+            if (/\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(name)) return 'image';
+            if (/\.(mp4|webm|mov|m4v|ogv)$/i.test(name)) return 'video';
+            if (/\.(mp3|flac|wav|ogg|m4a|aac|aiff?)$/i.test(name)) return 'audio';
+            return 'other';
+        }
+
+        function mediaKindFromFile(file) {
+            const declared = String(file?.media_type || '').trim();
+            if (declared === 'image' || declared === 'video' || declared === 'audio') {
+                return declared;
             }
-            return `<div class="theme-preview-assets">${items}</div>`;
+            return mediaKindFromPath(file?.name || '');
+        }
+
+        function kindLabel(kind) {
+            if (kind === 'image') return 'Still';
+            if (kind === 'video') return 'Living';
+            if (kind === 'audio') return 'Audio';
+            return 'File';
+        }
+
+        function specialMediaUrl(pathOrName) {
+            const name = assetBasename(pathOrName);
+            if (!name) return '';
+            return `/media/special/${encodeURIComponent(name)}`;
+        }
+
+        function specialMediaPath(pathOrName) {
+            const name = assetBasename(pathOrName);
+            if (!name) return '';
+            return `/media/special/${name}`;
+        }
+
+        function visualIntakeBasePath(bucket) {
+            if (bucket === 'video') return '/media/video/original';
+            if (bucket === 'photos') return '/media/photo/original';
+            return '/media/img/original';
+        }
+
+        function poolFilePath(file) {
+            const source = String(file?.pool_source || 'special');
+            const name = assetBasename(file?.name || '');
+            if (!name) return '';
+            if (source === 'special') {
+                return specialMediaPath(name);
+            }
+            const bucket = String(file?.intake_bucket || (mediaKindFromFile(file) === 'video' ? 'video' : 'illustrations'));
+            return `${visualIntakeBasePath(bucket)}/${name}`;
+        }
+
+        function poolFileThumbUrl(file) {
+            const kind = mediaKindFromFile(file);
+            const source = String(file?.pool_source || 'special');
+            if (kind === 'video') {
+                const preview = String(file?.preview_url || '').trim();
+                if (preview) return preview;
+                const poster = String(file?.poster_url || '').trim();
+                if (poster) return poster;
+            }
+            if (source === 'special') {
+                return specialMediaUrl(file?.name || '');
+            }
+            return poolFilePath(file);
+        }
+
+        function poolFileFitsSlot(file, field) {
+            if (!field) return true;
+            const kind = mediaKindFromFile(file);
+            if (!shellSlotAcceptsKind(field, kind)) {
+                return false;
+            }
+            // Logo stays Brand-assets stills only (transparency-friendly special intake).
+            if (field.key === 'logo' && String(file?.pool_source || '') !== 'special') {
+                return false;
+            }
+            // Shell audio stays Brand assets only.
+            if (kind === 'audio' && String(file?.pool_source || '') !== 'special') {
+                return false;
+            }
+            return true;
+        }
+
+        function renderShellPreviewChrome(document) {
+            const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
+            const logo = String(assets.logo || '').trim();
+            const bg = String(assets.background_image || '').trim();
+            const bgAttr = bg
+                ? ` style="background-image:url('${escapeHtml(bg)}');"`
+                : '';
+            const logoHtml = logo
+                ? `<img class="theme-preview-shell-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">`
+                : '<span class="theme-preview-muted">No logo assigned</span>';
+
+            return `
+                <section class="theme-preview-section theme-preview-section--shell">
+                    <h3 class="theme-preview-section-title">Shell</h3>
+                    <p class="theme-preview-muted theme-preview-section-lead">Logo and still backdrop as assigned in Shell media.</p>
+                    <div class="theme-preview-shell-chrome"${bgAttr}>
+                        ${logoHtml}
+                    </div>
+                </section>`;
+        }
+
+        const SHELL_MEDIA_FIELDS = [
+            {
+                key: 'logo',
+                label: 'Logo',
+                emptyLabel: 'Drop a still logo',
+                accept: ['image'],
+                clearable: false,
+                note: 'Still image for login and player chrome.',
+            },
+            {
+                key: 'poster',
+                label: 'Poster / share cover',
+                emptyLabel: 'Drop a still poster',
+                accept: ['image'],
+                clearable: false,
+                note: 'Still cover for share cards and shell presentation.',
+            },
+            {
+                key: 'background_image',
+                label: 'Still background',
+                emptyLabel: 'Drop a still background',
+                accept: ['image'],
+                clearable: true,
+                note: 'Still shell backdrop on login and player.',
+            },
+            {
+                key: 'background_video',
+                label: 'Living background',
+                emptyLabel: 'Drop a living background',
+                accept: ['video'],
+                clearable: true,
+                note: 'Living (video) shell backdrop on login and player.',
+            },
+            {
+                key: 'welcome_audio',
+                label: 'Welcome audio',
+                emptyLabel: 'Drop welcome audio',
+                accept: ['audio'],
+                clearable: true,
+                note: 'Short intro sound on the login surface.',
+            },
+            {
+                key: 'loggedin_audio',
+                label: 'Logged-in audio',
+                emptyLabel: 'Drop logged-in audio',
+                accept: ['audio'],
+                clearable: true,
+                note: 'Sound once visitors are inside the site.',
+            },
+        ];
+
+        let brandAssetFiles = [];
+        let brandAssetFilter = 'all';
+        let selectedShellSlotKey = '';
+        let brandAssetsLoading = false;
+
+        function shellFieldByKey(key) {
+            return SHELL_MEDIA_FIELDS.find((field) => field.key === key) || null;
+        }
+
+        function shellSlotAcceptsKind(field, kind) {
+            return Array.isArray(field?.accept) && field.accept.includes(kind);
+        }
+
+        function renderShellSlotPreviewHtml(field, value) {
+            const path = String(value || '').trim();
+            if (!path) {
+                const icon = field.accept.includes('audio') ? '♪' : field.accept.includes('video') ? '▶' : '◻';
+                return `<div class="theme-shell-slot-empty" aria-hidden="true">${icon}</div>
+                    <span class="theme-shell-slot-status">${escapeHtml(field.emptyLabel)}</span>`;
+            }
+            const kind = mediaKindFromPath(path);
+            if (kind === 'image') {
+                return `<img class="theme-shell-slot-thumb" src="${escapeHtml(path)}" alt="" loading="lazy">
+                    <span class="theme-shell-slot-status">Assigned</span>`;
+            }
+            if (kind === 'video') {
+                return `<video class="theme-shell-slot-thumb" src="${escapeHtml(path)}" muted loop playsinline preload="metadata"></video>
+                    <span class="theme-shell-slot-status">Assigned</span>`;
+            }
+            return `<div class="theme-shell-slot-empty theme-shell-slot-empty--audio" aria-hidden="true">♪</div>
+                <span class="theme-shell-slot-status">Assigned</span>`;
+        }
+
+        function renderShellMediaFields(locked) {
+            const assets = editorDocument?.assets && typeof editorDocument.assets === 'object'
+                ? editorDocument.assets
+                : {};
+            const slots = SHELL_MEDIA_FIELDS.map((field) => {
+                const value = String(assets[field.key] || '').trim();
+                const selectedClass = selectedShellSlotKey === field.key ? ' is-selected' : '';
+                const filledClass = value ? ' is-filled' : '';
+                const clearBtn = field.clearable && !locked
+                    ? `<button type="button" class="icon-btn theme-shell-slot-clear" data-shell-clear="${escapeHtml(field.key)}" title="Clear">Clear</button>`
+                    : '';
+                return `
+                    <div class="theme-shell-slot${selectedClass}${filledClass}${locked ? ' is-locked' : ''}"
+                         data-shell-slot="${escapeHtml(field.key)}"
+                         data-accept="${escapeHtml(field.accept.join(','))}"
+                         role="button"
+                         tabindex="${locked ? '-1' : '0'}"
+                         aria-pressed="${selectedShellSlotKey === field.key ? 'true' : 'false'}"
+                         aria-label="${escapeHtml(field.label)}">
+                        <div class="theme-shell-slot-head">
+                            <strong>${escapeHtml(field.label)}</strong>
+                            <span class="theme-shell-slot-kind">${escapeHtml(field.accept.map(kindLabel).join(' · '))}</span>
+                        </div>
+                        <div class="theme-shell-slot-body">
+                            ${renderShellSlotPreviewHtml(field, value)}
+                        </div>
+                        <input type="hidden" id="theme_asset_${escapeHtml(field.key)}" value="${escapeHtml(value)}"
+                               data-asset-key="${escapeHtml(field.key)}">
+                        <div class="theme-shell-slot-actions">${clearBtn}</div>
+                        <p class="theme-shell-slot-note">${escapeHtml(field.note)}</p>
+                    </div>`;
+            }).join('');
+
+            const slotHint = locked
+                ? 'bandPromo Default is locked — shell media cannot be changed here.'
+                : 'Select a slot, then pick from Brand assets below (or drag onto a slot). Filenames stay hidden.';
+
+            return `
+                <div class="theme-editor-section theme-editor-section--shell-media">
+                    <h5>Shell media</h5>
+                    <p class="theme-field-hint">${slotHint}</p>
+                    <div class="theme-shell-media-grid" id="themeShellSlots">
+                        ${slots}
+                    </div>
+                </div>`;
+        }
+
+        function renderBrandAssetsPoolSection(locked) {
+            const poolHint = locked
+                ? 'bandPromo Default is locked — assignable media cannot be used here.'
+                : 'Upload under Files → Brand assets (or Visual for living stills/video). Assign into Shell media slots above.';
+
+            return `
+                <div class="theme-editor-section theme-editor-section--brand-assets">
+                    <h5>Brand assets</h5>
+                    <p class="theme-field-hint">${poolHint}</p>
+                    <div class="theme-brand-assets" id="themeBrandAssets">
+                        <div class="theme-brand-assets-head">
+                            <div class="theme-brand-assets-filters" role="group" aria-label="Media type">
+                                <button type="button" class="theme-brand-filter is-active" data-brand-filter="all" ${locked ? 'disabled' : ''}>All</button>
+                                <button type="button" class="theme-brand-filter" data-brand-filter="image" ${locked ? 'disabled' : ''}>Still</button>
+                                <button type="button" class="theme-brand-filter" data-brand-filter="video" ${locked ? 'disabled' : ''}>Living</button>
+                                <button type="button" class="theme-brand-filter" data-brand-filter="audio" ${locked ? 'disabled' : ''}>Audio</button>
+                            </div>
+                            <a class="theme-brand-assets-link" href="?tab=files&amp;fpanel=special">Open Files → Brand assets</a>
+                            <a class="theme-brand-assets-link" href="?tab=files&amp;fpanel=visual">Visual</a>
+                        </div>
+                        <p class="theme-brand-assets-status" id="themeBrandAssetsStatus">Loading media…</p>
+                        <div class="theme-brand-assets-grid" id="themeBrandAssetsGrid" aria-label="Brand assets pool"></div>
+                    </div>
+                </div>`;
+        }
+
+        function updateShellSlotDom(key) {
+            const field = shellFieldByKey(key);
+            const slot = formEl.querySelector(`[data-shell-slot="${key}"]`);
+            if (!field || !slot) return;
+            const value = String(editorDocument?.assets?.[key] || '').trim();
+            const input = slot.querySelector(`[data-asset-key="${key}"]`);
+            if (input instanceof HTMLInputElement) {
+                input.value = value;
+            }
+            const body = slot.querySelector('.theme-shell-slot-body');
+            if (body) {
+                body.innerHTML = renderShellSlotPreviewHtml(field, value);
+            }
+            slot.classList.toggle('is-filled', !!value);
+            slot.classList.toggle('is-selected', selectedShellSlotKey === key);
+            slot.setAttribute('aria-pressed', selectedShellSlotKey === key ? 'true' : 'false');
+        }
+
+        function setShellAssetValue(key, path, { silent = false } = {}) {
+            if (!editorDocument || editorDocument.locked) return false;
+            const field = shellFieldByKey(key);
+            if (!field) return false;
+            const next = String(path || '').trim();
+            if (next) {
+                const kind = mediaKindFromPath(next);
+                if (!shellSlotAcceptsKind(field, kind)) {
+                    if (!silent) {
+                        notifyThemeError(`${field.label} accepts ${field.accept.map(kindLabel).join(' / ')} only.`);
+                    }
+                    return false;
+                }
+            } else if (!field.clearable) {
+                if (!silent) {
+                    notifyThemeError(`${field.label} cannot be cleared.`);
+                }
+                return false;
+            }
+            if (!editorDocument.assets || typeof editorDocument.assets !== 'object') {
+                editorDocument.assets = {};
+            }
+            editorDocument.assets[key] = next;
+            updateShellSlotDom(key);
+            previewDocument = cloneDocument(editorDocument);
+            renderPreview(previewDocument);
+            saveUi?.reconcile();
+            return true;
+        }
+
+        function selectShellSlot(key) {
+            if (!editorDocument || editorDocument.locked) return;
+            selectedShellSlotKey = selectedShellSlotKey === key ? '' : key;
+            formEl.querySelectorAll('[data-shell-slot]').forEach((slot) => {
+                const slotKey = slot.getAttribute('data-shell-slot') || '';
+                const selected = slotKey === selectedShellSlotKey;
+                slot.classList.toggle('is-selected', selected);
+                slot.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            });
+            renderBrandAssetsGrid();
+        }
+
+        function filteredBrandAssets() {
+            return brandAssetFiles.filter((file) => {
+                const kind = mediaKindFromFile(file);
+                if (brandAssetFilter !== 'all' && kind !== brandAssetFilter) {
+                    return false;
+                }
+                if (selectedShellSlotKey) {
+                    const field = shellFieldByKey(selectedShellSlotKey);
+                    if (!poolFileFitsSlot(file, field)) {
+                        return false;
+                    }
+                } else if (kind === 'audio' && String(file?.pool_source || '') !== 'special') {
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        function renderBrandAssetsGrid() {
+            const grid = document.getElementById('themeBrandAssetsGrid');
+            const status = document.getElementById('themeBrandAssetsStatus');
+            if (!grid || !status) return;
+
+            formEl.querySelectorAll('.theme-brand-filter').forEach((button) => {
+                const filter = button.getAttribute('data-brand-filter') || 'all';
+                button.classList.toggle('is-active', filter === brandAssetFilter);
+            });
+
+            if (brandAssetsLoading) {
+                status.textContent = 'Loading media…';
+                grid.innerHTML = '';
+                return;
+            }
+
+            const files = filteredBrandAssets();
+            if (!brandAssetFiles.length) {
+                status.innerHTML = 'No assignable media yet. Upload under <a href="?tab=files&amp;fpanel=special">Brand assets</a> or <a href="?tab=files&amp;fpanel=visual">Visual</a>.';
+                grid.innerHTML = '';
+                return;
+            }
+            if (!files.length) {
+                if (brandAssetFilter === 'video' || selectedShellSlotKey === 'background_video') {
+                    status.innerHTML = 'No living media visible here. Upload a video under <a href="?tab=files&amp;fpanel=special">Brand assets</a>, or add living video under <a href="?tab=files&amp;fpanel=visual">Visual</a>.';
+                } else {
+                    status.textContent = selectedShellSlotKey
+                        ? 'No matching media for the selected slot.'
+                        : 'No media match this filter.';
+                }
+                grid.innerHTML = '';
+                return;
+            }
+
+            status.textContent = selectedShellSlotKey
+                ? `Showing media that fit “${shellFieldByKey(selectedShellSlotKey)?.label || selectedShellSlotKey}”. Click or drag onto the Shell media slot.`
+                : 'Drag onto a Shell media slot, or select a slot first then click. Living can come from Brand assets or Visual.';
+
+            const locked = !!editorDocument?.locked;
+            grid.innerHTML = files.map((file) => {
+                const kind = mediaKindFromFile(file);
+                const path = poolFilePath(file);
+                const thumbUrl = poolFileThumbUrl(file);
+                const source = String(file.pool_source || 'special') === 'visual' ? 'Visual' : 'Brand';
+                let thumb = `<span class="theme-brand-tile-placeholder">${kind === 'audio' ? '♪' : kind === 'video' ? '▶' : '◻'}</span>`;
+                if (kind === 'image') {
+                    thumb = `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">`;
+                } else if (kind === 'video') {
+                    if (/\.(png|jpe?g|webp|gif)$/i.test(thumbUrl)) {
+                        thumb = `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">`;
+                    } else {
+                        thumb = `<video src="${escapeHtml(thumbUrl)}" muted loop playsinline preload="metadata"></video>`;
+                    }
+                }
+                return `<button type="button" class="theme-brand-tile"
+                        data-brand-path="${escapeHtml(path)}"
+                        data-brand-kind="${escapeHtml(kind)}"
+                        draggable="${locked ? 'false' : 'true'}"
+                        ${locked ? 'disabled' : ''}
+                        title="${escapeHtml(kindLabel(kind) + ' · ' + source)}">
+                    <span class="theme-brand-tile-thumb">${thumb}</span>
+                    <span class="theme-brand-tile-label">${escapeHtml(kindLabel(kind))} · ${escapeHtml(source)}</span>
+                </button>`;
+            }).join('');
+        }
+
+        async function loadBrandAssetPool() {
+            const status = document.getElementById('themeBrandAssetsStatus');
+            brandAssetsLoading = true;
+            renderBrandAssetsGrid();
+            try {
+                const [specialResp, visualResp] = await Promise.all([
+                    fetch('/biblioteca/list-media.php?target=special', { credentials: 'same-origin' }),
+                    fetch('/biblioteca/list-media.php?target=visual', { credentials: 'same-origin' }),
+                ]);
+                const specialData = await specialResp.json().catch(() => ({}));
+                const visualData = await visualResp.json().catch(() => ({}));
+                if (!specialResp.ok || specialData.error) {
+                    throw new Error(specialData.error || 'Could not load Brand assets');
+                }
+                const specialFiles = (Array.isArray(specialData.files) ? specialData.files : []).map((file) => Object.assign({}, file, {
+                    pool_source: 'special',
+                }));
+                const visualFiles = (!visualResp.ok || visualData.error)
+                    ? []
+                    : (Array.isArray(visualData.files) ? visualData.files : [])
+                        .filter((file) => {
+                            const kind = mediaKindFromFile(file);
+                            return kind === 'image' || kind === 'video';
+                        })
+                        .map((file) => Object.assign({}, file, {
+                            pool_source: 'visual',
+                        }));
+                brandAssetFiles = specialFiles.concat(visualFiles);
+            } catch (error) {
+                brandAssetFiles = [];
+                if (status) {
+                    status.textContent = error.message || 'Could not load media';
+                }
+            } finally {
+                brandAssetsLoading = false;
+                renderBrandAssetsGrid();
+            }
+        }
+
+        function bindShellMediaUi() {
+            const locked = !!editorDocument?.locked;
+            if (locked) {
+                selectedShellSlotKey = '';
+                loadBrandAssetPool();
+                return;
+            }
+
+            formEl.querySelectorAll('[data-shell-slot]').forEach((slot) => {
+                const key = slot.getAttribute('data-shell-slot') || '';
+                slot.addEventListener('click', (event) => {
+                    if (event.target.closest('[data-shell-clear]')) return;
+                    selectShellSlot(key);
+                });
+                slot.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectShellSlot(key);
+                    }
+                });
+                slot.addEventListener('dragover', (event) => {
+                    const kinds = String(slot.getAttribute('data-accept') || '').split(',').filter(Boolean);
+                    const dragKind = formEl.dataset.dragKind || '';
+                    if (!kinds.length || (dragKind && !kinds.includes(dragKind))) {
+                        slot.classList.remove('is-drop-target');
+                        return;
+                    }
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                    slot.classList.add('is-drop-target');
+                });
+                slot.addEventListener('dragleave', () => {
+                    slot.classList.remove('is-drop-target');
+                });
+                slot.addEventListener('drop', (event) => {
+                    event.preventDefault();
+                    slot.classList.remove('is-drop-target');
+                    const path = event.dataTransfer.getData('application/x-bandpromo-path')
+                        || event.dataTransfer.getData('text/plain');
+                    const kind = event.dataTransfer.getData('application/x-bandpromo-kind')
+                        || mediaKindFromPath(path);
+                    const field = shellFieldByKey(key);
+                    if (!field || !shellSlotAcceptsKind(field, kind)) {
+                        notifyThemeError(`${field?.label || 'Slot'} accepts ${field?.accept.map(kindLabel).join(' / ') || 'matching media'} only.`);
+                        return;
+                    }
+                    setShellAssetValue(key, path);
+                    selectedShellSlotKey = key;
+                    updateShellSlotDom(key);
+                    renderBrandAssetsGrid();
+                });
+            });
+
+            formEl.querySelectorAll('[data-shell-clear]').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const key = button.getAttribute('data-shell-clear') || '';
+                    setShellAssetValue(key, '');
+                });
+            });
+
+            formEl.querySelectorAll('.theme-brand-filter').forEach((button) => {
+                button.addEventListener('click', () => {
+                    brandAssetFilter = button.getAttribute('data-brand-filter') || 'all';
+                    renderBrandAssetsGrid();
+                });
+            });
+
+            const grid = document.getElementById('themeBrandAssetsGrid');
+            grid?.addEventListener('dragstart', (event) => {
+                const tile = event.target instanceof Element
+                    ? event.target.closest('.theme-brand-tile')
+                    : null;
+                if (!tile || !(event.dataTransfer)) return;
+                const path = tile.getAttribute('data-brand-path') || '';
+                const kind = tile.getAttribute('data-brand-kind') || '';
+                event.dataTransfer.setData('application/x-bandpromo-path', path);
+                event.dataTransfer.setData('application/x-bandpromo-kind', kind);
+                event.dataTransfer.setData('text/plain', path);
+                event.dataTransfer.effectAllowed = 'copy';
+                tile.classList.add('is-dragging');
+                formEl.dataset.dragKind = kind;
+            });
+            grid?.addEventListener('dragend', (event) => {
+                const tile = event.target instanceof Element
+                    ? event.target.closest('.theme-brand-tile')
+                    : null;
+                tile?.classList.remove('is-dragging');
+                delete formEl.dataset.dragKind;
+                formEl.querySelectorAll('.theme-shell-slot.is-drop-target').forEach((slot) => {
+                    slot.classList.remove('is-drop-target');
+                });
+            });
+            grid?.addEventListener('click', (event) => {
+                const tile = event.target instanceof Element
+                    ? event.target.closest('.theme-brand-tile')
+                    : null;
+                if (!tile) return;
+                const path = tile.getAttribute('data-brand-path') || '';
+                const kind = tile.getAttribute('data-brand-kind') || '';
+                if (!selectedShellSlotKey) {
+                    notifyThemeError('Select a shell slot first, or drag the asset onto a slot.');
+                    return;
+                }
+                const field = shellFieldByKey(selectedShellSlotKey);
+                if (!field || !shellSlotAcceptsKind(field, kind)) {
+                    notifyThemeError(`${field?.label || 'Slot'} accepts ${field?.accept.map(kindLabel).join(' / ') || 'matching media'} only.`);
+                    return;
+                }
+                setShellAssetValue(selectedShellSlotKey, path);
+            });
+
+            loadBrandAssetPool();
         }
 
         function renderPreviewMarkup(document) {
@@ -470,6 +1053,8 @@
             return `
                 <div class="theme-preview-canvas">
                     <div class="theme-preview-shell">
+                        ${renderShellPreviewChrome(document)}
+
                         <section class="theme-preview-section">
                             <h3 class="theme-preview-section-title">Page text styles</h3>
                             <p class="theme-preview-muted theme-preview-section-lead">Styles available in the page editor (+ Text block).</p>
@@ -529,11 +1114,6 @@
                                 <a href="#" class="theme-preview-link theme-preview-link--visited" onclick="return false;">Visited state</a>
                             </p>
                         </section>
-
-                        <section class="theme-preview-section">
-                            <h3 class="theme-preview-section-title">Brand assets</h3>
-                            ${renderAssetPreview(document)}
-                        </section>
                     </div>
                 </div>
             `;
@@ -579,7 +1159,7 @@
             }
             saveUi?.reset();
             if (editorHint) {
-                editorHint.textContent = 'Select a brand from the pool, then click edit to change colors, narrative, and typography.';
+                editorHint.textContent = 'Select a brand from the pool, then click edit to change colors, narrative, typography, shell media, and Brand assets assignment.';
             }
             renderPoolList();
             updateActionButtons(previewDocument);
@@ -592,7 +1172,7 @@
             if (editorView) editorView.hidden = false;
             syncThemeUrl(themeId, true);
             if (editorHint) {
-                editorHint.textContent = 'Changes update the live preview immediately. Save to keep token edits.';
+                editorHint.textContent = 'Changes update the live preview immediately. Save to keep brand and shell media edits.';
             }
             renderPoolList();
             updateActionButtons(editorDocument);
@@ -667,7 +1247,7 @@
                     showPoolView();
                     syncThemeUrl(selectedThemeId, false);
                     editorDocument = null;
-                    formEl.innerHTML = '<p class="theme-editor-locked-note">Select a theme from the pool.</p>';
+                    formEl.innerHTML = '<p class="theme-editor-locked-note">Select a brand from the pool.</p>';
                 } else {
                     syncThemeUrl(selectedThemeId, false);
                 }
@@ -736,13 +1316,32 @@
                 </div>
                 <div class="theme-editor-section theme-editor-section--colors">
                     <h5>Colors</h5>
-                    <p class="theme-field-hint">Tap a swatch to adjust site-wide colors. Changes appear in the live preview immediately.</p>
+                    <p class="theme-field-hint">Type a full hex code (e.g. #FF6F61), or use the color square on the right. Changes appear in the live preview immediately.</p>
                     ${renderCompactColors(locked)}
                 </div>
-                <p class="hint">Logo, cover art, and background media paths stay under <a href="?tab=settings&ctab=theme">Settings → Theme</a> during the brand migration.</p>
+                ${renderShellMediaFields(locked)}
+                ${renderBrandAssetsPoolSection(locked)}
             `;
 
             syncThemeSettingsPanel(editorDocument);
+            selectedShellSlotKey = '';
+            brandAssetFilter = 'all';
+            bindShellMediaUi();
+        }
+
+        function collectAssetsFromForm() {
+            if (!editorDocument) {
+                return;
+            }
+            if (!editorDocument.assets || typeof editorDocument.assets !== 'object') {
+                editorDocument.assets = {};
+            }
+            formEl.querySelectorAll('[data-asset-key]').forEach((input) => {
+                if (!(input instanceof HTMLInputElement)) return;
+                const key = input.getAttribute('data-asset-key') || '';
+                if (!key) return;
+                editorDocument.assets[key] = String(input.value || '').trim();
+            });
         }
 
         function collectFormIntoDocument() {
@@ -750,6 +1349,7 @@
                 return;
             }
             collectNarrativeFields();
+            collectAssetsFromForm();
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement) || input.hidden) return;
                 const path = input.getAttribute('data-token-path') || '';
@@ -775,6 +1375,9 @@
         async function loadThemeDocuments(themeId) {
             const data = await fetchJson(`/biblioteca/get-theme.php?theme=${encodeURIComponent(themeId)}`);
             previewDocument = data.document || null;
+            if (previewDocument && (!previewDocument.assets || typeof previewDocument.assets !== 'object')) {
+                previewDocument.assets = {};
+            }
             editorDocument = cloneDocument(previewDocument);
             activeThemeId = String(data.active_theme_id || activeThemeId);
             renderPreview(previewDocument);
@@ -798,7 +1401,7 @@
             showPoolView();
             syncThemeUrl(selectedThemeId, false);
             editorDocument = null;
-            formEl.innerHTML = '<p class="theme-editor-locked-note">Select a theme from the pool.</p>';
+            formEl.innerHTML = '<p class="theme-editor-locked-note">Select a brand from the pool.</p>';
             await loadThemeDocuments(selectedThemeId);
             return true;
         }
@@ -934,7 +1537,38 @@
             if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) {
                 return;
             }
-            if (input.hasAttribute('data-token-path') || input.hasAttribute('data-narrative-field')) {
+            if (input instanceof HTMLInputElement && input.classList.contains('theme-color-hex-input')) {
+                const chip = input.closest('.theme-color-chip');
+                const typed = String(input.value || '').trim();
+                const hex = normalizeHexColor(typed.startsWith('#') ? typed : `#${typed}`);
+                if (hex) {
+                    input.classList.remove('is-invalid');
+                    if (chip) {
+                        syncColorChipPresentation(chip);
+                    }
+                    collectFormIntoDocument();
+                } else {
+                    input.classList.add('is-invalid');
+                }
+                return;
+            }
+            if (input instanceof HTMLInputElement && input.classList.contains('theme-color-picker')) {
+                const chip = input.closest('.theme-color-chip');
+                if (chip) {
+                    const hexInput = chip.querySelector('input.theme-color-hex-input');
+                    if (hexInput instanceof HTMLInputElement) {
+                        hexInput.value = normalizeHexColor(input.value) || '#000000';
+                    }
+                    syncColorChipPresentation(chip);
+                }
+                collectFormIntoDocument();
+                return;
+            }
+            if (
+                input.hasAttribute('data-token-path')
+                || input.hasAttribute('data-narrative-field')
+                || input.hasAttribute('data-asset-key')
+            ) {
                 collectFormIntoDocument();
             }
         });
@@ -943,6 +1577,22 @@
             const target = event.target;
             if (!(target instanceof HTMLElement)) {
                 return;
+            }
+            if (target instanceof HTMLInputElement && target.classList.contains('theme-color-hex-input')) {
+                const chip = target.closest('.theme-color-chip');
+                const typed = String(target.value || '').trim();
+                const hex = normalizeHexColor(typed.startsWith('#') ? typed : `#${typed}`);
+                if (hex && chip) {
+                    target.value = hex.toUpperCase();
+                    syncColorChipPresentation(chip);
+                    collectFormIntoDocument();
+                } else if (chip) {
+                    const picker = chip.querySelector('input.theme-color-picker');
+                    target.value = normalizeHexColor(picker?.value) || '#000000';
+                    target.value = String(target.value).toUpperCase();
+                    target.classList.remove('is-invalid');
+                    syncColorChipPresentation(chip);
+                }
             }
             if (target instanceof HTMLSelectElement && target.hasAttribute('data-font-preset-select')) {
                 applyFontPresetSelection(target.getAttribute('data-font-preset-select') || '', target.value);

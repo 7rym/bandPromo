@@ -507,13 +507,13 @@ Assign in **Files → Audio → track editor → Living cover**. Pick any video 
 
 Value is the stable on-disk video filename, not a human title. No sidecar files. No playlist JSON field.
 
-**Do not** bake living-cover references into delivery MP3 tags in v1 unless the audio pipeline explicitly copies custom tags; player materialization reads the **master** tag via `playlistTrackEntries.py`.
+**Do not** bake living-cover references into delivery MP3 tags in v1 unless the audio pipeline explicitly copies custom tags; player materialization reads the **master** tag via `playlistTrackEntries.py`, and fills an empty tag from the asset-registry display when the track editor has already assigned a living cover.
 
 ### Player resolution
 
-1. Read `living_cover` from master tags when materializing playlist entries.
+1. Read `living_cover` from master tags when materializing playlist entries; if empty, use registry `display.living_cover`.
 2. Resolve player URL only when `media/video/optimal/{stem}.mp4` delivery exists.
-3. Static cover image remains the video poster, reflection source, and the visible card cover while idle or paused.
+3. Static cover image remains the video poster, reflection source, and the fallback when living cover is unavailable (or reduced motion).
 
 ### Playback rules
 
@@ -521,7 +521,7 @@ Value is the stable on-disk video filename, not a human title. No sidecar files.
 2. **Delivery only** — player uses optimal MP4 after Publish.
 3. **Silent loop** — `muted`, `loop`, `playsinline`.
 4. **Still while idle** — static cover when paused, stopped, or before first play.
-5. **Living while playing** — loop video only while audio is actively playing.
+5. **Living while playing** — loop video only while audio is actively playing. Independent of player shell Still/Living background.
 6. **Reduced motion** — static cover when `prefers-reduced-motion: reduce`.
 7. **Background tab** — still cover while hidden; living cover resumes when visible and playing.
 
@@ -542,14 +542,14 @@ Value is the stable on-disk video filename, not a human title. No sidecar files.
 | Layer | Owner | Always on | Examples |
 |-------|-------|-----------|----------|
 | **System shell** | bandPromo platform | Yes | Player/login/page layout, spacing, breakpoints, default dark atmosphere, mandatory install fallbacks (logo, poster, favicon), playback and access behavior |
-| **Brand overlay** | Operator (per era) | No — replaces slots only | Color tokens, typography, narrative brief, shell asset refs (v1+ runtime), optional chrome personality tokens (v1+) |
+| **Brand overlay** | Operator (per era) | No — replaces slots only | Color tokens, typography, narrative brief, shell asset refs (logo/poster/backgrounds/audio on the brand document; active brand syncs into config for login/player), optional chrome personality tokens (v1+) |
 
 **System shell** owns everything that must work when brand design fails: structure, responsive rules (`--card-size` and breakpoints are **not** brand tokens), the default dark background and surface gradient, and install-level fallback assets.
 
 **Brand overlay** does not redefine layout or behavior. It replaces declared slots on top of the shell:
 
-- **v0.8 (shipped target):** color and typography tokens, mood/keywords/tone narrative; per-release **CSS variable** swap on the **same** dark shell.
-- **v1+ (deferred runtime):** shell background image/video, logo, welcome audio; web/display fonts; small chrome token set (scrim, corner style) — enough for genuinely different era looks without arbitrary custom CSS.
+- **v0.8 (shipped target):** color and typography tokens, mood/keywords/tone narrative; shell media edited in **Content → Branding** (`assets` on the brand document); active brand sync writes logo/poster/cover/backgrounds/audio into `web-config.json` for login/player; per-release **CSS variable** swap on the **same** dark shell.
+- **v1+ (deferred runtime):** direct brand-document reads on every shell request (less config mirroring); web/display fonts; small chrome token set (scrim, corner style) — enough for genuinely different era looks without arbitrary custom CSS.
 
 Wildly different era styles (vivid K-pop illustration, metal textures, country photo backgrounds) express **future scope** for the overlay model, not a v0.8 beta requirement. v0.8 builds brand storage, Visual pool, release links, and token management while keeping the dark shell stable.
 
@@ -574,9 +574,9 @@ data/brands/{brand-id}.json
 Migration: `data/themes/` → `data/brands/` with compatibility reads for `active_theme_id` → `active_brand_id`.
 
 - Setup seeds **`bandpromo-default`** — complete, `system: true`, `locked: true` (fail-safe demo brand).
-- Operators **duplicate** to customize; they do not edit the locked seed in place.
+- Operators **duplicate** to customize; they do not edit the locked seed in place. Duplicate **physically clones** shell media into Brand assets (`media/special/{brand-id}_…`) so the copy has its own deletable files.
 - Active brand: `install.pointers.active_brand_id` in `web-config.json` (or `data/install/state.json`).
-- Content → **Brands** uses the pool/preview editor pattern (evolves from Content → Themes); **Set active** updates the install pointer.
+- Content → **Branding** uses the pool/preview editor pattern; operators edit tokens, narrative, and shell media there (not Settings). **Set active** updates the install pointer and syncs that brand’s `assets` into config.
 - Suggested first post-install task: duplicate **bandPromo Default** and customize colors/assets.
 
 ### Semantic color and layout tokens

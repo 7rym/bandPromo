@@ -234,17 +234,126 @@ function bandpromo_theme_normalize_tokens(array $tokens): array
 function bandpromo_theme_normalize_assets(array $assets): array
 {
     $defaults = bandpromo_theme_default_document()['assets'];
+    $requiredKeys = ['logo' => true, 'poster' => true];
     $normalized = [];
     foreach ($defaults as $key => $defaultValue) {
-        $value = trim((string) ($assets[$key] ?? $defaultValue));
+        $hasKey = array_key_exists($key, $assets);
+        $value = $hasKey ? trim((string) $assets[$key]) : trim((string) $defaultValue);
         if ($value !== '' && ($value[0] === '/' || preg_match('/^https?:\/\//i', $value) === 1)) {
             $normalized[$key] = $value;
-        } elseif ($defaultValue !== '') {
-            $normalized[$key] = $defaultValue;
+            continue;
         }
+        if (isset($requiredKeys[$key])) {
+            $normalized[$key] = (string) $defaultValue;
+            continue;
+        }
+        // Optional shell slots (backgrounds/audio) may stay cleared.
+        $normalized[$key] = '';
     }
 
     return $normalized;
+}
+
+/**
+ * Resolve a web media path to an absolute install file under /media/.
+ */
+function bandpromo_theme_resolve_media_absolute_path(string $root, string $webPath): ?string
+{
+    $webPath = trim(str_replace('\\', '/', $webPath));
+    if ($webPath === '' || preg_match('#^https?://#i', $webPath) === 1) {
+        return null;
+    }
+    if ($webPath[0] !== '/') {
+        $webPath = '/' . $webPath;
+    }
+    if (strpos($webPath, '/media/') !== 0) {
+        return null;
+    }
+    if (strpos($webPath, '..') !== false) {
+        return null;
+    }
+
+    $absolute = rtrim($root, '/\\') . str_replace('/', DIRECTORY_SEPARATOR, $webPath);
+    if (!is_file($absolute)) {
+        return null;
+    }
+
+    return $absolute;
+}
+
+/**
+ * Copy one shell media file into Brand assets owned by $brandId.
+ * Returns the new /media/special/… path, or the original path when copy is not possible.
+ */
+function bandpromo_theme_clone_asset_file(string $root, string $brandId, string $assetKey, string $sourcePath): string
+{
+    $sourcePath = trim($sourcePath);
+    if ($sourcePath === '') {
+        return '';
+    }
+
+    $absolute = bandpromo_theme_resolve_media_absolute_path($root, $sourcePath);
+    if ($absolute === null) {
+        return $sourcePath;
+    }
+
+    $ext = strtolower((string) pathinfo($absolute, PATHINFO_EXTENSION));
+    if ($ext === '') {
+        return $sourcePath;
+    }
+
+    $specialDir = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'special';
+    if (!is_dir($specialDir) && !mkdir($specialDir, 0755, true) && !is_dir($specialDir)) {
+        throw new RuntimeException('Could not create media/special for brand asset clones.');
+    }
+
+    $safeBrand = preg_replace('/[^a-z0-9-]+/', '-', strtolower($brandId)) ?: 'brand';
+    $safeKey = preg_replace('/[^a-z0-9_]+/', '_', strtolower($assetKey)) ?: 'asset';
+    $base = $safeBrand . '_' . $safeKey;
+    $destName = $base . '.' . $ext;
+    $suffix = 2;
+    while (is_file($specialDir . DIRECTORY_SEPARATOR . $destName)) {
+        $destName = $base . '-' . $suffix . '.' . $ext;
+        $suffix++;
+        if ($suffix > 100) {
+            throw new RuntimeException('Could not allocate a unique brand asset filename.');
+        }
+    }
+
+    $destAbsolute = $specialDir . DIRECTORY_SEPARATOR . $destName;
+    if (!copy($absolute, $destAbsolute)) {
+        throw new RuntimeException('Could not clone brand asset: ' . $assetKey);
+    }
+
+    require_once __DIR__ . '/media-library-state.php';
+    bandpromo_media_files_index_sync_file($root, 'special', $destName);
+
+    return '/media/special/' . $destName;
+}
+
+/**
+ * Physically clone shell media into Brand assets for a duplicated brand.
+ * Operators can then delete/replace those copies without touching the source brand.
+ */
+function bandpromo_theme_clone_assets_for_brand(string $root, array $assets, string $brandId): array
+{
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    if ($brandId === '') {
+        throw new InvalidArgumentException('Brand id is required to clone assets.');
+    }
+
+    $defaults = bandpromo_theme_default_document()['assets'];
+    $cloned = [];
+    foreach ($defaults as $key => $_defaultValue) {
+        $cloned[$key] = bandpromo_theme_clone_asset_file(
+            $root,
+            $brandId,
+            $key,
+            trim((string) ($assets[$key] ?? ''))
+        );
+    }
+
+    return bandpromo_theme_normalize_assets($cloned);
 }
 
 function bandpromo_theme_normalize_document(array $input, ?string $expectedId = null): array
@@ -401,9 +510,17 @@ function bandpromo_theme_registry_entry(string $root, string $themeId): ?array
 
 function bandpromo_theme_assets_from_config(array $config): array
 {
+    $poster = (string) bandpromo_config_get_nonempty_value($config, 'release.brand.poster', '');
+    if ($poster === '') {
+        $poster = (string) bandpromo_config_get_nonempty_value($config, 'release.theme.cover', '');
+    }
+    if ($poster === '') {
+        $poster = (string) bandpromo_config_get_nonempty_value($config, 'media.cover', '/media/special/bandPromo_cover.png');
+    }
+
     return [
         'logo' => (string) bandpromo_config_get_nonempty_value($config, 'install.brand.logo', '/media/special/bandPromo_logo.png'),
-        'poster' => (string) bandpromo_config_get_nonempty_value($config, 'release.brand.poster', '/media/special/bandPromo_cover.png'),
+        'poster' => $poster,
         'background_image' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_image', '/media/special/bandPromo_background.png'),
         'background_video' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_video', '/media/special/bandPromo_background.mp4'),
         'welcome_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.welcome_audio', '/media/special/bandPromo_welcome.flac'),
@@ -422,7 +539,13 @@ function bandpromo_theme_sync_assets_to_config(string $root, array $document): v
     $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
     $map = [
         'logo' => ['install.brand.logo', 'install.theme.logo', 'media.logo'],
-        'poster' => ['release.brand.poster', 'release.social.share_image', 'social.share_image'],
+        'poster' => [
+            'release.brand.poster',
+            'release.social.share_image',
+            'social.share_image',
+            'release.theme.cover',
+            'media.cover',
+        ],
         'background_image' => ['release.theme.background_image', 'media.background_image'],
         'background_video' => ['release.theme.background_video', 'media.background_video'],
         'welcome_audio' => ['install.theme.welcome_audio', 'media.welcome_audio'],
@@ -431,9 +554,6 @@ function bandpromo_theme_sync_assets_to_config(string $root, array $document): v
 
     foreach ($map as $assetKey => $paths) {
         $value = trim((string) ($assets[$assetKey] ?? ''));
-        if ($value === '') {
-            continue;
-        }
         foreach ($paths as $path) {
             bandpromo_config_set_path($config, $path, $value);
         }
@@ -767,11 +887,25 @@ function bandpromo_theme_duplicate(string $root, string $sourceId, string $newId
         throw new InvalidArgumentException('Brand id already exists.');
     }
 
-    $duplicate = $source;
-    $duplicate['id'] = $newId;
-    $duplicate['title'] = $duplicateTitle;
-    $duplicate['system'] = false;
-    $duplicate['locked'] = false;
+    $duplicate = bandpromo_theme_normalize_document([
+        'id' => $newId,
+        'title' => $duplicateTitle,
+        'system' => false,
+        'locked' => false,
+        'mood' => $source['mood'] ?? '',
+        'keywords' => $source['keywords'] ?? [],
+        'tone_notes' => $source['tone_notes'] ?? '',
+        'tokens' => is_array($source['tokens'] ?? null) ? $source['tokens'] : [],
+        'assets' => [],
+    ], $newId);
+
+    // Always clone shell media files into Brand assets owned by the new brand
+    // (setup "Your own brand" and manual duplicate). Operators may delete those copies.
+    $duplicate['assets'] = bandpromo_theme_clone_assets_for_brand(
+        $root,
+        is_array($source['assets'] ?? null) ? $source['assets'] : [],
+        $newId
+    );
 
     bandpromo_json_write_file(bandpromo_theme_document_path($root, $newId), $duplicate);
 

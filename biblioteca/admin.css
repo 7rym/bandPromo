@@ -3076,6 +3076,24 @@ canvas { max-width: 100%; height: auto; }
     animation: media-thumb-pulse 1.4s ease-in-out infinite;
 }
 
+.visual-pool-card-thumb-placeholder.is-audio {
+    font-size: 2rem;
+    letter-spacing: 0;
+    background: linear-gradient(160deg, rgba(40, 44, 52, 0.92), rgba(20, 22, 28, 0.96));
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.visual-asset-modal-preview .visual-pool-card-thumb-placeholder.is-audio.is-modal {
+    min-height: 160px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.visual-asset-modal-preview audio {
+    width: 100%;
+    margin-top: 4px;
+}
+
 .visual-pool-type-badge {
     position: absolute;
     right: 8px;
@@ -4629,6 +4647,84 @@ canvas { max-width: 100%; height: auto; }
 }
 
 /* Gallery editor uses shared player-layout panels */
+
+.player-layout-setting,
+.player-shell-background-settings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem 1.25rem;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.player-layout-setting-copy,
+.player-shell-background-copy {
+    min-width: 0;
+    flex: 1 1 220px;
+}
+
+.player-layout-setting-copy strong,
+.player-shell-background-copy strong {
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+.player-layout-setting-copy .hint,
+.player-shell-background-copy .hint {
+    margin: 0;
+}
+
+.player-layout-setting-toggle,
+.player-shell-background-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.player-layout-setting-option,
+.player-shell-background-option {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    margin: 0;
+}
+
+.player-layout-setting-option input,
+.player-shell-background-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.player-layout-setting-option span,
+.player-shell-background-option span {
+    display: inline-block;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #bbb);
+}
+
+.player-layout-setting-option input:checked + span,
+.player-shell-background-option input:checked + span {
+    background: rgba(110, 168, 254, 0.18);
+    color: var(--text-color, #fff);
+}
+
+.player-layout-setting-option input:focus-visible + span,
+.player-shell-background-option input:focus-visible + span {
+    outline: 2px solid var(--primary-color, #6ea8fe);
+    outline-offset: 2px;
+}
 
 .player-layout-editor {
     display: flex;

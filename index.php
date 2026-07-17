@@ -408,6 +408,7 @@ try {
             }
         </script>
         
+    <script src="./biblioteca/shell-background.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="./biblioteca/login.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
 </body>
 </html>

@@ -47,7 +47,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Block-based page editor | Shipped |
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
-| Brand containers + semantic player colors (replaces Theme) | Core shipped (Brands editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
+| Brand containers + semantic player colors (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
 | Visual pool + role tags + registry-scoped delivery | Operator Files UX shipped; registry/delivery Phases 0b–2 open |
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
@@ -545,7 +545,7 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 - **News module** (v1+) = dated tour/diary posts that archive forever; pages + galleries cover this pattern until then.
 - **Sharing** (playlist `/play/{id}`, track deep links, page `/pages/{id}`) gets richer cards after description + poster fields ship — not before core trust work.
 
-- **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Brands, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
+- **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Branding, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
 - **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
 - **Planned v0.8 management slice (remaining):** unified Visual tab; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
 - **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.

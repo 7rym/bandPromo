@@ -9,7 +9,8 @@ Output (new structure):
     media/audio/original/   - source audio files (uploaded by admin)
     media/audio/optimal/  - publish-ready audio delivery files (generated here)
     media/img/original/     - source cover/artwork files (uploaded by admin)
-    media/img/optimal/   - publish-ready cover/artwork delivery files (generated here)
+    media/img/optimal/   - publish-ready cover/artwork delivery files (generated here, max 720px)
+    media/img/thumb/     - small list/cover-flow thumbs (generated here, max 100px)
   (removed) play/playlist.json  - legacy player artifact (replaced by playlist documents)
     media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
   media/special/    - platform-specific social share images (generated here)
@@ -591,7 +592,8 @@ def main():
 Output:
     media/audio/optimal/  — publish-ready audio delivery files
     media/img/original/    — source cover/artwork files
-    media/img/optimal/    — publish-ready cover/artwork delivery files
+    media/img/optimal/    — publish-ready cover/artwork delivery files (max 720px)
+    media/img/thumb/      — playlist/cover-flow thumbs (max 100px)
     media/video/optimal/  — publish-ready video delivery files
   (removed) play/playlist.json — legacy player playlist artifact
     media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images

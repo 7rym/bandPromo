@@ -195,6 +195,18 @@ button:active {
     transform: translateY(0);
 }
 
+body.video-loaded,
+body.shell-bg-video {
+    background-image: none;
+}
+
+body.shell-bg-image {
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+}
+
 #bg-video {
     position: fixed;
     top: 0;
@@ -206,10 +218,7 @@ button:active {
     z-index: -1;
     display: none;
     background: var(--bg-color, #000);
-}
-
-body.video-loaded {
-    background-image: none;
+    pointer-events: none;
 }
 
 @media (max-width: 480px) {

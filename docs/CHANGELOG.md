@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-17 11:40 - Operator IA: rename **Content → Brands** to **Content → Branding** (tab label, cross-links, docs). **Brand** stays the saved identity document; **Brand assets** in Files is unchanged. Internal `cntab=themes` URL param kept for compatibility.
+
+2026-07-16 23:55 - Player desktop grid: mediaplayer column caps at 800px (`minmax(0, 800px) 1fr`) so `#content-container` takes leftover width. Branding editor: Shell media slots and Brand assets assignable pool are sibling sections; Live preview drops the asset gallery and shows shell chrome (logo + still backdrop) only. Docs: special-path resize remains interim; Visual pool + roles is the destination; Still is a filter, not a top-level folder name.
+
+2026-07-16 21:55 - Optimize shell media for first paint: resize brand logo to 180px tall PNG (keep alpha) and brand background to 1080px tall (JPG switch when alpha-free), plus clamp `#mediaplayer` to max-width 800px.
+
+2026-07-16 21:45 - Player page hydrate: mark shells `loading` synchronously so concurrent after-load callers cannot double-fetch Bio/Gallery HTML.
+
+2026-07-16 21:40 - Player Bio/Gallery (and other page tabs): empty shells in first HTML; hydrate after `window.load` (idle) via `get-player-page.php`. Active default page tab hydrates on DOMContentLoaded; opening a page tab early still fetches immediately. Gallery videos stay poster-only until lightbox.
+
+2026-07-16 21:30 - HAR follow-up: page-gallery videos no longer set `src` until lightbox (poster + `data-src` only); shell background `<source>` is omitted in Still mode so hidden living bg video is not fetched on first paint.
+
+2026-07-16 21:25 - Player load contention: thumbs were tiny but stalled ~10–13s behind eager audio/video downloads on the single-threaded PHP server. Audio now preloads metadata only until Play; living-cover video attaches on play; next-track audio preload waits until playing; service worker skips all `/media/` (cache bump v6).
+
+2026-07-16 21:20 - Living cover returns to play-gated behavior: still cover when idle/paused; living loop only while audio is actively playing (keeps canplay/poster hardening).
+
+2026-07-16 21:05 - Living cover materialize: fill empty master-tag `living_cover` from asset-registry display (fixes Retroscopy #09). Image delivery now writes 720px `optimal/` + 100px `thumb/`; player playlist rows and cover-flow use thumbs with lazy-load; main cover stays on optimal.
+
+2026-07-16 20:40 - Living cover playback hardened: preload/auto + canplay retry, keep still underneath until video frames paint, strip stuck poster, force-hide still cover via CSS. Still independent of shell Still/Living background.
+
+2026-07-16 20:25 - Living cover always shows when assigned and delivered (including idle/paused); independent of player shell Still/Living background. Video still pauses in background tabs; reduced-motion stays still.
+
+2026-07-16 19:30 - Playlist cover flow / buttons: center when the row fits; left-align with a horizontal scrollbar when it overflows on smaller viewports.
+
+2026-07-16 19:25 - Playlist selector cover flow / buttons: center-align the picker row.
+
+2026-07-16 19:22 - Playlist selector hide: `[hidden]` now wins over `.playlist-selector { display: flex }`, so the picker no longer stays visible on Lyrics/Bio/other tabs.
+
+2026-07-16 19:20 - Playlist cover flow: poster thumbnails only (no title labels). Playlist selector is shown only while the Playlists tab is active.
+
+2026-07-16 19:15 - Content → Player: playlist selector style (`player.playlist_selector`) — Dropdown (default), Buttons with titles, or Cover flow (active 100px / others 70px posters). Catalog entries now include cover URLs for the cover-flow UI.
+
+2026-07-16 19:05 - Player content tab label becomes **Playlists** (and the in-tab selector label matches) when more than one playlist is available to the listener.
+
+2026-07-16 19:00 - Content → Player: Still / Living shell background switch (`player.shell_background`). Operators choose the player backdrop; login keeps adaptive auto behavior. Assign media under Brands as before.
+
+2026-07-16 18:50 - Brand duplicate (including setup “Your own brand”) now physically clones shell media into Brand assets owned by the new brand (`media/special/{brand-id}_logo` etc.), so operators can delete or replace them without touching the source/system brand.
+
+2026-07-16 18:40 - Living shell media: Brands assignable pool now includes Visual videos (and Visual stills for poster/still background). Files → Brand assets Living empty-state explains demo hide + Visual alternative. Kind-aware bundled demo hide + broader Brand assets upload accept remain.
+
+2026-07-16 18:35 - Brand assets Living filter: bundled living demos (e.g. `bandPromo_background.mp4`) stay visible until the operator uploads their own living file — uploading a still/logo no longer hides all demo shell media. Brand assets upload accept now includes mov/webm/flac for living backgrounds and shell audio.
+
+2026-07-16 18:25 - Brands Shell media: assign by drag-and-drop (or click) from an in-editor Brand assets pool — no filename pickers. Background slots use Still / Living labels; Files → Brand assets type chips match.
+
+2026-07-16 18:15 - Shell media moved into Content → Brands: logo, poster/share cover, backgrounds, and welcome/logged-in audio edit on the brand document; active-brand save syncs into config (poster also writes `release.theme.cover` / `media.cover`). Settings → Theme tab removed; `?tab=settings&ctab=theme` redirects to Brands. Sharing share-image picker points operators to Brands.
+
+2026-07-16 18:00 - Brand tokens on the player: always resolve live `brand_styles` from brand documents (no longer overwrite live CSS with stale Publish snapshots). Saving a brand also refreshes playlist brand_styles snippets.
+
+2026-07-16 17:55 - Brands Colors: hex is a full readable text field (not clipped on the swatch); color square sits beside it; wider chip grid.
+
+2026-07-16 17:50 - Brands editor: let the preview (last) column grow freely — remove the inner max-height scrollbar so the page scrolls instead.
+
+2026-07-16 17:45 - Shell background image/video now apply on both login and player (shared `shell-background.js`); same speed/reduced-motion rules as login. Brand Colors keep hex as the primary input.
+
+2026-07-16 17:35 - Brand Colors editor: hex text is the primary color input (picker strip remains on the right); live contrast-aware swatch fill.
+
+2026-07-16 17:25 - Brand Colors editor: show hex codes overlaid on each color swatch (contrast-aware text; updates live while picking).
+
+2026-07-16 16:56 - Files → Brand assets: Visual-like thumbnail manager (type chips including audio, usage filters, grid/list, shared drilldown). `list-media.php?target=special` now attaches theme/config `reference_info` so In use / Orphans is meaningful; storage stays `media/special/`.
+
 2026-07-16 14:55 - Orphan detection: also scan page picture blocks, release posters/press photos, and playlist posters before labeling Visual pool files as orphans (stem-aware match for optimal vs original names).
 
 2026-07-16 12:50 - Deliverables resilience: run cover JPEG conversion in a child process so a Pillow segfault on one corrupt image (exit -11) cannot abort the whole `deliverables-media` stage; fall back to copying the source cover when conversion crashes.

@@ -5,6 +5,7 @@ require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/theme-storage.php';
+require_once __DIR__ . '/playlist-storage.php';
 
 bandpromo_enforce_https();
 session_write_close();
@@ -58,13 +59,20 @@ try {
     }
     bandpromo_theme_write_registry($root, $registry);
 
+    $playlistBrandRefresh = bandpromo_playlist_refresh_brand_styles_for_brand($root, $canonicalId);
+
     bandpromo_admin_audit_log('brand_saved', [
         'target_type' => 'brand',
         'target_id' => 'data/brands/' . $canonicalId . '.json',
         'status' => 'ok',
+        'playlist_brand_styles_updated' => $playlistBrandRefresh['updated'],
     ]);
 
-    echo json_encode(['ok' => true, 'document' => $document]);
+    echo json_encode([
+        'ok' => true,
+        'document' => $document,
+        'playlist_brand_styles_updated' => $playlistBrandRefresh['updated'],
+    ]);
 } catch (Throwable $throwable) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => $throwable->getMessage()]);

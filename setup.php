@@ -30,7 +30,11 @@ $requiredDirs = [
     'media/img',
     'media/img/original',
     'media/img/optimal',
+    'media/img/thumb',
     'media/photo',
+    'media/photo/original',
+    'media/photo/optimal',
+    'media/photo/thumb',
     'media/video',
     'media/special',
 ];

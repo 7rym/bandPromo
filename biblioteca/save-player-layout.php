@@ -68,6 +68,14 @@ try {
     }
     $config['player']['tab_order'] = $normalizedTabOrder;
 
+    if (array_key_exists('shell_background', $payload)) {
+        $config['player']['shell_background'] = bandpromo_player_normalize_shell_background_mode($payload['shell_background']);
+    }
+
+    if (array_key_exists('playlist_selector', $payload)) {
+        $config['player']['playlist_selector'] = bandpromo_player_normalize_playlist_selector_mode($payload['playlist_selector']);
+    }
+
     $config['player']['modules']['playlist'] = ['enabled' => true];
     $config['player']['modules']['lyrics'] = ['enabled' => true];
     if (!isset($config['player']['modules']['gallery']) || !is_array($config['player']['modules']['gallery'])) {
@@ -126,12 +134,16 @@ try {
         'status' => 'ok',
         'data' => [
             'modules' => bandpromo_player_modules_config(),
+            'shell_background' => bandpromo_player_shell_background_mode($config),
+            'playlist_selector' => bandpromo_player_playlist_selector_mode($config),
         ],
     ]);
 
     echo json_encode([
         'ok' => true,
         'modules' => bandpromo_player_modules_config(),
+        'shell_background' => bandpromo_player_shell_background_mode($config),
+        'playlist_selector' => bandpromo_player_playlist_selector_mode($config),
         'pages' => bandpromo_page_registry_entries($root),
         'tabs' => bandpromo_player_content_tabs($root),
         'layout' => bandpromo_player_layout_admin_state($root),

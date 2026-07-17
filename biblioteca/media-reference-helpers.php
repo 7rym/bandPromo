@@ -6,7 +6,7 @@ require_once __DIR__ . '/cover-art-helpers.php';
 
 function bandpromo_media_reference_targets(): array
 {
-    return ['illustrations', 'photos', 'video'];
+    return ['illustrations', 'photos', 'video', 'special'];
 }
 
 function bandpromo_media_reference_normalize_basename(?string $path, string $expectedPrefix): string
@@ -37,9 +37,37 @@ function bandpromo_media_reference_original_prefix(string $target): ?string
         'illustrations' => 'media/img/original',
         'photos' => 'media/photo/original',
         'video' => 'media/video/original',
+        'special' => 'media/special',
     ];
 
     return $map[$target] ?? null;
+}
+
+/**
+ * When a config value includes a /media/… path, require the expected intake prefix.
+ * Bare basenames are allowed (matched against files in that target).
+ */
+function bandpromo_media_reference_path_matches_prefix(?string $raw, string $prefix): bool
+{
+    $value = str_replace('\\', '/', trim((string) $raw));
+    if ($value === '') {
+        return false;
+    }
+    if (strpos($value, '://') !== false) {
+        $parsed = parse_url($value, PHP_URL_PATH);
+        $value = is_string($parsed) ? $parsed : '';
+    }
+    $value = ltrim($value, '/');
+    if ($value === '') {
+        return false;
+    }
+    if (preg_match('#^media/#i', $value) !== 1) {
+        return true;
+    }
+
+    $expected = trim($prefix, '/');
+
+    return $expected !== '' && stripos($value, $expected . '/') === 0;
 }
 
 function bandpromo_media_reference_file_exists(string $root, string $target, string $basename): bool
@@ -139,7 +167,7 @@ function bandpromo_media_reference_config_entries(string $target): array
 {
     if ($target === 'photos') {
         return [
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => 'Background image (theme)'],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => 'Still background (theme)'],
             ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/photo/original', 'kind' => 'theme-cover', 'label' => 'Primary cover (theme)'],
             ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/photo/original', 'kind' => 'share-image', 'label' => 'Share image (social)'],
         ];
@@ -147,7 +175,19 @@ function bandpromo_media_reference_config_entries(string $target): array
 
     if ($target === 'video') {
         return [
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => 'Background video (theme)'],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => 'Living background (theme)'],
+        ];
+    }
+
+    if ($target === 'special') {
+        return [
+            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/special', 'kind' => 'brand-logo', 'label' => 'Logo'],
+            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/special', 'kind' => 'share-image', 'label' => 'Share image'],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => 'Primary cover'],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => 'Still background'],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => 'Living background'],
+            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/special', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
+            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/special', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
         ];
     }
 
@@ -173,12 +213,19 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
             }
         }
 
-        $basename = bandpromo_media_reference_normalize_basename(is_string($raw) ? $raw : '', $entry['prefix']);
-        if ($basename === '' || $basename !== $filename) {
+        if (!is_string($raw) || trim($raw) === '') {
+            continue;
+        }
+        if (!bandpromo_media_reference_path_matches_prefix($raw, $entry['prefix'])) {
             continue;
         }
 
-        if (!bandpromo_media_reference_file_exists($root, $target, $basename)) {
+        $basename = bandpromo_media_reference_normalize_basename($raw, $entry['prefix']);
+        if ($basename === '' || !bandpromo_media_reference_names_match($basename, $filename)) {
+            continue;
+        }
+
+        if (!bandpromo_media_reference_file_exists($root, $target, $filename)) {
             continue;
         }
 
@@ -187,6 +234,81 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
             'kind' => $entry['kind'],
             'label' => $entry['label'],
         ];
+    }
+
+    return $references;
+}
+
+/**
+ * Scan brand/theme documents for media/special asset paths.
+ *
+ * @return list<array{scope:string,kind:string,label:string,brand_id?:string}>
+ */
+function bandpromo_media_reference_collect_brand_document_references(string $root, string $filename): array
+{
+    $safe = basename(trim($filename));
+    if ($safe === '') {
+        return [];
+    }
+
+    require_once __DIR__ . '/theme-storage.php';
+
+    $kindMap = [
+        'logo' => ['kind' => 'brand-logo', 'label' => 'Logo'],
+        'poster' => ['kind' => 'share-image', 'label' => 'Share image'],
+        'background_image' => ['kind' => 'theme-background', 'label' => 'Still background'],
+        'background_video' => ['kind' => 'theme-background-video', 'label' => 'Living background'],
+        'welcome_audio' => ['kind' => 'welcome-audio', 'label' => 'Welcome audio'],
+        'loggedin_audio' => ['kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
+    ];
+
+    $references = [];
+    $seen = [];
+
+    try {
+        bandpromo_theme_ensure_seeded($root);
+        foreach (bandpromo_theme_registry_entries($root) as $registryEntry) {
+            if (!is_array($registryEntry)) {
+                continue;
+            }
+            $brandId = trim((string) ($registryEntry['id'] ?? ''));
+            if ($brandId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_theme_load_document($root, $brandId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $brandTitle = trim((string) ($document['title'] ?? $brandId));
+            $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+            foreach ($kindMap as $assetKey => $meta) {
+                $raw = trim((string) ($assets[$assetKey] ?? ''));
+                if ($raw === '' || !bandpromo_media_reference_path_matches_prefix($raw, 'media/special')) {
+                    continue;
+                }
+                $basename = bandpromo_media_reference_normalize_basename($raw, 'media/special');
+                if ($basename === '' || !bandpromo_media_reference_names_match($basename, $safe)) {
+                    continue;
+                }
+                if (!bandpromo_media_reference_file_exists($root, 'special', $safe)) {
+                    continue;
+                }
+                $key = $brandId . '|' . $meta['kind'];
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $references[] = [
+                    'scope' => 'brand',
+                    'kind' => $meta['kind'],
+                    'label' => ($brandTitle !== '' ? $brandTitle : $brandId) . ' — ' . $meta['label'],
+                    'brand_id' => $brandId,
+                ];
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Theme registry may be missing during early setup.
     }
 
     return $references;
@@ -579,6 +701,19 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
 
 function bandpromo_media_reference_collect_references(string $root, string $target, string $filename, ?array $galleryReferenceIndex = null, ?array $trackVisualIndex = null): array
 {
+    if ($target === 'special') {
+        $safe = basename($filename);
+        if ($safe === '' || $safe === '.' || $safe === '..') {
+            return [];
+        }
+        $references = bandpromo_media_reference_collect_config_references($root, $target, $safe);
+        foreach (bandpromo_media_reference_collect_brand_document_references($root, $safe) as $reference) {
+            $references[] = $reference;
+        }
+
+        return $references;
+    }
+
     if ($target === 'illustrations') {
         $references = bandpromo_cover_art_collect_references($root, $filename, $trackVisualIndex);
         foreach (bandpromo_media_reference_collect_page_references($root, $target, $filename) as $reference) {
@@ -671,6 +806,8 @@ function bandpromo_media_reference_describe_file(
                 break;
             }
         }
+    } elseif ($target === 'special' && $references !== []) {
+        $role = (string) ($references[0]['kind'] ?? '');
     }
 
     return [

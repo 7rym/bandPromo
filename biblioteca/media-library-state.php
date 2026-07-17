@@ -102,6 +102,25 @@ function bandpromo_media_is_bundled_placeholder(string $filename): bool
     return strncmp($filename, 'bandPromo_', 10) === 0;
 }
 
+/**
+ * Coarse media kind for Brand assets / shell slots (still | living | audio).
+ */
+function bandpromo_media_filename_kind(string $filename): string
+{
+    $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+    if (in_array($ext, ['mp4', 'mov', 'webm', 'm4v', 'ogv'], true)) {
+        return 'video';
+    }
+    if (in_array($ext, ['mp3', 'flac', 'ogg', 'wav', 'aac', 'm4a', 'aif', 'aiff'], true)) {
+        return 'audio';
+    }
+    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'avif'], true)) {
+        return 'image';
+    }
+
+    return 'other';
+}
+
 function bandpromo_media_origin(string $filename): string
 {
     return bandpromo_media_is_bundled_placeholder($filename) ? 'bundled-placeholder' : 'user-upload';
@@ -247,6 +266,30 @@ function bandpromo_media_has_visible_user_uploads(string $target): bool
     return bandpromo_media_target_has_operator_uploads(dirname(__DIR__), $target);
 }
 
+function bandpromo_media_target_has_operator_uploads_of_kind(string $root, string $target, string $kind): bool
+{
+    $kind = trim($kind);
+    if ($kind === '') {
+        return bandpromo_media_target_has_operator_uploads($root, $target);
+    }
+
+    bandpromo_media_files_index_ensure_target($root, $target);
+    foreach (bandpromo_media_files_index_list($root, $target) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $filename = (string) ($entry['name'] ?? '');
+        if ($filename === '' || !bandpromo_media_is_operator_upload_filename($root, $target, $filename)) {
+            continue;
+        }
+        if (bandpromo_media_filename_kind($filename) === $kind) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function bandpromo_media_is_effectively_hidden_for_install(string $target, string $filename): bool
 {
     if (bandpromo_media_is_hidden_for_install($target, $filename)) {
@@ -261,6 +304,17 @@ function bandpromo_media_is_effectively_hidden_for_install(string $target, strin
     require_once __DIR__ . '/demo-catalog-state.php';
     if (!bandpromo_demo_catalog_is_visible($root)) {
         return true;
+    }
+
+    // Brand assets: only hide a bundled still/living/audio demo once the operator
+    // has uploaded a replacement of the same kind (uploading a logo must not hide
+    // the bundled living background video).
+    if ($target === 'special') {
+        return bandpromo_media_target_has_operator_uploads_of_kind(
+            $root,
+            $target,
+            bandpromo_media_filename_kind($filename)
+        );
     }
 
     return bandpromo_media_has_visible_user_uploads($target);

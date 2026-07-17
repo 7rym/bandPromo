@@ -105,7 +105,9 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
                 }
                 $posterAttr = $poster !== '' ? ' poster="' . $poster . '"' : '';
                 $html .= '<figure class="page-gallery-item page-gallery-item--video" role="button" tabindex="0">';
-                $html .= '<video src="' . $src . '"' . $posterAttr . ' preload="metadata" muted playsinline style="pointer-events:none;"></video>';
+                // Keep src off the wire until lightbox play — preload=metadata still
+                // pulls large byte ranges on PHP's single-threaded built-in server.
+                $html .= '<video data-src="' . $src . '"' . $posterAttr . ' preload="none" muted playsinline style="pointer-events:none;"></video>';
                 $html .= '<div class="page-gallery-video-play" aria-hidden="true">&#9654;</div>';
                 $html .= '<figcaption>' . $alt . '</figcaption></figure>';
                 continue;

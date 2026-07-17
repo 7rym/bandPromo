@@ -203,9 +203,6 @@ if ($supportEnabled && $supportUrl !== '') {
 
     <!-- Manifest & Theme -->
     <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
-    <meta name="theme-color" content="#121212">
-    <link rel="stylesheet" href="/biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
-    <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
     <?php
     require_once __DIR__ . '/../biblioteca/brand-storage.php';
     $playerBrandId = bandpromo_brand_active_id($playerRoot);
@@ -219,13 +216,53 @@ if ($supportEnabled && $supportUrl !== '') {
             );
         }
     }
+    $themeColorMeta = '#121212';
+    try {
+        $brandDocForMeta = bandpromo_brand_load_document($playerRoot, $playerBrandId);
+        $bgToken = trim((string) bandpromo_theme_token_value($brandDocForMeta, 'color.background'));
+        if ($bgToken !== '') {
+            $themeColorMeta = $bgToken;
+        }
+    } catch (Throwable $throwable) {
+        // Keep default theme-color.
+    }
+    ?>
+    <meta name="theme-color" content="<?php echo htmlspecialchars($themeColorMeta, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="/biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <?php
     echo bandpromo_brand_render_css_for_id($playerRoot, $playerBrandId);
     ?>
+    <script>
+        window.BANDPROMO_ACTIVE_BRAND_ID = <?php echo json_encode($playerBrandId); ?>;
+    </script>
 </head>
 <body>
     <?php
     require_once '../biblioteca/config-loader.php';
-    if ($showAdminButton): ?>
+    require_once '../biblioteca/player-modules.php';
+    $backgroundVideo = get_config_nonempty('release.theme.background_video', null);
+    $backgroundImage = get_config_nonempty('release.theme.background_image', null);
+    $shellBackgroundMode = bandpromo_player_shell_background_mode();
+    ?>
+    <script>
+        window.appConfig = window.appConfig || {};
+        window.appConfig.media = {
+            background_video: <?php echo json_encode($backgroundVideo); ?>,
+            background_image: <?php echo json_encode($backgroundImage); ?>,
+            logo: <?php echo json_encode(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>
+        };
+        window.appConfig.player = Object.assign({}, window.appConfig.player || {}, {
+            shell_background: <?php echo json_encode($shellBackgroundMode); ?>,
+            playlist_selector: <?php echo json_encode(bandpromo_player_playlist_selector_mode()); ?>
+        });
+    </script>
+    <video id="bg-video" preload="none" muted loop playsinline<?php echo ($backgroundVideo && $shellBackgroundMode === 'living') ? ' autoplay' : ' style="display:none"'; ?>>
+        <?php if ($backgroundVideo && $shellBackgroundMode === 'living'): ?>
+        <source src="<?php echo htmlspecialchars($backgroundVideo, ENT_QUOTES, 'UTF-8'); ?>" type="video/mp4">
+        <?php endif; ?>
+    </video>
+    <?php if ($showAdminButton): ?>
     <a id="admin-btn" href="/admin.php" title="Admin panel" aria-label="Open admin panel">⚙️</a>
     <?php endif; ?>
     <?php if ($showDebugTools): ?>
@@ -288,7 +325,7 @@ if ($supportEnabled && $supportUrl !== '') {
             <?php
             require_once dirname(__DIR__) . '/biblioteca/player-modules.php';
             $playerRoot = dirname(__DIR__);
-            $playerTabs = bandpromo_player_content_tabs($playerRoot);
+            $playerTabs = bandpromo_player_content_tabs($playerRoot, $operatorBypass);
             $defaultPlayerView = bandpromo_player_default_view();
             $hasDefaultView = false;
             foreach ($playerTabs as $playerTab) {
@@ -309,7 +346,6 @@ if ($supportEnabled && $supportUrl !== '') {
             <?php endforeach; ?>
         </div>
         <?php
-        require_once dirname(__DIR__) . '/biblioteca/page-storage.php';
         foreach ($playerTabs as $playerTab):
             $view = (string) ($playerTab['view'] ?? '');
             $isActive = $view === $defaultPlayerView ? ' active' : '';
@@ -318,8 +354,67 @@ if ($supportEnabled && $supportUrl !== '') {
         <div class="lyrics-box<?php echo $isActive; ?>" id="lyricsBox" data-content-box="lyrics">Loading lyrics...</div>
         <?php elseif ($view === 'playlist'): ?>
         <?php if (count($playlistCatalog) > 1): ?>
-        <div class="playlist-selector" id="playlistSelectorWrap">
-            <label for="playlistSelector">Playlist</label>
+        <?php
+            $playlistSelectorMode = bandpromo_player_playlist_selector_mode();
+            $playlistSelectorLabel = bandpromo_player_playlist_tab_label($playerRoot, $operatorBypass);
+        ?>
+        <div class="playlist-selector playlist-selector--<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>" id="playlistSelectorWrap" data-mode="<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $isActive === '' ? ' hidden' : ''; ?>>
+            <?php if ($playlistSelectorMode === 'buttons'): ?>
+            <span class="playlist-selector-label" id="playlistSelectorLabel"><?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+            <div class="playlist-selector-buttons" role="group" aria-labelledby="playlistSelectorLabel">
+                <?php foreach ($playlistCatalog as $playlistEntry):
+                    $entryId = (string) ($playlistEntry['id'] ?? '');
+                    $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
+                    $entryIsActive = $entryId === $activePlaylistId;
+                ?>
+                <button
+                    type="button"
+                    class="playlist-selector-btn<?php echo $entryIsActive ? ' is-active' : ''; ?>"
+                    data-playlist-select
+                    data-playlist-id="<?php echo htmlspecialchars($entryId, ENT_QUOTES, 'UTF-8'); ?>"
+                    aria-pressed="<?php echo $entryIsActive ? 'true' : 'false'; ?>"
+                ><?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?></button>
+                <?php endforeach; ?>
+            </div>
+            <?php elseif ($playlistSelectorMode === 'coverflow'): ?>
+            <div class="playlist-coverflow" role="listbox" aria-label="Choose playlist">
+                <?php foreach ($playlistCatalog as $playlistEntry):
+                    $entryId = (string) ($playlistEntry['id'] ?? '');
+                    $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
+                    $entryCover = trim((string) ($playlistEntry['cover'] ?? ''));
+                    $entryIsActive = $entryId === $activePlaylistId;
+                    $initial = function_exists('mb_substr')
+                        ? mb_strtoupper(mb_substr($entryTitle, 0, 1, 'UTF-8'), 'UTF-8')
+                        : strtoupper(substr($entryTitle, 0, 1));
+                ?>
+                <button
+                    type="button"
+                    class="playlist-coverflow-item<?php echo $entryIsActive ? ' is-active' : ''; ?>"
+                    role="option"
+                    aria-selected="<?php echo $entryIsActive ? 'true' : 'false'; ?>"
+                    data-playlist-select
+                    data-playlist-id="<?php echo htmlspecialchars($entryId, ENT_QUOTES, 'UTF-8'); ?>"
+                    title="<?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                    aria-label="<?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                >
+                    <?php if ($entryCover !== ''): ?>
+                    <img
+                        class="playlist-coverflow-thumb"
+                        src="<?php echo htmlspecialchars($entryCover, ENT_QUOTES, 'UTF-8'); ?>"
+                        alt=""
+                        width="<?php echo $entryIsActive ? '100' : '70'; ?>"
+                        height="<?php echo $entryIsActive ? '100' : '70'; ?>"
+                        loading="lazy"
+                        decoding="async"
+                    >
+                    <?php else: ?>
+                    <span class="playlist-coverflow-thumb playlist-coverflow-placeholder" aria-hidden="true"><?php echo htmlspecialchars($initial !== '' ? $initial : '♪', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <?php endif; ?>
+                </button>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
+            <label for="playlistSelector"><?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?></label>
             <select id="playlistSelector" aria-label="Choose playlist">
                 <?php foreach ($playlistCatalog as $playlistEntry): ?>
                 <option value="<?php echo htmlspecialchars((string) ($playlistEntry['id'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"<?php echo (($playlistEntry['id'] ?? '') === $activePlaylistId) ? ' selected' : ''; ?>>
@@ -327,20 +422,15 @@ if ($supportEnabled && $supportUrl !== '') {
                 </option>
                 <?php endforeach; ?>
             </select>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="playlist-box<?php echo $isActive; ?>" id="playlistBox" data-content-box="playlist">Loading playlist...</div>
         <?php elseif (str_starts_with($view, 'page-')):
             $pageId = (string) ($playerTab['page_id'] ?? substr($view, 5));
         ?>
-        <div class="page-box<?php echo $isActive; ?>" id="pageBox-<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>" data-content-box="<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>" data-page-id="<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>">
-            <?php
-            try {
-                echo bandpromo_page_render_for_delivery($playerRoot, $pageId);
-            } catch (Throwable $throwable) {
-                echo '<p class="page-paragraph">' . htmlspecialchars($throwable->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
-            }
-            ?>
+        <div class="page-box<?php echo $isActive; ?>" id="pageBox-<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>" data-content-box="<?php echo htmlspecialchars($view, ENT_QUOTES, 'UTF-8'); ?>" data-page-id="<?php echo htmlspecialchars($pageId, ENT_QUOTES, 'UTF-8'); ?>" data-page-hydrated="false">
+            <p class="page-paragraph page-box-loading">Loading…</p>
         </div>
         <?php endif; endforeach; ?>
     </div>
@@ -412,6 +502,7 @@ if ($supportEnabled && $supportUrl !== '') {
         };
     </script>
     <script src="/biblioteca/session-auth.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
+    <script src="/biblioteca/shell-background.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/player-markdown.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>

@@ -161,6 +161,20 @@ function bandpromo_audio_metadata_health_for_listing(
 }
 
 /**
+ * Infer media_type for Brand assets (media/special) from the file extension.
+ */
+function bandpromo_list_media_special_media_type(string $filename): string
+{
+    require_once __DIR__ . '/media-library-state.php';
+    $kind = bandpromo_media_filename_kind($filename);
+    if ($kind === 'video' || $kind === 'audio' || $kind === 'image') {
+        return $kind;
+    }
+
+    return 'other';
+}
+
+/**
  * Build one listing entry from an indexed file row for a concrete intake bucket.
  */
 function bandpromo_list_media_build_entry(
@@ -185,7 +199,9 @@ function bandpromo_list_media_build_entry(
         'intake_bucket' => $bucket,
         'media_type' => $bucket === 'video' ? 'video' : (
             in_array($bucket, ['illustrations', 'photos'], true) ? 'image' : (
-                $bucket === 'audio' ? 'audio' : 'other'
+                $bucket === 'audio' ? 'audio' : (
+                    $bucket === 'special' ? bandpromo_list_media_special_media_type($filename) : 'other'
+                )
             )
         ),
         'audio_master' => $bucket === 'audio'
@@ -229,9 +245,9 @@ function bandpromo_list_media_build_entry(
         }
     }
 
-    if (in_array($bucket, ['illustrations', 'photos', 'video'], true)) {
+    if (in_array($bucket, ['illustrations', 'photos', 'video', 'special'], true)) {
         $galleryIndex = null;
-        if ($bucket === 'illustrations') {
+        if ($bucket === 'illustrations' || $bucket === 'special') {
             $galleryIndex = null;
         } elseif (isset($context['gallery_indexes'][$bucket])) {
             $galleryIndex = $context['gallery_indexes'][$bucket];

@@ -118,7 +118,7 @@ Policy — **locked**:
 Implementation order:
 
 - [x] **Brand storage + migration** — `data/brands/` registry; migrate `data/themes/` + `active_theme_id` → `active_brand_id`; compatibility reads. *(Shipped build 320.)*
-- [x] **Content → Brands editor** — mood/keywords/tone narrative fields; duplicate + Set active; brand labeling in admin UI.
+- [x] **Content → Branding editor** — mood/keywords/tone narrative fields; duplicate + Set active; brand labeling in admin UI.
 - [x] **Release editor brand picker** — `brand_id` on releases; inherit install default when empty.
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses active brand CSS tokens.
@@ -165,10 +165,11 @@ Policy — **locked** (extends v0.8.4 visual media plan):
 
 Implementation order:
 
-- [ ] **Phase 0b — visual registry + migration** — register visual uploads at intake; backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility.
-- [ ] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten.
-- [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest.
+- [ ] **Phase 0b — visual registry + migration** — register visual uploads at intake; backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility. Destination: brand logos/backgrounds use the same original/master/delivery pipeline + role filters (`brand-logo`, `shell-background-*`); retire parallel `media/special/`-only handling. Operator **Still** / **Living** chips are filters, not a top-level `stills/` folder (pool name stays Visual).
+- [ ] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten. *(Interim 2026-07-16: in-place shell logo 180px PNG + background 1080px JPG via `optimizeMedia.py` reading brand/config paths — hotfix only until Phase 0b/1.)*
+- [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest. Merge legacy `img/` + `photo/` into the visual family here (not a separate `stills/` tree).
 - [x] **Phase 3 — Files → Visual (operator UX)** — single Files tab merging Illustrations/Photos/Video with type/usage/role filters; old `fpanel=` URLs redirect; pickers browse Visual for image/video contexts. **Brand assets** (`special`) stays a separate legacy intake tab. *(2026-07-15; rename from Theme 2026-07-16)*
+- [x] **Branding editor IA** — Shell media = assignment slots only; Brand assets = sibling assignable pool; Live preview shows shell chrome (logo/backdrop), not an asset gallery. *(2026-07-16)*
 - [ ] **Phase 3 remainders** — brand filter chip (needs visual registry `brand_id`), variant gating in Content pools, fold Brand assets into Visual after special migration.
 
 ### Player Markdown (closed-beta feedback)
@@ -203,7 +204,7 @@ Policy — **locked**:
 - [x] Lock **no stem guessing** — explicit assignment only; no sidecar filename pairing.
 - [x] Lock **loop on main card only** — silent muted loop; reflection stays static image.
 - [x] Lock **delivery MP4 only** — player uses optimal MP4 after Publish.
-- [x] Lock **reduced motion** — respect `prefers-reduced-motion`; pause when document hidden.
+- [x] Lock **reduced motion** — respect `prefers-reduced-motion`; pause when document hidden; living cover only while audio is actively playing.
 
 Implementation order:
 
