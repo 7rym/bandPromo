@@ -257,11 +257,11 @@ if ($supportEnabled && $supportUrl !== '') {
             playlist_selector: <?php echo json_encode(bandpromo_player_playlist_selector_mode()); ?>
         });
     </script>
-    <video id="bg-video" preload="none" muted loop playsinline<?php echo ($backgroundVideo && $shellBackgroundMode === 'living') ? ' autoplay' : ' style="display:none"'; ?>>
-        <?php if ($backgroundVideo && $shellBackgroundMode === 'living'): ?>
-        <source src="<?php echo htmlspecialchars($backgroundVideo, ENT_QUOTES, 'UTF-8'); ?>" type="video/mp4">
-        <?php endif; ?>
-    </video>
+    <video id="bg-video" preload="none" muted loop playsinline style="display:none"<?php
+        if ($backgroundVideo) {
+            echo ' data-src="' . htmlspecialchars($backgroundVideo, ENT_QUOTES, 'UTF-8') . '"';
+        }
+    ?>></video>
     <?php if ($showAdminButton): ?>
     <a id="admin-btn" href="/admin.php" title="Admin panel" aria-label="Open admin panel">⚙️</a>
     <?php endif; ?>
@@ -310,7 +310,7 @@ if ($supportEnabled && $supportUrl !== '') {
             <button onclick="nextSong()">Next &#9654;</button>
         </div>
 
-        <audio id="audioPlayer" controls controlsList="nodownload noplaybackrate" preload="metadata"></audio>
+        <audio id="audioPlayer" controls controlsList="nodownload noplaybackrate" preload="none"></audio>
 
         <div id="beggars-banquet">
             &nbsp;

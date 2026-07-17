@@ -96,7 +96,7 @@ try {
 
     $message = 'bandPromo was updated to ' . $applyResult['installed_version'] . '.';
     if (($postUpdate['follow_up'] ?? '') === 'open_build_tab') {
-        $message .= ' Open Build and run a build so the latest application changes reach your public site.';
+        $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
     }
 
     // Re-check and rewrite cache so Notifications immediately show up to date.

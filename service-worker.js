@@ -7,7 +7,7 @@
 // Generate cache name from hostname for portability
 // e.g., 'myband.com' -> 'myband-app-v2'
 const hostname = self.location.hostname.replace(/\./g, '.').split('.')[0];
-const CACHE_NAME = `${hostname}-app-v6`;
+const CACHE_NAME = `${hostname}-app-v7`;
 const ASSETS_TO_CACHE = [
     '/',
     '/site.webmanifest'
@@ -72,8 +72,13 @@ self.addEventListener('fetch', (event) => {
     // Skip media streaming/static delivery and browser-managed assets.
     // Caching /media/* (especially audio/video) contends with the PHP built-in
     // server and bloated Cache Storage; let the browser HTTP cache handle it.
+    // Also skip versioned static app assets and page hydrate API — SW network-first
+    // double-logs and contends with first-paint thumbs on single-threaded PHP.
     if (request.headers.has('range') ||
         url.pathname === '/biblioteca/audio.php' ||
+        url.pathname === '/biblioteca/get-player-page.php' ||
+        url.pathname === '/biblioteca/get-player-playlist.php' ||
+        /\.(?:js|css)$/i.test(url.pathname) ||
         url.pathname.startsWith('/media/') ||
         url.pathname === '/site.webmanifest' ||
         url.pathname === '/favicon.ico' ||

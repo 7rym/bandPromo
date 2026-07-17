@@ -235,11 +235,11 @@ try {
         };
     </script>
 
-    <video id="bg-video" autoplay muted loop<?php echo $backgroundVideo ? '' : ' style="display:none"'; ?>>
-        <?php if ($backgroundVideo): ?>
-        <source src="<?php echo htmlspecialchars($backgroundVideo); ?>" type="video/mp4">
-        <?php endif; ?>
-    </video>
+    <video id="bg-video" preload="none" muted loop playsinline style="display:none"<?php
+        if ($backgroundVideo) {
+            echo ' data-src="' . htmlspecialchars($backgroundVideo, ENT_QUOTES, 'UTF-8') . '"';
+        }
+    ?>></video>
     <audio id="enter-audio">
         <?php if ($welcomeAudio): ?>
         <?php

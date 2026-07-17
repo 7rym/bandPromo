@@ -23,9 +23,9 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Content → **Playlist**, **Gallery**, **Pages**, and **Player layout** share one pool/result editor pattern: **Available content** pool on the left, active order/layout on the right, multi-select drag-and-drop, demo filter on media pools only, and amber **Save** / green **Saved** header controls
 - Content → **Playlist** and **Gallery** management (multiple libraries in admin; player playlist selector when two or more **system** playlists exist)
 - **Player** loads playlist data from prebuilt static payloads in `data/playlists/{id}.json` (`tracks`, `brand_styles`, `delivery_summary` written at Publish). No Python or master-file parsing on player requests.
-- Player **page tabs** (Bio, Gallery, custom pages) ship as empty shells; HTML hydrates after `window.load` (idle) so gallery stills/posters do not contend with first paint. Opening a page tab early fetches immediately; gallery video files still load only in the lightbox.
+- Player **page tabs** (Bio, Gallery, custom pages) ship as empty shells; the active tab hydrates on DOMContentLoaded, others on first open — so gallery stills/posters do not contend with first paint. Gallery video files still load only in the lightbox.
 - **Registry-first admin**: Files lists, playlist/release editors, and track detail read stored indexes only — `data/assets/registry.json` display fields, published playlist tracks, and the **media files index** in `data/media-library-state.json` (`files`) for size/mtime/delivery listing. No DirectoryIterator, filesize, or tag parse on GET. Index/registry updates only on upload, delete, tag save, delivery jobs, Publish, and container membership saves.
-- Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Still / Living shell background** switch for the player surface; **Dropdown / Buttons / Cover flow** playlist selector when multiple playlists are available; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
+- Content → **Player layout**: **Playlists** and **Lyrics** always on; static page tabs optional; **Still / Living shell background** switch for the player surface (Living paints still first, then attaches the MP4 after load/idle); **Dropdown / Buttons / Cover flow** playlist selector when multiple playlists are available; **Gallery player tab is transitional** and will be replaced by gallery blocks on pages
 - Files panels: **Audio | Visual | Brand assets**. Visual and Brand assets both use a thumbnail-first pool (grid/list, type chips, usage filters); filenames stay hidden — open a tile for preview/details. Visual covers legacy `media/img|photo|video` intake; **Brand assets** keeps `media/special/` storage (`target=special`) with theme/config reference scanning for In use / Orphans. Brand filter chip + ULID visual registry remain planned (Phases 0b–2).
 - **Planned (v0.8 management slice remainders):** Brand containers polish, release `brand_id` links (many releases per era), explicit role tags on visuals, **content AI wizards**, visual delivery rewrite — see [TODO.md](TODO.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
 - Files list header row aligned with file items: master select-all checkbox, compact filter dropdowns (`All` / usage filters plus `User files` / `Include demo`), and labeled **Upload**, **Download**, and **Delete** bulk actions
@@ -50,8 +50,9 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Compact two-column landscape layout for installed/mobile PWA playback
 - Artwork and lightbox support (including page images)
 - Post-login splash shows the install logo with **Preparing your experience…** before entering the player
-- Shell **background image/video** from theme settings on both **login and player** (video when connection is fast; image on slow links / reduced motion)
+- Shell **background image/video** from brand settings on both **login and player** (still paints first; living video attaches after load/idle; still-only when reduced motion / slow link / Still mode)
 - Player brand colors resolve **live** from brand documents (Content → Branding edits apply without waiting for a full Publish)
+- Player audio uses `preload="none"` until Play so large MP3 range GETs do not stall first-paint thumbs
 
 ### Build & Delivery
 - Automated build pipeline for optimized audio and images

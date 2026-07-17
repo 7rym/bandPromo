@@ -1877,9 +1877,9 @@ function setAudioSrc(filename) {
     const encoded = encodeURI(url);
     audioPlayer.dataset.sourceFile = filename;
     audioPlayer.dataset.deliveryFile = deliveryFilename;
-    // metadata only until the listener presses Play — preload=auto of hour-long
-    // mixes monopolizes the PHP built-in server and stalls every cover request.
-    audioPlayer.preload = 'metadata';
+    // Do not download media until Play — preload=metadata still triggers multi-MB
+    // range GETs on audio.php and stalls thumbs on single-threaded PHP hosts.
+    audioPlayer.preload = 'none';
     audioPlayer.src = encoded;
     hasStartedCurrentTrack = false;
     isUserSeeking = false;
@@ -2385,36 +2385,11 @@ function ensurePlayerPageHydrated(pageBox) {
         .catch(() => {
             pageBox.innerHTML = '<p class="page-paragraph">This page could not be loaded.</p>';
             pageBox.dataset.pageHydrated = 'error';
-        })
-        .finally(() => {
-            playerPageHydratePromises.delete(pageId);
         });
 
     playerPageHydratePromises.set(pageId, promise);
     return promise;
 }
-
-function hydratePlayerPagesAfterLoad() {
-    const boxes = Array.from(document.querySelectorAll('[data-page-id][data-page-hydrated="false"]'));
-    if (boxes.length === 0) {
-        return;
-    }
-
-    const run = () => {
-        boxes.forEach((pageBox) => {
-            ensurePlayerPageHydrated(pageBox);
-        });
-    };
-
-    if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(run, { timeout: 2500 });
-        return;
-    }
-
-    window.setTimeout(run, 0);
-}
-
-
 
 // Add click listener to cover image to open lightbox
 if (coverImage) {
@@ -2440,7 +2415,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // If a page tab is the default view, hydrate it now so the panel is not stuck on “Loading…”.
-    // Inactive page tabs wait until window.load (see hydratePlayerPagesAfterLoad).
+    // Other page tabs hydrate on first open only (toggleView → ensurePlayerPageHydrated).
     document.querySelectorAll('[data-page-id].active[data-page-hydrated="false"]').forEach((pageBox) => {
         ensurePlayerPageHydrated(pageBox);
     });
@@ -2581,7 +2556,6 @@ function logSessionEnd({ actionSource = 'pagehide', useBeacon = false } = {}) {
 
 window.addEventListener('beforeunload', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
 window.addEventListener('pagehide', () => logSessionEnd({ actionSource: 'pagehide', useBeacon: true }));
-window.addEventListener('load', hydratePlayerPagesAfterLoad);
 window.addEventListener('resize', () => scheduleEnvironmentSnapshot('resize'));
 window.addEventListener('orientationchange', () => scheduleEnvironmentSnapshot('orientationchange'));
 window.addEventListener('fullscreenchange', () => scheduleEnvironmentSnapshot('fullscreenchange'));

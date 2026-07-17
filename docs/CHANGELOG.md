@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-17 12:30 - Cheap first-paint wins: Living shell shows still first and attaches MP4 after load/idle (login + player; no early `<source>`); audio `preload=none` until Play; page tabs hydrate on open only (not all after load); service worker v7 skips get-player-page/playlist and versioned JS/CSS so SW network-first no longer double-fetches them.
+
+2026-07-17 12:25 - TODO: Favicon + PWA icons must be generated from Branding (not manual online generators) before the v0.8 exit gate. Cold HARs after rebuild show shell logos were optimized (~72–128KB); living shell MP4 backgrounds are still unoptimized and dominate transfer.
+
+2026-07-17 12:05 - Site update follow-up: after a successful install, admin redirects to System → Deliverables, opens the build log, and auto-starts Rebuild all deliverables (`run_recommended=1`). Post-update notification severity is **Fix first**; Deliverables help copy explains the normal rebuild step.
+
 2026-07-17 11:40 - Operator IA: rename **Content → Brands** to **Content → Branding** (tab label, cross-links, docs). **Brand** stays the saved identity document; **Brand assets** in Files is unchanged. Internal `cntab=themes` URL param kept for compatibility.
 
 2026-07-16 23:55 - Player desktop grid: mediaplayer column caps at 800px (`minmax(0, 800px) 1fr`) so `#content-container` takes leftover width. Branding editor: Shell media slots and Brand assets assignable pool are sibling sections; Live preview drops the asset gallery and shows shell chrome (logo + still backdrop) only. Docs: special-path resize remains interim; Visual pool + roles is the destination; Still is a filter, not a top-level folder name.

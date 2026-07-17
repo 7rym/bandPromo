@@ -744,11 +744,68 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 document.body.appendChild(operatorNotificationsModal);
             }
 
+            function consumePostPackageUpdateFlash() {
+                const storageKey = 'bandpromo_post_package_update';
+                let payload = null;
+                try {
+                    const raw = sessionStorage.getItem(storageKey);
+                    if (raw) {
+                        payload = JSON.parse(raw);
+                        sessionStorage.removeItem(storageKey);
+                    }
+                } catch (error) {
+                    try {
+                        sessionStorage.removeItem(storageKey);
+                    } catch (storageError) {
+                        // Ignore storage failures.
+                    }
+                }
+
+                if (!payload || typeof showAdminToast !== 'function') {
+                    return;
+                }
+
+                const version = String(payload.version || '').trim();
+                const message = version
+                    ? `Site update to ${version} installed. Rebuilding deliverables for your public site…`
+                    : 'Site update installed. Rebuilding deliverables for your public site…';
+                showAdminToast(message, 'success');
+            }
+
+            function rememberPostPackageUpdateFollowUp(installedVersion) {
+                try {
+                    sessionStorage.setItem('bandpromo_post_package_update', JSON.stringify({
+                        version: String(installedVersion || '').trim(),
+                        at: Date.now(),
+                    }));
+                } catch (error) {
+                    // Redirect still works when storage is unavailable.
+                }
+            }
+
+            function shouldRunRecommendedBuildAfterPackageUpdate(postUpdate) {
+                const followUp = postUpdate && typeof postUpdate === 'object'
+                    ? String(postUpdate.follow_up || '').trim()
+                    : '';
+                return followUp === 'open_build_tab' || followUp === 'run_recommended_build';
+            }
+
             function clearRecommendedRunQuery() {
                 if (!window.history || typeof window.history.replaceState !== 'function') {
                     return;
                 }
                 window.history.replaceState({}, '', buildBuildTabUrl());
+            }
+
+            function openBuildLogCard() {
+                const logCard = document.getElementById('build-log-card');
+                if (!logCard) {
+                    return;
+                }
+                if (logCard.tagName === 'DETAILS') {
+                    logCard.open = true;
+                }
+                logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             function buildNotificationFromBuildState(buildState, welcome) {
@@ -766,14 +823,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const action = 'full';
                 const actionLabel = getBuildActionLabel();
 
-                if (setupComplete && afterPackageUpdate) {
+                if (afterPackageUpdate) {
                     return {
-                        severity: 'recommended-fix',
-                        title: 'Site update installed — refresh your public site',
+                        severity: 'fix-before-publish',
+                        title: 'Site update installed — rebuild deliverables',
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your content and settings were preserved. Rebuild all deliverables once so listener-ready files and the site manifest match the new version.' },
+                            { text: 'Your content and settings were preserved. Rebuilding deliverables refreshes listener-ready files and the site manifest for the new version.' },
                             ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
                         ],
                         actions: [
@@ -8128,14 +8185,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 triggeredBuildRunFromQuery = true;
                 clearRecommendedRunQuery();
-
-                const logCard = document.getElementById('build-log-card');
-                const actionsCard = document.getElementById('publishActionsCard');
-                if (actionsCard) {
-                    actionsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } else if (logCard) {
-                    logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+                consumePostPackageUpdateFlash();
+                openBuildLogCard();
 
                 if (currentBuildRequired) {
                     runRecommendedAction();
@@ -8157,7 +8208,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const taskLine = tasks.length
                             ? `Pending now: <strong>${bandpromoAdminEscapeHtml(tasks.join(' · '))}</strong>.`
                             : 'Pending now: bandPromo still has delivery work to finish.';
-                        buildHelpBox.innerHTML = `${actionLabel} is the recommended next step for the current pending work. ${taskLine} Jobs continue in the background while this log updates.`;
+                        const afterPackageUpdate = currentBuildReasons.includes('package_update');
+                        const intro = afterPackageUpdate
+                            ? 'Site update preserved your content. Rebuilding deliverables is the normal next step so listener-ready files match the new version.'
+                            : `${actionLabel} is the recommended next step for the current pending work.`;
+                        buildHelpBox.innerHTML = `${intro} ${taskLine} Jobs continue in the background while this log updates.`;
                     } else {
                         buildHelpBox.innerHTML = 'bandPromo usually keeps deliverables current automatically after uploads and saves. Use <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.';
                     }
@@ -8893,7 +8948,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         setCardMode('attention');
                         setStatusClass('is-ready');
-                        setStatusMessage(data.message || 'Update installed successfully.');
+                        const followUpBuild = shouldRunRecommendedBuildAfterPackageUpdate(data.post_update);
+                        setStatusMessage(
+                            followUpBuild
+                                ? (data.message || 'Update installed successfully.') + ' Opening Deliverables…'
+                                : (data.message || 'Update installed successfully.')
+                        );
                         applyBtn.hidden = true;
 
                         if (typeof refreshBuildRequiredState === 'function') {
@@ -8905,8 +8965,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         window.setTimeout(() => {
                             packageUpdateInstallInProgress = false;
+                            if (followUpBuild) {
+                                rememberPostPackageUpdateFollowUp(data.installed_version);
+                                window.location.href = buildRecommendedRunUrl();
+                                return;
+                            }
                             window.location.reload();
-                        }, 1800);
+                        }, followUpBuild ? 1000 : 1800);
                     } catch (error) {
                         packageUpdateInstallInProgress = false;
                         setStatusClass('is-error');

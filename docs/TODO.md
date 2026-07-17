@@ -123,6 +123,7 @@ Implementation order:
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses active brand CSS tokens.
 - [x] **Welcome nudge** — auto-provision editable operator brand from bandPromo Default; post-setup suggestions for media, FAQ, Pages, and backup import.
+- [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
 ### Analytics and activity log storage (v0.8 data foundation)
 
@@ -235,7 +236,7 @@ Implementation order (v0.9):
 
 ### Beta fleet sync + legacy audit gate (v0.8 exit)
 
-**Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
+**Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Also complete **Favicon + PWA icons from Branding** (Brand section above) before calling v0.8 closed — operators must not depend on manual icon generators. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
 
 Closed-beta fleet today: **3 remote test sites** (one vanilla demo-content install, two operator-populated installs).
 
