@@ -38,6 +38,7 @@ function bandpromo_media_reference_original_prefix(string $target): ?string
         'photos' => 'media/photo/original',
         'video' => 'media/video/original',
         'special' => 'media/special',
+        'sfx' => 'media/sfx/original',
     ];
 
     return $map[$target] ?? null;
@@ -186,8 +187,16 @@ function bandpromo_media_reference_config_entries(string $target): array
             ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => 'Primary cover'],
             ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => 'Still background'],
             ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => 'Living background'],
+            // Legacy shell audio paths (pre–Sound effects pool).
             ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/special', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
             ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/special', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
+        ];
+    }
+
+    if ($target === 'sfx') {
+        return [
+            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/original', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
+            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/original', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
         ];
     }
 
@@ -240,12 +249,18 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
 }
 
 /**
- * Scan brand/theme documents for media/special asset paths.
+ * Scan brand/theme documents for shell media asset paths.
  *
+ * @param string $pathPrefix e.g. media/special or media/sfx/original
+ * @param string $filesTarget files-index target used for existence checks
  * @return list<array{scope:string,kind:string,label:string,brand_id?:string}>
  */
-function bandpromo_media_reference_collect_brand_document_references(string $root, string $filename): array
-{
+function bandpromo_media_reference_collect_brand_document_references(
+    string $root,
+    string $filename,
+    string $pathPrefix = 'media/special',
+    string $filesTarget = 'special'
+): array {
     $safe = basename(trim($filename));
     if ($safe === '') {
         return [];
@@ -284,14 +299,14 @@ function bandpromo_media_reference_collect_brand_document_references(string $roo
             $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
             foreach ($kindMap as $assetKey => $meta) {
                 $raw = trim((string) ($assets[$assetKey] ?? ''));
-                if ($raw === '' || !bandpromo_media_reference_path_matches_prefix($raw, 'media/special')) {
+                if ($raw === '' || !bandpromo_media_reference_path_matches_prefix($raw, $pathPrefix)) {
                     continue;
                 }
-                $basename = bandpromo_media_reference_normalize_basename($raw, 'media/special');
+                $basename = bandpromo_media_reference_normalize_basename($raw, $pathPrefix);
                 if ($basename === '' || !bandpromo_media_reference_names_match($basename, $safe)) {
                     continue;
                 }
-                if (!bandpromo_media_reference_file_exists($root, 'special', $safe)) {
+                if (!bandpromo_media_reference_file_exists($root, $filesTarget, $safe)) {
                     continue;
                 }
                 $key = $brandId . '|' . $meta['kind'];
@@ -708,6 +723,24 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
         }
         $references = bandpromo_media_reference_collect_config_references($root, $target, $safe);
         foreach (bandpromo_media_reference_collect_brand_document_references($root, $safe) as $reference) {
+            $references[] = $reference;
+        }
+
+        return $references;
+    }
+
+    if ($target === 'sfx') {
+        $safe = basename($filename);
+        if ($safe === '' || $safe === '.' || $safe === '..') {
+            return [];
+        }
+        $references = bandpromo_media_reference_collect_config_references($root, $target, $safe);
+        foreach (bandpromo_media_reference_collect_brand_document_references(
+            $root,
+            $safe,
+            'media/sfx/original',
+            'sfx'
+        ) as $reference) {
             $references[] = $reference;
         }
 

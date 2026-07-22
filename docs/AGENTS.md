@@ -70,11 +70,13 @@ Use `prerelease=true` for v0.8 beta builds. Local-only validation can use `pytho
 - [README.md](README.md)
 - [docs/TODO.md](TODO.md)
 - [docs/ROADMAP.md](ROADMAP.md)
+- [docs/USE-CASES.md](USE-CASES.md)
 - [docs/PLATFORM-MODEL.md](PLATFORM-MODEL.md)
 - [docs/ACCESS-MODEL.md](ACCESS-MODEL.md)
 - [docs/DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md)
 - [docs/PORTABILITY.md](PORTABILITY.md)
 - [docs/FEATURES.md](FEATURES.md)
+- [docs/ADMIN-UI.md](ADMIN-UI.md)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)
 
 ## Project Structure

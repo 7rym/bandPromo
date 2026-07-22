@@ -19,6 +19,19 @@ function bandpromo_brand_canonical_id(string $id): string
     return $id;
 }
 
+function bandpromo_brand_normalize_pool_filter(string $value): string
+{
+    $value = trim($value);
+    if ($value === '' || $value === 'all') {
+        return 'all';
+    }
+    if ($value === 'orphans') {
+        return 'orphans';
+    }
+
+    return bandpromo_brand_canonical_id($value);
+}
+
 function bandpromo_brand_legacy_theme_id(string $id): string
 {
     $id = bandpromo_brand_canonical_id($id);
@@ -145,9 +158,10 @@ function bandpromo_theme_default_document(): array
         'title' => 'bandPromo Default',
         'system' => true,
         'locked' => true,
+        'release_id' => 'bandpromo-demo',
         'mood' => 'Clean demo identity for first-run installs',
         'keywords' => ['demo', 'electronic', 'modern'],
-        'tone_notes' => 'Neutral platform defaults; duplicate and replace for your artist era.',
+        'tone_notes' => 'Neutral platform defaults; duplicate and customize as release identity.',
         'tokens' => [
             'color' => bandpromo_theme_default_color_tokens(),
             'layout' => [
@@ -163,8 +177,8 @@ function bandpromo_theme_default_document(): array
             'poster' => '/media/special/bandPromo_cover.png',
             'background_image' => '/media/special/bandPromo_background.png',
             'background_video' => '/media/special/bandPromo_background.mp4',
-            'welcome_audio' => '/media/special/bandPromo_welcome.flac',
-            'loggedin_audio' => '/media/special/bandPromo_loggedin.flac',
+            'welcome_audio' => '/media/sfx/original/bandPromo_welcome.flac',
+            'loggedin_audio' => '/media/sfx/original/bandPromo_loggedin.flac',
         ],
     ];
 }
@@ -282,8 +296,10 @@ function bandpromo_theme_resolve_media_absolute_path(string $root, string $webPa
 }
 
 /**
- * Copy one shell media file into Brand assets owned by $brandId.
- * Returns the new /media/special/… path, or the original path when copy is not possible.
+ * Copy one shell media file into the owning brand's library.
+ * Visual slots clone into Brand assets (`media/special/`).
+ * Audio slots clone into Sound effects (`media/sfx/original/`).
+ * Returns the new web path, or the original path when copy is not possible.
  */
 function bandpromo_theme_clone_asset_file(string $root, string $brandId, string $assetKey, string $sourcePath): string
 {
@@ -302,9 +318,24 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
         return $sourcePath;
     }
 
-    $specialDir = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'special';
-    if (!is_dir($specialDir) && !mkdir($specialDir, 0755, true) && !is_dir($specialDir)) {
-        throw new RuntimeException('Could not create media/special for brand asset clones.');
+    $isAudioSlot = in_array($assetKey, ['welcome_audio', 'loggedin_audio'], true)
+        || in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true);
+
+    require_once __DIR__ . '/media-library-state.php';
+
+    if ($isAudioSlot) {
+        require_once __DIR__ . '/sfx-helpers.php';
+        bandpromo_sfx_ensure_dir($root);
+        $destDir = bandpromo_sfx_original_dir($root);
+        $indexTarget = 'sfx';
+        $webPrefix = '/media/sfx/original/';
+    } else {
+        $destDir = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'special';
+        if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+            throw new RuntimeException('Could not create media/special for brand asset clones.');
+        }
+        $indexTarget = 'special';
+        $webPrefix = '/media/special/';
     }
 
     $safeBrand = preg_replace('/[^a-z0-9-]+/', '-', strtolower($brandId)) ?: 'brand';
@@ -312,7 +343,7 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
     $base = $safeBrand . '_' . $safeKey;
     $destName = $base . '.' . $ext;
     $suffix = 2;
-    while (is_file($specialDir . DIRECTORY_SEPARATOR . $destName)) {
+    while (is_file($destDir . DIRECTORY_SEPARATOR . $destName)) {
         $destName = $base . '-' . $suffix . '.' . $ext;
         $suffix++;
         if ($suffix > 100) {
@@ -320,15 +351,21 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
         }
     }
 
-    $destAbsolute = $specialDir . DIRECTORY_SEPARATOR . $destName;
+    $destAbsolute = $destDir . DIRECTORY_SEPARATOR . $destName;
     if (!copy($absolute, $destAbsolute)) {
         throw new RuntimeException('Could not clone brand asset: ' . $assetKey);
     }
 
-    require_once __DIR__ . '/media-library-state.php';
-    bandpromo_media_files_index_sync_file($root, 'special', $destName);
+    bandpromo_media_files_index_sync_file($root, $indexTarget, $destName);
+    if ($indexTarget === 'sfx') {
+        try {
+            bandpromo_asset_register_sfx($root, $destName);
+        } catch (Throwable $throwable) {
+            // Registry optional for clone success.
+        }
+    }
 
-    return '/media/special/' . $destName;
+    return $webPrefix . $destName;
 }
 
 /**
@@ -375,12 +412,21 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
         $system = true;
     }
 
+    $releaseId = trim((string) ($input['release_id'] ?? ''));
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        $releaseId = '';
+    }
+    if ($releaseId === '' && $id === BANDPROMO_BRAND_DEFAULT_ID) {
+        $releaseId = 'bandpromo-demo';
+    }
+
     return [
         'version' => BANDPROMO_THEME_REGISTRY_VERSION,
         'id' => $id,
         'title' => $title,
         'system' => $system,
         'locked' => $locked,
+        'release_id' => $releaseId,
         'mood' => bandpromo_brand_normalize_narrative_field($input['mood'] ?? '', 500),
         'keywords' => array_values(array_filter(array_map(
             static fn(mixed $item): string => bandpromo_brand_normalize_narrative_field($item, 80),
@@ -443,10 +489,13 @@ function bandpromo_theme_load_registry(string $root): array
     return $decoded;
 }
 
-function bandpromo_theme_write_document(string $root, array $document): void
+/**
+ * @param array{allow_locked?: bool} $options
+ */
+function bandpromo_theme_write_document(string $root, array $document, array $options = []): void
 {
     $document = bandpromo_theme_normalize_document($document, (string) ($document['id'] ?? ''));
-    if (!empty($document['locked'])) {
+    if (!empty($document['locked']) && empty($options['allow_locked'])) {
         throw new RuntimeException('Brand is locked and cannot be edited.');
     }
 
@@ -523,8 +572,8 @@ function bandpromo_theme_assets_from_config(array $config): array
         'poster' => $poster,
         'background_image' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_image', '/media/special/bandPromo_background.png'),
         'background_video' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_video', '/media/special/bandPromo_background.mp4'),
-        'welcome_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.welcome_audio', '/media/special/bandPromo_welcome.flac'),
-        'loggedin_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.loggedin_audio', '/media/special/bandPromo_loggedin.flac'),
+        'welcome_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.welcome_audio', '/media/sfx/original/bandPromo_welcome.flac'),
+        'loggedin_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.loggedin_audio', '/media/sfx/original/bandPromo_loggedin.flac'),
     ];
 }
 

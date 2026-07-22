@@ -21,6 +21,7 @@ require_once __DIR__ . '/cover-art-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/build-catalog-helpers.php';
 require_once __DIR__ . '/media-library-state.php';
+require_once __DIR__ . '/asset-registry.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -36,12 +37,13 @@ $photo_dir    = $root_dir . '/media/photo/original';
 $video_dir    = $root_dir . '/media/video/original';
 $video_poster_dir = $root_dir . '/media/video/poster';
 $special_dir  = $root_dir . '/media/special';
+$sfx_dir      = $root_dir . '/media/sfx/original';
 $tmp_dir      = $root_dir . '/data/upload_tmp';
 
-// Optional target hint from Media sub-panel (audio | illustrations | photos | video | special)
+// Optional target hint from Media sub-panel (audio | illustrations | photos | video | special | sfx | visual)
 $target_hint  = $_POST['target'] ?? '';
 
-foreach ([$audio_orig_dir, $img_orig_dir, $photo_dir, $video_dir, $video_poster_dir, $special_dir] as $dir) {
+foreach ([$audio_orig_dir, $img_orig_dir, $photo_dir, $video_dir, $video_poster_dir, $special_dir, $sfx_dir] as $dir) {
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 }
 if (!is_dir($audio_master_dir)) mkdir($audio_master_dir, 0755, true);
@@ -53,7 +55,7 @@ $image_exts = ['png', 'jpg', 'jpeg', 'webp'];
 $video_exts = ['mp4', 'webm', 'mov'];
 
 function bandpromo_finalize_uploaded_file(string $root_dir, string $target_hint, string $ext, string $safe_name, string $dest): array {
-    if ($target_hint !== 'special' || $ext !== 'wav') {
+    if (!in_array($target_hint, ['special', 'sfx'], true) || $ext !== 'wav') {
         return [
             'ok' => true,
             'saved_as' => $safe_name,
@@ -93,6 +95,13 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
         return $root_dir . '/media/special/' . $safe_name;
     }
 
+    if ($target_hint === 'sfx') {
+        if (!in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+            return null;
+        }
+        return $root_dir . '/media/sfx/original/' . $safe_name;
+    }
+
     if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
         return $root_dir . '/media/audio/original/' . $safe_name;
     }
@@ -120,7 +129,7 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
 function bandpromo_upload_resolve_files_index_target(string $target_hint, string $ext, string $saved_path): string
 {
     $hint = trim($target_hint);
-    if (in_array($hint, ['audio', 'special', 'illustrations', 'photos', 'video'], true)) {
+    if (in_array($hint, ['audio', 'special', 'sfx', 'illustrations', 'photos', 'video'], true)) {
         return $hint;
     }
 
@@ -138,6 +147,9 @@ function bandpromo_upload_resolve_files_index_target(string $target_hint, string
     }
     if (stripos($normalized, '/media/video/') !== false) {
         return 'video';
+    }
+    if (stripos($normalized, '/media/sfx/') !== false) {
+        return 'sfx';
     }
     if (stripos($normalized, '/media/special/') !== false) {
         return 'special';
@@ -285,6 +297,30 @@ function image_matches_audio_basename(string $filename): bool {
     return false;
 }
 
+/**
+ * Register Sound effects uploads into the asset registry (kind=sfx, role=sfx).
+ *
+ * @return array<string, mixed>|null
+ */
+function bandpromo_register_sfx_upload_if_needed(
+    string $root_dir,
+    string $target_hint,
+    string $saved_name
+): ?array {
+    if ($target_hint !== 'sfx') {
+        return null;
+    }
+    require_once __DIR__ . '/sfx-helpers.php';
+    try {
+        $brandId = isset($_POST['brand_id']) ? trim((string) $_POST['brand_id']) : '';
+        return bandpromo_asset_register_sfx($root_dir, $saved_name, [
+            'brand_id' => $brandId,
+        ]);
+    } catch (Throwable $throwable) {
+        return null;
+    }
+}
+
 function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved_path, string $saved_name): void
 {
     $normalized = str_replace('\\', '/', $saved_path);
@@ -295,8 +331,44 @@ function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved
     bandpromo_cover_art_record_upload($root_dir, $saved_name, 'illustrations');
 }
 
+/**
+ * Register image/video uploads into the visual asset registry.
+ *
+ * @return array<string, mixed>|null
+ */
+function bandpromo_register_visual_upload_if_needed(
+    string $root_dir,
+    string $target_hint,
+    string $saved_ext,
+    string $saved_name,
+    string $saved_path
+): ?array {
+    $mediaType = bandpromo_asset_infer_media_type_from_filename($saved_name);
+    if (!in_array($mediaType, ['image', 'video'], true)) {
+        return null;
+    }
+
+    $indexTarget = bandpromo_upload_resolve_files_index_target($target_hint, $saved_ext, $saved_path);
+    $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($indexTarget);
+    if ($intakeBucket === '') {
+        return null;
+    }
+
+    $role = isset($_POST['role']) ? (string) $_POST['role'] : 'unassigned';
+    $brandId = isset($_POST['brand_id']) ? trim((string) $_POST['brand_id']) : '';
+
+    try {
+        return bandpromo_asset_register_visual($root_dir, $saved_name, $intakeBucket, $mediaType, [
+            'role' => $role,
+            'brand_id' => $brandId,
+        ]);
+    } catch (Throwable $throwable) {
+        return null;
+    }
+}
+
 function build_reason_for_upload(string $target_hint, string $ext, string $filename): string {
-    if ($target_hint === 'special') {
+    if ($target_hint === 'special' || $target_hint === 'sfx') {
         return '';
     }
 
@@ -398,7 +470,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
     bandpromo_record_cover_upload_if_needed($root_dir, $savedPath, $savedName);
     $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
-    $master = $target_hint === 'special'
+    $master = in_array((string) $target_hint, ['special', 'sfx'], true)
         ? ['attempted' => false, 'prepared' => false, 'warning' => '']
         : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
     if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
@@ -412,11 +484,30 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         bandpromo_upload_resolve_files_index_target((string) $target_hint, $savedExt, $savedPath),
         $savedName
     );
+    $visualAsset = bandpromo_register_visual_upload_if_needed(
+        $root_dir,
+        (string) $target_hint,
+        $savedExt,
+        $savedName,
+        $savedPath
+    );
+    $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $savedName);
     $response = [
         'ok' => true,
         'status' => 'complete',
         'saved_as' => $savedName,
     ];
+
+    if (is_array($visualAsset) && !empty($visualAsset['id'])) {
+        $response['asset_id'] = $visualAsset['id'];
+        $response['visual_role'] = $visualAsset['role'] ?? 'unassigned';
+        $response['brand_id'] = $visualAsset['brand_id'] ?? '';
+    }
+    if (is_array($sfxAsset) && !empty($sfxAsset['id'])) {
+        $response['asset_id'] = $sfxAsset['id'];
+        $response['sfx_role'] = 'sfx';
+        $response['brand_id'] = $sfxAsset['brand_id'] ?? '';
+    }
 
     if (!empty($master['attempted'])) {
         $response['master_prepared'] = !empty($master['prepared']);
@@ -426,7 +517,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         if (!empty($master['master_format'])) {
             $response['master_format'] = $master['master_format'];
         }
-        if (!empty($master['asset_id'])) {
+        if (!empty($master['asset_id']) && empty($response['asset_id'])) {
             $response['asset_id'] = $master['asset_id'];
         }
         if (!empty($master['warning'])) {
@@ -562,7 +653,7 @@ foreach ($files as $file) {
         $saved_path = (string) ($finalized['saved_path'] ?? $dest);
         $saved_ext = (string) ($finalized['saved_ext'] ?? $ext);
         bandpromo_record_cover_upload_if_needed($root_dir, $saved_path, $saved_name);
-        $master = $target_hint === 'special'
+        $master = in_array((string) $target_hint, ['special', 'sfx'], true)
             ? ['attempted' => false, 'prepared' => false, 'warning' => '']
             : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
         if ($target_hint === 'audio' && in_array($saved_ext, ['flac', 'mp3', 'wav'], true)) {
@@ -576,7 +667,25 @@ foreach ($files as $file) {
             bandpromo_upload_resolve_files_index_target((string) $target_hint, $saved_ext, $saved_path),
             $saved_name
         );
+        $visualAsset = bandpromo_register_visual_upload_if_needed(
+            $root_dir,
+            (string) $target_hint,
+            $saved_ext,
+            $saved_name,
+            $saved_path
+        );
+        $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $saved_name);
         $result = ['name' => $original, 'ok' => true, 'saved_as' => $saved_name];
+        if (is_array($visualAsset) && !empty($visualAsset['id'])) {
+            $result['asset_id'] = $visualAsset['id'];
+            $result['visual_role'] = $visualAsset['role'] ?? 'unassigned';
+            $result['brand_id'] = $visualAsset['brand_id'] ?? '';
+        }
+        if (is_array($sfxAsset) && !empty($sfxAsset['id'])) {
+            $result['asset_id'] = $sfxAsset['id'];
+            $result['sfx_role'] = 'sfx';
+            $result['brand_id'] = $sfxAsset['brand_id'] ?? '';
+        }
         if (!empty($master['attempted'])) {
             $result['master_prepared'] = !empty($master['prepared']);
             if (!empty($master['master_filename'])) {
@@ -585,7 +694,7 @@ foreach ($files as $file) {
             if (!empty($master['master_format'])) {
                 $result['master_format'] = $master['master_format'];
             }
-            if (!empty($master['asset_id'])) {
+            if (!empty($master['asset_id']) && empty($result['asset_id'])) {
                 $result['asset_id'] = $master['asset_id'];
             }
             if (!empty($master['prepared'])) {

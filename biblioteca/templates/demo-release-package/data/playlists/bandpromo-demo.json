@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "bandpromo-demo",
+  "slug": "bandpromo-demo",
+  "title": "bandPromo Demo Release",
+  "kind": "system",
+  "publish_date": "2020-01-01",
+  "release_id": "bandpromo-demo",
+  "description": "Album-style listening product for the Demo Release campaign.",
+  "short_description": "Demo listening product",
+  "poster_asset_id": "",
+  "entries": []
+}

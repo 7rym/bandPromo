@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "id": "bandpromo-demo",
+  "slug": "bandpromo-demo",
+  "title": "bandPromo Demo Release",
+  "release_date": "2020-01-01",
+  "locked": true,
+  "vip_early_days": 0,
+  "short_description": "Demo campaign umbrella for first-run installs.",
+  "catalog_id": "BP-DEMO",
+  "description": "bandPromo Demo Release owns the demo masters, identity, EPK stubs, gallery, Bio page, and listening products.",
+  "poster_asset_id": "",
+  "brand_id": "bandpromo-default",
+  "epk": {
+    "tagline": "Your music. Your site. Your fans.",
+    "genre": "Electronic / Demo",
+    "credits": "Demo content included with bandPromo.",
+    "press_contact": "",
+    "streaming_links": [],
+    "press_photo_asset_ids": []
+  },
+  "tracks": []
+}

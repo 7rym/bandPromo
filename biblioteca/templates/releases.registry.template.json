@@ -3,7 +3,7 @@
     "releases": [
         {
             "id": "bandpromo-demo",
-            "title": "bandPromo demo",
+            "title": "bandPromo Demo Release",
             "slug": "bandpromo-demo",
             "sort_order": 5,
             "system": true

@@ -77,7 +77,7 @@
                 const selectedClass = entry.id === selectedPageId ? ' playlist-editor-row-selected' : '';
                 const title = `${entry.emoji || '📝'} ${entry.title || entry.label || entry.id}`.trim();
                 const deleteBtn = !entry.required
-                    ? `<button type="button" class="page-pool-delete-btn" data-page-id="${escapeHtml(entry.id)}" data-page-title="${escapeHtml(entry.title || entry.label || entry.id)}" title="Delete page" aria-label="Delete ${escapeHtml(entry.title || entry.label || entry.id)}">🗑️</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-page-id="${escapeHtml(entry.id)}" data-page-title="${escapeHtml(entry.title || entry.label || entry.id)}" title="Delete page" aria-label="Delete ${escapeHtml(entry.title || entry.label || entry.id)}">🗑️</button>`
                     : '';
                 return `<li class="playlist-editor-row page-pool-row${selectedClass}" data-page-id="${escapeHtml(entry.id)}" aria-selected="${entry.id === selectedPageId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
@@ -85,7 +85,7 @@
                         <span class="playlist-track-meta">${escapeHtml(pageMetaLine(entry))}</span>
                     </span>
                     <span class="page-pool-row-actions">
-                        <button type="button" class="page-pool-edit-btn" data-page-id="${escapeHtml(entry.id)}" title="Edit page" aria-label="Edit ${escapeHtml(entry.title || entry.label || entry.id)}">✏️</button>
+                        <button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-page-id="${escapeHtml(entry.id)}" title="Edit page" aria-label="Edit ${escapeHtml(entry.title || entry.label || entry.id)}">✏️</button>
                         ${deleteBtn}
                     </span>
                 </li>`;
@@ -1488,7 +1488,7 @@
                         <div class="page-block-actions">
                             <button type="button" class="btn" data-action="move-up" data-block-index="${index}"${index === 0 ? ' disabled' : ''}>↑</button>
                             <button type="button" class="btn" data-action="move-down" data-block-index="${index}"${index === blocks.length - 1 ? ' disabled' : ''}>↓</button>
-                            <button type="button" class="icon-btn danger page-block-delete-btn" data-action="delete-block" data-block-index="${index}" title="Delete block" aria-label="Delete block">🗑️</button>
+                            <button type="button" class="icon-btn icon-btn--danger page-block-delete-btn" data-action="delete-block" data-block-index="${index}" title="Delete block" aria-label="Delete block">🗑️</button>
                         </div>
                     </div>
                     ${renderBlockFields(block, index)}

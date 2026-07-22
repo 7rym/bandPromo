@@ -1,8 +1,9 @@
 <?php
 /**
  * List media files for a given target directory.
- * Query param: ?target=audio|illustrations|photos|video|special|visual
+ * Query param: ?target=audio|illustrations|photos|video|special|sfx|visual
  * visual = merged illustrations + photos + video (operator Visual pool).
+ * sfx = Sound effects pool (brand UI audio).
  * Reads the media files index only — no DirectoryIterator / filesize on GET.
  * Admin-only.
  */
@@ -12,6 +13,7 @@ require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/audio-master-detail-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/theme-storage.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
 require_once __DIR__ . '/auto-build-tasks.php';
@@ -30,6 +32,7 @@ $dirs = [
     'photos'        => bandpromo_media_target_dir('photos'),
     'video'         => bandpromo_media_target_dir('video'),
     'special'       => bandpromo_media_target_dir('special'),
+    'sfx'           => bandpromo_media_target_dir('sfx'),
     'visual'        => dirname(__DIR__) . '/media',
 ];
 
@@ -41,6 +44,8 @@ if (!isset($dirs[$target])) {
 
 $includeHidden = isset($_GET['include_hidden']) && $_GET['include_hidden'] === '1';
 $releaseFilter = bandpromo_release_normalize_pool_filter((string) ($_GET['release'] ?? 'all'));
+$brandFilter = bandpromo_brand_normalize_pool_filter((string) ($_GET['brand'] ?? 'all'));
+$isBrandOwnedPool = in_array($target, ['special', 'sfx'], true);
 
 $dir = $dirs[$target];
 $files = [];
@@ -161,6 +166,70 @@ function bandpromo_audio_metadata_health_for_listing(
 }
 
 /**
+ * Attach brand title when an entry already has brand_id.
+ *
+ * @param array<string, mixed> $entry
+ * @return array<string, mixed>
+ */
+function bandpromo_list_media_attach_brand_labels(string $root, array $entry): array
+{
+    require_once __DIR__ . '/theme-storage.php';
+    $brandId = trim((string) ($entry['brand_id'] ?? ''));
+    $entry['brand_orphan'] = $brandId === '';
+    if ($brandId === '') {
+        $entry['brand_title'] = '';
+
+        return $entry;
+    }
+
+    try {
+        $document = bandpromo_theme_load_document($root, $brandId);
+        $title = trim((string) ($document['title'] ?? ''));
+        $entry['brand_title'] = $title !== '' ? $title : $brandId;
+    } catch (Throwable $throwable) {
+        $entry['brand_title'] = $brandId;
+    }
+
+    return $entry;
+}
+
+/**
+ * Attach catalogue release title/date when an entry already has release_id.
+ *
+ * @param array<string, mixed> $entry
+ * @return array<string, mixed>
+ */
+function bandpromo_list_media_attach_release_labels(string $root, array $entry): array
+{
+    $releaseId = trim((string) ($entry['release_id'] ?? ''));
+    if ($releaseId === '') {
+        if (!array_key_exists('release_title', $entry)) {
+            $entry['release_title'] = '';
+        }
+        if (!array_key_exists('release_date', $entry)) {
+            $entry['release_date'] = '';
+        }
+
+        return $entry;
+    }
+
+    try {
+        $document = bandpromo_release_load_document($root, $releaseId);
+        $entry['release_title'] = trim((string) ($document['title'] ?? ''));
+        $entry['release_date'] = trim((string) ($document['release_date'] ?? ''));
+    } catch (Throwable $throwable) {
+        if (!array_key_exists('release_title', $entry)) {
+            $entry['release_title'] = '';
+        }
+        if (!array_key_exists('release_date', $entry)) {
+            $entry['release_date'] = '';
+        }
+    }
+
+    return $entry;
+}
+
+/**
  * Infer media_type for Brand assets (media/special) from the file extension.
  */
 function bandpromo_list_media_special_media_type(string $filename): string
@@ -245,7 +314,39 @@ function bandpromo_list_media_build_entry(
         }
     }
 
+    if ($bucket === 'sfx') {
+        $entry['media_type'] = 'audio';
+        $entry['role'] = 'sfx';
+        $entry['pool_ready'] = true;
+        $entry['reference_info'] = bandpromo_media_reference_describe_file(
+            $root,
+            'sfx',
+            $filename,
+            null,
+            null,
+            null
+        );
+        $sfxAsset = bandpromo_asset_lookup_by_original_filename($root, $filename);
+        if (is_array($sfxAsset) && ($sfxAsset['kind'] ?? '') === 'sfx') {
+            $entry['asset_id'] = (string) ($sfxAsset['id'] ?? '');
+            $entry['brand_id'] = (string) ($sfxAsset['brand_id'] ?? '');
+            $entry['role'] = 'sfx';
+        }
+        $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
+        // Optional campaign context only — membership for this pool is brand-owned.
+        $brandReleaseId = bandpromo_release_id_for_brand_owned_asset($root, (string) ($entry['brand_id'] ?? ''));
+        if ($brandReleaseId !== '') {
+            $entry['release_id'] = $brandReleaseId;
+            $entry = bandpromo_list_media_attach_release_labels($root, $entry);
+        }
+    }
+
     if (in_array($bucket, ['illustrations', 'photos', 'video', 'special'], true)) {
+        // Brand assets must not list shell/SFX audio — those live under Sound effects.
+        if ($bucket === 'special' && ($entry['media_type'] ?? '') === 'audio') {
+            return null;
+        }
+
         $galleryIndex = null;
         if ($bucket === 'illustrations' || $bucket === 'special') {
             $galleryIndex = null;
@@ -264,17 +365,102 @@ function bandpromo_list_media_build_entry(
         if ($bucket === 'illustrations') {
             $entry['cover_info'] = $entry['reference_info'];
         }
+
+        $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($bucket);
+        $visualAsset = $intakeBucket !== ''
+            ? bandpromo_asset_lookup_visual($root, $filename, $intakeBucket)
+            : null;
+        if (is_array($visualAsset)) {
+            $entry['asset_id'] = (string) ($visualAsset['id'] ?? '');
+            $entry['brand_id'] = (string) ($visualAsset['brand_id'] ?? '');
+            $entry['role'] = (string) ($visualAsset['role'] ?? 'unassigned');
+            $entry['has_alpha'] = !empty($visualAsset['has_alpha']);
+            if (($visualAsset['media_type'] ?? '') !== '') {
+                $entry['media_type'] = (string) $visualAsset['media_type'];
+            }
+            if ($bucket === 'special' && ($entry['media_type'] ?? '') === 'audio') {
+                return null;
+            }
+            $delivery = is_array($visualAsset['delivery'] ?? null) ? $visualAsset['delivery'] : [];
+            if (isset($delivery['variants']) && is_array($delivery['variants'])) {
+                $entry['delivery_variants'] = $delivery['variants'];
+            }
+
+            $mediaType = (string) ($entry['media_type'] ?? 'image');
+            $required = $mediaType === 'video'
+                ? ['poster', 'standard-stream']
+                : ['thumb', 'card'];
+            $entry['required_variants'] = $required;
+            $missing = [];
+            foreach ($required as $variant) {
+                if (bandpromo_visual_resolve_url(
+                    $root,
+                    (string) ($visualAsset['id'] ?? $filename),
+                    $variant,
+                    $intakeBucket
+                ) === '') {
+                    $missing[] = $variant;
+                }
+            }
+            $entry['missing_variants'] = $missing;
+            $entry['pool_ready'] = $missing === [];
+            if ($missing !== []) {
+                $entry['pool_ready_reason'] = 'Missing delivery variant'
+                    . (count($missing) === 1 ? '' : 's')
+                    . ': ' . implode(', ', $missing);
+            }
+
+            $assetId = (string) ($visualAsset['id'] ?? $filename);
+            if ($mediaType === 'video') {
+                $posterResolved = bandpromo_visual_resolve_url($root, $assetId, 'poster', $intakeBucket);
+                $streamResolved = bandpromo_visual_resolve_url($root, $assetId, 'standard-stream', $intakeBucket);
+                if ($posterResolved !== '') {
+                    $entry['poster_url'] = $posterResolved;
+                }
+                if ($streamResolved !== '') {
+                    $entry['stream_url'] = $streamResolved;
+                    $entry['preview_url'] = $streamResolved;
+                }
+            } else {
+                $thumbResolved = bandpromo_visual_resolve_url($root, $assetId, 'thumb', $intakeBucket);
+                $cardResolved = bandpromo_visual_resolve_url($root, $assetId, 'card', $intakeBucket);
+                if ($thumbResolved !== '') {
+                    $entry['thumb_url'] = $thumbResolved;
+                }
+                if ($cardResolved !== '') {
+                    $entry['card_url'] = $cardResolved;
+                }
+            }
+        }
+
+        $brandReleaseId = bandpromo_release_id_for_brand_owned_asset($root, (string) ($entry['brand_id'] ?? ''));
+        if ($brandReleaseId !== '') {
+            $entry['release_id'] = $brandReleaseId;
+        } elseif (trim((string) ($entry['release_id'] ?? '')) === BANDPROMO_RELEASE_DEFAULT_ID
+            && !bandpromo_release_is_demo_filename($filename)
+        ) {
+            // Do not treat the legacy default-release fallback as catalogue membership.
+            $entry['release_id'] = '';
+        }
+
+        if ($bucket === 'special') {
+            $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
+            if ($brandReleaseId !== '') {
+                $entry = bandpromo_list_media_attach_release_labels($root, $entry);
+            }
+        } else {
+            $entry['release_orphan'] = trim((string) ($entry['release_id'] ?? '')) === '';
+            $entry = bandpromo_list_media_attach_release_labels($root, $entry);
+        }
     }
 
-    if (in_array($bucket, ['photos', 'video'], true)) {
+    if (in_array($bucket, ['photos', 'video'], true) && !array_key_exists('pool_ready', $entry)) {
         $entry['pool_ready'] = !empty($indexed['pool_ready']);
     }
 
-    if ($bucket === 'illustrations') {
-        // Artwork may not use pool_ready the same way; leave unset or true.
-        if (!array_key_exists('pool_ready', $entry)) {
-            $entry['pool_ready'] = true;
-        }
+    if ($bucket === 'illustrations' && !array_key_exists('pool_ready', $entry)) {
+        // Unregistered illustrations stay available (dual-read legacy optimal).
+        $entry['pool_ready'] = true;
     }
 
     if ($bucket === 'video') {
@@ -351,8 +537,29 @@ foreach ($allFiles as $entry) {
         continue;
     }
 
-    if ($releaseFilter === 'orphans') {
-        if ($target !== 'audio' || empty($entry['release_orphan'])) {
+    if ($isBrandOwnedPool) {
+        if ($brandFilter === 'orphans') {
+            $isOrphan = !empty($entry['brand_orphan']) || trim((string) ($entry['brand_id'] ?? '')) === '';
+            if (!$isOrphan) {
+                continue;
+            }
+        } elseif ($brandFilter !== 'all'
+            && bandpromo_brand_canonical_id((string) ($entry['brand_id'] ?? '')) !== $brandFilter
+        ) {
+            continue;
+        }
+    } elseif ($releaseFilter === 'orphans') {
+        $isOrphan = $target === 'audio'
+            ? !empty($entry['release_orphan'])
+            : (!empty($entry['release_orphan']) || trim((string) ($entry['release_id'] ?? '')) === '');
+        if (!$isOrphan) {
+            continue;
+        }
+    } elseif ($releaseFilter === 'releases') {
+        $onRelease = $target === 'audio'
+            ? empty($entry['release_orphan'])
+            : (trim((string) ($entry['release_id'] ?? '')) !== '' && empty($entry['release_orphan']));
+        if (!$onRelease) {
             continue;
         }
     } elseif ($releaseFilter !== 'all' && (string) ($entry['release_id'] ?? '') !== $releaseFilter) {

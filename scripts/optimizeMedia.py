@@ -52,6 +52,9 @@ COVER_OPTIMAL_MAX_EDGE = 720
 # Playlist rows / cover-flow thumbs (~70–100 CSS px).
 COVER_THUMB_MAX_EDGE = 100
 
+DELIVERY_CONTEXTS_FILE = SCRIPT_DIR / 'delivery-contexts.json'
+VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
+
 # Shell media sanity sizes (reduce first-paint bytes).
 # These are directly referenced from /media/special/* and must be kept stable URLs.
 SHELL_LOGO_MAX_HEIGHT_PX = 180
@@ -59,6 +62,52 @@ SHELL_BACKGROUND_MAX_HEIGHT_PX = 1080
 # If background is alpha-free PNG, we may optionally convert it to JPG for extra savings.
 SHELL_BACKGROUND_JPG_QUALITY = 70
 SHELL_BACKGROUND_JPG_MIN_IMPROVEMENT_RATIO = 0.10  # only switch if JPG is at least ~10% smaller
+
+
+def load_delivery_contexts():
+    """Load scripts/delivery-contexts.json; fall back to built-in defaults."""
+    defaults = {
+        'variants': {
+            'thumb': {'max_edge': COVER_THUMB_MAX_EDGE},
+            'card': {'max_edge': COVER_OPTIMAL_MAX_EDGE},
+            'logo': {'max_edge': 640},
+            'poster': {'max_edge': COVER_OPTIMAL_MAX_EDGE},
+        },
+        'role_variants': {
+            'default_image': ['thumb', 'card'],
+            'brand-logo': ['logo', 'thumb'],
+            'unassigned': ['thumb', 'card'],
+        },
+    }
+    if not DELIVERY_CONTEXTS_FILE.exists():
+        return defaults
+    try:
+        payload = json.loads(DELIVERY_CONTEXTS_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return defaults
+    if not isinstance(payload, dict):
+        return defaults
+    return payload
+
+
+DELIVERY_CONTEXTS = load_delivery_contexts()
+
+
+def variant_max_edge(variant_name, fallback=None):
+    variants = DELIVERY_CONTEXTS.get('variants') if isinstance(DELIVERY_CONTEXTS.get('variants'), dict) else {}
+    entry = variants.get(variant_name) if isinstance(variants.get(variant_name), dict) else {}
+    edge = entry.get('max_edge')
+    if edge is None:
+        return int(fallback if fallback is not None else COVER_OPTIMAL_MAX_EDGE)
+    try:
+        return max(0, int(edge))
+    except (TypeError, ValueError):
+        return int(fallback if fallback is not None else COVER_OPTIMAL_MAX_EDGE)
+
+
+# Prefer registry-driven edges when available.
+COVER_OPTIMAL_MAX_EDGE = variant_max_edge('card', COVER_OPTIMAL_MAX_EDGE) or COVER_OPTIMAL_MAX_EDGE
+COVER_THUMB_MAX_EDGE = variant_max_edge('thumb', COVER_THUMB_MAX_EDGE) or COVER_THUMB_MAX_EDGE
 
 try:
     from PIL import Image
@@ -447,6 +496,266 @@ def write_cover_delivery_variants(source_path, optimal_path, thumb_path, quality
         print("    ✓ Thumb fresh: {}".format(os.path.basename(thumb_path)))
 
     return wrote
+
+
+def image_source_has_alpha(source_path):
+    try:
+        with Image.open(str(source_path)) as img:
+            return png_has_visible_transparency(img)
+    except Exception:
+        return False
+
+
+def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75, preserve_alpha=False):
+    """
+    Write one delivery variant. When preserve_alpha is True and the source has
+    transparency, emit PNG; otherwise JPEG (flattening onto white only when needed).
+    """
+    if not os.path.exists(source_path):
+        print("    ⚠️  Source image not found: {}".format(source_path))
+        return None
+
+    max_edge = max(1, int(max_edge))
+    dest_path = Path(dest_path)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    use_png = bool(preserve_alpha and image_source_has_alpha(source_path))
+    if use_png and dest_path.suffix.lower() not in ('.png',):
+        dest_path = dest_path.with_suffix('.png')
+    elif not use_png and dest_path.suffix.lower() not in ('.jpg', '.jpeg'):
+        dest_path = dest_path.with_suffix('.jpg')
+
+    if use_png:
+        worker = (
+            "import sys\n"
+            "from PIL import Image\n"
+            "src, dest, max_edge = sys.argv[1], sys.argv[2], int(sys.argv[3])\n"
+            "img = Image.open(src)\n"
+            "if img.mode == 'P':\n"
+            "    img = img.convert('RGBA')\n"
+            "elif img.mode not in ('RGBA', 'LA'):\n"
+            "    img = img.convert('RGBA') if 'A' in img.getbands() else img.convert('RGB').convert('RGBA')\n"
+            "w, h = img.size\n"
+            "longest = max(w, h)\n"
+            "if longest > max_edge:\n"
+            "    scale = float(max_edge) / float(longest)\n"
+            "    new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))\n"
+            "    resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)\n"
+            "    img = img.resize(new_size, resample)\n"
+            "img.save(dest, 'PNG', optimize=True)\n"
+        )
+        args = [sys.executable, '-c', worker, source_path, str(dest_path), str(max_edge)]
+    else:
+        worker = (
+            "import sys\n"
+            "from PIL import Image\n"
+            "src, dest, quality, max_edge = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])\n"
+            "img = Image.open(src)\n"
+            "if img.mode in ('RGBA', 'LA', 'P'):\n"
+            "    background = Image.new('RGB', img.size, (255, 255, 255))\n"
+            "    if img.mode == 'P':\n"
+            "        img = img.convert('RGBA')\n"
+            "    background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)\n"
+            "    img = background\n"
+            "elif img.mode != 'RGB':\n"
+            "    img = img.convert('RGB')\n"
+            "w, h = img.size\n"
+            "longest = max(w, h)\n"
+            "if longest > max_edge:\n"
+            "    scale = float(max_edge) / float(longest)\n"
+            "    new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))\n"
+            "    resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)\n"
+            "    img = img.resize(new_size, resample)\n"
+            "img.save(dest, 'JPEG', quality=quality, optimize=True)\n"
+        )
+        args = [sys.executable, '-c', worker, source_path, str(dest_path), str(quality), str(max_edge)]
+
+    try:
+        result = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False,
+        )
+    except Exception as e:
+        return _copy_cover_fallback(source_path, str(dest_path), 'launcher error: {}'.format(e))
+
+    if result.returncode != 0 or not dest_path.exists():
+        return _copy_cover_fallback(source_path, str(dest_path), 'converter failed')
+
+    print("    ✓ Variant {}: {} (max {}px, {})".format(
+        dest_path.stem, dest_path.name, max_edge, 'PNG alpha' if use_png else 'JPEG'
+    ))
+    return str(dest_path)
+
+
+def visual_original_path_for_asset(asset):
+    bucket = str(asset.get('intake_bucket') or '').strip().lower()
+    filename = os.path.basename(str(asset.get('original_filename') or '').strip())
+    if not filename:
+        return None
+    mapping = {
+        'img': IMG_ORIG_DIR / filename,
+        'photo': PHOTO_ORIG_DIR / filename,
+        'special': ROOT_DIR / 'media' / 'special' / filename,
+        'video': ROOT_DIR / 'media' / 'video' / 'original' / filename,
+    }
+    path = mapping.get(bucket)
+    if path is None or not path.exists():
+        return None
+    return path
+
+
+def role_image_variants(role):
+    role_map = DELIVERY_CONTEXTS.get('role_variants') if isinstance(DELIVERY_CONTEXTS.get('role_variants'), dict) else {}
+    role = str(role or 'unassigned').strip().lower() or 'unassigned'
+    variants = role_map.get(role) or role_map.get('default_image') or ['thumb', 'card']
+    # Normalize legacy names and skip video-only variants for images.
+    out = []
+    for name in variants:
+        name = str(name).strip().lower()
+        if name in ('optimal', 'lightbox'):
+            name = 'card'
+        if name in ('poster', 'standard-stream'):
+            continue
+        if name and name not in out:
+            out.append(name)
+    if 'thumb' not in out:
+        out.insert(0, 'thumb')
+    if 'card' not in out:
+        out.append('card')
+    return out
+
+
+def variant_manifest_entry(abs_path):
+    path = Path(abs_path)
+    rel = str(path).replace(str(ROOT_DIR), '').replace('\\', '/')
+    if not rel.startswith('/'):
+        rel = '/' + rel
+    rel = rel.lstrip('/')
+    width = height = 0
+    try:
+        with Image.open(str(path)) as img:
+            width, height = img.size
+    except Exception:
+        pass
+    try:
+        size = path.stat().st_size
+    except Exception:
+        size = 0
+    from datetime import datetime, timezone
+    return {
+        'path': rel,
+        'width': int(width),
+        'height': int(height),
+        'format': path.suffix.lower().lstrip('.'),
+        'bytes': int(size),
+        'updated_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    }
+
+
+def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None):
+    """Patch registry.json delivery.variants for one visual asset."""
+    if not asset_id or not ASSET_REGISTRY_FILE.exists():
+        return False
+    try:
+        payload = json.loads(ASSET_REGISTRY_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = assets.get(asset_id)
+    if not isinstance(asset, dict):
+        return False
+    delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+    existing = delivery.get('variants') if isinstance(delivery.get('variants'), dict) else {}
+    existing.update(variants_map)
+    delivery['variants'] = existing
+    delivery['visual_ready'] = True
+    asset['delivery'] = delivery
+    if has_alpha is not None:
+        asset['has_alpha'] = bool(has_alpha)
+    assets[asset_id] = asset
+    payload['assets'] = assets
+    try:
+        ASSET_REGISTRY_FILE.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + '\n',
+            encoding='utf-8',
+        )
+        return True
+    except Exception as exc:
+        print("    ⚠️  Could not update registry for {}: {}".format(asset_id, exc))
+        return False
+
+
+def process_visual_image_asset(asset):
+    """Write media/visual/delivery/{id}/{variant} plus legacy dual-read copies."""
+    asset_id = str(asset.get('id') or '').strip()
+    source = visual_original_path_for_asset(asset)
+    if not asset_id or source is None:
+        return False
+
+    role = str(asset.get('role') or 'unassigned')
+    preserve_alpha = role in ('brand-logo', 'style-ref') or bool(asset.get('has_alpha'))
+    has_alpha = image_source_has_alpha(source)
+    if has_alpha:
+        preserve_alpha = True
+
+    delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
+    delivery_dir.mkdir(parents=True, exist_ok=True)
+    variants_written = {}
+
+    for variant in role_image_variants(role):
+        max_edge = variant_max_edge(variant, COVER_OPTIMAL_MAX_EDGE if variant != 'thumb' else COVER_THUMB_MAX_EDGE)
+        if max_edge <= 0:
+            max_edge = COVER_OPTIMAL_MAX_EDGE
+        dest = delivery_dir / ('{}.png'.format(variant) if preserve_alpha else '{}.jpg'.format(variant))
+        quality = 75 if variant != 'thumb' else 65
+        written = convert_image_delivery_variant(
+            str(source),
+            str(dest),
+            max_edge=max_edge,
+            quality=quality,
+            preserve_alpha=preserve_alpha,
+        )
+        if written:
+            variants_written[variant] = variant_manifest_entry(written)
+
+    # Dual-read: also refresh legacy optimal/thumb trees from the same source.
+    bucket = str(asset.get('intake_bucket') or '').strip().lower()
+    stem = source.stem
+    if bucket == 'photo':
+        legacy_opt = PHOTO_OPT_DIR / (stem + '.jpg')
+        legacy_thumb = PHOTO_THUMB_DIR / (stem + '.jpg')
+    else:
+        legacy_opt = IMG_OPT_DIR / (stem + '.jpg')
+        legacy_thumb = IMG_THUMB_DIR / (stem + '.jpg')
+    write_cover_delivery_variants(str(source), str(legacy_opt), str(legacy_thumb), quality=80)
+
+    if variants_written:
+        update_visual_asset_delivery(asset_id, variants_written, has_alpha=has_alpha)
+        return True
+    return False
+
+
+def load_registry_visual_image_queue():
+    payload = load_asset_registry()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    queue = []
+    for asset_id, asset in assets.items():
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or '').strip().lower() != 'visual':
+            continue
+        if str(asset.get('media_type') or '').strip().lower() != 'image':
+            continue
+        item = dict(asset)
+        item['id'] = str(asset.get('id') or asset_id)
+        queue.append(item)
+    queue.sort(key=lambda item: str(item.get('original_filename') or '').lower())
+    return queue
 
 
 def check_ffmpeg():
@@ -904,26 +1213,49 @@ def main():
         print("\n🖼️  Processing track cover images...")
         print("  ✓ No track-cover-specific work queued")
 
-    # ── Photos ──────────────────────────────────────────────────────────────────────
-    print("\n📷 Processing photos...")
+    # ── Visual registry image delivery (asset-id variants) ─────────────────────────
+    print("\n🎨 Processing visual registry image delivery...")
+    VISUAL_DELIVERY_ROOT.mkdir(parents=True, exist_ok=True)
+    visual_queue = load_registry_visual_image_queue()
+    visual_count = 0
+    visual_failed = 0
+    if visual_queue:
+        for asset in visual_queue:
+            label = asset.get('original_filename') or asset.get('id')
+            print(f"  Processing visual: {label}")
+            if process_visual_image_asset(asset):
+                visual_count += 1
+            else:
+                visual_failed += 1
+                print(f"    ⚠️  Skipped or failed: {label}")
+    else:
+        print("  ✓ No registered visual image assets")
+
+    # ── Photos (legacy dual-read trees; registry pass above is primary) ──────────
+    print("\n📷 Processing photos (legacy dual-read)...")
     photo_exts = {'.png', '.jpg', '.jpeg', '.webp'}
     photo_count = 0
+    registered_visual_names = {
+        os.path.basename(str(a.get('original_filename') or ''))
+        for a in visual_queue
+    }
     if PHOTO_ORIG_DIR.exists():
         for src in sorted(PHOTO_ORIG_DIR.iterdir()):
             if src.is_file() and src.suffix.lower() in photo_exts:
+                if src.name in registered_visual_names:
+                    continue
                 dest = PHOTO_OPT_DIR / (src.stem + '.jpg')
                 thumb = PHOTO_THUMB_DIR / (src.stem + '.jpg')
                 print(f"  Processing: {src.name} → {dest.name} + thumb")
                 write_cover_delivery_variants(str(src), str(dest), str(thumb), quality=80)
                 photo_count += 1
         if photo_count == 0:
-            print("  ✓ No photos found in original/")
+            print("  ✓ No unregistered photos found in original/")
     else:
         print(f"  ⚠️  Photo original directory not found: {PHOTO_ORIG_DIR}")
 
-    # ── User illustrations (img/original/ → img/optimal/ + img/thumb/) ─────────────
-    # These are user-supplied images for use in Bio HTML and other custom content.
-    print("\n🖼️  Processing user illustrations (img/original/)...")
+    # ── User illustrations (legacy dual-read for unregistered only) ────────────
+    print("\n🖼️  Processing user illustrations (legacy dual-read)...")
     IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
     IMG_THUMB_DIR.mkdir(parents=True, exist_ok=True)
     img_illus_count = 0
@@ -932,13 +1264,15 @@ def main():
     if IMG_ORIG_DIR.exists():
         for src in sorted(IMG_ORIG_DIR.iterdir()):
             if src.is_file() and src.suffix.lower() in photo_exts and src.name not in track_covers:
+                if src.name in registered_visual_names:
+                    continue
                 dest = IMG_OPT_DIR / (src.stem + '.jpg')
                 thumb = IMG_THUMB_DIR / (src.stem + '.jpg')
                 print(f"  Processing: {src.name} → {dest.name} + thumb")
                 write_cover_delivery_variants(str(src), str(dest), str(thumb), quality=80)
                 img_illus_count += 1
         if img_illus_count == 0:
-            print("  ✓ No user illustrations found in img/original/")
+            print("  ✓ No unregistered illustrations found in img/original/")
     else:
         print(f"  ⚠️  img/original/ directory not found: {IMG_ORIG_DIR}")
 
@@ -990,11 +1324,13 @@ def main():
         print("   Failed           : 0")
     print(f"   Photos optimized       : {photo_count}")
     print(f"   Illustrations optimized: {img_illus_count}")
+    print(f"   Visual registry images : {visual_count} (failed {visual_failed})")
     print(f"   Cleaned up files       : {removed}")
     if include_audio:
         print(f"   Audio output     : {AUDIO_OPT_DIR}")
     print(f"   Image output     : {IMG_OPT_DIR} / {IMG_THUMB_DIR}")
     print(f"   Photo output     : {PHOTO_OPT_DIR} / {PHOTO_THUMB_DIR}")
+    print(f"   Visual delivery  : {VISUAL_DELIVERY_ROOT}")
 
     if (MEDIA_DIR / 'share.jpg').exists():
         print(f"\n   ⚠️  Legacy media/share.jpg found — safe to delete (now handled by makeSocial.py)")

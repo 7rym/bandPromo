@@ -330,7 +330,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 illustrations:  { accept: '.png,.jpg,.jpeg',               target: 'illustrations' },
                 photos:         { accept: '.png,.jpg,.jpeg,.webp',         target: 'photos'        },
                 visual:         { accept: '.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov', target: 'visual' },
-                special:        { accept: '.flac,.mp3,.wav,.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.svg,.gif', target: 'special' },
+                special:        { accept: '.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.svg,.gif', target: 'special' },
+                sfx:            { accept: '.flac,.mp3,.wav,.ogg,.m4a', target: 'sfx' },
             };
             const VISUAL_INTAKE_BUCKETS = ['illustrations', 'photos', 'video'];
             function normalizeFilesPanel(panel) {
@@ -369,6 +370,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let modalFiles  = [];
             let mediaPickerState = null;
             let poolReleaseFilter = 'all';
+            let poolBrandFilter = 'all';
+            let poolNameFilters = {
+                audio: '',
+                visual: '',
+                special: '',
+                sfx: '',
+            };
             let releasesCatalog = [];
             const releaseFilterListeners = [];
             function registerReleaseFilterListener(listener) {
@@ -379,7 +387,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let poolTypeFilters = {
                 visual: 'all',
                 special: 'all',
+                sfx: 'all',
             };
+            let poolBrandFilters = {
+                visual: 'all',
+                special: 'all',
+                sfx: 'all',
+            };
+            let brandFilterCatalog = [];
+            let brandFilterCatalogLoaded = false;
             let poolViewModes = {
                 visual: (() => {
                     try {
@@ -397,16 +413,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return 'grid';
                     }
                 })(),
+                sfx: 'list',
             };
             let activePoolAsset = { panel: null, key: null };
             const mediaReferenceFilters = {
                 visual: 'all',
                 special: 'all',
+                sfx: 'all',
                 photos: 'all',
                 video: 'all',
             };
-            const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video', 'special']);
-            const poolPanelTypes = new Set(['visual', 'special']);
+            const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video']);
+            const poolPanelTypes = new Set(['visual', 'special', 'sfx']);
             let audioDisplayMode = 'master';
             let expandedAudioFile = null;
             const mediaSelectionState = new Map();
@@ -452,6 +470,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 illustrations: 'Illustrations',
                 photos: 'Photos',
                 special: 'Brand assets',
+                sfx: 'Sound effects',
             };
             const mediaPathMap = {
                 audio: '/media/audio/original',
@@ -459,6 +478,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 illustrations: '/media/img/original',
                 photos: '/media/photo/original',
                 special: '/media/special',
+                sfx: '/media/sfx/original',
             };
 
             function resolveFileIntakeBucket(file, panelType = '') {
@@ -517,7 +537,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function selectionDisplayName(panelType, key) {
-                return parseMediaSelectionKey(panelType, key).name || String(key || '');
+                const parsed = parseMediaSelectionKey(panelType, key);
+                const rawName = parsed.name || String(key || '');
+                if (panelType === 'audio') {
+                    const file = (getMediaFileState('audio') || []).find((entry) => String(entry?.name || '') === rawName);
+                    if (file) {
+                        return formatAudioListRowBody(audioFileForDisplay(file)) || 'Untitled';
+                    }
+                    return 'Untitled';
+                }
+                if (poolPanelTypes.has(panelType)) {
+                    const file = findPoolAssetByKey(panelType, key);
+                    if (file) {
+                        return poolAssetHeadline(panelType, file);
+                    }
+                    return panelType === 'special' ? 'Brand asset' : (panelType === 'sfx' ? 'Sound effect' : 'Visual asset');
+                }
+                return rawName;
             }
 
             function isVisualMediaRow(panelType, file = null) {
@@ -1375,7 +1411,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="bandPromo is still registering this upload. Refresh the page in a moment or open Build if it stays here.">Registering…</span>');
                 }
 
-                if (audioDisplayMode === 'master' && !master.exists) {
+                if (!master.exists) {
                     const warning = String(master.prepare_warning || '').trim();
                     const title = warning !== ''
                         ? warning
@@ -1384,11 +1420,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 badges.push(formatAudioMetadataHealthBadges(file));
-
-                const releaseContextMarkup = formatAudioReleaseContextMarkup(file);
-                if (releaseContextMarkup !== '') {
-                    badges.push(releaseContextMarkup);
-                }
 
                 return badges.join(' ');
             }
@@ -1440,7 +1471,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (info.orphan === true) {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by a track, playlist, gallery, or theme settings">Orphan</span>');
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not used on a track, gallery, page, or brand slot">Unused</span>');
                 }
 
                 return badges.join(' ');
@@ -1454,34 +1485,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const info = getFileReferenceInfo(file);
                 const references = Array.isArray(info.references) ? info.references : [];
                 const badges = [];
-                const isVisualPanel = type === 'visual';
-                const isImageRow = isVisualPanel
-                    ? String(file?.media_type || '') !== 'video' && !isVideo(file?.name)
-                    : type === 'illustrations' || type === 'photos';
+                const inUse = Number(info.reference_count || 0) > 0 || (references.length > 0 && info.orphan !== true);
 
-                if (isVisualPanel && isImageRow && (info.role || info.origin)) {
-                    const coverBits = formatCoverInfoBadges(file);
-                    if (coverBits) {
-                        return coverBits;
-                    }
-                }
-
-                if (info.orphan === true) {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not referenced by a track, gallery, or theme settings">Orphan</span>');
-                } else if (references.length) {
-                    badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Referenced by a track, gallery, or theme settings">In use</span>');
-                }
-
-                const kinds = new Set(references.map((reference) => String(reference.kind || '')));
-                if (kinds.has('track-living-cover') || kinds.has('track-cover')) {
-                    badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Assigned to one or more tracks">Track</span>');
-                }
-                if (kinds.has('gallery-item')) {
-                    badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by a gallery item">Gallery</span>');
-                }
-                if ([...kinds].some((kind) => kind.startsWith('theme-') || kind === 'share-image' || kind === 'brand-logo'
-                    || kind === 'welcome-audio' || kind === 'loggedin-audio')) {
-                    badges.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Used by theme or share settings">Theme</span>');
+                if (inUse) {
+                    badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Used on a track, gallery, page, or brand slot">In use</span>');
+                } else {
+                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not used — safe to delete if you do not need it">Unused</span>');
                 }
 
                 return badges.join(' ');
@@ -1494,40 +1503,159 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const info = getFileReferenceInfo(file);
-                if (filter === 'orphans') {
-                    return info.orphan === true;
+                if (filter === 'orphans' || filter === 'unused') {
+                    return info.orphan === true || Number(info.reference_count || 0) <= 0;
                 }
                 if (filter === 'referenced') {
                     return Number(info.reference_count || 0) > 0;
-                }
-                if ((type === 'visual' || type === 'illustrations') && filter === 'track-covers') {
-                    return info.role === 'track-cover'
-                        || (Array.isArray(info.references) && info.references.some((reference) => String(reference.kind || '') === 'track-cover'));
-                }
-                if ((type === 'visual' || type === 'illustrations') && filter === 'build-generated') {
-                    return ['build-extracted', 'build-configured', 'build-sidecar-copy'].includes(String(info.origin || ''));
-                }
-                if (type === 'visual' && filter === 'living-covers') {
-                    return Array.isArray(info.references)
-                        && info.references.some((reference) => String(reference.kind || '') === 'track-living-cover');
                 }
 
                 return true;
             }
 
+            function mediaNameFilterNeedle(type) {
+                return String(poolNameFilters[type] || '').trim().toLowerCase();
+            }
+
+            function mediaOperatorSearchHaystack(type, file) {
+                const parts = [];
+                if (type === 'audio') {
+                    parts.push(formatAudioListRowBody(file));
+                    parts.push(file?.display_title);
+                    parts.push(file?.display_artist);
+                    parts.push(file?.display_version);
+                    parts.push(file?.release_title);
+                    return parts.filter(Boolean).join(' ').toLowerCase();
+                }
+
+                parts.push(poolAssetHeadline(type, file));
+                parts.push(...poolAssetReferenceLines(file));
+                parts.push(file?.release_title);
+                parts.push(file?.brand_title);
+                return parts.filter(Boolean).join(' ').toLowerCase();
+            }
+
+            function matchesMediaSearch(type, file, needle) {
+                const query = String(needle || '').trim().toLowerCase();
+                if (query === '') {
+                    return true;
+                }
+                return mediaOperatorSearchHaystack(type, file).includes(query);
+            }
+
+            function matchesMediaNameFilter(type, file) {
+                return matchesMediaSearch(type, file, mediaNameFilterNeedle(type));
+            }
+
             function filterReferencedMediaFiles(type, files) {
                 const list = Array.isArray(files) ? files : [];
-                if (!mediaReferenceFilterTypes.has(type)) {
-                    return list;
-                }
-                let filtered = list.filter((file) => matchesMediaReferenceFilter(type, file));
+                let filtered = list;
                 if (poolPanelTypes.has(type)) {
                     const typeFilter = poolTypeFilters[type] || 'all';
                     if (typeFilter !== 'all') {
                         filtered = filtered.filter((file) => poolAssetKind(type, file) === typeFilter);
                     }
                 }
+                filtered = filtered.filter((file) => matchesMediaNameFilter(type, file));
                 return filtered;
+            }
+
+            function syncMediaBrandFilterUi() {
+                populateBrandFilterSelects();
+                syncBrandFilterUi();
+            }
+
+            async function ensureBrandFilterCatalog() {
+                if (brandFilterCatalogLoaded) {
+                    return brandFilterCatalog;
+                }
+                try {
+                    const response = await fetch('/biblioteca/get-themes.php', { credentials: 'same-origin' });
+                    const data = await response.json();
+                    if (!response.ok || !data || data.ok === false) {
+                        throw new Error((data && data.error) || 'Could not load brands');
+                    }
+                    brandFilterCatalog = Array.isArray(data.themes) ? data.themes : [];
+                } catch (error) {
+                    brandFilterCatalog = [];
+                }
+                brandFilterCatalogLoaded = true;
+                syncMediaBrandFilterUi();
+                return brandFilterCatalog;
+            }
+
+            function normalizePoolBrandFilter(value) {
+                const next = String(value || 'all').trim() || 'all';
+                if (next === 'all' || next === 'orphans') {
+                    return next;
+                }
+                return next;
+            }
+
+            function brandFilterOptionsHtml() {
+                const options = [
+                    '<option value="all">All files</option>',
+                    '<option value="orphans">Orphans</option>',
+                ];
+                const brands = Array.isArray(brandFilterCatalog) ? brandFilterCatalog.slice() : [];
+                brands.sort((left, right) => String(left?.title || left?.name || left?.id || '').localeCompare(
+                    String(right?.title || right?.name || right?.id || ''),
+                    undefined,
+                    { sensitivity: 'base' }
+                ));
+                brands.forEach((brand) => {
+                    const id = String(brand?.id || '').trim();
+                    if (!id) {
+                        return;
+                    }
+                    const label = String(brand?.title || brand?.name || id).trim() || id;
+                    options.push(`<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(label)}</option>`);
+                });
+                return options.join('');
+            }
+
+            function populateBrandFilterSelects() {
+                document.querySelectorAll('[data-media-brand-filter]').forEach((select) => {
+                    const current = normalizePoolBrandFilter(select.value || poolBrandFilter || 'all');
+                    select.innerHTML = brandFilterOptionsHtml();
+                    const known = current === 'all'
+                        || current === 'orphans'
+                        || brandFilterCatalog.some((brand) => String(brand?.id || '') === current);
+                    const allowed = known ? current : 'all';
+                    select.value = allowed;
+                    if (select.value !== allowed) {
+                        select.value = 'all';
+                    }
+                });
+            }
+
+            function syncBrandFilterUi() {
+                document.querySelectorAll('[data-media-brand-filter]').forEach((select) => {
+                    const value = normalizePoolBrandFilter(poolBrandFilter);
+                    if (![...select.options].some((option) => option.value === value)) {
+                        populateBrandFilterSelects();
+                    }
+                    select.value = value;
+                    if (select.value !== value) {
+                        select.value = 'all';
+                    }
+                });
+            }
+
+            function setPoolBrandFilter(nextValue) {
+                poolBrandFilter = normalizePoolBrandFilter(nextValue);
+                // Keep legacy per-panel map in sync for any remaining callers.
+                poolBrandFilters.special = poolBrandFilter;
+                poolBrandFilters.sfx = poolBrandFilter;
+                syncBrandFilterUi();
+                if (activeMediaPanel === 'special' || activeMediaPanel === 'sfx') {
+                    loadMediaList(activeMediaPanel);
+                }
+                if (mediaPickerState
+                    && (mediaPickerState.activeTarget === 'special' || mediaPickerState.activeTarget === 'sfx')
+                ) {
+                    renderMediaPickerList(mediaPickerState.activeTarget);
+                }
             }
 
             function syncMediaReferenceFilterUi() {
@@ -1585,14 +1713,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return bandpromoAdminEscapeHtml(formatAudioListRowBody(mediaFile));
             }
 
+            function formatBrandContextMarkup(file) {
+                if (file?.brand_orphan === true || String(file?.brand_id || '').trim() === '') {
+                    return '<span class="media-file-release-content">Orphan</span>';
+                }
+
+                const brandTitle = String(file?.brand_title || '').trim();
+                if (brandTitle === '') {
+                    return '';
+                }
+
+                return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(brandTitle)}</span>`;
+            }
+
             function formatAudioReleaseContextMarkup(file) {
                 if (file?.release_orphan === true) {
-                    const releaseTitle = String(file?.release_title || '').trim();
-                    const orphanBadge = '<span class="badge audit-status-badge status-warning media-file-badge" title="Registered in catalog but not on any release track list yet">Orphan</span>';
-                    if (releaseTitle !== '' && file?.on_release === true) {
-                        return `${orphanBadge}<span class="media-file-release-context"><span class="media-file-release-name">on ${bandpromoAdminEscapeHtml(releaseTitle)}</span></span>`;
-                    }
-                    return orphanBadge;
+                    return '<span class="media-file-release-content">Orphan</span>';
                 }
 
                 const releaseDate = String(file?.release_date || '').trim();
@@ -1602,14 +1738,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (releaseDate !== '' && releaseTitle !== '') {
-                    return `<span class="media-file-release-context" title="Release"><strong class="media-file-release-date">${bandpromoAdminEscapeHtml(releaseDate)}</strong> on ${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                    return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseDate)} · ${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
                 }
 
                 if (releaseTitle !== '') {
-                    return `<span class="media-file-release-context">${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                    return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
                 }
 
-                return `<strong class="media-file-release-date" title="Release date">${bandpromoAdminEscapeHtml(releaseDate)}</strong>`;
+                return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseDate)}</span>`;
             }
 
             function formatAudioReleaseContextPlain(file) {
@@ -1672,7 +1808,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const mediaFile = file || {};
                 if (type === 'audio') {
                     const label = formatAudioListRowLabel(mediaFile);
-                    if (audioDisplayMode === 'master' && mediaFile.audio_master && mediaFile.audio_master.exists) {
+                    if (mediaFile.audio_master && mediaFile.audio_master.exists) {
                         return {
                             name: label,
                             subtitle: '',
@@ -1686,13 +1822,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         name: label,
                         subtitle: '',
                         size: Number(mediaFile.size) || 0,
-                        downloadVariant: 'original',
-                        downloadAvailable: true,
+                        downloadVariant: 'master',
+                        downloadAvailable: false,
                     };
                 }
 
                 return {
-                    name: String(mediaFile.name || ''),
+                    name: poolPanelTypes.has(type)
+                        ? poolAssetHeadline(type, mediaFile)
+                        : 'Media asset',
                     subtitle: '',
                     size: Number(mediaFile.size) || 0,
                     downloadVariant: 'original',
@@ -1708,7 +1846,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function buildAudioNameCell(display, file, type) {
                 const source = audioFileForDisplay(file);
                 const labelHtml = buildAudioListRowLabelHtml(source);
-                return `<span class="media-file-name-wrap"><span class="media-file-name">${labelHtml}</span><span class="media-file-meta">${formatAudioMasterBadges(source)}</span></span>`;
+                const releaseHtml = formatAudioReleaseContextMarkup(source);
+                const releaseTrail = releaseHtml !== '' ? ` ${releaseHtml}` : '';
+                return `<span class="media-file-name-wrap"><span class="media-file-name"><strong class="media-file-name-text">${labelHtml}</strong>${releaseTrail}</span><span class="media-file-meta">${formatAudioMasterBadges(source)}</span></span>`;
             }
 
             async function fetchAudioMasterDetailData(filename) {
@@ -1970,7 +2110,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (appliedMediaFocusFromQuery || !pendingMediaFocusFromQuery) {
                     return;
                 }
-                if (type !== 'audio' && type !== 'visual' && type !== 'special') {
+                if (type !== 'audio' && type !== 'visual' && type !== 'special' && type !== 'sfx') {
                     return;
                 }
                 const listEl = document.getElementById('filelist-' + type);
@@ -1999,7 +2139,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 targetRow.classList.add('media-file-row-focus');
                 targetRow.classList.add('visual-pool-card-focus');
                 targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                if (type === 'visual' || type === 'special') {
+                if (type === 'visual' || type === 'special' || type === 'sfx') {
                     openPoolAssetModal(type, String(targetRow.dataset.file || ''));
                 }
             }
@@ -2056,9 +2196,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const params = new URLSearchParams();
                 params.set('target', type);
 
-                const release = String(options.release || poolReleaseFilter || 'all').trim();
-                if (release && release !== 'all') {
-                    params.set('release', release);
+                if (type === 'special' || type === 'sfx') {
+                    const brand = String(options.brand || poolBrandFilter || 'all').trim();
+                    if (brand && brand !== 'all') {
+                        params.set('brand', brand);
+                    }
+                } else {
+                    const release = String(options.release || poolReleaseFilter || 'all').trim();
+                    if (release && release !== 'all') {
+                        params.set('release', release);
+                    }
                 }
 
                 const includeHidden = options.includeHidden === true;
@@ -2069,29 +2216,59 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return '/biblioteca/list-media.php?' + params.toString();
             }
 
-            function releaseFilterOptionsHtml(includeOrphans = false) {
-                const releases = Array.isArray(releasesCatalog) ? releasesCatalog : [];
-                let html = '<option value="all">All releases</option>';
-                if (includeOrphans) {
-                    html += '<option value="orphans">Orphaned files</option>';
-                }
-                releases.forEach((entry) => {
-                    const id = String(entry?.id || '').trim();
-                    if (!id) return;
-                    const title = bandpromoAdminEscapeHtml(String(entry.title || id));
-                    html += `<option value="${bandpromoAdminEscapeHtml(id)}">${title}</option>`;
+            function releaseFilterOptionsHtml() {
+                const options = [
+                    '<option value="all">All files</option>',
+                    '<option value="orphans">Orphans</option>',
+                ];
+                const releases = Array.isArray(releasesCatalog) ? releasesCatalog.slice() : [];
+                releases.sort((left, right) => {
+                    const leftDate = String(left?.release_date || '');
+                    const rightDate = String(right?.release_date || '');
+                    if (leftDate !== rightDate) {
+                        return rightDate.localeCompare(leftDate);
+                    }
+                    return String(left?.title || left?.id || '').localeCompare(
+                        String(right?.title || right?.id || ''),
+                        undefined,
+                        { sensitivity: 'base' }
+                    );
                 });
-                return html;
+                releases.forEach((release) => {
+                    const id = String(release?.id || '').trim();
+                    if (!id) {
+                        return;
+                    }
+                    const title = String(release?.title || id).trim() || id;
+                    const date = String(release?.release_date || '').trim();
+                    const label = date !== '' ? `${date} · ${title}` : title;
+                    options.push(`<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(label)}</option>`);
+                });
+                return options.join('');
+            }
+
+            function normalizePoolReleaseFilter(value) {
+                const next = String(value || 'all').trim() || 'all';
+                if (next === 'all' || next === 'orphans') {
+                    return next;
+                }
+                // Legacy aggregate option — treat as all and let operators pick a release.
+                if (next === 'releases') {
+                    return 'all';
+                }
+                return next;
             }
 
             function populateReleaseFilterSelects() {
                 document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
-                    const includeOrphans = select.closest('#panel-audio') !== null;
-                    const html = releaseFilterOptionsHtml(includeOrphans);
-                    const current = String(select.value || poolReleaseFilter || 'all');
-                    select.innerHTML = html;
-                    select.value = current;
-                    if (select.value !== current) {
+                    const current = normalizePoolReleaseFilter(select.value || poolReleaseFilter || 'all');
+                    select.innerHTML = releaseFilterOptionsHtml();
+                    const known = current === 'all'
+                        || current === 'orphans'
+                        || releasesCatalog.some((release) => String(release?.id || '') === current);
+                    const allowed = known ? current : 'all';
+                    select.value = allowed;
+                    if (select.value !== allowed) {
                         select.value = 'all';
                     }
                 });
@@ -2099,7 +2276,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function syncReleaseFilterUi() {
                 document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
-                    select.value = poolReleaseFilter;
+                    const value = normalizePoolReleaseFilter(poolReleaseFilter);
+                    if (![...select.options].some((option) => option.value === value)) {
+                        populateReleaseFilterSelects();
+                    }
+                    select.value = value;
+                    if (select.value !== value) {
+                        select.value = 'all';
+                    }
                 });
             }
 
@@ -2128,10 +2312,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     .filter((file) => isPreviewable(file.name, file, type))
                     .map((file) => {
                         const pathType = resolveFileIntakeBucket(file, type) || type;
+                        const caption = type === 'audio'
+                            ? (formatAudioListRowBody(audioFileForDisplay(file)) || 'Untitled')
+                            : (poolPanelTypes.has(type)
+                                ? poolAssetHeadline(type, file)
+                                : 'Preview');
                         if (!isVisualMediaRow(type, file)) {
                             return {
                                 src: buildMediaPath(pathType, file.name),
-                                name: file.name,
+                                name: caption,
+                                fileKey: file.name,
                                 type: 'image',
                             };
                         }
@@ -2141,7 +2331,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (previewUrl) {
                             return {
                                 src: previewUrl,
-                                name: file.name,
+                                name: caption,
+                                fileKey: file.name,
                                 type: 'video',
                                 poster: posterUrl,
                             };
@@ -2149,7 +2340,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (posterUrl) {
                             return {
                                 src: posterUrl,
-                                name: file.name,
+                                name: caption,
+                                fileKey: file.name,
                                 type: 'image',
                             };
                         }
@@ -2158,6 +2350,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     .filter(Boolean);
                 window._adminPreviewIdx = -1;
             }
+
 
             if (systemTabLink) {
                 systemTabLink.addEventListener('click', (event) => {
@@ -2296,7 +2489,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const totalBytes = items.reduce((sum, file) => sum + Math.max(0, Number(getDisplayedMediaInfo(type, file).size) || 0), 0);
                 const noun = count === 1 ? 'file' : 'files';
                 const totalCount = Number(options.totalCount);
-                if (mediaReferenceFilterTypes.has(type) && getMediaReferenceFilter(type) !== 'all' && Number.isFinite(totalCount) && totalCount !== count) {
+                if (Number.isFinite(totalCount) && totalCount !== count) {
                     return `(${count} of ${totalCount} ${totalCount === 1 ? 'file' : 'files'} shown, ${fmtSize(totalBytes)} visible)`;
                 }
                 return `(${count} ${noun}, ${fmtSize(totalBytes)} total)`;
@@ -2628,15 +2821,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const kinds = new Set(references.map((reference) => String(reference.kind || '')));
                 const role = String(info.role || '').trim();
 
+                if (panelType === 'sfx') {
+                    if (kinds.has('welcome-audio')) {
+                        return 'Welcome sound';
+                    }
+                    if (kinds.has('loggedin-audio')) {
+                        return 'Logged-in sound';
+                    }
+                    if (info.orphan === true || Number(info.reference_count || 0) === 0) {
+                        return 'Unused sound effect';
+                    }
+                    return 'Sound effect in use';
+                }
+
                 if (panelType === 'special') {
                     if (role === 'brand-logo' || kinds.has('brand-logo')) {
                         return 'Logo';
-                    }
-                    if (role === 'welcome-audio' || kinds.has('welcome-audio')) {
-                        return 'Welcome audio';
-                    }
-                    if (role === 'loggedin-audio' || kinds.has('loggedin-audio')) {
-                        return 'Logged-in audio';
                     }
                     if (role === 'share-image' || kinds.has('share-image')) {
                         return 'Share image';
@@ -2666,7 +2866,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return kind === 'video' ? 'Gallery video' : 'Gallery image';
                 }
                 if ([...kinds].some((value) => value.startsWith('theme-') || value === 'share-image' || value === 'brand-logo')) {
-                    return 'Theme media';
+                    return 'Brand media';
                 }
                 if (info.orphan === true || Number(info.reference_count || 0) === 0) {
                     return kind === 'video' ? 'Unused video' : 'Unused image';
@@ -2685,10 +2885,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pills.push({ text: 'Preparing', className: 'is-warning' });
                 } else if (file.delivery_pending) {
                     pills.push({ text: 'Queued', className: 'is-warning' });
-                } else if (info.orphan === true) {
-                    pills.push({ text: 'Orphan', className: 'is-warning' });
-                } else if (Number(info.reference_count || 0) > 0) {
+                } else if (Number(info.reference_count || 0) > 0 || (info.orphan !== true && Array.isArray(info.references) && info.references.length > 0)) {
                     pills.push({ text: 'In use', className: 'is-ok' });
+                } else {
+                    // Catalogue "Orphans" means no release — never reuse that word for unused assets.
+                    pills.push({ text: 'Unused', className: 'is-warning' });
                 }
                 return pills;
             }
@@ -2773,7 +2974,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return `<img src="${url}" alt="" loading="lazy">`;
                 }
                 if (kind === 'audio') {
-                    return `<span class="visual-pool-card-thumb-placeholder is-audio" title="Audio brand asset">♪</span>`;
+                    return `<span class="visual-pool-card-thumb-placeholder is-audio" title="${panelType === 'sfx' ? 'Sound effect' : 'Audio brand asset'}">♪</span>`;
                 }
                 if (kind === 'video') {
                     if (file.delivery_running || (file.delivery_pending && !poster && !preview)) {
@@ -2814,9 +3015,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     'track-cover': 'Track cover',
                     'track-living-cover': 'Living cover',
                     'gallery-item': 'Gallery',
-                    'theme-cover': 'Theme cover',
-                    'theme-background': 'Theme background',
-                    'theme-background-video': 'Theme background video',
+                    'theme-cover': 'Brand cover',
+                    'theme-background': 'Still background',
+                    'theme-background-video': 'Living background',
                     'share-image': 'Share image',
                     'brand-logo': 'Logo',
                     'welcome-audio': 'Welcome audio',
@@ -2835,7 +3036,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncPoolTypeFilterUi(panelType = null) {
-                const panels = panelType ? [panelType] : ['visual', 'special'];
+                const panels = panelType ? [panelType] : ['visual', 'special', 'sfx'];
                 panels.forEach((panel) => {
                     const current = poolTypeFilters[panel] || 'all';
                     document.querySelectorAll(`[data-pool-type-filter][data-pool-panel="${panel}"]`).forEach((el) => {
@@ -2852,9 +3053,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncPoolViewUi(panelType = null) {
-                const panels = panelType ? [panelType] : ['visual', 'special'];
+                const panels = panelType ? [panelType] : ['visual', 'special', 'sfx'];
                 panels.forEach((panel) => {
-                    const mode = poolViewModes[panel] === 'list' ? 'list' : 'grid';
+                    if (panel === 'sfx') {
+                        poolViewModes.sfx = 'list';
+                    }
+                    const mode = panel === 'sfx'
+                        ? 'list'
+                        : (poolViewModes[panel] === 'list' ? 'list' : 'grid');
                     const listEl = document.getElementById('filelist-' + panel);
                     if (listEl) {
                         listEl.classList.toggle('visual-pool-list--grid', mode === 'grid');
@@ -2874,14 +3080,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!poolPanelTypes.has(panelType)) {
                     return;
                 }
-                poolViewModes[panelType] = nextValue === 'list' ? 'list' : 'grid';
-                const storageKey = panelType === 'special'
-                    ? 'bandpromo_brand_pool_view'
-                    : 'bandpromo_visual_pool_view';
-                try {
-                    window.localStorage.setItem(storageKey, poolViewModes[panelType]);
-                } catch (error) {
-                    // Ignore storage failures; view still works for this session.
+                poolViewModes[panelType] = panelType === 'sfx'
+                    ? 'list'
+                    : (nextValue === 'list' ? 'list' : 'grid');
+                if (panelType !== 'sfx') {
+                    const storageKey = panelType === 'special'
+                        ? 'bandpromo_brand_pool_view'
+                        : 'bandpromo_visual_pool_view';
+                    try {
+                        window.localStorage.setItem(storageKey, poolViewModes[panelType]);
+                    } catch (error) {
+                        // Ignore storage failures; view still works for this session.
+                    }
                 }
                 syncPoolViewUi(panelType);
             }
@@ -2895,6 +3105,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const headline = poolAssetHeadline(panelType, file);
                 const sizeLabel = fmtSize(Number(file.size) || 0);
                 const pills = poolAssetStatusPills(file);
+                const releaseTrail = (panelType === 'special' || panelType === 'sfx')
+                    ? formatBrandContextMarkup(file)
+                    : formatAudioReleaseContextMarkup(file);
+                const titleHtml = `<span class="media-file-name visual-pool-card-meta-title"><strong class="media-file-name-text">${bandpromoAdminEscapeHtml(headline)}</strong>${releaseTrail !== '' ? ` ${releaseTrail}` : ''}</span>`;
                 const statusHtml = pills.length
                     ? `<span class="visual-pool-status-stack">${pills.map((pill) =>
                         `<span class="visual-pool-status-pill ${pill.className || ''}">${bandpromoAdminEscapeHtml(pill.text)}</span>`
@@ -2913,7 +3127,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     </button>
                     <div class="visual-pool-card-meta">
                         <div class="visual-pool-card-meta-copy">
-                            <span class="visual-pool-card-meta-title">${bandpromoAdminEscapeHtml(headline)}</span>
+                            ${titleHtml}
                             <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
                             <span class="media-file-meta">${formatMediaReferenceBadges(panelType, file)}</span>
                         </div>
@@ -3017,7 +3231,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const detailRows = [
                     ['Type', typeLabel],
                     ['Size', fmtSize(Number(file.size) || 0)],
-                    ['Path', `${getMediaBasePath(pathType)}/${file.name}`],
+                    [(panelType === 'special' || panelType === 'sfx') ? 'Brand' : 'Catalogue',
+                        (panelType === 'special' || panelType === 'sfx')
+                            ? (file.brand_orphan === true || String(file.brand_id || '').trim() === ''
+                                ? 'Orphan'
+                                : (String(file.brand_title || '').trim() || 'Linked brand'))
+                            : (file.release_orphan === true
+                                ? 'Orphan'
+                                : (String(file.release_title || '').trim() || 'Linked release'))],
                     ['Usage', info.orphan === true
                         ? 'Not referenced'
                         : (Number(info.reference_count || 0) > 0 ? 'In use' : 'Not referenced')],
@@ -3102,6 +3323,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const countEl = document.getElementById(type + '-count');
                 if (!listEl) return;
                 try {
+                    if (poolPanelTypes.has(type)) {
+                        await ensureBrandFilterCatalog();
+                    }
                     const allFiles = await fetchMediaFiles(type);
                     mediaFilesState.set(type, allFiles);
                     const files = filterReferencedMediaFiles(type, allFiles);
@@ -3109,7 +3333,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const selection = getMediaSelectionState(type);
                     if (countEl) {
                         countEl.textContent = formatMediaCountSummary(files, type, {
-                            totalCount: mediaReferenceFilterTypes.has(type) ? allFiles.length : files.length,
+                            totalCount: files.length !== allFiles.length ? allFiles.length : files.length,
                         });
                     }
                     if (!allFiles.length) {
@@ -3217,17 +3441,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function setMediaReferenceFilter(type, nextValue) {
                 if (type === 'visual') {
-                    const allowed = new Set(['all', 'referenced', 'orphans', 'track-covers', 'living-covers', 'build-generated']);
+                    const allowed = new Set(['all', 'referenced', 'unused', 'orphans']);
                     mediaReferenceFilters.visual = allowed.has(nextValue) ? nextValue : 'all';
-                } else if (type === 'special') {
-                    const allowed = new Set(['all', 'referenced', 'orphans']);
-                    mediaReferenceFilters.special = allowed.has(nextValue) ? nextValue : 'all';
-                } else if (type === 'illustrations') {
-                    const allowed = new Set(['all', 'track-covers', 'orphans', 'build-generated']);
-                    mediaReferenceFilters.visual = allowed.has(nextValue) ? nextValue : 'all';
-                } else if (type === 'photos' || type === 'video') {
-                    const allowed = new Set(['all', 'referenced', 'orphans']);
-                    mediaReferenceFilters[type] = allowed.has(nextValue) ? nextValue : 'all';
+                } else if (type === 'illustrations' || type === 'photos' || type === 'video') {
+                    // Legacy targets fold into Visual; keep unused synonym for orphans.
+                    const allowed = new Set(['all', 'referenced', 'unused', 'orphans']);
+                    mediaReferenceFilters[type === 'illustrations' ? 'visual' : type] = allowed.has(nextValue)
+                        ? nextValue
+                        : 'all';
                 } else {
                     return;
                 }
@@ -3244,13 +3465,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
+            document.querySelectorAll('[data-media-brand-filter]').forEach((select) => {
+                select.addEventListener('change', () => {
+                    setPoolBrandFilter(String(select.value || 'all'));
+                });
+            });
+
             function setPoolTypeFilter(panelType, nextValue) {
                 if (!poolPanelTypes.has(panelType)) {
                     return;
                 }
                 const allowed = panelType === 'special'
-                    ? new Set(['all', 'image', 'video', 'audio'])
-                    : new Set(['all', 'image', 'video']);
+                    ? new Set(['all', 'image', 'video'])
+                    : (panelType === 'sfx' ? new Set(['all', 'audio']) : new Set(['all', 'image', 'video']));
                 poolTypeFilters[panelType] = allowed.has(nextValue) ? nextValue : 'all';
                 syncPoolTypeFilterUi(panelType);
                 if (activeMediaPanel === panelType) {
@@ -3341,6 +3568,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             bindPoolListInteractions('visual');
             bindPoolListInteractions('special');
+            bindPoolListInteractions('sfx');
 
             const poolAssetPreviewEl = document.getElementById('poolAssetPreview');
             if (poolAssetPreviewEl) {
@@ -3371,7 +3599,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function setPoolReleaseFilter(nextValue) {
-                poolReleaseFilter = String(nextValue || 'all').trim() || 'all';
+                poolReleaseFilter = normalizePoolReleaseFilter(nextValue);
                 syncReleaseFilterUi();
 
                 if (activeMediaPanel) {
@@ -3383,38 +3611,46 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 releaseFilterListeners.forEach((listener) => listener());
             }
 
+            function setPoolNameFilter(panelType, nextValue) {
+                const key = String(panelType || '').trim();
+                if (!Object.prototype.hasOwnProperty.call(poolNameFilters, key)) {
+                    return;
+                }
+                poolNameFilters[key] = String(nextValue || '');
+                if (activeMediaPanel === key) {
+                    loadMediaList(key);
+                }
+            }
+
             document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
                 select.addEventListener('change', () => {
                     setPoolReleaseFilter(String(select.value || 'all'));
                 });
             });
 
-            document.querySelectorAll('[data-audio-display-toggle]').forEach((button) => {
-                button.addEventListener('click', () => {
-                    audioDisplayMode = audioDisplayMode === 'original' ? 'master' : 'original';
-                    syncAudioDisplayToggleUi();
-                    loadMediaList('audio');
-                });
-            });
-
-            document.querySelectorAll('[data-media-audio-display-filter]').forEach((select) => {
-                select.addEventListener('change', () => {
-                    const nextMode = String(select.value || 'master').trim();
-                    audioDisplayMode = nextMode === 'original' ? 'original' : 'master';
-                    syncAudioDisplayToggleUi();
-                    loadMediaList('audio');
+            document.querySelectorAll('[data-media-name-filter]').forEach((input) => {
+                input.addEventListener('input', () => {
+                    const panel = String(input.getAttribute('data-media-name-filter') || '').trim();
+                    setPoolNameFilter(panel, String(input.value || ''));
                 });
             });
 
             syncReleaseFilterUi();
+            syncBrandFilterUi();
             syncMediaReferenceFilterUi();
-            syncAudioDisplayToggleUi();
+            syncPoolViewUi();
             if (adminFilesTabActive || adminContentTabActive) {
-                loadReleasesCatalog().catch(() => {
-                    populateReleaseFilterSelects();
-                });
+                Promise.all([
+                    loadReleasesCatalog().catch(() => {
+                        populateReleaseFilterSelects();
+                    }),
+                    ensureBrandFilterCatalog().catch(() => {
+                        populateBrandFilterSelects();
+                    }),
+                ]);
             } else {
                 populateReleaseFilterSelects();
+                populateBrandFilterSelects();
             }
 
             document.querySelectorAll('.media-file-select-all').forEach((checkbox) => {
@@ -3462,6 +3698,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     illustrations: 'Add Illustrations',
                     photos: 'Add Photos',
                     special: 'Add Brand Assets',
+                    sfx: 'Add Sound Effects',
                 };
                 if (modalTitle)  modalTitle.textContent = labels[type] || 'Add Files';
                 if (modalInput)  modalInput.accept = (mediaCfg[type] || {}).accept || '*';
@@ -3487,35 +3724,61 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }).join('');
             }
 
+            function syncMediaPickerOwnershipFilters(target) {
+                const usesBrand = target === 'special' || target === 'sfx';
+                document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="release"]').forEach((el) => {
+                    el.hidden = usesBrand;
+                });
+                document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="brand"]').forEach((el) => {
+                    el.hidden = !usesBrand;
+                });
+            }
+
             async function renderMediaPickerList(target) {
                 if (!mediaPickerList || !mediaPickerState) return;
                 mediaPickerState.activeTarget = target;
                 renderMediaPickerTabs();
+                syncMediaPickerOwnershipFilters(target);
                 mediaPickerStatus.textContent = 'Loading…';
                 mediaPickerStatus.style.color = '#aaa';
                 mediaPickerList.innerHTML = '<span class="text-muted">Loading…</span>';
 
                 try {
+                    if (target === 'special' || target === 'sfx') {
+                        await ensureBrandFilterCatalog();
+                    }
                     const includeHidden = window.bandpromoDemoCatalogVisible === true;
-                    let files = await fetchMediaFiles(target, { release: 'all', includeHidden });
+                    let files = await fetchMediaFiles(target, { includeHidden });
                     if (target === 'visual' && Array.isArray(mediaPickerState.visualBuckets) && mediaPickerState.visualBuckets.length) {
                         const allowed = new Set(mediaPickerState.visualBuckets);
                         files = files.filter((file) => allowed.has(resolveFileIntakeBucket(file, 'visual')));
                     }
+                    const pickerSearchEl = document.getElementById('mediaPickerSearch');
+                    const pickerNeedle = pickerSearchEl ? String(pickerSearchEl.value || '') : '';
+                    files = files.filter((file) => matchesMediaSearch(target, file, pickerNeedle));
                     setAdminPreviewItems(files, target);
 
                     if (!files.length) {
-                        mediaPickerList.innerHTML = '<span class="text-muted">No files in this media group yet.</span>';
-                        mediaPickerStatus.textContent = 'No files found. Upload one to use it here.';
+                        mediaPickerList.innerHTML = '<span class="text-muted">No matching assets in this media group.</span>';
+                        mediaPickerStatus.textContent = 'No matching assets. Try another filter or upload one.';
                         return;
                     }
 
-                    mediaPickerStatus.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}. Click a thumbnail to use it.`;
+                    mediaPickerStatus.textContent = `${files.length} asset${files.length !== 1 ? 's' : ''} available in ${mediaTypeLabels[target] || target}. Click a thumbnail to use it.`;
                     mediaPickerList.innerHTML = `<div class="media-picker-grid">${files.map((file) => {
                         const pathType = resolveFileIntakeBucket(file, target) || target;
                         const encodedName = encodeURIComponent(file.name);
-                        const safeName = bandpromoAdminEscapeHtml(file.name);
+                        const label = target === 'audio'
+                            ? (formatAudioListRowBody(audioFileForDisplay(file)) || 'Untitled')
+                            : (poolPanelTypes.has(target)
+                                ? poolAssetHeadline(target, file)
+                                : 'Asset');
+                        const safeLabel = bandpromoAdminEscapeHtml(label);
                         const url = buildMediaUrl(pathType, file.name);
+                        const notReady = target === 'visual' && file.pool_ready === false;
+                        const reason = notReady
+                            ? String(file.pool_ready_reason || 'Delivery variants not ready yet')
+                            : '';
                         let mediaMarkup;
 
                         if (isImage(file.name)) {
@@ -3526,12 +3789,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             mediaMarkup = `<span class="media-picker-tile-icon">${extIcon(file.name)}</span>`;
                         }
 
-                        const previewBtn = isPreviewable(file.name, file, target)
-                            ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${pathType}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeName}">👁️</button>`
+                        const previewBtn = !notReady && isPreviewable(file.name, file, target)
+                            ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${pathType}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeLabel}">👁️</button>`
                             : '';
 
-                        return `<button type="button" class="media-picker-tile" data-picker-target="${pathType}" data-filename="${encodedName}" title="${safeName}" aria-label="${safeName}">
+                        if (notReady) {
+                            return `<button type="button" class="media-picker-tile is-disabled" disabled title="${bandpromoAdminEscapeHtml(reason)}" aria-label="${safeLabel}: ${bandpromoAdminEscapeHtml(reason)}">
+                                <span class="media-picker-tile-media">${mediaMarkup}</span>
+                                <span class="media-picker-tile-note">${bandpromoAdminEscapeHtml(reason)}</span>
+                            </button>`;
+                        }
+
+                        return `<button type="button" class="media-picker-tile" data-picker-target="${pathType}" data-filename="${encodedName}" title="${safeLabel}" aria-label="${safeLabel}">
                             <span class="media-picker-tile-media">${mediaMarkup}${previewBtn}</span>
+                            <span class="media-picker-tile-label">${safeLabel}</span>
                         </button>`;
                     }).join('')}</div>`;
                     mediaPickerStatus.style.color = '#aaa';
@@ -3584,6 +3855,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (mediaPickerTitle) {
                     mediaPickerTitle.textContent = mediaPickerState.title;
                 }
+                const pickerSearchEl = document.getElementById('mediaPickerSearch');
+                if (pickerSearchEl) {
+                    pickerSearchEl.value = '';
+                }
+                populateReleaseFilterSelects();
+                syncReleaseFilterUi();
+                populateBrandFilterSelects();
+                syncBrandFilterUi();
                 pickerModal.style.display = 'flex';
                 pickerModal.classList.add('media-picker-modal--open');
                 renderMediaPickerTabs();
@@ -3646,6 +3925,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const tab = event.target.closest('[data-picker-target]');
                     if (!tab || !mediaPickerState) return;
                     renderMediaPickerList(tab.dataset.pickerTarget);
+                });
+            }
+
+            const mediaPickerSearch = document.getElementById('mediaPickerSearch');
+            if (mediaPickerSearch) {
+                mediaPickerSearch.addEventListener('input', () => {
+                    if (!mediaPickerState) {
+                        return;
+                    }
+                    renderMediaPickerList(mediaPickerState.activeTarget);
                 });
             }
 
@@ -4581,7 +4870,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const items = window._adminPreviewItems || [];
                 lightbox.setItems(items);
-                const idx = items.findIndex(i => i.src === normalizedSrc || i.name === name);
+                const idx = items.findIndex((item) =>
+                    item.src === normalizedSrc
+                    || item.fileKey === name
+                    || item.name === name
+                );
                 if (idx >= 0) {
                     lightbox.openAt(idx);
                 } else {
@@ -4688,7 +4981,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     Array.isArray(entry.references) && entry.references.some((reference) => themeKinds.has(String(reference.kind || '')))
                 ));
                 if (hasThemeRefs) {
-                    extras.push('Theme or share-image settings still point at this file and will not be cleared automatically.');
+                    extras.push('Branding or share-image settings still point at this file and will not be cleared automatically.');
                 }
 
                 const regenerableOrphans = selectedFiles.filter((entry) => {
@@ -4810,17 +5103,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (deleteTitleEl) {
                     deleteTitleEl.textContent = deleteFiles.length > 1
                         ? (poolFriendly
-                            ? (deleteTarget === 'special' ? 'Delete selected brand assets?' : 'Delete selected visuals?')
+                            ? (deleteTarget === 'special'
+                                ? 'Delete selected brand assets?'
+                                : (deleteTarget === 'sfx' ? 'Delete selected sound effects?' : 'Delete selected visuals?'))
                             : 'Delete selected files?')
                         : (poolFriendly
-                            ? (deleteTarget === 'special' ? 'Delete this brand asset?' : 'Delete this visual?')
+                            ? (deleteTarget === 'special'
+                                ? 'Delete this brand asset?'
+                                : (deleteTarget === 'sfx' ? 'Delete this sound effect?' : 'Delete this visual?'))
                             : 'Delete file?');
                 }
                 if (deleteNameEl) {
                     if (poolFriendly) {
+                        const plural = deleteTarget === 'special'
+                            ? 'brand assets'
+                            : (deleteTarget === 'sfx' ? 'sound effects' : 'visuals');
                         deleteNameEl.textContent = deleteFiles.length > 1
-                            ? `${deleteFiles.length} ${deleteTarget === 'special' ? 'brand assets' : 'visuals'} selected`
-                            : poolAssetHeadline(deleteTarget, findPoolAssetByKey(deleteTarget, deleteFiles[0]) || { media_type: 'image' });
+                            ? `${deleteFiles.length} ${plural} selected`
+                            : poolAssetHeadline(deleteTarget, findPoolAssetByKey(deleteTarget, deleteFiles[0]) || { media_type: deleteTarget === 'sfx' ? 'audio' : 'image' });
                     } else {
                         deleteNameEl.textContent = deleteFiles.length > 1
                             ? `${deleteFiles.length} files selected`
@@ -5593,7 +5893,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const selectedClass = id === selectedGalleryId ? ' playlist-editor-row-selected' : '';
                         const title = bandpromoAdminEscapeHtml(entry.title || id);
                         const deleteBtn = galleryCanDelete(entry)
-                            ? `<button type="button" class="page-pool-delete-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Delete gallery" aria-label="Delete ${title}">🗑️</button>`
+                            ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Delete gallery" aria-label="Delete ${title}">🗑️</button>`
                             : '';
                         return `<li class="playlist-editor-row gallery-pool-row page-pool-row${selectedClass}" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedGalleryId ? 'true' : 'false'}">
                             <span class="playlist-track-info">
@@ -5601,7 +5901,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(galleryMetaLine(entry))}</span>
                             </span>
                             <span class="page-pool-row-actions">
-                                <button type="button" class="page-pool-edit-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Edit gallery" aria-label="Edit ${title}">✏️</button>
+                                <button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Edit gallery" aria-label="Edit ${title}">✏️</button>
                                 ${deleteBtn}
                             </span>
                         </li>`;
@@ -5870,6 +6170,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 let activeItems = [];
                 let allFiles = [];
+                let galleryPendingFiles = [];
                 let dragSrc = null;
                 let draggedRows = [];
                 let dragSourceList = '';
@@ -6062,16 +6363,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function renderAvailable() {
                     pruneAvailableSelection();
                     const taken = activeSrcs();
-                    if (!allFiles.length) {
-                        availableEl.innerHTML = '<li class="player-layout-empty">No delivery-ready photos or videos in the pool yet. Upload under Files, or check Notifications for background delivery.</li>';
+                    if (!allFiles.length && !galleryPendingFiles.length) {
+                        availableEl.innerHTML = '<li class="player-layout-empty">No delivery-ready visuals in the pool yet. Upload under Files → Visual, or check Notifications for missing delivery variants.</li>';
                         return;
                     }
                     const available = allFiles.filter((file) => !taken.has(file.src));
-                    if (available.length === 0) {
+                    const pendingRows = galleryPendingFiles.map((file) => {
+                        const reason = file.pool_ready_reason || 'Delivery variants not ready yet';
+                        return `<li class="playlist-editor-row gallery-pool-row playlist-editor-row-pending" draggable="false" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" aria-disabled="true" title="${bandpromoAdminEscapeHtml(reason)}">
+                            ${renderThumbMarkup(file, true)}
+                            <span class="playlist-track-info">
+                                <strong>${bandpromoAdminEscapeHtml(file.name)}</strong>
+                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(reason)}</span>
+                            </span>
+                        </li>`;
+                    }).join('');
+                    if (available.length === 0 && !pendingRows) {
                         availableEl.innerHTML = '<li class="player-layout-empty">All available content is already in the gallery. Use ✕ on the right to move items back here.</li>';
                         return;
                     }
-                    availableEl.innerHTML = available.map((file) => {
+                    const readyRows = available.map((file) => {
                         const poster = resolveVideoPoster(file);
                         const selectedClass = selectedAvailable.has(file.src) ? ' playlist-editor-row-selected' : '';
                         return `<li class="playlist-editor-row gallery-pool-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" data-name="${bandpromoAdminEscapeHtml(file.name)}" aria-selected="${selectedAvailable.has(file.src) ? 'true' : 'false'}">
@@ -6083,6 +6394,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             </span>
                         </li>`;
                     }).join('');
+                    availableEl.innerHTML = readyRows + pendingRows;
                 }
 
                 function renderGalleryLists() {
@@ -6141,7 +6453,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 <input class="gallery-field-name" type="text" value="${bandpromoAdminEscapeHtml(item.name || '')}" placeholder="Name" aria-label="Name" draggable="false">
                                 <input class="gallery-field-alt" type="text" value="${bandpromoAdminEscapeHtml(item.alt || '')}" placeholder="Alt text" aria-label="Alt text" draggable="false">
                             </div>
-                            <button type="button" class="gallery-remove-btn" title="Move to Available content" aria-label="Remove from gallery">✕</button>
+                            <button type="button" class="player-layout-remove-btn gallery-remove-btn" title="Move to Available content" aria-label="Remove from gallery">✕</button>
                         </li>`;
                     }).join('');
 
@@ -6466,23 +6778,38 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function reloadGalleryPool() {
                     if (!isEditing) return;
                     try {
-                        const [photoFiles, videoFiles] = await Promise.all([
-                            fetchMediaFiles('photos'),
-                            fetchMediaFiles('video'),
-                        ]);
-                        allFiles = [
-                            ...(photoFiles || []).filter((f) => f.pool_ready !== false).map((f) => ({
-                                src: '/media/photo/original/' + f.name,
-                                name: prettifyName(f.name),
-                                type: 'image',
-                            })),
-                            ...(videoFiles || []).filter((f) => f.pool_ready !== false).map((f) => ({
-                                src: '/media/video/original/' + f.name,
-                                name: prettifyName(f.name),
-                                type: 'video',
-                                poster: '/media/video/poster/' + f.name.replace(/\.[^.]+$/, '.jpg'),
-                            })),
-                        ];
+                        const visualFiles = await fetchMediaFiles('visual');
+                        const ready = [];
+                        const pending = [];
+                        (visualFiles || []).forEach((file) => {
+                            const kind = String(file.media_type || '').trim() === 'video' ? 'video' : 'image';
+                            const bucket = resolveFileIntakeBucket(file, 'visual') || (kind === 'video' ? 'video' : 'photos');
+                            const deliverySrc = kind === 'video'
+                                ? String(file.stream_url || file.preview_url || '').trim()
+                                : String(file.card_url || file.thumb_url || '').trim();
+                            const legacySrc = kind === 'video'
+                                ? `/media/video/original/${file.name}`
+                                : (bucket === 'photos'
+                                    ? `/media/photo/original/${file.name}`
+                                    : `/media/img/original/${file.name}`);
+                            const entry = {
+                                src: deliverySrc || legacySrc,
+                                name: prettifyName(file.name),
+                                type: kind,
+                                poster: kind === 'video'
+                                    ? (file.poster_url || (`/media/video/poster/${String(file.name).replace(/\.[^.]+$/, '.jpg')}`))
+                                    : '',
+                                pool_ready: file.pool_ready !== false,
+                                pool_ready_reason: String(file.pool_ready_reason || '').trim(),
+                            };
+                            if (entry.pool_ready) {
+                                ready.push(entry);
+                            } else {
+                                pending.push(entry);
+                            }
+                        });
+                        allFiles = ready;
+                        galleryPendingFiles = pending;
                     } catch (e) {
                         availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Failed to load media files.</li>';
                         return;
@@ -6540,6 +6867,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let defaultPlaylistId = 'bandpromo-demo';
                 let isEditing = false;
                 let pendingPlaylistDeleteId = '';
+                const releaseFilterId = String(new URLSearchParams(window.location.search).get('release') || '').trim();
 
                 const playlistDeleteModal = document.getElementById('playlistDeleteModal');
                 const playlistDeleteModalName = document.getElementById('playlistDeleteModalName');
@@ -6927,10 +7255,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const trackCount = Number(entry.track_count || 0);
                     const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
                     const publishDate = bandpromoAdminEscapeHtml(String(entry.publish_date || '').trim());
+                    const releaseId = bandpromoAdminEscapeHtml(String(entry.release_id || '').trim());
 
                     let line = bandpromoAdminEscapeHtml(tracksLabel);
                     if (publishDate) {
-                        line += ` released ${publishDate}`;
+                        line += ` · ${publishDate}`;
+                    }
+                    if (releaseId) {
+                        line += ` · release ${releaseId}`;
                     }
 
                     return line;
@@ -6994,16 +7326,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function renderPlaylistPoolList() {
                     if (!poolList) return;
-                    if (!playlists.length) {
-                        poolList.innerHTML = '<li class="player-layout-empty">No playlists available yet.</li>';
+                    const visible = releaseFilterId
+                        ? playlists.filter((entry) => String(entry.release_id || '').trim() === releaseFilterId)
+                        : playlists;
+                    if (!visible.length) {
+                        poolList.innerHTML = releaseFilterId
+                            ? '<li class="player-layout-empty">No playlists for this release yet.</li>'
+                            : '<li class="player-layout-empty">No playlists available yet.</li>';
                         return;
                     }
-                    poolList.innerHTML = playlists.map((entry) => {
+                    poolList.innerHTML = visible.map((entry) => {
                         const id = String(entry.id || '');
                         const selectedClass = id === selectedPlaylistId ? ' playlist-editor-row-selected' : '';
                         const title = bandpromoAdminEscapeHtml(entry.title || id);
                         const deleteBtn = playlistCanDelete(entry)
-                            ? `<button type="button" class="page-pool-delete-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Delete playlist" aria-label="Delete ${title}">🗑️</button>`
+                            ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Delete playlist" aria-label="Delete ${title}">🗑️</button>`
                             : '';
                         return `<li class="playlist-editor-row playlist-pool-row page-pool-row${selectedClass}" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedPlaylistId ? 'true' : 'false'}">
                             <span class="playlist-track-info">
@@ -7011,7 +7348,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 <span class="playlist-track-meta">${playlistPoolMetaHtml(entry)}</span>
                             </span>
                             <span class="page-pool-row-actions">
-                                <button type="button" class="page-pool-edit-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Edit playlist" aria-label="Edit ${title}">✏️</button>
+                                <button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Edit playlist" aria-label="Edit ${title}">✏️</button>
                                 ${deleteBtn}
                             </span>
                         </li>`;
@@ -7025,7 +7362,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         throw new Error(data.error || 'Could not load playlists');
                     }
                     playlists = Array.isArray(data.playlists) ? data.playlists : [];
-                    defaultPlaylistId = String(data.active_playlist_id || data.demo_playlist_id || playlists[0]?.id || 'bandpromo-demo');
+                    if (releaseFilterId) {
+                        const scoped = playlists.filter((entry) => String(entry.release_id || '').trim() === releaseFilterId);
+                        defaultPlaylistId = String(scoped[0]?.id || playlists[0]?.id || 'bandpromo-demo');
+                    } else {
+                        defaultPlaylistId = String(data.active_playlist_id || data.demo_playlist_id || playlists[0]?.id || 'bandpromo-demo');
+                    }
                     if (!selectedPlaylistId || !playlists.some((entry) => String(entry.id || '') === selectedPlaylistId)) {
                         selectedPlaylistId = defaultPlaylistId;
                     }
@@ -9100,7 +9442,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">⬇️ Download</a>`
                             : '';
                         const deleteHtml = job.status !== 'building'
-                            ? `<button type="button" class="btn btn-secondary site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}">🗑️ Delete</button>`
+                            ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}">🗑️ Delete</button>`
                             : '';
 
                         return `<tr data-backup-id="${escapeHtml(job.id)}">
@@ -9549,6 +9891,83 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (importBtn) {
                     importBtn.addEventListener('click', () => {
                         queueImport().catch(() => {});
+                    });
+                }
+
+                const releasePackageImportInput = document.getElementById('releasePackageImportInput');
+                const releasePackageImportBtn = document.getElementById('releasePackageImportBtn');
+                const releasePackageImportStatus = document.getElementById('releasePackageImportStatus');
+                const releasePackageImportFilename = document.getElementById('releasePackageImportFilename');
+
+                if (releasePackageImportInput instanceof HTMLInputElement) {
+                    releasePackageImportInput.addEventListener('change', () => {
+                        const file = releasePackageImportInput.files && releasePackageImportInput.files[0];
+                        if (releasePackageImportFilename) {
+                            releasePackageImportFilename.textContent = file ? file.name : '';
+                        }
+                        if (releasePackageImportStatus) {
+                            releasePackageImportStatus.textContent = '';
+                            releasePackageImportStatus.classList.remove('is-error');
+                        }
+                    });
+                }
+
+                async function importReleasePackage() {
+                    if (!(releasePackageImportInput instanceof HTMLInputElement) || !releasePackageImportInput.files?.length) {
+                        if (releasePackageImportStatus) {
+                            releasePackageImportStatus.textContent = 'Choose a release package ZIP first.';
+                            releasePackageImportStatus.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (releasePackageImportStatus) {
+                        releasePackageImportStatus.textContent = 'Importing…';
+                        releasePackageImportStatus.classList.remove('is-error');
+                    }
+                    if (releasePackageImportBtn instanceof HTMLButtonElement) {
+                        releasePackageImportBtn.disabled = true;
+                    }
+                    try {
+                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                            ? await refreshAdminCsrfToken()
+                            : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                        const formData = new FormData();
+                        formData.append('package', releasePackageImportInput.files[0]);
+                        if (csrfToken) {
+                            formData.append('csrf_token', csrfToken);
+                        }
+                        const response = await fetch('/biblioteca/import-release-package.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            body: formData,
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.ok === false) {
+                            throw new Error(data.error || 'Import failed');
+                        }
+                        const releaseId = String(data.release_id || '').trim();
+                        const message = data.message || 'Release package imported.';
+                        if (releasePackageImportStatus) {
+                            releasePackageImportStatus.textContent = message;
+                        }
+                        if (releaseId && window.confirm(`${message}\n\nOpen it in Content → Catalogue?`)) {
+                            window.location.href = `?tab=content&cntab=release&release=${encodeURIComponent(releaseId)}&edit=1`;
+                        }
+                    } catch (error) {
+                        if (releasePackageImportStatus) {
+                            releasePackageImportStatus.textContent = error.message || 'Import failed';
+                            releasePackageImportStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        if (releasePackageImportBtn instanceof HTMLButtonElement) {
+                            releasePackageImportBtn.disabled = false;
+                        }
+                    }
+                }
+
+                if (releasePackageImportBtn) {
+                    releasePackageImportBtn.addEventListener('click', () => {
+                        importReleasePackage().catch(() => {});
                     });
                 }
             })();

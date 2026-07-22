@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "description": "Delivery context registry: max pixel boxes and default variant names for visual assets. Optimizers and PHP resolvers read this instead of ad-hoc magic numbers.",
+  "variants": {
+    "thumb": {
+      "max_edge": 100,
+      "notes": "Playlist rows, cover-flow, admin thumbs (~70–100 CSS px)"
+    },
+    "card": {
+      "max_edge": 720,
+      "notes": "Player flip cover / optimal; lightbox shares card in v0.8"
+    },
+    "logo": {
+      "max_edge": 640,
+      "notes": "Player header logo (~320px CSS + 2x retina); prefer alpha-preserving PNG/WebP"
+    },
+    "grid": {
+      "max_edge": 320,
+      "notes": "Page gallery grid cells (~160px + 2x)"
+    },
+    "picture": {
+      "max_edge": 1200,
+      "notes": "Page picture blocks; content-column fraction"
+    },
+    "lightbox": {
+      "max_edge": 720,
+      "notes": "Deferred dedicated variant; currently aliases card"
+    },
+    "poster": {
+      "max_edge": 720,
+      "notes": "Video still / poster frame"
+    },
+    "standard-stream": {
+      "max_edge": 0,
+      "notes": "Browser-safe MP4 stream; dimensions follow source (even scale)"
+    }
+  },
+  "contexts": {
+    "logo": {
+      "where": "Player header .content-logo-img",
+      "variant": "logo",
+      "prefer_alpha": true
+    },
+    "thumb": {
+      "where": "Playlist row .playlist-track-cover, cover-flow, bio track list",
+      "variant": "thumb",
+      "prefer_alpha": false
+    },
+    "card": {
+      "where": "Player flip cover .cover-art",
+      "variant": "card",
+      "prefer_alpha": false
+    },
+    "admin_thumb": {
+      "where": "Admin media file list .media-file-thumb",
+      "variant": "thumb",
+      "prefer_alpha": false
+    },
+    "grid": {
+      "where": "Page gallery block .page-gallery-item img",
+      "variant": "grid",
+      "prefer_alpha": false
+    },
+    "picture": {
+      "where": "Page picture blocks",
+      "variant": "picture",
+      "prefer_alpha": false
+    },
+    "lightbox": {
+      "where": "Player/page lightbox enlarged view",
+      "variant": "card",
+      "prefer_alpha": false
+    },
+    "share": {
+      "where": "makeSocial.py Facebook/Twitter crops",
+      "variant": "card",
+      "prefer_alpha": false,
+      "notes": "Fixed aspect targets handled separately in makeSocial"
+    },
+    "video_poster": {
+      "where": "Video poster still",
+      "variant": "poster",
+      "prefer_alpha": false
+    },
+    "video_stream": {
+      "where": "Player/admin video playback",
+      "variant": "standard-stream",
+      "prefer_alpha": false
+    }
+  },
+  "role_variants": {
+    "track-cover": ["thumb", "card"],
+    "release-cover": ["thumb", "card"],
+    "gallery": ["thumb", "card"],
+    "page-illustration": ["thumb", "card", "picture"],
+    "brand-logo": ["logo", "thumb"],
+    "shell-background-image": ["card"],
+    "shell-background-video": ["poster", "standard-stream"],
+    "unassigned": ["thumb", "card"],
+    "default_image": ["thumb", "card"],
+    "default_video": ["poster", "standard-stream"]
+  }
+}

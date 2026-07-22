@@ -63,8 +63,11 @@ try {
                 'title' => (string) ($entry['title'] ?? ''),
                 'release_date' => (string) ($entry['release_date'] ?? ''),
                 'locked' => !empty($entry['locked']),
-                'has_epk' => trim((string) ($entry['epk']['tagline'] ?? '')) !== ''
-                    || trim((string) ($entry['description'] ?? '')) !== '',
+                'has_epk' => trim((string) ($entry['description'] ?? '')) !== ''
+                    || trim((string) ($entry['epk']['credits'] ?? '')) !== ''
+                    || trim((string) ($entry['epk']['press_contact'] ?? '')) !== ''
+                    || !empty($entry['epk']['streaming_links'])
+                    || !empty($entry['epk']['press_photo_asset_ids']),
             ],
         ]);
 

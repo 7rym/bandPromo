@@ -38,6 +38,7 @@ $dirs = [
     'photos'        => $root . '/media/photo/original',
     'video'         => $root . '/media/video/original',
     'special'       => $root . '/media/special',
+    'sfx'           => $root . '/media/sfx/original',
 ];
 
 $target = $body['target'] ?? '';
@@ -62,7 +63,7 @@ if ($requestedFiles === []) {
 }
 
 function bandpromo_collect_media_references(string $root, string $target, string $filename): array {
-    if (in_array($target, ['illustrations', 'photos', 'video', 'special'], true)) {
+    if (in_array($target, ['illustrations', 'photos', 'video', 'special', 'sfx'], true)) {
         return bandpromo_media_reference_collect_references($root, $target, $filename);
     }
 
@@ -254,6 +255,12 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         if (is_file($delivery_path) && @unlink($delivery_path)) {
             $video_delivery_deleted = true;
         }
+        $visualAsset = bandpromo_asset_lookup_visual($root, $safe, 'video');
+        if ($visualAsset !== null) {
+            require_once __DIR__ . '/media-delivery-helpers.php';
+            bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
+            bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
+        }
     } elseif (in_array($target, ['illustrations', 'photos'], true)) {
         $delivery_path = $target === 'photos'
             ? bandpromo_photo_delivery_path($root, $safe)
@@ -261,6 +268,25 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         if (is_file($delivery_path) && @unlink($delivery_path)) {
             $image_delivery_deleted = true;
         }
+        $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($target);
+        $visualAsset = bandpromo_asset_lookup_visual($root, $safe, $intakeBucket);
+        if ($visualAsset !== null) {
+            require_once __DIR__ . '/media-delivery-helpers.php';
+            bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
+            bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
+        }
+    } elseif ($target === 'special') {
+        $mediaType = bandpromo_asset_infer_media_type_from_filename($safe);
+        if (in_array($mediaType, ['image', 'video'], true)) {
+            $visualAsset = bandpromo_asset_lookup_visual($root, $safe, 'special');
+            if ($visualAsset !== null) {
+                require_once __DIR__ . '/media-delivery-helpers.php';
+                bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
+                bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
+            }
+        }
+    } elseif ($target === 'sfx') {
+        bandpromo_asset_unregister_by_original_filename($root, $safe);
     }
 
     bandpromo_media_set_hidden_for_install($target, $safe, false);

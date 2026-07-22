@@ -10,6 +10,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/release-package.php';
+require_once __DIR__ . '/release-campaign-package.php';
 require_once __DIR__ . '/publish-preflight-helpers.php';
 require_once __DIR__ . '/build-lock.php';
 require_once __DIR__ . '/build-launcher.php';
@@ -172,18 +173,19 @@ if ($mode === 'full') {
 file_put_contents($log_file, "[setup] Starting publish build...\n", FILE_APPEND);
 
 try {
-    $debug['default_theme_package'] = bandpromo_ensure_default_theme_package(
+    $debug['demo_release_package'] = bandpromo_ensure_demo_release_package(
         $root_dir,
         BANDPROMO_RELEASE_MANIFEST_URL,
         static function (string $message) use ($log_file): void {
             file_put_contents($log_file, $message . "\n", FILE_APPEND);
         }
     );
+    $debug['default_theme_package'] = $debug['demo_release_package']['media'] ?? null;
 } catch (Throwable $throwable) {
-    file_put_contents($log_file, '[starter pack] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
+    file_put_contents($log_file, '[demo release] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
     @unlink($lock_file);
     echo json_encode([
-        'error' => 'bandPromo could not prepare the starter design pack this site needs before the build can continue. ' . $throwable->getMessage(),
+        'error' => 'bandPromo could not prepare the Demo Release package this site needs before the build can continue. ' . $throwable->getMessage(),
         'debug' => $debug,
     ]);
     exit;

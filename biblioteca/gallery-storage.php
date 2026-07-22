@@ -102,11 +102,20 @@ function bandpromo_gallery_normalize_document(array $input, ?string $expectedId 
         }
     }
 
+    $releaseId = trim((string) ($input['release_id'] ?? ''));
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        $releaseId = '';
+    }
+    if ($releaseId === '' && $id === BANDPROMO_GALLERY_DEMO_ID) {
+        $releaseId = 'bandpromo-demo';
+    }
+
     return [
         'version' => BANDPROMO_GALLERY_REGISTRY_VERSION,
         'id' => $id,
         'title' => $title,
         'kind' => $kind,
+        'release_id' => $releaseId,
         'entries' => $entries,
     ];
 }
@@ -133,6 +142,7 @@ function bandpromo_gallery_default_document(): array
         'id' => BANDPROMO_GALLERY_DEMO_ID,
         'title' => 'bandPromo demo',
         'kind' => 'system',
+        'release_id' => 'bandpromo-demo',
         'entries' => [],
     ];
 }
@@ -640,6 +650,26 @@ function bandpromo_gallery_create(string $root, string $title, string $preferred
     bandpromo_gallery_write_document($root, $document);
 
     return bandpromo_gallery_registry_entry($root, $id) ?? [];
+}
+
+function bandpromo_gallery_set_release_id(string $root, string $galleryId, string $releaseId): void
+{
+    $galleryId = bandpromo_gallery_normalize_id($galleryId);
+    if ($galleryId === '') {
+        throw new InvalidArgumentException('Gallery id is required.');
+    }
+    if (bandpromo_gallery_is_protected_id($galleryId)) {
+        throw new InvalidArgumentException('The bandPromo demo gallery cannot be reassigned.');
+    }
+
+    $releaseId = trim($releaseId);
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        throw new InvalidArgumentException('Invalid release id.');
+    }
+
+    $document = bandpromo_gallery_load_document($root, $galleryId);
+    $document['release_id'] = $releaseId;
+    bandpromo_gallery_write_document($root, $document);
 }
 
 function bandpromo_gallery_update_details(string $root, string $galleryId, string $title): array

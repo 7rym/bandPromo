@@ -79,6 +79,23 @@ function bandpromo_page_save_document(string $root, array $document): array {
     ];
 }
 
+function bandpromo_page_set_release_id(string $root, string $pageId, string $releaseId): void
+{
+    $pageId = bandpromo_page_normalize_id($pageId);
+    if ($pageId === '' || !bandpromo_page_is_allowed_id($pageId, $root)) {
+        throw new InvalidArgumentException('Unknown page.');
+    }
+
+    $releaseId = trim($releaseId);
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        throw new InvalidArgumentException('Invalid release id.');
+    }
+
+    $document = bandpromo_page_load_document($root, $pageId);
+    $document['release_id'] = $releaseId;
+    bandpromo_page_save_document($root, $document);
+}
+
 function bandpromo_page_template_path(string $root, string $pageId): string {
     $pageId = bandpromo_page_normalize_id($pageId);
     return $root . DIRECTORY_SEPARATOR . 'biblioteca' . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . $pageId . '.template.json';

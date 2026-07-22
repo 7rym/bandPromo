@@ -53,7 +53,6 @@ Storage sketch on release membership:
 {
   "asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
   "slug": "belief-radio-version",
-  "track_number": 3,
   "vip_early_days": null,
   "availability_override": null
 }

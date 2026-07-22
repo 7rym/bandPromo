@@ -82,6 +82,17 @@
     flex: 0 0 auto;
 }
 
+.release-editor-back-btn {
+    margin-left: 0;
+}
+
+.release-editor-header-title {
+    margin: 0;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
 .page-editor-back-btn {
     font-size: 13px;
     padding: 6px 10px;
@@ -112,97 +123,8 @@
     font-weight: 600;
 }
 
-.page-pool-edit-btn {
-    flex: 0 0 auto;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #101010;
-    color: var(--text);
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    box-sizing: border-box;
-}
-
-.page-pool-edit-btn:hover {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.12);
-}
-
-.page-pool-lock-btn {
-    flex: 0 0 auto;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #101010;
-    color: var(--muted);
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    box-sizing: border-box;
-    padding: 0;
-}
-
-.page-pool-lock-btn:hover {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.12);
-    color: var(--text);
-}
-
-.page-pool-lock-btn--active {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.12);
-    color: var(--text);
-}
-
-.page-pool-delete-btn {
-    flex: 0 0 auto;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #101010;
-    color: #f87171;
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    box-sizing: border-box;
-}
-
-.page-pool-delete-btn:hover {
-    border-color: #f87171;
-    background: rgba(248, 113, 113, 0.12);
-}
-
-.page-pool-duplicate-btn {
-    flex: 0 0 auto;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #101010;
-    color: var(--text);
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    box-sizing: border-box;
-}
-
-.page-pool-duplicate-btn:hover {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.12);
-}
+/* Pool row icon tools: canonical styles live in admin.css
+   (.icon-btn--pool + .page-pool-*-btn aliases). */
 
 .page-pool-row-actions {
     display: inline-flex;
@@ -268,6 +190,39 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.release-hub-panel {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--text-muted, #888) 35%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.release-hub-panel[hidden] {
+    display: none !important;
+}
+
+.release-hub-heading {
+    margin: 0;
+    font-size: 14px;
+}
+
+.release-hub-children {
+    margin: 0;
+    padding-left: 1.2em;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.release-hub-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
 }
 
 .release-editor-active-body {
@@ -1386,6 +1341,116 @@
     min-width: 0;
 }
 
+.release-editor-form-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+.release-editor-form-label {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.release-editor-title-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.release-editor-title-control .content-editor-name-input {
+    width: min(100%, 28rem);
+    max-width: 28rem;
+}
+
+.release-editor-form-row .date-input-shell {
+    width: min(100%, 16rem);
+}
+
+.release-editor-form-row select {
+    width: min(100%, 28rem);
+}
+
+.release-editor-field-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: min(100%, 36rem);
+    min-width: 0;
+}
+
+.release-editor-field-stack textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.release-editor-form-row--textarea {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.release-editor-form-row--textarea .release-editor-field-stack {
+    width: 100%;
+    max-width: none;
+}
+
+.release-editor-section-tabs {
+    grid-column: 1 / -1;
+    margin: 2px 0 0;
+}
+
+.release-editor-section-tabs--header {
+    margin: 10px 12px 0;
+}
+
+.release-editor-section-panel {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding-top: 2px;
+}
+
+.release-editor-section-panel[hidden] {
+    display: none !important;
+}
+
+#releaseEditorCard[data-release-editor-section]:not([data-release-editor-section="base"]) #releaseCoverPanel,
+#releaseEditorCard[data-release-editor-section]:not([data-release-editor-section="tracks"]) #releaseActiveList,
+#releaseEditorCard[data-release-editor-section]:not([data-release-editor-section="tracks"]) #releaseAvailableSection {
+    display: none !important;
+}
+
+.release-associated-tracks {
+    max-height: 460px;
+    overflow-y: auto;
+    padding-right: 2px;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+/* Flat preview-style rows for Associated tracks only (not association pools). */
+#releaseActiveList > .release-associated-track-row.playlist-editor-row {
+    padding: 0.45rem 0.25rem;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-muted, #888) 18%, transparent);
+    border-radius: 0;
+    background: transparent;
+    cursor: default;
+    user-select: text;
+}
+
+#releaseActiveList > .release-associated-track-row.playlist-editor-row:last-child {
+    border-bottom: 0;
+}
+
+.release-associated-tracks.is-drop-target {
+    background: rgba(98, 179, 255, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(98, 179, 255, 0.45);
+}
+
 .release-catalog-meta-hint {
     grid-column: 1 / -1;
     margin: 0;
@@ -1465,18 +1530,6 @@
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 10px;
-}
-
-.btn-danger-outline {
-    border-color: rgba(248, 113, 113, 0.55);
-    color: #fecaca;
-    background: rgba(248, 113, 113, 0.08);
-}
-
-.btn-danger-outline:hover {
-    border-color: #f87171;
-    background: rgba(248, 113, 113, 0.18);
-    color: #fff;
 }
 
 .page-registry-form-grid label {

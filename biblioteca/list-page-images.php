@@ -1,14 +1,64 @@
 <?php
 /**
- * List optimized images that are safe to embed in static page content.
+ * List delivery-ready images for page picture blocks.
+ * Prefers Visual registry card/thumb variants; falls back to legacy optimal trees.
  * Admin-only.
  */
 require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/media-delivery-helpers.php';
+require_once __DIR__ . '/media-library-state.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
-$groups = [
+bandpromo_asset_registry_ensure_migrated($root);
+
+$images = [];
+$flatImages = [];
+$seen = [];
+
+$addItem = static function (string $title, string $value, string $thumbUrl, string $group) use (&$images, &$flatImages, &$seen): void {
+    $value = trim($value);
+    if ($value === '' || isset($seen[$value])) {
+        return;
+    }
+    $seen[$value] = true;
+    $item = [
+        'title' => $title,
+        'value' => $value,
+        'thumb_url' => $thumbUrl !== '' ? $thumbUrl : $value,
+        'group' => $group,
+    ];
+    $flatImages[] = $item;
+};
+
+// Prefer registered visual images with card delivery (dual-read).
+$registry = bandpromo_asset_load_registry($root);
+foreach ($registry['assets'] as $asset) {
+    if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+        continue;
+    }
+    if (($asset['media_type'] ?? '') !== 'image') {
+        continue;
+    }
+    $assetId = (string) ($asset['id'] ?? '');
+    $filename = basename((string) ($asset['original_filename'] ?? ''));
+    if ($assetId === '' || $filename === '') {
+        continue;
+    }
+    $bucket = (string) ($asset['intake_bucket'] ?? '');
+    $cardUrl = bandpromo_visual_resolve_url($root, $assetId, 'card', $bucket);
+    $thumbUrl = bandpromo_visual_resolve_url($root, $assetId, 'thumb', $bucket);
+    if ($cardUrl === '') {
+        continue;
+    }
+    $group = $bucket === 'photo' ? 'Photos' : ($bucket === 'special' ? 'Brand assets' : 'Illustrations');
+    $addItem($filename, $cardUrl, $thumbUrl !== '' ? $thumbUrl : $cardUrl, $group);
+}
+
+// Legacy optimal trees for unregistered files.
+$legacyGroups = [
     'Illustrations' => [
         'dir' => $root . '/media/img/optimal',
         'urlPrefix' => '/media/img/optimal/',
@@ -18,62 +68,46 @@ $groups = [
         'urlPrefix' => '/media/photo/optimal/',
     ],
 ];
-
 $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-$images = [];
 
-foreach ($groups as $title => $group) {
-    $items = [];
-    if (is_dir($group['dir'])) {
-        foreach (new DirectoryIterator($group['dir']) as $file) {
-            if ($file->isDot() || !$file->isFile()) {
-                continue;
-            }
-
-            $filename = $file->getFilename();
-            if (strcasecmp($filename, 'desktop.ini') === 0) {
-                continue;
-            }
-
-            $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            if (!in_array($extension, $allowedExtensions, true)) {
-                continue;
-            }
-
-            $items[] = [
-                'title' => $filename,
-                'value' => $group['urlPrefix'] . rawurlencode($filename),
-                'thumb_url' => $group['urlPrefix'] . rawurlencode($filename),
-                'group' => $title,
-            ];
-        }
-    }
-
-    if ($items) {
-        usort($items, static fn($left, $right) => strnatcasecmp($left['title'], $right['title']));
-        $images[] = [
-            'title' => $title,
-            'menu' => $items,
-        ];
-    }
-}
-
-$flatImages = [];
-foreach ($images as $group) {
-    if (!isset($group['menu']) || !is_array($group['menu'])) {
+foreach ($legacyGroups as $title => $group) {
+    if (!is_dir($group['dir'])) {
         continue;
     }
-    foreach ($group['menu'] as $item) {
-        if (!is_array($item)) {
+    foreach (new DirectoryIterator($group['dir']) as $file) {
+        if ($file->isDot() || !$file->isFile()) {
             continue;
         }
-        $flatImages[] = [
-            'title' => (string) ($item['title'] ?? ''),
-            'value' => (string) ($item['value'] ?? ''),
-            'thumb_url' => (string) ($item['thumb_url'] ?? $item['value'] ?? ''),
-            'group' => (string) ($group['title'] ?? ''),
-        ];
+        $filename = $file->getFilename();
+        if (strcasecmp($filename, 'desktop.ini') === 0) {
+            continue;
+        }
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (!in_array($extension, $allowedExtensions, true)) {
+            continue;
+        }
+        $url = $group['urlPrefix'] . rawurlencode($filename);
+        $addItem($filename, $url, $url, $title);
     }
 }
+
+usort($flatImages, static fn(array $left, array $right): int => strnatcasecmp(
+    (string) ($left['title'] ?? ''),
+    (string) ($right['title'] ?? '')
+));
+
+$grouped = [];
+foreach ($flatImages as $item) {
+    $groupTitle = (string) ($item['group'] ?? 'Images');
+    if (!isset($grouped[$groupTitle])) {
+        $grouped[$groupTitle] = [
+            'title' => $groupTitle,
+            'menu' => [],
+        ];
+    }
+    $grouped[$groupTitle]['menu'][] = $item;
+}
+
+$images = array_values($grouped);
 
 echo json_encode(['images' => $images, 'flat_images' => $flatImages], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

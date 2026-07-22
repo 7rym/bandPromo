@@ -81,15 +81,9 @@ function bandpromo_release_normalize_track_entry(array $entry): ?array
         return null;
     }
 
-    $trackNumber = (int) ($entry['track_number'] ?? 0);
-    if ($trackNumber < 0) {
-        $trackNumber = 0;
-    }
-
     $normalized = [
         'asset_id' => $assetId,
         'slug' => trim((string) ($entry['slug'] ?? '')),
-        'track_number' => $trackNumber,
         'vip_early_days' => $entry['vip_early_days'] ?? null,
         'availability_override' => $entry['availability_override'] ?? null,
     ];
@@ -293,6 +287,8 @@ function bandpromo_release_poster_filename_candidates(string $reference, ?array 
 
 function bandpromo_release_resolve_poster_preview_url(string $root, string $posterReference): string
 {
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
     $posterReference = trim($posterReference);
     if ($posterReference === '') {
         return '';
@@ -310,7 +306,19 @@ function bandpromo_release_resolve_poster_preview_url(string $root, string $post
 
     $asset = bandpromo_asset_is_asset_id($posterReference)
         ? bandpromo_asset_lookup_by_id($root, $posterReference)
-        : null;
+        : bandpromo_asset_lookup_by_original_filename($root, $posterReference);
+
+    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+        $url = bandpromo_visual_resolve_url(
+            $root,
+            (string) ($asset['id'] ?? ''),
+            'card',
+            (string) ($asset['intake_bucket'] ?? '')
+        );
+        if ($url !== '') {
+            return $url;
+        }
+    }
 
     foreach (bandpromo_release_poster_filename_candidates($posterReference, $asset) as $filename) {
         foreach (bandpromo_release_visual_media_bases() as $base) {
@@ -470,7 +478,7 @@ function bandpromo_release_default_registry(): array
         'releases' => [
             [
                 'id' => BANDPROMO_RELEASE_DEMO_ID,
-                'title' => 'bandPromo demo',
+                'title' => 'bandPromo Demo Release',
                 'slug' => BANDPROMO_RELEASE_DEMO_ID,
                 'sort_order' => 5,
                 'system' => true,
@@ -703,10 +711,11 @@ function bandpromo_release_demo_default_document(): array
         'version' => BANDPROMO_RELEASE_REGISTRY_VERSION,
         'id' => BANDPROMO_RELEASE_DEMO_ID,
         'slug' => BANDPROMO_RELEASE_DEMO_ID,
-        'title' => 'bandPromo demo',
+        'title' => 'bandPromo Demo Release',
         'release_date' => '2020-01-01',
         'locked' => true,
         'vip_early_days' => 0,
+        'brand_id' => BANDPROMO_BRAND_DEFAULT_ID,
         'tracks' => [],
     ];
 }
@@ -820,14 +829,11 @@ function bandpromo_release_sync_demo_audio_assets(string $root): void
     ));
 
     $tracks = [];
-    $trackNumber = 1;
     foreach ($demoAssets as $asset) {
         $tracks[] = [
             'asset_id' => (string) ($asset['id'] ?? ''),
             'slug' => trim((string) ($asset['slug'] ?? '')),
-            'track_number' => $trackNumber,
         ];
-        $trackNumber++;
     }
 
     $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
@@ -867,7 +873,49 @@ function bandpromo_release_id_for_media_file(string $root, string $target, strin
         return BANDPROMO_RELEASE_DEMO_ID;
     }
 
-    return BANDPROMO_RELEASE_DEFAULT_ID;
+    return '';
+}
+
+/**
+ * Resolve campaign release_id for a brand/visual/sfx asset (brand.release_id ↔ release.brand_id).
+ */
+function bandpromo_release_id_for_brand_owned_asset(string $root, string $brandId): string
+{
+    $brandId = trim($brandId);
+    if ($brandId === '') {
+        return '';
+    }
+
+    require_once __DIR__ . '/theme-storage.php';
+    try {
+        $brand = bandpromo_theme_load_document($root, $brandId);
+        $releaseId = bandpromo_release_normalize_id(trim((string) ($brand['release_id'] ?? '')));
+        if ($releaseId !== '') {
+            return $releaseId;
+        }
+    } catch (Throwable $throwable) {
+        // Fall through to reverse lookup.
+    }
+
+    foreach (bandpromo_release_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        if ($releaseId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_release_load_document($root, $releaseId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (bandpromo_brand_canonical_id((string) ($document['brand_id'] ?? '')) === bandpromo_brand_canonical_id($brandId)) {
+            return $releaseId;
+        }
+    }
+
+    return '';
 }
 
 function bandpromo_release_normalize_pool_filter(string $value): string
@@ -876,8 +924,8 @@ function bandpromo_release_normalize_pool_filter(string $value): string
     if ($value === '' || $value === 'all') {
         return 'all';
     }
-    if ($value === 'orphans') {
-        return 'orphans';
+    if ($value === 'orphans' || $value === 'releases') {
+        return $value;
     }
 
     return bandpromo_release_normalize_id($value);
@@ -1052,19 +1100,9 @@ function bandpromo_release_find_track_number_for_master(string $root, string $ma
         return '';
     }
 
-    $memberships = bandpromo_release_memberships_for_asset($root, (string) ($asset['id'] ?? ''));
-    if ($memberships === []) {
-        return '';
-    }
+    $display = bandpromo_asset_read_audio_display($asset);
 
-    $track = $memberships[0]['track'] ?? null;
-    if (!is_array($track)) {
-        return '';
-    }
-
-    $trackNumber = (int) ($track['track_number'] ?? 0);
-
-    return $trackNumber > 0 ? (string) $trackNumber : '';
+    return trim((string) ($display['tracknumber'] ?? ''));
 }
 
 function bandpromo_release_is_master_locked(string $root, string $masterFilename): bool
@@ -1113,6 +1151,65 @@ function bandpromo_release_is_system_managed(string $releaseId): bool
     return bandpromo_release_normalize_id($releaseId) === BANDPROMO_RELEASE_DEMO_ID;
 }
 
+/**
+ * Build the lightweight, operator-safe track list used by Catalogue preview.
+ *
+ * @return list<array{asset_id:string,title:string,version:string,artist:string,duration:int,release_date:string}>
+ */
+function bandpromo_release_admin_preview_tracks(string $root, array $document): array
+{
+    $releaseDate = trim((string) ($document['release_date'] ?? ''));
+    $tracks = [];
+
+    foreach ($document['tracks'] ?? [] as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $assetId = trim((string) ($track['asset_id'] ?? ''));
+        if ($assetId === '') {
+            continue;
+        }
+        $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+        if (!is_array($asset)) {
+            continue;
+        }
+        $masterFile = basename(trim((string) ($asset['master_filename'] ?? '')));
+        $labels = bandpromo_release_track_display_from_asset($asset, $masterFile);
+        $display = bandpromo_asset_read_audio_display($asset);
+
+        $tracks[] = [
+            'asset_id' => $assetId,
+            'title' => trim((string) ($labels['title'] ?? '')) ?: 'Untitled',
+            'version' => trim((string) ($labels['version'] ?? '')),
+            'artist' => trim((string) ($labels['artist'] ?? '')),
+            'duration' => max(0, (int) ($labels['duration'] ?? 0)),
+            'release_date' => trim((string) ($display['date'] ?? '')) ?: $releaseDate,
+        ];
+    }
+
+    usort($tracks, static function (array $left, array $right): int {
+        $dateCompare = strcmp(
+            (string) ($right['release_date'] ?? ''),
+            (string) ($left['release_date'] ?? '')
+        );
+        if ($dateCompare !== 0) {
+            return $dateCompare;
+        }
+
+        $artistCompare = strcasecmp(
+            (string) ($left['artist'] ?? ''),
+            (string) ($right['artist'] ?? '')
+        );
+        if ($artistCompare !== 0) {
+            return $artistCompare;
+        }
+
+        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+    });
+
+    return $tracks;
+}
+
 function bandpromo_release_admin_registry_entry(string $root, array $registryEntry): array
 {
     $releaseId = (string) ($registryEntry['id'] ?? '');
@@ -1126,6 +1223,7 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
     $entry['poster_asset_id'] = '';
     $entry['brand_id'] = '';
     $entry['epk'] = bandpromo_release_default_epk();
+    $entry['preview_tracks'] = [];
 
     try {
         $document = bandpromo_release_load_document($root, $releaseId);
@@ -1145,6 +1243,9 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
         $entry['epk'] = is_array($document['epk'] ?? null)
             ? bandpromo_release_normalize_epk($document['epk'])
             : bandpromo_release_default_epk();
+        $entry['preview_tracks'] = bandpromo_release_admin_preview_tracks($root, $document);
+        require_once __DIR__ . '/release-ownership-helpers.php';
+        $entry['ownership_children'] = bandpromo_release_ownership_children($root, $releaseId);
     } catch (Throwable $throwable) {
         // Keep registry-only fields when the document is missing.
     }
@@ -1633,6 +1734,9 @@ function bandpromo_release_enrich_track_row_labels(string $root, array $row, str
 
     $row['artist'] = $artist;
     $row['duration'] = $duration;
+    if (trim((string) ($row['release_date'] ?? '')) === '') {
+        $row['release_date'] = trim((string) ($display['date'] ?? ''));
+    }
 
     return $row;
 }
@@ -1819,6 +1923,7 @@ function bandpromo_release_track_display_from_asset(array $asset, string $master
         'artist' => $artist,
         'album' => $album,
         'duration' => $duration,
+        'release_date' => trim((string) ($display['date'] ?? '')),
     ];
 }
 
@@ -1835,6 +1940,7 @@ function bandpromo_release_track_row_from_asset(string $root, array $asset, stri
         'artist' => $labels['artist'],
         'album' => $labels['album'],
         'duration' => $labels['duration'],
+        'release_date' => $labels['release_date'],
         'origin' => bandpromo_release_is_demo_filename($masterFile) ? 'bundled-placeholder' : 'user-upload',
         'sourceTier' => 'release-container',
         'deliveryReady' => true,
@@ -1902,7 +2008,6 @@ function bandpromo_release_admin_editor_state(
                     'release_id' => $releaseId,
                 ];
         }
-        $row['track_number'] = (int) ($track['track_number'] ?? 0);
         $activeTracks[] = bandpromo_release_enrich_track_row_labels($root, $row, $releaseTitle);
     }
 
@@ -1971,15 +2076,10 @@ function bandpromo_release_append_track_to_document(string $root, string $releas
     }
 
     $asset = bandpromo_asset_lookup_by_id($root, $assetId);
-    $maxNumber = 0;
-    foreach ($document['tracks'] as $track) {
-        $maxNumber = max($maxNumber, (int) ($track['track_number'] ?? 0));
-    }
 
     $document['tracks'][] = [
         'asset_id' => $assetId,
         'slug' => trim((string) ($asset['slug'] ?? '')),
-        'track_number' => $maxNumber + 1,
     ];
     bandpromo_release_write_document($root, $document);
 }
@@ -2005,12 +2105,6 @@ function bandpromo_release_remove_asset_from_document(string $root, string $rele
         return;
     }
 
-    $trackNumber = 1;
-    foreach ($document['tracks'] as $index => $track) {
-        $document['tracks'][$index]['track_number'] = $trackNumber;
-        $trackNumber++;
-    }
-
     bandpromo_release_write_document($root, $document);
 }
 
@@ -2029,7 +2123,6 @@ function bandpromo_release_save_tracks(string $root, string $releaseId, array $m
     $tracks = [];
     $skipped = [];
     $assetIds = [];
-    $trackNumber = 1;
     foreach ($masterFiles as $masterFile) {
         $masterFile = basename((string) $masterFile);
         if ($masterFile === '') {
@@ -2054,9 +2147,7 @@ function bandpromo_release_save_tracks(string $root, string $releaseId, array $m
         $tracks[] = [
             'asset_id' => $assetId,
             'slug' => trim((string) ($asset['slug'] ?? '')),
-            'track_number' => $trackNumber,
         ];
-        $trackNumber++;
     }
 
     $oldAssetIds = [];
@@ -2109,13 +2200,11 @@ function bandpromo_release_save_tracks(string $root, string $releaseId, array $m
         bandpromo_asset_write_registry($root, $registry);
     }
 
-    $tagsSynced = bandpromo_release_sync_member_audio_tags($root, $releaseId);
-
     return [
         'tracks' => $tracks,
         'skipped' => $skipped,
         'count' => count($tracks),
-        'tags_synced' => $tagsSynced,
+        'tags_synced' => 0,
     ];
 }
 
@@ -2236,8 +2325,6 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
         $document['epk'] = bandpromo_release_normalize_epk($fields['epk']);
     }
     bandpromo_release_write_document($root, $document);
-
-    bandpromo_release_sync_member_audio_tags($root, $releaseId);
 
     $updated = bandpromo_release_registry_entry($root, $releaseId);
     if ($updated === null) {

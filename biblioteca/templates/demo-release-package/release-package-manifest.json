@@ -1,0 +1,12 @@
+{
+  "release_export_version": 1,
+  "release_id": "bandpromo-demo",
+  "title": "bandPromo Demo Release",
+  "paths": [
+    "data/releases/bandpromo-demo.json",
+    "data/brands/bandpromo-default.json",
+    "data/playlists/bandpromo-demo.json",
+    "data/galleries/bandpromo-demo.json",
+    "data/pages/bio.json"
+  ]
+}

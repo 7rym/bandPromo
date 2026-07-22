@@ -48,7 +48,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
 | Brand containers + semantic player colors (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
-| Visual pool + role tags + registry-scoped delivery | Operator Files UX shipped; registry/delivery Phases 0b–2 open |
+| Visual pool + role tags + registry-scoped delivery | Phases 0b–2 shipped (2026-07-21); Phase 3 remainders open |
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
@@ -526,6 +526,8 @@ Not in v0.8 implementation scope (documented for later milestones):
 
 Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 platform.
 
+Closed-beta fleet personas (Vanilla demo install, **Twisted Chronicles** band campaign, **HITZ** label + long-form shows): [USE-CASES.md](USE-CASES.md). Use those stories when giving feedback on Catalogue, player tabs, branding, and Lyrics vs Tracklist.
+
 **Checkpoint 2026-06-16 (v0.8.3 docs):** all betatesters are on the latest build (292+). Legacy HTML pages (`data/bio.html`, `data/faq.html`) are **not** imported automatically — content lives in `data/pages/*.json` only. If you still have old HTML files on the host from backups, copy text into the Pages editor manually.
 
 **Image delivery (v0.8 visual slice):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Operator UX shipped (2026-07-15/16):** Files → Visual merges the old Illustrations/Photos/Video tabs; Files → Brand assets is the label for legacy `media/special/`. **Still planned (Phases 0b–2):** `ast_{ULID}` visual identity, format-aware multi-variant delivery, brand filter. Workaround until migration: store transparent logos under **Brand assets** (`media/special/`).
@@ -539,16 +541,18 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 **Release and tour workflow (target model):**
 
-- **Releases** = catalog truth (singles, EP, album) with `release_date`, track membership, and future EPK/press metadata.
-- **Playlists** = listening campaigns (“Single 1 promo”, “Album launch”, “Tour 2026”) with their own `publish_date`; latest public system playlist opens by default in the player.
-- **Pages + gallery blocks** = story, bio, tour recaps, show photos — permanent on your site; social posts link **in**, not the other way around.
+- **Releases** = campaign umbrellas (not merely one CD tracklist) with `release_date`, track membership, brand, EPK/press metadata, and associated playlists/galleries/pages.
+- **Playlists** = listening packages (“Single 1”, “Album”, “Tour set”) with their own `publish_date`; latest public catalog playlist opens by default in the player.
+- **Pages** = story, bio/EPK, art pages — **target:** globals from Content → Player plus **contextual** pages for the playing track’s release ([USE-CASES.md](USE-CASES.md) Twisted Chronicles). Today only globals/`show_in_player` ship.
+- **Galleries** = containers embedded via page gallery blocks (no dedicated Gallery player tab).
 - **News module** (v1+) = dated tour/diary posts that archive forever; pages + galleries cover this pattern until then.
 - **Sharing** (playlist `/play/{id}`, track deep links, page `/pages/{id}`) gets richer cards after description + poster fields ship — not before core trust work.
 
 - **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Branding, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
 - **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
-- **Planned v0.8 management slice (remaining):** unified Visual tab; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
-- **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
+- **Planned (player context — policy locked 2026-07-22):** release-contextual player page tabs; per-track Lyrics/Tracklist role; brand shell override runtime ([PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md), [TODO.md](TODO.md)).
+- **Planned v0.8 management slice (remaining):** unified Visual tab polish; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
+- **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** (Vanilla / Twisted Chronicles / HITZ) to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.

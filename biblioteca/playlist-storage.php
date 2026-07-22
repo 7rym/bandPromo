@@ -597,6 +597,14 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
         }
     }
 
+    $releaseId = trim((string) ($input['release_id'] ?? ''));
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        $releaseId = '';
+    }
+    if ($releaseId === '' && $id === BANDPROMO_PLAYLIST_DEMO_ID) {
+        $releaseId = BANDPROMO_RELEASE_DEMO_ID;
+    }
+
     $document = [
         'version' => BANDPROMO_PLAYLIST_REGISTRY_VERSION,
         'id' => $id,
@@ -604,6 +612,7 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
         'title' => $title,
         'kind' => $kind,
         'publish_date' => $publishDate,
+        'release_id' => $releaseId,
         'description' => bandpromo_release_normalize_text_field($input['description'] ?? '', 4000),
         'short_description' => bandpromo_release_normalize_text_field($input['short_description'] ?? '', 300),
         'poster_asset_id' => $root !== null
@@ -661,6 +670,7 @@ function bandpromo_playlist_new_document(string $id, string $title): array
         'title' => trim($title) !== '' ? trim($title) : ucfirst(str_replace('-', ' ', $id)),
         'kind' => 'system',
         'publish_date' => gmdate('Y-m-d'),
+        'release_id' => $id === BANDPROMO_PLAYLIST_DEMO_ID ? BANDPROMO_RELEASE_DEMO_ID : '',
         'description' => '',
         'short_description' => '',
         'poster_asset_id' => '',
@@ -2369,9 +2379,11 @@ function bandpromo_playlist_admin_registry_entry(string $root, array $registryEn
             ? 'user'
             : 'system';
         $entry['track_count'] = count($document['entries'] ?? []);
+        $entry['release_id'] = trim((string) ($document['release_id'] ?? ''));
     } catch (Throwable $throwable) {
         // Keep registry-only fields when the document is missing.
         $entry['slug'] = (string) ($entry['slug'] ?? $playlistId);
+        $entry['release_id'] = '';
     }
 
     return $entry;
@@ -2521,10 +2533,12 @@ function bandpromo_playlist_create_from_release(string $root, string $releaseId)
         'description' => (string) ($document['description'] ?? ''),
         'short_description' => (string) ($document['short_description'] ?? ''),
         'poster_asset_id' => (string) ($document['poster_asset_id'] ?? ''),
+        'release_id' => $releaseId,
     ]);
 
     $playlistDocument = bandpromo_playlist_load_document($root, $playlistId);
     $playlistDocument['entries'] = $entries;
+    $playlistDocument['release_id'] = $releaseId;
     $playlistDocument = bandpromo_playlist_clear_player_payload_fields($playlistDocument);
     bandpromo_playlist_write_document($root, $playlistDocument);
 
@@ -2534,6 +2548,27 @@ function bandpromo_playlist_create_from_release(string $root, string $releaseId)
     }
 
     return bandpromo_playlist_admin_registry_entry($root, $updated);
+}
+
+function bandpromo_playlist_set_release_id(string $root, string $playlistId, string $releaseId): void
+{
+    $playlistId = bandpromo_playlist_normalize_id($playlistId);
+    if ($playlistId === '') {
+        throw new InvalidArgumentException('Playlist id is required.');
+    }
+    if (bandpromo_playlist_is_protected_id($playlistId)) {
+        throw new InvalidArgumentException('The bandPromo demo playlist cannot be reassigned.');
+    }
+
+    $releaseId = trim($releaseId);
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        throw new InvalidArgumentException('Invalid release id.');
+    }
+
+    $document = bandpromo_playlist_load_document($root, $playlistId);
+    $document['release_id'] = $releaseId;
+    $document = bandpromo_playlist_clear_player_payload_fields($document);
+    bandpromo_playlist_write_document($root, $document);
 }
 
 function bandpromo_playlist_update_details(string $root, string $playlistId, array $fields): array
@@ -2585,6 +2620,13 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, arr
     }
     if (array_key_exists('poster_asset_id', $fields)) {
         $document['poster_asset_id'] = bandpromo_release_normalize_poster_asset_id($root, $fields['poster_asset_id']);
+    }
+    if (array_key_exists('release_id', $fields)) {
+        $releaseId = trim((string) $fields['release_id']);
+        if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+            $releaseId = '';
+        }
+        $document['release_id'] = $releaseId;
     }
     $document = bandpromo_playlist_clear_player_payload_fields($document);
     bandpromo_playlist_write_document($root, $document);

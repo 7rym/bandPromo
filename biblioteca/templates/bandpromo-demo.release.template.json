@@ -2,9 +2,10 @@
     "version": 1,
     "id": "bandpromo-demo",
     "slug": "bandpromo-demo",
-    "title": "bandPromo demo",
+    "title": "bandPromo Demo Release",
     "release_date": "2020-01-01",
     "locked": true,
     "vip_early_days": 0,
+    "brand_id": "bandpromo-default",
     "tracks": []
 }

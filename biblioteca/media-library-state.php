@@ -159,6 +159,7 @@ function bandpromo_media_target_dir(string $target): ?string
         'photos' => $root . '/media/photo/original',
         'video' => $root . '/media/video/original',
         'special' => $root . '/media/special',
+        'sfx' => $root . '/media/sfx/original',
     ];
 
     return $dirs[$target] ?? null;
@@ -467,7 +468,7 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
 function bandpromo_media_files_index_rebuild_all(string $root): array
 {
     $counts = [];
-    foreach (['audio', 'illustrations', 'photos', 'video', 'special'] as $target) {
+    foreach (['audio', 'illustrations', 'photos', 'video', 'special', 'sfx'] as $target) {
         $counts[$target] = bandpromo_media_files_index_rebuild_target($root, $target);
     }
 

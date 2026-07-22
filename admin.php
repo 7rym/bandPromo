@@ -128,7 +128,7 @@ $welcomePrimaryNotice = '';
 foreach (['media', 'media/audio', 'media/audio/original', 'media/audio/optimal',
           'media/img', 'media/img/original', 'media/img/optimal', 'media/img/thumb',
           'media/photo', 'media/photo/original', 'media/photo/optimal', 'media/photo/thumb',
-          'media/video', 'media/special'] as $_d) {
+          'media/video', 'media/visual', 'media/visual/delivery', 'media/sfx', 'media/sfx/original', 'media/special'] as $_d) {
     $_p = __DIR__ . '/' . $_d;
     if (is_dir($_p)) @chmod($_p, 0755);
 }
@@ -463,7 +463,7 @@ $filesPanel = $_GET['fpanel'] ?? 'audio';
 if (in_array($filesPanel, ['photos', 'video', 'illustrations'], true)) {
     $filesPanel = 'visual';
 }
-if (!in_array($filesPanel, ['audio', 'visual', 'special'], true)) {
+if (!in_array($filesPanel, ['audio', 'visual', 'sfx', 'special'], true)) {
     $filesPanel = 'audio';
 }
 
@@ -741,7 +741,7 @@ if ($tab === 'analytics') {
                 <?php if ($welcomeSetupComplete): ?>
                     This page is your dashboard. Use <strong>Notifications</strong> in the header for live tasks (track/video preparation, Site update, validation), then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome. <strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist. Jump to <strong>Settings</strong> for identity and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Deliverables</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome. <strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist. Jump to <strong>Settings</strong> for site basics and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Deliverables</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
             </div>
 
@@ -1103,7 +1103,7 @@ if ($tab === 'analytics') {
 
             <div class="users-toolbar">
                 <h2>👥 Users (<?php echo count($users); ?>)</h2>
-                <button class="btn-primary" onclick="openUserModal()">➕ Add User</button>
+                <button class="btn btn-primary" onclick="openUserModal()">➕ Add User</button>
             </div>
 
             <!-- Search filter -->
@@ -1139,7 +1139,7 @@ if ($tab === 'analytics') {
                             </form>
                             <button class="icon-btn" title="Change password" onclick="openUserModal('<?php echo htmlspecialchars($uname, ENT_QUOTES); ?>')">🔑</button>
                             <?php if ($uname !== $_SESSION['username']): ?>
-                            <button class="icon-btn danger" title="Delete user" onclick="deleteUser('<?php echo htmlspecialchars($uname, ENT_QUOTES); ?>')">🗑️</button>
+                            <button class="icon-btn icon-btn--danger" title="Delete user" onclick="deleteUser('<?php echo htmlspecialchars($uname, ENT_QUOTES); ?>')">🗑️</button>
                             <?php endif; ?>
                         </span>
                     </div>
@@ -1157,6 +1157,7 @@ if ($tab === 'analytics') {
                 $filePanels = [
                     'audio'   => ['🎵', 'Audio'],
                     'visual'  => ['🎨', 'Visual'],
+                    'sfx'     => ['🔊', 'Sound effects'],
                     'special' => ['✨', 'Brand assets'],
                 ];
                 foreach ($filePanels as $fp => [$emoji, $label]):
@@ -1171,22 +1172,15 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-files">
                 <?php if ($filesPanel === 'audio'): ?>
-                    <strong>Your files are safe here.</strong>😁
-                    <br>bandPromo always keeps the original file you add, so you can work without worrying about losing it.
-                    <br>At the same time, bandPromo prepares the versions needed to give visitors a smoother, better listening experience.
-                    <br><strong>This list shows what is ready and what still needs a little attention.</strong>
-                    <br>Green means good, amber means it could be improved, and red means required data is missing and the build can be blocked.
-                    <br>Better track details mean clearer pages, better playback information, and a more polished experience for everyone, so click a track to show editable metadata tags.
-                    <br>Click a tag bullet to edit short fields such as artist, title, version, release, track, release date, genre, BPM, or key. Use the pencil button for cover art, description, lyrics, and packaging details.
-                    <br>
-                    <br><strong>After upload:</strong> bandPromo prepares delivery files automatically. Tracks appear in Content pools only after they are ready. Check <strong>Notifications</strong> only if preparation fails.
+                    Work with <strong>master</strong> audio files only. Filter by catalogue release or search by registered title. Green / amber / red badges show metadata health — click a row for quick tags, or the pencil for the full editor.
+                    <br><strong>After upload:</strong> bandPromo prepares delivery automatically. Tracks appear in Content pools when ready.
                 <?php elseif ($filesPanel === 'visual'): ?>
-                    One pool for still images and video — covers, photos, artwork, living covers, and gallery media.
-                    <br>Browse thumbnails, filter by type or usage, and open any asset for preview and details. Filenames stay hidden.
-                    <br><strong>After upload:</strong> bandPromo prepares image and video delivery files automatically. Check <strong>Notifications</strong> for video progress or failures.
+                    Still images and video for covers, galleries, and pages. Filter by catalogue release or search by how the asset is referenced. Orphans are not linked to a release.
+                    <br><strong>After upload:</strong> delivery variants prepare automatically — check Notifications if a video stalls.
+                <?php elseif ($filesPanel === 'sfx'): ?>
+                    Short brand UI clips (welcome, login, and similar). These belong to brands — assign them under Content → Branding. Not release tracks.
                 <?php elseif ($filesPanel === 'special'): ?>
-                    Brand assets for your site look — logos, share images, icons, welcome audio, and similar install branding files.
-                    <br><strong>After upload:</strong> usually no build needed. Transparent logos stay here until the Visual registry migration lands.
+                    Brand visuals: logos, share covers, and still/living backgrounds. These belong to brands. Shell audio belongs under Sound effects.
                 <?php endif; ?>
             </div>
 
@@ -1196,8 +1190,6 @@ if ($tab === 'analytics') {
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
                             <?php echo bandpromo_admin_files_permanent_warning_line(true); ?>
-                            <br>Drag and drop audio files here to add them directly. Click a track row to quick-edit common tags, or use the pencil button for the full metadata editor.
-                            <br>Select multiple files for group download or deletion.
                         </span>
                     </div>
                 </div>
@@ -1209,23 +1201,21 @@ if ($tab === 'analytics') {
                         <span class="media-file-list-header-thumb" aria-hidden="true"></span>
                         <div class="media-file-list-header-filters">
                             <label class="media-filter-label">
-                                <span class="visually-hidden">Filter audio by source</span>
-                                <select class="media-filter-select" data-media-audio-display-filter aria-label="Filter audio by source">
-                                    <option value="master">Master files</option>
-                                    <option value="original">Original files</option>
+                                <span class="visually-hidden">Filter by catalogue</span>
+                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
+                                    <option value="all">All files</option>
+                                    <option value="orphans">Orphans</option>
                                 </select>
                             </label>
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter by release</span>
-                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by release">
-                                    <option value="all">All releases</option>
-                                </select>
+                            <label class="media-filter-label media-filter-label--grow">
+                                <span class="visually-hidden">Filter by title</span>
+                                <input type="search" class="media-filter-input" data-media-name-filter="audio" placeholder="Filter by title…" autocomplete="off" aria-label="Filter audio by title">
                             </label>
                         </div>
                         <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
                         <span class="media-file-actions">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="current" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                             <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </span>
                     </div>
@@ -1239,8 +1229,7 @@ if ($tab === 'analytics') {
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>One visual pool for stills and video. Browse by look — tap a thumbnail for preview and details. Filenames stay hidden.
+                            <?php echo bandpromo_admin_files_permanent_warning_line(false); ?>
                         </span>
                     </div>
                 </div>
@@ -1254,16 +1243,16 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="visual" aria-pressed="false">Images</button>
                             <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false">Video</button>
                         </div>
-                        <label class="media-filter-label visual-pool-usage-filter">
-                            <span class="visually-hidden">Filter by usage</span>
-                            <select class="media-filter-select" data-media-filter-target="visual" aria-label="Filter visual assets by usage">
-                                <option value="all">All usage</option>
-                                <option value="referenced">In use</option>
+                        <label class="media-filter-label">
+                            <span class="visually-hidden">Filter by catalogue</span>
+                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
+                                <option value="all">All files</option>
                                 <option value="orphans">Orphans</option>
-                                <option value="track-covers">Track covers</option>
-                                <option value="living-covers">Living covers</option>
-                                <option value="build-generated">Build-generated</option>
                             </select>
+                        </label>
+                        <label class="media-filter-label media-filter-label--grow">
+                            <span class="visually-hidden">Filter by reference</span>
+                            <input type="search" class="media-filter-input" data-media-name-filter="visual" placeholder="Filter by reference…" autocomplete="off" aria-label="Filter visual assets by reference">
                         </label>
                         <div class="visual-view-toggle" role="group" aria-label="Visual pool layout">
                             <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="visual" aria-pressed="true" title="Grid view">Grid</button>
@@ -1280,13 +1269,48 @@ if ($tab === 'analytics') {
                 <div class="media-panel-footer"><span id="visual-count" class="media-count"></span></div>
             </div>
 
+            <!-- Sound effects (brand UI audio) -->
+            <div class="media-panel card" id="panel-sfx" <?php echo $filesPanel !== 'sfx' ? 'style="display:none"' : ''; ?>>
+                <div class="media-panel-header">
+                    <div class="media-panel-summary">
+                        <span class="media-panel-intro">
+                            <?php echo bandpromo_admin_files_permanent_warning_line(false); ?>
+                        </span>
+                    </div>
+                </div>
+                <div class="visual-pool-toolbar" data-media-list-header="sfx">
+                    <div class="visual-pool-toolbar-main">
+                        <label class="media-file-select-wrap visual-pool-select-all" title="Select or clear all visible files">
+                            <input type="checkbox" class="media-file-select-all" data-target="sfx" aria-label="Select all visible sound effects">
+                        </label>
+                        <label class="media-filter-label">
+                            <span class="visually-hidden">Filter by brand</span>
+                            <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
+                                <option value="all">All files</option>
+                                <option value="orphans">Orphans</option>
+                            </select>
+                        </label>
+                        <label class="media-filter-label media-filter-label--grow">
+                            <span class="visually-hidden">Filter by reference</span>
+                            <input type="search" class="media-filter-input" data-media-name-filter="sfx" placeholder="Filter by reference…" autocomplete="off" aria-label="Filter sound effects by reference">
+                        </label>
+                    </div>
+                    <div class="visual-pool-toolbar-actions">
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('sfx')" aria-label="Upload sound effects" title="Upload sound effects"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                    </div>
+                </div>
+                <div id="filelist-sfx" class="visual-pool-list visual-pool-list--list" data-visual-layout="list"><span class="text-muted">Loading…</span></div>
+                <div class="media-panel-footer"><span id="sfx-count" class="media-count"></span></div>
+            </div>
+
             <!-- Brand assets (legacy special intake) -->
             <div class="media-panel card" id="panel-special" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(); ?>
-                            <br>Brand logos, share covers, still/living backgrounds, and shell audio. Living videos can also live under Visual and be assigned in Content → Branding. Filenames stay hidden.
+                            <?php echo bandpromo_admin_files_permanent_warning_line(false); ?>
                         </span>
                     </div>
                 </div>
@@ -1299,15 +1323,17 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="special" aria-pressed="true">All</button>
                             <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="special" aria-pressed="false">Still</button>
                             <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="special" aria-pressed="false">Living</button>
-                            <button type="button" class="visual-filter-chip" data-pool-type-filter="audio" data-pool-panel="special" aria-pressed="false">Audio</button>
                         </div>
-                        <label class="media-filter-label visual-pool-usage-filter">
-                            <span class="visually-hidden">Filter by usage</span>
-                            <select class="media-filter-select" data-media-filter-target="special" aria-label="Filter brand assets by usage">
-                                <option value="all">All usage</option>
-                                <option value="referenced">In use</option>
+                        <label class="media-filter-label">
+                            <span class="visually-hidden">Filter by brand</span>
+                            <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
+                                <option value="all">All files</option>
                                 <option value="orphans">Orphans</option>
                             </select>
+                        </label>
+                        <label class="media-filter-label media-filter-label--grow">
+                            <span class="visually-hidden">Filter by reference</span>
+                            <input type="search" class="media-filter-input" data-media-name-filter="special" placeholder="Filter by reference…" autocomplete="off" aria-label="Filter brand assets by reference">
                         </label>
                         <div class="visual-view-toggle" role="group" aria-label="Brand assets layout">
                             <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="special" aria-pressed="true" title="Grid view">Grid</button>
@@ -1350,7 +1376,7 @@ if ($tab === 'analytics') {
                     <div id="mediaDeleteList" class="modal-file-list" style="display:none"></div>
                     <p id="mediaDeleteHint" class="text-muted">This cannot be undone.</p>
                     <div class="modal-actions">
-                        <button id="mediaDeleteConfirmBtn" class="btn btn-primary icon-btn danger">Delete</button>
+                        <button id="mediaDeleteConfirmBtn" class="btn btn-danger">Delete</button>
                         <button class="btn" onclick="closeDeleteModal()">Cancel</button>
                         <span id="mediaDeleteStatus" class="status-text"></span>
                     </div>
@@ -1369,7 +1395,7 @@ if ($tab === 'analytics') {
                             <dl id="poolAssetDetails" class="visual-asset-details"></dl>
                             <div class="modal-actions visual-asset-modal-actions">
                                 <button type="button" class="btn btn-primary" id="poolAssetDownloadBtn">Download</button>
-                                <button type="button" class="btn icon-btn danger" id="poolAssetDeleteBtn">Delete</button>
+                                <button type="button" class="btn btn-danger" id="poolAssetDeleteBtn">Delete</button>
                                 <button type="button" class="btn" onclick="closePoolAssetModal()">Close</button>
                             </div>
                         </div>
@@ -1385,7 +1411,7 @@ if ($tab === 'analytics') {
             <div class="tabs sub-tabs">
                 <?php
                 $cntTabs = [
-                    'release'  => ['💿', 'Catalog'],
+                    'release'  => ['💿', 'Catalogue'],
                     'playlist' => ['🎵', 'Playlists'],
                     'gallery'  => ['🖼️', 'Galleries'],
                     'pages'    => ['📝', 'Pages'],
@@ -1419,26 +1445,27 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-content">
                 <?php if ($contentTab === 'release'): ?>
-                    Pick a release from the pool to preview its track membership on the right. Click edit to open the audio pool and assign tracks. Every track must belong to exactly one release.
+                    The catalogue lists your releases. Each release is a campaign umbrella: masters, branding, EPK, galleries, pages, and the playlists that package those tracks. Assign tracks here; open Playlists, Galleries, and Pages from the Release editor section tabs while editing, or use the Content sub-tabs for the full editors. Shift/Ctrl-click selects multiple tracks.
                 <?php elseif ($contentTab === 'playlist'): ?>
-                    Pick a playlist from the pool to preview its track order on the right. Click edit to open the track pool and reorder. Add new playlists from the pool header.
+                    Playlists reuse release-owned tracks for streaming (album order, single package, tour set). They do not own masters. Prefer creating them from the Release hub. Shift/Ctrl-click selects multiple tracks.
                 <?php elseif ($contentTab === 'gallery'): ?>
-                    Pick a gallery from the pool to preview its content order on the right. Click edit to open the media pool and reorder. Add new galleries from the pool header.
+                    Galleries are owned by a release. Preview from the pool; edit to reorder. Shift/Ctrl-click multi-select; name and alt edit inline. No build required.
                 <?php elseif ($contentTab === 'pages'): ?>
-                    Use the page pool on the left to pick a page, preview it on the right, and click Edit to open the block editor. Add new pages from the pool header.
+                    Campaign pages (for example Bio) are owned by a release. FAQ is required for the login info lightbox. Today, other pages appear in the player only when enabled under Content → Player (site-wide). Target: also show pages associated to the playing track’s release.
                 <?php elseif ($contentTab === 'themes'): ?>
-                    Pick a brand from the pool to preview it on the right. Click edit for colors, typography, narrative, and shell media (drag Brand assets into still/living/audio slots). Duplicate bandPromo Default to create an editable copy.
+                    Branding is owned by a release. Edit colors, typography, narrative, and shell media here. bandPromo Default stays locked — duplicate it for a new release. Saving the active brand syncs shell media into site config (login baseline); player CSS tokens follow the playing track’s release brand.
                 <?php elseif ($contentTab === 'player'): ?>
-                    Choose Still or Living for the player shell background, then drag content into the layout. Playlist and Lyrics always stay first. Assign the actual still/living media under Content → Branding.
+                    Choose Still or Living for the player shell background, then arrange layout tabs. Playlist and Lyrics always stay first. Optional pages here are global (always on). Assign still/living media under Content → Branding. Shift/Ctrl-click moves multiple items together.
                 <?php endif; ?>
             </div>
 
             <?php
             $poolReleaseFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
                 . '<label class="media-filter-label player-layout-pool-filter-label">'
-                . '<span class="visually-hidden">Filter by release</span>'
-                . '<select class="media-filter-select player-layout-pool-filter" data-pool-release-filter aria-label="Filter by release">'
-                . '<option value="all">All releases</option>'
+                . '<span class="visually-hidden">Filter by catalogue</span>'
+                . '<select class="media-filter-select player-layout-pool-filter" data-pool-release-filter aria-label="Filter by catalogue">'
+                . '<option value="all">All files</option>'
+                . '<option value="orphans">Orphans</option>'
                 . '</select>'
                 . '</label>'
                 . '</div>';
@@ -1449,18 +1476,16 @@ if ($tab === 'analytics') {
             <?php if ($contentTab === 'release'): ?>
             <div class="card content-editor-card" id="releaseEditorCard"
                  data-initial-release="<?php echo htmlspecialchars($contentRelease, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>💿 Catalog</h3>
-                <p class="card-note">
-                    Pick a release from the pool to preview its catalog tracks. Use the edit button to open metadata and track assignment.
-                    Available tracks appear below the release track list while editing. Use Shift-click or Ctrl/Cmd-click to select multiple tracks.
-                </p>
+                <div class="release-editor-card-head">
+                    <h2>💿 Catalogue</h2>
+                </div>
 
                 <div class="player-layout-editor playlist-editor-layout" id="releaseEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
                             <div id="releasePoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Available content</h4>
+                                    <h4 class="player-layout-col-title">Registered releases</h4>
                                     <div class="player-layout-pool-head-slot player-layout-pool-actions">
                                         <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddReleaseBtn" aria-expanded="false" aria-label="Add release" title="Add release">
                                             <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
@@ -1488,92 +1513,58 @@ if ($tab === 'analytics') {
 
                             <div id="releaseTracksPoolView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
-                                    <div class="content-editor-head-name">
-                                        <input type="text" class="content-editor-name-input" id="releaseSettingsTitle" maxlength="120" autocomplete="off" placeholder="Release name" aria-label="Release name">
-                                    </div>
-                                    <span class="status-text release-settings-status content-editor-name-status" id="releaseSettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalog">← Catalog</button>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn release-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalogue">← Back</button>
+                                    <h3 class="release-editor-header-title">Release editor</h3>
+                                </div>
+                                <div class="release-preview-tabs release-editor-section-tabs release-editor-section-tabs--header" role="tablist" aria-label="Release editor sections">
+                                    <button type="button" class="release-preview-tab is-active" role="tab" aria-selected="true" data-release-editor-tab="base">Base info</button>
+                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="tracks">Tracks</button>
+                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="playlists">Playlists</button>
+                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="galleries">Galleries</button>
+                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="pages">Pages</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <div class="playlist-settings-panel" id="releaseSettingsPanel">
+                                        <div class="release-editor-section-panel is-active" data-release-editor-panel="base" role="tabpanel">
                                         <div class="playlist-settings-fields release-catalog-meta-fields">
-                                            <label class="playlist-settings-field release-catalog-meta-field--date">
-                                                <span>Release date</span>
+                                            <label class="playlist-settings-field release-editor-form-row release-editor-form-row--title">
+                                                <span class="release-editor-form-label">Title</span>
+                                                <span class="release-editor-title-control">
+                                                    <input type="text" class="content-editor-name-input" id="releaseSettingsTitle" maxlength="120" autocomplete="off" placeholder="Release name" aria-label="Release name">
+                                                </span>
+                                            </label>
+                                            <label class="playlist-settings-field release-catalog-meta-field--date release-editor-form-row">
+                                                <span class="release-editor-form-label">Release date</span>
                                                 <?php bandpromo_admin_render_iso_date_field('release_date', '', 'releaseSettingsDate', [
                                                     'variant' => 'form',
                                                     'required' => true,
                                                     'allow_year_only' => true,
                                                 ]); ?>
                                             </label>
-                                            <p class="hint">Fans can play from the start of this <strong>UTC calendar day</strong>. Timed worldwide drops (hour/minute) are planned for v2 marketing.</p>
-                                            <label class="playlist-settings-field release-catalog-meta-field--id">
-                                                <span>Brand</span>
+                                            <label class="playlist-settings-field release-editor-form-row">
+                                                <span class="release-editor-form-label">Press contact</span>
+                                                <input type="text" id="releaseSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
+                                            </label>
+                                            <label class="playlist-settings-field release-editor-form-row">
+                                                <span class="release-editor-form-label">Branding</span>
                                                 <select id="releaseSettingsBrandId" aria-label="Release brand">
                                                     <option value="">Install default</option>
                                                 </select>
-                                                <p class="hint">Many releases can share one brand (era). Leave empty to use the active install brand.</p>
                                             </label>
-                                            <label class="playlist-settings-field release-catalog-meta-field--id">
-                                                <span>Catalog ID</span>
-                                                <input type="text" id="releaseSettingsCatalogId" maxlength="80" autocomplete="off" placeholder="CD001, EP002, CD Mute 142…" aria-label="Catalog ID">
+                                            <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
+                                                <span class="release-editor-form-label">Blurb</span>
+                                                <span class="release-editor-field-stack">
+                                                    <textarea id="releaseSettingsShortDescription" rows="4" maxlength="300" placeholder="Short release summary" autocomplete="off"></textarea>
+                                                    <span class="field-note release-short-description-note"><span id="releaseSettingsShortDescriptionCount">0</span>/300 characters</span>
+                                                </span>
                                             </label>
-                                            <p class="hint release-catalog-meta-hint">Your own release reference — any scheme you use in physical or digital catalogs.</p>
-                                        </div>
-                                        <div class="playlist-settings-fields release-epk-fields">
-                                            <h4 class="release-epk-heading">Catalog &amp; press (EPK)</h4>
-                                            <p class="hint release-epk-hint">Releases are your catalog truth and press hub. Playlists are listening campaigns — they can span releases but do not own track metadata.</p>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Description</span>
-                                                <textarea id="releaseSettingsDescription" rows="3" maxlength="4000" placeholder="Press blurb or release summary" autocomplete="off"></textarea>
-                                                <div class="field-note">Markdown supported (headings, emphasis, lists, links).</div>
+                                            <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
+                                                <span class="release-editor-form-label">Long description (Markdown allowed)</span>
+                                                <span class="release-editor-field-stack">
+                                                    <textarea id="releaseSettingsDescription" class="release-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long release description" autocomplete="off"></textarea>
+                                                </span>
                                             </label>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Short description</span>
-                                                <textarea id="releaseSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
-                                                <div class="field-note release-short-description-note"><span id="releaseSettingsShortDescriptionCount">0</span>/300 characters</div>
-                                            </label>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Tagline</span>
-                                                <input type="text" id="releaseSettingsTagline" maxlength="160" autocomplete="off">
-                                            </label>
-                                            <label class="playlist-settings-field">
-                                                <span>Genre</span>
-                                                <input type="text" id="releaseSettingsGenre" maxlength="120" autocomplete="off">
-                                            </label>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Credits</span>
-                                                <textarea id="releaseSettingsCredits" rows="3" maxlength="4000" autocomplete="off"></textarea>
-                                                <div class="field-note">Markdown supported when shown in player surfaces.</div>
-                                            </label>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Press contact</span>
-                                                <input type="text" id="releaseSettingsPressContact" maxlength="240" placeholder="7rym &lt;7rym@7rym.net&gt;" autocomplete="off">
-                                                <p class="hint">RFC 5322 format: <code>Name &lt;email@domain&gt;</code> — stored as you type for press kits.</p>
-                                            </label>
-                                            <div class="playlist-settings-field playlist-settings-field--wide release-enjoy-fields">
-                                                <h4 class="release-epk-heading release-enjoy-heading">Enjoy here</h4>
-                                                <p class="hint release-enjoy-hint">Links to your <strong>player playlist</strong> (not the site homepage, and not a release-only queue — releases are catalog/EPK). Default is the active player playlist (<code>/play/{playlist-id}</code>); point at a campaign playlist if you created one for this release. Social profiles come from <a href="?tab=settings&amp;ctab=sharing">Settings → Sharing</a>.</p>
-                                                <div class="release-streaming-grid">
-                                                    <label class="playlist-settings-field">
-                                                        <span id="releaseSettingsStreamBandpromoLabel">bandPromo</span>
-                                                        <input type="text" id="releaseSettingsStreamBandpromo" inputmode="url" placeholder="https://yoursite.com/play/bandpromo-demo" autocomplete="off">
-                                                    </label>
-                                                    <label class="playlist-settings-field">
-                                                        <span>Spotify</span>
-                                                        <input type="text" id="releaseSettingsStreamSpotify" inputmode="url" placeholder="https://open.spotify.com/…" autocomplete="off">
-                                                    </label>
-                                                    <label class="playlist-settings-field">
-                                                        <span>Apple Music</span>
-                                                        <input type="text" id="releaseSettingsStreamApple" inputmode="url" placeholder="https://music.apple.com/…" autocomplete="off">
-                                                    </label>
-                                                </div>
-                                                <div id="releaseSettingsSocialImports" class="release-social-inline" hidden></div>
                                             </div>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Press photo assets</span>
-                                                <textarea id="releaseSettingsPressPhotos" rows="2" placeholder="ast_…, ast_… (comma or line separated)" autocomplete="off" spellcheck="false"></textarea>
-                                                <p class="hint">Supplementary press-kit images, separate from the release cover. Multi-asset picker ships with the unified Visual pool.</p>
-                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -1584,12 +1575,7 @@ if ($tab === 'analytics') {
                     <div class="player-layout-col player-layout-col--active">
                         <div class="player-layout-panel">
                             <div class="player-layout-col-head player-layout-col-head--active">
-                                <h4 class="player-layout-col-title">
-                                    Release <span class="player-layout-count" id="releaseActiveCount"></span>
-                                </h4>
-                                <div class="player-layout-save-row">
-                                    <button type="button" id="releaseSaveBtn" class="btn" hidden>💾 Save release</button>
-                                </div>
+                                <h3 class="player-layout-col-title" id="releaseEditorPreviewHeading">Preview</h3>
                             </div>
                             <div class="player-layout-panel-body release-editor-active-body">
                                 <div id="releaseCoverPanel" class="release-cover-panel" hidden>
@@ -1607,25 +1593,42 @@ if ($tab === 'analytics') {
                                             </div>
                                         </div>
                                         <div class="release-cover-meta">
-                                            <h4 class="release-cover-heading">Release cover</h4>
-                                            <p class="hint">Album, EP, or single artwork. Press photos stay in the metadata column.</p>
-                                            <div class="release-cover-actions">
-                                                <button type="button" class="btn" id="releaseCreatePlaylistBtn">Create playlist from release</button>
-                                            </div>
+                                            <h4 class="release-cover-heading" id="releasePreviewTitle">Release</h4>
+                                            <p class="release-preview-date" id="releasePreviewDate"></p>
+                                            <p class="release-preview-summary" id="releasePreviewSummary"></p>
                                         </div>
                                     </div>
+                                    <div id="releaseBaseBrandPreview" class="release-base-brand-preview" hidden>
+                                        <h5 class="release-base-brand-preview-heading">Brand preview</h5>
+                                        <div id="releaseBaseBrandPreviewBody" class="release-base-brand-preview-body"></div>
+                                    </div>
+                                    <div id="releaseLongDescriptionPreview" class="release-long-description-preview" hidden>
+                                        <h5 class="release-base-brand-preview-heading">Long description preview</h5>
+                                        <div id="releaseLongDescriptionPreviewBody" class="release-long-description-preview-body"></div>
+                                    </div>
                                 </div>
-                                <p class="hint player-layout-hint" id="releaseEditorHint">Select a release from the pool, then click edit to change its track membership.</p>
-                                <ol class="playlist-editor player-layout-list" id="releaseActiveList" aria-label="Release tracks">
+                                <ul class="release-preview-tracks release-associated-tracks" id="releaseActiveList" aria-label="Associated tracks" hidden>
+                                    <li class="player-layout-empty">No release selected.</li>
+                                </ul>
+                                <ol class="playlist-editor player-layout-list release-associated-tracks" id="releaseAssociationActiveList" aria-label="Associated items" hidden>
                                     <li class="player-layout-empty">No release selected.</li>
                                 </ol>
                                 <div id="releaseAvailableSection" class="content-pool-section" hidden>
                                     <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
-                                        <h4 class="player-layout-col-title">Available content</h4>
+                                        <h4 class="player-layout-col-title" id="releaseAvailableHeading">Available tracks</h4>
                                         <?php echo $poolHeadSpacerHtml; ?>
                                     </div>
                                     <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="releaseAvailableList" aria-label="Available tracks">
                                         <li class="player-layout-empty">Loading tracks…</li>
+                                    </ol>
+                                </div>
+                                <div id="releaseAssociationAvailableSection" class="content-pool-section" hidden>
+                                    <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
+                                        <h4 class="player-layout-col-title" id="releaseAssociationAvailableHeading">Available playlists</h4>
+                                        <?php echo $poolHeadSpacerHtml; ?>
+                                    </div>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="releaseAssociationAvailableList" aria-label="Available items">
+                                        <li class="player-layout-empty">Loading…</li>
                                     </ol>
                                 </div>
                             </div>
@@ -1639,10 +1642,6 @@ if ($tab === 'analytics') {
             <div class="card content-editor-card" id="playlistEditorCard"
                  data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎵 Playlists</h3>
-                <p class="card-note">
-                    Pick a playlist from the pool to preview its track order on the right. Use the edit button to open the track pool and reorder.
-                    Use Shift-click or Ctrl/Cmd-click to select multiple tracks. Saving updates the selected playlist immediately.
-                </p>
 
                 <div class="player-layout-editor playlist-editor-layout" id="playlistEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
@@ -1789,10 +1788,6 @@ if ($tab === 'analytics') {
             <div class="card content-editor-card" id="galleryEditorCard"
                  data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🖼️ Galleries</h3>
-                <p class="card-note">
-                    Pick a gallery from the pool to preview its content order on the right. Use the edit button to open the media pool and reorder.
-                    Use Shift-click or Ctrl/Cmd-click to select multiple items. Name and alt text can be edited inline in edit mode. No build required.
-                </p>
 
                 <div class="player-layout-editor playlist-editor-layout" id="galleryEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
@@ -1893,10 +1888,6 @@ if ($tab === 'analytics') {
                  data-initial-page="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
                  data-pages="<?php echo htmlspecialchars(json_encode($pagePoolData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>📄 Pages</h3>
-                <p class="card-note">
-                    Pick a page from the pool to preview it on the right. Use the edit button to open the block editor on the left.
-                    FAQ is required for the login info lightbox; other pages are optional and can appear in the player when enabled under <strong>Content → Player</strong>.
-                </p>
 
                 <div class="player-layout-editor page-editor-layout" id="pageEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
@@ -2028,7 +2019,7 @@ if ($tab === 'analytics') {
                     <h3 id="pageDeleteModalTitle">Delete page?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="pageDeleteModalName"></strong> and all of its content. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary icon-btn danger" id="pageDeleteConfirmBtn">Delete page</button>
+                        <button type="button" class="btn btn-danger" id="pageDeleteConfirmBtn">Delete page</button>
                         <button type="button" class="btn" id="pageDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
@@ -2039,7 +2030,7 @@ if ($tab === 'analytics') {
                     <h3 id="pageBlockDeleteModalTitle">Delete block?</h3>
                     <p class="card-note">Delete the <strong id="pageBlockDeleteModalName"></strong> block? This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary icon-btn danger" id="pageBlockDeleteConfirmBtn">Delete block</button>
+                        <button type="button" class="btn btn-danger" id="pageBlockDeleteConfirmBtn">Delete block</button>
                         <button type="button" class="btn" id="pageBlockDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
@@ -2049,9 +2040,6 @@ if ($tab === 'analytics') {
             <div class="card content-editor-card" id="themeEditorRoot"
                  data-initial-theme="<?php echo htmlspecialchars($contentTheme, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎨 Branding</h3>
-                <p class="card-note">
-                    Pick a brand from the pool to preview tokens on the right. Edit colors, typography, narrative fields, and shell media — drag still/living/audio Brand assets into the shell slots. bandPromo Default stays locked — duplicate it for your era. Saving the active brand syncs shell media into site config for login and player.
-                </p>
 
                 <div class="player-layout-editor theme-editor-layout playlist-editor-layout" id="themeEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
@@ -2108,11 +2096,6 @@ if ($tab === 'analytics') {
             <div class="card content-editor-card" id="playerLayoutCard"
                  data-layout="<?php echo htmlspecialchars(json_encode($playerLayoutState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎛️ Player layout</h3>
-                <p class="card-note">
-                    Choose the player shell background and playlist selector style, then drag content into the layout on the right.
-                    Use Shift-click or Ctrl/Cmd-click to select multiple items and move them together.
-                    Playlist and Lyrics always stay first. Shell media files themselves are assigned under Content → Branding.
-                </p>
 
                 <div class="player-layout-setting" id="playerShellBackgroundSettings">
                     <div class="player-layout-setting-copy">
@@ -2203,7 +2186,7 @@ if ($tab === 'analytics') {
                     <h3 id="releaseDeleteModalTitle">Delete release?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. Its tracks will leave this release and stay in your audio library. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary icon-btn danger" id="releaseDeleteConfirmBtn">Delete release</button>
+                        <button type="button" class="btn btn-danger" id="releaseDeleteConfirmBtn">Delete release</button>
                         <button type="button" class="btn" id="releaseDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
@@ -2214,7 +2197,7 @@ if ($tab === 'analytics') {
                     <h3 id="playlistDeleteModalTitle">Delete playlist?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="playlistDeleteModalName"></strong>. Its track order will be lost. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary icon-btn danger" id="playlistDeleteConfirmBtn">Delete playlist</button>
+                        <button type="button" class="btn btn-danger" id="playlistDeleteConfirmBtn">Delete playlist</button>
                         <button type="button" class="btn" id="playlistDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
@@ -2225,7 +2208,7 @@ if ($tab === 'analytics') {
                     <h3 id="galleryDeleteModalTitle">Delete gallery?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="galleryDeleteModalName"></strong>. Its content order will be lost. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary icon-btn danger" id="galleryDeleteConfirmBtn">Delete gallery</button>
+                        <button type="button" class="btn btn-danger" id="galleryDeleteConfirmBtn">Delete gallery</button>
                         <button type="button" class="btn" id="galleryDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
@@ -2236,7 +2219,7 @@ if ($tab === 'analytics') {
                     <h3 id="themeDeleteModalTitle">Delete theme?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="themeDeleteModalName"></strong>. Its color and typography settings will be lost. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary icon-btn danger" id="themeDeleteConfirmBtn">Delete theme</button>
+                        <button type="button" class="btn btn-danger" id="themeDeleteConfirmBtn">Delete theme</button>
                         <button type="button" class="btn" id="themeDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
@@ -2545,7 +2528,7 @@ if ($tab === 'analytics') {
             <div class="tabs sub-tabs">
                 <a href="?tab=system&amp;stab=deliverables" class="tab-link <?php echo $systemTab === 'deliverables' ? 'active' : ''; ?>">📦 Deliverables</a>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
-                <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup &amp; export</a>
+                <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup, export &amp; import</a>
                 <?php if ($systemTab === 'deliverables'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
                 <?php elseif ($systemTab === 'audit'): ?>
@@ -2677,7 +2660,7 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Create backups with the component picker, or import a bandPromo ZIP from this site or another install. Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Deliverables</strong> if you want to refresh listener-ready files. See <code>docs/PORTABILITY.md</code>.
+                Create full-site backups, import a site ZIP, or import a single <strong>release package</strong> (one campaign: masters, branding, playlists, galleries, pages). Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Deliverables</strong> if you want to refresh listener-ready files. See <code>docs/PORTABILITY.md</code>.
             </div>
 
             <div class="card site-backup-card">
@@ -2736,7 +2719,7 @@ if ($tab === 'analytics') {
                                         <a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=<?php echo urlencode((string) ($backupJob['id'] ?? '')); ?>">⬇️ Download</a>
                                         <?php endif; ?>
                                         <?php if ($jobStatus !== 'building'): ?>
-                                        <button type="button" class="btn btn-secondary site-backup-action-btn site-backup-delete-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>">🗑️ Delete</button>
+                                        <button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>">🗑️ Delete</button>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -2879,6 +2862,29 @@ if ($tab === 'analytics') {
                 <?php endif; ?>
             </div>
             </div>
+
+            <div class="card site-backup-card" id="releasePackageImportCard">
+                <h3>💿 Import release package</h3>
+                <p class="card-note">
+                    Import one release campaign (masters, branding, playlists, galleries, pages, and media). This does not replace a full site backup.
+                    Export of operator release packages is not available yet.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="empty-msg">ZipArchive is required to import release packages on this host.</p>
+                <?php else: ?>
+                <div class="site-backup-import-file-row">
+                    <label class="btn btn-secondary site-backup-import-file-label" for="releasePackageImportInput">
+                        Choose ZIP…
+                    </label>
+                    <input type="file" id="releasePackageImportInput" accept=".zip,application/zip" hidden>
+                    <span id="releasePackageImportFilename" class="site-backup-import-filename text-muted"></span>
+                </div>
+                <div class="card-actions site-backup-actions backup-builder-actions">
+                    <button type="button" class="btn" id="releasePackageImportBtn">📥 Import release package</button>
+                </div>
+                <p id="releasePackageImportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
             <?php endif; ?>
         </div>
 
@@ -2952,7 +2958,7 @@ if ($tab === 'analytics') {
                 </div>
                 <!-- Hidden field for edit action -->
                 <input type="hidden" name="edit_username" id="userModalEditUsername" value="">
-                <button type="submit" class="btn-primary" style="width:100%;">Save</button>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Save</button>
             </form>
         </div>
     </div>
@@ -3146,10 +3152,14 @@ if ($tab === 'analytics') {
     <?php if ($tab === 'content'): ?>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>
     <?php endif; ?>
+    <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
+    <script src="biblioteca/theme-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-preview.js'); ?>"></script>
+    <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'release'): ?>
+    <script src="biblioteca/player-markdown.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/player-markdown.js'); ?>"></script>
     <script src="biblioteca/iso-date.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/iso-date.js'); ?>"></script>
     <script src="biblioteca/release-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/release-editor.js'); ?>"></script>
     <?php endif; ?>
@@ -3165,8 +3175,28 @@ if ($tab === 'analytics') {
             <div class="media-picker-modal-header">
                 <button type="button" class="modal-close" id="mediaPickerCloseBtn" aria-label="Close">✕</button>
                 <h3 id="mediaPickerTitle">Choose file</h3>
-                <p class="card-note" id="mediaPickerHint">Pick an uploaded file. The internal storage path stays hidden from operators.</p>
+                <p class="card-note" id="mediaPickerHint">Pick an uploaded asset. Storage paths stay hidden.</p>
                 <div id="mediaPickerTabs" class="tabs sub-tabs media-picker-tabs"></div>
+                <div class="media-picker-toolbar" id="mediaPickerToolbar">
+                    <label class="media-filter-label" data-picker-filter="release">
+                        <span class="visually-hidden">Filter by catalogue</span>
+                        <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
+                            <option value="all">All files</option>
+                            <option value="orphans">Orphans</option>
+                        </select>
+                    </label>
+                    <label class="media-filter-label" data-picker-filter="brand" hidden>
+                        <span class="visually-hidden">Filter by brand</span>
+                        <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
+                            <option value="all">All files</option>
+                            <option value="orphans">Orphans</option>
+                        </select>
+                    </label>
+                    <label class="media-filter-label media-filter-label--grow">
+                        <span class="visually-hidden">Filter by title or reference</span>
+                        <input type="search" class="media-filter-input" id="mediaPickerSearch" placeholder="Filter by title or reference…" autocomplete="off" aria-label="Filter by title or reference">
+                    </label>
+                </div>
             </div>
             <div id="mediaPickerList" class="media-file-list media-picker-list"><span class="text-muted">Choose a media type to browse files.</span></div>
             <div class="modal-actions media-picker-modal-actions">

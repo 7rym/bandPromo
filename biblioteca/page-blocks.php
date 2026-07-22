@@ -260,6 +260,7 @@ function bandpromo_page_new_document(string $pageId, string $title = ''): array 
         'version' => BANDPROMO_PAGE_SCHEMA_VERSION,
         'id' => $pageId,
         'title' => $resolvedTitle,
+        'release_id' => $pageId === 'bio' ? 'bandpromo-demo' : '',
         'short_description' => '',
         'description' => '',
         'poster_asset_id' => '',
@@ -620,6 +621,14 @@ function bandpromo_page_normalize_document(array $input, string $expectedId): ar
     }
 
     $document['blocks'] = $blocks;
+    $releaseId = trim((string) ($input['release_id'] ?? $document['release_id'] ?? ''));
+    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
+        $releaseId = '';
+    }
+    if ($releaseId === '' && $pageId === 'bio') {
+        $releaseId = 'bandpromo-demo';
+    }
+    $document['release_id'] = $releaseId;
     if (array_key_exists('short_description', $input)) {
         $document['short_description'] = bandpromo_page_normalize_text((string) $input['short_description'], 300);
     }

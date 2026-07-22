@@ -107,10 +107,14 @@ media/icons/*
 media/special/*
 # Special media dir itself must be tracked for structure only
 !media/special/
+!media/sfx/original/
+media/sfx/original/*
+!media/sfx/original/.gitkeep
 
 # Optimal/processed outputs are generated locally — never commit them
 media/**/optimal/
 media/video/poster/
+media/visual/delivery/
 
 # Master working copies are local runtime artifacts until the storage model is finalized
 media/**/master/

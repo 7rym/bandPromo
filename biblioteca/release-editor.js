@@ -6,8 +6,6 @@
         const poolList = document.getElementById('releasePoolList');
         const availableEl = document.getElementById('releaseAvailableList');
         const activeEl = document.getElementById('releaseActiveList');
-        const countBadge = document.getElementById('releaseActiveCount');
-        const saveBtn = document.getElementById('releaseSaveBtn');
         const editorHint = document.getElementById('releaseEditorHint');
         const backBtn = document.getElementById('releaseEditorBackBtn');
         const toggleAddReleaseBtn = document.getElementById('toggleAddReleaseBtn');
@@ -22,36 +20,56 @@
         const releaseSettingsTitle = document.getElementById('releaseSettingsTitle');
         const releaseSettingsDate = document.getElementById('releaseSettingsDate');
         const releaseSettingsCatalogId = document.getElementById('releaseSettingsCatalogId');
-        const releaseSettingsBrandId = document.getElementById('releaseSettingsBrandId');
+        let releaseSettingsBrandId = document.getElementById('releaseSettingsBrandId');
         const releaseSettingsStatus = document.getElementById('releaseSettingsStatus');
-        const releaseSettingsDescription = document.getElementById('releaseSettingsDescription');
+        let releaseSettingsDescription = document.getElementById('releaseSettingsDescription');
         const releaseSettingsShortDescription = document.getElementById('releaseSettingsShortDescription');
         const releaseSettingsShortDescriptionCount = document.getElementById('releaseSettingsShortDescriptionCount');
         const releaseSettingsPosterAssetId = document.getElementById('releaseSettingsPosterAssetId');
         const releaseCoverPanel = document.getElementById('releaseCoverPanel');
+        const releaseBaseBrandPreview = document.getElementById('releaseBaseBrandPreview');
+        const releaseBaseBrandPreviewBody = document.getElementById('releaseBaseBrandPreviewBody');
+        const releaseLongDescriptionPreview = document.getElementById('releaseLongDescriptionPreview');
+        const releaseLongDescriptionPreviewBody = document.getElementById('releaseLongDescriptionPreviewBody');
         const releaseCoverPreviewShell = document.getElementById('releaseCoverPreviewShell');
         const releaseCoverPreview = document.getElementById('releaseCoverPreview');
         const releaseCoverPlaceholder = document.getElementById('releaseCoverPlaceholder');
         const releaseCoverClearBtn = document.getElementById('releaseCoverClearBtn');
-        const releaseCreatePlaylistBtn = document.getElementById('releaseCreatePlaylistBtn');
-        const releaseSettingsTagline = document.getElementById('releaseSettingsTagline');
-        const releaseSettingsGenre = document.getElementById('releaseSettingsGenre');
-        const releaseSettingsCredits = document.getElementById('releaseSettingsCredits');
-        const releaseSettingsPressContact = document.getElementById('releaseSettingsPressContact');
-        const releaseSettingsStreamBandpromo = document.getElementById('releaseSettingsStreamBandpromo');
-        const releaseSettingsStreamBandpromoLabel = document.getElementById('releaseSettingsStreamBandpromoLabel');
-        const releaseSettingsStreamSpotify = document.getElementById('releaseSettingsStreamSpotify');
-        const releaseSettingsStreamApple = document.getElementById('releaseSettingsStreamApple');
-        const releaseSettingsSocialImports = document.getElementById('releaseSettingsSocialImports');
-        const releaseSettingsPressPhotos = document.getElementById('releaseSettingsPressPhotos');
+        const releaseCoverOverlayActions = document.getElementById('releaseCoverOverlayActions');
+        const releasePreviewTitle = document.getElementById('releasePreviewTitle');
+        const releasePreviewDate = document.getElementById('releasePreviewDate');
+        const releasePreviewSummary = document.getElementById('releasePreviewSummary');
+        const releaseEditorPreviewHeading = document.getElementById('releaseEditorPreviewHeading');
+        const releaseBrandingLivePreview = document.getElementById('releaseBrandingLivePreview');
+        const releaseBrandingPreview = document.getElementById('releaseBrandingPreview');
+        const releasePresskitLivePreview = document.getElementById('releasePresskitLivePreview');
+        const releaseEditorPresskitPreview = document.getElementById('releaseEditorPresskitPreview');
+        let releaseSettingsCredits = document.getElementById('releaseSettingsCredits');
+        let releaseSettingsPressContact = document.getElementById('releaseSettingsPressContact');
+        let releaseSettingsStreamBandpromo = document.getElementById('releaseSettingsStreamBandpromo');
+        let releaseSettingsStreamBandpromoLabel = document.getElementById('releaseSettingsStreamBandpromoLabel');
+        let releaseSettingsStreamSpotify = document.getElementById('releaseSettingsStreamSpotify');
+        let releaseSettingsStreamApple = document.getElementById('releaseSettingsStreamApple');
+        let releaseSettingsSocialImports = document.getElementById('releaseSettingsSocialImports');
+        let releaseSettingsPressPhotos = document.getElementById('releaseSettingsPressPhotos');
         const releaseAvailableSection = document.getElementById('releaseAvailableSection');
+        const releaseAssociationActiveList = document.getElementById('releaseAssociationActiveList');
+        const releaseAssociationAvailableSection = document.getElementById('releaseAssociationAvailableSection');
+        const releaseAssociationAvailableList = document.getElementById('releaseAssociationAvailableList');
+        const releaseAssociationAvailableHeading = document.getElementById('releaseAssociationAvailableHeading');
 
-        if (!editorCard || !poolList || !availableEl || !activeEl || !saveBtn) {
+        if (!editorCard || !poolList || !availableEl || !activeEl) {
             return;
         }
 
         const PROTECTED_RELEASE_IDS = new Set(['primary', 'bandpromo-demo']);
         const SYSTEM_MANAGED_RELEASE_IDS = new Set(['bandpromo-demo']);
+        const ASSOCIATION_KINDS = ['playlists', 'galleries', 'pages'];
+        const ASSOCIATION_LABELS = {
+            playlists: { singular: 'playlist', plural: 'playlists', available: 'Available playlists', associated: 'Associated playlists' },
+            galleries: { singular: 'gallery', plural: 'galleries', available: 'Available galleries', associated: 'Associated galleries' },
+            pages: { singular: 'page', plural: 'pages', available: 'Available pages', associated: 'Associated pages' },
+        };
 
         function localEscapeHtml(value) {
             return String(value)
@@ -104,6 +122,11 @@
         let selectedReleaseId = String(editorCard.dataset.initialRelease || 'primary');
         let creatingPlaylistFromRelease = false;
         let isEditing = false;
+        let releaseEditorTab = 'base';
+        let releaseBrandingPreviewToken = 0;
+        let releaseBaseBrandPreviewToken = 0;
+        let releaseBrandCatalog = [];
+        let trackEditorLoadedReleaseId = '';
         let pendingReleaseDeleteId = '';
         let releaseSettingsSaving = false;
         let siteSharing = {
@@ -261,7 +284,7 @@
                 releaseCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
             }
             if (releaseCoverPreviewShell instanceof HTMLElement) {
-                releaseCoverPreviewShell.title = rawValue || 'No cover selected';
+                releaseCoverPreviewShell.title = previewUrl ? 'Release cover' : 'No cover selected';
             }
             updateReleasePosterLabel();
         }
@@ -272,27 +295,6 @@
             }
             releaseSettingsPosterAssetId.value = String(value || '').trim();
             releaseSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        function updateReleaseCoverPanel() {
-            const entry = releaseEntry(selectedReleaseId);
-            if (releaseCoverPanel) {
-                releaseCoverPanel.hidden = !entry;
-            }
-            if (entry && releaseSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
-                releaseSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
-            }
-            const canEditCover = !!(entry && !releaseIsSystemManaged(entry) && !entry.locked);
-            const coverEditButtons = releaseCoverPanel
-                ? releaseCoverPanel.querySelectorAll('.audio-master-cover-overlay-actions button')
-                : [];
-            coverEditButtons.forEach((button) => {
-                if (button instanceof HTMLButtonElement) {
-                    button.disabled = !canEditCover;
-                }
-            });
-            updateReleaseCreatePlaylistButton();
-            updateReleaseCoverPreview();
         }
 
         function releaseTrackCount(entry) {
@@ -306,16 +308,582 @@
             return Array.isArray(activeTracks) ? activeTracks.length : 0;
         }
 
+        function ownershipChildren(entry) {
+            const children = entry && entry.ownership_children && typeof entry.ownership_children === 'object'
+                ? entry.ownership_children
+                : {};
+            return {
+                playlists: Array.isArray(children.playlists) ? children.playlists : [],
+                galleries: Array.isArray(children.galleries) ? children.galleries : [],
+                pages: Array.isArray(children.pages) ? children.pages : [],
+                brand_id: String(children.brand_id || entry?.brand_id || '').trim(),
+                brand: children.brand && typeof children.brand === 'object' ? children.brand : null,
+            };
+        }
+
         function updateReleaseCreatePlaylistButton() {
-            if (!(releaseCreatePlaylistBtn instanceof HTMLButtonElement)) {
+            const button = document.getElementById('releaseCreatePlaylistBtn');
+            if (!(button instanceof HTMLButtonElement)) {
                 return;
             }
             const entry = releaseEntry(selectedReleaseId);
             const hasTracks = releaseTrackCount(entry) > 0;
-            releaseCreatePlaylistBtn.disabled = !entry || !hasTracks || creatingPlaylistFromRelease;
-            releaseCreatePlaylistBtn.textContent = creatingPlaylistFromRelease
+            button.disabled = !entry || !hasTracks || creatingPlaylistFromRelease;
+            button.textContent = creatingPlaylistFromRelease
                 ? 'Creating playlist…'
                 : 'Create playlist from release';
+        }
+
+        function hydrateLazyReleaseControls() {
+            releaseSettingsBrandId = document.getElementById('releaseSettingsBrandId');
+            releaseSettingsDescription = document.getElementById('releaseSettingsDescription');
+            releaseSettingsCredits = document.getElementById('releaseSettingsCredits');
+            releaseSettingsPressContact = document.getElementById('releaseSettingsPressContact');
+            releaseSettingsStreamBandpromo = document.getElementById('releaseSettingsStreamBandpromo');
+            releaseSettingsStreamBandpromoLabel = document.getElementById('releaseSettingsStreamBandpromoLabel');
+            releaseSettingsStreamSpotify = document.getElementById('releaseSettingsStreamSpotify');
+            releaseSettingsStreamApple = document.getElementById('releaseSettingsStreamApple');
+            releaseSettingsSocialImports = document.getElementById('releaseSettingsSocialImports');
+            releaseSettingsPressPhotos = document.getElementById('releaseSettingsPressPhotos');
+        }
+
+        function populateReleaseBrandSelect() {
+            if (!(releaseSettingsBrandId instanceof HTMLSelectElement)) {
+                return;
+            }
+            const selected = String(releaseSettingsBrandId.value || releaseEntry(selectedReleaseId)?.brand_id || '');
+            releaseSettingsBrandId.innerHTML = '<option value="">Install default</option>';
+            releaseBrandCatalog.forEach((brand) => {
+                const id = String(brand?.id || '').trim();
+                if (!id) {
+                    return;
+                }
+                const option = document.createElement('option');
+                option.value = id === 'setup-default' ? 'bandpromo-default' : id;
+                option.textContent = String(brand?.title || id);
+                releaseSettingsBrandId.appendChild(option);
+            });
+            releaseSettingsBrandId.value = selected;
+        }
+
+        function bindLazyReleaseEditorControls(section) {
+            if (section === 'branding') {
+                if (!(releaseSettingsBrandId instanceof HTMLSelectElement)
+                    || releaseSettingsBrandId.dataset.releaseLazyBound === 'true'
+                ) {
+                    return;
+                }
+                releaseSettingsBrandId.addEventListener('change', () => {
+                    refreshReleaseBrandingLivePreview();
+                    refreshReleaseBaseBrandPreview();
+                    saveReleaseSettings();
+                });
+                releaseSettingsBrandId.dataset.releaseLazyBound = 'true';
+                return;
+            }
+
+            if (section !== 'presskit') {
+                return;
+            }
+            [
+                releaseSettingsDescription,
+                releaseSettingsCredits,
+                releaseSettingsPressContact,
+                releaseSettingsStreamBandpromo,
+                releaseSettingsStreamSpotify,
+                releaseSettingsStreamApple,
+                releaseSettingsPressPhotos,
+            ].forEach((control) => {
+                if (!(control instanceof HTMLElement)
+                    || control.dataset.releaseLazyBound === 'true'
+                ) {
+                    return;
+                }
+                control.addEventListener('input', () => {
+                    renderReleaseEditorPresskitPreview();
+                });
+                control.addEventListener('blur', () => {
+                    saveReleaseSettings();
+                });
+                control.dataset.releaseLazyBound = 'true';
+            });
+        }
+
+        async function ensureReleaseEditorSection(section) {
+            if (section !== 'branding' && section !== 'presskit') {
+                return;
+            }
+            const panel = document.querySelector(`[data-release-editor-panel="${section}"]`);
+            const template = document.getElementById(
+                section === 'branding' ? 'releaseBrandingEditorTemplate' : 'releasePresskitEditorTemplate'
+            );
+            if (!(panel instanceof HTMLElement) || !(template instanceof HTMLTemplateElement)) {
+                return;
+            }
+            if (!panel.dataset.loaded) {
+                panel.replaceChildren(template.content.cloneNode(true));
+                panel.dataset.loaded = 'true';
+            }
+
+            hydrateLazyReleaseControls();
+            if (section === 'branding') {
+                populateReleaseBrandSelect();
+            }
+            bindLazyReleaseEditorControls(section);
+            syncReleaseSettingsPanel(selectedReleaseId);
+
+            if (section === 'presskit') {
+                try {
+                    const releaseId = String(selectedReleaseId || '').trim();
+                    const data = await fetchJson(
+                        `/biblioteca/get-release-preview-section.php?release=${encodeURIComponent(releaseId)}&section=presskit`,
+                        { cache: 'no-store' }
+                    );
+                    const entry = releaseEntry(releaseId);
+                    const presskit = data.data && typeof data.data === 'object' ? data.data : {};
+                    if (entry) {
+                        entry.short_description = String(presskit.short_description || '');
+                        entry.description = String(presskit.description || '');
+                        entry.epk = presskit.epk && typeof presskit.epk === 'object'
+                            ? presskit.epk
+                            : defaultReleaseEpk();
+                    }
+                } catch (error) {
+                    showReleaseToast(error.message || 'Could not refresh Press kit editor.', 'error');
+                }
+            }
+
+            syncReleaseSettingsPanel(selectedReleaseId);
+            if (section === 'branding') {
+                refreshReleaseBrandingLivePreview();
+            } else {
+                renderReleaseEditorPresskitPreview();
+            }
+        }
+
+        function setReleaseEditorTab(tabId) {
+            const next = String(tabId || 'base').trim() || 'base';
+            const allowed = new Set(['base', 'tracks', 'playlists', 'galleries', 'pages']);
+            releaseEditorTab = allowed.has(next) ? next : 'base';
+            editorCard.setAttribute('data-release-editor-section', releaseEditorTab);
+
+            document.querySelectorAll('[data-release-editor-tab]').forEach((button) => {
+                const active = String(button.getAttribute('data-release-editor-tab') || '') === releaseEditorTab;
+                button.classList.toggle('is-active', active);
+                button.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            document.querySelectorAll('[data-release-editor-panel]').forEach((panel) => {
+                const active = String(panel.getAttribute('data-release-editor-panel') || '') === releaseEditorTab;
+                panel.classList.toggle('is-active', active);
+                panel.hidden = !active;
+            });
+            syncReleaseEditorMode();
+            if (releaseEditorTab === 'tracks'
+                && isEditing
+                && trackEditorLoadedReleaseId !== selectedReleaseId
+            ) {
+                loadReleasePreview();
+            }
+            if (ASSOCIATION_KINDS.includes(releaseEditorTab) && isEditing) {
+                ensureAssociationEditorLoaded(releaseEditorTab);
+            }
+            if (releaseEditorTab === 'base' && isEditing) {
+                window.requestAnimationFrame(() => autofitReleaseDescriptionField());
+            }
+        }
+
+        function renderReleaseEditorPresskitPreview() {
+            if (!releaseEditorPresskitPreview) {
+                return;
+            }
+            const entry = releaseEntry(selectedReleaseId);
+            if (!entry) {
+                releaseEditorPresskitPreview.innerHTML = '<p class="release-preview-empty">No release selected.</p>';
+                return;
+            }
+            const metadata = readReleaseMetadataFromForm();
+            releaseEditorPresskitPreview.innerHTML = renderReleasePreviewPressKit({
+                ...entry,
+                short_description: metadata.short_description,
+                description: metadata.description,
+                epk: metadata.epk,
+            });
+        }
+
+        async function refreshReleaseBrandingLivePreview() {
+            if (!isEditing || releaseEditorTab !== 'branding' || !releaseBrandingPreview) {
+                return;
+            }
+            const brandId = releaseSettingsBrandId instanceof HTMLSelectElement
+                ? String(releaseSettingsBrandId.value || '').trim()
+                : '';
+            const token = ++releaseBrandingPreviewToken;
+            releaseBrandingPreview.innerHTML = '<p class="theme-editor-empty">Loading brand preview…</p>';
+
+            try {
+                const url = brandId
+                    ? `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`
+                    : '/biblioteca/get-theme.php';
+                const data = await fetchJson(url, { cache: 'no-store' });
+                if (token !== releaseBrandingPreviewToken
+                    || releaseEditorTab !== 'branding'
+                    || !isEditing
+                ) {
+                    return;
+                }
+                if (window.bandpromoThemePreview?.render) {
+                    window.bandpromoThemePreview.render(releaseBrandingPreview, data.document || null, {
+                        styleId: 'bandpromo-release-brand-preview-style',
+                        selector: '#releaseBrandingPreview .theme-preview-canvas',
+                    });
+                } else {
+                    releaseBrandingPreview.innerHTML = '<p class="theme-editor-empty">Brand preview is unavailable.</p>';
+                }
+            } catch (error) {
+                if (token !== releaseBrandingPreviewToken) {
+                    return;
+                }
+                releaseBrandingPreview.innerHTML = `<p class="theme-editor-empty text-error">${escapeHtml(error.message || 'Could not load brand preview.')}</p>`;
+            }
+        }
+
+        function syncReleaseEditorMode() {
+            if (!isEditing) {
+                if (releaseBrandingLivePreview) {
+                    releaseBrandingLivePreview.hidden = true;
+                }
+                if (releasePresskitLivePreview) {
+                    releasePresskitLivePreview.hidden = true;
+                }
+                if (releaseEditorPreviewHeading) {
+                    releaseEditorPreviewHeading.textContent = 'Preview';
+                }
+                if (releaseAssociationActiveList) {
+                    releaseAssociationActiveList.hidden = true;
+                }
+                if (releaseAssociationAvailableSection) {
+                    releaseAssociationAvailableSection.hidden = true;
+                }
+                return;
+            }
+            const baseActive = releaseEditorTab === 'base';
+            const tracksActive = releaseEditorTab === 'tracks';
+            const associationActive = ASSOCIATION_KINDS.includes(releaseEditorTab);
+            const entry = releaseEntry(selectedReleaseId);
+
+            if (releaseCoverPanel) {
+                releaseCoverPanel.hidden = !baseActive || !entry;
+            }
+            if (activeEl) {
+                activeEl.hidden = !tracksActive;
+            }
+            if (releaseAvailableSection) {
+                releaseAvailableSection.hidden = !tracksActive;
+            }
+            if (releaseAssociationActiveList) {
+                releaseAssociationActiveList.hidden = !associationActive;
+            }
+            if (releaseAssociationAvailableSection) {
+                releaseAssociationAvailableSection.hidden = !associationActive;
+            }
+            if (associationActive) {
+                const labels = ASSOCIATION_LABELS[releaseEditorTab];
+                if (releaseAssociationAvailableHeading && labels) {
+                    releaseAssociationAvailableHeading.textContent = labels.available;
+                }
+                if (releaseAssociationAvailableList && labels) {
+                    releaseAssociationAvailableList.setAttribute('aria-label', labels.available);
+                }
+                if (releaseAssociationActiveList && labels) {
+                    releaseAssociationActiveList.setAttribute('aria-label', labels.associated);
+                }
+                renderAssociationLists();
+            }
+            if (releaseEditorPreviewHeading) {
+                const headings = {
+                    base: 'Release preview',
+                    tracks: 'Associated tracks',
+                    playlists: 'Associated playlists',
+                    galleries: 'Associated galleries',
+                    pages: 'Associated pages',
+                };
+                releaseEditorPreviewHeading.textContent = headings[releaseEditorTab] || 'Preview';
+            }
+            refreshReleaseBaseBrandPreview();
+            refreshReleaseLongDescriptionPreview();
+        }
+
+        function renderReleasePreviewMeta(entry) {
+            const title = String(entry?.title || 'Release').trim() || 'Release';
+            const date = String(entry?.release_date || '').trim();
+            const summary = String(entry?.short_description || '').trim();
+            if (releasePreviewTitle) {
+                releasePreviewTitle.textContent = title;
+            }
+            if (releasePreviewDate) {
+                releasePreviewDate.textContent = date;
+                releasePreviewDate.hidden = date === '';
+            }
+            if (releasePreviewSummary) {
+                releasePreviewSummary.textContent = summary;
+                releasePreviewSummary.hidden = summary === '';
+            }
+        }
+
+        function updateReleaseBasePreviewFromForm() {
+            if (!isEditing || releaseEditorTab !== 'base') {
+                return;
+            }
+            const title = releaseSettingsTitle instanceof HTMLInputElement
+                ? String(releaseSettingsTitle.value || '').trim()
+                : '';
+            const date = releaseSettingsDate instanceof HTMLInputElement
+                ? String(releaseSettingsDate.value || '').trim()
+                : '';
+            const blurb = releaseSettingsShortDescription instanceof HTMLTextAreaElement
+                ? String(releaseSettingsShortDescription.value || '').trim()
+                : '';
+
+            if (releasePreviewTitle) {
+                releasePreviewTitle.textContent = title || 'Release';
+            }
+            if (releasePreviewDate) {
+                releasePreviewDate.textContent = date;
+                releasePreviewDate.hidden = date === '';
+            }
+            if (releasePreviewSummary) {
+                releasePreviewSummary.textContent = blurb;
+                releasePreviewSummary.hidden = blurb === '';
+            }
+            refreshReleaseLongDescriptionPreview();
+        }
+
+        function currentLongDescriptionMarkdown(entry = releaseEntry(selectedReleaseId)) {
+            if (isEditing && releaseSettingsDescription instanceof HTMLTextAreaElement) {
+                return String(releaseSettingsDescription.value || '').trim();
+            }
+            return String(entry?.description || '').trim();
+        }
+
+        function refreshReleaseLongDescriptionPreview() {
+            if (!releaseLongDescriptionPreview || !releaseLongDescriptionPreviewBody) {
+                return;
+            }
+            const coverVisible = !!(releaseCoverPanel && !releaseCoverPanel.hidden);
+            const showUnderPreview = coverVisible && (!isEditing || releaseEditorTab === 'base');
+            if (!showUnderPreview) {
+                releaseLongDescriptionPreview.hidden = true;
+                releaseLongDescriptionPreviewBody.innerHTML = '';
+                return;
+            }
+
+            const markdown = currentLongDescriptionMarkdown();
+            releaseLongDescriptionPreview.hidden = false;
+            if (!markdown) {
+                releaseLongDescriptionPreviewBody.innerHTML = '<p class="release-preview-empty">No long description yet.</p>';
+                return;
+            }
+
+            const rendered = typeof window.bandpromoPlayerMarkdown?.render === 'function'
+                ? window.bandpromoPlayerMarkdown.render(markdown)
+                : '';
+            if (rendered) {
+                releaseLongDescriptionPreviewBody.innerHTML = rendered;
+                return;
+            }
+
+            releaseLongDescriptionPreviewBody.innerHTML = `<p>${escapeHtml(markdown).replace(/\n/g, '<br>')}</p>`;
+        }
+
+        function renderReleasePreviewBranding(entry) {
+            const children = ownershipChildren(entry);
+            const brand = children.brand;
+            const brandId = String(children.brand_id || brand?.id || '').trim();
+            if (!brandId) {
+                return '<p class="release-preview-empty">No brand linked to this release yet.</p>';
+            }
+            const title = String(brand?.title || brandId).trim() || brandId;
+            const mood = String(brand?.mood || '').trim();
+            const logo = String(brand?.logo || '').trim();
+            const background = String(brand?.background_image || '').trim();
+            const tokens = brand?.tokens && typeof brand.tokens === 'object' ? brand.tokens : {};
+            const swatches = ['primary', 'secondary', 'background', 'text']
+                .map((key) => {
+                    const color = String(tokens[key] || '').trim();
+                    if (!color) {
+                        return '';
+                    }
+                    return `<span class="release-preview-swatch" title="${escapeHtml(key)}" style="background:${escapeHtml(color)}"></span>`;
+                })
+                .filter(Boolean)
+                .join('');
+            const shellStyle = background
+                ? ` style="background-image:url('${escapeHtml(background)}')"`
+                : '';
+            const logoHtml = logo
+                ? `<img class="release-preview-brand-logo" src="${escapeHtml(logo)}" alt="">`
+                : '<span class="release-preview-empty">No logo assigned</span>';
+            return `<div class="release-preview-brand">
+                <div class="release-preview-brand-shell"${shellStyle}>${logoHtml}</div>
+                <div class="release-preview-brand-copy">
+                    <h5 class="release-preview-brand-title">${escapeHtml(title)}</h5>
+                    ${mood ? `<p class="release-preview-brand-mood">${escapeHtml(mood)}</p>` : ''}
+                    ${swatches ? `<div class="release-preview-swatches">${swatches}</div>` : ''}
+                </div>
+            </div>`;
+        }
+
+        function brandPreviewModelFromThemeDocument(document) {
+            if (!document || typeof document !== 'object') {
+                return null;
+            }
+            const id = String(document.id || '').trim();
+            if (!id) {
+                return null;
+            }
+            const tokens = document.tokens && typeof document.tokens === 'object' ? document.tokens : {};
+            const colors = tokens.color && typeof tokens.color === 'object' ? tokens.color : {};
+            const assets = document.assets && typeof document.assets === 'object' ? document.assets : {};
+            return {
+                id,
+                title: String(document.title || id).trim() || id,
+                mood: String(document.mood || '').trim(),
+                logo: String(assets.logo || '').trim(),
+                background_image: String(assets.background_image || '').trim(),
+                tokens: {
+                    primary: String(colors.primary || '').trim(),
+                    secondary: String(colors.secondary || '').trim(),
+                    background: String(colors.background || '').trim(),
+                    text: String(colors.text || '').trim(),
+                },
+            };
+        }
+
+        function currentBaseBrandId(entry = releaseEntry(selectedReleaseId)) {
+            if (isEditing && releaseSettingsBrandId instanceof HTMLSelectElement) {
+                return String(releaseSettingsBrandId.value || '').trim();
+            }
+            const children = ownershipChildren(entry);
+            return String(children.brand_id || entry?.brand_id || '').trim();
+        }
+
+        async function refreshReleaseBaseBrandPreview() {
+            if (!releaseBaseBrandPreview || !releaseBaseBrandPreviewBody) {
+                return;
+            }
+            const coverVisible = !!(releaseCoverPanel && !releaseCoverPanel.hidden);
+            const showUnderPreview = coverVisible && (!isEditing || releaseEditorTab === 'base');
+            if (!showUnderPreview) {
+                releaseBaseBrandPreview.hidden = true;
+                releaseBaseBrandPreviewBody.innerHTML = '';
+                return;
+            }
+
+            const entry = releaseEntry(selectedReleaseId);
+            const brandId = currentBaseBrandId(entry);
+            const children = ownershipChildren(entry);
+            const token = ++releaseBaseBrandPreviewToken;
+            releaseBaseBrandPreview.hidden = false;
+
+            if (brandId && children.brand && String(children.brand_id || children.brand.id || '') === brandId) {
+                releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding(entry);
+                return;
+            }
+
+            if (!brandId && children.brand && !isEditing) {
+                releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding(entry);
+                return;
+            }
+
+            releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">Loading brand preview…</p>';
+            try {
+                const url = brandId
+                    ? `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`
+                    : '/biblioteca/get-theme.php';
+                const data = await fetchJson(url, { cache: 'no-store' });
+                if (token !== releaseBaseBrandPreviewToken) {
+                    return;
+                }
+                const brand = brandPreviewModelFromThemeDocument(data.document || null);
+                if (!brand) {
+                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this release yet.</p>';
+                    return;
+                }
+                releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding({
+                    brand_id: brand.id,
+                    ownership_children: {
+                        brand_id: brand.id,
+                        brand,
+                    },
+                });
+            } catch (error) {
+                if (token !== releaseBaseBrandPreviewToken) {
+                    return;
+                }
+                releaseBaseBrandPreviewBody.innerHTML = `<p class="release-preview-empty text-error">${escapeHtml(error.message || 'Could not load brand preview.')}</p>`;
+            }
+        }
+
+        function renderReleasePreviewPressKit(entry) {
+            const epk = normalizeReleaseEpk(entry?.epk);
+            const description = String(entry?.description || '').trim();
+            const shortDescription = String(entry?.short_description || '').trim();
+            const rows = [];
+            if (shortDescription) {
+                rows.push(['Summary', shortDescription]);
+            }
+            if (description && description !== shortDescription) {
+                rows.push(['Description', description]);
+            }
+            if (epk.credits) {
+                rows.push(['Credits', epk.credits]);
+            }
+            if (epk.press_contact) {
+                rows.push(['Press contact', epk.press_contact]);
+            }
+            if (Array.isArray(epk.streaming_links) && epk.streaming_links.length) {
+                rows.push(['Enjoy here', epk.streaming_links.map((link) => `${link.label}: ${link.url}`).join('\n')]);
+            }
+            if (Array.isArray(epk.press_photo_asset_ids) && epk.press_photo_asset_ids.length) {
+                rows.push(['Press photos', `${epk.press_photo_asset_ids.length} asset${epk.press_photo_asset_ids.length === 1 ? '' : 's'}`]);
+            }
+            if (!rows.length) {
+                return '<p class="release-preview-empty">No press kit content yet. Open edit to fill the EPK.</p>';
+            }
+            return `<dl class="release-preview-epk">${rows.map(([label, value]) => (
+                `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value).replace(/\n/g, '<br>')}</dd>`
+            )).join('')}</dl>`;
+        }
+
+        function updateReleaseCoverPanel() {
+            const entry = releaseEntry(selectedReleaseId);
+            if (releaseCoverPanel) {
+                releaseCoverPanel.hidden = !entry || (isEditing && releaseEditorTab !== 'base');
+            }
+            renderReleasePreviewMeta(entry);
+            if (entry && releaseSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
+                releaseSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
+            }
+            const canEditCover = !!(isEditing && entry && !releaseIsSystemManaged(entry) && !entry.locked);
+            if (releaseCoverOverlayActions instanceof HTMLElement) {
+                releaseCoverOverlayActions.hidden = !isEditing;
+            }
+            const coverEditButtons = releaseCoverPanel
+                ? releaseCoverPanel.querySelectorAll('.audio-master-cover-overlay-actions button')
+                : [];
+            coverEditButtons.forEach((button) => {
+                if (button instanceof HTMLButtonElement) {
+                    button.disabled = !canEditCover;
+                }
+            });
+            if (activeEl) {
+                activeEl.hidden = !isEditing || releaseEditorTab !== 'tracks';
+            }
+            updateReleaseCreatePlaylistButton();
+            updateReleaseCoverPreview();
+            syncReleaseEditorMode();
+            refreshReleaseBaseBrandPreview();
+            refreshReleaseLongDescriptionPreview();
         }
 
         async function createPlaylistFromRelease() {
@@ -345,7 +913,7 @@
                 if (!playlistId) {
                     throw new Error('Playlist was created but its id is missing.');
                 }
-                window.location.href = `?tab=content&cntab=playlist&playlist=${encodeURIComponent(playlistId)}&edit=1`;
+                window.location.href = `?tab=content&cntab=playlist&playlist=${encodeURIComponent(playlistId)}&edit=1&release=${encodeURIComponent(selectedReleaseId)}`;
             } catch (error) {
                 showReleaseToast(error.message || 'Could not create playlist', 'error');
                 creatingPlaylistFromRelease = false;
@@ -378,11 +946,6 @@
                 event.preventDefault();
                 event.stopPropagation();
                 setReleaseCoverValue('');
-            });
-
-            releaseCreatePlaylistBtn?.addEventListener('click', (event) => {
-                event.preventDefault();
-                createPlaylistFromRelease();
             });
         }
 
@@ -470,6 +1033,15 @@
             };
         }
 
+        function autofitReleaseDescriptionField() {
+            if (!(releaseSettingsDescription instanceof HTMLTextAreaElement)) {
+                return;
+            }
+            const field = releaseSettingsDescription;
+            field.style.height = 'auto';
+            field.style.height = `${Math.max(field.scrollHeight, 104)}px`;
+        }
+
         function streamingUrlForLabel(links, label) {
             const needle = String(label || '').trim().toLowerCase();
             const match = (Array.isArray(links) ? links : []).find((link) => (
@@ -491,7 +1063,9 @@
 
         function readPressPhotoIdsFromForm() {
             if (!(releaseSettingsPressPhotos instanceof HTMLTextAreaElement)) {
-                return [];
+                return Array.isArray(releaseSettingsBaseline.epk?.press_photo_asset_ids)
+                    ? releaseSettingsBaseline.epk.press_photo_asset_ids.slice()
+                    : [];
             }
             return String(releaseSettingsPressPhotos.value || '')
                 .split(/[,\n]+/)
@@ -500,6 +1074,14 @@
         }
 
         function readStreamingLinksFromForm() {
+            if (!(releaseSettingsStreamBandpromo instanceof HTMLInputElement)
+                && !(releaseSettingsStreamSpotify instanceof HTMLInputElement)
+                && !(releaseSettingsStreamApple instanceof HTMLInputElement)
+            ) {
+                return Array.isArray(releaseSettingsBaseline.epk?.streaming_links)
+                    ? releaseSettingsBaseline.epk.streaming_links.map((link) => ({ ...link }))
+                    : [];
+            }
             const links = [];
             const addLink = (label, input) => {
                 if (!(input instanceof HTMLInputElement)) {
@@ -533,26 +1115,22 @@
                     : '',
                 description: releaseSettingsDescription instanceof HTMLTextAreaElement
                     ? String(releaseSettingsDescription.value || '').trim()
-                    : '',
+                    : String(releaseSettingsBaseline.description || '').trim(),
                 poster_asset_id: releaseSettingsPosterAssetId instanceof HTMLInputElement
                     ? String(releaseSettingsPosterAssetId.value || '').trim()
                     : '',
                 brand_id: releaseSettingsBrandId instanceof HTMLSelectElement
                     ? String(releaseSettingsBrandId.value || '').trim()
-                    : '',
+                    : String(releaseSettingsBaseline.brand_id || '').trim(),
                 epk: {
-                    tagline: releaseSettingsTagline instanceof HTMLInputElement
-                        ? String(releaseSettingsTagline.value || '').trim()
-                        : '',
-                    genre: releaseSettingsGenre instanceof HTMLInputElement
-                        ? String(releaseSettingsGenre.value || '').trim()
-                        : '',
+                    tagline: String(releaseSettingsBaseline.epk?.tagline || '').trim(),
+                    genre: String(releaseSettingsBaseline.epk?.genre || '').trim(),
                     credits: releaseSettingsCredits instanceof HTMLTextAreaElement
                         ? String(releaseSettingsCredits.value || '').trim()
-                        : '',
+                        : String(releaseSettingsBaseline.epk?.credits || '').trim(),
                     press_contact: releaseSettingsPressContact instanceof HTMLInputElement
                         ? String(releaseSettingsPressContact.value || '').trim()
-                        : '',
+                        : String(releaseSettingsBaseline.epk?.press_contact || '').trim(),
                     streaming_links: readStreamingLinksFromForm(),
                     press_photo_asset_ids: readPressPhotoIdsFromForm(),
                 },
@@ -587,8 +1165,6 @@
             const controls = [
                 releaseSettingsShortDescription,
                 releaseSettingsDescription,
-                releaseSettingsTagline,
-                releaseSettingsGenre,
                 releaseSettingsCredits,
                 releaseSettingsPressContact,
                 releaseSettingsStreamBandpromo,
@@ -603,15 +1179,28 @@
             });
         }
 
-        const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
-            saveLabel: '💾 Save release',
-            readFingerprint() {
-                return JSON.stringify(activeTracks.map((track) => String(track.file || '')).filter(Boolean));
-            },
-        }) || null;
-
         let activeTracks = [];
         let availableTracks = [];
+        let associationPools = {
+            playlists: { active: [], available: [], loadedFor: '' },
+            galleries: { active: [], available: [], loadedFor: '' },
+            pages: { active: [], available: [], loadedFor: '' },
+        };
+        let associationDragKind = '';
+        let associationDragIds = [];
+        let associationDragSource = '';
+        let tracksPersistToken = 0;
+        let tracksPersistPromise = Promise.resolve();
+        let associationsPersistToken = {
+            playlists: 0,
+            galleries: 0,
+            pages: 0,
+        };
+        let associationsPersistPromise = {
+            playlists: Promise.resolve(),
+            galleries: Promise.resolve(),
+            pages: Promise.resolve(),
+        };
         let dragSourceRow = null;
         let draggedRows = [];
         let dragSourceList = '';
@@ -621,6 +1210,379 @@
         let selectionAnchorAvailable = '';
         let selectionAnchorActive = '';
         let suppressNextClick = false;
+
+        function cloneAssociationItem(item) {
+            return {
+                id: String(item?.id || '').trim(),
+                title: String(item?.title || '').trim(),
+                publish_date: String(item?.publish_date || '').trim(),
+                release_id: String(item?.release_id || '').trim(),
+                movable: item?.movable !== false,
+            };
+        }
+
+        function resetAssociationPools() {
+            ASSOCIATION_KINDS.forEach((kind) => {
+                associationPools[kind] = { active: [], available: [], loadedFor: '' };
+            });
+        }
+
+        function currentAssociationKind() {
+            return ASSOCIATION_KINDS.includes(releaseEditorTab) ? releaseEditorTab : '';
+        }
+
+        function associationEditingEnabled(entry = releaseEntry(selectedReleaseId)) {
+            return !!(isEditing && entry && !releaseIsSystemManaged(entry) && !entry.locked);
+        }
+
+        function sortAssociationItems(kind, items) {
+            const rows = (Array.isArray(items) ? items : []).map(cloneAssociationItem).filter((item) => item.id);
+            if (kind === 'playlists') {
+                rows.sort((left, right) => {
+                    const dateCompare = String(right.publish_date || '').localeCompare(String(left.publish_date || ''));
+                    if (dateCompare !== 0) {
+                        return dateCompare;
+                    }
+                    return String(left.title || '').localeCompare(String(right.title || ''), undefined, { sensitivity: 'base' });
+                });
+                return rows;
+            }
+            rows.sort((left, right) => String(left.title || '').localeCompare(
+                String(right.title || ''),
+                undefined,
+                { sensitivity: 'base' }
+            ));
+            return rows;
+        }
+
+        function renderAssociationRow(item, { showRemove = false, draggable = false, canEdit = false } = {}) {
+            const id = escapeHtml(item.id || '');
+            const title = escapeHtml(item.title || item.id || 'Untitled');
+            const meta = item.publish_date
+                ? `<span class="playlist-track-meta">${escapeHtml(item.publish_date)}</span>`
+                : '';
+            const removeMarkup = showRemove
+                ? '<button type="button" class="player-layout-remove-btn" title="Remove from release" aria-label="Remove from release">✕</button>'
+                : '';
+            const dragHandle = draggable
+                ? '<span class="playlist-drag-handle" title="Drag into release">⠿</span>'
+                : '';
+            const readonlyClass = canEdit ? '' : ' playlist-editor-row-readonly';
+            const activeRowClass = showRemove || !draggable ? ' player-layout-row-active' : '';
+            return `<li class="playlist-editor-row${activeRowClass}${readonlyClass}" draggable="${draggable ? 'true' : 'false'}" data-id="${id}">
+                ${dragHandle}
+                <span class="playlist-track-info">
+                    <strong>${title}</strong>
+                    ${meta}
+                </span>
+                ${removeMarkup}
+            </li>`;
+        }
+
+        function renderAssociationLists() {
+            const kind = currentAssociationKind();
+            if (!kind || !releaseAssociationActiveList || !releaseAssociationAvailableList) {
+                return;
+            }
+            const labels = ASSOCIATION_LABELS[kind];
+            const pool = associationPools[kind];
+            const canEdit = associationEditingEnabled();
+            const active = sortAssociationItems(kind, pool.active);
+            const available = sortAssociationItems(kind, pool.available);
+            pool.active = active;
+            pool.available = available;
+
+            if (pool.loadedFor !== selectedReleaseId) {
+                releaseAssociationActiveList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
+                releaseAssociationAvailableList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
+                return;
+            }
+
+            if (!active.length) {
+                releaseAssociationActiveList.innerHTML = canEdit
+                    ? `<li class="player-layout-empty">Drag ${labels.plural} here from ${labels.available}.</li>`
+                    : `<li class="player-layout-empty">This release has no ${labels.plural} yet.</li>`;
+            } else {
+                releaseAssociationActiveList.innerHTML = active.map((item) => renderAssociationRow(item, {
+                    showRemove: canEdit && item.movable !== false,
+                    draggable: false,
+                    canEdit,
+                })).join('');
+            }
+
+            if (!available.length) {
+                const emptyMessage = canEdit
+                    ? (active.length
+                        ? `All unassigned ${labels.plural} are already associated above. Use ✕ to move one back here.`
+                        : `No unassigned ${labels.plural} are available. Create one in Content → ${labels.plural[0].toUpperCase()}${labels.plural.slice(1)}, or unassign one from another release first.`)
+                    : `${labels.associated} are preview-only while this release is locked.`;
+                releaseAssociationAvailableList.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
+            } else {
+                releaseAssociationAvailableList.innerHTML = available.map((item) => renderAssociationRow(item, {
+                    showRemove: false,
+                    draggable: canEdit && item.movable !== false,
+                    canEdit,
+                })).join('');
+            }
+
+        }
+
+        function moveAssociationItems(kind, fromList, toList, ids) {
+            if (!associationEditingEnabled()) {
+                return false;
+            }
+            const pool = associationPools[kind];
+            if (!pool || pool.loadedFor !== selectedReleaseId) {
+                return false;
+            }
+            const idSet = new Set((ids || []).map((id) => String(id || '').trim()).filter(Boolean));
+            if (!idSet.size) {
+                return false;
+            }
+            const source = fromList === 'active' ? pool.active : pool.available;
+            const moving = source.filter((item) => idSet.has(String(item.id || '')) && item.movable !== false);
+            if (!moving.length) {
+                return false;
+            }
+            if (fromList === 'active') {
+                pool.active = pool.active.filter((item) => !idSet.has(String(item.id || '')));
+            } else {
+                pool.available = pool.available.filter((item) => !idSet.has(String(item.id || '')));
+            }
+            const target = toList === 'active' ? pool.active : pool.available;
+            moving.forEach((item) => {
+                const clone = cloneAssociationItem(item);
+                clone.release_id = toList === 'active' ? selectedReleaseId : '';
+                target.push(clone);
+            });
+            pool.active = sortAssociationItems(kind, pool.active);
+            pool.available = sortAssociationItems(kind, pool.available);
+            renderAssociationLists();
+            void persistReleaseAssociations(kind);
+            return true;
+        }
+
+        async function ensureAssociationEditorLoaded(kind) {
+            if (!ASSOCIATION_KINDS.includes(kind) || !selectedReleaseId || !isEditing) {
+                return;
+            }
+            const pool = associationPools[kind];
+            if (pool.loadedFor === selectedReleaseId) {
+                renderAssociationLists();
+                return;
+            }
+            try {
+                const data = await fetchJson(
+                    `/biblioteca/get-release-associations.php?release=${encodeURIComponent(selectedReleaseId)}&kind=${encodeURIComponent(kind)}`
+                );
+                if (!isEditing || selectedReleaseId !== String(data.release_id || '') || releaseEditorTab !== kind) {
+                    return;
+                }
+                associationPools[kind] = {
+                    active: Array.isArray(data.active) ? data.active.map(cloneAssociationItem) : [],
+                    available: Array.isArray(data.available) ? data.available.map(cloneAssociationItem) : [],
+                    loadedFor: selectedReleaseId,
+                };
+                renderAssociationLists();
+            } catch (error) {
+                if (releaseAssociationActiveList) {
+                    releaseAssociationActiveList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message || 'Could not load associations')}</li>`;
+                }
+                if (releaseAssociationAvailableList) {
+                    releaseAssociationAvailableList.innerHTML = '<li class="player-layout-empty"></li>';
+                }
+            }
+        }
+
+        async function persistReleaseAssociations(kind) {
+            if (!ASSOCIATION_KINDS.includes(kind) || !associationEditingEnabled()) {
+                return true;
+            }
+            const pool = associationPools[kind];
+            if (!pool || pool.loadedFor !== selectedReleaseId) {
+                return true;
+            }
+            const releaseId = selectedReleaseId;
+            const token = ++associationsPersistToken[kind];
+            const ids = pool.active.map((item) => String(item.id || '')).filter(Boolean);
+            const work = (async () => {
+                try {
+                    const data = await fetchJson(
+                        `/biblioteca/save-release-associations.php?release=${encodeURIComponent(releaseId)}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ kind, ids }),
+                        }
+                    );
+                    if (token !== associationsPersistToken[kind] || releaseId !== selectedReleaseId) {
+                        return true;
+                    }
+                    associationPools[kind] = {
+                        active: Array.isArray(data.active) ? data.active.map(cloneAssociationItem) : [],
+                        available: Array.isArray(data.available) ? data.available.map(cloneAssociationItem) : [],
+                        loadedFor: releaseId,
+                    };
+                    const entry = releaseEntry(releaseId);
+                    if (entry && data.ownership_children && typeof data.ownership_children === 'object') {
+                        entry.ownership_children = data.ownership_children;
+                    }
+                    if (kind === currentAssociationKind()) {
+                        renderAssociationLists();
+                    }
+                    renderReleasePoolList();
+                    return true;
+                } catch (error) {
+                    if (token !== associationsPersistToken[kind]) {
+                        return false;
+                    }
+                    showReleaseToast(error.message || 'Could not save associations', 'error');
+                    associationPools[kind] = { active: [], available: [], loadedFor: '' };
+                    await ensureAssociationEditorLoaded(kind);
+                    return false;
+                }
+            })();
+            associationsPersistPromise[kind] = work;
+            return work;
+        }
+
+        async function persistReleaseTracks() {
+            if (!releaseTrackEditingEnabled() || trackEditorLoadedReleaseId !== selectedReleaseId) {
+                return true;
+            }
+            const releaseId = selectedReleaseId;
+            const token = ++tracksPersistToken;
+            const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
+            const work = (async () => {
+                try {
+                    const data = await fetchJson(`/biblioteca/save-release-tracks.php?release=${encodeURIComponent(releaseId)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(order),
+                    });
+                    if (token !== tracksPersistToken || releaseId !== selectedReleaseId) {
+                        return true;
+                    }
+                    const preview = await fetchJson(`/biblioteca/get-release-preview.php?release=${encodeURIComponent(releaseId)}`);
+                    if (token !== tracksPersistToken || releaseId !== selectedReleaseId) {
+                        return true;
+                    }
+                    applyPreviewData(preview);
+                    await loadReleaseRegistry();
+                    if (data.warning) {
+                        showReleaseToast(data.warning, 'warning');
+                    }
+                    return true;
+                } catch (error) {
+                    if (token !== tracksPersistToken) {
+                        return false;
+                    }
+                    showReleaseToast(error.message || 'Could not save release tracks', 'error');
+                    trackEditorLoadedReleaseId = '';
+                    await loadReleasePreview();
+                    return false;
+                }
+            })();
+            tracksPersistPromise = work;
+            return work;
+        }
+
+        async function flushMembershipSaves() {
+            await tracksPersistPromise;
+            await Promise.all(ASSOCIATION_KINDS.map((kind) => associationsPersistPromise[kind]));
+        }
+
+        function bindAssociationDragList(listEl, listName) {
+            if (!listEl) {
+                return;
+            }
+
+            function clearAssociationDragUi() {
+                document.querySelectorAll('.release-association-row-dragging').forEach((row) => {
+                    row.classList.remove('release-association-row-dragging');
+                });
+                releaseAssociationActiveList?.classList.remove('is-drop-target');
+                releaseAssociationAvailableList?.classList.remove('is-drop-target');
+            }
+
+            listEl.addEventListener('dragstart', (event) => {
+                const kind = currentAssociationKind();
+                if (!kind || !associationEditingEnabled()) {
+                    event.preventDefault();
+                    return;
+                }
+                const row = event.target instanceof HTMLElement
+                    ? event.target.closest('.playlist-editor-row')
+                    : null;
+                if (!row || !listEl.contains(row) || row.getAttribute('draggable') !== 'true') {
+                    return;
+                }
+                const id = String(row.dataset.id || '').trim();
+                if (!id) {
+                    event.preventDefault();
+                    return;
+                }
+                associationDragKind = kind;
+                associationDragSource = listName;
+                associationDragIds = [id];
+                row.classList.add('release-association-row-dragging');
+                try {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', id);
+                    event.dataTransfer.setData('application/x-bandpromo-association', id);
+                } catch (error) {
+                    // Some hosts reject custom MIME types; text/plain is enough.
+                }
+            });
+
+            listEl.addEventListener('dragover', (event) => {
+                if (!associationDragIds.length || associationDragKind !== currentAssociationKind()) {
+                    return;
+                }
+                const canDropHere = listName === 'active' && associationDragSource === 'available';
+                if (!canDropHere) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = 'move';
+                listEl.classList.add('is-drop-target');
+            });
+
+            listEl.addEventListener('dragleave', (event) => {
+                const related = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+                if (related && listEl.contains(related)) {
+                    return;
+                }
+                listEl.classList.remove('is-drop-target');
+            });
+
+            listEl.addEventListener('drop', (event) => {
+                const kind = associationDragKind || currentAssociationKind();
+                const ids = associationDragIds.slice();
+                const from = associationDragSource;
+                listEl.classList.remove('is-drop-target');
+                if (!ids.length || kind !== currentAssociationKind()) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                if (listName === 'active' && from === 'available') {
+                    moveAssociationItems(kind, 'available', 'active', ids);
+                }
+                clearAssociationDragUi();
+                associationDragKind = '';
+                associationDragIds = [];
+                associationDragSource = '';
+            });
+
+            listEl.addEventListener('dragend', () => {
+                clearAssociationDragUi();
+                associationDragKind = '';
+                associationDragIds = [];
+                associationDragSource = '';
+            });
+        }
 
         function validateReleaseDate(value) {
             const trimmed = String(value || '').trim();
@@ -642,6 +1604,7 @@
                 artist: track.artist,
                 album: track.album,
                 duration: track.duration,
+                release_date: String(track.release_date || ''),
                 origin: track.origin,
                 sourceTier: track.sourceTier,
                 deliveryReady: track.deliveryReady !== false,
@@ -753,7 +1716,6 @@
                 chunks.push('demo');
             }
 
-            const catalogId = escapeHtml(String(entry.catalog_id || '').trim());
             const trackCount = Number(entry.track_count || 0);
             const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
             const releaseDate = escapeHtml(String(entry.release_date || '').trim());
@@ -761,9 +1723,6 @@
             let line = escapeHtml(tracksLabel);
             if (releaseDate) {
                 line += ` released ${releaseDate}`;
-            }
-            if (catalogId) {
-                line += ` as <strong class="pool-container-ref">${catalogId}</strong>`;
             }
 
             if (chunks.length) {
@@ -853,6 +1812,18 @@
             const bandpromoListenUrl = streamingUrlForBandpromo(epk.streaming_links)
                 || defaultBandpromoListenUrl();
 
+            releaseSettingsBaseline = {
+                title,
+                release_date: releaseDate,
+                catalog_id: catalogId,
+                locked,
+                short_description: shortDescription,
+                description,
+                poster_asset_id: posterAssetId,
+                brand_id: brandId,
+                epk,
+            };
+
             if (releaseSettingsStreamBandpromoLabel) {
                 releaseSettingsStreamBandpromoLabel.textContent = bandpromoSiteLabel();
             }
@@ -883,15 +1854,10 @@
             }
             if (releaseSettingsDescription instanceof HTMLTextAreaElement) {
                 releaseSettingsDescription.value = description;
+                autofitReleaseDescriptionField();
             }
             if (releaseSettingsPosterAssetId instanceof HTMLInputElement) {
                 releaseSettingsPosterAssetId.value = posterAssetId;
-            }
-            if (releaseSettingsTagline instanceof HTMLInputElement) {
-                releaseSettingsTagline.value = epk.tagline;
-            }
-            if (releaseSettingsGenre instanceof HTMLInputElement) {
-                releaseSettingsGenre.value = epk.genre;
             }
             if (releaseSettingsCredits instanceof HTMLTextAreaElement) {
                 releaseSettingsCredits.value = epk.credits;
@@ -928,7 +1894,7 @@
                 return;
             }
             if (!isEditing) {
-                editorHint.textContent = 'Select a release from the pool, then click edit to change its track membership.';
+                editorHint.textContent = 'Select a release from the pool to preview it. Click edit to manage tracks and press kit.';
                 return;
             }
             if (releaseIsSystemManaged(entry)) {
@@ -936,22 +1902,10 @@
                 return;
             }
             if (entry?.locked) {
-                editorHint.textContent = 'This release is locked. Track membership is preview-only until you unlock it from the release list.';
+                editorHint.textContent = 'This release is locked. Membership is preview-only until you unlock it from the release list.';
                 return;
             }
-            editorHint.textContent = 'Drag tracks between Available content below and this release list. Shift-click or Ctrl/Cmd-click to select multiple tracks.';
-        }
-
-        function updateSaveButtonVisibility() {
-            if (!saveBtn) {
-                return;
-            }
-            if (!releaseTrackEditingEnabled()) {
-                saveBtn.hidden = true;
-                return;
-            }
-            saveBtn.hidden = false;
-            saveUi?.reconcile();
+            editorHint.textContent = 'Use the section tabs to manage tracks and associated playlists, galleries, and pages. Changes save as you edit.';
         }
 
         async function saveReleaseSettings({ silent = false } = {}) {
@@ -972,16 +1926,16 @@
             const { title, release_date: releaseDate } = settings;
 
             if (!title) {
-                if (!silent && releaseSettingsStatus) {
-                    releaseSettingsStatus.textContent = 'Release name is required.';
+                if (!silent) {
+                    showReleaseToast('Release name is required.', 'error');
                 }
                 return false;
             }
 
             const dateError = validateReleaseDate(releaseDate);
             if (dateError) {
-                if (!silent && releaseSettingsStatus) {
-                    releaseSettingsStatus.textContent = dateError;
+                if (!silent) {
+                    showReleaseToast(dateError, 'error');
                 }
                 return false;
             }
@@ -1001,23 +1955,17 @@
                 && !window.bandpromoSiteContactIsValid(pressContact)) {
                 const message = window.bandpromoSiteContactInvalidMessage?.()
                     || 'Press contact must be a valid RFC 5322 address.';
-                if (!silent && releaseSettingsStatus) {
-                    releaseSettingsStatus.textContent = message;
+                if (!silent) {
+                    showReleaseToast(message, 'error');
                 }
                 return false;
             }
 
             if (!releaseSettingsDirty()) {
-                if (!silent && releaseSettingsStatus) {
-                    releaseSettingsStatus.textContent = '';
-                }
                 return true;
             }
 
             releaseSettingsSaving = true;
-            if (!silent && releaseSettingsStatus) {
-                releaseSettingsStatus.textContent = 'Saving…';
-            }
 
             try {
                 const data = await fetchJson(`/biblioteca/manage-release.php?release=${encodeURIComponent(selectedReleaseId)}`, {
@@ -1030,14 +1978,10 @@
                 renderReleasePoolList();
                 updateReleaseEditorHint();
                 renderLists();
-                updateSaveButtonVisibility();
-                if (!silent && releaseSettingsStatus) {
-                    releaseSettingsStatus.textContent = 'Saved.';
-                }
                 return true;
             } catch (error) {
-                if (!silent && releaseSettingsStatus) {
-                    releaseSettingsStatus.textContent = error.message || 'Could not save release settings';
+                if (!silent) {
+                    showReleaseToast(error.message || 'Could not save release settings', 'error');
                 }
                 return false;
             } finally {
@@ -1077,6 +2021,7 @@
 
         function showPoolView() {
             isEditing = false;
+            editorCard.classList.add('release-editor-is-preview');
             if (poolView) {
                 poolView.hidden = false;
             }
@@ -1086,15 +2031,20 @@
             if (releaseAvailableSection) {
                 releaseAvailableSection.hidden = true;
             }
-            saveUi?.reset();
+            if (releaseAssociationActiveList) {
+                releaseAssociationActiveList.hidden = true;
+            }
+            if (releaseAssociationAvailableSection) {
+                releaseAssociationAvailableSection.hidden = true;
+            }
             renderReleasePoolList();
             updateReleaseEditorHint();
-            updateSaveButtonVisibility();
             updateReleaseCoverPanel();
         }
 
         function showEditView(releaseId) {
             isEditing = true;
+            editorCard.classList.remove('release-editor-is-preview');
             selectedReleaseId = releaseId;
             if (poolView) {
                 poolView.hidden = true;
@@ -1102,14 +2052,11 @@
             if (tracksPoolView) {
                 tracksPoolView.hidden = false;
             }
-            if (releaseAvailableSection) {
-                releaseAvailableSection.hidden = false;
-            }
+            syncReleaseEditorMode();
             syncReleaseUrl(releaseId, true);
             syncReleaseSettingsPanel(releaseId);
             renderReleasePoolList();
             updateReleaseEditorHint();
-            updateSaveButtonVisibility();
             updateReleaseCoverPanel();
         }
 
@@ -1126,14 +2073,14 @@
                 const selectedClass = id === selectedReleaseId ? ' playlist-editor-row-selected' : '';
                 const title = escapeHtml(entry.title || id);
                 const deleteBtn = releaseCanDelete(entry)
-                    ? `<button type="button" class="page-pool-delete-btn" data-release-id="${escapeHtml(id)}" title="Delete release" aria-label="Delete ${title}">🗑️</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-release-id="${escapeHtml(id)}" title="Delete release" aria-label="Delete ${title}">🗑️</button>`
                     : '';
                 const editBtn = releaseCanOpenEditor(entry)
-                    ? `<button type="button" class="page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit release" aria-label="Edit ${title}">✏️</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit release" aria-label="Edit ${title}">✏️</button>`
                     : '';
                 const lockControl = releaseIsSystemManaged(entry)
                     ? ''
-                    : `<button type="button" class="page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock release (allow track edits)' : 'Lock release (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`;
+                    : `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock release (allow track edits)' : 'Lock release (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`;
                 return `<li class="playlist-editor-row release-pool-row page-pool-row${selectedClass}" data-release-id="${escapeHtml(id)}" aria-selected="${id === selectedReleaseId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>💿 ${title}</strong>
@@ -1169,9 +2116,8 @@
                 return false;
             }
 
-            if (locked && isEditing && releaseId === selectedReleaseId && saveBtn.classList.contains('btn-amber')) {
-                showReleaseToast('Save release tracks before locking this release.');
-                return false;
+            if (locked && isEditing && releaseId === selectedReleaseId) {
+                await flushMembershipSaves();
             }
 
             try {
@@ -1185,7 +2131,6 @@
                 if (releaseId === selectedReleaseId) {
                     syncReleaseSettingsPanel(releaseId);
                     updateReleaseEditorHint();
-                    updateSaveButtonVisibility();
                     renderLists();
                 }
                 return true;
@@ -1196,27 +2141,13 @@
         }
 
         async function loadBrandCatalog() {
-            if (!(releaseSettingsBrandId instanceof HTMLSelectElement)) {
-                return;
-            }
             try {
                 const data = await fetchJson('/biblioteca/get-themes.php');
-                const brands = Array.isArray(data.themes) ? data.themes : [];
-                const selected = releaseSettingsBrandId.value;
-                releaseSettingsBrandId.innerHTML = '<option value="">Install default</option>';
-                brands.forEach((brand) => {
-                    const id = String(brand?.id || '').trim();
-                    if (!id) {
-                        return;
-                    }
-                    const option = document.createElement('option');
-                    option.value = id === 'setup-default' ? 'bandpromo-default' : id;
-                    option.textContent = String(brand?.title || id);
-                    releaseSettingsBrandId.appendChild(option);
-                });
-                releaseSettingsBrandId.value = selected;
+                releaseBrandCatalog = Array.isArray(data.themes) ? data.themes : [];
+                populateReleaseBrandSelect();
             } catch (error) {
                 // Brand picker is optional until data/brands is seeded.
+                releaseBrandCatalog = [];
             }
         }
 
@@ -1237,15 +2168,10 @@
                     return false;
                 }
             }
-            if (saveBtn.classList.contains('btn-amber')) {
-                const proceed = window.confirm('You have unsaved release track changes. Leave edit mode without saving?');
-                if (!proceed) {
-                    return false;
-                }
-            }
+            await flushMembershipSaves();
             showPoolView();
             syncReleaseUrl(selectedReleaseId, false);
-            await loadReleasePreview({ preserveSavedState: true });
+            await loadReleasePreview();
             return true;
         }
 
@@ -1264,23 +2190,19 @@
                         return;
                     }
                 }
-                if (saveBtn.classList.contains('btn-amber')) {
-                    const proceed = window.confirm('You have unsaved release track changes. Switch releases without saving?');
-                    if (!proceed) {
-                        return;
-                    }
-                }
+                await flushMembershipSaves();
             }
             if (!releaseCanOpenEditor(entry)) {
                 selectedReleaseId = releaseId;
                 showPoolView();
                 syncReleaseUrl(releaseId, false);
-                await loadReleasePreview({ preserveSavedState: true });
+                await loadReleasePreview();
                 return;
             }
             selectedReleaseId = releaseId;
+            trackEditorLoadedReleaseId = '';
+            resetAssociationPools();
             showEditView(releaseId);
-            await loadReleasePreview();
         }
 
         async function selectReleaseForPreview(releaseId) {
@@ -1291,16 +2213,10 @@
                 await openReleaseEditor(releaseId);
                 return;
             }
-            if (saveBtn.classList.contains('btn-amber')) {
-                const proceed = window.confirm('You have unsaved release track changes. Switch releases without saving?');
-                if (!proceed) {
-                    return;
-                }
-            }
             selectedReleaseId = releaseId;
             syncReleaseUrl(releaseId, false);
             renderReleasePoolList();
-            await loadReleasePreview({ preserveSavedState: true });
+            await loadReleasePreview();
         }
 
         async function deleteRelease(releaseId) {
@@ -1316,7 +2232,7 @@
                 selectedReleaseId = releases[0]?.id || 'primary';
                 showPoolView();
                 syncReleaseUrl(selectedReleaseId, false);
-                await loadReleasePreview({ preserveSavedState: true });
+                await loadReleasePreview();
             } else {
                 renderReleasePoolList();
             }
@@ -1488,7 +2404,7 @@
                 ? `<span class="playlist-track-num">${options.position}</span>`
                 : '';
             const removeMarkup = options.showRemove
-                ? '<button type="button" class="player-layout-remove-btn" title="Move to Available content" aria-label="Remove from release">✕</button>'
+                ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from release">✕</button>'
                 : '';
             const rowClass = options.activeRow ? 'playlist-editor-row player-layout-row-active' : 'playlist-editor-row';
             const readonlyClass = !canEditTracks ? ' playlist-editor-row-readonly' : '';
@@ -1511,6 +2427,48 @@
             </li>`;
         }
 
+        function sortAssociatedTracks(tracks) {
+            return (Array.isArray(tracks) ? tracks : []).slice().sort((left, right) => {
+                const dateCompare = String(right.release_date || '').localeCompare(String(left.release_date || ''));
+                if (dateCompare !== 0) {
+                    return dateCompare;
+                }
+                const artistCompare = String(left.artist || '').localeCompare(
+                    String(right.artist || ''),
+                    undefined,
+                    { sensitivity: 'base' }
+                );
+                if (artistCompare !== 0) {
+                    return artistCompare;
+                }
+                return displayTrackTitle(left).localeCompare(
+                    displayTrackTitle(right),
+                    undefined,
+                    { sensitivity: 'base' }
+                );
+            });
+        }
+
+        function renderAssociatedTrackRow(track, canEditTracks) {
+            const title = escapeHtml(displayTrackTitle(track));
+            const artist = escapeHtml(String(track.artist || '').trim() || 'Unknown artist');
+            const duration = track.deliveryReady === false ? '' : formatReleaseDuration(track.duration);
+            const file = escapeHtml(track.file || '');
+            const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending' : '';
+            const removeMarkup = canEditTracks
+                ? '<button type="button" class="player-layout-remove-btn" title="Remove from release" aria-label="Remove from release">✕</button>'
+                : '';
+
+            return `<li class="playlist-editor-row release-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
+                <span class="release-preview-track-copy">
+                    <span class="release-preview-track-artist">${artist}</span>
+                    <strong class="release-preview-track-title">${title}</strong>
+                </span>
+                <span class="playlist-track-duration">${duration}</span>
+                ${removeMarkup}
+            </li>`;
+        }
+
         function renderLists() {
             pruneAvailableSelection();
             pruneActiveSelection();
@@ -1520,32 +2478,26 @@
 
             if (!selectedReleaseId) {
                 activeEl.innerHTML = '<li class="player-layout-empty">No release selected.</li>';
-                if (countBadge) {
-                    countBadge.textContent = '';
-                }
                 return;
             }
 
             if (!activeTracks.length) {
                 activeEl.innerHTML = canEditTracks
-                    ? '<li class="player-layout-empty">Drag tracks here from Available content.</li>'
+                    ? '<li class="player-layout-empty">Drag tracks here from Available tracks.</li>'
                     : '<li class="player-layout-empty">This release has no tracks yet.</li>';
             } else {
-                activeEl.innerHTML = activeTracks.map((track, index) => renderTrackRow(track, {
-                    showPosition: true,
-                    position: index + 1,
-                    showRemove: canEditTracks,
-                    activeRow: true,
-                    selected: selectedActive.has(String(track.file || '')),
-                })).join('');
+                activeTracks = sortAssociatedTracks(activeTracks);
+                activeEl.innerHTML = activeTracks
+                    .map((track) => renderAssociatedTrackRow(track, canEditTracks))
+                    .join('');
+            }
+
+            if (activeEl) {
+                activeEl.hidden = !isEditing || releaseEditorTab !== 'tracks';
             }
 
             if (!isEditing) {
-                if (countBadge) {
-                    countBadge.textContent = activeTracks.length ? `(${activeTracks.length})` : '';
-                }
-                saveUi?.reconcile();
-                updateSaveButtonVisibility();
+                updateReleaseCoverPanel();
                 return;
             }
 
@@ -1565,12 +2517,6 @@
                 })).join('');
             }
 
-            if (countBadge) {
-                countBadge.textContent = activeTracks.length ? `(${activeTracks.length})` : '';
-            }
-
-            saveUi?.reconcile();
-            updateSaveButtonVisibility();
         }
 
         function trackLookup() {
@@ -1642,7 +2588,9 @@
                 }
             }
 
+            activeTracks = sortAssociatedTracks(activeTracks);
             renderLists();
+            void persistReleaseTracks();
             return true;
         }
 
@@ -1868,6 +2816,9 @@
                 }
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
+                if (listEl === activeEl) {
+                    activeEl.classList.add('is-drop-target');
+                }
                 movePlaceholder(listEl, event.clientY);
             });
 
@@ -1876,18 +2827,19 @@
                     return;
                 }
                 event.preventDefault();
+                activeEl.classList.remove('is-drop-target');
                 movePlaceholder(listEl, event.clientY);
                 finalizeDrag();
             });
 
             listEl.addEventListener('dragend', () => {
+                activeEl.classList.remove('is-drop-target');
                 finalizeWithinListDrag(listEl);
                 draggedRows.forEach((row) => row.classList.remove('dragging'));
                 dragPlaceholder?.remove();
                 dragSourceRow = null;
                 draggedRows = [];
                 dragSourceList = '';
-                syncActiveOrderFromDOM();
                 syncAvailableOrderFromDOM();
                 syncAvailableSelectionUi();
                 syncActiveSelectionUi();
@@ -1908,6 +2860,7 @@
 
             activeTracks = Array.isArray(data.activeTracks) ? data.activeTracks.map(cloneTrack) : [];
             availableTracks = Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : [];
+            trackEditorLoadedReleaseId = selectedReleaseId;
 
             renderReleasePoolList();
             syncReleaseSettingsPanel(selectedReleaseId);
@@ -1916,16 +2869,26 @@
             updateReleaseCoverPanel();
         }
 
-        async function loadReleasePreview(options = {}) {
-            const preserveSavedState = options.preserveSavedState === true;
+        function applyRegistryPreview() {
+            const entry = releaseEntry(selectedReleaseId);
+            activeTracks = Array.isArray(entry?.preview_tracks)
+                ? entry.preview_tracks.map(cloneTrack)
+                : [];
+            availableTracks = [];
+
+            renderReleasePoolList();
+            renderLists();
+        }
+
+        async function loadReleasePreview() {
+            if (!isEditing) {
+                applyRegistryPreview();
+                return;
+            }
+
             try {
                 const data = await fetchJson(`/biblioteca/get-release-preview.php?release=${encodeURIComponent(selectedReleaseId)}`);
                 applyPreviewData(data);
-                if (preserveSavedState) {
-                    saveUi?.markSaved();
-                } else {
-                    saveUi?.setBaseline();
-                }
             } catch (error) {
                 activeEl.innerHTML = '';
                 availableEl.innerHTML = `<li class="player-layout-empty" style="color:#f87171">Could not load release preview: ${escapeHtml(error.message)}</li>`;
@@ -2018,8 +2981,14 @@
         releaseSettingsTitle?.addEventListener('blur', () => {
             saveReleaseSettings();
         });
+        releaseSettingsTitle?.addEventListener('input', () => {
+            updateReleaseBasePreviewFromForm();
+        });
         releaseSettingsDate?.addEventListener('blur', () => {
             saveReleaseSettings();
+        });
+        releaseSettingsDate?.addEventListener('input', () => {
+            updateReleaseBasePreviewFromForm();
         });
         releaseSettingsDate?.addEventListener('change', () => {
             saveReleaseSettings();
@@ -2028,6 +2997,7 @@
             saveReleaseSettings();
         });
         releaseSettingsBrandId?.addEventListener('change', () => {
+            refreshReleaseBaseBrandPreview();
             saveReleaseSettings();
         });
         releaseSettingsPosterAssetId?.addEventListener('input', () => {
@@ -2036,12 +3006,15 @@
         });
         releaseSettingsShortDescription?.addEventListener('input', () => {
             updateReleaseShortDescriptionCount();
+            updateReleaseBasePreviewFromForm();
+        });
+        releaseSettingsDescription?.addEventListener('input', () => {
+            autofitReleaseDescriptionField();
+            updateReleaseBasePreviewFromForm();
         });
         [
             releaseSettingsShortDescription,
             releaseSettingsDescription,
-            releaseSettingsTagline,
-            releaseSettingsGenre,
             releaseSettingsCredits,
             releaseSettingsPressContact,
             releaseSettingsStreamBandpromo,
@@ -2156,31 +3129,49 @@
 
         bindDragList(activeEl);
         bindDragList(availableEl);
+        bindAssociationDragList(releaseAssociationAvailableList, 'available');
+        bindAssociationDragList(releaseAssociationActiveList, 'active');
 
-        saveBtn.addEventListener('click', async () => {
-            if (!releaseTrackEditingEnabled()) {
-                return;
-            }
-            syncActiveOrderFromDOM();
-            saveUi?.markSaving();
-            const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
-            try {
-                const data = await fetchJson(`/biblioteca/save-release-tracks.php?release=${encodeURIComponent(selectedReleaseId)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(order),
-                });
-                await loadReleasePreview({ preserveSavedState: true });
-                if (data.warning) {
-                    showReleaseToast(data.warning, 'warning');
+        if (releaseAssociationAvailableList) {
+            releaseAssociationAvailableList.addEventListener('dblclick', (event) => {
+                const kind = currentAssociationKind();
+                const row = event.target instanceof HTMLElement
+                    ? event.target.closest('.playlist-editor-row[draggable="true"]')
+                    : null;
+                const id = String(row?.dataset.id || '').trim();
+                if (!kind || !id) {
+                    return;
                 }
-            } catch (error) {
-                saveUi?.markFailed();
-                showReleaseToast(error.message || 'Could not save release tracks');
-            }
-        });
+                moveAssociationItems(kind, 'available', 'active', [id]);
+            });
+        }
+
+        if (releaseAssociationActiveList) {
+            releaseAssociationActiveList.addEventListener('click', (event) => {
+                const button = event.target instanceof HTMLElement
+                    ? event.target.closest('.player-layout-remove-btn')
+                    : null;
+                if (!button || !releaseAssociationActiveList.contains(button)) {
+                    return;
+                }
+                const kind = currentAssociationKind();
+                const row = button.closest('.playlist-editor-row');
+                const id = String(row?.dataset.id || '').trim();
+                if (!kind || !id) {
+                    return;
+                }
+                moveAssociationItems(kind, 'active', 'available', [id]);
+            });
+        }
 
         initReleaseCoverPicker();
+
+        document.querySelectorAll('[data-release-editor-tab]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setReleaseEditorTab(String(button.getAttribute('data-release-editor-tab') || 'base'));
+            });
+        });
+        setReleaseEditorTab(releaseEditorTab);
 
         const urlParams = new URLSearchParams(window.location.search);
         const startInEdit = urlParams.get('edit') === '1';
@@ -2196,7 +3187,7 @@
                 } else {
                     showPoolView();
                     syncReleaseUrl(selectedReleaseId, false);
-                    await loadReleasePreview({ preserveSavedState: true });
+                    await loadReleasePreview();
                 }
             });
     }

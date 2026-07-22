@@ -36,6 +36,8 @@ $requiredDirs = [
     'media/photo/optimal',
     'media/photo/thumb',
     'media/video',
+    'media/visual',
+    'media/visual/delivery',
     'media/special',
 ];
 $setupErrors = [];

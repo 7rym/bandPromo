@@ -4,6 +4,7 @@
     "title": "Setup Default",
     "system": true,
     "locked": true,
+    "release_id": "bandpromo-demo",
     "tokens": {
         "color": {
             "primary": "#00d2ff",

@@ -529,6 +529,9 @@
             const source = String(file?.pool_source || 'special');
             const name = assetBasename(file?.name || '');
             if (!name) return '';
+            if (source === 'sfx') {
+                return `/media/sfx/original/${name}`;
+            }
             if (source === 'special') {
                 return specialMediaPath(name);
             }
@@ -544,6 +547,9 @@
                 if (preview) return preview;
                 const poster = String(file?.poster_url || '').trim();
                 if (poster) return poster;
+            }
+            if (source === 'sfx') {
+                return '';
             }
             if (source === 'special') {
                 return specialMediaUrl(file?.name || '');
@@ -561,9 +567,10 @@
             if (field.key === 'logo' && String(file?.pool_source || '') !== 'special') {
                 return false;
             }
-            // Shell audio stays Brand assets only.
-            if (kind === 'audio' && String(file?.pool_source || '') !== 'special') {
-                return false;
+            // Shell audio comes from Sound effects (legacy special audio still accepted).
+            if (kind === 'audio') {
+                const source = String(file?.pool_source || '');
+                return source === 'sfx' || source === 'special';
             }
             return true;
         }
@@ -625,18 +632,18 @@
             {
                 key: 'welcome_audio',
                 label: 'Welcome audio',
-                emptyLabel: 'Drop welcome audio',
+                emptyLabel: 'Drop a sound effect',
                 accept: ['audio'],
                 clearable: true,
-                note: 'Short intro sound on the login surface.',
+                note: 'Short intro sound on the login surface. Pick from Files → Sound effects.',
             },
             {
                 key: 'loggedin_audio',
                 label: 'Logged-in audio',
-                emptyLabel: 'Drop logged-in audio',
+                emptyLabel: 'Drop a sound effect',
                 accept: ['audio'],
                 clearable: true,
-                note: 'Sound once visitors are inside the site.',
+                note: 'Sound once visitors are inside the site. Pick from Files → Sound effects.',
             },
         ];
 
@@ -817,8 +824,11 @@
                     if (!poolFileFitsSlot(file, field)) {
                         return false;
                     }
-                } else if (kind === 'audio' && String(file?.pool_source || '') !== 'special') {
-                    return false;
+                } else if (kind === 'audio') {
+                    const source = String(file?.pool_source || '');
+                    if (source !== 'sfx' && source !== 'special') {
+                        return false;
+                    }
                 }
                 return true;
             });
@@ -867,7 +877,9 @@
                 const kind = mediaKindFromFile(file);
                 const path = poolFilePath(file);
                 const thumbUrl = poolFileThumbUrl(file);
-                const source = String(file.pool_source || 'special') === 'visual' ? 'Visual' : 'Brand';
+                const source = String(file.pool_source || 'special') === 'visual'
+                    ? 'Visual'
+                    : (String(file.pool_source || '') === 'sfx' ? 'SFX' : 'Brand');
                 let thumb = `<span class="theme-brand-tile-placeholder">${kind === 'audio' ? '♪' : kind === 'video' ? '▶' : '◻'}</span>`;
                 if (kind === 'image') {
                     thumb = `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">`;
@@ -895,18 +907,22 @@
             brandAssetsLoading = true;
             renderBrandAssetsGrid();
             try {
-                const [specialResp, visualResp] = await Promise.all([
+                const [specialResp, visualResp, sfxResp] = await Promise.all([
                     fetch('/biblioteca/list-media.php?target=special', { credentials: 'same-origin' }),
                     fetch('/biblioteca/list-media.php?target=visual', { credentials: 'same-origin' }),
+                    fetch('/biblioteca/list-media.php?target=sfx', { credentials: 'same-origin' }),
                 ]);
                 const specialData = await specialResp.json().catch(() => ({}));
                 const visualData = await visualResp.json().catch(() => ({}));
+                const sfxData = await sfxResp.json().catch(() => ({}));
                 if (!specialResp.ok || specialData.error) {
                     throw new Error(specialData.error || 'Could not load Brand assets');
                 }
-                const specialFiles = (Array.isArray(specialData.files) ? specialData.files : []).map((file) => Object.assign({}, file, {
-                    pool_source: 'special',
-                }));
+                const specialFiles = (Array.isArray(specialData.files) ? specialData.files : [])
+                    .filter((file) => mediaKindFromFile(file) !== 'audio')
+                    .map((file) => Object.assign({}, file, {
+                        pool_source: 'special',
+                    }));
                 const visualFiles = (!visualResp.ok || visualData.error)
                     ? []
                     : (Array.isArray(visualData.files) ? visualData.files : [])
@@ -917,7 +933,21 @@
                         .map((file) => Object.assign({}, file, {
                             pool_source: 'visual',
                         }));
-                brandAssetFiles = specialFiles.concat(visualFiles);
+                const sfxFiles = (!sfxResp.ok || sfxData.error)
+                    ? []
+                    : (Array.isArray(sfxData.files) ? sfxData.files : [])
+                        .filter((file) => mediaKindFromFile(file) === 'audio')
+                        .map((file) => Object.assign({}, file, {
+                            pool_source: 'sfx',
+                        }));
+                // Prefer Sound effects; keep legacy special audio only when not already in sfx.
+                const sfxNames = new Set(sfxFiles.map((file) => String(file.name || '')));
+                const legacySpecialAudio = (Array.isArray(specialData.files) ? specialData.files : [])
+                    .filter((file) => mediaKindFromFile(file) === 'audio' && !sfxNames.has(String(file.name || '')))
+                    .map((file) => Object.assign({}, file, {
+                        pool_source: 'special',
+                    }));
+                brandAssetFiles = specialFiles.concat(visualFiles).concat(sfxFiles).concat(legacySpecialAudio);
             } catch (error) {
                 brandAssetFiles = [];
                 if (status) {
@@ -1120,6 +1150,14 @@
         }
 
         function renderPreview(document) {
+            if (window.bandpromoThemePreview?.render) {
+                window.bandpromoThemePreview.render(previewEl, document, {
+                    styleId: 'bandpromo-theme-editor-preview-style',
+                    selector: '#themeEditorPreview .theme-preview-canvas',
+                });
+                updateActionButtons(document);
+                return;
+            }
             if (!document) {
                 previewEl.innerHTML = '<p class="theme-editor-empty">No theme selected.</p>';
                 previewStyleEl.textContent = '';
@@ -1275,11 +1313,11 @@
                 const activeDot = id === activeThemeId ? '<span class="theme-pool-active-dot" title="Active brand">●</span>' : '';
                 const title = escapeHtml(entry.title || id);
                 const deleteBtn = themeCanDelete(entry)
-                    ? `<button type="button" class="page-pool-delete-btn" data-theme-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${title}">🗑️</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-theme-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${title}">🗑️</button>`
                     : '';
                 const editBtn = entry.locked
                     ? ''
-                    : `<button type="button" class="page-pool-edit-btn" data-theme-id="${escapeHtml(id)}" title="Edit brand" aria-label="Edit ${title}">✏️</button>`;
+                    : `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-theme-id="${escapeHtml(id)}" title="Edit brand" aria-label="Edit ${title}">✏️</button>`;
                 return `<li class="playlist-editor-row theme-pool-row page-pool-row${selectedClass}${activeClass}" data-theme-id="${escapeHtml(id)}" aria-selected="${id === selectedThemeId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>🎨 ${title}${activeDot}</strong>
@@ -1287,7 +1325,7 @@
                     </span>
                     <span class="page-pool-row-actions">
                         ${editBtn}
-                        <button type="button" class="page-pool-duplicate-btn" data-theme-id="${escapeHtml(id)}" title="Duplicate brand" aria-label="Duplicate ${title}">⧉</button>
+                        <button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-theme-id="${escapeHtml(id)}" title="Duplicate brand" aria-label="Duplicate ${title}">⧉</button>
                         ${deleteBtn}
                     </span>
                 </li>`;

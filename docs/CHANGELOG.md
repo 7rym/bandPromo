@@ -2,6 +2,118 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-07-22 15:25 - Document closed-beta use cases (Vanilla, Twisted Chronicles, HITZ) in `docs/USE-CASES.md`; lock operator mental model (active vs release brand, global vs contextual player pages, Lyrics/Tracklist role) in `PLATFORM-MODEL.md`; reconcile FEATURES/MEDIA-HANDLING/ROADMAP/TODO/AGENTS and Catalogue help; mark Gallery player tab removed and playlist catalog rules as shipped.
+
+2026-07-22 13:52 - Hide the Association empty list under Catalogue Preview / Base info: `#releaseAssociationActiveList { display: flex }` was overriding the `hidden` attribute (same class of bug already fixed for Associated tracks).
+
+2026-07-22 13:50 - Catalogue Preview no longer shows the Tracks/Playlists/Galleries/Pages/Branding/Press kit tabbed surface under the cover; keep cover meta, brand preview, and long description preview only.
+
+2026-07-22 13:45 - Align admin controls with `docs/ADMIN-UI.md`: pool tools use `.icon-btn--pool` (+ danger/active), delete confirms use `.btn-danger`, bare `button` coral only when unclassed, chips/media intents share tokens, gallery ✕ aliases layout remove, backlog cleared.
+
+2026-07-22 13:30 - Catalogue association pools use the same bordered playlist-row chrome as Available tracks. Document admin button/intent colors in `docs/ADMIN-UI.md`; add shared `--intent-*` tokens, `.btn-secondary` / `.btn-danger`, and drop duplicate media-action panel color rules.
+
+2026-07-22 13:15 - Release track membership and playlist/gallery/page associations now autosave on change (drop/✕), matching Base info. Remove the Catalogue `Save release` button and staged-dirty confirm flow.
+
+2026-07-22 13:00 - Show the ✕ remove control on Associated playlists/galleries/pages again: those rows were incorrectly marked readonly, which hid the button via page-editor CSS.
+
+2026-07-21 23:58 - Fix Release association drag-and-drop: Available playlists/galleries/pages no longer use the track-editor `.dragging` collapse class (which zeroed the row mid-drag). Harden Associated drop targeting and allow double-click to associate as a fallback.
+
+2026-07-21 23:10 - Autofit the Release Base info Long description textarea to its content (no inner scrollbar).
+
+2026-07-21 23:00 - Catalogue Preview / Base info now includes a `Long description preview` under Brand preview, rendering the release description as Markdown via the shared player markdown helper. Cover summary stays blurb-only.
+
+2026-07-21 22:57 - Label the Base info / Catalogue Preview brand card with a `Brand preview` heading.
+
+2026-07-21 22:55 - Catalogue Preview and Base info now show the associated brand card (logo shell, mood, swatches) directly under the cover/title preview, so branding is visible without opening the Branding drill-down tab.
+
+2026-07-21 22:20 - Release editor Playlists/Galleries/Pages tabs now use Available ↔ Associated pools like Tracks: unassigned-only available items, ✕ to unassign, drag to associate, staged until Save release. Demo/protected containers stay immovable; another release's membership is never stolen from the available pool.
+
+2026-07-21 20:16 - Promote the Release editor and contextual right-column headings from `h4` to `h3`.
+
+2026-07-21 20:14 - Promote the Catalogue heading in the Release editor card from `h3` to `h2`.
+
+2026-07-21 20:08 - Consolidate Release save feedback into one top-right card button; remove the inline Title status. Base info preview updates live while typing, fields persist on blur/change, and validation failures use operator toasts.
+
+2026-07-21 19:58 - Clarify that Release Long description allows Markdown directly in its field label.
+
+2026-07-21 19:56 - Expand Release Blurb and Long description to full-width multiline fields with labels above; increase their visible heights.
+
+2026-07-21 19:54 - Move the Release editor section tabs directly beneath the `← Back / Release editor` header, outside the Base info form card.
+
+2026-07-21 19:50 - Simplify Release Base info ordering to Title, Release date, Press contact, Branding, Blurb, Long description. Remove the Press kit/Enjoy here headings, Credits, streaming links, press-photo controls, and associated helper copy; deferred values remain preserved for a later schema redesign.
+
+2026-07-21 19:35 - Consolidate Release editing around a first `Base info` tab: Title, Release date, Short description, Branding, and all EPK fields live there. Remove standalone Branding/Press kit tabs and their previews; Tracks now lazy-loads the full membership editor only when selected.
+
+2026-07-21 19:25 - Release track membership is now explicitly unordered: Associated tracks uses a simple artist/title/duration list with no numbering or drag handles; available tracks can still be dropped in and the associated list re-sorts by track date, artist, title. Release saves no longer rewrite master tags or persist per-release track numbers; playlists remain the only ordered listening products.
+
+2026-07-21 19:07 - Give each Release editor tab a contextual right-column heading: Associated tracks/playlists/galleries/pages, Brand preview, and EPK preview.
+
+2026-07-21 19:02 - Label the Release editor’s right column `Track editor` while the Tracks tab is active; Branding remains `Live preview`.
+
+2026-07-21 18:55 - Restore the local Retroscopy release → `hitz-copy` brand link after detecting an editor-transition overwrite during lazy-template verification.
+
+2026-07-21 18:50 - Release editor tabs now lazy-inject their left-column editor templates. Branding and Press kit controls do not enter the DOM until selected; Press kit refreshes its saved data on activation, while the right column remains the corresponding live/read-only preview.
+
+2026-07-21 18:40 - Release editor templates: Branding shows its selector on the left and the shared Content → Branding live preview on the right; Press kit owns the existing EPK form and a read-only preview. Non-Track tabs suppress track/cover editor surfaces.
+
+2026-07-21 18:25 - Wire the Release editor tab-row state and move the Branding selector into a Branding panel beneath it. Other editor tabs remain content-empty for incremental wiring.
+
+2026-07-21 18:22 - Reuse the Preview tab-row styling under Release editor Short description for Tracks, Playlists, Galleries, Pages, Branding, and Press kit; buttons are intentionally not wired yet.
+
+2026-07-21 18:15 - Remove unused Release EPK Tagline and Genre from the editor and Press kit preview. Existing values remain preserved during saves/imports for package compatibility; EPK audit presence now uses fields with actual operator/runtime surfaces.
+
+2026-07-21 18:10 - Reorder the Release editor’s primary fields as Title, Release date, Branding, Short description; align them as consistent labelled rows and move Short description out of the Press kit section.
+
+2026-07-21 18:05 - Remove Catalog ID and its helper from the Release operator UI and pool subtitle; retain the underlying optional schema field for package/backward compatibility.
+
+2026-07-21 18:00 - Release editor header now reads `← Back  Release editor`; the form begins below with horizontal Title and Release date rows. Remove the release-date and Branding helper paragraphs.
+
+2026-07-21 17:52 - Release editor: move the Catalogue return control to the left edge of the editor header and shorten its label to `← Back`.
+
+2026-07-21 17:45 - Release preview tabs now lazy-refresh only their selected section from a no-cache registry-backed endpoint on every activation. Catalogue selection still paints instantly from its initial lightweight payload; full assigned/available track state remains edit-only.
+
+2026-07-21 17:32 - Local catalogue data: associate the `the-retroscopy-hour` page with the matching release.
+
+2026-07-21 17:25 - Local catalogue data: associate the `the-retroscopy-hour` gallery with the matching release.
+
+2026-07-21 17:18 - Restore the read-only Playlists preview list. Existing playlist ownership (`playlist.release_id`) now appears under the selected Catalogue release without exposing editor actions.
+
+2026-07-21 17:10 - Catalogue release selection now renders entirely from lightweight registry preview data; the full assigned/available track endpoint loads only in Edit. Tracks preview is one unnumbered, read-only list (artist, title, duration), sorted descending by track release date, with the duplicate editor list force-hidden.
+
+2026-07-21 16:58 - Add Tracks as the first Release preview tab and render the release-owned track pool inside it; the editor track list remains separate and appears only in edit mode.
+
+2026-07-21 16:52 - Remove the forced minimum height from empty release preview tab panels so an empty Playlists preview does not leave a blank box.
+
+2026-07-21 16:50 - Remove the redundant `release-preview-panels` wrapper; tab panels now sit directly under the release preview surface.
+
+2026-07-21 16:47 - Hide the Release save-status row completely in read-only Catalogue preview; it remains available only in edit mode.
+
+2026-07-21 16:45 - Catalogue preview is read-only: remove the redundant playlist row, Create playlist action, and editor hint; child lists render as static preview content; Branding preview drops its editor link; cover controls appear only in edit mode.
+
+2026-07-21 16:40 - Catalogue release preview: pool label Registered releases; Preview column with title/date/summary beside cover; Campaign surfaces replaced by Playlists/Galleries/Pages/Branding/Press kit tabs; ownership children return titles + brand preview payload.
+
+2026-07-21 16:10 - Files: Sound effects and Brand assets filter by brand (All / Orphans / each brand), not catalogue releases. list-media brand membership + brand_title; media picker swaps release vs brand filter by target.
+
+2026-07-21 15:45 - Files filters: All files / Orphans / each catalogued release; drop Visual In use|Unused; search titles (audio) and references (visuals), never filenames; media picker gets the same catalogue + search; hide storage paths from operator surfaces; release hub uses Branding link id.
+
+2026-07-21 15:20 - Files tabs polish: shared permanent delete warning; Visual In use/Unused only (no role/origin chips); pool cards show bold name + release trail; catalogue Orphans vs Unused wording split; Brand assets/SFX release labels; operator copy sticks to branding (not Theme/Identity).
+
+2026-07-21 15:00 - Files tabs: masters-only Audio; shared All/Catalogue releases/Orphans + live name filter; Visual usage simplified to In use/Unused; SFX list-only and no brand/usage clutter; Brand assets hide shell audio; stick to branding/brands/brand assets wording.
+
+2026-07-21 14:30 - Content tab label **Catalogue** (list of releases; each release remains the campaign entity). Move release-package import from the release editor to System → Backup, export & import.
+
+2026-07-21 14:15 - Content UI: keep operator term **Playlist** (not “listening products”); Branding tab restored. Collapsible Content help holds the model copy; remove duplicate card-notes on Release/Playlists/Galleries/Pages/Branding/Player.
+
+2026-07-21 14:00 - Release campaign umbrella implementation: ownership `release_id` on brand/playlist/gallery/page with migrate dual-read; Content → Release hub with campaign surfaces; shared Demo Release importer for setup (`bandpromo_ensure_demo_release_package`) and Admin import ZIP; build publishes `bandpromo-demo-release-*.zip` alongside default-theme dual-read. Export still deferred.
+
+2026-07-21 13:00 - Product lock: Release is the campaign umbrella (owns tracks, identity/branding, EPK, galleries, pages); Playlist is the streaming listening product (album/single/tour packages reuse tracks). Brand identity is owned by the release (`release_id`). Demo/setup portability retargeted to a Demo Release package using the same importer; export follows after hub UX stabilizes. See PLATFORM-MODEL + PORTABILITY.
+
+2026-07-21 12:00 - Sound effects pool: Files → Sound effects (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`) separate from catalog Audio; Branding welcome/logged-in slots assign any SFX clip (usage on brand slots, not file roles); migrate special shell-audio refs into SFX. Extra UI SFX slots deferred. Brand-assets visual fold still open.
+
+2026-07-21 11:30 - Visual pool Phase 3 operator wiring: track-cover assign stores pool ref + embed (no stem sidecar copy); build prefers assigned cover and prunes redundant sidecars; Files → Visual / media pickers get brand filter chips; Content gallery and pickers gate on `pool_ready` and name missing delivery variants. Brand-assets disk fold still open.
+
+2026-07-21 11:00 - Visual pool Phases 0b–2: shared asset registry now registers visuals (`kind=visual`, role, brand_id, intake_bucket) with upload/backfill from img/photo/video/special; checked in `scripts/delivery-contexts.json`; format-aware optimize writes `media/visual/delivery/{asset_id}/` variants (alpha→PNG, opaque→JPEG) plus video poster/stream; PHP resolvers dual-read new paths then legacy optimal/thumb. Ignore `media/visual/delivery/`. Phase 3 remainders (brand filter chip, Content variant gating, Brand-assets fold) still open.
+
 2026-07-17 12:30 - Cheap first-paint wins: Living shell shows still first and attaches MP4 after load/idle (login + player; no early `<source>`); audio `preload=none` until Play; page tabs hydrate on open only (not all after load); service worker v7 skips get-player-page/playlist and versioned JS/CSS so SW network-first no longer double-fetches them.
 
 2026-07-17 12:25 - TODO: Favicon + PWA icons must be generated from Branding (not manual online generators) before the v0.8 exit gate. Cold HARs after rebuild show shell logos were optimized (~72–128KB); living shell MP4 backgrounds are still unoptimized and dominate transfer.

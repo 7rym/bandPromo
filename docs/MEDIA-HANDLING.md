@@ -56,7 +56,7 @@ Assets that belong to the whole install or **active brand**:
 - welcome audio / logged-in audio
 - style reference and portrait assets curated for the brand
 
-These live in the **Visual pool** (or audio pool for shell audio), scoped by **`brand_id`**, not in legacy `media/special/` folders long term.
+These live in the **Visual pool** (images/video) or **Sound effects** pool (brand UI audio), scoped by **`brand_id`**, not in legacy `media/special/` folders long term.
 
 ### Release scope
 
@@ -65,7 +65,7 @@ Assets and fields that belong to one release:
 - **release cover** (`poster_asset_id` on the release document — picked from Visual pool filtered by the release's linked brand)
 - release-level gallery media when a gallery is scoped to that release
 - release-level packaging metadata and EPK fields
-- **`brand_id` link** — many releases may share one brand (singles, EPs, album, post-album singles in the same era)
+- **`brand_id` link** — each release has **one** identity brand (`release.brand_id` ↔ `brand.release_id`). Album vs single packages are playlists under that release, not peer releases sharing an “era” brand. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) ownership rules.
 
 The `release cover` should be a first-class concept on the release, not stored inside the brand container.
 
@@ -106,7 +106,8 @@ The intended product concepts are expressed as **explicit role tags** on registr
 | `brand-logo`, `brand-poster` | Identity lockups and default share sources on the brand |
 | `brand-portrait` | Band member / lineup photos |
 | `style-ref`, `typography-sample` | Mood boards and design references (may never appear on-site) |
-| `shell-background-image`, `shell-background-video`, `shell-welcome-audio`, `shell-loggedin-audio` | Player/login shell media on the brand |
+| `shell-background-image`, `shell-background-video` | Player/login shell visuals on the brand |
+| Sound effects (`role: sfx`) | Brand UI clips; welcome/logged-in (and future interaction sounds) assigned via brand **slots**, not per-file roles |
 | `release-cover` | Album/EP/single art linked via release `poster_asset_id` |
 | `track-cover` | Optional per-track artwork override |
 | `gallery` | Gallery presentation media |
@@ -115,7 +116,7 @@ The intended product concepts are expressed as **explicit role tags** on registr
 
 **Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Visual (merged image/video pool) and Files → Brand assets (Visual-like thumbnail cards over `media/special/`, with theme/config In use / Orphans); folder paths remain under the hood until registry migration.
+Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Audio (catalog music), Files → Visual (image/video), Files → **Sound effects** (brand UI clips under `media/sfx/original/`), and Files → Brand assets (legacy `media/special/` visuals until fold).
 
 ### Current exposed model vs prepared internal model
 
@@ -123,17 +124,17 @@ Before bandPromo exposes true multi-release administration, operators should sti
 
 That means the current admin/UI model should remain:
 
-- one visible site identity
-- one visible set of shell media choices under **Content → Branding** (active brand), not a separate Settings → Theme editor
-- no release-scope terminology exposed unless multi-release is a real product feature
+- Catalogue of releases with per-release identity brands
+- Install **active** brand for login / shell media baseline under **Content → Branding** (Set active), not a separate Settings → Theme editor
+- Release brand tokens overlay in the player while tracks from that release play
 
-Under the hood, the code and docs should still prepare the future structure so later multi-release support is additive rather than a rewrite.
+Under the hood, brand documents and `release.brand_id` links are already the ownership model ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 The practical distinction is:
 
-- exposed now: one active brand (duplicate **bandPromo Default** to customize)
-- prepared internally: **brand containers**, release `brand_id` links, Visual pool role tags
-- exposed later: multiple brands and era-scoped release catalogs in full
+- exposed now: Catalogue + Branding editor; active brand pointer; player CSS tokens from the playing track’s release brand
+- prepared / planned: per-release shell media in the player (Brand shell override runtime); hard content-pool scoping
+- do **not** plan “many releases share one era brand” as peer Releases — use playlists under one Release
 
 Legacy **`media/special/`** and the Files → **Brand assets** tab are **not** a brand role — they are intake workarounds migrating into the Visual pool with explicit role tags and `brand_id`.
 
@@ -168,7 +169,7 @@ These values should be reusable across all releases unless a release explicitly 
 
 ### Release overrides
 
-Each release links to a **brand** (`brand_id`) and may override presentation only where needed:
+Each release links to **one** brand (`brand_id`) for that campaign’s identity. Cover art stays on the release (`poster_asset_id`).
 
 Typical release-specific fields:
 
@@ -176,7 +177,7 @@ Typical release-specific fields:
 - release gallery membership
 - release-specific descriptive metadata and EPK
 
-Many releases in one era share the same `brand_id`; each keeps its own cover art.
+Do **not** model many catalog SKUs as peer Releases that share one brand era — use playlists under one Release instead ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 ### Track-specific exceptions
 
@@ -635,7 +636,10 @@ bandPromo should unify the operator mental model, not force audio, image, and vi
 
 The long-term filesystem/build direction should move from:
 
-- `media/audio/…` (unchanged family)
+- `media/audio/…` (catalog music — unchanged family)
+- `media/sfx/original/` — Sound effects (brand UI clips; not release tracks)
+- `media/visual/delivery/{asset_id}/…` — visual delivery variants
+- legacy intake until Brand-assets fold: `media/img/`, `media/photo/`, `media/video/`, `media/special/` (visuals only going forward)
 - legacy visual split: `media/img/`, `media/photo/`, `media/video/`, `media/special/`
 - flat `media/*/optimal/` delivery buckets
 
@@ -927,11 +931,11 @@ What ships today for opaque track/illustration/photo delivery:
 - Player loads **optimal** for the main cover and **thumb** for playlist list/cover-flow (fallback to optimal → original)
 - Product naming: pool is **Visual**; **Still** / **Living** are type filters. Do not introduce a top-level `stills/` folder that would exclude video.
 
-Remaining debt (still v0.8.4 visual media slice):
+Remaining debt (visual media slice after Phase 3 operator wiring, 2026-07-21):
 
-- format-by-content (keep PNG/WebP alpha for logos)
-- dedicated lightbox/share variants beyond the 720px optimal cap
-- unified Visual registry identity (`ast_{ULID}`) for all visuals
+- dedicated lightbox/share variants beyond the card (720px) cap
+- relocate originals into `media/visual/original/` when Brand assets fold lands
+- living-cover master tag rewrite `filename → ast_*`
 
 ### Visual media rework plan (v0.8.4)
 
@@ -958,7 +962,7 @@ Deliverable: a checked-in **delivery context registry** (JSON or markdown table)
 
 #### Phase 0b — unified visual pool policy (lock before coding)
 
-Lock alongside the display-context audit:
+**Shipped 2026-07-21** alongside display-context registry:
 
 - **Two families only:** `audio` and `visual` (images + video). Drop the product distinction between Illustrations, Photos, and Video — those become legacy intake paths, not operator mental models.
 - **Registry for all visual uploads:** assign `ast_{ULID}` at intake; store `media_type`, `has_alpha`, `original_filename`, master/delivery paths in `data/assets/registry.json` (same registry as audio, discriminated by type).
@@ -969,12 +973,9 @@ Lock alongside the display-context audit:
 
 #### Phase 1 — format-aware delivery + sanity sizes
 
-Shipped (2026-07-16): opaque JPEG **optimal max 720px** + **thumb max 100px** for img/photo pools. Remaining:
+**Shipped 2026-07-21:** context sizes from `scripts/delivery-contexts.json`; opaque JPEG **card max 720px** + **thumb max 100px**; alpha sources emit PNG (no white flatten). Shell in-place special resize remains as a transitional first-paint aid.
 
-- detect alpha / palette transparency in source; when present, emit PNG or WebP-with-alpha delivery instead of JPEG
-- for opaque sources, keep JPEG or WebP without alpha (already the default for optimal/thumb)
-
-Brand/logos: Visual pool assets with `brand-logo` (or contextual upload from brand editor); until migration, `media/special/` direct references remain a legacy workaround.
+Brand/logos: Visual pool assets with `brand-logo` (or contextual upload from brand editor); until Brand-assets fold, `media/special/` direct references remain a legacy workaround.
 
 #### Upload role tagging (locked 2026-07-11)
 
@@ -988,21 +989,15 @@ Operators may change role and brand after upload in Files → Visual (single or 
 
 #### Phase 2 — multi-variant delivery + visual storage migration
 
-Replace flat `media/*/optimal/{stem}.jpg` (and parallel video optimal trees) with explicit variants keyed by **`asset_id`**, e.g.:
+**Shipped 2026-07-21 (delivery half):** variants under `media/visual/delivery/{asset_id}/` with registry `delivery.variants` manifest. Legacy `media/*/optimal` and `thumb` trees remain dual-read fallbacks. Originals stay in legacy intake buckets until Phase 3 Brand-assets fold relocates them under `media/visual/original/`.
 
-- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/thumb.webp`
-- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/card.webp`
-- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/lightbox.webp`
-- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/poster.jpg` (video)
-- `media/visual/delivery/ast_01HY8K3M2P9XQ4R5S6T7V8W/standard-stream.mp4` (video)
-
-Consolidate intake under `media/visual/original/` and masters under `media/visual/master/` as migration completes.
+Image variants for v0.8: `thumb`, `card` (lightbox shares `card`). Video: `poster`, `standard-stream`.
 
 Rules:
 
-- generate only the variants contexts require for that asset **role** (track cover needs `thumb` + `card` + `lightbox`; a page grid photo may skip `card`)
-- store width/height/format in a small delivery manifest keyed by asset id (extends asset registry direction)
-- resolver helpers in PHP/JS choose variant URL for each render site; later: `srcset`/`sizes` for responsive markup
+- generate only the variants contexts require for that asset **role** (track cover needs `thumb` + `card`; a page grid photo may skip unused variants later)
+- store width/height/format in a small delivery manifest keyed by asset id (extends asset registry)
+- resolver helpers in PHP choose variant URL for each render site; later: `srcset`/`sizes` for responsive markup
 
 Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regenerates variants; autofix/backfill pass queues missing variants.
 
@@ -1012,9 +1007,18 @@ Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regene
 - [x] replace Files → Illustrations / Photos / Video with **Files → Visual** (operator UX 2026-07-15; thumbnail-first + type filters 2026-07-16)
 - [x] Files → **Brand assets** label for legacy `media/special/` (2026-07-16)
 - [x] Files → Brand assets Visual-like manager: thumbnail cards, type chips (image/video/audio), usage filters, shared drilldown; theme/config `reference_info` for In use / Orphans (2026-07-16) — storage remains `media/special/` until migration
-- update Content pickers to query the Visual pool with context filters / registry brand filter instead of hard-coded folder `data-targets` alone (partial: Visual browse merge shipped; brand filter waits on registry)
-- Content pools gate on **required variants present**, not merely “some file in optimal/”
-- validation messages name the missing variant (“card delivery missing for track cover”) not “run Build”
+- [x] Content pickers query Visual with brand filter chips (`get-themes.php` → All + brands) on Files → Visual and shared media pickers (2026-07-21)
+- [x] Content pools gate on **required variants present** (`thumb`+`card` / `poster`+`standard-stream`); UI names missing variants; undelivered tiles disabled in pickers and non-draggable in gallery (2026-07-21)
+- [x] Track-cover assign stores pool filename ref + embeds into the master; does **not** copy to `{audio_stem}.ext`. Build `get_cover()` prefers assigned registry cover; extract-to-pool only for legacy masters with no assignment (2026-07-21)
+
+#### Track cover source of truth (2026-07-21)
+
+1. Operator-assigned Visual pool file (`display.cover` / registry) — preferred
+2. Legacy same-basename sidecar in `media/img/original/` (if still present)
+3. Extract embedded art only when no assigned/sidecar cover exists (legacy masters)
+4. Configured release cover fallback
+
+Assigned pool files are not duplicated as stem-named sidecars. A prune step removes redundant stem copies when a registry-linked pool cover already exists.
 
 #### Non-goals for v0.8.4
 
@@ -1152,7 +1156,7 @@ bandPromo should stop forcing operators to work directly with raw source filenam
 - human-readable names for distributor export ZIPs are generated at export time, not used as storage paths
 - the original upload name remains recorded in the registry for trust and recovery
 
-Playlist reorder must not rename files or rewrite embedded track numbers; release track numbers live in the release container only.
+Playlist reorder must not rename files or rewrite embedded track numbers. Release membership is unordered; an embedded track number remains independent source metadata.
 
 ## Current metadata contract
 
@@ -1190,11 +1194,14 @@ The player description currently reads from:
 
 ### Cover art currently resolved from
 
-The current cover lookup path is:
+Build cover lookup (`scripts/makePlaylists.py` `get_cover()`):
 
-1. embedded audio artwork
-2. same-basename image file in `media/img/original/`
-3. configured release cover from `web-config.json` (`media.cover`)
+1. operator-assigned Visual pool cover from the asset registry (`display.cover`)
+2. legacy same-basename image file in `media/img/original/`
+3. extract embedded audio artwork only when no assigned/sidecar cover exists
+4. configured release cover from `web-config.json` (`media.cover`)
+
+Assigning a pool image to a track embeds it into the master and stores the pool filename as the cover reference. It does not copy the pool file to `{audio_stem}.ext`.
 
 Embedded artwork is currently read from:
 
@@ -1331,7 +1338,7 @@ The current `playlist-validation.json` warning codes should be interpreted in op
 | `missing_title_tag` | Add a track title | `Fix before publish` | If title can be inferred safely, bandPromo may prefill a suggestion rather than block immediately |
 | `missing_artist_tag` | Add the artist name | `Fix before publish` | May downgrade when an approved install/release default is intentionally used |
 | `missing_album_tag` | Add the release/album name | `Recommended fix` | Should not block simple single-release playback on its own |
-| `missing_track_number` | Confirm the track order | `Fix before publish` for multi-track releases; otherwise `Recommended fix` | Severity depends on whether ordering is already reliable from filename/order context |
+| `missing_track_number` | Add it only when useful for external metadata handoff | `Recommended fix` | Release membership and playlist position do not depend on embedded track numbers |
 | `missing_lyrics` | Add lyrics if lyric display is part of the release | `Recommended fix` | Missing lyrics should not block audio publication by themselves |
 | `missing_cover_art` | Add cover art or confirm the approved fallback cover | `Fix before publish` when no approved fallback exists; otherwise `Recommended fix` | Distinguish missing track art from a valid release-cover fallback |
 

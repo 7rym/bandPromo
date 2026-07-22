@@ -27,6 +27,8 @@ ROOT_DIR      = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR  = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'
+PHOTO_ORIG_DIR  = ROOT_DIR / 'media' / 'photo' / 'original'
+SPECIAL_DIR     = ROOT_DIR / 'media' / 'special'
 VALIDATION_FILE = ROOT_DIR / 'data' / 'validation' / 'playlist-validation.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
@@ -689,54 +691,46 @@ def get_metadata(filename):
         return {"title": filename, "artist": "Unknown", "album": "Unknown", "duration": 0}
 
 
-def get_cover(filename):
+def resolve_pool_cover_filename(cover_name):
+    """Return basename if the cover exists in any visual intake folder."""
+    cover_name = os.path.basename(str(cover_name or '').strip())
+    if not cover_name:
+        return None
+    for folder in (IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
+        if (folder / cover_name).exists():
+            return cover_name
+    return None
+
+
+def get_assigned_cover_from_registry(audio_filename):
+    """Operator-assigned pool cover from asset registry display.cover."""
+    asset = load_asset_for_filename(audio_filename)
+    if not isinstance(asset, dict):
+        return None
+    display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+    cover = resolve_pool_cover_filename(display.get('cover'))
+    return cover
+
+
+def extract_embedded_cover_to_stem(filename, base_filename):
     """
-    Priority order:
-    1) Check embedded image in file tags and extract it if found
-    2) File-specific image with the same basename (song.jpg/png)
-    3) Configured release cover from web-config.json
-    Returns (filename, source) where source is one of:
-    embedded, sidecar, configured, missing
+    Legacy fallback: write embedded art to media/img/original/{stem}.ext
+    only when that stem file does not already exist.
+    Returns basename or None.
     """
-    base = os.path.splitext(filename)[0]
-    base_filename = os.path.basename(base)  # Extract just filename without full path
-    
-    # 1) Extract embedded if exists (but don't return yet)
     try:
         audio = File(filename)
-        if audio is not None:
-            embedded_found = False
-            
-            # MP3 / ID3 APIC frames
-            if audio.tags:
-                for key in audio.tags.keys():
-                    if key.startswith('APIC') or key.startswith('APIC:'):
-                        try:
-                            apic = audio.tags[key]
-                            data = getattr(apic, 'data', None)
-                            mime = getattr(apic, 'mime', 'image/jpeg')
-                            if data:
-                                ext = '.png' if 'png' in mime.lower() else '.jpg'
-                                outname_full = IMG_ORIG_DIR / (base_filename + ext)
-                                outname_filename = base_filename + ext
-                                if not outname_full.exists():
-                                    IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-                                    with open(str(outname_full), 'wb') as imgf:
-                                        imgf.write(data)
-                                    print(f"✓ Extracted ID3 APIC: {outname_filename}")
-                                embedded_found = True
-                                break
-                        except Exception as e:
-                            print(f"✗ Error extracting ID3 APIC: {e}")
+        if audio is None:
+            return None
 
-            # FLAC pictures
-            if not embedded_found:
-                pics = getattr(audio, 'pictures', None)
-                if pics and len(pics) > 0:
+        # MP3 / ID3 APIC frames
+        if audio.tags:
+            for key in audio.tags.keys():
+                if key.startswith('APIC') or key.startswith('APIC:'):
                     try:
-                        pic = pics[0]
-                        data = getattr(pic, 'data', None)
-                        mime = getattr(pic, 'mime', 'image/jpeg')
+                        apic = audio.tags[key]
+                        data = getattr(apic, 'data', None)
+                        mime = getattr(apic, 'mime', 'image/jpeg')
                         if data:
                             ext = '.png' if 'png' in mime.lower() else '.jpg'
                             outname_full = IMG_ORIG_DIR / (base_filename + ext)
@@ -745,21 +739,61 @@ def get_cover(filename):
                                 IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
                                 with open(str(outname_full), 'wb') as imgf:
                                     imgf.write(data)
-                                print(f"✓ Extracted FLAC picture: {outname_filename}")
-                            embedded_found = True
+                                print(f"✓ Extracted ID3 APIC (legacy fallback): {outname_filename}")
+                            return outname_filename
                     except Exception as e:
-                        print(f"✗ Error extracting FLAC picture: {e}")
+                        print(f"✗ Error extracting ID3 APIC: {e}")
 
+        pics = getattr(audio, 'pictures', None)
+        if pics and len(pics) > 0:
+            try:
+                pic = pics[0]
+                data = getattr(pic, 'data', None)
+                mime = getattr(pic, 'mime', 'image/jpeg')
+                if data:
+                    ext = '.png' if 'png' in mime.lower() else '.jpg'
+                    outname_full = IMG_ORIG_DIR / (base_filename + ext)
+                    outname_filename = base_filename + ext
+                    if not outname_full.exists():
+                        IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+                        with open(str(outname_full), 'wb') as imgf:
+                            imgf.write(data)
+                        print(f"✓ Extracted FLAC picture (legacy fallback): {outname_filename}")
+                    return outname_filename
+            except Exception as e:
+                print(f"✗ Error extracting FLAC picture: {e}")
     except Exception as e:
         print(f"✗ Error reading file for embedded cover: {e}")
 
-    # 2) file-specific (will now find the image file if it was extracted)
-    for ext in ('.jpg', '.jpeg', '.png'):
+    return None
+
+
+def get_cover(filename):
+    """
+    Priority order:
+    1) Operator-assigned Visual pool cover (asset registry display.cover)
+    2) Legacy stem sidecar in media/img/original/{stem}.ext (no extract)
+    3) Extract embedded art only when no assigned/sidecar cover exists
+    4) Configured release cover from web-config.json
+    Returns (filename, source) where source is one of:
+    assigned, sidecar, embedded, configured, missing
+    """
+    base = os.path.splitext(filename)[0]
+    base_filename = os.path.basename(base)
+
+    assigned = get_assigned_cover_from_registry(filename)
+    if assigned:
+        return (assigned, 'assigned')
+
+    for ext in ('.jpg', '.jpeg', '.png', '.webp'):
         candidate_full = IMG_ORIG_DIR / (base_filename + ext)
         if candidate_full.exists():
-            return (base_filename + ext, 'embedded' if embedded_found else 'sidecar')
+            return (base_filename + ext, 'sidecar')
 
-    # 3) configured release cover fallback
+    extracted = extract_embedded_cover_to_stem(filename, base_filename)
+    if extracted:
+        return (extracted, 'embedded')
+
     configured_cover = get_configured_cover_filename()
     if configured_cover:
         return (configured_cover, 'configured')
@@ -999,47 +1033,7 @@ def parse_audio_file(filename):
                         info['lyrics'] = str(tags[key])
                         break
 
-            # embedded images (only if we haven't already set cover from file/folder)
-            if not info['cover']:
-                # ID3 APIC frames
-                try:
-                    for key in tags.keys():
-                        if key.startswith('APIC') or key.startswith('APIC:'):
-                            apic = tags[key]
-                            data = getattr(apic, 'data', None)
-                            mime = getattr(apic, 'mime', 'image/jpeg')
-                            if data:
-                                ext = '.png' if 'png' in mime.lower() else '.jpg'
-                                outname_full = IMG_ORIG_DIR / (base_filename + ext)
-                                outname_filename = base_filename + ext
-                                if not outname_full.exists():
-                                    IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-                                    with open(str(outname_full), 'wb') as imgf:
-                                        imgf.write(data)
-                                info['cover'] = outname_filename
-                                break
-                except Exception:
-                    pass
-
-                # FLAC pictures
-                if not info['cover']:
-                    pics = getattr(audio, 'pictures', None)
-                    if pics and len(pics) > 0:
-                        pic = pics[0]
-                        data = getattr(pic, 'data', None)
-                        mime = getattr(pic, 'mime', 'image/jpeg')
-                        if data:
-                            ext = '.png' if 'png' in mime.lower() else '.jpg'
-                            outname_full = IMG_ORIG_DIR / (base_filename + ext)
-                            outname_filename = base_filename + ext
-                            if not outname_full.exists():
-                                try:
-                                    IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-                                    with open(str(outname_full), 'wb') as imgf:
-                                        imgf.write(data)
-                                except Exception:
-                                    pass
-                            info['cover'] = outname_filename
+            # Cover extraction is handled exclusively by get_cover() (assigned → sidecar → embed fallback).
 
     except Exception:
         # on error return what we have
@@ -1198,11 +1192,25 @@ def generate_playlist():
                     'build-configured',
                     linked_config='media.cover',
                 )
+            elif cover_source == 'assigned':
+                record_cover_asset(
+                    cover_file,
+                    'track-cover',
+                    'operator-assigned',
+                    linked_audio=playlist_file,
+                )
             elif cover_source == 'embedded':
                 record_cover_asset(
                     cover_file,
                     'track-cover',
                     'build-extracted',
+                    linked_audio=playlist_file,
+                )
+            elif cover_source == 'sidecar':
+                record_cover_asset(
+                    cover_file,
+                    'track-cover',
+                    'build-sidecar-copy',
                     linked_audio=playlist_file,
                 )
 
@@ -1240,6 +1248,26 @@ def generate_playlist():
     active_configured_cover = get_configured_cover_filename()
     if active_configured_cover:
         cleanup_stale_configured_release_covers(active_configured_cover)
+
+    # Drop legacy stem-named cover copies when registry already points at a pool file.
+    try:
+        php = resolve_php_cli()
+        prune_result = subprocess.run(
+            [php, str(SCRIPT_DIR / 'prune_cover_sidecars.php')],
+            cwd=str(ROOT_DIR),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False,
+        )
+        if prune_result.returncode == 0:
+            pruned_count = int((prune_result.stdout or '0').strip() or '0')
+            if pruned_count > 0:
+                print(f"🧹 Pruned {pruned_count} redundant stem cover sidecar(s).")
+        elif prune_result.stderr:
+            print(f"⚠️  Cover sidecar prune skipped: {prune_result.stderr.strip().splitlines()[-1]}")
+    except Exception as e:
+        print(f"⚠️  Cover sidecar prune skipped: {e}")
 
     if metadata_warning_count:
         print(f"⚠️  Metadata warnings found for {metadata_warning_count} track(s).")

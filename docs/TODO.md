@@ -17,7 +17,7 @@ Rules for this file:
 
 **v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and content AI wizards. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual registry/delivery Phases 0b–2, content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Brand assets rename + content date-field unification shipped (2026-07-15/16) — **not published as a Site-update package yet**.
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool Phase 3 Brand-assets fold (relocate `media/special/` visuals → `media/visual/original/`; living-cover `ast_*`), content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Sound effects + Brand assetsor pool + Brand assets rename + content date-field unification shipped (2026-07-15/16). Visual registry + multi-variant delivery Phases 0b–2 shipped (2026-07-21). — **not published as a Site-update package yet**.
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
@@ -108,7 +108,8 @@ Primary focus after hotfix stability. Policy locked 2026-07-11 — see [PLATFORM
 Policy — **locked**:
 
 - [x] Lock **Brand replaces Theme**: colors, typography, mood narrative, and asset refs live in `data/brands/` — not a separate Theme container.
-- [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era).
+- [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era). *(Superseded 2026-07-21: Release is the campaign umbrella; album/single packages are playlists under one release; brand identity is owned by that release.)*
+- [x] Lock **Release = campaign umbrella** (2026-07-21) — owns tracks, identity, EPK, galleries, pages; Playlist = streaming listening product. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
 - [x] Lock **release cover on release**: `poster_asset_id` picked from Visual pool with brand filter; not stored inside the brand document.
 - [x] Lock **install default brand**: seed locked `bandpromo-default` on first install; auto-duplicate to editable operator brand (`Your own brand`).
 - [x] Lock **upload role tagging**: contextual uploads inherit role + brand; bulk Visual uploads default to `role: unassigned` — never block upload on role selection.
@@ -161,17 +162,19 @@ Policy — **locked** (extends v0.8.4 visual media plan):
 - [x] Lock **two media families**: `audio` and `visual` (images + video). Retire Illustrations / Photos / Video / Theme as product categories.
 - [x] Lock **visual `ast_{ULID}` identity** and **explicit role tags primary** (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 - [x] Lock **brand filter** on Visual pool and pickers.
-- [ ] Lock **format-by-content** and **dimension-by-context** rules in delivery (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
-- [ ] Check in **delivery context registry** JSON (`scripts/delivery-contexts.json` or equivalent).
+- [x] Lock **format-by-content** and **dimension-by-context** rules in delivery (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
+- [x] Check in **delivery context registry** JSON (`scripts/delivery-contexts.json` or equivalent).
 
 Implementation order:
 
-- [ ] **Phase 0b — visual registry + migration** — register visual uploads at intake; backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility. Destination: brand logos/backgrounds use the same original/master/delivery pipeline + role filters (`brand-logo`, `shell-background-*`); retire parallel `media/special/`-only handling. Operator **Still** / **Living** chips are filters, not a top-level `stills/` folder (pool name stays Visual).
-- [ ] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten. *(Interim 2026-07-16: in-place shell logo 180px PNG + background 1080px JPG via `optimizeMedia.py` reading brand/config paths — hotfix only until Phase 0b/1.)*
-- [ ] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest. Merge legacy `img/` + `photo/` into the visual family here (not a separate `stills/` tree).
+- [x] **Phase 0b — visual registry + migration** — register visual uploads at intake; backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility. Destination: brand logos/backgrounds use the same original/master/delivery pipeline + role filters (`brand-logo`, `shell-background-*`); retire parallel `media/special/`-only handling. Operator **Still** / **Living** chips are filters, not a top-level `stills/` folder (pool name stays Visual). *(2026-07-21: originals stay in legacy intake buckets; registry `kind=visual` + role/`brand_id`.)*
+- [x] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten for alpha sources. *(2026-07-21: `delivery-contexts.json` + alpha → PNG / opaque → JPEG in `optimizeMedia.py`.)*
+- [x] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest. Merge legacy `img/` + `photo/` into the visual family here (not a separate `stills/` tree). *(2026-07-21: delivery paths asset-id based; originals still legacy intake until Phase 3 Brand-assets fold.)*
 - [x] **Phase 3 — Files → Visual (operator UX)** — single Files tab merging Illustrations/Photos/Video with type/usage/role filters; old `fpanel=` URLs redirect; pickers browse Visual for image/video contexts. **Brand assets** (`special`) stays a separate legacy intake tab. *(2026-07-15; rename from Theme 2026-07-16)*
 - [x] **Branding editor IA** — Shell media = assignment slots only; Brand assets = sibling assignable pool; Live preview shows shell chrome (logo/backdrop), not an asset gallery. *(2026-07-16)*
-- [ ] **Phase 3 remainders** — brand filter chip (needs visual registry `brand_id`), variant gating in Content pools, fold Brand assets into Visual after special migration.
+- [x] **Phase 3 remainders (operator wiring, 2026-07-21)** — brand filter chip on Files → Visual + pickers; Content pool variant gating (`pool_ready` / missing variant names); track-cover assign stores pool ref + embed (no stem sidecar copy); build prefers assigned cover.
+- [x] **Sound effects pool (2026-07-21)** — Files → Sound effects (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`); Branding welcome/logged-in slots assign any SFX clip (no per-slot file roles); migrate special shell audio refs. Extra UI SFX slots (click/zoom) deferred until needed.
+- [ ] **Phase 3 Brand-assets fold** — fold Brand assets into Visual after special migration / relocate originals under `media/visual/original/`; living-cover master tag `filename → ast_*` still deferred.
 
 ### Player Markdown (closed-beta feedback)
 
@@ -213,32 +216,37 @@ Implementation order:
 - [x] **Resolve helper** — `living-cover-helpers.php`; player payload `animated_cover` from `living_cover` tag.
 - [x] **Track editor UI** — living cover picker + preview + save/clear modes.
 - [x] **Player loop** — existing `<video>` on flip-card cover.
-- [ ] **Visual registry IDs (deferred)** — store visual asset id instead of video filename after Phases 0b–2.
+- [ ] **Visual registry IDs for living cover** — store visual asset id instead of video filename in master tags (registry Phases 0b–2 shipped; this tag rewrite remains).
 
 ### Release package export / import (ambassador + demo handoff)
 
-Policy locked 2026-07-15 — see [PORTABILITY.md](PORTABILITY.md) → Release package export / import.
+Policy updated 2026-07-21 — see [PORTABILITY.md](PORTABILITY.md) → Release package export / import; [PLATFORM-MODEL.md](PLATFORM-MODEL.md) Release umbrella.
 
 Policy — **locked**:
 
 - [x] Lock **release-scoped handoff** — third portability service beside full backup and site data export; not a full-site ZIP.
+- [x] Lock **Release owns campaign** — package includes identity, playlists, galleries, pages, masters, visuals/SFX — not tracklist-only.
+- [x] Lock **Playlist = listening product** — album/single/tour packages reuse release-owned tracks.
 - [x] Lock **master tags as portable truth** — lyrics, Markdown descriptions, embedded cover art, `BANDPROMO_LIVING_COVER` travel in masters; target Publish regenerates delivery tier.
-- [x] Lock **import creates new release slot** — no silent overwrite on target without explicit operator confirm.
-- [x] Lock **ambassador workflow** — experienced testers prepare releases on own installs, export, seed demo/prospect installs; optional paid release-prep services enabled by portable handoff (bandPromo takes no marketplace cut).
-- [x] Lock **export-time human names** — manifest and ZIP labels use readable titles; on-disk paths remain `ast_{ULID}`.
+- [x] Lock **import creates new release slot** — no silent overwrite on target without explicit operator confirm (demo seed may refresh locked demo id).
+- [x] Lock **setup uses the same importer** — bandPromo Demo Release package replaces loose default-theme media ZIP as the product story.
+- [x] Lock **ambassador workflow** — prepare on one install, import on another; bandPromo takes no marketplace cut.
+- [x] Lock **export-time human names** — manifest labels use readable titles; on-disk paths remain `ast_{ULID}`.
 
-Implementation order (v0.9):
+Implementation order:
 
-- [ ] **Export builder** — validate release completeness; ZIP masters, linked visuals, registry subset, manifest.
-- [ ] **Import flow** — version check, new release slot, registry merge, brand remap prompt, post-import Publish checklist.
-- [ ] **Admin UI** — Releases → Export / Import entry points; progress and validation errors in operator language.
-- [ ] **Ambassador docs** — short operator-facing how-to in admin help or [MARKETING-STRATEGY.md](MARKETING-STRATEGY.md) cross-link.
+- [x] **Ownership fields + migrate** — `release_id` on brand/playlist/gallery/page; dual-read legacy links.
+- [x] **Release hub admin IA** — work from Release; Branding/Playlists framed under it.
+- [x] **Import flow** — shared setup + admin importer for Demo Release / operator packages.
+- [x] **Demo Release package** — replace default-theme ZIP contents/story with campaign package.
+- [ ] **Export builder** — after import UX is stable; validate completeness; ZIP campaign subset + manifest.
+- [ ] **Ambassador docs** — short operator-facing how-to.
 
 ### Beta fleet sync + legacy audit gate (v0.8 exit)
 
 **Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Also complete **Favicon + PWA icons from Branding** (Brand section above) before calling v0.8 closed — operators must not depend on manual icon generators. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
 
-Closed-beta fleet today: **3 remote test sites** (one vanilla demo-content install, two operator-populated installs).
+Closed-beta fleet today: **3 remote test sites** — **Vanilla** (demo-content install), **Twisted Chronicles** (band campaign), **HITZ** (label + long-form shows). Personas and feedback focus: [USE-CASES.md](USE-CASES.md).
 
 Policy — **lock before implementation**:
 
@@ -285,10 +293,10 @@ Policy — **lock before implementation**:
 
 Implementation order (v0.8.4):
 
-- [ ] **Phase 0b — registry + migration design**: visual asset registration at upload; autofix backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility layer.
-- [ ] **Phase 1 — format-aware delivery**: preserve alpha (PNG/WebP); sanity max dimensions per role; stop white-background flatten.
-- [ ] **Phase 2 — multi-variant storage**: `media/visual/delivery/{asset_id}/{variant}`; migrate off flat `optimal/*.jpg` and stem-based video paths.
-- [ ] **Phase 3 — admin + pickers**: Files → Visual operator tab **shipped (2026-07-15)**; remaining: brand-filtered registry pickers + Content pool variant gating after Phases 0b–2.
+- [x] **Phase 0b — registry + migration design**: visual asset registration at upload; autofix backfill from `img/`, `photo/`, `video/`, `special/`; dual-read compatibility layer. *(shipped 2026-07-21)*
+- [x] **Phase 1 — format-aware delivery**: preserve alpha (PNG/WebP); sanity max dimensions per role; stop white-background flatten. *(shipped 2026-07-21)*
+- [x] **Phase 2 — multi-variant storage**: `media/visual/delivery/{asset_id}/{variant}`; migrate off flat `optimal/*.jpg` and stem-based video paths. *(shipped 2026-07-21; originals still legacy intake)*
+- [x] **Phase 3 — admin + pickers**: Files → Visual + brand filter + Content variant gating shipped 2026-07-21; Brand-assets disk fold still open.
 
 ## v0.8 active work
 
@@ -371,6 +379,8 @@ Deferred to v0.9 (implement after v0.8 definitions are stable):
 
 Deferred to v1+:
 
+- [ ] **Release-contextual player page tabs** — Content → Player keeps optional **global** pages; pages associated to the current track’s release append to the nav (Playlists | Lyrics first). FAQ stays login/global. Idle/first-load context decided at implementation. Policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md) Twisted Chronicles.
+- [ ] **Per-track Lyrics / Tracklist role** — one shell panel and one master text field; role `lyrics` | `tracklist` renames the locked nav label while that track plays (HITZ). Dual fields / timed cues deferred further.
 - [ ] **Brand shell override runtime** — login applies active brand shell assets; player applies release brand shell assets; system-owned scrim for busy backgrounds (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → System shell vs brand overlay).
 - [ ] **Brand typography v2** — web/display font slots per brand.
 - [ ] **Brand starter templates** — duplicate-only era/genre seeds (optional convenience, not a theme engine).
@@ -524,7 +534,7 @@ Implementation follow-up after policy:
 - [x] Implement the operator-facing validation summary outside the raw build log, using the locked `Cannot build` / `Fix before publish` / `Recommended fix` / `Can be repaired automatically` labels.
 - [x] Add actionable validation actions from the Build summary to the right editor surfaces (`Edit metadata`, `Open playlist order`, and Files/theme/media when cover work is needed).
 - [x] Refresh playlist and validation data automatically after audio metadata saves so file badges and warnings can update without waiting for a manual full build.
-- [x] Keep embedded master track numbers aligned with operator playlist order by syncing reordered tracks back into masters and autofilling blank track tags from playlist position during metadata saves.
+- [x] Keep embedded master track numbers aligned with operator playlist order by syncing reordered tracks back into masters and autofilling blank track tags from playlist position during metadata saves. *(Superseded 2026-07-21: Release membership is unordered, Playlist owns listening order, and neither container rewrites embedded track numbers.)*
 - [x] Suppress fresh build-required warnings for true no-op audio metadata saves while still preserving existing pending build state from earlier real changes.
 - [x] Add a persistent operator task/notification panel for unresolved build and validation issues, driven by current system state and auto-resolved when the underlying issue is fixed instead of relying on manual checklist truth.
 - [x] Add selective inline quick-edit for short metadata fields (artist, title, version, release/album name, track, release date, genre, BPM, key) only after the task/action model is in place; keep larger fields, cover work, and broader master-building in their dedicated editors.

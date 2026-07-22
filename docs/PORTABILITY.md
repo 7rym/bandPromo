@@ -64,51 +64,39 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 
 ### 3. Release package export / import
 
-**Purpose:** move **one release** — masters, packaging, visuals, and release metadata — between installs without a full site backup. This is the portability path for **demo handoffs**, **ambassador workflows**, and **paid release-prep services**.
+**Purpose:** move **one release campaign** — masters, identity, EPK, linked listening products (playlists), galleries, pages, and visuals — between installs without a full site backup. Setup installs the **bandPromo Demo Release** with this same importer.
 
-**Status:** policy locked (2026-07-15). Implementation planned v0.9.
-
-**Why a third service**
-
-Full backup moves an entire install. Data export moves config and containers (optionally all media). Operators and ambassadors often need something narrower: a **finished release** prepared on one site, imported on another, with all track extras intact — ready for Publish on the target host.
-
-That supports closed-beta motivation: experienced testers prepare real releases on their own installs, export them, and seed demo or prospect installs so new operators see a polished player experience (Markdown lyrics, living covers, EPK copy, embedded artwork) without rebuilding every asset by hand.
+**Status:** product model locked 2026-07-21 (Release = campaign umbrella; Playlist = listening product). **Import shipped** (setup + Admin → Release hub); export deferred until hub UX is stable.
 
 **What travels in a release package**
 
 | Layer | Included | Notes |
 |-------|----------|-------|
-| **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id` reference, credits |
-| **Track masters** | `media/audio/master/*` for release tracks | Canonical packaging tier |
-| **Master tags** | Inside FLAC/MP3 | Title, artist, album, lyrics, description (Markdown source), embedded cover art, `BANDPROMO_LIVING_COVER` |
-| **Linked visuals** | Covers, living-cover videos, release poster | Originals + registry entries; target runs **Publish** to regenerate delivery MP4s/JPGs |
-| **Asset registry** | Subset in `data/assets/registry.json` | Only entries referenced by the release |
-| **Export manifest** | `release-manifest.json` in ZIP | Human-readable release title, `release_export_version`, `exported_at`, file checklist |
-
-Human-readable names (release title, track titles in manifest) are generated at **export time** only. On-disk paths stay `ast_{ULID}` — same nondestructive naming contract as the rest of the platform ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+| **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id` |
+| **Identity (brand)** | `data/brands/{id}.json` + shell media | Owned by the release (`release_id`) |
+| **Track masters** | `media/audio/master/*` (and originals as needed) | Exclusive catalog home |
+| **Master tags** | Inside FLAC/MP3 | Title, artist, lyrics, cover, living cover |
+| **Playlists** | Playlist docs with `release_id` | Album order, singles packages, etc. |
+| **Galleries / pages** | Docs with `release_id` | Press gallery, Bio, … |
+| **Linked visuals / SFX** | Pool files + registry subset | Covers, living covers, brand slots |
+| **Export manifest** | `release-package-manifest.json` | Title, `release_export_version`, checklist |
 
 **What does not travel**
 
-- Unrelated playlists, pages, galleries, brands (unless explicitly added in a later scope)
-- Listener accounts, analytics, or admin audit history
-- Whole-site `web-config.json` (target keeps its own install shell)
-- Delivery-tier files as the source of truth — target regenerates from masters on Publish
+- Unrelated releases or install-wide config as source of truth
+- Listener accounts, analytics, admin audit history
+- Delivery-tier files as the source of truth — target regenerates on Publish
 
-**Export flow (source install)**
+**Setup:** downloads/installs the Demo Release package via the shared import path (replacing loose default-theme media ZIP as the product story; dual-read may remain during transition).
 
-1. Operator or ambassador finishes the release on **their** install: masters tagged, covers embedded, living covers assigned, release/EPK fields complete.
-2. Admin → **Releases** → **Export release package** (or equivalent entry under Backup & export).
-3. Platform validates completeness (masters present, registry consistent, referenced media exists).
-4. Download ZIP; store or send to target operator.
+**Import flow (target install / setup)**
 
-**Import flow (target install)**
-
-1. Admin → **Import release package**.
-2. Platform validates `release_export_version` and bandPromo version compatibility.
-3. Import creates a **new release slot** on the target (no silent overwrite without explicit confirm).
-4. Extract masters and linked visuals; merge registry entries; remap `brand_id` to target active brand or prompt operator to choose.
-5. Operator runs **Publish** on the target for streaming MP3s, cover delivery, and living-cover video delivery.
-6. Smoke-check: player playback, living cover swap on play, Markdown lyrics/descriptions.
+1. Validate `release_export_version` and bandPromo compatibility.
+2. Create or refresh the release slot (demo may be locked; operator imports create new slots without silent overwrite).
+3. Extract masters, identity, playlists, galleries, pages; merge registry; set ownership `release_id` links.
+4. Optionally set install active identity to the imported release’s brand.
+5. Operator/setup runs Publish for streaming delivery.
+6. Smoke-check playback, shell identity, Bio, gallery.
 
 **Ambassador and services model**
 

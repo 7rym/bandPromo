@@ -30,7 +30,142 @@ function bandpromo_asset_registry_default(): array
         'version' => BANDPROMO_ASSET_REGISTRY_VERSION,
         'assets' => [],
         'by_master_filename' => [],
+        'by_original_filename' => [],
     ];
+}
+
+/** @return list<string> */
+function bandpromo_asset_visual_intake_buckets(): array
+{
+    return ['img', 'photo', 'video', 'special'];
+}
+
+/** @return list<string> */
+function bandpromo_asset_visual_roles(): array
+{
+    return [
+        'unassigned',
+        'brand-logo',
+        'brand-portrait',
+        'style-ref',
+        'release-cover',
+        'track-cover',
+        'gallery',
+        'page-illustration',
+        'shell-background-image',
+        'shell-background-video',
+        'typography-sample',
+    ];
+}
+
+function bandpromo_asset_normalize_visual_role(string $role): string
+{
+    $role = strtolower(trim($role));
+    if ($role === '' || !in_array($role, bandpromo_asset_visual_roles(), true)) {
+        return 'unassigned';
+    }
+
+    return $role;
+}
+
+function bandpromo_asset_normalize_intake_bucket(string $bucket): string
+{
+    $bucket = strtolower(trim($bucket));
+    $aliases = [
+        'illustrations' => 'img',
+        'images' => 'img',
+        'img' => 'img',
+        'photos' => 'photo',
+        'photo' => 'photo',
+        'video' => 'video',
+        'videos' => 'video',
+        'special' => 'special',
+    ];
+
+    return $aliases[$bucket] ?? '';
+}
+
+function bandpromo_asset_files_index_target_for_intake_bucket(string $intakeBucket): string
+{
+    $bucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
+    if ($bucket === 'img') {
+        return 'illustrations';
+    }
+    if ($bucket === 'photo') {
+        return 'photos';
+    }
+
+    return $bucket;
+}
+
+function bandpromo_asset_intake_bucket_for_files_index_target(string $target): string
+{
+    return bandpromo_asset_normalize_intake_bucket($target);
+}
+
+function bandpromo_asset_visual_original_dir(string $root, string $intakeBucket): string
+{
+    $bucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
+    if ($bucket === 'img') {
+        return $root . '/media/img/original';
+    }
+    if ($bucket === 'photo') {
+        return $root . '/media/photo/original';
+    }
+    if ($bucket === 'video') {
+        return $root . '/media/video/original';
+    }
+    if ($bucket === 'special') {
+        return $root . '/media/special';
+    }
+
+    return '';
+}
+
+function bandpromo_asset_visual_original_path(string $root, array $asset): string
+{
+    $filename = basename(trim((string) ($asset['original_filename'] ?? '')));
+    $bucket = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
+    if ($filename === '' || $bucket === '') {
+        return '';
+    }
+
+    $dir = bandpromo_asset_visual_original_dir($root, $bucket);
+
+    return $dir === '' ? '' : ($dir . '/' . $filename);
+}
+
+function bandpromo_asset_infer_media_type_from_filename(string $filename): string
+{
+    $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+    if (in_array($ext, ['mp4', 'webm', 'mov'], true)) {
+        return 'video';
+    }
+    if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
+        return 'audio';
+    }
+    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'], true)) {
+        return 'image';
+    }
+
+    return 'other';
+}
+
+function bandpromo_asset_active_brand_id(string $root): string
+{
+    static $resolved = [];
+    if (isset($resolved[$root])) {
+        return $resolved[$root];
+    }
+
+    try {
+        require_once __DIR__ . '/theme-storage.php';
+        $resolved[$root] = bandpromo_brand_active_id($root);
+    } catch (Throwable $throwable) {
+        $resolved[$root] = 'bandpromo-default';
+    }
+
+    return $resolved[$root];
 }
 
 function bandpromo_ulid_encode_time(int $timeMs): string
@@ -89,14 +224,94 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
         $kind = 'audio';
     }
 
-    $masterFilename = basename(trim((string) ($entry['master_filename'] ?? '')));
-    if ($masterFilename === '' || strpbrk($masterFilename, '/\\') !== false) {
-        return null;
-    }
-
     $originalFilename = trim((string) ($entry['original_filename'] ?? ''));
     if ($originalFilename !== '') {
         $originalFilename = basename($originalFilename);
+    }
+
+    $masterFilename = basename(trim((string) ($entry['master_filename'] ?? '')));
+    if ($masterFilename !== '' && strpbrk($masterFilename, '/\\') !== false) {
+        return null;
+    }
+
+    if ($kind === 'visual') {
+        if ($originalFilename === '') {
+            return null;
+        }
+        // Visual identity is original_filename; keep master_filename as a stable index alias.
+        if ($masterFilename === '') {
+            $masterFilename = $originalFilename;
+        }
+
+        $intakeBucket = bandpromo_asset_normalize_intake_bucket((string) ($entry['intake_bucket'] ?? ''));
+        if ($intakeBucket === '') {
+            return null;
+        }
+
+        $mediaType = strtolower(trim((string) ($entry['media_type'] ?? '')));
+        if ($mediaType === '') {
+            $mediaType = bandpromo_asset_infer_media_type_from_filename($originalFilename);
+        }
+        if (!in_array($mediaType, ['image', 'video'], true)) {
+            // Special can hold audio; those stay out of the visual family.
+            return null;
+        }
+
+        $role = bandpromo_asset_normalize_visual_role((string) ($entry['role'] ?? 'unassigned'));
+        $tags = is_array($entry['tags'] ?? null) ? array_values($entry['tags']) : [];
+        if (!in_array($role, $tags, true)) {
+            array_unshift($tags, $role);
+        }
+
+        return [
+            'id' => $id,
+            'kind' => 'visual',
+            'media_type' => $mediaType,
+            'intake_bucket' => $intakeBucket,
+            'brand_id' => trim((string) ($entry['brand_id'] ?? '')),
+            'role' => $role,
+            'has_alpha' => !empty($entry['has_alpha']),
+            'original_filename' => $originalFilename,
+            'master_filename' => $masterFilename,
+            'master_format' => strtolower(trim((string) ($entry['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION)))),
+            'release_id' => trim((string) ($entry['release_id'] ?? '')),
+            'slug' => trim((string) ($entry['slug'] ?? '')),
+            'display' => is_array($entry['display'] ?? null) ? $entry['display'] : [],
+            'tags' => $tags,
+            'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [],
+            'created_at' => trim((string) ($entry['created_at'] ?? gmdate('c'))),
+        ];
+    }
+
+    if ($kind === 'sfx') {
+        if ($originalFilename === '') {
+            return null;
+        }
+        if ($masterFilename === '') {
+            $masterFilename = $originalFilename;
+        }
+
+        return [
+            'id' => $id,
+            'kind' => 'sfx',
+            'media_type' => 'audio',
+            'intake_bucket' => 'sfx',
+            'brand_id' => trim((string) ($entry['brand_id'] ?? '')),
+            'role' => 'sfx',
+            'original_filename' => $originalFilename,
+            'master_filename' => $masterFilename,
+            'master_format' => strtolower(trim((string) ($entry['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION)))),
+            'release_id' => '',
+            'slug' => '',
+            'display' => is_array($entry['display'] ?? null) ? $entry['display'] : [],
+            'tags' => ['sfx'],
+            'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : ['ready' => true, 'source' => 'original'],
+            'created_at' => trim((string) ($entry['created_at'] ?? gmdate('c'))),
+        ];
+    }
+
+    if ($masterFilename === '') {
+        return null;
     }
 
     return [
@@ -121,6 +336,7 @@ function bandpromo_asset_normalize_registry(array $input): array
 
     $assets = [];
     $byMaster = [];
+    $byOriginal = [];
 
     if (isset($input['assets']) && is_array($input['assets'])) {
         foreach ($input['assets'] as $key => $entry) {
@@ -135,7 +351,12 @@ function bandpromo_asset_normalize_registry(array $input): array
                 continue;
             }
             $assets[$normalized['id']] = $normalized;
-            $byMaster[$normalized['master_filename']] = $normalized['id'];
+            if ($normalized['master_filename'] !== '') {
+                $byMaster[$normalized['master_filename']] = $normalized['id'];
+            }
+            if ($normalized['original_filename'] !== '') {
+                $byOriginal[$normalized['original_filename']] = $normalized['id'];
+            }
         }
     }
 
@@ -153,8 +374,23 @@ function bandpromo_asset_normalize_registry(array $input): array
         }
     }
 
+    if (isset($input['by_original_filename']) && is_array($input['by_original_filename'])) {
+        foreach ($input['by_original_filename'] as $originalFilename => $assetId) {
+            $originalFilename = basename((string) $originalFilename);
+            $assetId = trim((string) $assetId);
+            if ($originalFilename === '' || !bandpromo_asset_is_asset_id($assetId)) {
+                continue;
+            }
+            if (!isset($assets[$assetId])) {
+                continue;
+            }
+            $byOriginal[$originalFilename] = $assetId;
+        }
+    }
+
     $registry['assets'] = $assets;
     $registry['by_master_filename'] = $byMaster;
+    $registry['by_original_filename'] = $byOriginal;
 
     return $registry;
 }
@@ -262,12 +498,39 @@ function bandpromo_asset_lookup_by_original_filename(string $root, string $origi
         return null;
     }
 
+    $registry = bandpromo_asset_load_registry($root);
+    $assetId = trim((string) ($registry['by_original_filename'][$originalFilename] ?? ''));
+    if ($assetId !== '' && isset($registry['assets'][$assetId])) {
+        return $registry['assets'][$assetId];
+    }
+
     $assetId = trim((string) (bandpromo_asset_filename_index($root)[$originalFilename] ?? ''));
     if ($assetId === '') {
         return null;
     }
 
     return bandpromo_asset_lookup_by_id($root, $assetId);
+}
+
+/**
+ * Look up a visual asset by original filename, optionally scoped to an intake bucket.
+ */
+function bandpromo_asset_lookup_visual(
+    string $root,
+    string $originalFilename,
+    string $intakeBucket = ''
+): ?array {
+    $asset = bandpromo_asset_lookup_by_original_filename($root, $originalFilename);
+    if ($asset === null || ($asset['kind'] ?? '') !== 'visual') {
+        return null;
+    }
+
+    $wantedBucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
+    if ($wantedBucket !== '' && ($asset['intake_bucket'] ?? '') !== $wantedBucket) {
+        return null;
+    }
+
+    return $asset;
 }
 
 function bandpromo_asset_lookup_by_id(string $root, string $assetId): ?array
@@ -280,6 +543,94 @@ function bandpromo_asset_lookup_by_id(string $root, string $assetId): ?array
     $registry = bandpromo_asset_load_registry($root);
 
     return $registry['assets'][$assetId] ?? null;
+}
+
+/**
+ * Register a visual (image or video) asset in the shared registry.
+ *
+ * @param array{
+ *   role?: string,
+ *   brand_id?: string,
+ *   has_alpha?: bool,
+ *   asset_id?: string|null
+ * } $options
+ */
+function bandpromo_asset_register_visual(
+    string $root,
+    string $originalFilename,
+    string $intakeBucket,
+    string $mediaType = '',
+    array $options = []
+): array {
+    $originalFilename = basename(trim($originalFilename));
+    $intakeBucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
+    if ($originalFilename === '' || $intakeBucket === '') {
+        throw new InvalidArgumentException('Visual registration requires filename and intake bucket.');
+    }
+
+    if ($mediaType === '') {
+        $mediaType = bandpromo_asset_infer_media_type_from_filename($originalFilename);
+    }
+    $mediaType = strtolower(trim($mediaType));
+    if (!in_array($mediaType, ['image', 'video'], true)) {
+        throw new InvalidArgumentException('Visual assets must be image or video.');
+    }
+
+    $existing = bandpromo_asset_lookup_visual($root, $originalFilename, $intakeBucket);
+    if ($existing !== null) {
+        $changes = [];
+        if (isset($options['role'])) {
+            $changes['role'] = (string) $options['role'];
+        }
+        if (array_key_exists('brand_id', $options)) {
+            $changes['brand_id'] = (string) $options['brand_id'];
+        }
+        if (array_key_exists('has_alpha', $options)) {
+            $changes['has_alpha'] = !empty($options['has_alpha']);
+        }
+        if ($changes !== []) {
+            return bandpromo_asset_update_entry($root, (string) $existing['id'], $changes);
+        }
+
+        return $existing;
+    }
+
+    $assetId = isset($options['asset_id']) && bandpromo_asset_is_asset_id((string) $options['asset_id'])
+        ? (string) $options['asset_id']
+        : bandpromo_generate_asset_id();
+
+    $role = bandpromo_asset_normalize_visual_role((string) ($options['role'] ?? 'unassigned'));
+    $brandId = trim((string) ($options['brand_id'] ?? ''));
+    if ($brandId === '') {
+        $brandId = bandpromo_asset_active_brand_id($root);
+    }
+
+    $entry = [
+        'id' => $assetId,
+        'kind' => 'visual',
+        'media_type' => $mediaType,
+        'intake_bucket' => $intakeBucket,
+        'brand_id' => $brandId,
+        'role' => $role,
+        'has_alpha' => !empty($options['has_alpha']),
+        'original_filename' => $originalFilename,
+        'master_filename' => $originalFilename,
+        'master_format' => strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION)),
+        'release_id' => '',
+        'slug' => '',
+        'display' => [],
+        'tags' => [$role],
+        'delivery' => [],
+        'created_at' => gmdate('c'),
+    ];
+
+    $registry = bandpromo_asset_load_registry($root);
+    $registry['assets'][$assetId] = $entry;
+    $registry['by_master_filename'][$originalFilename] = $assetId;
+    $registry['by_original_filename'][$originalFilename] = $assetId;
+    bandpromo_asset_write_registry($root, $registry);
+
+    return bandpromo_asset_normalize_entry($entry) ?? $entry;
 }
 
 function bandpromo_asset_register_audio_master(
@@ -320,6 +671,9 @@ function bandpromo_asset_register_audio_master(
 
     $registry['assets'][$assetId] = $entry;
     $registry['by_master_filename'][$masterFilename] = $assetId;
+    if ($originalFilename !== '') {
+        $registry['by_original_filename'][$originalFilename] = $assetId;
+    }
     bandpromo_asset_write_registry($root, $registry);
 
     return $entry;
@@ -334,10 +688,19 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     }
 
     $entry = $registry['assets'][$assetId];
-    foreach (['release_id', 'slug', 'original_filename'] as $key) {
+    $previousMaster = (string) ($entry['master_filename'] ?? '');
+    $previousOriginal = (string) ($entry['original_filename'] ?? '');
+
+    foreach (['release_id', 'slug', 'original_filename', 'brand_id', 'media_type', 'intake_bucket'] as $key) {
         if (array_key_exists($key, $changes)) {
             $entry[$key] = trim((string) $changes[$key]);
         }
+    }
+    if (array_key_exists('role', $changes)) {
+        $entry['role'] = bandpromo_asset_normalize_visual_role((string) $changes['role']);
+    }
+    if (array_key_exists('has_alpha', $changes)) {
+        $entry['has_alpha'] = !empty($changes['has_alpha']);
     }
     if (isset($changes['display']) && is_array($changes['display'])) {
         $existingDisplay = is_array($entry['display'] ?? null) ? $entry['display'] : [];
@@ -345,10 +708,23 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     }
     if (isset($changes['delivery']) && is_array($changes['delivery'])) {
         $existingDelivery = is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [];
+        // Deep-merge variants map when present.
+        if (isset($changes['delivery']['variants']) && is_array($changes['delivery']['variants'])) {
+            $existingVariants = is_array($existingDelivery['variants'] ?? null) ? $existingDelivery['variants'] : [];
+            $existingDelivery['variants'] = array_merge($existingVariants, $changes['delivery']['variants']);
+            unset($changes['delivery']['variants']);
+        }
         $entry['delivery'] = array_merge($existingDelivery, $changes['delivery']);
     }
     if (isset($changes['tags']) && is_array($changes['tags'])) {
         $entry['tags'] = array_values($changes['tags']);
+    } elseif (isset($entry['role']) && ($entry['kind'] ?? '') === 'visual') {
+        $tags = is_array($entry['tags'] ?? null) ? array_values($entry['tags']) : [];
+        $role = bandpromo_asset_normalize_visual_role((string) $entry['role']);
+        $tags = array_values(array_filter($tags, static fn($tag): bool => !in_array((string) $tag, bandpromo_asset_visual_roles(), true)));
+        array_unshift($tags, $role);
+        $entry['tags'] = $tags;
+        $entry['role'] = $role;
     }
 
     $normalized = bandpromo_asset_normalize_entry($entry);
@@ -356,8 +732,20 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
         throw new InvalidArgumentException('Invalid asset entry.');
     }
 
+    if ($previousMaster !== '' && $previousMaster !== $normalized['master_filename']) {
+        unset($registry['by_master_filename'][$previousMaster]);
+    }
+    if ($previousOriginal !== '' && $previousOriginal !== $normalized['original_filename']) {
+        unset($registry['by_original_filename'][$previousOriginal]);
+    }
+
     $registry['assets'][$assetId] = $normalized;
-    $registry['by_master_filename'][$normalized['master_filename']] = $assetId;
+    if ($normalized['master_filename'] !== '') {
+        $registry['by_master_filename'][$normalized['master_filename']] = $assetId;
+    }
+    if ($normalized['original_filename'] !== '') {
+        $registry['by_original_filename'][$normalized['original_filename']] = $assetId;
+    }
     bandpromo_asset_write_registry($root, $registry);
 
     return $normalized;
@@ -446,9 +834,13 @@ function bandpromo_asset_unregister(string $root, string $assetId): void
     }
 
     $masterFilename = (string) ($registry['assets'][$assetId]['master_filename'] ?? '');
+    $originalFilename = (string) ($registry['assets'][$assetId]['original_filename'] ?? '');
     unset($registry['assets'][$assetId]);
     if ($masterFilename !== '') {
         unset($registry['by_master_filename'][$masterFilename]);
+    }
+    if ($originalFilename !== '') {
+        unset($registry['by_original_filename'][$originalFilename]);
     }
 
     bandpromo_asset_write_registry($root, $registry);
@@ -650,6 +1042,86 @@ function bandpromo_asset_reconcile_audio_originals(string $root): void
     }
 }
 
+/**
+ * Backfill visual assets from legacy intake folders.
+ *
+ * @return bool True when the registry was modified.
+ */
+function bandpromo_asset_registry_backfill_visuals(string $root, array &$registry): bool
+{
+    $imageExts = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    $videoExts = ['mp4', 'webm', 'mov'];
+    $changed = false;
+    $brandId = bandpromo_asset_active_brand_id($root);
+
+    $buckets = [
+        'img' => $imageExts,
+        'photo' => $imageExts,
+        'video' => $videoExts,
+        'special' => array_merge($imageExts, $videoExts),
+    ];
+
+    foreach ($buckets as $intakeBucket => $allowedExts) {
+        $dir = bandpromo_asset_visual_original_dir($root, $intakeBucket);
+        if ($dir === '' || !is_dir($dir)) {
+            continue;
+        }
+
+        foreach (scandir($dir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
+                continue;
+            }
+            $path = $dir . '/' . $entry;
+            if (!is_file($path)) {
+                continue;
+            }
+
+            $ext = strtolower((string) pathinfo($entry, PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowedExts, true)) {
+                continue;
+            }
+
+            $mediaType = in_array($ext, $videoExts, true) ? 'video' : 'image';
+            $existingId = trim((string) ($registry['by_original_filename'][$entry] ?? ''));
+            if ($existingId !== '' && isset($registry['assets'][$existingId])) {
+                $existing = $registry['assets'][$existingId];
+                if (($existing['kind'] ?? '') === 'visual'
+                    && ($existing['intake_bucket'] ?? '') === $intakeBucket
+                ) {
+                    continue;
+                }
+            }
+
+            $assetId = bandpromo_generate_asset_id();
+            $normalized = bandpromo_asset_normalize_entry([
+                'id' => $assetId,
+                'kind' => 'visual',
+                'media_type' => $mediaType,
+                'intake_bucket' => $intakeBucket,
+                'brand_id' => $brandId,
+                'role' => 'unassigned',
+                'has_alpha' => false,
+                'original_filename' => $entry,
+                'master_filename' => $entry,
+                'master_format' => $ext,
+                'tags' => ['unassigned'],
+                'delivery' => [],
+                'created_at' => gmdate('c'),
+            ]);
+            if ($normalized === null) {
+                continue;
+            }
+
+            $registry['assets'][$assetId] = $normalized;
+            $registry['by_master_filename'][$entry] = $assetId;
+            $registry['by_original_filename'][$entry] = $assetId;
+            $changed = true;
+        }
+    }
+
+    return $changed;
+}
+
 function bandpromo_asset_registry_ensure_migrated(string $root): void
 {
     static $done = [];
@@ -664,59 +1136,69 @@ function bandpromo_asset_registry_ensure_migrated(string $root): void
         ? bandpromo_asset_normalize_registry((array) (bandpromo_json_read_array_file($path) ?? []))
         : bandpromo_asset_registry_default();
 
-    $masterDir = $root . '/media/audio/master';
-    if (!is_dir($masterDir)) {
-        if (!is_file($path)) {
-            bandpromo_asset_write_registry($root, $registry);
-        }
-
-        return;
-    }
-
-    $entries = scandir($masterDir);
-    if (!is_array($entries)) {
-        return;
-    }
-
     $changed = false;
-    foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..') {
-            continue;
-        }
-        $ext = strtolower((string) pathinfo($entry, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['flac', 'mp3', 'wav'], true)) {
-            continue;
-        }
-        if (str_starts_with($entry, BANDPROMO_ASSET_ID_PREFIX)) {
-            continue;
-        }
-        if (isset($registry['by_master_filename'][$entry])) {
-            continue;
-        }
 
-        $assetId = bandpromo_asset_id_from_master_filename($entry) ?? bandpromo_generate_asset_id();
-        $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : '';
-        $normalized = bandpromo_asset_normalize_entry([
-            'id' => $assetId,
-            'kind' => 'audio',
-            'original_filename' => $entry,
-            'master_filename' => $entry,
-            'master_format' => $ext,
-            'release_id' => $releaseId,
-            'created_at' => gmdate('c'),
-        ]);
-        if ($normalized === null) {
-            continue;
-        }
+    $masterDir = $root . '/media/audio/master';
+    if (is_dir($masterDir)) {
+        $entries = scandir($masterDir);
+        if (is_array($entries)) {
+            foreach ($entries as $entry) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+                $ext = strtolower((string) pathinfo($entry, PATHINFO_EXTENSION));
+                if (!in_array($ext, ['flac', 'mp3', 'wav'], true)) {
+                    continue;
+                }
+                if (str_starts_with($entry, BANDPROMO_ASSET_ID_PREFIX)) {
+                    continue;
+                }
+                if (isset($registry['by_master_filename'][$entry])) {
+                    continue;
+                }
 
-        $registry['assets'][$assetId] = $normalized;
-        $registry['by_master_filename'][$entry] = $assetId;
+                $assetId = bandpromo_asset_id_from_master_filename($entry) ?? bandpromo_generate_asset_id();
+                $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : '';
+                $normalized = bandpromo_asset_normalize_entry([
+                    'id' => $assetId,
+                    'kind' => 'audio',
+                    'original_filename' => $entry,
+                    'master_filename' => $entry,
+                    'master_format' => $ext,
+                    'release_id' => $releaseId,
+                    'created_at' => gmdate('c'),
+                ]);
+                if ($normalized === null) {
+                    continue;
+                }
+
+                $registry['assets'][$assetId] = $normalized;
+                $registry['by_master_filename'][$entry] = $assetId;
+                if ($normalized['original_filename'] !== '') {
+                    $registry['by_original_filename'][$normalized['original_filename']] = $assetId;
+                }
+                $changed = true;
+            }
+        }
+    }
+
+    if (bandpromo_asset_registry_backfill_visuals($root, $registry)) {
         $changed = true;
     }
 
     if ($changed || !is_file($path)) {
         bandpromo_asset_write_registry($root, $registry);
-        bandpromo_asset_reconcile_audio_originals($root);
+        if (is_dir($masterDir)) {
+            bandpromo_asset_reconcile_audio_originals($root);
+        }
+    }
+
+    // Sound effects: copy special shell audio into media/sfx and rewrite brand/config refs.
+    require_once __DIR__ . '/sfx-helpers.php';
+    try {
+        bandpromo_sfx_migrate_from_special($root);
+    } catch (Throwable $throwable) {
+        // Best-effort migrate; Files → Sound effects still works for new uploads.
     }
 }
 

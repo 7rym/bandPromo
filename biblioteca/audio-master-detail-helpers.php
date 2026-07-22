@@ -58,7 +58,7 @@ function bandpromo_audio_master_playlist_map(string $root): array
 
 function bandpromo_audio_master_resolve_current_cover_url(?string $cover): string
 {
-    $filename = trim((string) $cover);
+    $filename = basename(trim((string) $cover));
     if ($filename === '') {
         return '';
     }
@@ -66,17 +66,92 @@ function bandpromo_audio_master_resolve_current_cover_url(?string $cover): strin
     return '/media/img/original/' . rawurlencode($filename);
 }
 
-function bandpromo_audio_master_resolve_sidecar_cover_url(string $root, ?string $cover): string
+/**
+ * Absolute path for a track-cover pool file (img / photo / special).
+ */
+function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $coverFilename): string
 {
-    $filename = trim((string) $cover);
-    if ($filename === '') {
+    require_once __DIR__ . '/asset-registry.php';
+
+    $coverFilename = basename(trim($coverFilename));
+    if ($coverFilename === '') {
         return '';
     }
 
-    $path = $root . '/media/img/original/' . $filename;
-    $version = is_file($path) ? (string) filemtime($path) : (string) time();
+    $visual = bandpromo_asset_lookup_by_original_filename($root, $coverFilename);
+    if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+        $path = bandpromo_asset_visual_original_path($root, $visual);
+        if ($path !== '' && is_file($path)) {
+            return $path;
+        }
+    }
 
-    return '/media/img/original/' . rawurlencode($filename) . '?v=' . rawurlencode($version);
+    foreach ([
+        $root . '/media/img/original/' . $coverFilename,
+        $root . '/media/photo/original/' . $coverFilename,
+        $root . '/media/special/' . $coverFilename,
+    ] as $candidate) {
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Public URL for a track-cover pool file (prefers delivery card variant when ready).
+ */
+function bandpromo_audio_master_resolve_pool_cover_url(string $root, ?string $cover): string
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    $coverFilename = basename(trim((string) $cover));
+    if ($coverFilename === '') {
+        return '';
+    }
+
+    $visual = bandpromo_asset_lookup_by_original_filename($root, $coverFilename);
+    if (is_array($visual) && ($visual['kind'] ?? '') === 'visual' && !empty($visual['id'])) {
+        $url = bandpromo_visual_resolve_url(
+            $root,
+            (string) $visual['id'],
+            'card',
+            (string) ($visual['intake_bucket'] ?? '')
+        );
+        if ($url !== '') {
+            $path = bandpromo_audio_master_resolve_pool_cover_path($root, $coverFilename);
+            $version = $path !== '' ? (string) filemtime($path) : (string) time();
+
+            return $url . (str_contains($url, '?') ? '&' : '?') . 'v=' . rawurlencode($version);
+        }
+    }
+
+    $path = bandpromo_audio_master_resolve_pool_cover_path($root, $coverFilename);
+    if ($path === '') {
+        return '';
+    }
+
+    $normalizedRoot = str_replace('\\', '/', rtrim($root, '/\\'));
+    $normalizedPath = str_replace('\\', '/', $path);
+    $rel = str_starts_with($normalizedPath, $normalizedRoot)
+        ? substr($normalizedPath, strlen($normalizedRoot))
+        : '';
+    if ($rel === '') {
+        return '';
+    }
+    if (!str_starts_with($rel, '/')) {
+        $rel = '/' . $rel;
+    }
+    $version = (string) filemtime($path);
+
+    return $rel . '?v=' . rawurlencode($version);
+}
+
+function bandpromo_audio_master_resolve_sidecar_cover_url(string $root, ?string $cover): string
+{
+    return bandpromo_audio_master_resolve_pool_cover_url($root, $cover);
 }
 
 function bandpromo_audio_files_listing_context(string $root): array
@@ -290,8 +365,8 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
     $detail['master_filename'] = $masterFilename;
     $detail['sidecar_cover'] = $sidecarCover;
     $detail['current_cover'] = $currentCover;
-    $detail['current_cover_url'] = bandpromo_audio_master_resolve_current_cover_url($currentCover);
-    $detail['sidecar_cover_url'] = bandpromo_audio_master_resolve_sidecar_cover_url($root, $sidecarCover);
+    $detail['current_cover_url'] = bandpromo_audio_master_resolve_pool_cover_url($root, $currentCover);
+    $detail['sidecar_cover_url'] = bandpromo_audio_master_resolve_pool_cover_url($root, $sidecarCover);
 
     return bandpromo_living_cover_enrich_detail($root, $detail);
 }
@@ -381,6 +456,8 @@ function bandpromo_audio_master_validate_release_date(string $value): bool
 
 function bandpromo_audio_master_clear_sidecar_cover(string $root, string $audioFilename): void
 {
+    // Only remove legacy stem-named copies next to the audio identity.
+    // Never delete operator Visual pool uploads referenced by display.cover.
     $imgDir = $root . '/media/img/original';
 
     foreach (bandpromo_audio_master_sidecar_stems($root, $audioFilename) as $stem) {
@@ -393,8 +470,69 @@ function bandpromo_audio_master_clear_sidecar_cover(string $root, string $audioF
     }
 }
 
+/**
+ * Remove legacy stem-named cover copies when the audio asset already points at a pool file.
+ *
+ * @return list<string> Deleted basenames
+ */
+function bandpromo_audio_master_prune_redundant_cover_sidecars(string $root): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/cover-art-helpers.php';
+
+    $deleted = [];
+    $registry = bandpromo_asset_load_registry($root);
+    $imgDir = $root . '/media/img/original';
+
+    foreach ($registry['assets'] as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+
+        $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+        $assignedCover = basename(trim((string) ($display['cover'] ?? '')));
+        if ($assignedCover === '') {
+            continue;
+        }
+
+        $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+        $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
+        $stems = [];
+        if ($masterFilename !== '') {
+            $stems[] = pathinfo($masterFilename, PATHINFO_FILENAME);
+        }
+        if ($originalFilename !== '') {
+            $stems[] = pathinfo($originalFilename, PATHINFO_FILENAME);
+        }
+        $stems = array_values(array_unique(array_filter($stems)));
+
+        foreach ($stems as $stem) {
+            foreach (['jpg', 'jpeg', 'png'] as $extension) {
+                $candidateName = $stem . '.' . $extension;
+                if (strcasecmp($candidateName, $assignedCover) === 0) {
+                    continue;
+                }
+                $candidatePath = $imgDir . '/' . $candidateName;
+                if (!is_file($candidatePath)) {
+                    continue;
+                }
+                if (@unlink($candidatePath)) {
+                    $deleted[] = $candidateName;
+                    bandpromo_media_files_index_remove('illustrations', $candidateName);
+                }
+            }
+        }
+    }
+
+    return $deleted;
+}
+
 function bandpromo_audio_master_apply_cover_selection(string $root, string $audioFilename, string $coverPath): array
 {
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/cover-art-helpers.php';
+    require_once __DIR__ . '/media-library-state.php';
+
     $masterFilename = bandpromo_audio_master_canonical_filename($root, $audioFilename);
     if ($masterFilename === '') {
         return [
@@ -405,8 +543,10 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
 
     $relativePath = ltrim(trim($coverPath), '/\\');
     if ($relativePath === '') {
+        // Drop legacy stem copies + clear embedded art; registry display.cover cleared by save sync.
         bandpromo_audio_master_clear_sidecar_cover($root, $masterFilename);
         bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, '');
+
         return [
             'ok' => true,
             'sidecar_cover' => '',
@@ -453,10 +593,10 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
     }
 
     $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    if (!in_array($extension, ['jpg', 'jpeg', 'png'], true)) {
+    if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
         return [
             'ok' => false,
-            'error' => 'Track covers must be JPG or PNG',
+            'error' => 'Track covers must be JPG, PNG, or WebP',
         ];
     }
 
@@ -476,27 +616,10 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         ];
     }
 
-    $targetDir = $root . '/media/img/original';
-    if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true) && !is_dir($targetDir)) {
-        return [
-            'ok' => false,
-            'error' => 'Could not prepare track cover directory',
-        ];
-    }
-
+    // Remove legacy stem-named duplicates from the old copy-on-assign path.
     bandpromo_audio_master_clear_sidecar_cover($root, $masterFilename);
 
-    $stem = pathinfo($masterFilename, PATHINFO_FILENAME);
-    $targetFilename = $stem . '.' . $extension;
-    $targetPath = $targetDir . '/' . $targetFilename;
-    if (!copy($sourcePath, $targetPath)) {
-        return [
-            'ok' => false,
-            'error' => 'Could not save the selected cover image',
-        ];
-    }
-
-    $embeddedSync = bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, $targetPath);
+    $embeddedSync = bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, $sourcePath);
     if (!($embeddedSync['ok'] ?? false)) {
         return [
             'ok' => false,
@@ -504,14 +627,37 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         ];
     }
 
-    bandpromo_cover_art_record_build_asset($targetFilename, 'track-cover', 'build-sidecar-copy', [
+    // Pool file stays the source of truth — reference it; do not copy to {audio_stem}.ext.
+    bandpromo_cover_art_record_upload($root, $filename, $targetKey);
+    bandpromo_cover_art_record_build_asset($filename, 'track-cover', 'operator-assigned', [
         'linked_audio' => $masterFilename,
     ]);
 
+    $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($targetKey);
+    $coverAssetId = '';
+    if ($intakeBucket !== '') {
+        try {
+            $visual = bandpromo_asset_register_visual($root, $filename, $intakeBucket, 'image', [
+                'role' => 'track-cover',
+            ]);
+            if (is_array($visual)) {
+                $coverAssetId = (string) ($visual['id'] ?? '');
+                if (($visual['role'] ?? '') === 'unassigned') {
+                    bandpromo_asset_update_entry($root, $coverAssetId, [
+                        'role' => 'track-cover',
+                    ]);
+                }
+            }
+        } catch (Throwable $throwable) {
+            // Registry optional for assign success; embed + display.cover still work.
+        }
+    }
+
     return [
         'ok' => true,
-        'sidecar_cover' => $targetFilename,
+        'sidecar_cover' => $filename,
         'master_filename' => $masterFilename,
+        'cover_asset_id' => $coverAssetId,
     ];
 }
 

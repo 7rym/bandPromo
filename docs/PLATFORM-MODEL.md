@@ -2,10 +2,11 @@
 
 Source of truth for the v0.8 beta platform contract: releases, assets, containers, pages, brands, URLs, and legacy behaviour to remove.
 
-Status: **policy updated** (2026-07-11 — Brand replaces Theme; visual pool + role tags; content AI wizards in v0.8). Implementation slices in [TODO.md](TODO.md).
+Status: **policy updated** (2026-07-22 — operator mental model, closed-beta use cases, player nav target, Lyrics/Tracklist role). Implementation slices in [TODO.md](TODO.md).
 
 Companion policy docs:
 
+- [USE-CASES.md](USE-CASES.md) — closed-beta personas (Vanilla, Twisted Chronicles, HITZ)
 - [ACCESS-MODEL.md](ACCESS-MODEL.md) — tiers, login, FAQ, shared links, VIP overrides
 - [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — protected delivery, PWA, cast scope
 - [PORTABILITY.md](PORTABILITY.md) — full backup vs data export/import, moved-site repair
@@ -13,6 +14,8 @@ Companion policy docs:
 ## Mental model (read this first)
 
 **One sentence:** bandPromo is a platform shell that ships starter examples; operators own the install's creative truth; fans consume it with almost no ownership today.
+
+Worked examples for closed-beta installs: [USE-CASES.md](USE-CASES.md).
 
 The sections below are policy detail. This page is the compass — three actors, four layers, and the vocabulary traps that old names still cause.
 
@@ -105,6 +108,41 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 2. **Edited or generated?** — `data/*.json` → edited. `media/*/optimal/` → generated delivery.
 3. **Who is the audience?** — Admin → operator. Player/login → user. Templates/migrations → platform.
 
+### Operator mental model (containers, brand, player)
+
+Worked examples: [USE-CASES.md](USE-CASES.md).
+
+**Containers:** Release (campaign umbrella), Playlist (ordered listening product), Gallery (visual set), Page (blocks). Brand is a fifth document under `data/brands/`, owned by a release via `brand_id` / `release_id` — not a peer campaign.
+
+**Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that release only. Release editor Available pools list **unowned** containers; saves refuse stealing from another release.
+
+**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated.
+
+**Active brand vs release brand:**
+
+| Layer | Role |
+|-------|------|
+| Install **active** brand (`install.pointers.active_brand_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a release has no valid `brand_id` |
+| Release brand (`release.brand_id`) | Player **CSS tokens** while a track from that release plays (resolved from the track’s catalog `asset.release_id`, not from playlist ownership) |
+| Demo `bandpromo-default` | Seed identity for the demo release; often the install active brand on fresh installs |
+
+Opening a playlist does **not** rewrite active brand or shell config — only token overlay. Per-release shell media in the player is **planned** ([TODO.md](TODO.md) Brand shell override runtime).
+
+**Player nav — current vs target:**
+
+| | Current (shipped) | Target |
+|--|-------------------|--------|
+| Shell | Playlists + Lyrics always | Same (Lyrics label may follow per-track text role — see below) |
+| Pages | Site-wide tabs from Content → Player (`show_in_player` / `tab_order`) | Optional **global** pages from Player editor + **contextual** pages associated to the **current track’s release** |
+| Gallery | No dedicated Gallery module tab; use a page with gallery blocks | Same |
+| FAQ | Login / global required surface | Same — not a campaign Bio |
+
+Associating a page to a release does **not** yet add a player tab.
+
+**Lyrics vs Tracklist (planned):** One shell panel and one master text field; per-master role `lyrics` \| `tracklist` renames the locked nav label while that track plays. Site-wide label alone is insufficient for label installs that need both (HITZ).
+
+**Content admin strip:** Catalogue plus dedicated Playlist / Gallery / Pages / Branding / Player editors remain peers. Release editor handles base info, track membership, and associations — not full child editing.
+
 ### Map
 
 ```mermaid
@@ -150,9 +188,10 @@ flowchart TB
 | Term | Meaning |
 |------|---------|
 | **Asset** | One stored media file or inline content fragment (audio, image, video, richtext HTML). Identified by `asset_id`. |
-| **Release** | Catalog entity: a marketed album/EP/single. Owns track membership, release date, and release-level metadata. |
-| **Brand** | Visual identity package for an era or campaign: colors, typography, mood narrative, and curated asset refs. Many releases may share one brand. |
-| **Container** | Operator-managed document in `data/`: playlist, gallery, page, brand, release. |
+| **Release** | Campaign umbrella for a body of work (e.g. Violator): owns all related masters, identity (branding), EPK, galleries, and pages. Not a single streaming tracklist. |
+| **Brand / identity** | Visual identity **of a release** (colors, typography, mood, logo, shell media, SFX). Stored as a brand document owned by that release — not a peer campaign object. |
+| **Playlist** | Streaming listening product: album order, single package, tour set, radio campaign. Ordered refs into release-owned tracks; reusable across many playlists. |
+| **Container** | Operator-managed document in `data/`: playlist, gallery, page, brand (identity), release. |
 | **Block** | One composition unit inside a page container. |
 | **Module** | Editor + renderer for a block or container type. |
 | **Pool** | Available items when adding to a container (Content editor left column). |
@@ -162,7 +201,7 @@ flowchart TB
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
-Admin UI uses friendly names (Playlist, Gallery, Page, Brand). Docs and code use the terms above. **Theme** is a legacy name for what is now **Brand** during migration (`data/themes/` → `data/brands/`).
+Admin UI uses friendly names (Release, Playlist, Gallery, Page, Branding). Docs and code use the terms above. **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
 
 ## Asset identity and filenames
 
@@ -192,7 +231,7 @@ All containers, registries, playlists, releases, and deep links reference **`ass
 
 - `display`: title, artist, version, alt text, etc.
 - `slug`: unique **per release** for audio tracks (see URLs)
-- `release_id` + `release_track_number` for audio in a release
+- `release_id` for an audio track's exclusive campaign/catalog home
 - `original_filename`: exact upload name
 - `storage`: paths to original, master, delivery tiers
 - `tags`: explicit **role tags** and filter facets for unified media pools (see **Tags and roles**)
@@ -223,16 +262,17 @@ Admin UI, player, and notifications **read** the registry and published containe
 
 ### Unified media pools
 
-Two **media families** at the platform level — because intake, packaging, and delivery pipelines differ materially:
+Three **operator pools** (Files). Two heavy pipelines (music audio vs visual); Sound effects is a lightweight third pool for brand UI clips.
 
-| Family | Contents | Operator pool |
-|--------|----------|-----------------|
-| **Audio** | Music, spoken word, theme welcome audio | Files → Audio; playlist/release references |
-| **Visual** | Still images **and** video | Files → Visual (single pool); gallery/page/brand/release references |
+| Pool | Contents | Operator surface |
+|------|----------|------------------|
+| **Audio** | Catalog / release music tracks | Files → Audio; release + playlist references |
+| **Visual** | Still images **and** video | Files → Visual; gallery/page/brand/release visuals |
+| **Sound effects** | Brand UI / navigation / interaction clips (welcome, login, future click/zoom, …) | Files → Sound effects; owned by **brands**; assigned from Content → Branding slots |
 
-**Scheduled v0.8.4 (remaining):** unify on-disk intake under visual registry identity (`ast_{ULID}`), format-aware delivery, and brand-filtered pickers. **Operator surface (2026-07-15/16):** Files → Visual is live (thumbnail pool; Illustrations/Photos/Video tabs removed); Files → **Brand assets** is the operator name for legacy `media/special/`. Folders on disk remain until Phases 0b–2.
+**Shipped (2026-07-21):** visual registry/delivery + Phase 3 operator wiring; **Sound effects** pool (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`). **Still open:** Brand-assets disk fold (visuals still under `media/special/` until folded into Visual); living-cover `filename → ast_*`.
 
-**Audio stays separate** — masters, metadata repair, playlist coupling, and MP3 delivery are a different pipeline from visual scaling and transcode.
+**Music audio stays separate from SFX** — FLAC masters, metadata repair, playlist coupling, and delivery MP3s must never mix with short brand UI clips.
 
 ### Asset identity applies to visual media too
 
@@ -252,8 +292,8 @@ Registry **`tags`**, **`brand_id`**, and derived facets replace folder location 
 
 | Facet | Purpose | Examples |
 |-------|---------|----------|
-| `role` | Intended use of the asset (required for pickers; default `unassigned` for bulk pool uploads) | `brand-logo`, `brand-portrait`, `style-ref`, `release-cover`, `track-cover`, `gallery`, `page-illustration`, `shell-background-image`, `shell-welcome-audio` |
-| `brand_id` | Which brand identity package this asset belongs to | `bandpromo-default`, `violator-era`, … |
+| `role` | Intended use of the asset (visual pickers; default `unassigned` for bulk Visual uploads). Sound effects use a single role `sfx` — brand **slots** choose where a clip plays. | Visual: `brand-logo`, `track-cover`, … · SFX: `sfx` only |
+| `brand_id` | Which brand identity package this asset belongs to (library filter) | `bandpromo-default`, `violator-era`, … |
 | `media_type` | Intake/delivery pipeline branch | `image`, `video`, `audio` |
 | `has_alpha` | Format/delivery policy | `true` for logos, overlays |
 | `origin` | Provenance | `user-upload`, `bundled-placeholder`, `ai-generated`, `generated` |
@@ -282,22 +322,40 @@ Media pickers declare a **context**; the backend returns assets from the Visual 
 | Shell background video | `media_type=video`, `brand_id` match, role `shell-background-image` or `shell-background-video` |
 | Share / poster source | `media_type=image`, large enough for share variant |
 
-Admin **Files → Visual** exposes the image+video pool with operator filters: type (image/video), usage (in-use/orphan), role facets (track covers / living covers / build-generated). Brand filter arrives with the visual registry. **Files → Brand assets** remains a separate tab for legacy `media/special/` branding files until special migration.
+Admin **Files → Visual** exposes the image+video pool with type/usage/brand filters. **Files → Sound effects** holds brand UI audio (`role: sfx`); Branding slots pick any clip. **Files → Brand assets** remains a legacy tab for `media/special/` visuals until the Brand-assets fold (shell audio belongs in Sound effects).
 
 `media/special/` and direct config paths migrate into the Visual pool as brand-scoped assets during v0.8; until then they remain a legacy workaround that bypasses the JPEG optimizer.
 
 ## Releases
 
-A release is a traditional album/EP/single release: recorded tracks, marketing plan, and release date.
+A **release** is the campaign umbrella for a body of work — the thing industry meetings mean by “the Violator release”: every related master (album cuts, B-sides, live extras, remixes), identity/branding, EPK, press surfaces, and the listening products (playlists) that package those tracks for streaming.
+
+It is **not** merely one CD tracklist. Album order vs Personal Jesus single package vs tour set are **playlists** under the same release.
 
 ### Rules
 
-- **`brand_id`**: optional link to a brand container (see **Brands**). Many releases may share one brand (singles, EPs, and album tracks in the same visual era).
-- Every audio track must belong to **exactly one** release (explicit `release_id` **and** required album/release tag on the master for builds).
-- `release_date` is the primary availability threshold (soft by user role in v0.9; operators always bypass).
-- ISRC / ISWC: not in v0.8; reserve per-track fields for future distributor handover.
-- **`catalog_id`**: optional operator-defined release reference (for example `CD001`, `EP002`, `CD Mute 142`) — your internal or label catalog scheme, not a distributor ISRC.
-- Future **distribution handoff lock**: master immutable for long-term preservation after handover to external distributors.
+- Every audio track **should** belong to exactly one release (exclusive catalog home). Orphans (`release_id` empty) are allowed until associated. Playlists only reference tracks; they never own masters.
+- Release track membership is an **unordered pool**. Listening order exists only in playlists.
+- **Identity** (colors, typography, mood, logo, share/still/living shell, Welcome/Logged-in SFX) is **owned by the release** via its linked brand document (`brand_id`). Brand is not a competing peer campaign.
+- Release owns campaign **galleries** and **pages** (e.g. Bio) via `release_id` on those containers (and optional reverse indexes on the release document).
+- Release owns **listening products** as playlists with `release_id` set to this release; a track may appear in many of those playlists.
+- **Normal operator flow:** playlist entries under a release come from that release’s track pool — prefer, not hard-enforced yet.
+- `release_date` is the primary campaign/street date (often the album date). Individual playlist `publish_date` values carry single/tour package street dates.
+- `poster_asset_id` is the release cover (album art), distinct from brand logo/share slots.
+- **`catalog_id`**: optional operator catalog reference (for example `CD001`, `EP002`).
+- Future **distribution handoff lock**: master immutable after external distributor handover.
+
+### Operator hub
+
+Content work starts in the **Catalogue** (list of releases). From one release operators manage:
+
+- Tracks (catalog membership)
+- Identity / Branding (tokens + shell media)
+- Playlists (album / single / tour packages)
+- Galleries and pages
+- EPK / marketing fields
+
+Playlist editors must not look like a second release catalog.
 
 ### Storage
 
@@ -311,21 +369,19 @@ Release document (sketch):
 ```json
 {
   "version": 1,
-  "id": "twisted-chronicles-ep",
-  "slug": "twisted-chronicles-ep",
-  "title": "Twisted Chronicles (EP)",
-  "release_date": "2026-09-01",
+  "id": "violator",
+  "slug": "violator",
+  "title": "Violator",
+  "release_date": "1990-03-19",
   "locked": false,
-  "catalog_id": "EP002",
-  "brand_id": "twisted-chronicles-debut-era",
+  "catalog_id": "CDSTUMM64",
+  "brand_id": "violator-identity",
   "short_description": "One-line summary for cards and previews.",
   "description": "Press-ready blurb for this release.",
   "poster_asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
   "epk": {
-    "tagline": "Short hook for press kits",
-    "genre": "Alternative rock",
     "credits": "Produced by …",
-    "press_contact": "7rym <7rym@7rym.net>",
+    "press_contact": "press@example.com",
     "streaming_links": [
       { "label": "Spotify", "url": "https://open.spotify.com/album/…" }
     ],
@@ -334,58 +390,62 @@ Release document (sketch):
   "tracks": [
     {
       "asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
-      "slug": "belief-radio-version",
-      "track_number": 3
+      "slug": "personal-jesus"
     }
   ]
 }
 ```
+
+Legacy/deferred `catalog_id`, `epk.tagline`, `epk.genre`, `epk.credits`,
+`epk.streaming_links`, and `epk.press_photo_asset_ids` values remain accepted
+and preserved for package compatibility. Their operator schema is intentionally
+deferred for a later EPK redesign.
+
+Child containers (playlist / gallery / page / brand identity) carry `release_id` pointing here.
 
 ### Release locking
 
 When `locked: true`:
 
 - Member track metadata and tags are **not editable**.
-- Release membership and per-release track numbers are **not editable**.
+- Release membership is **not editable**.
 - Masters must not be deleted or re-encoded.
-- Tracks remain playable and assignable to playlists.
+- Tracks remain playable and assignable to playlists under this release.
 - Playlist reorder does **not** mutate files (see Legacy removal).
 
 Future: `distribution_handoff_locked` for post-DistroKid/TuneCore-style handover.
 
 ## Playlists
 
-Playlists are **containers** of track references. They are independent of releases.
+Playlists are **streaming listening products** under a release: album sequence, single package (A-side + B-sides like *Dangerous*), tour set, radio campaign.
 
 ### Rules
 
-- Entries reference `asset_id` (and carry `release_id` for analytics context).
-- A track may appear in multiple playlists.
-- Playlist has its own `publish_date` for marketing / default-selection eligibility.
+- Entries reference `asset_id` (and carry `release_id` for analytics / ownership context).
+- Prefer `release_id` on the playlist document = owning campaign release. Demo and normal operator flow: all entries come from that release.
+- A track may appear in **multiple** playlists (reuse is the point).
+- Playlist has its own `publish_date` (e.g. Personal Jesus 1989-08-29 vs album 1990-03-19).
 - Playlist is shown **in full**; embargoed tracks appear but are **not playable** for the current user tier.
 - Analytics bind plays to **track → release**, not to playlist.
-- v0.8: **system playlists only** (`kind: "system"`). User/VIP playlists later (v0.9+).
-- Operator-created playlists in admin use `kind: "system"` until user playlists ship (v0.9+).
-- Player playlist selector appears only when **two or more** system playlists exist in the registry.
-- **Player payloads** (`tracks`, `brand_styles`, `delivery_summary`) are written into `data/playlists/{id}.json` at Publish. Player GETs read that static payload only. Admin editors load titles from `assets[].display`, not by re-parsing masters.
+- v0.8: operator site playlists use `kind: "system"` until **user/VIP playlists** ship (v0.9+). In code, "system playlist" often means **site playlist**, not platform demo.
+- Player playlist selector appears when **two or more** catalog playlists are public (see Default playlist).
+- **Player payloads** (`tracks`, `brand_styles`, `delivery_summary`) are written into `data/playlists/{id}.json` at Publish.
 
 ### Presentation metadata (v0.8.3+)
 
-Shareable containers should carry operator-authored marketing fields in addition to title and dates:
-
 | Field | Playlists | Pages | Releases |
 |-------|-----------|-------|----------|
-| `catalog_id` | — | — | Operator catalog reference (for example `CD001`, `CD Mute 142`) |
-| `description` | Campaign blurb for share cards | Share/summary text | Press / EPK blurb |
-| `poster_asset_id` | Share/OG image | Share/OG image (fallback: first image block) | Release cover (album/EP/single art) |
+| `catalog_id` | — | — | Operator catalog reference |
+| `description` | Product blurb for share cards | Share/summary text | Press / EPK blurb |
+| `poster_asset_id` | Product cover / share image | Share/OG image | Release cover (campaign art) |
+| `release_id` | Owning campaign release | Owning campaign release | — |
 
-**Release EPK (extended metadata, v0.8.3+):** releases are the catalog and press hub — tagline, genre, credits, contact/press email, external streaming/store links, and optional press photo set references. Playlists remain listening campaigns; releases hold long-lived catalog and EPK truth.
-
+**Release EPK** lives on the release. Playlists are listening products only — they must not duplicate catalog ownership or feel like a second release editor.
 **Contact / email storage (v0.8.4+):** operator and release contacts use RFC 5322 strings (for example `7rym <7rym@7rym.net>`). Values are validated and canonicalized on save: control characters stripped, mailbox domains lowercased, display names trimmed. Empty contact is allowed when no valid mailbox can be derived (for example localhost dev installs). Outbound mail is not implemented in v0.8; this layer prepares consistent contact data for future press-reply and notification features and improves deliverability hygiene before any SMTP work lands.
 
 ### Default playlist
 
-Among system playlists where `publish_date <= now`, select the one with the **latest** `publish_date`. Player opens that playlist on first visit. There is no special `main` playlist id — clean installs seed the system playlist `bandpromo-demo` (demo release tracks); operator campaigns use their own ids.
+Among **registry** playlists that are demo-visible, non-empty, and public (`publish_date` empty or `<= today` UTC; operators may bypass future dates), select the one with the **latest** `publish_date`. Prefer an operator playlist over the demo playlist when demo would otherwise win. Player opens that playlist on first visit. There is no special `main` playlist id — clean installs seed `bandpromo-demo`; operator campaigns use their own ids.
 
 ### Storage
 
@@ -452,7 +512,7 @@ Pages use **sanitized HTML richtext** (TinyMCE + HTMLPurifier). Player-facing op
 | Field | Reason |
 |-------|--------|
 | `short_description` on releases, playlists, pages | Share cards, OG/meta previews need stripped one-line text |
-| Titles, artist, tagline, genre, catalog ids | Identity labels, not body copy |
+| Titles, artist, and legacy tagline/genre/catalog ids | Identity labels, not body copy |
 | Page `richtext` / `picture_richtext` blocks | Separate HTML authoring model (unchanged) |
 | Page `picture` captions | Plain caption only (unchanged) |
 
@@ -531,38 +591,27 @@ Value is the stable on-disk video filename, not a human title. No sidecar files.
 - Per-track picker without opening full track editor (assignment already lives there).
 - Animated lightbox / side-card previews.
 
-## Brands
+## Brands (release identity)
 
-**Brand** replaces the former **Theme** container. A brand is the full visual identity for an era or campaign: colors, typography, mood narrative, and curated asset references. **Release cover art stays on the release** (`poster_asset_id`); the brand holds identity assets and presentation tokens shared across releases in the same era.
+**Brand** is the visual **identity package of a release** — colors, typography, mood narrative, and shell asset refs. It is not a separate campaign competing with Release.
 
-### System shell vs brand overlay
+**Release cover art stays on the release** (`poster_asset_id`). The brand document holds identity slots (logo, share/poster, still/living backgrounds, Welcome/Logged-in SFX) and presentation tokens for that release.
 
-**Product rule:** The platform always ships a complete, working shell. A brand only overrides an **enumerated set of identity slots**; a broken brand degrades to ugly or default — never to a broken site.
+### System shell vs release identity overlay
+
+**Product rule:** The platform always ships a complete, working shell. A release identity only overrides an **enumerated set of identity slots**; a broken identity degrades to ugly or default — never to a broken site.
 
 | Layer | Owner | Always on | Examples |
 |-------|-------|-----------|----------|
-| **System shell** | bandPromo platform | Yes | Player/login/page layout, spacing, breakpoints, default dark atmosphere, mandatory install fallbacks (logo, poster, favicon), playback and access behavior |
-| **Brand overlay** | Operator (per era) | No — replaces slots only | Color tokens, typography, narrative brief, shell asset refs (logo/poster/backgrounds/audio on the brand document; active brand syncs into config for login/player), optional chrome personality tokens (v1+) |
+| **System shell** | bandPromo platform | Yes | Player/login/page layout, spacing, breakpoints, default dark atmosphere, mandatory install fallbacks, playback and access behavior |
+| **Release identity overlay** | Operator (per release) | No — replaces slots only | Color tokens, typography, narrative brief, shell asset refs synced into config when that identity is active |
 
-**System shell** owns everything that must work when brand design fails: structure, responsive rules (`--card-size` and breakpoints are **not** brand tokens), the default dark background and surface gradient, and install-level fallback assets.
+### Ownership rules (locked 2026-07-21)
 
-**Brand overlay** does not redefine layout or behavior. It replaces declared slots on top of the shell:
-
-- **v0.8 (shipped target):** color and typography tokens, mood/keywords/tone narrative; shell media edited in **Content → Branding** (`assets` on the brand document); active brand sync writes logo/poster/cover/backgrounds/audio into `web-config.json` for login/player; per-release **CSS variable** swap on the **same** dark shell.
-- **v1+ (deferred runtime):** direct brand-document reads on every shell request (less config mirroring); web/display fonts; small chrome token set (scrim, corner style) — enough for genuinely different era looks without arbitrary custom CSS.
-
-Wildly different era styles (vivid K-pop illustration, metal textures, country photo backgrounds) express **future scope** for the overlay model, not a v0.8 beta requirement. v0.8 builds brand storage, Visual pool, release links, and token management while keeping the dark shell stable.
-
-### Why many releases → one brand
-
-Normal release cadence — singles and EPs while building toward an album, then post-album singles to keep momentum — often shares one visual era. Example: several releases link to `violator-era` while each keeps its own cover in the Visual pool.
-
-Rules:
-
-- **`brand_id` on releases** is optional; when omitted, fall back to **`install.pointers.active_brand_id`**.
-- **Many releases may reference the same brand** (many-to-one).
-- **New era:** duplicate an existing brand, customize, point new releases at the copy.
-- **Release cover** is always **`poster_asset_id` on the release**, picked from the Visual pool filtered by the release's linked brand.
+- Each release has **one** identity brand document (`release.brand_id` ↔ `brand.release_id`).
+- Do **not** model “many catalog SKUs → one shared brand era” as peer Releases. Album vs single packages are **playlists** under one Release.
+- Install active identity (`install.pointers.active_brand_id`) selects which release’s identity drives login/player shell; preferably the active/demo release’s brand.
+- Setup seeds locked **`bandpromo-default`** identity for the demo release; operators duplicate/customize as part of their own release, not as a free-floating Branding peer forever.
 
 ### Storage
 
@@ -571,13 +620,12 @@ data/brands/registry.json
 data/brands/{brand-id}.json
 ```
 
-Migration: `data/themes/` → `data/brands/` with compatibility reads for `active_theme_id` → `active_brand_id`.
+Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`. Legacy many-to-one release→brand links dual-read until migrated.
 
-- Setup seeds **`bandpromo-default`** — complete, `system: true`, `locked: true` (fail-safe demo brand).
-- Operators **duplicate** to customize; they do not edit the locked seed in place. Duplicate **physically clones** shell media into Brand assets (`media/special/{brand-id}_…`) so the copy has its own deletable files.
-- Active brand: `install.pointers.active_brand_id` in `web-config.json` (or `data/install/state.json`).
-- Content → **Branding** uses the pool/preview editor pattern; operators edit tokens, narrative, and shell media there (not Settings). **Set active** updates the install pointer and syncs that brand’s `assets` into config.
-- Suggested first post-install task: duplicate **bandPromo Default** and customize colors/assets.
+- Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
+- **Set active** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).
+- Duplicate still clones shell media so the copy has deletable files.
+- Player token overlay uses the playing track’s release brand; see Operator mental model above.
 
 ### Semantic color and layout tokens
 
@@ -600,10 +648,10 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 **Layout:** Player cover art size (`--card-size`) is **not** a brand token. Responsive breakpoints and orientation rules live in `biblioteca/style.css`.
 
-**Asset refs (`asset_id` in Visual pool, tagged for this brand):**
+**Asset refs (Visual / Sound effects pools, scoped to this release identity):**
 
-| Slot | Typical role tag |
-|------|------------------|
+| Slot | Typical role / pool |
+|------|---------------------|
 | Logo / lockups | `brand-logo` |
 | Default poster / share source | `brand-poster` |
 | Member portraits | `brand-portrait` |
@@ -611,19 +659,17 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 | Typography samples | `typography-sample` |
 | Shell background image | `shell-background-image` |
 | Shell background video | `shell-background-video` |
-| Welcome / logged-in audio | `shell-welcome-audio`, `shell-loggedin-audio` |
+| Welcome / logged-in audio | Sound effects pool (`role: sfx`); usage via brand slots |
 | Favicon package | optional; icons under `media/icons/` |
 
-**Narrative (for operators and AI wizards):**
-
-- `mood`, `keywords`, `tone_notes` — plain-language identity brief (gritty industrial vs playful cartoon vs glossy fashion, etc.)
+**Narrative:** `mood`, `keywords`, `tone_notes` — plain-language identity brief.
 
 **Typography (v0.8 minimum):**
 
 - `typography.font_family_base` — body/UI stack
 - `typography.font_family_heading` — optional; falls back to base
 
-Renderer injects tokens as `:root` overrides when a brand is active. Page blocks and player chrome read the same variables.
+Renderer injects tokens as `:root` overrides when a brand is active.
 
 ### Brand document sketch
 
@@ -632,11 +678,12 @@ Renderer injects tokens as `:root` overrides when a brand is active. Page blocks
   "version": 1,
   "id": "bandpromo-default",
   "title": "bandPromo Default",
+  "release_id": "bandpromo-demo",
   "system": true,
   "locked": true,
   "mood": "Clean demo identity for first-run installs",
   "keywords": ["demo", "electronic", "modern"],
-  "tone_notes": "Neutral platform defaults; duplicate and replace for your artist era.",
+  "tone_notes": "Neutral platform defaults; customize on your own release.",
   "tokens": {
     "color": { "primary": "#00d2ff", "secondary": "#3a7bd5", "background": "#121212" },
     "typography": { "font_family_base": "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }
@@ -644,15 +691,16 @@ Renderer injects tokens as `:root` overrides when a brand is active. Page blocks
   "assets": {
     "logo": "ast_…",
     "poster": "ast_…",
-    "background_video": "ast_…"
+    "background_video": "ast_…",
+    "welcome_audio": "/media/sfx/original/bandPromo_welcome.flac",
+    "loggedin_audio": "/media/sfx/original/bandPromo_loggedin.flac"
   }
 }
 ```
 
 ### Content AI wizards (v0.8)
 
-When a release links to a brand, **content wizards** use release facts + brand narrative + role-tagged asset refs as structured prompt context to fill missing container fields (EPK blurb, page draft, descriptions, alt text, etc.). Generated assets enter the Visual pool with `origin: ai-generated` and an explicit role; operator confirms before publish-relevant use. See [ROADMAP.md](ROADMAP.md) — v0.8 **management machine** vs v2 **marketing machine**.
-
+Wizards use **release facts + that release’s identity narrative** + role-tagged asset refs as structured prompt context. Generated assets enter the Visual pool with `origin: ai-generated`; operator confirms before publish-relevant use.
 ## `data/` layout (source of truth)
 
 All operator/user containers live under `data/`. Build output under `play/` is generated or deprecated — not the edit surface.
@@ -693,14 +741,12 @@ Path-based URLs (no query strings for core navigation).
 
 Page share previews use page title plus first meaningful image block or release poster fallback.
 
-## Track numbers (two concepts)
+## Track order
 
-| Concept | Stored in | Updated when |
-|---------|-----------|--------------|
-| **Release track number** | `data/releases/{id}.json` + master tags via **Release** editor | Reordering within release (if unlocked) |
-| **Playlist position** | `data/playlists/{id}.json` `entries[]` order | Reordering playlist freely |
-
-Playlist position must **never** sync into ID3/FLAC `TRCK` tags.
+Release membership is unordered. Playlist position is stored only in
+`data/playlists/{id}.json` `entries[]` order and must **never** sync into
+ID3/FLAC `TRCK` tags. An embedded track-number tag is independent source
+metadata; neither Release nor Playlist ordering owns it.
 
 ## Editor UX pattern
 
@@ -739,7 +785,7 @@ Enabled per install via **Admin → Settings → Modules** (v0.8 policy: simple 
 | module_id | Default v0.8 | Notes |
 |-----------|--------------|-------|
 | `block.gallery` | on | Gallery block on pages |
-| `player.tab.gallery` | on until module blocks ship | Transitional; off when gallery blocks cover workflow |
+| `player.tab.gallery` | **off** (forced) | Dedicated Gallery player tab removed; use page gallery blocks |
 | `block.news` | off | v1+ |
 | `block.fanboard` | off | v1+ |
 | `quiz` | off | Non-core; modular assets |
@@ -755,7 +801,7 @@ data/install/modules.json
   "version": 1,
   "modules": {
     "block.gallery": { "enabled": true },
-    "player.tab.gallery": { "enabled": true },
+    "player.tab.gallery": { "enabled": false },
     "quiz": { "enabled": false }
   }
 }
@@ -795,9 +841,9 @@ Release identity and brand tokens move to `data/releases/` and `data/brands/`. C
 These behaviours come from the old single-playlist / filename-key model and must not survive the migration:
 
 1. **`bandpromo_sync_playlist_order_to_audio_masters()`** in `biblioteca/save-playlist-order.php` — playlist save must not rewrite master tags.
-2. **`playlist_tracknumber`** as a metadata source in audio master detail/save — track number comes from release membership only.
+2. **Playlist or release position as a metadata source** in audio master detail/save — embedded track number is independent source metadata.
 3. **Filename-keyed** playlist order arrays — use `asset_id` in containers.
-4. **Inferring release order from playlist position** in build/validation — release container owns order.
+4. **Inferring release order from playlist position** in build/validation — release membership is unordered.
 
 ## Implementation order (v0.8)
 
@@ -814,6 +860,7 @@ These behaviours come from the old single-playlist / filename-key model and must
 
 ## Related docs
 
+- [USE-CASES.md](USE-CASES.md) — closed-beta personas (Vanilla, Twisted Chronicles, HITZ)
 - [ROADMAP.md](ROADMAP.md) — milestone structure and beta expectations
 - [TODO.md](TODO.md) — implementation checklist
 - [ACCESS-MODEL.md](ACCESS-MODEL.md) — access tiers and login
@@ -821,3 +868,4 @@ These behaviours come from the old single-playlist / filename-key model and must
 - [PORTABILITY.md](PORTABILITY.md) — backup and migration
 - [MEDIA-HANDLING.md](MEDIA-HANDLING.md) — original/master/delivery tiers and validation
 - [FEATURES.md](FEATURES.md) — operator-facing feature list
+- [ADMIN-UI.md](ADMIN-UI.md) — admin chrome design system
