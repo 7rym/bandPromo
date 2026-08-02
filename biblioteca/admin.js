@@ -9175,10 +9175,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const versionHint = installed && remote ? ` (${installed} → ${remote})` : '';
                         setStatusMessage(`A new version is ready${versionHint}. Your content stays safe.`);
                         applyBtn.hidden = false;
+                        // Keep Check again visible so a stale quiet-state cache cannot trap operators.
+                        refreshBtn.hidden = false;
                     } else if (data.ahead_of_published || data.up_to_date) {
                         setCardMode('quiet');
                         setStatusClass('is-current');
                         setStatusMessage('Your site is up to date. Your content and settings are safe.');
+                        // Always offer Check again — notifications cache for 15 minutes and used to
+                        // hide this control when quiet, so freshly published tester builds looked missing.
+                        refreshBtn.hidden = false;
                     } else {
                         setCardMode('attention');
                         setStatusClass('is-warning');
@@ -9333,14 +9338,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     applyPackageUpdate().catch(() => {});
                 });
 
-                if (latestPackageUpdate) {
-                    renderPackageUpdateStatus({
-                        ok: true,
-                        ...latestPackageUpdate,
-                    });
-                } else {
-                    refreshPackageUpdateStatus().catch(() => {});
-                }
+                // Always hit GitHub on Welcome load. Notifications may still be serving a
+                // 15-minute "up to date" cache from before the latest tester release.
+                refreshPackageUpdateStatus().catch(() => {
+                    if (latestPackageUpdate) {
+                        renderPackageUpdateStatus({
+                            ok: true,
+                            ...latestPackageUpdate,
+                        });
+                    }
+                });
             })();
 
             (function initBackupExportTab() {
