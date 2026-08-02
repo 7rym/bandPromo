@@ -52,11 +52,11 @@ Example (GitHub CLI):
 gh workflow run "Publish release package" `
   -f tag_name=v0.8.4-build-303 `
   -f release_name="bandPromo v0.8.4 build 303 — short summary" `
-  -f prerelease=true `
+  -f prerelease=false `
   -f draft=false
 ```
 
-Use `prerelease=true` for v0.8 beta builds. Local-only validation can use `python scripts/build_release_package.py --clean`, but testers still need the published GitHub Release.
+Use `prerelease=false` for closed-beta tester packages so hosts that cannot call `api.github.com` still resolve the build via GitHub `/releases/latest`. Site update also falls back to the public Releases Atom feed (includes prereleases) when the API is blocked. Reserve `prerelease=true` for internal experiments that should stay off `/releases/latest`. Local-only validation can use `python scripts/build_release_package.py --clean`, but testers still need the published GitHub Release.
 
 ## Build/Test Commands
 

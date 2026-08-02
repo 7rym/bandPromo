@@ -4,6 +4,7 @@ declare(strict_types=1);
 const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
 const BANDPROMO_GITHUB_REPOSITORY = '7rym/bandPromo';
 const BANDPROMO_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=100';
+const BANDPROMO_GITHUB_RELEASES_ATOM_URL = 'https://github.com/7rym/bandPromo/releases.atom';
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
 const BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION = '1.0';
@@ -460,21 +461,66 @@ function bandpromo_release_pick_newest_release_tag(array $releases): ?string {
     return $bestTag;
 }
 
+/**
+ * Parse release tags from the public GitHub Releases Atom feed.
+ * Includes prereleases and does not depend on api.github.com rate limits.
+ *
+ * @return list<array{tag_name:string}>
+ */
+function bandpromo_release_fetch_github_releases_atom(string $atomUrl = BANDPROMO_GITHUB_RELEASES_ATOM_URL): array
+{
+    $body = bandpromo_release_fetch_text($atomUrl);
+    if ($body === '') {
+        throw new RuntimeException('GitHub releases Atom feed was empty.');
+    }
+
+    $tags = [];
+    if (preg_match_all('#/releases/tag/([^<"\s]+)#i', $body, $matches) !== false) {
+        foreach ($matches[1] as $rawTag) {
+            $tag = rawurldecode(trim((string) $rawTag));
+            if ($tag === '' || bandpromo_release_version_text_from_tag($tag) === null) {
+                continue;
+            }
+            $tags[$tag] = ['tag_name' => $tag];
+        }
+    }
+
+    if ($tags === []) {
+        throw new RuntimeException('GitHub releases Atom feed had no recognizable release tags.');
+    }
+
+    return array_values($tags);
+}
+
+function bandpromo_release_resolve_newest_release_tag(): ?string
+{
+    try {
+        $tag = bandpromo_release_pick_newest_release_tag(bandpromo_release_fetch_github_releases());
+        if ($tag !== null) {
+            return $tag;
+        }
+    } catch (Throwable $throwable) {
+        // Shared hosts often cannot call api.github.com (rate limit / block).
+    }
+
+    try {
+        return bandpromo_release_pick_newest_release_tag(bandpromo_release_fetch_github_releases_atom());
+    } catch (Throwable $throwable) {
+        return null;
+    }
+}
+
 function bandpromo_release_resolve_manifest_url(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): string {
     if (!bandpromo_release_is_latest_manifest_url($manifestUrl)) {
         return $manifestUrl;
     }
 
-    try {
-        $releases = bandpromo_release_fetch_github_releases();
-        $tag = bandpromo_release_pick_newest_release_tag($releases);
-        if ($tag !== null) {
-            return bandpromo_release_manifest_url_for_tag(BANDPROMO_GITHUB_REPOSITORY, $tag);
-        }
-    } catch (Throwable $throwable) {
-        // Fall back to GitHub's latest stable release URL when the API is unavailable.
+    $tag = bandpromo_release_resolve_newest_release_tag();
+    if ($tag !== null) {
+        return bandpromo_release_manifest_url_for_tag(BANDPROMO_GITHUB_REPOSITORY, $tag);
     }
 
+    // Last resort: GitHub's non-prerelease "latest" URL.
     return $manifestUrl;
 }
 

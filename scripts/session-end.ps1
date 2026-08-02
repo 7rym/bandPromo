@@ -7,7 +7,10 @@ param(
     [switch]$Publish,
     [switch]$Push,
     [switch]$SkipValidation,
-    [switch]$SkipPackage
+    [switch]$SkipPackage,
+    # Default false: Site update falls back to GitHub /releases/latest when api.github.com
+    # is blocked; prerelease-only packages are invisible on those hosts.
+    [switch]$Prerelease
 )
 
 Set-StrictMode -Version Latest
@@ -218,17 +221,18 @@ if ($Publish) {
 
     Write-Output ''
     Write-Output 'Publish GitHub release package'
+    $prereleaseValue = if ($Prerelease) { 'true' } else { 'false' }
     gh workflow run 'Publish release package' `
         -f tag_name=$tagName `
         -f release_name=$ReleaseSummary `
-        -f prerelease=true `
+        -f prerelease=$prereleaseValue `
         -f draft=false
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error 'gh workflow run failed.'
     }
 
-    Write-Output ('  Triggered tag {0}' -f $tagName)
+    Write-Output ('  Triggered tag {0} (prerelease={1})' -f $tagName, $prereleaseValue)
 }
 
 Write-Output ''

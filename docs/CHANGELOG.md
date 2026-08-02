@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-02 22:40 - Site update discovery: when `api.github.com` is blocked, resolve the newest package from the public Releases Atom feed (includes prereleases) before falling back to `/releases/latest`. Publish closed-beta packages as GitHub latest (`prerelease=false`) so stuck hosts still see updates. Includes track-editor Title/Version + optional Release name fix from build 350.
+
 2026-08-02 22:30 - Track editor: stop mashing Version into Title (registry detail now returns separate fields); Release name is optional there because Catalogue → Release owns the campaign name.
 
 2026-08-02 22:05 - Site update: always show Check again (including quiet up-to-date), and force a live GitHub package check when Dashboard loads, so a 15-minute notifications cache cannot hide a freshly published tester build.
