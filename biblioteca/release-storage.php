@@ -1519,6 +1519,26 @@ function bandpromo_release_polish_track_title(string $title, string $artist = ''
     return trim($title);
 }
 
+function bandpromo_release_combine_audio_title_parts(string $title, string $version = ''): string
+{
+    $parts = bandpromo_release_split_audio_title_parts($title);
+    $baseTitle = trim((string) ($parts['title'] ?? ''));
+    if ($baseTitle === '') {
+        $baseTitle = trim($title);
+    }
+
+    $normalizedVersion = trim($version);
+    if ($normalizedVersion === '') {
+        $normalizedVersion = trim((string) ($parts['version'] ?? ''));
+    }
+
+    if ($normalizedVersion === '') {
+        return $baseTitle;
+    }
+
+    return $baseTitle . ' [' . $normalizedVersion . ']';
+}
+
 function bandpromo_release_resolve_track_display_labels(
     string $rawTitle,
     string $artist = '',

@@ -397,11 +397,15 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
 
     $title = trim((string) ($display['title'] ?? ''));
     $version = trim((string) ($display['version'] ?? ''));
-    if ($version !== '' && $title !== '' && stripos($title, $version) === false) {
-        $title = $title . "\n" . $version;
-    }
+    // Keep title and version separate for the track editor. (Older builds mashed
+    // version into title with a newline, which filled Title and left Version empty.)
     if ($title === '') {
         $title = trim((string) ($playlistEntry['title'] ?? $masterFilename));
+    }
+    if ($version === '' && $title !== '') {
+        $parts = bandpromo_release_split_audio_title_parts($title);
+        $title = trim((string) ($parts['title'] ?? $title));
+        $version = trim((string) ($parts['version'] ?? ''));
     }
 
     $masterPath = $root . '/media/audio/master/' . $masterFilename;
@@ -414,6 +418,7 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
         'original_filename' => basename(trim((string) ($asset['original_filename'] ?? ''))),
         'format' => (string) ($asset['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION)),
         'title' => $title,
+        'version' => $version,
         'artist' => trim((string) ($display['artist'] !== '' ? $display['artist'] : ($playlistEntry['artist'] ?? ''))),
         'album' => trim((string) ($display['album'] !== '' ? $display['album'] : ($playlistEntry['album'] ?? ''))),
         'date' => trim((string) ($display['date'] ?? '')),

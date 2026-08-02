@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-02 22:30 - Track editor: stop mashing Version into Title (registry detail now returns separate fields); Release name is optional there because Catalogue → Release owns the campaign name.
+
 2026-08-02 22:05 - Site update: always show Check again (including quiet up-to-date), and force a live GitHub package check when Dashboard loads, so a 15-minute notifications cache cannot hide a freshly published tester build.
 
 2026-08-02 21:55 - Fix visual asset registry duplicate storm: lookup/register/backfill now reuse one visual row per original filename (update intake bucket in place instead of minting a new `ast_` ID on bucket mismatch); migrate prunes orphan duplicate visuals; unregister removes all rows for a basename; optimizeMedia dedupes the visual queue by filename so Publish cannot reprocess hundreds of clones of the same file (e.g. Lipstick Logo on HITZ).

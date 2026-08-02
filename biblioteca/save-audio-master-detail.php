@@ -73,12 +73,6 @@ if (!in_array($living_cover_mode, ['preserve', 'set', 'clear'], true)) {
     $living_cover_mode = 'preserve';
 }
 
-if ($normalized_fields['album'] === '') {
-    http_response_code(400);
-    echo json_encode(['error' => 'Release name is required']);
-    exit;
-}
-
 if (!bandpromo_audio_master_validate_release_date($normalized_fields['date'])) {
     http_response_code(400);
     echo json_encode(['error' => 'Release date must use YYYY or YYYY-MM-DD']);
@@ -170,6 +164,12 @@ $current_fields = [];
 foreach ($allowed_keys as $key) {
     $current_fields[$key] = trim((string) ($current_detail[$key] ?? ''));
 }
+// Client still saves a combined Title [Version] master tag; normalize current
+// title the same way so separate display.version does not look like a change.
+$current_fields['title'] = bandpromo_release_combine_audio_title_parts(
+    (string) ($current_detail['title'] ?? ''),
+    (string) ($current_detail['version'] ?? '')
+);
 $current_fields['living_cover'] = $existing_living_cover;
 
 $metadata_changed = $current_fields !== $normalized_fields;

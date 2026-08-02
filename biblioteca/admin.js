@@ -1789,8 +1789,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!Number(merged.display_duration) && Number(cached.duration_seconds) > 0) {
                     merged.display_duration = Number(cached.duration_seconds);
                 }
-                if (String(cached.title || '').trim()) {
-                    const parts = splitAudioTitleParts(String(cached.title || '').trim());
+                if (String(cached.title || '').trim() || String(cached.version || '').trim()) {
+                    const parts = audioMasterTitlePartsFromDetail(cached);
                     const baseTitle = String(parts.title || '').trim();
                     const version = String(parts.version || '').trim();
                     if (baseTitle !== '') {
@@ -1911,7 +1911,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function buildAudioQuickEditFieldsPayload(filename, detail, overrides = {}) {
                 const cached = detail || audioInlineDetailCache.get(filename) || {};
-                const titleParts = splitAudioTitleParts(cached.title || '');
+                const titleParts = audioMasterTitlePartsFromDetail(cached);
                 const title = String(overrides.title ?? titleParts.title ?? '').trim();
                 const version = String(overrides.version ?? titleParts.version ?? '').trim();
                 return {
@@ -1935,9 +1935,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!String(fields.title || '').trim()) {
                     return 'Please fill in Title.';
                 }
-                if (!String(fields.album || '').trim()) {
-                    return 'Please fill in Release name.';
-                }
                 if (String(fields.date || '').trim() !== '' && !/^\d{4}(?:-\d{2}-\d{2})?$/.test(String(fields.date || '').trim())) {
                     return 'Release date must use YYYY or YYYY-MM-DD.';
                 }
@@ -1955,9 +1952,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             const audioQuickEditFields = [
                 { key: 'artist', label: 'Artist', health: 'artist', requirement: 'required', inputType: 'text', read: (detail) => String(detail.artist || '').trim() },
-                { key: 'title', label: 'Title', health: 'title', requirement: 'required', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').title || detail.title || '').trim() },
-                { key: 'version', label: 'Version', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(splitAudioTitleParts(detail.title || '').version || '').trim() },
-                { key: 'album', label: 'Release', health: 'release', requirement: 'improvable', inputType: 'text', read: (detail) => String(detail.album || '').trim() },
+                { key: 'title', label: 'Title', health: 'title', requirement: 'required', inputType: 'text', read: (detail) => String(audioMasterTitlePartsFromDetail(detail).title || '').trim() },
+                { key: 'version', label: 'Version', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(audioMasterTitlePartsFromDetail(detail).version || '').trim() },
+                { key: 'album', label: 'Release', health: 'release', requirement: 'optional', inputType: 'text', read: (detail) => String(detail.album || '').trim() },
                 { key: 'tracknumber', label: 'Track', health: 'track', requirement: 'improvable', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.suggested_tracknumber || detail.release_tracknumber || detail.tracknumber || '').trim() },
                 { key: 'date', label: 'Release date', health: '', requirement: 'optional', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.date || '').trim() },
                 { key: 'genre', label: 'Genre', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(detail.genre || '').trim() },
@@ -4320,6 +4317,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!combined) {
                     return { title: '', version: '' };
                 }
+                // Legacy registry GET mashed version onto a second line.
+                const newlineParts = combined.split(/\r\n|\r|\n/).map((part) => part.trim()).filter(Boolean);
+                if (newlineParts.length === 2) {
+                    return { title: newlineParts[0], version: newlineParts[1] };
+                }
                 const match = combined.match(/^(.*?)(?:\s*\[([^\[\]]+)\])$/);
                 if (!match) {
                     return { title: combined, version: '' };
@@ -4341,9 +4343,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return `${normalizedTitle} [${normalizedVersion}]`;
             }
 
+            function audioMasterTitlePartsFromDetail(detail) {
+                const parts = splitAudioTitleParts(detail && typeof detail.title === 'string' ? detail.title : '');
+                const explicitVersion = String(detail && detail.version || '').trim();
+                return {
+                    title: parts.title,
+                    version: explicitVersion || parts.version,
+                };
+            }
+
             function validateAudioMasterFields(fields) {
                 const requiredOrder = [
-                    ['album', 'Release name'],
                     ['date', 'Release date'],
                     ['artist', 'Artist'],
                     ['title', 'Title'],
@@ -4546,7 +4556,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function buildAudioMasterHeading(detail) {
                 const artist = String(detail && detail.artist || '').trim();
-                const title = String(detail && detail.title || '').trim();
+                const title = String(audioMasterTitlePartsFromDetail(detail || {}).title || '').trim();
                 const release = String(detail && detail.album || '').trim();
 
                 if (artist && title) {
@@ -4677,7 +4687,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function setAudioMasterFormValues(detail) {
-                const titleParts = splitAudioTitleParts(detail && typeof detail.title === 'string' ? detail.title : '');
+                const titleParts = audioMasterTitlePartsFromDetail(detail || {});
                 if (audioMasterFields.title) {
                     audioMasterFields.title.value = titleParts.title;
                 }

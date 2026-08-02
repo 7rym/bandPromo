@@ -3053,8 +3053,8 @@ if ($tab === 'analytics') {
             <form id="audioMasterForm">
                 <div class="audio-master-form-grid audio-master-form-grid-compact">
                     <div class="form-group">
-                        <label for="audioMasterFieldAlbum">* Release name</label>
-                        <input type="text" id="audioMasterFieldAlbum" name="album" autocomplete="off" required>
+                        <label for="audioMasterFieldAlbum">Release name</label>
+                        <input type="text" id="audioMasterFieldAlbum" name="album" autocomplete="off" placeholder="Optional — usually set in Catalogue → Release">
                     </div>
                     <div class="form-group form-group-date">
                         <label for="audioMasterFieldDate">* Release date</label>
