@@ -479,13 +479,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 photos: '/media/photo/original',
                 special: '/media/special',
                 sfx: '/media/sfx/original',
+                // Registry intake aliases (visual pool / asset.intake_bucket).
+                img: '/media/img/original',
+                photo: '/media/photo/original',
+                images: '/media/img/original',
             };
+
+            function normalizeMediaPathType(type) {
+                const raw = String(type || '').trim().toLowerCase();
+                if (raw === 'img' || raw === 'images' || raw === 'image') {
+                    return 'illustrations';
+                }
+                if (raw === 'photo') {
+                    return 'photos';
+                }
+                return raw;
+            }
+
+            function getMediaBasePath(type) {
+                const normalized = normalizeMediaPathType(type);
+                return mediaPathMap[normalized] || mediaPathMap[type] || '';
+            }
+
+            function buildMediaPath(type, filename) {
+                const base = getMediaBasePath(type);
+                const safeName = String(filename || '').replace(/^\/+/, '');
+                if (!base) {
+                    // Never emit "/filename" — that breaks cover preview + poster save.
+                    return safeName ? `/media/img/original/${safeName}` : '';
+                }
+                return `${base}/${safeName}`;
+            }
+
+            function buildMediaUrl(type, filename) {
+                const base = getMediaBasePath(type);
+                const safeName = encodeURIComponent(String(filename || ''));
+                if (!base) {
+                    return safeName ? `/media/img/original/${safeName}` : '';
+                }
+                return `${base}/${safeName}`;
+            }
 
             function resolveFileIntakeBucket(file, panelType = '') {
                 if (panelType === 'visual' || VISUAL_INTAKE_BUCKETS.includes(panelType)) {
                     const bucket = String(file?.intake_bucket || '').trim();
                     if (VISUAL_INTAKE_BUCKETS.includes(bucket)) {
                         return bucket;
+                    }
+                    // Registry buckets (img/photo) must map to Files path types.
+                    const normalized = normalizeMediaPathType(bucket);
+                    if (VISUAL_INTAKE_BUCKETS.includes(normalized)) {
+                        return normalized;
                     }
                     return isVideo(file?.name) ? 'video' : 'illustrations';
                 }
@@ -2139,18 +2183,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (type === 'visual' || type === 'special' || type === 'sfx') {
                     openPoolAssetModal(type, String(targetRow.dataset.file || ''));
                 }
-            }
-
-            function getMediaBasePath(type) {
-                return mediaPathMap[type] || '';
-            }
-
-            function buildMediaPath(type, filename) {
-                return `${getMediaBasePath(type)}/${filename}`;
-            }
-
-            function buildMediaUrl(type, filename) {
-                return `${getMediaBasePath(type)}/${encodeURIComponent(filename)}`;
             }
 
             function inferMediaTargetFromPath(path, allowedTargets) {
@@ -3958,6 +3990,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             setPickerFieldValue(mediaPickerState.fieldId, selectedPath);
                             if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
                                 syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                            }
+                            if (mediaPickerState.fieldId === 'releaseSettingsPosterAssetId'
+                                && typeof window.bandpromoReleaseCoverPicked === 'function') {
+                                window.bandpromoReleaseCoverPicked(selectedPath);
+                            }
+                            if (mediaPickerState.fieldId === 'playlistSettingsPosterAssetId'
+                                && typeof window.bandpromoPlaylistCoverPicked === 'function') {
+                                window.bandpromoPlaylistCoverPicked(selectedPath);
                             }
                         }
                         closeMediaPickerModal();

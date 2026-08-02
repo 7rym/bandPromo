@@ -375,6 +375,30 @@ function bandpromo_visual_resolve_url(
         return '/media/photo/optimal/' . bandpromo_photo_delivery_basename($filename);
     }
 
+    // Fall back to intake originals so admin previews work before delivery variants exist.
+    $originalBases = [
+        'photo' => '/media/photo/original',
+        'img' => '/media/img/original',
+        'special' => '/media/special',
+        'video' => '/media/video/original',
+    ];
+    $preferred = $originalBases[$bucket] ?? '';
+    if ($preferred !== '') {
+        $path = $root . str_replace('/', DIRECTORY_SEPARATOR, $preferred . '/' . $filename);
+        if (is_file($path)) {
+            return $preferred . '/' . $filename;
+        }
+    }
+    foreach ($originalBases as $base) {
+        if ($base === $preferred) {
+            continue;
+        }
+        $path = $root . str_replace('/', DIRECTORY_SEPARATOR, $base . '/' . $filename);
+        if (is_file($path)) {
+            return $base . '/' . $filename;
+        }
+    }
+
     return '';
 }
 

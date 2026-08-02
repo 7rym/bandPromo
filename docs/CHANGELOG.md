@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-02 22:55 - Release cover picker: queue overlapping autosaves so a new cover is not dropped while another save is in flight; keep a pending preview URL after selection; map registry intake aliases (`img`/`photo`) to real `/media/...` paths; fall back visual preview URLs to intake originals when delivery variants are missing.
+
 2026-08-02 22:40 - Site update discovery: when `api.github.com` is blocked, resolve the newest package from the public Releases Atom feed (includes prereleases) before falling back to `/releases/latest`. Publish closed-beta packages as GitHub latest (`prerelease=false`) so stuck hosts still see updates. Includes track-editor Title/Version + optional Release name fix from build 350.
 
 2026-08-02 22:30 - Track editor: stop mashing Version into Title (registry detail now returns separate fields); Release name is optional there because Catalogue → Release owns the campaign name.

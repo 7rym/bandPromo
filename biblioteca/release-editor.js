@@ -129,6 +129,8 @@
         let trackEditorLoadedReleaseId = '';
         let pendingReleaseDeleteId = '';
         let releaseSettingsSaving = false;
+        let releaseSettingsSaveQueued = false;
+        let pendingReleaseCoverPreviewUrl = '';
         let siteSharing = {
             siteName: 'bandPromo',
             siteUrl: '',
@@ -237,13 +239,45 @@
             }
         }
 
-        function releaseCoverPreviewUrl(value, entry = null) {
-            const raw = String(value || '').trim();
+        function mediaPreviewUrlFromReference(value) {
+            const raw = String(value || '').trim().replace(/\\/g, '/');
             if (!raw) {
                 return '';
             }
-            if (/^https?:\/\//i.test(raw) || raw.startsWith('/media/')) {
+            if (/^https?:\/\//i.test(raw)) {
                 return raw;
+            }
+            if (raw.startsWith('/media/')) {
+                const parts = raw.split('/');
+                const file = parts.pop() || '';
+                return `${parts.join('/')}/${encodeURIComponent(file)}`;
+            }
+
+            const basename = raw.includes('/') ? raw.split('/').pop() : raw;
+            if (!basename) {
+                return '';
+            }
+            // Fallback guesses for bare filenames / asset refs before server preview URL arrives.
+            const bases = ['/media/img/original', '/media/photo/original', '/media/special'];
+            return `${bases[0]}/${encodeURIComponent(basename)}`;
+        }
+
+        function releaseCoverPreviewUrl(value, entry = null) {
+            const raw = String(value || '').trim();
+            if (!raw) {
+                return pendingReleaseCoverPreviewUrl || '';
+            }
+
+            if (pendingReleaseCoverPreviewUrl) {
+                const pendingBase = pendingReleaseCoverPreviewUrl.split('?')[0];
+                const rawBase = mediaPreviewUrlFromReference(raw).split('?')[0];
+                if (!rawBase || pendingBase.endsWith(raw.split('/').pop() || '') || rawBase === pendingBase) {
+                    return pendingReleaseCoverPreviewUrl;
+                }
+            }
+
+            if (/^https?:\/\//i.test(raw) || raw.startsWith('/media/')) {
+                return mediaPreviewUrlFromReference(raw);
             }
 
             const entryRef = entry && String(entry.poster_asset_id || '').trim() === raw
@@ -261,7 +295,7 @@
                 }
             }
 
-            return '';
+            return mediaPreviewUrlFromReference(raw);
         }
 
         function updateReleaseCoverPreview() {
@@ -273,7 +307,9 @@
 
             if (releaseCoverPreview instanceof HTMLImageElement) {
                 if (previewUrl) {
-                    releaseCoverPreview.src = previewUrl;
+                    if (releaseCoverPreview.getAttribute('src') !== previewUrl) {
+                        releaseCoverPreview.src = previewUrl;
+                    }
                     releaseCoverPreview.style.display = 'block';
                 } else {
                     releaseCoverPreview.removeAttribute('src');
@@ -293,7 +329,9 @@
             if (!(releaseSettingsPosterAssetId instanceof HTMLInputElement)) {
                 return;
             }
-            releaseSettingsPosterAssetId.value = String(value || '').trim();
+            const next = String(value || '').trim();
+            pendingReleaseCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
+            releaseSettingsPosterAssetId.value = next;
             releaseSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
@@ -947,6 +985,12 @@
                 event.stopPropagation();
                 setReleaseCoverValue('');
             });
+
+            window.bandpromoReleaseCoverPicked = function bandpromoReleaseCoverPicked(path) {
+                const next = String(path || '').trim();
+                pendingReleaseCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
+                updateReleaseCoverPreview();
+            };
         }
 
         function updateReleasePosterLabel() {
@@ -1910,6 +1954,7 @@
 
         async function saveReleaseSettings({ silent = false } = {}) {
             if (releaseSettingsSaving) {
+                releaseSettingsSaveQueued = true;
                 return true;
             }
             if (!(releaseSettingsTitle instanceof HTMLInputElement)
@@ -1966,6 +2011,7 @@
             }
 
             releaseSettingsSaving = true;
+            releaseSettingsSaveQueued = false;
 
             try {
                 const data = await fetchJson(`/biblioteca/manage-release.php?release=${encodeURIComponent(selectedReleaseId)}`, {
@@ -1974,6 +2020,13 @@
                     body: JSON.stringify(settings),
                 });
                 releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : releases);
+                const savedPoster = String(data.release?.poster_asset_id || settings.poster_asset_id || '').trim();
+                const savedPreview = String(data.release?.poster_preview_url || '').trim();
+                if (savedPreview) {
+                    pendingReleaseCoverPreviewUrl = savedPreview;
+                } else if (savedPoster) {
+                    pendingReleaseCoverPreviewUrl = mediaPreviewUrlFromReference(savedPoster);
+                }
                 syncReleaseSettingsPanel(selectedReleaseId);
                 renderReleasePoolList();
                 updateReleaseEditorHint();
@@ -1986,6 +2039,10 @@
                 return false;
             } finally {
                 releaseSettingsSaving = false;
+                if (releaseSettingsSaveQueued) {
+                    releaseSettingsSaveQueued = false;
+                    saveReleaseSettings({ silent: true }).catch(() => {});
+                }
             }
         }
 
@@ -3001,6 +3058,12 @@
             saveReleaseSettings();
         });
         releaseSettingsPosterAssetId?.addEventListener('input', () => {
+            const raw = String(releaseSettingsPosterAssetId.value || '').trim();
+            if (!raw) {
+                pendingReleaseCoverPreviewUrl = '';
+            } else if (raw.startsWith('/media/') || /^https?:\/\//i.test(raw)) {
+                pendingReleaseCoverPreviewUrl = mediaPreviewUrlFromReference(raw);
+            }
             updateReleaseCoverPreview();
             saveReleaseSettings();
         });
