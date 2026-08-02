@@ -513,24 +513,60 @@ function bandpromo_asset_lookup_by_original_filename(string $root, string $origi
 }
 
 /**
- * Look up a visual asset by original filename, optionally scoped to an intake bucket.
+ * Look up a visual asset by original filename.
+ *
+ * Visual identity is global for a basename. When $intakeBucket is set and the
+ * indexed row uses a different bucket, still return that row (callers update
+ * the bucket in place). Returning null on mismatch used to mint duplicate
+ * ast_ IDs while orphan rows stayed in assets.
  */
 function bandpromo_asset_lookup_visual(
     string $root,
     string $originalFilename,
     string $intakeBucket = ''
 ): ?array {
+    $originalFilename = basename(trim($originalFilename));
+    if ($originalFilename === '') {
+        return null;
+    }
+
     $asset = bandpromo_asset_lookup_by_original_filename($root, $originalFilename);
-    if ($asset === null || ($asset['kind'] ?? '') !== 'visual') {
+    if ($asset !== null && ($asset['kind'] ?? '') === 'visual') {
+        return $asset;
+    }
+
+    // Index can lag behind orphan rows; scan assets as a safety net.
+    return bandpromo_asset_find_visual_orphan_by_original($root, $originalFilename);
+}
+
+/**
+ * Find any visual asset row with this original_filename (including orphans
+ * not pointed at by by_original_filename).
+ */
+function bandpromo_asset_find_visual_orphan_by_original(string $root, string $originalFilename): ?array
+{
+    $originalFilename = basename(trim($originalFilename));
+    if ($originalFilename === '') {
         return null;
     }
 
-    $wantedBucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
-    if ($wantedBucket !== '' && ($asset['intake_bucket'] ?? '') !== $wantedBucket) {
-        return null;
+    $registry = bandpromo_asset_load_registry($root);
+    $best = null;
+    foreach ($registry['assets'] as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        if (basename((string) ($asset['original_filename'] ?? '')) !== $originalFilename) {
+            continue;
+        }
+        if ($best === null
+            || strcmp((string) ($asset['created_at'] ?? ''), (string) ($best['created_at'] ?? '')) > 0
+        ) {
+            $best = $asset;
+        }
     }
 
-    return $asset;
+    return $best;
 }
 
 function bandpromo_asset_lookup_by_id(string $root, string $assetId): ?array
@@ -576,9 +612,13 @@ function bandpromo_asset_register_visual(
         throw new InvalidArgumentException('Visual assets must be image or video.');
     }
 
-    $existing = bandpromo_asset_lookup_visual($root, $originalFilename, $intakeBucket);
+    $existing = bandpromo_asset_lookup_visual($root, $originalFilename);
     if ($existing !== null) {
         $changes = [];
+        $wantedBucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
+        if ($wantedBucket !== '' && ($existing['intake_bucket'] ?? '') !== $wantedBucket) {
+            $changes['intake_bucket'] = $wantedBucket;
+        }
         if (isset($options['role'])) {
             $changes['role'] = (string) $options['role'];
         }
@@ -848,10 +888,87 @@ function bandpromo_asset_unregister(string $root, string $assetId): void
 
 function bandpromo_asset_unregister_by_original_filename(string $root, string $originalFilename): void
 {
-    $asset = bandpromo_asset_lookup_by_original_filename($root, $originalFilename);
-    if ($asset !== null) {
-        bandpromo_asset_unregister($root, (string) ($asset['id'] ?? ''));
+    $originalFilename = basename(trim($originalFilename));
+    if ($originalFilename === '') {
+        return;
     }
+
+    $registry = bandpromo_asset_load_registry($root);
+    $ids = [];
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        if (basename((string) ($asset['original_filename'] ?? '')) !== $originalFilename) {
+            continue;
+        }
+        $ids[] = (string) $assetId;
+    }
+
+    foreach ($ids as $assetId) {
+        bandpromo_asset_unregister($root, $assetId);
+    }
+}
+
+/**
+ * Keep one visual asset per original_filename; drop orphan duplicates.
+ *
+ * @return bool True when assets were removed.
+ */
+function bandpromo_asset_registry_prune_duplicate_visuals(array &$registry): bool
+{
+    if (!isset($registry['assets']) || !is_array($registry['assets'])) {
+        return false;
+    }
+
+    $byOriginal = [];
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $original = basename((string) ($asset['original_filename'] ?? ''));
+        if ($original === '') {
+            continue;
+        }
+        $byOriginal[$original][] = (string) $assetId;
+    }
+
+    $changed = false;
+    $indexOriginal = is_array($registry['by_original_filename'] ?? null)
+        ? $registry['by_original_filename']
+        : [];
+
+    foreach ($byOriginal as $original => $ids) {
+        if (count($ids) < 2) {
+            continue;
+        }
+
+        $preferred = trim((string) ($indexOriginal[$original] ?? ''));
+        if ($preferred === '' || !in_array($preferred, $ids, true)) {
+            $preferred = $ids[0];
+            $newest = '';
+            foreach ($ids as $assetId) {
+                $created = (string) ($registry['assets'][$assetId]['created_at'] ?? '');
+                if ($newest === '' || strcmp($created, $newest) > 0) {
+                    $newest = $created;
+                    $preferred = $assetId;
+                }
+            }
+        }
+
+        foreach ($ids as $assetId) {
+            if ($assetId === $preferred) {
+                continue;
+            }
+            unset($registry['assets'][$assetId]);
+            $changed = true;
+        }
+
+        $registry['by_original_filename'][$original] = $preferred;
+        $registry['by_master_filename'][$original] = $preferred;
+    }
+
+    return $changed;
 }
 
 function bandpromo_asset_find_unregistered_master_match(string $root, string $originalFilename): ?array
@@ -1082,14 +1199,39 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
             }
 
             $mediaType = in_array($ext, $videoExts, true) ? 'video' : 'image';
-            $existingId = trim((string) ($registry['by_original_filename'][$entry] ?? ''));
-            if ($existingId !== '' && isset($registry['assets'][$existingId])) {
-                $existing = $registry['assets'][$existingId];
-                if (($existing['kind'] ?? '') === 'visual'
-                    && ($existing['intake_bucket'] ?? '') === $intakeBucket
-                ) {
-                    continue;
+
+            // Prefer any existing visual with this basename (any bucket) — never mint
+            // another ast_ ID when the index points at a different intake folder.
+            $existingId = '';
+            $existing = null;
+            $indexedId = trim((string) ($registry['by_original_filename'][$entry] ?? ''));
+            if ($indexedId !== '' && isset($registry['assets'][$indexedId])
+                && ($registry['assets'][$indexedId]['kind'] ?? '') === 'visual'
+            ) {
+                $existingId = $indexedId;
+                $existing = $registry['assets'][$indexedId];
+            } else {
+                foreach ($registry['assets'] as $assetId => $asset) {
+                    if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+                        continue;
+                    }
+                    if (basename((string) ($asset['original_filename'] ?? '')) !== $entry) {
+                        continue;
+                    }
+                    $existingId = (string) $assetId;
+                    $existing = $asset;
+                    break;
                 }
+            }
+
+            if ($existing !== null && $existingId !== '') {
+                if (($existing['intake_bucket'] ?? '') !== $intakeBucket) {
+                    $registry['assets'][$existingId]['intake_bucket'] = $intakeBucket;
+                    $changed = true;
+                }
+                $registry['by_original_filename'][$entry] = $existingId;
+                $registry['by_master_filename'][$entry] = $existingId;
+                continue;
             }
 
             $assetId = bandpromo_generate_asset_id();
@@ -1183,6 +1325,10 @@ function bandpromo_asset_registry_ensure_migrated(string $root): void
     }
 
     if (bandpromo_asset_registry_backfill_visuals($root, $registry)) {
+        $changed = true;
+    }
+
+    if (bandpromo_asset_registry_prune_duplicate_visuals($registry)) {
         $changed = true;
     }
 

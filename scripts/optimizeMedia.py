@@ -1217,6 +1217,18 @@ def main():
     print("\n🎨 Processing visual registry image delivery...")
     VISUAL_DELIVERY_ROOT.mkdir(parents=True, exist_ok=True)
     visual_queue = load_registry_visual_image_queue()
+    # Defense in depth: one delivery pass per on-disk basename even if the
+    # registry still holds orphan duplicate ast_ rows for the same file.
+    deduped = []
+    seen_names = set()
+    for asset in visual_queue:
+        label = os.path.basename(str(asset.get('original_filename') or asset.get('id') or ''))
+        key = label.lower()
+        if key in seen_names:
+            continue
+        seen_names.add(key)
+        deduped.append(asset)
+    visual_queue = deduped
     visual_count = 0
     visual_failed = 0
     if visual_queue:

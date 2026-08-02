@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-02 21:55 - Fix visual asset registry duplicate storm: lookup/register/backfill now reuse one visual row per original filename (update intake bucket in place instead of minting a new `ast_` ID on bucket mismatch); migrate prunes orphan duplicate visuals; unregister removes all rows for a basename; optimizeMedia dedupes the visual queue by filename so Publish cannot reprocess hundreds of clones of the same file (e.g. Lipstick Logo on HITZ).
+
 2026-08-02 20:55 - Checkpoint v0.8.10 build 347 for closed-beta: Catalogue release associations + autosave, preview cleanup, ADMIN-UI intent ladder, and USE-CASES / PLATFORM-MODEL mental-model docs (Vanilla, Twisted Chronicles, HITZ).
 
 2026-07-22 15:25 - Document closed-beta use cases (Vanilla, Twisted Chronicles, HITZ) in `docs/USE-CASES.md`; lock operator mental model (active vs release brand, global vs contextual player pages, Lyrics/Tracklist role) in `PLATFORM-MODEL.md`; reconcile FEATURES/MEDIA-HANDLING/ROADMAP/TODO/AGENTS and Catalogue help; mark Gallery player tab removed and playlist catalog rules as shipped.
