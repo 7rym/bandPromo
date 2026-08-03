@@ -3176,7 +3176,7 @@ if ($tab === 'analytics') {
                 <button type="button" class="modal-close" id="mediaPickerCloseBtn" aria-label="Close">✕</button>
                 <h3 id="mediaPickerTitle">Choose file</h3>
                 <p class="card-note" id="mediaPickerHint">Pick an uploaded asset. Storage paths stay hidden.</p>
-                <div id="mediaPickerTabs" class="tabs sub-tabs media-picker-tabs"></div>
+                <div id="mediaPickerTabs" class="tabs media-picker-tabs"></div>
                 <div class="media-picker-toolbar" id="mediaPickerToolbar">
                     <label class="media-filter-label" data-picker-filter="release">
                         <span class="visually-hidden">Filter by catalogue</span>

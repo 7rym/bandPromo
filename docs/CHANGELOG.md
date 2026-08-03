@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 12:27 - Playlist cover picker: show a pending preview immediately on selection (same pattern as release covers), resolve `/media/...` paths when `poster_preview_url` is not yet available, keep overlapping autosaves queued, and sync the saved asset id after PATCH so edit mode does not leave “No cover selected” after a successful save.
+
+2026-08-03 12:25 - Media picker modal: stop nested preview `<button>` inside tile `<button>` (HTML reparsing scattered labels across the grid); restyle picker tabs without Content sub-tab accent chrome.
+
 2026-08-03 12:20 - Admin toasts: warning/error stay 10–20s with a dismiss control (success ~4.5s); track editor never fills Title with a ULID master filename — uses original stem / Untitled like the Files list.
 
 2026-08-03 11:45 - Upload → edit → playlist without full Rebuild: audio upload fills registry display from master tags (filename-stem fallback), prepares delivery MP3s under master stems (`ast_*.mp3`), and surfaces delivery/scan failures in Notifications; playlist save delivers any missing MP3s and republishes that playlist’s player payload so `/play` works without Rebuild all deliverables.

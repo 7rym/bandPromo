@@ -3866,17 +3866,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `<button type="button" class="icon-btn media-picker-preview media-picker-tile-preview" data-picker-target="${pathType}" data-filename="${encodedName}" title="Preview" aria-label="Preview ${safeLabel}">👁️</button>`
                             : '';
 
+                        // Use a div tile (not <button>) so the preview control can stay a nested
+                        // button without HTML reparsing that scatters labels across the grid.
                         if (notReady) {
-                            return `<button type="button" class="media-picker-tile is-disabled" disabled title="${bandpromoAdminEscapeHtml(reason)}" aria-label="${safeLabel}: ${bandpromoAdminEscapeHtml(reason)}">
+                            return `<div class="media-picker-tile is-disabled" aria-disabled="true" title="${bandpromoAdminEscapeHtml(reason)}" aria-label="${safeLabel}: ${bandpromoAdminEscapeHtml(reason)}">
                                 <span class="media-picker-tile-media">${mediaMarkup}</span>
                                 <span class="media-picker-tile-note">${bandpromoAdminEscapeHtml(reason)}</span>
-                            </button>`;
+                            </div>`;
                         }
 
-                        return `<button type="button" class="media-picker-tile" data-picker-target="${pathType}" data-filename="${encodedName}" title="${safeLabel}" aria-label="${safeLabel}">
+                        return `<div class="media-picker-tile" role="button" tabindex="0" data-picker-target="${pathType}" data-filename="${encodedName}" title="${safeLabel}" aria-label="${safeLabel}">
                             <span class="media-picker-tile-media">${mediaMarkup}${previewBtn}</span>
                             <span class="media-picker-tile-label">${safeLabel}</span>
-                        </button>`;
+                        </div>`;
                     }).join('')}</div>`;
                     mediaPickerStatus.style.color = '#aaa';
                 } catch (error) {
@@ -4025,6 +4027,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     const selectBtn = event.target.closest('.media-picker-select, .media-picker-tile');
                     if (selectBtn && mediaPickerState) {
+                        if (selectBtn.classList.contains('is-disabled') || selectBtn.getAttribute('aria-disabled') === 'true') {
+                            return;
+                        }
                         const target = selectBtn.dataset.pickerTarget;
                         const filename = decodeURIComponent(selectBtn.dataset.filename || '');
                         const selectedPath = buildMediaPath(target, filename);
@@ -4046,6 +4051,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         closeMediaPickerModal();
                     }
+                });
+
+                mediaPickerList.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                    }
+                    const tile = event.target.closest('.media-picker-tile[role="button"]');
+                    if (!tile || !mediaPickerList.contains(tile)) {
+                        return;
+                    }
+                    event.preventDefault();
+                    tile.click();
                 });
             }
 
@@ -7010,6 +7027,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     poster_asset_id: '',
                 };
                 let playlistSettingsSaving = false;
+                let playlistSettingsSaveQueued = false;
+                let pendingPlaylistCoverPreviewUrl = '';
 
                 function normalizePlaylistDateForInput(value) {
                     if (typeof window.bandpromoNormalizeIsoDateInput === 'function') {
@@ -7101,11 +7120,47 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return JSON.stringify(readPlaylistSettingsFromForm()) !== JSON.stringify(playlistSettingsBaseline);
                 }
 
-                function playlistCoverPreviewUrl(rawValue, entryRef) {
-                    const raw = String(rawValue || '').trim();
+                function playlistMediaPreviewUrlFromReference(value) {
+                    const raw = String(value || '').trim().replace(/\\/g, '/');
                     if (!raw) {
                         return '';
                     }
+                    if (/^https?:\/\//i.test(raw)) {
+                        return raw;
+                    }
+                    if (raw.startsWith('/media/')) {
+                        const parts = raw.split('/');
+                        const file = parts.pop() || '';
+                        return `${parts.join('/')}/${encodeURIComponent(file)}`;
+                    }
+
+                    const basename = raw.includes('/') ? raw.split('/').pop() : raw;
+                    if (!basename) {
+                        return '';
+                    }
+                    // Fallback guesses for bare filenames / asset refs before server preview URL arrives.
+                    return `/media/img/original/${encodeURIComponent(basename)}`;
+                }
+
+                function playlistCoverPreviewUrl(rawValue, entryRef) {
+                    const raw = String(rawValue || '').trim();
+                    if (!raw) {
+                        return pendingPlaylistCoverPreviewUrl || '';
+                    }
+
+                    if (pendingPlaylistCoverPreviewUrl) {
+                        const pendingBase = pendingPlaylistCoverPreviewUrl.split('?')[0];
+                        const rawBase = playlistMediaPreviewUrlFromReference(raw).split('?')[0];
+                        const rawFile = raw.split('/').pop() || '';
+                        if (!rawBase || pendingBase.endsWith(rawFile) || rawBase === pendingBase) {
+                            return pendingPlaylistCoverPreviewUrl;
+                        }
+                    }
+
+                    if (/^https?:\/\//i.test(raw) || raw.startsWith('/media/')) {
+                        return playlistMediaPreviewUrlFromReference(raw);
+                    }
+
                     if (entryRef) {
                         const entryUrl = String(entryRef.poster_preview_url || '').trim();
                         if (entryUrl && String(entryRef.poster_asset_id || '').trim() === raw) {
@@ -7119,7 +7174,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             return cachedUrl;
                         }
                     }
-                    return '';
+                    return playlistMediaPreviewUrlFromReference(raw);
                 }
 
                 function updatePlaylistCoverPreview() {
@@ -7131,7 +7186,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     if (playlistCoverPreview instanceof HTMLImageElement) {
                         if (previewUrl) {
-                            playlistCoverPreview.src = previewUrl;
+                            if (playlistCoverPreview.getAttribute('src') !== previewUrl) {
+                                playlistCoverPreview.src = previewUrl;
+                            }
                             playlistCoverPreview.style.display = 'block';
                         } else {
                             playlistCoverPreview.removeAttribute('src');
@@ -7142,7 +7199,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         playlistCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
                     }
                     if (playlistCoverPreviewShell instanceof HTMLElement) {
-                        playlistCoverPreviewShell.title = rawValue || 'No cover selected';
+                        playlistCoverPreviewShell.title = previewUrl ? 'Playlist cover' : 'No cover selected';
                     }
                 }
 
@@ -7150,7 +7207,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!(playlistSettingsPosterAssetId instanceof HTMLInputElement)) {
                         return;
                     }
-                    playlistSettingsPosterAssetId.value = String(value || '').trim();
+                    const next = String(value || '').trim();
+                    pendingPlaylistCoverPreviewUrl = next ? playlistMediaPreviewUrlFromReference(next) : '';
+                    playlistSettingsPosterAssetId.value = next;
                     playlistSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
                 }
 
@@ -7159,8 +7218,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (playlistCoverPanel) {
                         playlistCoverPanel.hidden = !entry;
                     }
-                    if (entry && playlistSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
-                        playlistSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
+                    if (entry && playlistSettingsPosterAssetId instanceof HTMLInputElement && !playlistSettingsDirty()) {
+                        const poster = String(entry.poster_asset_id || '').trim();
+                        playlistSettingsPosterAssetId.value = poster;
+                        if (!pendingPlaylistCoverPreviewUrl) {
+                            const preview = String(entry.poster_preview_url || '').trim();
+                            pendingPlaylistCoverPreviewUrl = preview || (poster ? playlistMediaPreviewUrlFromReference(poster) : '');
+                        }
                     }
                     updatePlaylistCoverPreview();
                 }
@@ -7198,6 +7262,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         updatePlaylistCoverPreview();
                         savePlaylistSettings();
                     });
+
+                    window.bandpromoPlaylistCoverPicked = function bandpromoPlaylistCoverPicked(path) {
+                        const next = String(path || '').trim();
+                        pendingPlaylistCoverPreviewUrl = next ? playlistMediaPreviewUrlFromReference(next) : '';
+                        updatePlaylistCoverPreview();
+                    };
                 }
 
                 function syncPlaylistSettingsPanel(playlistId) {
@@ -7231,6 +7301,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (playlistSettingsPosterAssetId instanceof HTMLInputElement) {
                         playlistSettingsPosterAssetId.value = posterAssetId;
                     }
+                    pendingPlaylistCoverPreviewUrl = posterAssetId
+                        ? (String(entry?.poster_preview_url || '').trim() || playlistMediaPreviewUrlFromReference(posterAssetId))
+                        : '';
 
                     playlistSettingsBaseline = readPlaylistSettingsFromForm();
                     updatePlaylistSlugPreview();
@@ -7242,6 +7315,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 async function savePlaylistSettings({ silent = false } = {}) {
                     if (playlistSettingsSaving) {
+                        playlistSettingsSaveQueued = true;
                         return true;
                     }
                     if (!(playlistSettingsTitle instanceof HTMLInputElement) || !(playlistSettingsPublishDate instanceof HTMLInputElement)) {
@@ -7282,6 +7356,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     playlistSettingsSaving = true;
+                    playlistSettingsSaveQueued = false;
                     if (!silent && playlistSettingsStatus) {
                         playlistSettingsStatus.textContent = 'Saving…';
                     }
@@ -7305,8 +7380,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             throw new Error(data.error || 'Could not save playlist details');
                         }
                         playlists = Array.isArray(data.playlists) ? data.playlists : playlists;
+
+                        const savedEntry = playlistEntry(selectedPlaylistId);
+                        const savedPoster = String(savedEntry?.poster_asset_id || posterAssetId || '').trim();
+                        const savedPreview = String(savedEntry?.poster_preview_url || '').trim();
+                        if (playlistSettingsPosterAssetId instanceof HTMLInputElement) {
+                            playlistSettingsPosterAssetId.value = savedPoster;
+                        }
+                        if (savedPreview) {
+                            pendingPlaylistCoverPreviewUrl = savedPreview;
+                        } else if (savedPoster) {
+                            pendingPlaylistCoverPreviewUrl = playlistMediaPreviewUrlFromReference(savedPoster);
+                        } else {
+                            pendingPlaylistCoverPreviewUrl = '';
+                        }
+
                         playlistSettingsBaseline = readPlaylistSettingsFromForm();
-                        updatePlaylistCoverPanel();
+                        updatePlaylistCoverPreview();
                         if (!silent && playlistSettingsStatus) {
                             playlistSettingsStatus.textContent = 'Saved.';
                         }
@@ -7319,6 +7409,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return false;
                     } finally {
                         playlistSettingsSaving = false;
+                        if (playlistSettingsSaveQueued) {
+                            playlistSettingsSaveQueued = false;
+                            savePlaylistSettings({ silent: true }).catch(() => {});
+                        }
                     }
                 }
 
