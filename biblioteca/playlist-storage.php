@@ -249,29 +249,56 @@ function bandpromo_playlist_prefer_cover_delivery_url(
     string $previewUrl,
     string $posterAssetId = ''
 ): string {
-    $stems = [];
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
     $previewUrl = trim($previewUrl);
+    $posterAssetId = trim($posterAssetId);
+
+    // Asset-id / registry visual delivery (thumb first for coverflow).
+    $refs = [];
+    if ($posterAssetId !== '') {
+        $refs[] = $posterAssetId;
+    }
     if ($previewUrl !== '') {
         $path = parse_url($previewUrl, PHP_URL_PATH);
         $basename = basename(is_string($path) && $path !== '' ? $path : $previewUrl);
-        $stem = pathinfo($basename, PATHINFO_FILENAME);
-        if (is_string($stem) && $stem !== '') {
-            $stems[] = $stem;
+        if ($basename !== '') {
+            $refs[] = $basename;
+            $stem = pathinfo($basename, PATHINFO_FILENAME);
+            if (is_string($stem) && $stem !== '' && $stem !== $basename) {
+                $refs[] = $stem;
+            }
         }
     }
 
-    $posterAssetId = trim($posterAssetId);
-    if ($posterAssetId !== '' && bandpromo_asset_is_asset_id($posterAssetId)) {
-        $stems[] = $posterAssetId;
-        $asset = bandpromo_asset_lookup_by_id($root, $posterAssetId);
-        if (is_array($asset)) {
-            foreach (['master_filename', 'original_filename'] as $key) {
-                $name = basename(trim((string) ($asset[$key] ?? '')));
-                $stem = pathinfo($name, PATHINFO_FILENAME);
-                if (is_string($stem) && $stem !== '') {
-                    $stems[] = $stem;
+    $refs = array_values(array_unique(array_filter($refs, static fn($ref): bool => is_string($ref) && $ref !== '')));
+    foreach ($refs as $ref) {
+        foreach (['thumb', 'card'] as $variant) {
+            $url = bandpromo_visual_resolve_url($root, $ref, $variant);
+            if ($url !== '') {
+                return $url;
+            }
+        }
+    }
+
+    $stems = [];
+    foreach ($refs as $ref) {
+        if (bandpromo_asset_is_asset_id($ref)) {
+            $asset = bandpromo_asset_lookup_by_id($root, $ref);
+            if (is_array($asset)) {
+                foreach (['master_filename', 'original_filename'] as $key) {
+                    $name = basename(trim((string) ($asset[$key] ?? '')));
+                    $stem = pathinfo($name, PATHINFO_FILENAME);
+                    if (is_string($stem) && $stem !== '') {
+                        $stems[] = $stem;
+                    }
                 }
             }
+            continue;
+        }
+        $stem = pathinfo(basename($ref), PATHINFO_FILENAME);
+        if (is_string($stem) && $stem !== '') {
+            $stems[] = $stem;
         }
     }
 
@@ -295,7 +322,78 @@ function bandpromo_playlist_prefer_cover_delivery_url(
         }
     }
 
-    return $previewUrl;
+    if ($previewUrl !== '' && (preg_match('#^https?://#i', $previewUrl) || str_starts_with($previewUrl, '/media/'))) {
+        if (preg_match('#^https?://#i', $previewUrl)) {
+            return $previewUrl;
+        }
+        $absolute = $root . str_replace('/', DIRECTORY_SEPARATOR, parse_url($previewUrl, PHP_URL_PATH) ?: $previewUrl);
+        if (is_file($absolute)) {
+            return $previewUrl;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Coverflow/catalog art: playlist poster, then owning release poster, then first track cover.
+ */
+function bandpromo_playlist_resolve_catalog_cover_url(string $root, array $entry): string
+{
+    $url = bandpromo_playlist_prefer_cover_delivery_url(
+        $root,
+        (string) ($entry['poster_preview_url'] ?? ''),
+        (string) ($entry['poster_asset_id'] ?? '')
+    );
+    if ($url !== '') {
+        return $url;
+    }
+
+    $releaseId = trim((string) ($entry['release_id'] ?? ''));
+    if ($releaseId !== '') {
+        require_once __DIR__ . '/release-storage.php';
+        try {
+            $release = bandpromo_release_load_document($root, $releaseId);
+            $poster = trim((string) ($release['poster_asset_id'] ?? ''));
+            if ($poster !== '') {
+                $preview = bandpromo_release_resolve_poster_preview_url($root, $poster);
+                $url = bandpromo_playlist_prefer_cover_delivery_url($root, $preview, $poster);
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        } catch (Throwable $throwable) {
+            // Fall through to track cover.
+        }
+    }
+
+    $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+    if ($playlistId === '') {
+        return '';
+    }
+
+    try {
+        $document = bandpromo_playlist_load_document($root, $playlistId);
+    } catch (Throwable $throwable) {
+        return '';
+    }
+
+    $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $cover = basename(trim((string) ($track['cover'] ?? '')));
+        if ($cover === '') {
+            continue;
+        }
+        $url = bandpromo_playlist_prefer_cover_delivery_url($root, '', $cover);
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    return '';
 }
 
 function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorBypass = false): array
@@ -318,16 +416,11 @@ function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorB
         if (bandpromo_playlist_document_is_empty($root, $id)) {
             continue;
         }
-        $preview = (string) ($entry['poster_preview_url'] ?? '');
         $entries[] = [
             'id' => $id,
             'title' => (string) ($entry['title'] ?? $id),
             'slug' => bandpromo_playlist_public_slug($root, $id),
-            'cover' => bandpromo_playlist_prefer_cover_delivery_url(
-                $root,
-                $preview,
-                (string) ($entry['poster_asset_id'] ?? '')
-            ),
+            'cover' => bandpromo_playlist_resolve_catalog_cover_url($root, $entry),
         ];
     }
 
