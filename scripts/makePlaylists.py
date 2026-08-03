@@ -1,11 +1,7 @@
-import io
 import sys
 
-# Force UTF-8 output - compatible with Python 3.6+
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
-else:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+import stdio_utf8
+stdio_utf8.configure()
 
 import os
 import json

@@ -22,13 +22,8 @@ from mutagen import File
 from mutagen.flac import FLAC
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBP, TKEY, TPE4, USLT, TXXX
 
-import io
-
-# Force UTF-8 output - compatible with Python 3.6+
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
-else:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+import stdio_utf8
+stdio_utf8.configure()
 
 # Find the root directory (scripts/..)
 SCRIPT_DIR   = Path(__file__).parent
@@ -758,21 +753,49 @@ def load_registry_visual_image_queue():
     return queue
 
 
+def resolve_ffmpeg_path():
+    """Resolve a working ffmpeg binary (env, bundled scripts/bin, then PATH)."""
+    candidates = []
+    env_path = str(os.environ.get('FFMPEG_PATH') or '').strip()
+    if env_path:
+        candidates.append(env_path)
+
+    bundled_name = 'ffmpeg.exe' if os.name == 'nt' else 'ffmpeg'
+    candidates.append(str(SCRIPT_DIR / 'bin' / bundled_name))
+    candidates.append('ffmpeg')
+
+    seen = set()
+    for candidate in candidates:
+        key = candidate.lower()
+        if not candidate or key in seen:
+            continue
+        seen.add(key)
+        if candidate not in ('ffmpeg', 'ffmpeg.exe') and not Path(candidate).is_file():
+            continue
+        try:
+            result = subprocess.run(
+                [candidate, '-version'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            if result.returncode == 0:
+                return candidate
+        except FileNotFoundError:
+            continue
+        except OSError:
+            continue
+    return ''
+
+
 def check_ffmpeg():
     """Check if ffmpeg is accessible (env var FFMPEG_PATH takes priority)."""
-    ffmpeg = os.environ.get('FFMPEG_PATH', 'ffmpeg')
-    try:
-        subprocess.run([ffmpeg, '-version'],
-                      stdout=subprocess.DEVNULL,
-                      stderr=subprocess.DEVNULL)
-        return True
-    except FileNotFoundError:
-        return False
+    return resolve_ffmpeg_path() != ''
 
 
 def get_ffmpeg_path():
-    """Return the ffmpeg executable path from env or default."""
-    return os.environ.get('FFMPEG_PATH', 'ffmpeg')
+    """Return a working ffmpeg path, or 'ffmpeg' as a last-resort PATH name."""
+    return resolve_ffmpeg_path() or 'ffmpeg'
 
 
 def load_asset_registry():
@@ -1185,7 +1208,7 @@ def main():
 
     if include_audio and delivery_queue_needs_ffmpeg(audio_queue):
         if not check_ffmpeg():
-            ffmpeg_name = os.environ.get('FFMPEG_PATH', 'ffmpeg')
+            ffmpeg_name = get_ffmpeg_path()
             print(f"\n❌ Error: ffmpeg not found ({ffmpeg_name})")
             print("   Run build.py to auto-install ffmpeg, or install manually.")
             sys.exit(1)

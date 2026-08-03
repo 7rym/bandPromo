@@ -3,8 +3,26 @@ import os
 import sys
 from pathlib import Path
 
+import stdio_utf8
+stdio_utf8.configure()
+
 import makePlaylists
 import optimizeMedia as om
+
+
+def emit_json(payload):
+    text = json.dumps(payload, ensure_ascii=False)
+    streams = []
+    for candidate in (sys.stdout, getattr(sys, '__stdout__', None), sys.stderr):
+        if candidate is not None and candidate not in streams:
+            streams.append(candidate)
+    for stream in streams:
+        try:
+            stream.write(text + '\n')
+            stream.flush()
+            return
+        except Exception:
+            continue
 
 
 def read_payload():
@@ -61,7 +79,7 @@ def main():
     payload = read_payload()
     filenames = payload.get('filenames')
     if not isinstance(filenames, list) or not filenames:
-        print(json.dumps({'ok': False, 'error': 'Expected non-empty filenames array'}, ensure_ascii=False))
+        emit_json({'ok': False, 'error': 'Expected non-empty filenames array'})
         return
 
     requested = []
@@ -74,17 +92,17 @@ def main():
         requested.append(name)
 
     if not requested:
-        print(json.dumps({'ok': False, 'error': 'No valid filenames to prepare'}, ensure_ascii=False))
+        emit_json({'ok': False, 'error': 'No valid filenames to prepare'})
         return
 
     om.AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
     om.IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
 
     if needs_ffmpeg(requested) and not om.check_ffmpeg():
-        print(json.dumps({
+        emit_json({
             'ok': False,
             'error': 'ffmpeg is required to prepare delivery files for one or more tracks',
-        }, ensure_ascii=False))
+        })
         return
 
     prepared = []
@@ -103,12 +121,12 @@ def main():
         if not (om.AUDIO_OPT_DIR / delivery_name).is_file():
             still_missing.append(name)
 
-    print(json.dumps({
+    emit_json({
         'ok': len(still_missing) == 0,
         'prepared': prepared,
         'failed': failed,
         'still_missing': still_missing,
-    }, ensure_ascii=False))
+    })
 
 
 if __name__ == '__main__':

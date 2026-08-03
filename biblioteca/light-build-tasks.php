@@ -67,6 +67,45 @@ function bandpromo_resolve_python_interpreter(): string {
     return '';
 }
 
+function bandpromo_resolve_light_task_ffmpeg(string $root_dir): string {
+    $local = $root_dir . '/scripts/bin/' . (DIRECTORY_SEPARATOR === '\\' ? 'ffmpeg.exe' : 'ffmpeg');
+    if (is_file($local)) {
+        return $local;
+    }
+
+    $configured = trim((string) getenv('FFMPEG_PATH'));
+    if ($configured !== '' && is_file($configured)) {
+        return $configured;
+    }
+
+    if (bandpromo_can_shell_exec()) {
+        foreach (['ffmpeg'] as $candidate) {
+            $test = shell_exec("where $candidate 2>nul") ?? shell_exec("which $candidate 2>/dev/null");
+            if (!$test) {
+                continue;
+            }
+            $resolved = bandpromo_first_command_path($test);
+            if ($resolved !== '' && is_file($resolved)) {
+                return $resolved;
+            }
+        }
+    }
+
+    return $configured !== '' ? $configured : 'ffmpeg';
+}
+
+function bandpromo_light_task_env(string $root_dir, array $env_extras = []): array {
+    $env = $_ENV;
+    $env['BUILD_ROOT'] = $root_dir;
+    $env['PYTHONIOENCODING'] = 'utf-8:replace';
+    $env['FFMPEG_PATH'] = bandpromo_resolve_light_task_ffmpeg($root_dir);
+    foreach ($env_extras as $key => $value) {
+        $env[(string) $key] = (string) $value;
+    }
+
+    return $env;
+}
+
 function bandpromo_run_light_task(string $script_relative_path, array $env_extras = []): array {
     $root_dir = dirname(__DIR__);
 
@@ -105,12 +144,7 @@ function bandpromo_run_light_task(string $script_relative_path, array $env_extra
         2 => ['pipe', 'w'],
     ];
 
-    $env = $_ENV;
-    $env['BUILD_ROOT'] = $root_dir;
-    $env['PYTHONIOENCODING'] = 'utf-8:replace';
-    foreach ($env_extras as $key => $value) {
-        $env[(string) $key] = (string) $value;
-    }
+    $env = bandpromo_light_task_env($root_dir, $env_extras);
 
     $process = proc_open([$python, '-u', $script], $descriptors, $pipes, $root_dir, $env);
     if (!is_resource($process)) {
@@ -180,9 +214,7 @@ function bandpromo_run_light_json_task(string $script_relative_path, array $payl
         2 => ['pipe', 'w'],
     ];
 
-    $env = $_ENV;
-    $env['BUILD_ROOT'] = $root_dir;
-    $env['PYTHONIOENCODING'] = 'utf-8:replace';
+    $env = bandpromo_light_task_env($root_dir);
 
     $process = proc_open([$python, '-u', $script], $descriptors, $pipes, $root_dir, $env);
     if (!is_resource($process)) {

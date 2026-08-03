@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 12:40 - Fix post-upload audio delivery prep: light Python tasks now receive a resolved `FFMPEG_PATH`, ffmpeg detection checks bundled `scripts/bin` and return codes, and UTF-8 stdout setup is idempotent so importing `makePlaylists` + `optimizeMedia` no longer closes stdout (`ValueError: I/O operation on closed file` on HITZ FLAC uploads).
+
 2026-08-03 12:27 - Playlist cover picker: show a pending preview immediately on selection (same pattern as release covers), resolve `/media/...` paths when `poster_preview_url` is not yet available, keep overlapping autosaves queued, and sync the saved asset id after PATCH so edit mode does not leave “No cover selected” after a successful save.
 
 2026-08-03 12:25 - Media picker modal: stop nested preview `<button>` inside tile `<button>` (HTML reparsing scattered labels across the grid); restyle picker tabs without Content sub-tab accent chrome.
