@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 12:20 - Admin toasts: warning/error stay 10–20s with a dismiss control (success ~4.5s); track editor never fills Title with a ULID master filename — uses original stem / Untitled like the Files list.
+
 2026-08-03 11:45 - Upload → edit → playlist without full Rebuild: audio upload fills registry display from master tags (filename-stem fallback), prepares delivery MP3s under master stems (`ast_*.mp3`), and surfaces delivery/scan failures in Notifications; playlist save delivers any missing MP3s and republishes that playlist’s player payload so `/play` works without Rebuild all deliverables.
 
 2026-08-03 11:10 - Player branding follows the selected playlist’s owning release (`playlist.release_id` → release brand), not per-track `brand_id`. Playlist payload exposes `brand_id` + `brand_styles`; tracks no longer carry player brand. Docs and Branding help updated. Also: full Publish no longer resets install Active brand to bandPromo Default (Demo Release seed claims Active only when the pointer is empty).

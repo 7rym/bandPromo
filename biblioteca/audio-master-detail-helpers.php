@@ -399,8 +399,28 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
     $version = trim((string) ($display['version'] ?? ''));
     // Keep title and version separate for the track editor. (Older builds mashed
     // version into title with a newline, which filled Title and left Version empty.)
+    // Never present the ULID master filename as the editable title — use original stem.
+    if ($title === '' || bandpromo_release_title_looks_like_asset_id($title, $masterFilename)) {
+        $labels = bandpromo_release_track_display_from_asset($asset, $masterFilename);
+        $title = trim((string) ($labels['title'] ?? ''));
+        if ($version === '' && trim((string) ($labels['version'] ?? '')) !== '') {
+            $version = trim((string) ($labels['version'] ?? ''));
+        }
+        if (trim((string) ($display['artist'] ?? '')) === '' && trim((string) ($labels['artist'] ?? '')) !== '') {
+            $display['artist'] = trim((string) ($labels['artist'] ?? ''));
+        }
+    }
     if ($title === '') {
-        $title = trim((string) ($playlistEntry['title'] ?? $masterFilename));
+        $title = trim((string) ($playlistEntry['title'] ?? ''));
+    }
+    if ($title === '' || bandpromo_release_title_looks_like_asset_id($title, $masterFilename)) {
+        $originalFile = basename(trim((string) ($asset['original_filename'] ?? '')));
+        if ($originalFile !== '') {
+            $title = ucwords(str_replace(['_', '-'], ' ', pathinfo($originalFile, PATHINFO_FILENAME)));
+        }
+    }
+    if ($title === '' || bandpromo_release_title_looks_like_asset_id($title, $masterFilename)) {
+        $title = 'Untitled';
     }
     if ($version === '' && $title !== '') {
         $parts = bandpromo_release_split_audio_title_parts($title);

@@ -2543,20 +2543,55 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function showAdminToast(message, type = 'success') {
                 if (!toastHost) return;
 
-                const toast = document.createElement('div');
-                toast.className = `admin-toast ${type}`;
-                toast.textContent = message;
-                toastHost.appendChild(toast);
+                const kind = String(type || 'success').trim().toLowerCase() || 'success';
+                const text = String(message || '').trim();
+                if (text === '') {
+                    return;
+                }
 
-                window.setTimeout(() => {
+                const toast = document.createElement('div');
+                toast.className = `admin-toast ${kind}`;
+                toast.setAttribute('role', kind === 'error' || kind === 'warning' ? 'alert' : 'status');
+
+                const messageEl = document.createElement('div');
+                messageEl.className = 'admin-toast-message';
+                messageEl.textContent = text;
+                toast.appendChild(messageEl);
+
+                const isSticky = kind === 'warning' || kind === 'error';
+                let hideTimer = null;
+                const dismissToast = () => {
+                    if (hideTimer) {
+                        window.clearTimeout(hideTimer);
+                        hideTimer = null;
+                    }
                     toast.style.opacity = '0';
                     toast.style.transform = 'translateY(-4px)';
                     toast.style.transition = 'opacity 150ms ease, transform 150ms ease';
                     window.setTimeout(() => {
                         toast.remove();
                     }, 180);
-                }, 3200);
+                };
+
+                if (isSticky) {
+                    const dismissBtn = document.createElement('button');
+                    dismissBtn.type = 'button';
+                    dismissBtn.className = 'admin-toast-dismiss';
+                    dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+                    dismissBtn.textContent = '×';
+                    dismissBtn.addEventListener('click', dismissToast);
+                    toast.appendChild(dismissBtn);
+                }
+
+                toastHost.appendChild(toast);
+
+                // Success: brief confirmation. Warning/error: stay long enough to read, plus dismiss.
+                const durationMs = isSticky
+                    ? Math.min(20000, Math.max(10000, 80 * text.length))
+                    : 4500;
+                hideTimer = window.setTimeout(dismissToast, durationMs);
             }
+            window.bandpromoShowAdminToast = showAdminToast;
 
             function getMediaSelectionState(type) {
                 if (!mediaSelectionState.has(type)) {
@@ -4502,11 +4537,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (options.showToast !== false) {
-                    showAdminToast(data.no_change
+                    const toastMessage = data.no_change
                         ? 'No changes were saved.'
-                        : Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                            ? 'Track details updated and validation refreshed.'
-                            : 'Track details updated.');
+                        : (data.warning
+                            ? data.warning
+                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                ? 'Track details updated and validation refreshed.'
+                                : 'Track details updated.'));
+                    showAdminToast(toastMessage, data.warning ? 'warning' : 'success');
                 }
 
                 return detail;

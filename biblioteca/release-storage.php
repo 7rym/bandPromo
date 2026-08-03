@@ -1386,13 +1386,19 @@ function bandpromo_release_title_looks_like_asset_id(string $title, string $mast
         return false;
     }
 
-    if (preg_match('/^ast_[a-z0-9]+$/', $normalized) === 1) {
+    // Titles may include an extension when the editor falls back to master_filename.
+    $stem = strtolower((string) pathinfo($normalized, PATHINFO_FILENAME));
+    if ($stem === '') {
+        $stem = $normalized;
+    }
+
+    if (preg_match('/^ast_[0-9a-hjkmnp-tv-z]+$/i', $stem) === 1) {
         return true;
     }
 
     $masterStem = strtolower(pathinfo(basename(trim($masterFile)), PATHINFO_FILENAME));
-    if ($masterStem !== '' && $normalized === $masterStem) {
-        return preg_match('/^ast_[a-z0-9]+$/', $masterStem) === 1;
+    if ($masterStem !== '' && ($stem === $masterStem || $normalized === strtolower(basename(trim($masterFile))))) {
+        return preg_match('/^ast_[0-9a-hjkmnp-tv-z]+$/i', $masterStem) === 1;
     }
 
     return false;
@@ -2011,8 +2017,8 @@ function bandpromo_release_track_display_from_asset(array $asset, string $master
             $title = ucwords(str_replace(['_', '-'], ' ', pathinfo($originalFile, PATHINFO_FILENAME)));
         }
     }
-    if ($title === '') {
-        $title = ucwords(str_replace(['_', '-'], ' ', pathinfo($masterFile, PATHINFO_FILENAME)));
+    if ($title === '' || bandpromo_release_title_looks_like_asset_id($title, $masterFile)) {
+        $title = 'Untitled';
     }
 
     return [

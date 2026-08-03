@@ -94,25 +94,56 @@
         }
 
         function showThemeToast(message, type = 'warning') {
-            const toastHost = document.getElementById('adminToastHost');
             const text = String(message || '').trim();
-            if (!toastHost || !text) {
+            if (!text) {
+                return;
+            }
+            if (typeof window.bandpromoShowAdminToast === 'function') {
+                window.bandpromoShowAdminToast(text, type);
                 return;
             }
 
-            const toast = document.createElement('div');
-            toast.className = `admin-toast ${type}`;
-            toast.textContent = text;
-            toastHost.appendChild(toast);
+            const toastHost = document.getElementById('adminToastHost');
+            if (!toastHost) {
+                return;
+            }
 
-            window.setTimeout(() => {
+            const kind = String(type || 'warning').trim().toLowerCase() || 'warning';
+            const toast = document.createElement('div');
+            toast.className = `admin-toast ${kind}`;
+            toast.setAttribute('role', kind === 'error' || kind === 'warning' ? 'alert' : 'status');
+
+            const messageEl = document.createElement('div');
+            messageEl.className = 'admin-toast-message';
+            messageEl.textContent = text;
+            toast.appendChild(messageEl);
+
+            const isSticky = kind === 'warning' || kind === 'error';
+            let hideTimer = null;
+            const dismissToast = () => {
+                if (hideTimer) {
+                    window.clearTimeout(hideTimer);
+                    hideTimer = null;
+                }
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(-4px)';
                 toast.style.transition = 'opacity 150ms ease, transform 150ms ease';
-                window.setTimeout(() => {
-                    toast.remove();
-                }, 180);
-            }, 3200);
+                window.setTimeout(() => toast.remove(), 180);
+            };
+            if (isSticky) {
+                const dismissBtn = document.createElement('button');
+                dismissBtn.type = 'button';
+                dismissBtn.className = 'admin-toast-dismiss';
+                dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+                dismissBtn.textContent = '×';
+                dismissBtn.addEventListener('click', dismissToast);
+                toast.appendChild(dismissBtn);
+            }
+            toastHost.appendChild(toast);
+            hideTimer = window.setTimeout(
+                dismissToast,
+                isSticky ? Math.min(20000, Math.max(10000, 80 * text.length)) : 4500
+            );
         }
 
         function notifyThemeError(message) {
