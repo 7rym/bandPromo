@@ -555,16 +555,18 @@ Important constraint:
 
 Preferred operator model:
 
-- when a newly uploaded source format has a defined master path, bandPromo should create or queue the master immediately after upload
-- after that point, operator-facing repair/editing tools should work against the master representation, not against the preserved original upload
-- delivery generation should read from the current approved master, not directly from the original, except where the original temporarily satisfies the master contract
+- when a newly uploaded source format has a defined master path, bandPromo creates the master immediately after upload (`ast_{ULID}` in `media/audio/master/`)
+- upload also fills registry **display** from embedded tags (filename stem fallback if tags cannot be read) so Files → Audio is editable without a full Rebuild
+- upload-time automation prepares delivery MP3s named to the **master stem** (`ast_{ULID}.mp3`); failures stay visible in Notifications with the real error
+- after that point, operator-facing repair/editing tools work against the master representation, not against the preserved original upload
+- delivery generation reads from the current approved master, not directly from the original, except where the original temporarily satisfies the master contract
 
 This keeps the operator workflow simple:
 
-- upload source once
-- let bandPromo prepare the canonical working copy
-- edit/fix the canonical package
-- publish delivery outputs from that canonical package
+- upload source once → master + display + delivery prepare automatically
+- edit/fix the canonical package and assign it to a release
+- save the playlist → light delivery (if still missing) + **republish that playlist’s player payload** (no full Deliverables rebuild required for `/play`)
+- use System → Deliverables (Rebuild all) for site-wide recovery, PWA/social, or when automatic preparation failed
 
 The original remains available for trust, recovery, replacement, and future regeneration, but it should usually disappear from day-to-day operator work once the master is ready.
 
@@ -612,7 +614,7 @@ Operator-facing summary:
 - **master/** — internal canonical file (`ast_…`); admin metadata edits target this tier
 - **optimal/** — generated MP3s the player serves by default; not meant for manual browsing
 
-Files that exist only in **original/** (for example a test upload not yet on a playlist) are not playable until publish generates a matching **optimal/** delivery file.
+Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s static player payload so `/play` can load without a full site rebuild.
 
 Bundled demo audio is **not** git-tracked. It arrives via the setup starter pack as locked release `bandpromo-demo` and is built into the normal three-tier layout on the host.
 

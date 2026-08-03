@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 11:45 - Upload → edit → playlist without full Rebuild: audio upload fills registry display from master tags (filename-stem fallback), prepares delivery MP3s under master stems (`ast_*.mp3`), and surfaces delivery/scan failures in Notifications; playlist save delivers any missing MP3s and republishes that playlist’s player payload so `/play` works without Rebuild all deliverables.
+
 2026-08-03 11:10 - Player branding follows the selected playlist’s owning release (`playlist.release_id` → release brand), not per-track `brand_id`. Playlist payload exposes `brand_id` + `brand_styles`; tracks no longer carry player brand. Docs and Branding help updated. Also: full Publish no longer resets install Active brand to bandPromo Default (Demo Release seed claims Active only when the pointer is empty).
 
 2026-08-03 10:55 - Stop full Publish from resetting the install Active brand to bandPromo Default: Demo Release ensure/seed no longer claims `active_brand_id` when an operator brand is already set (first-run empty pointer only). Clarify Branding help — Active = login/shell baseline; player tokens follow the playing track’s release brand, not the opened playlist.

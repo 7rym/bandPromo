@@ -22,7 +22,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Page registry in `data/pages/registry.json`: operators can add, rename, and remove optional pages; **FAQ remains required** for login info / shared-link context
 - Content → **Playlist**, **Gallery**, **Pages**, and **Player layout** share one pool/result editor pattern: **Available content** pool on the left, active order/layout on the right, multi-select drag-and-drop, demo filter on media pools only, and amber **Save** / green **Saved** header controls (button roles: [ADMIN-UI.md](ADMIN-UI.md))
 - Content → **Playlist** and **Gallery** management (multiple libraries in admin; player playlist selector when two or more catalog playlists are public)
-- **Player** loads playlist data from prebuilt static payloads in `data/playlists/{id}.json` (`tracks`, `brand_styles`, `delivery_summary` written at Publish). No Python or master-file parsing on player requests.
+- **Player** loads playlist data from prebuilt static payloads in `data/playlists/{id}.json` (`tracks`, `brand_styles`, `delivery_summary`). Publish writes these on full rebuild; **playlist save also republishes that playlist’s payload** (plus missing audio delivery) so add-track loops do not need Rebuild all deliverables.
 - Player **page tabs** (Bio, Gallery-as-page, custom pages) are **site-wide** today via Content → Player; **target** also appends pages associated to the current track’s release ([USE-CASES.md](USE-CASES.md)). Tabs ship as empty shells; the active tab hydrates on DOMContentLoaded, others on first open — so gallery stills/posters do not contend with first paint. Gallery video files still load only in the lightbox.
 - **Registry-first admin**: Files lists, playlist/release editors, and track detail read stored indexes only — `data/assets/registry.json` display fields, published playlist tracks, and the **media files index** in `data/media-library-state.json` (`files`) for size/mtime/delivery listing. No DirectoryIterator, filesize, or tag parse on GET. Index/registry updates only on upload, delete, tag save, delivery jobs, Publish, and container membership saves.
 - Content → **Player layout**: **Playlists** and **Lyrics** always on; optional global page tabs; **Still / Living shell background** switch for the player surface (Living paints still first, then attaches the MP4 after load/idle); **Dropdown / Buttons / Cover flow** playlist selector when multiple playlists are available. Dedicated Gallery player tab is **removed** — use page gallery blocks.
@@ -56,7 +56,8 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ### Build & Delivery
 - Automated build pipeline for optimized audio and images
-- Upload-time background tasks for audio delivery, image delivery, and video delivery (`biblioteca/auto-build-tasks.php` plus focused Python runners)
+- Upload-time background tasks for audio delivery, image delivery, and video delivery (`biblioteca/auto-build-tasks.php` plus focused Python runners); audio upload also refreshes registry display from master tags
+- Playlist save prepares missing delivery MP3s and republishes that playlist’s player payload (full Deliverables rebuild remains for site-wide/PWA recovery)
 - **Planned (v0.8 management slice remainders):** Brand-assets visual fold into Visual originals; living-cover `ast_*` — see [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
 - Validation-only playlist scan after audio upload; setup runs **initial site seed** (`scripts/initialSiteSeed.py`) for empty playlist/gallery containers and player tab order
 - Automatic lightweight playlist/validation refresh after audio metadata edits

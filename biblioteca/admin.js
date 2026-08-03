@@ -924,16 +924,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const taskIntro = taskDetails.length
                         ? `Pending: ${taskDetails.join('; ')}.`
                         : formatBuildTaskSummary(buildState);
+                    const lastError = String(buildState.last_error || '').trim();
+                    const details = [
+                        { text: lastError !== ''
+                            ? 'Automatic preparation after upload did not finish. Fix the issue below, then retry from Deliverables if needed.'
+                            : 'Your edits are saved in admin. Rebuild all deliverables when you are ready for visitors to get the latest files.' },
+                        { text: taskIntro },
+                    ];
+                    if (lastError !== '') {
+                        details.push({ text: lastError });
+                    }
 
                     return {
                         severity: 'recommended-fix',
-                        title: 'Saved changes are not live yet',
+                        title: lastError !== ''
+                            ? 'Upload preparation needs attention'
+                            : 'Saved changes are not live yet',
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
-                        details: [
-                            { text: 'Your edits are saved in admin. Rebuild all deliverables when you are ready for visitors to get the latest files.' },
-                            { text: taskIntro },
-                        ],
+                        details,
                         actions: [
                             { label: actionLabel, action: 'run-recommended-build' },
                             { label: 'Go to Deliverables', href: buildBuildTabUrl() },
@@ -5364,6 +5373,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let latestBuildState = null;
                     let masterPreparedCount = 0;
                     let autoDeliveryRan = false;
+                    let autoDeliveryFailed = false;
+                    let uploadWarnings = [];
                     let backgroundVideoStarted = false;
                     const masterWarnings = [];
                     for (let fi = 0; fi < modalFiles.length; fi++) {
@@ -5387,8 +5398,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (uploadData && uploadData.master_warning) {
                                 masterWarnings.push(`${file.name}: ${uploadData.master_warning}`);
                             }
-                            if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.length) {
+                            if (uploadData && uploadData.display_warning) {
+                                masterWarnings.push(`${file.name}: ${uploadData.display_warning}`);
+                            }
+                            if (uploadData && typeof uploadData.warning === 'string' && uploadData.warning.trim() !== '') {
+                                uploadWarnings.push(uploadData.warning.trim());
+                                autoDeliveryFailed = true;
+                            }
+                            if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.includes('audio-delivery')) {
                                 autoDeliveryRan = true;
+                            }
+                            if (Array.isArray(uploadData?.delivery_missing) && uploadData.delivery_missing.length) {
+                                autoDeliveryFailed = true;
                             }
                             if (Array.isArray(uploadData?.background_tasks) && uploadData.background_tasks.some((task) => task && task.status === 'running')) {
                                 backgroundVideoStarted = true;
@@ -5411,22 +5432,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await refreshBuildRequiredState({ full: true });
                         }
 
+                        const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
+                        const deliveryNote = backgroundVideoStarted
+                            ? ' Video delivery started in the background.'
+                            : (autoDeliveryRan
+                                ? ' Delivery files prepared automatically.'
+                                : (autoDeliveryFailed
+                                    ? ' Automatic delivery did not finish — check Notifications.'
+                                    : ''));
+                        const uniqueUploadWarnings = [...new Set(uploadWarnings)];
                         if (latestBuildState && latestBuildState.required) {
                             const next = formatBuildNextStep(latestBuildState);
-                            const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
-                            const deliveryNote = backgroundVideoStarted
-                                ? ' Video delivery started in the background.'
-                                : (autoDeliveryRan ? ' Delivery files prepared automatically.' : '');
-                            showAdminToast(`Upload complete.${masterNote}${deliveryNote} ${next}`, 'success');
+                            const toastKind = autoDeliveryFailed || masterWarnings.length ? 'warning' : 'success';
+                            showAdminToast(`Upload complete.${masterNote}${deliveryNote} ${next}`, toastKind);
                         } else {
-                            const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
-                            const deliveryNote = backgroundVideoStarted
-                                ? ' Video delivery started in the background.'
-                                : (autoDeliveryRan ? ' Delivery files prepared automatically.' : '');
-                            showAdminToast(`Upload complete.${masterNote}${deliveryNote}`, 'success');
+                            const toastKind = autoDeliveryFailed || masterWarnings.length ? 'warning' : 'success';
+                            showAdminToast(`Upload complete.${masterNote}${deliveryNote}`, toastKind);
                         }
-                        if (masterWarnings.length) {
-                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(masterWarnings.join(' | '))}</span>`;
+                        if (masterWarnings.length || uniqueUploadWarnings.length) {
+                            const combined = [...masterWarnings, ...uniqueUploadWarnings];
+                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
                         }
                     } else {
                         modalStatus.innerHTML += `<br><span style="color:#f55">❌ ${failed} failed, ✅ ${done} ok</span>`;
@@ -8385,6 +8410,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 refreshBuildRequiredState({ full: true });
                             }
                             await loadPlaylistPreview({ preserveSavedState: true });
+                            if (data.warning) {
+                                showAdminToast(data.warning, 'warning');
+                            } else if (data.player_built_at) {
+                                showAdminToast('Playlist saved and ready for the player.', 'success');
+                            } else {
+                                showAdminToast('Playlist saved.', 'success');
+                            }
                         } else {
                             saveUi?.markFailed();
                             showAdminToast(data.error || data.warning || 'Could not save playlist.', 'error');

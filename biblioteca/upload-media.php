@@ -22,7 +22,30 @@ require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/build-catalog-helpers.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/release-storage.php';
 
+/**
+ * Fill registry display after a successful audio master prepare.
+ *
+ * @return array{ok:bool,from_tags:bool,display:array,warning:string}
+ */
+function bandpromo_upload_refresh_audio_display(string $root, array $master, string $originalFilename): array
+{
+    if (empty($master['prepared']) || empty($master['master_filename'])) {
+        return [
+            'ok' => false,
+            'from_tags' => false,
+            'display' => [],
+            'warning' => '',
+        ];
+    }
+
+    return bandpromo_asset_ensure_audio_display_after_upload(
+        $root,
+        (string) $master['master_filename'],
+        $originalFilename
+    );
+}
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
@@ -476,6 +499,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
         bandpromo_build_catalog_finalize_audio_upload($root_dir, $savedName);
     }
+    $displayRefresh = bandpromo_upload_refresh_audio_display($root_dir, $master, $savedName);
     $videoPoster = bandpromo_is_video_extension($savedExt)
         ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
         : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
@@ -522,6 +546,17 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         }
         if (!empty($master['warning'])) {
             $response['master_warning'] = $master['warning'];
+        }
+    }
+
+    if (!empty($displayRefresh['ok'])) {
+        $response['display'] = $displayRefresh['display'];
+        $response['display_from_tags'] = !empty($displayRefresh['from_tags']);
+        if ($displayRefresh['warning'] !== '') {
+            $response['display_warning'] = $displayRefresh['warning'];
+            if (empty($response['master_warning'])) {
+                $response['master_warning'] = $displayRefresh['warning'];
+            }
         }
     }
 
@@ -659,6 +694,7 @@ foreach ($files as $file) {
         if ($target_hint === 'audio' && in_array($saved_ext, ['flac', 'mp3', 'wav'], true)) {
             bandpromo_build_catalog_finalize_audio_upload($root_dir, $saved_name);
         }
+        $displayRefresh = bandpromo_upload_refresh_audio_display($root_dir, $master, $saved_name);
         $videoPoster = bandpromo_is_video_extension($saved_ext)
             ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
             : bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
@@ -703,6 +739,17 @@ foreach ($files as $file) {
             if (!empty($master['warning'])) {
                 $result['master_warning'] = $master['warning'];
                 $masterWarnings[] = $safe_name . ': ' . $master['warning'];
+            }
+        }
+        if (!empty($displayRefresh['ok'])) {
+            $result['display'] = $displayRefresh['display'];
+            $result['display_from_tags'] = !empty($displayRefresh['from_tags']);
+            if ($displayRefresh['warning'] !== '') {
+                $result['display_warning'] = $displayRefresh['warning'];
+                if (empty($result['master_warning'])) {
+                    $result['master_warning'] = $displayRefresh['warning'];
+                    $masterWarnings[] = $saved_name . ': ' . $displayRefresh['warning'];
+                }
             }
         }
         if (!empty($videoPoster['attempted'])) {

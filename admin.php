@@ -1445,9 +1445,9 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-content">
                 <?php if ($contentTab === 'release'): ?>
-                    The catalogue lists your releases. Each release is a campaign umbrella: masters, branding, EPK, galleries, pages, and the playlists that package those tracks. Assign tracks here; open Playlists, Galleries, and Pages from the Release editor section tabs while editing, or use the Content sub-tabs for the full editors. Shift/Ctrl-click selects multiple tracks.
+                    The catalogue lists your releases. Each release is a campaign umbrella: masters, branding, EPK, galleries, pages, and the playlists that package those tracks. New audio uploads create a master and usable title/artist immediately — assign tracks here without waiting for a full rebuild. Open Playlists, Galleries, and Pages from the Release editor section tabs while editing, or use the Content sub-tabs for the full editors. Shift/Ctrl-click selects multiple tracks.
                 <?php elseif ($contentTab === 'playlist'): ?>
-                    Playlists reuse release-owned tracks for streaming (album order, single package, tour set). They do not own masters. Prefer creating them from the Release hub. Shift/Ctrl-click selects multiple tracks.
+                    Playlists reuse release-owned tracks for streaming (album order, single package, tour set). They do not own masters. Prefer creating them from the Release hub. Saving a playlist prepares any missing delivery files and refreshes the player payload for that playlist — you do not need Rebuild all deliverables for a normal add-track loop. Shift/Ctrl-click selects multiple tracks.
                 <?php elseif ($contentTab === 'gallery'): ?>
                     Galleries are owned by a release. Preview from the pool; edit to reorder. Shift/Ctrl-click multi-select; name and alt edit inline. No build required.
                 <?php elseif ($contentTab === 'pages'): ?>

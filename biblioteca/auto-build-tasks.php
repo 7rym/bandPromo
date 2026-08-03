@@ -5,6 +5,7 @@ require_once __DIR__ . '/build-launcher.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/setup-state.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
+require_once __DIR__ . '/asset-registry.php';
 
 function bandpromo_background_tasks_file(): string
 {
@@ -1135,22 +1136,54 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
     $autoTasks = [];
     $warnings = [];
     $outputs = [];
+    $root = dirname(__DIR__);
+
+    // Delivery MP3s must use master stems (ast_*), not original upload stems.
+    $deliveryFilenames = [];
+    foreach ($uploadedFilenames as $filename) {
+        $filename = basename(trim((string) $filename));
+        if ($filename === '') {
+            continue;
+        }
+        $asset = bandpromo_asset_lookup_by_original_filename($root, $filename)
+            ?? bandpromo_asset_lookup_by_master_filename($root, $filename);
+        $masterName = is_array($asset)
+            ? basename(trim((string) ($asset['master_filename'] ?? '')))
+            : '';
+        $deliveryFilenames[] = $masterName !== '' ? $masterName : $filename;
+    }
+    $deliveryFilenames = array_values(array_unique(array_filter($deliveryFilenames)));
 
     $scan = bandpromo_run_playlist_validation_scan();
     if ($scan['ok']) {
         $autoTasks[] = 'playlist-scan';
         $state = bandpromo_clear_build_required_tasks(['playlist-scan']);
     } else {
-        $warnings[] = 'Automatic track validation refresh failed after upload.';
-        $outputs[] = trim((string) ($scan['output'] ?? ''));
+        $scanDetail = trim((string) ($scan['output'] ?? ''));
+        $warnings[] = 'Automatic track validation refresh failed after upload.'
+            . ($scanDetail !== '' ? ' ' . $scanDetail : ' Check that Python can run on this host.');
+        $outputs[] = $scanDetail;
+        // Keep playlist-scan in build-required; do not clear on failure.
     }
 
-    $delivery = bandpromo_run_audio_source_delivery_and_refresh($uploadedFilenames);
+    $delivery = bandpromo_run_audio_source_delivery_and_refresh($deliveryFilenames);
     if ($delivery['ok']) {
         $autoTasks[] = 'audio-delivery';
         $state = bandpromo_clear_build_required_tasks(['audio-delivery']);
+        if ($scan['ok'] && empty($state['required'])) {
+            $state = bandpromo_set_build_required_last_error('');
+        }
     } else {
-        $warnings[] = $delivery['error'] !== '' ? $delivery['error'] : 'Automatic audio delivery preparation failed after upload.';
+        $deliveryError = trim((string) ($delivery['error'] ?? ''));
+        $warnings[] = $deliveryError !== ''
+            ? ('Automatic audio delivery preparation failed after upload: ' . $deliveryError)
+            : 'Automatic audio delivery preparation failed after upload. Songs need delivery MP3s before playback — check Python/ffmpeg, then retry from Notifications or System → Deliverables.';
+        // Keep audio-delivery in build-required; do not clear on failure.
+        $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
+    }
+
+    if (!$scan['ok'] && ($delivery['ok'] ?? false)) {
+        $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
     }
 
     return [

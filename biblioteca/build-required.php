@@ -17,6 +17,7 @@ function bandpromo_get_build_required_state(): array {
         'updated_at' => null,
         'reasons' => [],
         'tasks' => [],
+        'last_error' => '',
     ];
 
     $file = bandpromo_build_required_file();
@@ -42,6 +43,7 @@ function bandpromo_get_build_required_state(): array {
         'updated_at' => isset($decoded['updated_at']) ? (string) $decoded['updated_at'] : null,
         'reasons' => isset($decoded['reasons']) && is_array($decoded['reasons']) ? array_values($decoded['reasons']) : [],
         'tasks' => isset($decoded['tasks']) && is_array($decoded['tasks']) ? array_values($decoded['tasks']) : bandpromo_collect_tasks_for_reasons(isset($decoded['reasons']) && is_array($decoded['reasons']) ? $decoded['reasons'] : []),
+        'last_error' => isset($decoded['last_error']) ? trim((string) $decoded['last_error']) : '',
     ];
 }
 
@@ -185,6 +187,7 @@ function bandpromo_write_build_required_state(array $state): void {
         'updated_at' => $state['updated_at'] ?? gmdate('c'),
         'reasons' => isset($state['reasons']) && is_array($state['reasons']) ? array_values(array_unique($state['reasons'])) : [],
         'tasks' => isset($state['tasks']) && is_array($state['tasks']) ? array_values(array_unique($state['tasks'])) : bandpromo_collect_tasks_for_reasons(isset($state['reasons']) && is_array($state['reasons']) ? $state['reasons'] : []),
+        'last_error' => isset($state['last_error']) ? trim((string) $state['last_error']) : '',
     ];
 
     file_put_contents(
@@ -208,7 +211,18 @@ function bandpromo_mark_build_required(string $reason): array {
     $state['updated_at'] = gmdate('c');
     $state['reasons'] = $reasons;
     $state['tasks'] = $tasks;
+    $state['last_error'] = isset($state['last_error']) ? trim((string) $state['last_error']) : '';
     bandpromo_write_build_required_state($state);
+    return $state;
+}
+
+function bandpromo_set_build_required_last_error(string $message): array
+{
+    $state = bandpromo_get_build_required_state();
+    $state['last_error'] = trim($message);
+    $state['updated_at'] = gmdate('c');
+    bandpromo_write_build_required_state($state);
+
     return $state;
 }
 
@@ -219,6 +233,7 @@ function bandpromo_clear_build_required(): array {
         'updated_at' => gmdate('c'),
         'reasons' => [],
         'tasks' => [],
+        'last_error' => '',
     ];
     bandpromo_write_build_required_state($state);
     return $state;
@@ -248,6 +263,7 @@ function bandpromo_clear_build_required_for_action(string $completed_action): ar
         'updated_at' => gmdate('c'),
         'reasons' => $reasons,
         'tasks' => $tasks,
+        'last_error' => !empty($tasks) ? (string) ($state['last_error'] ?? '') : '',
     ];
     bandpromo_write_build_required_state($next);
     return $next;
@@ -272,6 +288,7 @@ function bandpromo_clear_build_required_tasks(array $completedTasks): array {
         'updated_at' => gmdate('c'),
         'reasons' => $reasons,
         'tasks' => $remainingTasks,
+        'last_error' => !empty($remainingTasks) ? (string) ($state['last_error'] ?? '') : '',
     ];
     bandpromo_write_build_required_state($next);
     return $next;

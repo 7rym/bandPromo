@@ -1665,6 +1665,84 @@ function bandpromo_asset_refresh_audio_display(string $root, string $masterFile,
     return true;
 }
 
+/**
+ * After upload: fill registry display from master tags, or filename-stem fallback.
+ * Never leave an empty display that shows only the ULID master name.
+ *
+ * @return array{ok:bool,from_tags:bool,display:array,warning:string}
+ */
+function bandpromo_asset_ensure_audio_display_after_upload(
+    string $root,
+    string $masterFilename,
+    string $originalFilename = ''
+): array {
+    $masterFilename = basename(trim($masterFilename));
+    $originalFilename = basename(trim($originalFilename));
+    if ($masterFilename === '') {
+        return [
+            'ok' => false,
+            'from_tags' => false,
+            'display' => [],
+            'warning' => 'Master filename is required to refresh display metadata.',
+        ];
+    }
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $masterFilename);
+    if ($asset === null) {
+        return [
+            'ok' => false,
+            'from_tags' => false,
+            'display' => [],
+            'warning' => 'Audio asset is not registered yet.',
+        ];
+    }
+
+    $inspect = bandpromo_release_inspect_master_metadata($root, $masterFilename);
+    $rawTitle = trim((string) ($inspect['title'] ?? ''));
+    $fromTags = $rawTitle !== '';
+
+    if ($fromTags) {
+        $display = bandpromo_asset_build_audio_display_from_inspect($inspect);
+    } else {
+        $stemSource = $originalFilename !== '' ? $originalFilename : $masterFilename;
+        $stem = pathinfo($stemSource, PATHINFO_FILENAME);
+        if (
+            $originalFilename !== ''
+            && preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $stem) === 1
+        ) {
+            $stem = pathinfo($originalFilename, PATHINFO_FILENAME);
+        }
+        $title = trim(ucwords(str_replace(['_', '-'], ' ', $stem)));
+        if ($title === '') {
+            $title = 'Untitled';
+        }
+        $display = bandpromo_asset_build_audio_display_from_fields([
+            'title' => $title,
+            'artist' => trim((string) ($inspect['artist'] ?? '')),
+            'album' => trim((string) ($inspect['album'] ?? '')),
+            'date' => trim((string) ($inspect['date'] ?? '')),
+            'tracknumber' => trim((string) ($inspect['tracknumber'] ?? '')),
+            'bpm' => trim((string) ($inspect['bpm'] ?? '')),
+            'initialkey' => trim((string) ($inspect['initialkey'] ?? '')),
+            'genre' => trim((string) ($inspect['genre'] ?? '')),
+            'comment' => trim((string) ($inspect['comment'] ?? '')),
+            'lyrics' => (string) ($inspect['lyrics'] ?? ''),
+            'living_cover' => (string) ($inspect['living_cover'] ?? ''),
+        ], $inspect);
+    }
+
+    bandpromo_asset_update_entry($root, (string) $asset['id'], ['display' => $display]);
+
+    return [
+        'ok' => true,
+        'from_tags' => $fromTags,
+        'display' => $display,
+        'warning' => $fromTags
+            ? ''
+            : 'Could not read embedded tags from the master; using the filename as the title until you edit metadata.',
+    ];
+}
+
 function bandpromo_asset_refresh_all_audio_displays(string $root): array
 {
     bandpromo_asset_registry_ensure_migrated($root);

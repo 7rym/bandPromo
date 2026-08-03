@@ -3,13 +3,16 @@
  * Save playlist order.
  *
  * Accepts a JSON array of master filenames (desired track order) via POST body.
- * Persists data/playlists/{id}.json entry refs only (no tag parse / delivery).
+ * Persists membership, prepares missing delivery MP3s, and republishes this
+ * playlist’s player payload so /play works without a full Deliverables rebuild.
  * Admin-only.
  */
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/publish-status-helpers.php';
+require_once __DIR__ . '/auto-build-tasks.php';
+require_once __DIR__ . '/asset-registry.php';
 
 require_once __DIR__ . '/admin-api-guard.php';
 session_write_close();
@@ -82,26 +85,76 @@ foreach ($reordered as $track) {
     }
 }
 
+$deliveryPrepared = [];
+$deliveryFailed = [];
+$deliveryWarning = '';
+if ($missing_delivery !== []) {
+    $delivery = bandpromo_run_audio_source_delivery_and_refresh($missing_delivery);
+    $deliveryPrepared = is_array($delivery['prepared'] ?? null) ? array_values($delivery['prepared']) : [];
+    $deliveryFailed = is_array($delivery['failed'] ?? null) ? $delivery['failed'] : [];
+    $stillMissing = is_array($delivery['still_missing'] ?? null) ? array_values($delivery['still_missing']) : [];
+    $missing_delivery = $stillMissing;
+    if (empty($delivery['ok'])) {
+        $deliveryWarning = trim((string) ($delivery['error'] ?? ''));
+        if ($deliveryWarning === '') {
+            $deliveryWarning = 'Could not prepare audio delivery for some playlist tracks.';
+        }
+    }
+}
+
+$playerBuiltAt = '';
+$publishWarning = '';
+try {
+    $published = bandpromo_playlist_publish_player_payload($root, $playlistId);
+    $playerBuiltAt = trim((string) ($published['player_built_at'] ?? ''));
+} catch (Throwable $throwable) {
+    $publishWarning = 'Playlist saved, but player payload publish failed: ' . $throwable->getMessage();
+}
+
+$warnings = [];
+if ($skipped) {
+    $warnings[] = 'Some tracks could not be added to the playlist because they are not in the asset registry';
+}
+if ($deliveryWarning !== '') {
+    $warnings[] = $deliveryWarning;
+}
+if ($missing_delivery !== []) {
+    $warnings[] = 'Some tracks are saved in the playlist but still need audio delivery before playback will work. Check Python/ffmpeg, then save again or use System → Deliverables.';
+}
+if ($publishWarning !== '') {
+    $warnings[] = $publishWarning;
+}
+
+$lightPathOk = $missing_delivery === [] && $publishWarning === '';
+if ($lightPathOk) {
+    $buildState = bandpromo_clear_build_required_tasks(['audio-delivery']);
+    if (empty($buildState['required'])) {
+        $buildState = bandpromo_set_build_required_last_error('');
+    }
+} else {
+    $buildState = bandpromo_mark_build_required('playlist_order_changed');
+    if ($deliveryWarning !== '' || $publishWarning !== '' || $missing_delivery !== []) {
+        $buildState = bandpromo_set_build_required_last_error(implode(' ', array_filter([
+            $deliveryWarning,
+            $publishWarning,
+            $missing_delivery !== [] ? 'Missing delivery for: ' . implode(', ', array_slice($missing_delivery, 0, 5)) : '',
+        ])));
+    }
+}
+
 $response = [
     'ok' => true,
     'playlist_id' => $playlistId,
     'count' => count($reordered),
     'requested' => count($final_order),
     'skipped' => $skipped,
-    'delivery_prepared' => [],
-    'delivery_failed' => [],
+    'delivery_prepared' => $deliveryPrepared,
+    'delivery_failed' => $deliveryFailed,
     'delivery_missing' => $missing_delivery,
+    'player_built_at' => $playerBuiltAt,
+    'build_required' => !empty($buildState['required']),
+    'build_required_state' => $buildState,
 ];
-
-$warnings = [];
-if ($skipped) {
-    $warnings[] = 'Some tracks could not be added to the playlist because they are not in the asset registry';
-}
-$response['build_required_state'] = bandpromo_mark_build_required('playlist_order_changed');
-$response['build_required'] = true;
-if ($missing_delivery) {
-    $warnings[] = 'Some tracks are saved in the playlist but still need audio delivery before playback will work. Run System → Publish.';
-}
 
 if ($warnings) {
     $response['warning'] = implode('. ', $warnings);
@@ -116,6 +169,9 @@ bandpromo_admin_audit_log('playlist_reordered', [
         'count' => count($reordered),
         'requested' => count($final_order),
         'skipped' => count($skipped),
+        'player_built_at' => $playerBuiltAt,
+        'delivery_prepared' => count($deliveryPrepared),
+        'delivery_missing' => count($missing_delivery),
     ],
 ]);
 
