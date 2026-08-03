@@ -30,6 +30,29 @@ function bandpromo_playlist_document_path(string $root, string $playlistId): str
     return bandpromo_playlist_storage_root($root) . DIRECTORY_SEPARATOR . bandpromo_playlist_normalize_id($playlistId) . '.json';
 }
 
+/**
+ * Player brand for a playlist: owning release’s brand, else install Active.
+ */
+function bandpromo_playlist_effective_brand_id(string $root, string $playlistId): string
+{
+    $playlistId = bandpromo_playlist_normalize_id($playlistId);
+    if ($playlistId === '') {
+        return bandpromo_brand_active_id($root);
+    }
+
+    try {
+        $document = bandpromo_playlist_load_document($root, $playlistId);
+        $releaseId = bandpromo_release_normalize_id(trim((string) ($document['release_id'] ?? '')));
+        if ($releaseId !== '') {
+            return bandpromo_release_effective_brand_id($root, $releaseId);
+        }
+    } catch (Throwable $throwable) {
+        // Fall back to install active brand.
+    }
+
+    return bandpromo_brand_active_id($root);
+}
+
 function bandpromo_playlist_validation_report_path(string $root): ?string
 {
     $path = $root . '/data/validation/playlist-validation.json';
@@ -433,16 +456,8 @@ function bandpromo_playlist_refresh_brand_styles_for_brand(string $root, string 
         }
 
         $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
-        $usesBrand = false;
-        foreach ($tracks as $track) {
-            if (!is_array($track)) {
-                continue;
-            }
-            if (bandpromo_brand_canonical_id((string) ($track['brand_id'] ?? '')) === $brandId) {
-                $usesBrand = true;
-                break;
-            }
-        }
+        $playlistBrandId = bandpromo_playlist_effective_brand_id($root, $playlistId);
+        $usesBrand = $playlistBrandId === $brandId;
         if (!$usesBrand && is_array($document['brand_styles'] ?? null) && isset($document['brand_styles'][$brandId])) {
             $usesBrand = true;
         }
@@ -450,11 +465,7 @@ function bandpromo_playlist_refresh_brand_styles_for_brand(string $root, string 
             continue;
         }
 
-        $styles = is_array($document['brand_styles'] ?? null)
-            ? bandpromo_playlist_normalize_stored_brand_styles($document['brand_styles'])
-            : [];
-        $styles[$brandId] = $fresh[$brandId];
-        $document['brand_styles'] = $styles;
+        $document['brand_styles'] = bandpromo_playlist_normalize_stored_brand_styles($fresh);
         try {
             bandpromo_playlist_write_document($root, $document);
             $updated[] = $playlistId;
@@ -1692,7 +1703,8 @@ function bandpromo_playlist_enrich_tracks_for_player(
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => $releaseId,
             'release_slug' => $releaseSlug,
-            'brand_id' => bandpromo_release_effective_brand_id($root, $releaseId),
+            // Player brand comes from the playlist’s owning release, not per-track.
+            'brand_id' => '',
             'track_slug' => bandpromo_playlist_track_slug($track, $asset, $releaseTrack),
             'delivery_ready' => (bool) ($streamState['delivery_ready'] ?? false),
             'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),
@@ -1788,19 +1800,11 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         }
     }
 
-    $brandIds = [];
-    foreach ($tracks as $track) {
-        if (!is_array($track)) {
-            continue;
-        }
-        $brandId = trim((string) ($track['brand_id'] ?? ''));
-        if ($brandId !== '') {
-            $brandIds[] = $brandId;
-        }
-    }
-
+    $brandId = bandpromo_playlist_effective_brand_id($root, $playlistId);
     $document['tracks'] = $tracks;
-    $document['brand_styles'] = bandpromo_brand_player_styles_for_ids($root, $brandIds);
+    $document['brand_styles'] = $brandId !== ''
+        ? bandpromo_brand_player_styles_for_ids($root, [$brandId])
+        : [];
     $document['delivery_summary'] = bandpromo_playlist_delivery_summary($tracks);
     $document['player_built_at'] = gmdate('c');
 
@@ -1810,6 +1814,7 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         'playlist_id' => $playlistId,
         'track_count' => count($tracks),
         'player_built_at' => (string) $document['player_built_at'],
+        'brand_id' => $brandId,
     ];
 }
 
@@ -1859,6 +1864,7 @@ function bandpromo_playlist_load_player_response(
         throw new RuntimeException('This playlist has not been published yet. Run System → Publish to build the player playlist.');
     }
 
+    $brandId = bandpromo_playlist_effective_brand_id($root, $playlistId);
     $brandStyles = is_array($document['brand_styles'] ?? null)
         ? bandpromo_playlist_normalize_stored_brand_styles($document['brand_styles'])
         : [];
@@ -1867,25 +1873,19 @@ function bandpromo_playlist_load_player_response(
         : bandpromo_playlist_delivery_summary($tracks);
 
     // Always resolve brand tokens live so Content → Branding edits show without a full Publish.
-    $brandIds = [];
-    foreach ($tracks as $track) {
-        if (!is_array($track)) {
-            continue;
+    if ($brandId !== '') {
+        $liveBrandStyles = bandpromo_brand_player_styles_for_ids($root, [$brandId]);
+        if ($liveBrandStyles !== []) {
+            $brandStyles = bandpromo_playlist_normalize_stored_brand_styles($liveBrandStyles);
         }
-        $brandId = trim((string) ($track['brand_id'] ?? ''));
-        if ($brandId !== '') {
-            $brandIds[] = $brandId;
-        }
-    }
-    $liveBrandStyles = bandpromo_brand_player_styles_for_ids($root, $brandIds);
-    if ($liveBrandStyles !== []) {
-        $brandStyles = bandpromo_playlist_normalize_stored_brand_styles($liveBrandStyles);
     }
 
     return [
         'playlist_id' => $playlistId,
         'playlist_slug' => bandpromo_playlist_public_slug($root, $playlistId),
         'playlist_title' => (string) ($document['title'] ?? $playlistId),
+        'release_id' => bandpromo_release_normalize_id(trim((string) ($document['release_id'] ?? ''))),
+        'brand_id' => $brandId,
         'preferred_audio_variant' => $preferredVariant,
         'delivery_summary' => $deliverySummary,
         'brand_styles' => $brandStyles,

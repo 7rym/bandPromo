@@ -205,17 +205,8 @@ if ($supportEnabled && $supportUrl !== '') {
     <link rel="manifest" href="<?php echo htmlspecialchars($origin, ENT_QUOTES, 'UTF-8'); ?>/site.webmanifest?v=<?php echo rawurlencode($appVersion); ?>">
     <?php
     require_once __DIR__ . '/../biblioteca/brand-storage.php';
-    $playerBrandId = bandpromo_brand_active_id($playerRoot);
-    $brandSourceTrack = is_array($song) ? $song : ($playlistTracks[0] ?? null);
-    if (is_array($brandSourceTrack)) {
-        $playerBrandId = trim((string) ($brandSourceTrack['brand_id'] ?? ''));
-        if ($playerBrandId === '') {
-            $playerBrandId = bandpromo_release_effective_brand_id(
-                $playerRoot,
-                (string) ($brandSourceTrack['release_id'] ?? '')
-            );
-        }
-    }
+    $installActiveBrandId = bandpromo_brand_active_id($playerRoot);
+    $playerBrandId = bandpromo_playlist_effective_brand_id($playerRoot, $activePlaylistId);
     $themeColorMeta = '#121212';
     try {
         $brandDocForMeta = bandpromo_brand_load_document($playerRoot, $playerBrandId);
@@ -234,7 +225,8 @@ if ($supportEnabled && $supportUrl !== '') {
     echo bandpromo_brand_render_css_for_id($playerRoot, $playerBrandId);
     ?>
     <script>
-        window.BANDPROMO_ACTIVE_BRAND_ID = <?php echo json_encode($playerBrandId); ?>;
+        window.BANDPROMO_ACTIVE_BRAND_ID = <?php echo json_encode($installActiveBrandId); ?>;
+        window.BANDPROMO_PLAYLIST_BRAND_ID = <?php echo json_encode($playerBrandId); ?>;
     </script>
 </head>
 <body>

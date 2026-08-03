@@ -1453,7 +1453,7 @@ if ($tab === 'analytics') {
                 <?php elseif ($contentTab === 'pages'): ?>
                     Campaign pages (for example Bio) are owned by a release. FAQ is required for the login info lightbox. Today, other pages appear in the player only when enabled under Content → Player (site-wide). Target: also show pages associated to the playing track’s release.
                 <?php elseif ($contentTab === 'themes'): ?>
-                    Branding is owned by a release. Edit colors, typography, narrative, and shell media here. bandPromo Default stays locked — duplicate it for a new release. Saving the active brand syncs shell media into site config (login baseline); player CSS tokens follow the playing track’s release brand.
+                    Branding has two layers. <strong>Active</strong> is the install baseline (login + shell media in config). <strong>Release brand</strong> (set on the Catalogue release that owns the playlist) drives player color/typography when that playlist is selected — tracks do not carry their own brand. Shell media (logo/backgrounds) stay on Active until per-release shell override ships. bandPromo Default stays locked — duplicate it. Saving Active syncs shell paths into site config. Full publish no longer resets Active to the demo brand.
                 <?php elseif ($contentTab === 'player'): ?>
                     Choose Still or Living for the player shell background, then arrange layout tabs. Playlist and Lyrics always stay first. Optional pages here are global (always on). Assign still/living media under Content → Branding. Shift/Ctrl-click moves multiple items together.
                 <?php endif; ?>

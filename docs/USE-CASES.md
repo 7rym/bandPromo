@@ -46,7 +46,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 - Release owns track pool + associations to playlists / galleries / pages (exclusive — no stealing across releases).
 - Playlist catalog exposure by `publish_date` (empty date = public), demo visibility, and non-empty tracks.
-- Player brand **CSS tokens** follow the **playing track’s** catalog release brand (else install active brand).
+- Player brand **CSS tokens** follow the **selected playlist’s** owning release brand (else install active brand). Tracks do not carry player brand.
 - Content → Player can enable **global** page tabs (`show_in_player`). FAQ stays login/global (info lightbox), not a release Bio.
 
 ### Target / planned (not shipped)
@@ -102,7 +102,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 | Page tabs in player | Global `show_in_player` only | Globals + release-contextual |
 | FAQ | Required login/global surface | Same (not a campaign Bio) |
 | Gallery in player | Page with gallery blocks | Same (no Gallery module tab) |
-| Brand tokens in player | Track → release brand → active fallback | Same |
+| Brand tokens in player | Playlist → owning release brand → active fallback | Same |
 | Brand shell media in player | Active brand via config | Per-release shell override |
 | Lyrics vs Tracklist label | Site-wide label only | Per-track role |
 

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 11:10 - Player branding follows the selected playlist’s owning release (`playlist.release_id` → release brand), not per-track `brand_id`. Playlist payload exposes `brand_id` + `brand_styles`; tracks no longer carry player brand. Docs and Branding help updated. Also: full Publish no longer resets install Active brand to bandPromo Default (Demo Release seed claims Active only when the pointer is empty).
+
+2026-08-03 10:55 - Stop full Publish from resetting the install Active brand to bandPromo Default: Demo Release ensure/seed no longer claims `active_brand_id` when an operator brand is already set (first-run empty pointer only). Clarify Branding help — Active = login/shell baseline; player tokens follow the playing track’s release brand, not the opened playlist.
+
 2026-08-02 22:55 - Release cover picker: queue overlapping autosaves so a new cover is not dropped while another save is in flight; keep a pending preview URL after selection; map registry intake aliases (`img`/`photo`) to real `/media/...` paths; fall back visual preview URLs to intake originals when delivery variants are missing.
 
 2026-08-02 22:40 - Site update discovery: when `api.github.com` is blocked, resolve the newest package from the public Releases Atom feed (includes prereleases) before falling back to `/releases/latest`. Publish closed-beta packages as GitHub latest (`prerelease=false`) so stuck hosts still see updates. Includes track-editor Title/Version + optional Release name fix from build 350.

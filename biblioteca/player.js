@@ -1320,17 +1320,16 @@ function playlistSlugForId(playlistId) {
     return String(match?.slug || id);
 }
 
-function applyBrandForTrack(song) {
-    let brandId = song && typeof song === 'object'
-        ? String(song.brand_id || '').trim()
-        : '';
-    if (!brandId) {
-        brandId = String(window.BANDPROMO_ACTIVE_BRAND_ID || '').trim();
+function applyPlaylistBrand(brandId) {
+    let resolvedBrandId = String(brandId || window.BANDPROMO_PLAYLIST_BRAND_ID || '').trim();
+    if (!resolvedBrandId) {
+        resolvedBrandId = String(window.BANDPROMO_ACTIVE_BRAND_ID || '').trim();
     }
-    if (!brandId) {
+    if (!resolvedBrandId) {
         return;
     }
-    const brand = brandStylesById[brandId];
+    window.BANDPROMO_PLAYLIST_BRAND_ID = resolvedBrandId;
+    const brand = brandStylesById[resolvedBrandId];
     if (!brand || !brand.css_variables || typeof brand.css_variables !== 'object') {
         return;
     }
@@ -1631,7 +1630,11 @@ async function loadConfig() {
         if (data.playlist_slug) {
             window.BANDPROMO_PLAYLIST_SLUG = data.playlist_slug;
         }
+        if (data.brand_id) {
+            window.BANDPROMO_PLAYLIST_BRAND_ID = String(data.brand_id).trim();
+        }
         updateOperatorDeliveryNotice(data.delivery_summary || null);
+        applyPlaylistBrand(window.BANDPROMO_PLAYLIST_BRAND_ID);
         
         // Start player if we got data
         if (playList.length > 0) {
@@ -1644,7 +1647,6 @@ async function loadConfig() {
             }
             initPlayer(currentIndex);
             renderPlaylist();
-            applyBrandForTrack(playList[currentIndex]);
             if (playList[currentIndex]) {
                 updatePlaylistHistory(playList[currentIndex]);
             }
@@ -1935,7 +1937,6 @@ function initPlayer(index) {
 // Update visuals (Text, Images, Side-covers)
 function updateVisuals(index) {
     const song = playList[index];
-    applyBrandForTrack(song);
     
     // Main info
     songTitle.innerText = song.title;

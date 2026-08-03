@@ -101,6 +101,25 @@ function bandpromo_release_campaign_is_allowed_entry(string $relativePath): bool
 }
 
 /**
+ * Demo/campaign import may claim the install active brand only on first run.
+ * Routine full builds must not reset an operator-chosen active brand (e.g. HITZ).
+ */
+function bandpromo_release_campaign_should_claim_active_brand(string $root): bool
+{
+    require_once __DIR__ . '/config-loader.php';
+    require_once __DIR__ . '/theme-storage.php';
+
+    $config = bandpromo_load_runtime_config_raw($root . '/web-config.json');
+    $active = bandpromo_brand_canonical_id((string) bandpromo_config_get_path(
+        $config,
+        'install.pointers.active_brand_id',
+        ''
+    ));
+
+    return $active === '';
+}
+
+/**
  * @param array{mode?: string, allow_demo_overwrite?: bool, set_active_brand?: bool} $options
  * @return array{ok: bool, release_id: string, message: string, imported_files: int, ownership: array}
  */
@@ -113,6 +132,9 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
     $setActiveBrand = array_key_exists('set_active_brand', $options)
         ? !empty($options['set_active_brand'])
         : ($mode === 'demo' || $mode === 'setup');
+    if ($setActiveBrand && !bandpromo_release_campaign_should_claim_active_brand($root)) {
+        $setActiveBrand = false;
+    }
 
     $sourceReleaseId = $manifest['release_id'];
     $targetReleaseId = $sourceReleaseId;
@@ -389,7 +411,9 @@ function bandpromo_release_campaign_seed_demo_from_templates(string $root): arra
     return bandpromo_release_campaign_import_from_directory($root, $packageDir, [
         'mode' => 'demo',
         'allow_demo_overwrite' => true,
-        'set_active_brand' => true,
+        // Local template re-seed runs on every full build when the remote demo
+        // package is already installed — never steal the operator active brand.
+        'set_active_brand' => false,
     ]);
 }
 
@@ -440,7 +464,8 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 $import = bandpromo_release_campaign_import_from_zip($root, $downloadPath, [
                     'mode' => 'demo',
                     'allow_demo_overwrite' => true,
-                    'set_active_brand' => true,
+                    // First install may claim active brand; later package refreshes must not.
+                    'set_active_brand' => bandpromo_release_campaign_should_claim_active_brand($root),
                 ]);
                 bandpromo_json_write_file($markerPath, [
                     'version' => (string) ($demoPackage['version'] ?? ''),

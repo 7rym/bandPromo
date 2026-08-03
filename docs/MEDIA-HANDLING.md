@@ -132,7 +132,7 @@ Under the hood, brand documents and `release.brand_id` links are already the own
 
 The practical distinction is:
 
-- exposed now: Catalogue + Branding editor; active brand pointer; player CSS tokens from the playing track’s release brand
+- exposed now: Catalogue + Branding editor; active brand pointer; player CSS tokens from the selected playlist’s owning release brand
 - prepared / planned: per-release shell media in the player (Brand shell override runtime); hard content-pool scoping
 - do **not** plan “many releases share one era brand” as peer Releases — use playlists under one Release
 

@@ -122,11 +122,13 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 | Layer | Role |
 |-------|------|
-| Install **active** brand (`install.pointers.active_brand_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a release has no valid `brand_id` |
-| Release brand (`release.brand_id`) | Player **CSS tokens** while a track from that release plays (resolved from the track’s catalog `asset.release_id`, not from playlist ownership) |
+| Install **active** brand (`install.pointers.active_brand_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id` |
+| Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
 | Demo `bandpromo-default` | Seed identity for the demo release; often the install active brand on fresh installs |
 
-Opening a playlist does **not** rewrite active brand or shell config — only token overlay. Per-release shell media in the player is **planned** ([TODO.md](TODO.md) Brand shell override runtime).
+Selecting a playlist applies that release’s tokens only — it does **not** rewrite active brand or shell config. Per-release shell media in the player is **planned** ([TODO.md](TODO.md) Brand shell override runtime).
+
+**Publish must not steal Active:** Demo Release package ensure/seed on full build may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
 **Player nav — current vs target:**
 
@@ -625,7 +627,7 @@ Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`.
 - Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
 - **Set active** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).
 - Duplicate still clones shell media so the copy has deletable files.
-- Player token overlay uses the playing track’s release brand; see Operator mental model above.
+- Player token overlay uses the selected playlist’s owning release brand; see Operator mental model above.
 
 ### Semantic color and layout tokens
 

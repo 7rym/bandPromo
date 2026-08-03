@@ -51,7 +51,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Artwork and lightbox support (including page images)
 - Post-login splash shows the install logo with **Preparing your experience…** before entering the player
 - Shell **background image/video** from brand settings on both **login and player** (still paints first; living video attaches after load/idle; still-only when reduced motion / slow link / Still mode)
-- Player brand colors resolve **live** from brand documents (Content → Branding edits apply without waiting for a full Publish)
+- Player brand colors resolve **live** from the selected playlist’s owning release brand (Content → Branding edits apply without waiting for a full Publish); tracks do not carry player brand
 - Player audio uses `preload="none"` until Play so large MP3 range GETs do not stall first-paint thumbs
 
 ### Build & Delivery
