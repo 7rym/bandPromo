@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 12:57 - Post-upload delivery false failure: parse the JSON result from light Python tasks even when cover-conversion progress printed on stdout; route delivery-script progress to stderr so PHP sees a clean JSON payload.
+
 2026-08-03 12:46 - Hotfix HITZ deliverables: `stdio_utf8.py` no longer uses `from __future__ import annotations` (SyntaxError on host Python &lt; 3.7).
 
 2026-08-03 12:40 - Fix post-upload audio delivery prep: light Python tasks now receive a resolved `FFMPEG_PATH`, ffmpeg detection checks bundled `scripts/bin` and return codes, and UTF-8 stdout setup is idempotent so importing `makePlaylists` + `optimizeMedia` no longer closes stdout (`ValueError: I/O operation on closed file` on HITZ FLAC uploads).

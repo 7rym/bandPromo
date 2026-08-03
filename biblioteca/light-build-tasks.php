@@ -172,6 +172,48 @@ function bandpromo_run_light_task(string $script_relative_path, array $env_extra
     ];
 }
 
+function bandpromo_decode_light_json_output(string $stdout): ?array {
+    $trimmed = trim($stdout);
+    if ($trimmed === '') {
+        return null;
+    }
+
+    $decoded = json_decode($trimmed, true);
+    if (is_array($decoded)) {
+        return $decoded;
+    }
+
+    // Library helpers may print progress on stdout before the JSON payload.
+    $lines = preg_split('/\r\n|\r|\n/', $trimmed);
+    if (!is_array($lines)) {
+        return null;
+    }
+
+    for ($i = count($lines) - 1; $i >= 0; $i--) {
+        $line = trim((string) $lines[$i]);
+        if ($line === '') {
+            continue;
+        }
+        $first = $line[0];
+        if ($first !== '{' && $first !== '[') {
+            continue;
+        }
+        $decoded = json_decode($line, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    if (preg_match('/(\{.*\}|\[.*\])\s*$/s', $trimmed, $matches)) {
+        $decoded = json_decode($matches[1], true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    return null;
+}
+
 function bandpromo_run_light_json_task(string $script_relative_path, array $payload): array {
     $root_dir = dirname(__DIR__);
 
@@ -237,10 +279,7 @@ function bandpromo_run_light_json_task(string $script_relative_path, array $payl
 
     $exit_code = proc_close($process);
     $output = trim((string) $stdout . (string) $stderr);
-    $decoded = null;
-    if ($stdout !== false && trim($stdout) !== '') {
-        $decoded = json_decode(trim($stdout), true);
-    }
+    $decoded = ($stdout !== false) ? bandpromo_decode_light_json_output((string) $stdout) : null;
 
     return [
         'ok' => $exit_code === 0,

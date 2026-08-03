@@ -6,13 +6,18 @@ from pathlib import Path
 import stdio_utf8
 stdio_utf8.configure()
 
+# Keep machine-readable JSON on the real stdout pipe; library progress prints go to stderr.
+_JSON_OUT = sys.stdout
+if sys.stderr is not None and sys.stderr is not _JSON_OUT:
+    sys.stdout = sys.stderr
+
 import optimizeMedia as om
 
 
 def emit_json(payload):
     text = json.dumps(payload, ensure_ascii=False)
     streams = []
-    for candidate in (sys.stdout, getattr(sys, '__stdout__', None), sys.stderr):
+    for candidate in (_JSON_OUT, getattr(sys, '__stdout__', None), sys.stderr):
         if candidate is not None and candidate not in streams:
             streams.append(candidate)
     for stream in streams:
