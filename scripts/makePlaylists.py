@@ -3,6 +3,7 @@ import sys
 import stdio_utf8
 stdio_utf8.configure()
 
+import hashlib
 import os
 import json
 import re
@@ -708,18 +709,100 @@ def get_assigned_cover_from_registry(audio_filename):
     return cover
 
 
-def extract_embedded_cover_to_stem(filename, base_filename):
-    """
-    Legacy fallback: write embedded art to media/img/original/{stem}.ext
-    only when that stem file does not already exist.
-    Returns basename or None.
-    """
+def load_asset_registry_payload():
+    if not ASSET_REGISTRY_FILE.exists():
+        return {'assets': {}}
+    try:
+        with open(str(ASSET_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+    except Exception:
+        return {'assets': {}}
+    return payload if isinstance(payload, dict) else {'assets': {}}
+
+
+def save_asset_registry_payload(payload):
+    ASSET_REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(str(ASSET_REGISTRY_FILE), 'w', encoding='utf-8') as handle:
+        json.dump(payload, handle, indent=2, ensure_ascii=False)
+        handle.write('\n')
+
+
+def find_visual_original_by_content_sha256(digest):
+    digest = str(digest or '').strip().lower()
+    if not digest:
+        return None
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset in assets.values():
+        if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+            continue
+        if str(asset.get('media_type') or '') != 'image':
+            continue
+        if str(asset.get('content_sha256') or '').strip().lower() == digest:
+            name = os.path.basename(str(asset.get('original_filename') or '').strip())
+            if name:
+                return name
+    return None
+
+
+def set_audio_display_cover(audio_filename, cover_filename):
+    """Point audio asset display.cover at an existing pool original (no file copy)."""
+    audio_name = os.path.basename(str(audio_filename or '').strip())
+    cover_name = os.path.basename(str(cover_filename or '').strip())
+    if not audio_name or not cover_name:
+        return False
+
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset_id, asset in list(assets.items()):
+        if not isinstance(asset, dict) or asset.get('kind') != 'audio':
+            continue
+        original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if audio_name not in {original_name, master_name}:
+            continue
+        display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+        display['cover'] = cover_name
+        asset['display'] = display
+        assets[asset_id] = asset
+        payload['assets'] = assets
+        save_asset_registry_payload(payload)
+        return True
+    return False
+
+
+def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
+    """Store content_sha256 on the visual registry row for this original filename."""
+    safe_name = os.path.basename(str(filename or '').strip())
+    digest = str(digest or '').strip().lower()
+    if not safe_name or not digest:
+        return
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset_id, asset in list(assets.items()):
+        if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+            continue
+        original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+        if original_name != safe_name:
+            continue
+        if str(asset.get('content_sha256') or '').strip().lower() == digest:
+            return
+        asset['content_sha256'] = digest
+        if not str(asset.get('intake_bucket') or '').strip():
+            asset['intake_bucket'] = intake_bucket
+        assets[asset_id] = asset
+        payload['assets'] = assets
+        save_asset_registry_payload(payload)
+        return
+
+
+def read_embedded_cover_bytes(filename):
+    """Return (bytes, ext) for the first embedded picture, or None."""
     try:
         audio = File(filename)
         if audio is None:
             return None
 
-        # MP3 / ID3 APIC frames
         if audio.tags:
             for key in audio.tags.keys():
                 if key.startswith('APIC') or key.startswith('APIC:'):
@@ -728,17 +811,10 @@ def extract_embedded_cover_to_stem(filename, base_filename):
                         data = getattr(apic, 'data', None)
                         mime = getattr(apic, 'mime', 'image/jpeg')
                         if data:
-                            ext = '.png' if 'png' in mime.lower() else '.jpg'
-                            outname_full = IMG_ORIG_DIR / (base_filename + ext)
-                            outname_filename = base_filename + ext
-                            if not outname_full.exists():
-                                IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-                                with open(str(outname_full), 'wb') as imgf:
-                                    imgf.write(data)
-                                print(f"✓ Extracted ID3 APIC (legacy fallback): {outname_filename}")
-                            return outname_filename
+                            ext = '.png' if 'png' in str(mime).lower() else '.jpg'
+                            return (data, ext)
                     except Exception as e:
-                        print(f"✗ Error extracting ID3 APIC: {e}")
+                        print(f"✗ Error reading ID3 APIC: {e}")
 
         pics = getattr(audio, 'pictures', None)
         if pics and len(pics) > 0:
@@ -747,21 +823,66 @@ def extract_embedded_cover_to_stem(filename, base_filename):
                 data = getattr(pic, 'data', None)
                 mime = getattr(pic, 'mime', 'image/jpeg')
                 if data:
-                    ext = '.png' if 'png' in mime.lower() else '.jpg'
-                    outname_full = IMG_ORIG_DIR / (base_filename + ext)
-                    outname_filename = base_filename + ext
-                    if not outname_full.exists():
-                        IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-                        with open(str(outname_full), 'wb') as imgf:
-                            imgf.write(data)
-                        print(f"✓ Extracted FLAC picture (legacy fallback): {outname_filename}")
-                    return outname_filename
+                    ext = '.png' if 'png' in str(mime).lower() else '.jpg'
+                    return (data, ext)
             except Exception as e:
-                print(f"✗ Error extracting FLAC picture: {e}")
+                print(f"✗ Error reading FLAC picture: {e}")
     except Exception as e:
         print(f"✗ Error reading file for embedded cover: {e}")
 
     return None
+
+
+def extract_embedded_cover_to_stem(filename, base_filename):
+    """
+    Legacy fallback: reuse an existing Visual original with the same content hash,
+    or write embedded art to media/img/original/{stem}.ext once.
+    Returns basename or None.
+    """
+    embedded = read_embedded_cover_bytes(filename)
+    if not embedded:
+        return None
+
+    data, ext = embedded
+    digest = hashlib.sha256(data).hexdigest()
+    existing = find_visual_original_by_content_sha256(digest)
+    if existing:
+        set_audio_display_cover(filename, existing)
+        print(f"✓ Reused pool cover for embedded art (hash match): {existing}")
+        return existing
+
+    # Also match any existing pool original with identical bytes (hash not yet stored).
+    for folder in (IMG_ORIG_DIR, PHOTO_ORIG_DIR):
+        if not folder.exists():
+            continue
+        for entry in folder.iterdir():
+            if not entry.is_file():
+                continue
+            if entry.name.lower() == 'desktop.ini':
+                continue
+            try:
+                if hashlib.sha256(entry.read_bytes()).hexdigest() == digest:
+                    ensure_visual_content_sha256_on_file(
+                        entry.name,
+                        digest,
+                        'photo' if folder == PHOTO_ORIG_DIR else 'img',
+                    )
+                    set_audio_display_cover(filename, entry.name)
+                    print(f"✓ Linked embedded art to existing pool file: {entry.name}")
+                    return entry.name
+            except Exception:
+                continue
+
+    outname_full = IMG_ORIG_DIR / (base_filename + ext)
+    outname_filename = base_filename + ext
+    if not outname_full.exists():
+        IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+        with open(str(outname_full), 'wb') as imgf:
+            imgf.write(data)
+        print(f"✓ Extracted embedded cover (legacy fallback): {outname_filename}")
+    ensure_visual_content_sha256_on_file(outname_filename, digest, 'img')
+    set_audio_display_cover(filename, outname_filename)
+    return outname_filename
 
 
 def get_cover(filename):
@@ -770,6 +891,7 @@ def get_cover(filename):
     1) Operator-assigned Visual pool cover (asset registry display.cover)
     2) Legacy stem sidecar in media/img/original/{stem}.ext (no extract)
     3) Extract embedded art only when no assigned/sidecar cover exists
+       (or link to an existing pool file with identical bytes)
     4) Configured release cover from web-config.json
     Returns (filename, source) where source is one of:
     assigned, sidecar, embedded, configured, missing

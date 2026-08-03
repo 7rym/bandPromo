@@ -471,6 +471,29 @@ def main():
         sync_embedded_cover(path, image_path)
         respond({'ok': True, 'filename': path.name})
 
+    if action == 'sync_delivery_tags':
+        # Patch ID3 on existing optimal MP3 from the (already updated) master — no transcode.
+        import optimizeMedia as om
+
+        delivery_name = path.stem + '.mp3'
+        delivery_path = om.AUDIO_OPT_DIR / delivery_name
+        if not delivery_path.is_file():
+            respond({
+                'ok': False,
+                'error': 'delivery_mp3_missing',
+                'filename': path.name,
+                'delivery': delivery_name,
+            }, 0)
+
+        tags = om.get_audio_tags(str(path))
+        om.set_id3_tags(str(delivery_path), tags)
+        respond({
+            'ok': True,
+            'filename': path.name,
+            'delivery': delivery_name,
+            'synced': True,
+        })
+
     respond({'ok': False, 'error': 'Unsupported action'}, 1)
 
 

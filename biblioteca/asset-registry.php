@@ -135,6 +135,85 @@ function bandpromo_asset_visual_original_path(string $root, array $asset): strin
     return $dir === '' ? '' : ($dir . '/' . $filename);
 }
 
+function bandpromo_asset_file_sha256(string $path): string
+{
+    if ($path === '' || !is_file($path)) {
+        return '';
+    }
+    $hash = @hash_file('sha256', $path);
+
+    return is_string($hash) ? strtolower($hash) : '';
+}
+
+function bandpromo_asset_bytes_sha256(string $bytes): string
+{
+    if ($bytes === '') {
+        return '';
+    }
+
+    return strtolower(hash('sha256', $bytes));
+}
+
+/**
+ * Find a visual image asset whose intake original matches this content hash.
+ */
+function bandpromo_asset_lookup_visual_by_content_sha256(string $root, string $sha256): ?array
+{
+    $sha256 = strtolower(trim($sha256));
+    if ($sha256 === '' || !preg_match('/^[a-f0-9]{64}$/', $sha256)) {
+        return null;
+    }
+
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        if (($asset['media_type'] ?? '') !== 'image') {
+            continue;
+        }
+        if (strtolower(trim((string) ($asset['content_sha256'] ?? ''))) === $sha256) {
+            return bandpromo_asset_normalize_entry($asset);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Ensure content_sha256 is stored for a visual asset from its intake original bytes.
+ */
+function bandpromo_asset_ensure_visual_content_sha256(string $root, string $assetId): string
+{
+    $registry = bandpromo_asset_load_registry($root);
+    $assetId = trim($assetId);
+    if (!isset($registry['assets'][$assetId]) || !is_array($registry['assets'][$assetId])) {
+        return '';
+    }
+    $asset = $registry['assets'][$assetId];
+    if (($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
+        return '';
+    }
+    $existing = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
+    if ($existing !== '') {
+        return $existing;
+    }
+    $path = bandpromo_asset_visual_original_path($root, $asset);
+    $hash = bandpromo_asset_file_sha256($path);
+    if ($hash === '') {
+        return '';
+    }
+    $asset['content_sha256'] = $hash;
+    $normalized = bandpromo_asset_normalize_entry($asset);
+    if ($normalized === null) {
+        return '';
+    }
+    $registry['assets'][$assetId] = $normalized;
+    bandpromo_asset_write_registry($root, $registry);
+
+    return $hash;
+}
+
 function bandpromo_asset_infer_media_type_from_filename(string $filename): string
 {
     $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
@@ -279,6 +358,7 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
             'display' => is_array($entry['display'] ?? null) ? $entry['display'] : [],
             'tags' => $tags,
             'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [],
+            'content_sha256' => strtolower(trim((string) ($entry['content_sha256'] ?? ''))),
             'created_at' => trim((string) ($entry['created_at'] ?? gmdate('c'))),
         ];
     }
@@ -628,8 +708,21 @@ function bandpromo_asset_register_visual(
         if (array_key_exists('has_alpha', $options)) {
             $changes['has_alpha'] = !empty($options['has_alpha']);
         }
+        if (isset($options['content_sha256'])) {
+            $changes['content_sha256'] = (string) $options['content_sha256'];
+        }
         if ($changes !== []) {
-            return bandpromo_asset_update_entry($root, (string) $existing['id'], $changes);
+            $updated = bandpromo_asset_update_entry($root, (string) $existing['id'], $changes);
+            if (trim((string) ($updated['content_sha256'] ?? '')) === '') {
+                bandpromo_asset_ensure_visual_content_sha256($root, (string) ($updated['id'] ?? ''));
+                $updated = bandpromo_asset_lookup_by_id($root, (string) ($updated['id'] ?? '')) ?? $updated;
+            }
+
+            return $updated;
+        }
+        if (trim((string) ($existing['content_sha256'] ?? '')) === '') {
+            bandpromo_asset_ensure_visual_content_sha256($root, (string) ($existing['id'] ?? ''));
+            $existing = bandpromo_asset_lookup_by_id($root, (string) ($existing['id'] ?? '')) ?? $existing;
         }
 
         return $existing;
@@ -645,6 +738,7 @@ function bandpromo_asset_register_visual(
         $brandId = bandpromo_asset_active_brand_id($root);
     }
 
+    $contentSha = strtolower(trim((string) ($options['content_sha256'] ?? '')));
     $entry = [
         'id' => $assetId,
         'kind' => 'visual',
@@ -661,6 +755,7 @@ function bandpromo_asset_register_visual(
         'display' => [],
         'tags' => [$role],
         'delivery' => [],
+        'content_sha256' => $contentSha,
         'created_at' => gmdate('c'),
     ];
 
@@ -670,7 +765,12 @@ function bandpromo_asset_register_visual(
     $registry['by_original_filename'][$originalFilename] = $assetId;
     bandpromo_asset_write_registry($root, $registry);
 
-    return bandpromo_asset_normalize_entry($entry) ?? $entry;
+    if ($contentSha === '') {
+        bandpromo_asset_ensure_visual_content_sha256($root, $assetId);
+    }
+
+    return bandpromo_asset_lookup_by_id($root, $assetId)
+        ?? (bandpromo_asset_normalize_entry($entry) ?? $entry);
 }
 
 function bandpromo_asset_register_audio_master(
@@ -741,6 +841,9 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     }
     if (array_key_exists('has_alpha', $changes)) {
         $entry['has_alpha'] = !empty($changes['has_alpha']);
+    }
+    if (array_key_exists('content_sha256', $changes)) {
+        $entry['content_sha256'] = strtolower(trim((string) $changes['content_sha256']));
     }
     if (isset($changes['display']) && is_array($changes['display'])) {
         $existingDisplay = is_array($entry['display'] ?? null) ? $entry['display'] : [];
@@ -969,6 +1072,164 @@ function bandpromo_asset_registry_prune_duplicate_visuals(array &$registry): boo
     }
 
     return $changed;
+}
+
+/**
+ * Backfill content_sha256 on visual image assets from intake originals.
+ */
+function bandpromo_asset_registry_backfill_visual_content_hashes(string $root, array &$registry): bool
+{
+    if (!isset($registry['assets']) || !is_array($registry['assets'])) {
+        return false;
+    }
+
+    $changed = false;
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
+            continue;
+        }
+        if (strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== '') {
+            continue;
+        }
+        $path = bandpromo_asset_visual_original_path($root, $asset);
+        $hash = bandpromo_asset_file_sha256($path);
+        if ($hash === '') {
+            continue;
+        }
+        $asset['content_sha256'] = $hash;
+        $normalized = bandpromo_asset_normalize_entry($asset);
+        if ($normalized === null) {
+            continue;
+        }
+        $registry['assets'][$assetId] = $normalized;
+        $changed = true;
+    }
+
+    return $changed;
+}
+
+/**
+ * Collapse visual images that share identical intake bytes into one asset.
+ * Re-points audio display.cover and deletes redundant originals + delivery dirs.
+ *
+ * @return array{changed: bool, removed: int, relinked: int}
+ */
+function bandpromo_asset_registry_dedupe_visuals_by_content_hash(string $root, array &$registry): array
+{
+    $result = ['changed' => false, 'removed' => 0, 'relinked' => 0];
+    if (!isset($registry['assets']) || !is_array($registry['assets'])) {
+        return $result;
+    }
+
+    $byHash = [];
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
+            continue;
+        }
+        $hash = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
+        if ($hash === '') {
+            continue;
+        }
+        $byHash[$hash][] = (string) $assetId;
+    }
+
+    $replacements = []; // discarded original_filename => kept original_filename
+    $removeIds = [];
+
+    foreach ($byHash as $hash => $ids) {
+        if (count($ids) < 2) {
+            continue;
+        }
+
+        $preferred = $ids[0];
+        $bestScore = -1;
+        foreach ($ids as $assetId) {
+            $asset = $registry['assets'][$assetId] ?? null;
+            if (!is_array($asset)) {
+                continue;
+            }
+            $role = (string) ($asset['role'] ?? 'unassigned');
+            $name = basename((string) ($asset['original_filename'] ?? ''));
+            $score = 0;
+            if ($role === 'track-cover') {
+                $score += 10;
+            }
+            if ($role !== 'unassigned') {
+                $score += 5;
+            }
+            // Prefer human upload names over ULID/stem extracts.
+            if ($name !== '' && !preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}/i', $name)) {
+                $score += 3;
+            }
+            $created = (string) ($asset['created_at'] ?? '');
+            if ($score > $bestScore || ($score === $bestScore && strcmp($created, (string) ($registry['assets'][$preferred]['created_at'] ?? '')) < 0)) {
+                $bestScore = $score;
+                $preferred = $assetId;
+            }
+        }
+
+        $keptName = basename((string) ($registry['assets'][$preferred]['original_filename'] ?? ''));
+        if ($keptName === '') {
+            continue;
+        }
+
+        foreach ($ids as $assetId) {
+            if ($assetId === $preferred) {
+                continue;
+            }
+            $discardName = basename((string) ($registry['assets'][$assetId]['original_filename'] ?? ''));
+            if ($discardName !== '') {
+                $replacements[$discardName] = $keptName;
+            }
+            $removeIds[] = $assetId;
+        }
+    }
+
+    if ($removeIds === []) {
+        return $result;
+    }
+
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+        $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+        $cover = basename(trim((string) ($display['cover'] ?? '')));
+        if ($cover === '' || !isset($replacements[$cover])) {
+            continue;
+        }
+        $display['cover'] = $replacements[$cover];
+        $asset['display'] = $display;
+        $normalized = bandpromo_asset_normalize_entry($asset);
+        if ($normalized === null) {
+            continue;
+        }
+        $registry['assets'][$assetId] = $normalized;
+        $result['relinked']++;
+        $result['changed'] = true;
+    }
+
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    foreach ($removeIds as $assetId) {
+        $asset = $registry['assets'][$assetId] ?? null;
+        if (!is_array($asset)) {
+            continue;
+        }
+        $path = bandpromo_asset_visual_original_path($root, $asset);
+        $original = basename((string) ($asset['original_filename'] ?? ''));
+        unset($registry['assets'][$assetId]);
+        if ($original !== '') {
+            unset($registry['by_original_filename'][$original], $registry['by_master_filename'][$original]);
+        }
+        if ($path !== '' && is_file($path)) {
+            @unlink($path);
+        }
+        bandpromo_visual_delivery_delete_for_asset($root, $assetId);
+        $result['removed']++;
+        $result['changed'] = true;
+    }
+
+    return $result;
 }
 
 function bandpromo_asset_find_unregistered_master_match(string $root, string $originalFilename): ?array
@@ -1329,6 +1590,15 @@ function bandpromo_asset_registry_ensure_migrated(string $root): void
     }
 
     if (bandpromo_asset_registry_prune_duplicate_visuals($registry)) {
+        $changed = true;
+    }
+
+    if (bandpromo_asset_registry_backfill_visual_content_hashes($root, $registry)) {
+        $changed = true;
+    }
+
+    $hashDedupe = bandpromo_asset_registry_dedupe_visuals_by_content_hash($root, $registry);
+    if (!empty($hashDedupe['changed'])) {
         $changed = true;
     }
 

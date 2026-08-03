@@ -1013,14 +1013,15 @@ Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regene
 - [x] Content pools gate on **required variants present** (`thumb`+`card` / `poster`+`standard-stream`); UI names missing variants; undelivered tiles disabled in pickers and non-draggable in gallery (2026-07-21)
 - [x] Track-cover assign stores pool filename ref + embeds into the master; does **not** copy to `{audio_stem}.ext`. Build `get_cover()` prefers assigned registry cover; extract-to-pool only for legacy masters with no assignment (2026-07-21)
 
-#### Track cover source of truth (2026-07-21)
+#### Track cover source of truth (2026-07-21, shared-cover update 2026-08-03)
 
 1. Operator-assigned Visual pool file (`display.cover` / registry) — preferred
 2. Legacy same-basename sidecar in `media/img/original/` (if still present)
-3. Extract embedded art only when no assigned/sidecar cover exists (legacy masters)
-4. Configured release cover fallback
+3. Embedded art: if bytes match an existing Visual original (`content_sha256` / exact SHA-256 of intake or embedded blob), **link only** — do not extract a new `{stem}.ext`
+4. Extract embedded art only when no assigned/sidecar/hash match exists
+5. Configured release cover fallback
 
-Assigned pool files are not duplicated as stem-named sidecars. A prune step removes redundant stem copies when a registry-linked pool cover already exists.
+Assigned pool files are not duplicated as stem-named sidecars. Many tracks may share one Visual `asset_id`. A migrate step collapses identical intake originals by content hash, re-points audio `display.cover`, and removes redundant files + delivery dirs.
 
 #### Non-goals for v0.8.4
 
@@ -1139,7 +1140,7 @@ This matrix defines the preferred future behavior.
 | Reorder playlist | none for delivery generation; save order only | Save immediately | No build warning |
 | Edit gallery entries or order | none for delivery generation in the common case | Save immediately | No build warning |
 | Edit bio/pages | none | Save immediately | No build warning |
-| Edit metadata in Files -> Audio | `playlist-scan`, sometimes `audio-delivery` if delivery tags/embed data must be rewritten | Run scan automatically; queue delivery rewrite only when necessary; suppress new pending work on true no-op saves | Explain exactly what changed and what is being regenerated |
+| Edit metadata in Files -> Audio | `playlist-scan` only when needed; `audio-delivery` only if the optimal MP3 is missing or cover/art bytes changed | Keep **last-good** player playlist payload (never wipe to empty); patch ID3 on existing delivery MP3 when present; quiet republish playlists that include the track; clear “Prepare your songs” when tag-only sync succeeds | `/play` stays up after a typo fix; explain only when delivery must regenerate |
 
 ### Naming guidance for admin UI
 

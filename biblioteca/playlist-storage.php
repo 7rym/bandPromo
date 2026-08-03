@@ -520,14 +520,19 @@ function bandpromo_playlist_clear_player_payload_fields(array $document): array
     return $document;
 }
 
-function bandpromo_playlist_invalidate_player_payloads_for_master(string $root, string $masterFile): int
+/**
+ * Playlist ids whose entries reference this audio master (or its original upload name).
+ *
+ * @return list<string>
+ */
+function bandpromo_playlist_ids_containing_master(string $root, string $masterFile): array
 {
     $masterFile = basename(trim($masterFile));
     if ($masterFile === '') {
-        return 0;
+        return [];
     }
 
-    $cleared = 0;
+    $ids = [];
     foreach (bandpromo_playlist_registry_entries($root) as $registryEntry) {
         if (!is_array($registryEntry)) {
             continue;
@@ -543,19 +548,63 @@ function bandpromo_playlist_invalidate_player_payloads_for_master(string $root, 
             continue;
         }
 
-        $matches = false;
         foreach ($document['entries'] ?? [] as $entry) {
             if (!is_array($entry)) {
                 continue;
             }
             if (bandpromo_playlist_entry_matches_audio_filename($root, $entry, $masterFile)) {
-                $matches = true;
+                $ids[] = $playlistId;
                 break;
             }
         }
-        if (!$matches) {
+    }
+
+    return array_values(array_unique($ids));
+}
+
+/**
+ * Rebuild player payloads for playlists that include this master without wiping first.
+ * Last-good tracks stay readable until each write completes.
+ *
+ * @return array{published: list<array<string, mixed>>, errors: list<array<string, string>>}
+ */
+function bandpromo_playlist_republish_player_payloads_for_master(string $root, string $masterFile): array
+{
+    $published = [];
+    $errors = [];
+
+    foreach (bandpromo_playlist_ids_containing_master($root, $masterFile) as $playlistId) {
+        try {
+            $published[] = bandpromo_playlist_publish_player_payload($root, $playlistId);
+        } catch (Throwable $throwable) {
+            $errors[] = [
+                'playlist_id' => $playlistId,
+                'error' => $throwable->getMessage(),
+            ];
+        }
+    }
+
+    return [
+        'published' => $published,
+        'errors' => $errors,
+    ];
+}
+
+function bandpromo_playlist_invalidate_player_payloads_for_master(string $root, string $masterFile): int
+{
+    $masterFile = basename(trim($masterFile));
+    if ($masterFile === '') {
+        return 0;
+    }
+
+    $cleared = 0;
+    foreach (bandpromo_playlist_ids_containing_master($root, $masterFile) as $playlistId) {
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
             continue;
         }
+
         if (!isset($document['tracks']) && !isset($document['player_built_at'])) {
             continue;
         }

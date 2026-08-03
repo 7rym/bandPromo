@@ -246,7 +246,67 @@ $updatedSidecarCover = array_key_exists('sidecar_cover', $cover_result)
 $data['sidecar_cover'] = $updatedSidecarCover;
 
 bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, is_array($data) ? $data : []);
-bandpromo_playlist_invalidate_player_payloads_for_master($root, $filename);
+
+// Keep last-good player payloads readable; never wipe to empty tracks on tag/cover save.
+$canonicalMaster = bandpromo_audio_master_canonical_filename($root, $filename);
+if ($canonicalMaster === '') {
+    $canonicalMaster = $filename;
+}
+
+require_once __DIR__ . '/auto-build-tasks.php';
+require_once __DIR__ . '/media-delivery-helpers.php';
+
+$deliveryReady = false;
+$deliverySynced = false;
+$deliveryPrepared = false;
+$autoTasks = [];
+
+$optimalExists = false;
+if (function_exists('bandpromo_asset_audio_delivery_ready')) {
+    require_once __DIR__ . '/publish-status-helpers.php';
+    $deliveryReady = bandpromo_asset_audio_delivery_ready($root, $canonicalMaster);
+}
+if (!$deliveryReady) {
+    $stem = pathinfo($canonicalMaster, PATHINFO_FILENAME);
+    $optimalPath = $root . '/media/audio/optimal/' . $stem . '.mp3';
+    $optimalExists = is_file($optimalPath);
+    $deliveryReady = $optimalExists;
+} else {
+    $optimalExists = true;
+}
+
+$tagsOnly = $metadata_changed && !$cover_changed;
+
+if ($optimalExists) {
+    $tagSync = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', [
+        'action' => 'sync_delivery_tags',
+        'filename' => $canonicalMaster,
+    ]);
+    $tagData = is_array($tagSync['data'] ?? null) ? $tagSync['data'] : null;
+    $deliverySynced = is_array($tagData) && !empty($tagData['ok']);
+    $autoTasks[] = 'delivery-tag-sync';
+}
+
+if (!$optimalExists || ($cover_changed && !$deliverySynced)) {
+    $delivery = bandpromo_run_audio_source_delivery_and_refresh([$canonicalMaster]);
+    $prepared = is_array($delivery['prepared'] ?? null) ? $delivery['prepared'] : [];
+    $deliveryPrepared = $prepared !== [];
+    $autoTasks[] = 'audio-delivery';
+    $stem = pathinfo($canonicalMaster, PATHINFO_FILENAME);
+    $optimalExists = is_file($root . '/media/audio/optimal/' . $stem . '.mp3');
+}
+
+$republish = bandpromo_playlist_republish_player_payloads_for_master($root, $canonicalMaster);
+$autoTasks[] = 'playlist-republish';
+
+$listenerReady = $optimalExists && ($deliverySynced || $deliveryPrepared || $deliveryReady);
+if ($listenerReady && empty($republish['errors'])) {
+    $build_state = bandpromo_clear_build_required_tasks(['audio-delivery']);
+} elseif ($cover_changed || !$optimalExists) {
+    $build_state = bandpromo_mark_build_required('media_audio_master_changed');
+} else {
+    $build_state = bandpromo_get_build_required_state();
+}
 
 $data = bandpromo_audio_master_enrich_detail($root, $filename, $data);
 // Prefer freshly saved fields in the response (registry is authoritative after sync).
@@ -260,13 +320,13 @@ $data['lyrics'] = $normalized_fields['lyrics'];
 $data['living_cover'] = $normalized_fields['living_cover'];
 $data = bandpromo_living_cover_enrich_detail($root, $data);
 
-$build_state = bandpromo_mark_build_required('media_audio_master_changed');
-
 $response = [
     'ok' => true,
     'detail' => $data,
-    'build_required' => true,
+    'build_required' => !empty($build_state['required']),
     'build_required_state' => $build_state,
+    'playlists_republished' => count($republish['published'] ?? []),
+    'tags_only' => $tagsOnly,
 ];
 
 bandpromo_admin_audit_log('audio_master_metadata_saved', [
@@ -282,7 +342,11 @@ bandpromo_admin_audit_log('audio_master_metadata_saved', [
         'living_cover_mode' => $living_cover_mode,
         'living_cover_path' => $living_cover_path,
         'living_cover' => $new_living_cover,
-        'auto_tasks' => [],
+        'auto_tasks' => $autoTasks,
+        'delivery_synced' => $deliverySynced,
+        'delivery_prepared' => $deliveryPrepared,
+        'playlists_republished' => count($republish['published'] ?? []),
+        'republish_errors' => count($republish['errors'] ?? []),
     ],
 ]);
 

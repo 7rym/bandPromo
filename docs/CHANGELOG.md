@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-03 13:50 - Delivery smoothness P0+P1a: tag/cover saves keep last-good `/play` payloads (no empty wipe), sync ID3 onto existing optimal MP3s, quiet-republish affected playlists, and clear false “Prepare your songs” pending; shared covers use exact SHA-256 of intake/embedded bytes to link existing Visual assets instead of extracting per-stem clones, with migrate hash backfill + content-hash dedupe.
+
 2026-08-03 12:57 - Post-upload delivery false failure: parse the JSON result from light Python tasks even when cover-conversion progress printed on stdout; route delivery-script progress to stderr so PHP sees a clean JSON payload.
 
 2026-08-03 12:46 - Hotfix HITZ deliverables: `stdio_utf8.py` no longer uses `from __future__ import annotations` (SyntaxError on host Python &lt; 3.7).

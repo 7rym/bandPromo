@@ -251,7 +251,7 @@ Admin UI, player, and notifications **read** the registry and published containe
 | Trigger | What updates |
 |---------|----------------|
 | Audio/image/video **upload** | Register asset; queue delivery job; **files index** entry (size/mtime/format/delivery flags) |
-| **Tag / cover / living-cover save** | `assets[].display` (+ cover/living refs); clear player playlist payloads that include the track |
+| **Tag / cover / living-cover save** | `assets[].display` (+ cover/living refs); **keep last-good** player payloads; patch delivery MP3 tags when present; quiet republish playlists that include the track (never leave `/play` on empty `tracks`) |
 | **Delivery job success/fail** | `assets[].delivery.audio_optimal` + `data/delivery/inventory-snapshot.json`; **files index** pool_ready / video meta |
 | **Catalog register / autofix** (explicit operator action) | Membership, masters |
 | **Publish** | Player playlist payloads in `data/playlists/{id}.json`, validation report, inventory snapshot / delivery flags, **full files-index rebuild** |
@@ -285,6 +285,8 @@ Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visu
 - **Delivery** variants under `ast_{ULID}/` or `ast_{ULID}_{variant}.{ext}` — not human upload stems
 
 Containers, galleries, pages, brands, and track covers reference **`asset_id`**, not `/media/img/original/my-logo.png`.
+
+**Shared track covers:** identical intake/embedded image bytes (SHA-256 of the **original** or embedded blob — never delivery JPEG variants) map to one Visual asset. Multiple audio tracks link `display.cover` to that asset; build must not mint per-stem clones when a match exists.
 
 ### Tags and roles (not folders)
 
