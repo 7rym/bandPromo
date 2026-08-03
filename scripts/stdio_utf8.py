@@ -5,15 +5,15 @@ Importing more than one of those modules could close the underlying buffer when
 the first wrapper was garbage-collected, causing:
   ValueError: I/O operation on closed file
 when a later print() tried to emit JSON to PHP.
-"""
 
-from __future__ import annotations
+Keep this module compatible with older host Pythons (HITZ may be < 3.7).
+"""
 
 import io
 import sys
 
 
-def configure() -> None:
+def configure():
     if getattr(sys, '_bandpromo_utf8_stdio', False):
         return
 
