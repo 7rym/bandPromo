@@ -8,19 +8,28 @@ else:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 import json
-import os
 from pathlib import Path
 
 SCRIPT_DIR  = Path(__file__).parent
 ROOT_DIR    = SCRIPT_DIR.parent
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
+BRANDS_DIR  = ROOT_DIR / 'data' / 'brands'
 
 # Target dimensions per platform
 PLATFORMS = {
     'facebook': (1200, 630),  # Open Graph
     'twitter':  (1200, 630),  # Twitter Card (summary_large_image)
 }
+
+# Config paths that brand poster sync (and legacy cover) can share.
+SHELL_IMAGE_CONFIG_KEYS = (
+    'social.share_image',
+    'release.social.share_image',
+    'release.brand.poster',
+    'release.theme.cover',
+    'media.cover',
+)
 
 
 def load_config():
@@ -35,14 +44,186 @@ def load_config():
         return {}
 
 
+def config_get(config, dotted, default=None):
+    node = config
+    for part in dotted.split('.'):
+        if not isinstance(node, dict) or part not in node:
+            return default
+        node = node[part]
+    return node
+
+
+def normalize_media_path(value):
+    text = str(value or '').strip().replace('\\', '/')
+    if text.startswith(('http://', 'https://')):
+        return text
+    return '/' + text.lstrip('/')
+
+
 def resolve_share_image(config):
     """
     Return the local Path of the configured share image.
     social.share_image is a URL-style path like /media/special/bandPromo_share.png.
     """
-    path_str = config.get('social', {}).get('share_image', '/media/special/bandPromo_share.png')
-    # Strip leading slash and resolve relative to ROOT_DIR
-    return ROOT_DIR / path_str.lstrip('/')
+    path_str = config_get(config, 'social.share_image', '/media/special/bandPromo_share.png')
+    return ROOT_DIR / str(path_str).lstrip('/\\')
+
+
+def active_brand_id(config):
+    pointers = config_get(config, 'install.pointers', {}) or {}
+    if not isinstance(pointers, dict):
+        return ''
+    brand_id = str(pointers.get('active_brand_id') or pointers.get('active_theme_id') or '').strip()
+    if brand_id == 'setup-default':
+        return 'bandpromo-default'
+    return brand_id
+
+
+def load_brand_document(brand_id):
+    brand_id = str(brand_id or '').strip()
+    if not brand_id:
+        return None
+    candidates = [brand_id]
+    if brand_id == 'bandpromo-default':
+        candidates.append('setup-default')
+    for candidate in candidates:
+        path = BRANDS_DIR / f'{candidate}.json'
+        if not path.is_file():
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8') as handle:
+                decoded = json.load(handle)
+            return decoded if isinstance(decoded, dict) else None
+        except Exception:
+            return None
+    return None
+
+
+def config_keys_pointing_at(config, path_str):
+    target = normalize_media_path(path_str)
+    matches = []
+    for key in SHELL_IMAGE_CONFIG_KEYS:
+        value = config_get(config, key, '')
+        if normalize_media_path(value) == target:
+            matches.append(f'{key}={normalize_media_path(value)}')
+    return matches
+
+
+def suggest_special_images(limit=8):
+    if not SPECIAL_DIR.is_dir():
+        return []
+    names = []
+    for path in sorted(SPECIAL_DIR.iterdir()):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
+            continue
+        # Skip generated platform crops
+        stem = path.stem.lower()
+        if stem.endswith('_facebook') or stem.endswith('_twitter'):
+            continue
+        names.append(path.name)
+        if len(names) >= limit:
+            break
+    return names
+
+
+def print_missing_share_image_help(config, src_image):
+    """Operator + developer diagnostics for a missing social source image."""
+    try:
+        relative = src_image.relative_to(ROOT_DIR).as_posix()
+    except ValueError:
+        relative = str(src_image)
+
+    configured = normalize_media_path(
+        config_get(config, 'social.share_image', '/media/special/bandPromo_share.png')
+    )
+    matching_keys = config_keys_pointing_at(config, configured)
+    brand_id = active_brand_id(config)
+    brand_doc = load_brand_document(brand_id)
+    brand_title = ''
+    brand_poster = ''
+    if isinstance(brand_doc, dict):
+        brand_title = str(brand_doc.get('title') or '').strip()
+        assets = brand_doc.get('assets') if isinstance(brand_doc.get('assets'), dict) else {}
+        brand_poster = normalize_media_path(assets.get('poster', ''))
+
+    print('  ❌ Share / poster source image is missing on disk.')
+    print(f'     Missing file: {relative}')
+    print(f'     Config value: social.share_image = {configured}')
+    if matching_keys:
+        print('     Same path also set on:')
+        for item in matching_keys:
+            if item.startswith('social.share_image='):
+                continue
+            print(f'       - {item}')
+    if brand_id:
+        label = f'{brand_title} ({brand_id})' if brand_title else brand_id
+        print(f'     Active brand: {label}')
+        if brand_poster:
+            print(f'     Brand Shell media → Poster slot: {brand_poster}')
+            if brand_poster == configured:
+                print('     (Poster sync writes this path into social.share_image / media.cover.)')
+    if Path(relative).name.lower().startswith('bandpromo_'):
+        print('     Note: bandPromo_* names are bundled demo/seed filenames, not operator upload names.')
+        print('           The default-theme package normally installs them under media/special/.')
+
+    print('')
+    print('  Fix (operator):')
+    brand_locked = bool(brand_doc.get('locked')) if isinstance(brand_doc, dict) else False
+    brand_system = bool(brand_doc.get('system')) if isinstance(brand_doc, dict) else False
+    if brand_locked or brand_system or brand_id in ('bandpromo-default', 'setup-default'):
+        print('     bandPromo Default is locked — you cannot edit its Poster slot in Branding.')
+        print('     Do one of the following:')
+        print('     A) Content → Branding → edit YOUR brand (a duplicate) → Shell media → Poster,')
+        print('        Save, then Set active on that brand so Publish uses it.')
+        print('     B) Restore the missing starter file (Dashboard → Site update / reinstall starter')
+        print('        pack, or for local source trees restore media/special/bandPromo_cover.png).')
+        editable = []
+        registry_path = BRANDS_DIR / 'registry.json'
+        if registry_path.is_file():
+            try:
+                with open(registry_path, 'r', encoding='utf-8') as handle:
+                    registry = json.load(handle)
+                for entry in registry.get('brands') or []:
+                    if not isinstance(entry, dict):
+                        continue
+                    if entry.get('locked') or entry.get('system'):
+                        continue
+                    eid = str(entry.get('id') or '').strip()
+                    title = str(entry.get('title') or eid).strip()
+                    if eid:
+                        editable.append(f'{title} ({eid})')
+            except Exception:
+                editable = []
+        if editable:
+            print('     Editable brands on this install:')
+            for label in editable[:8]:
+                print(f'       - {label}')
+    else:
+        print('     1. Admin → Content → Branding')
+        print('     2. Edit the active brand → Shell media → Poster / share image')
+        print('     3. Choose an existing image (or upload one), then Save brand')
+        print('        If this brand is Active, saving syncs the path into web-config.json.')
+    print('     Optional: Settings → Sharing only describes SEO text; the image itself is the Branding poster slot.')
+
+    suggestions = suggest_special_images()
+    if suggestions:
+        print('')
+        print('  Images already in media/special/ you can point at:')
+        for name in suggestions:
+            marker = ' ← likely share/poster candidate' if 'share' in name.lower() else ''
+            print(f'     - {name}{marker}')
+    else:
+        print('')
+        print('  media/special/ has no usable image files right now — upload one via Files → Brand assets')
+        print('  (or Visual) before assigning the Branding poster slot.')
+
+    print('')
+    print('  Fix (developer / local install):')
+    print(f'     Inspect web-config.json keys above, brand doc data/brands/{brand_id or "<active>"}.json')
+    print('     assets.poster, and restore missing seed media or retarget the poster path.')
+    sys.stdout.flush()
 
 
 def resize_for_platform(src_path, platform, target_size, quality=85):
@@ -89,7 +270,6 @@ def resize_for_platform(src_path, platform, target_size, quality=85):
         dest = src_path.parent / f"{src_path.stem}_{platform}.jpg"
         canvas.save(str(dest), 'JPEG', quality=quality, optimize=True)
 
-        src_size  = src_path.stat().st_size
         dest_size = dest.stat().st_size
         print(f"  ✓ {platform}: {w}×{h} → {tw}×{th}  →  {dest.name}  ({dest_size // 1024} KB)")
         return True
@@ -137,10 +317,13 @@ def main():
     validate_social_config(config)
 
     print(f"\n── Share image processing ─────────────────────────────────────────────")
-    print(f"  Source: {src_image.relative_to(ROOT_DIR)}")
+    try:
+        print(f"  Source: {src_image.relative_to(ROOT_DIR)}")
+    except ValueError:
+        print(f"  Source: {src_image}")
 
     if not src_image.exists():
-        print(f"  ❌ Source image not found — upload it via Admin → Config → Media")
+        print_missing_share_image_help(config, src_image)
         return False
 
     src_w, src_h = 0, 0

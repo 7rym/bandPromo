@@ -332,7 +332,26 @@ def ensure_icons():
 
 # ── Sub-script runner ─────────────────────────────────────────────────────────
 
-def run_script(script_path, env_extras=None):
+def print_stage_banner(script_name, stage_index=None, stage_total=None, stage_label=''):
+    """Print a single framed banner for a publish stage / sub-script."""
+    width = 70
+    rule = '=' * width
+    lines = []
+    if stage_index is not None and stage_total is not None:
+        label = str(stage_label or '').strip() or 'stage'
+        lines.append('Stage {}/{} — {}'.format(stage_index, stage_total, label))
+    lines.append('Script: {}'.format(script_name))
+
+    print()
+    print(rule)
+    for line in lines:
+        print('  ' + line)
+    print(rule)
+    print()
+    sys.stdout.flush()
+
+
+def run_script(script_path, env_extras=None, stage_index=None, stage_total=None, stage_label=''):
     """Run a build sub-script, streaming its output line by line."""
     script_path = Path(script_path)
     env = os.environ.copy()
@@ -341,10 +360,12 @@ def run_script(script_path, env_extras=None):
     if env_extras:
         env.update(env_extras)
 
-    print('\n' + '=' * 70)
-    print('Running: ' + script_path.name)
-    print('=' * 70 + '\n')
-    sys.stdout.flush()
+    print_stage_banner(
+        script_path.name,
+        stage_index=stage_index,
+        stage_total=stage_total,
+        stage_label=stage_label,
+    )
 
     try:
         proc = subprocess.Popen(
@@ -474,7 +495,6 @@ def run_publish_stage(stage, ffmpeg_path, index, total):
     group = str(stage.get('group') or '').strip()
     if group:
         print('STAGE_GROUP:' + group)
-    print('── Stage {}/{}: {} ──'.format(index, total, label))
     sys.stdout.flush()
 
     env_extras = {}
@@ -484,7 +504,13 @@ def run_publish_stage(stage, ffmpeg_path, index, total):
     if stage.get('requires_ffmpeg'):
         env_extras['FFMPEG_PATH'] = ffmpeg_path
 
-    ok = run_script(SCRIPT_DIR / script_name, env_extras)
+    ok = run_script(
+        SCRIPT_DIR / script_name,
+        env_extras,
+        stage_index=index,
+        stage_total=total,
+        stage_label=label,
+    )
     log_stage_boundary(stage_id, 0 if ok else 1)
     if not ok:
         print('\n❌ Build failed at stage: ' + stage_id)

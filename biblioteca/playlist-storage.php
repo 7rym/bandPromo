@@ -2781,6 +2781,185 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, arr
     return bandpromo_playlist_admin_registry_entry($root, $updated);
 }
 
+/**
+ * After release membership remaps, rewrite playlist track file/asset_id pointers onto live masters.
+ *
+ * @param array<string, string> $remaps old asset id → new asset id
+ * @return array{changed:int, playlists: list<string>}
+ */
+/**
+ * Resolve a live audio asset id for a playlist entry/track reference.
+ */
+function bandpromo_playlist_resolve_replacement_audio_asset_id(
+    string $root,
+    string $assetId,
+    string $masterFile,
+    array $identityIndex,
+    array $remaps,
+    string $hintTitle = '',
+    string $hintArtist = ''
+): string {
+    $assetId = trim($assetId);
+    $masterFile = basename(trim($masterFile));
+    $stem = strtolower((string) pathinfo($masterFile !== '' ? $masterFile : $assetId, PATHINFO_FILENAME));
+
+    if ($assetId !== '' && isset($remaps[$assetId])) {
+        return (string) $remaps[$assetId];
+    }
+    if ($stem !== '' && isset($remaps[$stem])) {
+        return (string) $remaps[$stem];
+    }
+    if ($assetId !== '' && bandpromo_asset_lookup_by_id($root, $assetId) !== null) {
+        return $assetId;
+    }
+    if ($masterFile !== '') {
+        $byMaster = $identityIndex['by_master'] ?? [];
+        $hit = $byMaster[strtolower($masterFile)] ?? $byMaster[$stem] ?? '';
+        if (is_string($hit) && $hit !== '') {
+            return $hit;
+        }
+    }
+
+    $hintId = $assetId !== '' ? $assetId : ($stem !== '' ? $stem : '');
+    return bandpromo_release_resolve_replacement_audio_asset_id(
+        $root,
+        $hintId,
+        $identityIndex,
+        $hintTitle,
+        $hintArtist
+    );
+}
+
+/**
+ * Rebind playlist entries (and legacy tracks) that point at deleted registry assets.
+ *
+ * @param array<string, string> $remaps
+ * @return array{changed:int, playlists: list<string>}
+ */
+function bandpromo_playlist_repair_stale_track_asset_ids(string $root, array $remaps = []): array
+{
+    require_once __DIR__ . '/release-storage.php';
+
+    $identityIndex = bandpromo_release_live_audio_identity_index($root);
+    $changedPlaylists = [];
+    $changedTracks = 0;
+
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $playlistChanged = false;
+        $playlistRelease = bandpromo_release_normalize_id((string) ($document['release_id'] ?? ''));
+
+        $entries = is_array($document['entries'] ?? null) ? $document['entries'] : [];
+        if ($entries !== []) {
+            $nextEntries = [];
+            foreach ($entries as $playlistEntry) {
+                if (!is_array($playlistEntry)) {
+                    continue;
+                }
+
+                $masterFile = basename(trim((string) ($playlistEntry['master_file'] ?? $playlistEntry['file'] ?? '')));
+                $assetId = trim((string) ($playlistEntry['asset_id'] ?? ''));
+                $replacement = bandpromo_playlist_resolve_replacement_audio_asset_id(
+                    $root,
+                    $assetId,
+                    $masterFile,
+                    $identityIndex,
+                    $remaps
+                );
+
+                if ($replacement !== '') {
+                    $asset = bandpromo_asset_lookup_by_id($root, $replacement);
+                    $liveMaster = is_array($asset)
+                        ? basename(trim((string) ($asset['master_filename'] ?? '')))
+                        : '';
+                    if ($liveMaster !== '' && ($masterFile !== $liveMaster || $assetId !== $replacement)) {
+                        $playlistEntry['master_file'] = $liveMaster;
+                        $playlistEntry['asset_id'] = $replacement;
+                        if ($playlistRelease !== '') {
+                            $playlistEntry['release_id'] = $playlistRelease;
+                        }
+                        $playlistChanged = true;
+                        $changedTracks++;
+                    }
+                }
+
+                $normalized = bandpromo_playlist_normalize_entry($playlistEntry);
+                if ($normalized !== null) {
+                    $nextEntries[] = $normalized;
+                }
+            }
+            $document['entries'] = $nextEntries;
+        }
+
+        $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
+        if ($tracks !== []) {
+            $nextTracks = [];
+            foreach ($tracks as $track) {
+                if (!is_array($track)) {
+                    continue;
+                }
+
+                $file = basename(trim((string) ($track['file'] ?? '')));
+                $assetId = trim((string) ($track['asset_id'] ?? ''));
+                $title = trim((string) ($track['title'] ?? ''));
+                $artist = trim((string) ($track['artist'] ?? ''));
+                $replacement = bandpromo_playlist_resolve_replacement_audio_asset_id(
+                    $root,
+                    $assetId,
+                    $file,
+                    $identityIndex,
+                    $remaps,
+                    $title,
+                    $artist
+                );
+
+                if ($replacement !== '') {
+                    $asset = bandpromo_asset_lookup_by_id($root, $replacement);
+                    $liveMaster = is_array($asset)
+                        ? basename(trim((string) ($asset['master_filename'] ?? '')))
+                        : '';
+                    if ($liveMaster !== '' && ($file !== $liveMaster || $assetId !== $replacement)) {
+                        $track['file'] = $liveMaster;
+                        $track['asset_id'] = $replacement;
+                        if ($playlistRelease !== '') {
+                            $track['release_id'] = $playlistRelease;
+                            $track['release_slug'] = $playlistRelease;
+                        }
+                        $playlistChanged = true;
+                        $changedTracks++;
+                    }
+                }
+
+                $normalized = bandpromo_playlist_normalize_stored_track($track);
+                if ($normalized !== null) {
+                    $nextTracks[] = $normalized;
+                }
+            }
+            $document['tracks'] = $nextTracks;
+        }
+
+        if ($playlistChanged) {
+            $document = bandpromo_playlist_clear_player_payload_fields($document);
+            bandpromo_playlist_write_document($root, $document);
+            $changedPlaylists[] = $playlistId;
+        }
+    }
+
+    return [
+        'changed' => $changedTracks,
+        'playlists' => $changedPlaylists,
+    ];
+}
+
 function bandpromo_playlist_delete(string $root, string $playlistId): void
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);

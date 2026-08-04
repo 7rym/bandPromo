@@ -3340,7 +3340,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (deleteBtn) {
                     deleteBtn.onclick = () => {
                         closePoolAssetModal();
-                        openDeleteModal(panelType, activePoolAsset.key);
+                        openDeleteModal(panelType, selectionKey);
                     };
                 }
 

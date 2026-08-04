@@ -8,6 +8,8 @@ const BANDPROMO_THEME_REGISTRY_VERSION = 1;
 /** Canonical default brand id (legacy alias: setup-default). */
 const BANDPROMO_BRAND_DEFAULT_ID = 'bandpromo-default';
 const BANDPROMO_THEME_DEFAULT_ID = 'setup-default';
+/** Opaque operator brand ids: brd_ + ULID body (same ULID helper as assets). */
+const BANDPROMO_BRAND_ID_PREFIX = 'brd_';
 
 function bandpromo_brand_canonical_id(string $id): string
 {
@@ -83,10 +85,30 @@ function bandpromo_theme_registry_ensure_dir(string $root): void
 function bandpromo_theme_normalize_id(string $themeId): string
 {
     $themeId = strtolower(trim($themeId));
-    $themeId = preg_replace('/[^a-z0-9-]+/', '-', $themeId) ?? '';
-    $themeId = trim($themeId, '-');
+    // Allow underscore so opaque brd_{ulid} ids survive (legacy ids stay hyphenated).
+    $themeId = preg_replace('/[^a-z0-9_-]+/', '-', $themeId) ?? '';
+    $themeId = trim($themeId, '-_');
 
     return substr($themeId, 0, 48);
+}
+
+function bandpromo_generate_brand_id(): string
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    return BANDPROMO_BRAND_ID_PREFIX . strtolower(bandpromo_generate_ulid());
+}
+
+function bandpromo_brand_is_opaque_id(string $value): bool
+{
+    $value = bandpromo_theme_normalize_id($value);
+    if ($value === '' || !str_starts_with($value, BANDPROMO_BRAND_ID_PREFIX)) {
+        return false;
+    }
+
+    $body = substr($value, strlen(BANDPROMO_BRAND_ID_PREFIX));
+
+    return (bool) preg_match('/^[0-9a-hjkmnp-tv-z]{20}$/', $body);
 }
 
 function bandpromo_theme_default_color_tokens(): array
@@ -296,6 +318,163 @@ function bandpromo_theme_resolve_media_absolute_path(string $root, string $webPa
 }
 
 /**
+ * Bundled demo shell files required for the locked default brand and for duplicates.
+ *
+ * @return array<string, list<string>>
+ */
+function bandpromo_theme_shell_seed_fallback_paths(): array
+{
+    return [
+        'logo' => [
+            '/media/special/bandPromo_logo.png',
+            '/media/special/bandPromo_logo_simplified.png',
+        ],
+        'poster' => [
+            '/media/special/bandPromo_cover.png',
+            '/media/special/bandPromo_share.png',
+        ],
+        'background_image' => [
+            '/media/special/bandPromo_background.png',
+        ],
+        'background_video' => [
+            '/media/special/bandPromo_background.mp4',
+        ],
+        'welcome_audio' => [
+            '/media/sfx/original/bandPromo_welcome.flac',
+            '/media/special/bandPromo_welcome.flac',
+        ],
+        'loggedin_audio' => [
+            '/media/sfx/original/bandPromo_loggedin.flac',
+            '/media/special/bandPromo_loggedin.flac',
+        ],
+    ];
+}
+
+function bandpromo_theme_normalize_media_web_path(string $path): string
+{
+    $path = trim(str_replace('\\', '/', $path));
+    if ($path === '' || preg_match('#^https?://#i', $path) === 1) {
+        return $path;
+    }
+
+    return '/' . ltrim($path, '/');
+}
+
+function bandpromo_theme_first_existing_media_path(string $root, array $candidates): string
+{
+    foreach ($candidates as $candidate) {
+        $normalized = bandpromo_theme_normalize_media_web_path((string) $candidate);
+        if ($normalized !== '' && bandpromo_theme_resolve_media_absolute_path($root, $normalized) !== null) {
+            return $normalized;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * If $path is empty or missing on disk, return the first existing fallback.
+ */
+function bandpromo_theme_heal_media_path(string $root, string $path, array $fallbacks): string
+{
+    $normalized = bandpromo_theme_normalize_media_web_path($path);
+    if ($normalized !== '' && bandpromo_theme_resolve_media_absolute_path($root, $normalized) !== null) {
+        return $normalized;
+    }
+
+    return bandpromo_theme_first_existing_media_path($root, $fallbacks);
+}
+
+/**
+ * Repair brand shell slots and synced config when demo seed files were deleted or never extracted.
+ * Locked bandPromo Default cannot be edited in the UI — installs must self-heal.
+ *
+ * @return list<string> human-readable repair notes
+ */
+function bandpromo_theme_heal_install_shell_media(string $root): array
+{
+    $notes = [];
+    $fallbacks = bandpromo_theme_shell_seed_fallback_paths();
+    $activeId = bandpromo_brand_canonical_id(bandpromo_theme_active_id($root));
+
+    foreach (bandpromo_theme_registry_entries($root) as $entry) {
+        $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        $path = bandpromo_theme_document_path($root, $brandId);
+        if (!is_file($path)) {
+            continue;
+        }
+        try {
+            $document = bandpromo_theme_load_document($root, $brandId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+        $changed = false;
+        $isLockedDefault = !empty($document['locked']) || !empty($document['system'])
+            || $brandId === BANDPROMO_BRAND_DEFAULT_ID;
+        foreach ($fallbacks as $slot => $candidates) {
+            $before = bandpromo_theme_normalize_media_web_path((string) ($assets[$slot] ?? ''));
+            if ($before === '' && !$isLockedDefault) {
+                // Do not invent demo media for operator brands that left a slot empty.
+                continue;
+            }
+            $after = bandpromo_theme_heal_media_path($root, $before, $candidates);
+            if ($after !== '' && $after !== $before) {
+                $assets[$slot] = $after;
+                $changed = true;
+                $notes[] = 'Brand ' . $brandId . ' ' . $slot . ': '
+                    . ($before !== '' ? $before : '(empty)') . ' → ' . $after;
+            } elseif ($before !== '' && $after === '') {
+                $notes[] = 'Brand ' . $brandId . ' ' . $slot . ': still missing on disk: ' . $before;
+            }
+        }
+        if ($changed) {
+            $document['assets'] = $assets;
+            bandpromo_json_write_file($path, bandpromo_theme_normalize_document($document, $brandId));
+            if ($brandId === $activeId) {
+                bandpromo_theme_sync_assets_to_config($root, $document);
+            }
+        }
+    }
+
+    $configPath = $root . '/web-config.json';
+    $config = bandpromo_load_runtime_config_raw($configPath);
+    if ($config === []) {
+        return $notes;
+    }
+
+    $configMap = [
+        'social.share_image' => $fallbacks['poster'],
+        'release.social.share_image' => $fallbacks['poster'],
+        'release.brand.poster' => $fallbacks['poster'],
+        'release.theme.cover' => $fallbacks['poster'],
+        'media.cover' => $fallbacks['poster'],
+        'media.logo' => $fallbacks['logo'],
+        'install.brand.logo' => $fallbacks['logo'],
+        'install.theme.logo' => $fallbacks['logo'],
+    ];
+    $configChanged = false;
+    foreach ($configMap as $dotted => $candidates) {
+        $before = bandpromo_theme_normalize_media_web_path((string) bandpromo_config_get_path($config, $dotted, ''));
+        $after = bandpromo_theme_heal_media_path($root, $before, $candidates);
+        if ($after !== '' && $after !== $before) {
+            bandpromo_config_set_path($config, $dotted, $after);
+            $configChanged = true;
+            $notes[] = 'web-config ' . $dotted . ': '
+                . ($before !== '' ? $before : '(empty)') . ' → ' . $after;
+        }
+    }
+    if ($configChanged) {
+        bandpromo_json_write_file($configPath, $config);
+    }
+
+    return $notes;
+}
+
+/**
  * Copy one shell media file into the owning brand's library.
  * Visual slots clone into Brand assets (`media/special/`).
  * Audio slots clone into Sound effects (`media/sfx/original/`).
@@ -309,6 +488,15 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
     }
 
     $absolute = bandpromo_theme_resolve_media_absolute_path($root, $sourcePath);
+    if ($absolute === null) {
+        // Duplicates of the locked default must not inherit a broken missing-path string.
+        $seedFallbacks = bandpromo_theme_shell_seed_fallback_paths()[$assetKey] ?? [];
+        $healed = bandpromo_theme_heal_media_path($root, $sourcePath, $seedFallbacks);
+        if ($healed !== '' && $healed !== bandpromo_theme_normalize_media_web_path($sourcePath)) {
+            $sourcePath = $healed;
+            $absolute = bandpromo_theme_resolve_media_absolute_path($root, $sourcePath);
+        }
+    }
     if ($absolute === null) {
         return $sourcePath;
     }
@@ -338,7 +526,7 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
         $webPrefix = '/media/special/';
     }
 
-    $safeBrand = preg_replace('/[^a-z0-9-]+/', '-', strtolower($brandId)) ?: 'brand';
+    $safeBrand = preg_replace('/[^a-z0-9_-]+/', '-', strtolower($brandId)) ?: 'brand';
     $safeKey = preg_replace('/[^a-z0-9_]+/', '_', strtolower($assetKey)) ?: 'asset';
     $base = $safeBrand . '_' . $safeKey;
     $destName = $base . '.' . $ext;
@@ -359,6 +547,7 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
     bandpromo_media_files_index_sync_file($root, $indexTarget, $destName);
     if ($indexTarget === 'sfx') {
         try {
+            require_once __DIR__ . '/asset-registry.php';
             bandpromo_asset_register_sfx($root, $destName);
         } catch (Throwable $throwable) {
             // Registry optional for clone success.
@@ -396,7 +585,7 @@ function bandpromo_theme_clone_assets_for_brand(string $root, array $assets, str
 function bandpromo_theme_normalize_document(array $input, ?string $expectedId = null): array
 {
     $id = bandpromo_brand_canonical_id((string) ($input['id'] ?? $expectedId ?? ''));
-    if ($id === '' || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $id)) {
+    if ($id === '' || !preg_match('/^[a-z][a-z0-9_-]{0,47}$/', $id)) {
         throw new InvalidArgumentException('Invalid brand id.');
     }
 
@@ -839,6 +1028,9 @@ function bandpromo_theme_ensure_seeded(string $root): void
     if (!is_file(bandpromo_theme_document_path($root, BANDPROMO_BRAND_DEFAULT_ID))) {
         bandpromo_theme_migrate_from_config($root);
     }
+
+    // Locked default brand is not editable — heal missing demo shell files / config refs.
+    bandpromo_theme_heal_install_shell_media($root);
 }
 
 function bandpromo_theme_slug_from_title(string $title): string
@@ -872,41 +1064,29 @@ function bandpromo_theme_propose_duplicate_title(string $sourceTitle): string
 
 function bandpromo_theme_allocate_duplicate_id(string $root, string $title = ''): string
 {
+    // Title is operator-facing only; new brands get opaque brd_{ulid} storage ids.
+    unset($title);
     bandpromo_theme_registry_ensure_dir($root);
 
     $existing = [];
     foreach (bandpromo_theme_registry_entries($root) as $entry) {
-        $existing[(string) ($entry['id'] ?? '')] = true;
-    }
-
-    $baseId = bandpromo_theme_slug_from_title($title);
-    if ($baseId === BANDPROMO_BRAND_DEFAULT_ID || $baseId === BANDPROMO_THEME_DEFAULT_ID || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $baseId)) {
-        $baseId = 'brand-copy';
-    }
-
-    $id = $baseId;
-    $suffix = 2;
-    while (isset($existing[$id]) || is_file(bandpromo_theme_document_path($root, $id))) {
-        $id = substr($baseId, 0, 44) . '-' . $suffix;
-        $suffix++;
-        if ($suffix > 999) {
-            break;
+        $canonical = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($canonical !== '') {
+            $existing[$canonical] = true;
         }
     }
 
-    if (isset($existing[$id]) || is_file(bandpromo_theme_document_path($root, $id))) {
-        for ($attempt = 0; $attempt < 100; $attempt++) {
-            $fallback = bandpromo_theme_normalize_id('brand-copy-' . bin2hex(random_bytes(4)));
-            if ($fallback !== '' && $fallback !== BANDPROMO_BRAND_DEFAULT_ID && $fallback !== BANDPROMO_THEME_DEFAULT_ID
-                && !isset($existing[$fallback]) && !is_file(bandpromo_theme_document_path($root, $fallback))) {
-                return $fallback;
-            }
+    for ($attempt = 0; $attempt < 100; $attempt++) {
+        $id = bandpromo_brand_canonical_id(bandpromo_generate_brand_id());
+        if ($id === '' || $id === BANDPROMO_BRAND_DEFAULT_ID || $id === BANDPROMO_THEME_DEFAULT_ID) {
+            continue;
         }
-
-        throw new RuntimeException('Could not allocate a unique theme id.');
+        if (!isset($existing[$id]) && !is_file(bandpromo_theme_document_path($root, $id))) {
+            return $id;
+        }
     }
 
-    return $id;
+    throw new RuntimeException('Could not allocate a unique brand id.');
 }
 
 function bandpromo_theme_duplicate(string $root, string $sourceId, string $newId, string $title = ''): array

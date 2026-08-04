@@ -191,6 +191,17 @@ try {
     exit;
 }
 
+try {
+    require_once __DIR__ . '/theme-storage.php';
+    bandpromo_theme_ensure_seeded($root_dir);
+    $healNotes = bandpromo_theme_heal_install_shell_media($root_dir);
+    foreach ($healNotes as $note) {
+        file_put_contents($log_file, '[shell media] ' . $note . "\n", FILE_APPEND);
+    }
+} catch (Throwable $throwable) {
+    file_put_contents($log_file, '[shell media] Heal skipped: ' . $throwable->getMessage() . "\n", FILE_APPEND);
+}
+
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG PHP CLI: " . bandpromo_resolve_php_cli() . "\n", FILE_APPEND);

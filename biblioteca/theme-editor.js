@@ -1260,13 +1260,13 @@
 
         function themeMetaHtml(entry) {
             if (!entry) return '';
-            const parts = [escapeHtml(String(entry.id || ''))];
+            // Storage ids (brd_*, legacy *-copy) stay machine-only; operators see title + status.
+            const parts = [];
             if (entry.locked) parts.push('locked');
-            let line = parts.join(' · ');
             if (entry.id === activeThemeId) {
-                line += ' · <span class="theme-pool-meta-active">active</span>';
+                parts.push('<span class="theme-pool-meta-active">active</span>');
             }
-            return line;
+            return parts.join(' · ');
         }
 
         function closeThemeDeleteModal() {

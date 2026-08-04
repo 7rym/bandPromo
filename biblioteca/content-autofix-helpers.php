@@ -293,6 +293,7 @@ function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): ar
         $registry = bandpromo_asset_load_registry($root);
         $membershipIndex = bandpromo_release_asset_membership_index($root);
         $staleCount = 0;
+        $missingMembershipIds = 0;
         foreach ($registry['assets'] as $assetId => $asset) {
             if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
                 continue;
@@ -313,14 +314,58 @@ function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): ar
                 $staleCount++;
             }
         }
-        $step['changed'] = $staleCount;
-        $step['items'][] = ['stale_catalog_links' => $staleCount];
+        foreach (bandpromo_release_registry_entries($root) as $entry) {
+            $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+            if ($releaseId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_release_load_document($root, $releaseId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            foreach ($document['tracks'] ?? [] as $track) {
+                if (!is_array($track)) {
+                    continue;
+                }
+                $assetId = trim((string) ($track['asset_id'] ?? ''));
+                if ($assetId === '' || bandpromo_asset_lookup_by_id($root, $assetId) !== null) {
+                    continue;
+                }
+                $missingMembershipIds++;
+            }
+        }
+        $step['changed'] = $staleCount + $missingMembershipIds;
+        $step['items'][] = [
+            'stale_catalog_links' => $staleCount,
+            'missing_membership_asset_ids' => $missingMembershipIds,
+        ];
         return $step;
     }
 
     bandpromo_release_sync_demo_audio_assets($root);
+    $membershipRepair = bandpromo_release_repair_stale_membership_asset_ids($root);
+    require_once __DIR__ . '/playlist-storage.php';
+    $playlistRepair = bandpromo_playlist_repair_stale_track_asset_ids($root, $membershipRepair['remaps'] ?? []);
     $repaired = bandpromo_release_repair_catalog_release_ids($root);
-    $step['changed'] = $repaired > 0 ? $repaired : 0;
+    $step['changed'] = (int) ($membershipRepair['rebound'] ?? 0)
+        + (int) ($playlistRepair['changed'] ?? 0)
+        + ($repaired > 0 ? $repaired : 0);
+    if (($membershipRepair['rebound'] ?? 0) > 0) {
+        $step['items'][] = [
+            'rebound_membership_asset_ids' => (int) $membershipRepair['rebound'],
+            'releases' => $membershipRepair['releases'] ?? [],
+        ];
+    }
+    if (($membershipRepair['unresolved'] ?? 0) > 0) {
+        $step['items'][] = ['unresolved_membership_asset_ids' => (int) $membershipRepair['unresolved']];
+    }
+    if (($playlistRepair['changed'] ?? 0) > 0) {
+        $step['items'][] = [
+            'rebound_playlist_tracks' => (int) $playlistRepair['changed'],
+            'playlists' => $playlistRepair['playlists'] ?? [],
+        ];
+    }
     if ($repaired > 0) {
         $step['items'][] = ['repaired_catalog_links' => $repaired];
     }
@@ -388,6 +433,17 @@ function bandpromo_content_autofix_sync_audio_display(string $root, bool $dryRun
     $result = bandpromo_asset_refresh_all_audio_displays($root);
     $step['changed'] = (int) ($result['changed'] ?? 0);
     $step['items'] = is_array($result['items'] ?? null) ? $result['items'] : [];
+
+    $metaRestore = bandpromo_asset_restore_audio_meta_from_unregistered_masters($root);
+    $restored = (int) ($metaRestore['restored'] ?? 0);
+    if ($restored > 0) {
+        $step['changed'] += $restored;
+        $step['items'][] = [
+            'restored_from_leftover_masters' => $restored,
+            'covers' => (int) ($metaRestore['covers'] ?? 0),
+            'details' => $metaRestore['items'] ?? [],
+        ];
+    }
 
     return $step;
 }

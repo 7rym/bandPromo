@@ -25,6 +25,7 @@ function bandpromo_admin_default_theme_display_version(?string $rawVersion): str
 function bandpromo_admin_starter_pack_files_present(string $root): bool
 {
     $representativePaths = [
+        $root . '/media/special/bandPromo_cover.png',
         $root . '/media/special/bandPromo_share.png',
         $root . '/media/img/original/bandPromo_vocalist.png',
         $root . '/media/audio/original/bandPromo_the_very_first_song.flac',
@@ -88,6 +89,7 @@ function bandpromo_admin_write_inferred_starter_pack_marker(string $root): bool
         'package_url' => '',
         'release_tag' => 'local-source-tree',
         'paths' => [
+            'media/special/bandPromo_cover.png',
             'media/special/bandPromo_share.png',
             'media/img/original/bandPromo_vocalist.png',
             'media/audio/original/bandPromo_the_very_first_song.flac',

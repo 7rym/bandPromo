@@ -186,6 +186,7 @@ function bandpromo_media_starter_pack_basenames(string $root): array
 
     if ($basenames === []) {
         foreach ([
+            'bandPromo_cover.png',
             'bandPromo_share.png',
             'bandPromo_vocalist.png',
             'bandPromo_the_very_first_song.flac',

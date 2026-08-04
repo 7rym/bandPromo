@@ -73,27 +73,27 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 | Layer | Included | Notes |
 |-------|----------|-------|
 | **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id` |
-| **Identity (brand)** | `data/brands/{id}.json` + shell media | Owned by the release (`release_id`) |
+| **Identity (brand)** | `data/brands/{id}.json` + shell media | Owned by the release (`release_id`); slots address Visual/SFX by **`asset_id`** (path strings are transitional) |
 | **Track masters** | `media/audio/master/*` (and originals as needed) | Exclusive catalog home |
-| **Master tags** | Inside FLAC/MP3 | Title, artist, lyrics, cover, living cover |
+| **Master tags** | Inside FLAC/MP3 | Title, artist, lyrics, cover, living cover (`asset_id` once living-cover rewrite lands) |
 | **Playlists** | Playlist docs with `release_id` | Album order, singles packages, etc. |
-| **Galleries / pages** | Docs with `release_id` | Press gallery, Bio, … |
-| **Linked visuals / SFX** | Pool files + registry subset | Covers, living covers, brand slots |
+| **Galleries / pages** | Docs with `release_id` | Press gallery, Bio, … — picture/gallery items carry `asset_id` |
+| **Linked visuals / SFX** | Master files + **asset registry subset** | Covers, living covers, brand slots — roles/brand scope live in registry, not EXIF |
 | **Export manifest** | `release-package-manifest.json` | Title, `release_export_version`, checklist |
 
 **What does not travel**
 
-- Unrelated releases or install-wide config as source of truth
-- Listener accounts, analytics, admin audit history
+- Unrelated releases or install-wide config as source of truth (`web-config.json`, Active brand pointer)
+- Listener accounts, **analytics / usage logs**, admin audit history (those stay in full site backup **Data** component)
 - Delivery-tier files as the source of truth — target regenerates on Publish
 
-**Setup:** downloads/installs the Demo Release package via the shared import path (replacing loose default-theme media ZIP as the product story; dual-read may remain during transition).
+**Portable truth:** masters (audio tags + visual bytes) + campaign JSON + **registry subset**. Masters alone are not enough for visual roles or campaign graph. Export builder and import-side registry merge are required (see [TODO.md](TODO.md) Visual identity completion M6).
 
 **Import flow (target install / setup)**
 
 1. Validate `release_export_version` and bandPromo compatibility.
 2. Create or refresh the release slot (demo may be locked; operator imports create new slots without silent overwrite).
-3. Extract masters, identity, playlists, galleries, pages; merge registry; set ownership `release_id` links.
+3. Extract masters, identity, playlists, galleries, pages; **merge asset + container registries**; set ownership `release_id` links.
 4. Optionally set install active identity to the imported release’s brand.
 5. Operator/setup runs Publish for streaming delivery.
 6. Smoke-check playback, shell identity, Bio, gallery.

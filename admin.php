@@ -1513,7 +1513,7 @@ if ($tab === 'analytics') {
 
                             <div id="releaseTracksPoolView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn release-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalogue">← Back</button>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalogue">← Back</button>
                                     <h3 class="release-editor-header-title">Release editor</h3>
                                 </div>
                                 <div class="release-preview-tabs release-editor-section-tabs release-editor-section-tabs--header" role="tablist" aria-label="Release editor sections">
@@ -1676,11 +1676,11 @@ if ($tab === 'analytics') {
 
                             <div id="playlistTracksPoolView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="playlistSettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Playlists</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <div class="playlist-settings-panel" id="playlistSettingsPanel">
@@ -1822,11 +1822,11 @@ if ($tab === 'analytics') {
 
                             <div id="galleryItemsPoolView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="gallerySettingsTitle" maxlength="120" autocomplete="off" placeholder="Gallery name" aria-label="Gallery name">
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="gallerySettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Galleries</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
                                     <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
@@ -1922,10 +1922,10 @@ if ($tab === 'analytics') {
 
                             <div id="pageEditorView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head page-editor-view-head content-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="pageEditorBackBtn" title="Back to page list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120" placeholder="Page name" aria-label="Page name">
                                     </div>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="pageEditorBackBtn" title="Back to page list">← Pages</button>
                                 </div>
                                 <div class="player-layout-panel-body page-editor-view-body">
                                     <div class="page-editor-meta">
@@ -2056,12 +2056,12 @@ if ($tab === 'analytics') {
 
                             <div id="themeEditorView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head theme-editor-view-head content-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Back</button>
                                     <div class="theme-editor-head-name content-editor-head-name">
                                         <input type="text" class="theme-editor-name-input content-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
                                         <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
                                     </div>
                                     <span class="status-text theme-editor-name-status content-editor-name-status" id="themeSettingsStatus"></span>
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Branding</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body theme-editor-view-body">
                                     <div class="theme-editor-form" id="themeEditorForm">

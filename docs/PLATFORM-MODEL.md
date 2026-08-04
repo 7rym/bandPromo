@@ -116,7 +116,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 **Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that release only. Release editor Available pools list **unowned** containers; saves refuse stealing from another release.
 
-**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated.
+**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
 
 **Active brand vs release brand:**
 
@@ -272,21 +272,29 @@ Three **operator pools** (Files). Two heavy pipelines (music audio vs visual); S
 | **Visual** | Still images **and** video | Files → Visual; gallery/page/brand/release visuals |
 | **Sound effects** | Brand UI / navigation / interaction clips (welcome, login, future click/zoom, …) | Files → Sound effects; owned by **brands**; assigned from Content → Branding slots |
 
-**Shipped (2026-07-21):** visual registry/delivery + Phase 3 operator wiring; **Sound effects** pool (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`). **Still open:** Brand-assets disk fold (visuals still under `media/special/` until folded into Visual); living-cover `filename → ast_*`.
+**Shipped (2026-07-21):** visual registry/delivery + Phase 3 operator wiring; **Sound effects** pool (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`).
+
+**Completion track (policy locked 2026-08-04):** finish three-tier visuals like audio — `asset_id` refs everywhere → on-disk `media/visual/master/ast_*` → XXH3 skip-if-fresh → kill dual-write/`special` → operator titles → release-package export. See [TODO.md](TODO.md) → Visual identity completion (M1–M6) and [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
 
 **Music audio stays separate from SFX** — FLAC masters, metadata repair, playlist coupling, and delivery MP3s must never mix with short brand UI clips.
 
 ### Asset identity applies to visual media too
 
-Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visual assets should follow the same contract in v0.8.4:
+Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visual assets follow the **same three-tier contract** (target; on-disk master rename still in progress):
 
-- **Original** preserved under the upload name (audit/recovery) with `original_filename` in registry
-- **Master** stored as `ast_{ULID}.{ext}` (canonical regeneration source)
-- **Delivery** variants under `ast_{ULID}/` or `ast_{ULID}_{variant}.{ext}` — not human upload stems
+- **Original** preserved under the upload name (audit/recovery) with `original_filename` in registry — under `media/visual/original/` once Brand-assets fold completes; legacy intake buckets until then
+- **Master** stored as `media/visual/master/ast_{ULID}.{ext}` (canonical regeneration source)
+- **Delivery** variants under `media/visual/delivery/{ast_{ULID}}/{variant}` — not human upload stems
 
-Containers, galleries, pages, brands, and track covers reference **`asset_id`**, not `/media/img/original/my-logo.png`.
+Containers, galleries, pages, brands, track covers, living covers, and social/share slots reference **`asset_id`**, not path strings. Paths exist only as **resolved URLs** from the delivery helper.
 
-**Shared track covers:** identical intake/embedded image bytes (SHA-256 of the **original** or embedded blob — never delivery JPEG variants) map to one Visual asset. Multiple audio tracks link `display.cover` to that asset; build must not mint per-stem clones when a match exists.
+**Replace upload:** same `original_filename` reuses one `ast_*` and overwrites master bytes (no clone storm).
+
+**Operator address (Files / pickers):** role + linked context title first (e.g. `Track cover — Party with a banana`, `Brand logo — bandPromo Default`); `ast_*` secondary; original upload name tertiary. Shared assets show “used by N”; delete warns when multiple live refs.
+
+**Shared track covers:** identical intake/embedded image bytes map to one Visual asset. Content identity uses **XXH3** (`content_xxh3`; dual-read legacy `content_sha256` during migration). Multiple audio tracks link to that `asset_id`; build must not mint per-stem clones when a match exists.
+
+**Content hashing:** XXH3 is the product standard for freshness and dedupe. SHA-256 remains only for cryptographic integrity of published release ZIP manifests.
 
 ### Tags and roles (not folders)
 
@@ -297,7 +305,7 @@ Registry **`tags`**, **`brand_id`**, and derived facets replace folder location 
 | Facet | Purpose | Examples |
 |-------|---------|----------|
 | `role` | Intended use of the asset (visual pickers; default `unassigned` for bulk Visual uploads). Sound effects use a single role `sfx` — brand **slots** choose where a clip plays. | Visual: `brand-logo`, `track-cover`, … · SFX: `sfx` only |
-| `brand_id` | Which brand identity package this asset belongs to (library filter) | `bandpromo-default`, `violator-era`, … |
+| `brand_id` | Which brand identity package this asset belongs to (library filter) | `bandpromo-default`, `brd_01hy8k3m2p9xq4r5s6t7`, … |
 | `media_type` | Intake/delivery pipeline branch | `image`, `video`, `audio` |
 | `has_alpha` | Format/delivery policy | `true` for logos, overlays |
 | `origin` | Provenance | `user-upload`, `bundled-placeholder`, `ai-generated`, `generated` |
@@ -379,7 +387,7 @@ Release document (sketch):
   "release_date": "1990-03-19",
   "locked": false,
   "catalog_id": "CDSTUMM64",
-  "brand_id": "violator-identity",
+  "brand_id": "brd_01hy8k3m2p9xq4r5s6t7",
   "short_description": "One-line summary for cards and previews.",
   "description": "Press-ready blurb for this release.",
   "poster_asset_id": "ast_01HY8K3M2P9XQ4R5S6T7V8W",
@@ -624,11 +632,14 @@ data/brands/registry.json
 data/brands/{brand-id}.json
 ```
 
+**Brand ids:** Seed/system identity stays `bandpromo-default` (legacy alias `setup-default`). New operator brands allocate opaque `brd_{ulid}` ids (same ULID helper as `ast_*` assets). Human meaning lives only in the brand **title**; Content → Branding does not show storage ids. Legacy title-derived ids (`hitz-copy`, `your-own-brand`, …) remain valid references until operators replace those brands.
+
 Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`. Legacy many-to-one release→brand links dual-read until migrated.
 
 - Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
 - **Set active** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).
-- Duplicate still clones shell media so the copy has deletable files.
+- Duplicate still clones shell media so the copy has deletable files. If a source slot file is missing, clone falls back to bundled demo seed files (`bandPromo_cover.png` / `bandPromo_share.png`, etc.) instead of copying a broken path.
+- Publish / brand ensure self-heals missing demo poster/share paths on the locked default and in `web-config.json` (operators cannot edit bandPromo Default). Starter-pack presence checks include `bandPromo_cover.png`.
 - Player token overlay uses the selected playlist’s owning release brand; see Operator mental model above.
 
 ### Semantic color and layout tokens

@@ -78,12 +78,8 @@
 }
 
 .content-editor-back-btn {
-    margin-left: auto;
-    flex: 0 0 auto;
-}
-
-.release-editor-back-btn {
     margin-left: 0;
+    flex: 0 0 auto;
 }
 
 .release-editor-header-title {

@@ -17,10 +17,11 @@ import json
 import subprocess
 import sys
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from mutagen import File
 from mutagen.flac import FLAC
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBP, TKEY, TPE4, USLT, TXXX
+from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBPM, TKEY, TPE4, USLT, TXXX
 
 import stdio_utf8
 stdio_utf8.configure()
@@ -827,15 +828,101 @@ def load_registry_audio_delivery_queue():
         if not master_filename:
             continue
 
+        display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+        delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+        recorded_mtime = delivery.get('source_mtime')
+        try:
+            recorded_mtime = int(recorded_mtime) if recorded_mtime is not None and str(recorded_mtime).strip() != '' else None
+        except (TypeError, ValueError):
+            recorded_mtime = None
         queue.append({
             'asset_id': str(asset_id),
             'master_filename': master_filename,
             'original_filename': os.path.basename(str(asset.get('original_filename') or '').strip()),
             'delivery_filename': Path(master_filename).stem + '.mp3',
+            'display_title': str(display.get('title') or '').strip(),
+            'display_artist': str(display.get('artist') or '').strip(),
+            'display': display,
+            'recorded_source_mtime': recorded_mtime,
         })
 
-    queue.sort(key=lambda item: str(item.get('master_filename') or '').lower())
+    # Operator-facing order: artist → title → stable asset filename (not ULID dump order alone).
+    queue.sort(key=lambda item: (
+        str(item.get('display_artist') or '').lower(),
+        str(item.get('display_title') or '').lower(),
+        str(item.get('master_filename') or '').lower(),
+    ))
     return queue
+
+
+def update_audio_asset_delivery(asset_id, source_mtime, ready=True):
+    """Patch registry.json delivery flags for one audio asset after optimize."""
+    if not asset_id or not ASSET_REGISTRY_FILE.exists():
+        return False
+    try:
+        payload = json.loads(ASSET_REGISTRY_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = assets.get(asset_id)
+    if not isinstance(asset, dict):
+        return False
+    delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+    delivery['audio_optimal'] = bool(ready)
+    delivery['source_mtime'] = int(source_mtime)
+    delivery['built_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    delivery['checked_at'] = delivery['built_at']
+    asset['delivery'] = delivery
+    assets[asset_id] = asset
+    payload['assets'] = assets
+    try:
+        ASSET_REGISTRY_FILE.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + '\n',
+            encoding='utf-8',
+        )
+        return True
+    except Exception as exc:
+        print("    ⚠️  Could not update audio delivery registry for {}: {}".format(asset_id, exc))
+        return False
+
+
+def audio_delivery_is_fresh(source_path, mp3_path, recorded_source_mtime=None):
+    """True when delivery MP3 exists and still matches the recorded master mtime.
+
+    First builds (no recorded mtime) always rebuild so we learn the fingerprint.
+    Later publishes skip when the master file is unchanged since the last successful build.
+    """
+    try:
+        source = Path(source_path)
+        dest = Path(mp3_path)
+        if not source.is_file() or not dest.is_file() or dest.stat().st_size <= 0:
+            return False
+        if recorded_source_mtime is None:
+            return False
+        current_mtime = int(source.stat().st_mtime)
+        if int(recorded_source_mtime) != current_mtime:
+            return False
+        # Delivery should not be older than the master we claim to have built from.
+        if int(dest.stat().st_mtime) < current_mtime:
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def format_track_label(artist='', title='', fallback=''):
+    """Build an operator-facing track label."""
+    artist = str(artist or '').strip()
+    title = str(title or '').strip()
+    if artist and title:
+        return f'{title} by {artist}'
+    if title:
+        return title
+    if artist:
+        return artist
+    return str(fallback or 'Unknown track').strip() or 'Unknown track'
 
 
 def load_asset_for_filename(filename):
@@ -889,8 +976,51 @@ def resolve_audio_working_path(filename):
     return AUDIO_ORIG_DIR / filename, 'original'
 
 
+def _id3_text(tags, *keys):
+    for key in keys:
+        if key not in tags:
+            continue
+        value = tags[key]
+        if isinstance(value, list):
+            return str(value[0]).strip()
+        text = getattr(value, 'text', None)
+        if isinstance(text, list) and text:
+            return str(text[0]).strip()
+        return str(value).strip()
+    return ''
+
+
+def _id3_comment(tags):
+    for key in tags.keys():
+        if str(key).startswith('COMM'):
+            return str(tags[key]).strip()
+    return ''
+
+
+def _id3_lyrics(tags):
+    for key in tags.keys():
+        if str(key).startswith('USLT'):
+            return str(tags[key]).strip()
+    return ''
+
+
+def _normalize_lyrics_text(lyrics_data):
+    if isinstance(lyrics_data, list):
+        lyrics_text = '\n'.join(str(line) for line in lyrics_data)
+    else:
+        lyrics_text = str(lyrics_data)
+    lines = lyrics_text.split('\n')
+    if lines and '||' in lines[0]:
+        lines[0] = lines[0].split('||', 1)[1]
+    return '\n'.join(lines)
+
+
 def get_audio_tags(source_path):
-    """Extract tags from supported source audio files for MP3 delivery output."""
+    """Extract tags from supported source audio files for MP3 delivery output.
+
+    FLAC uses Vorbis comments. MP3 must use ID3 frames (TIT2/TPE1/…); EasyID3-style
+    keys like audio.get('title') are empty on a raw mutagen.mp3.MP3 object.
+    """
     tags = {}
     try:
         source_path = str(source_path)
@@ -898,70 +1028,141 @@ def get_audio_tags(source_path):
 
         if source_suffix == '.flac':
             audio = FLAC(source_path)
-        else:
-            audio = File(source_path)
-            if audio is None:
+            if audio.get('title'):
+                tags['title'] = audio['title'][0]
+            if audio.get('artist'):
+                tags['artist'] = audio['artist'][0]
+            if audio.get('album'):
+                tags['album'] = audio['album'][0]
+            if audio.get('date'):
+                tags['date'] = audio['date'][0]
+            if audio.get('year'):
+                tags['year'] = audio['year'][0]
+            if audio.get('tracknumber'):
+                tags['tracknumber'] = audio['tracknumber'][0]
+            if audio.get('genre'):
+                tags['genre'] = audio['genre'][0]
+            if audio.get('albumartist'):
+                tags['albumartist'] = audio['albumartist'][0]
+            if audio.get('comment'):
+                tags['comment'] = audio['comment'][0]
+            elif audio.get('description'):
+                tags['comment'] = audio['description'][0]
+            if audio.get('bpm'):
+                tags['bpm'] = audio['bpm'][0]
+            if audio.get('initialkey'):
+                tags['key'] = audio['initialkey'][0]
+            if audio.get('mixartist'):
+                tags['mixartist'] = audio['mixartist'][0]
+            if audio.get('unsyncedlyrics'):
+                tags['lyrics'] = _normalize_lyrics_text(audio['unsyncedlyrics'])
+            elif audio.get('lyrics'):
+                tags['lyrics'] = _normalize_lyrics_text(audio['lyrics'])
+            if getattr(audio, 'pictures', None):
+                tags['picture'] = audio.pictures[0]
+            return tags
+
+        if source_suffix == '.mp3':
+            try:
+                id3 = ID3(source_path)
+            except Exception:
                 return tags
-        
+
+            title = _id3_text(id3, 'TIT2')
+            artist = _id3_text(id3, 'TPE1')
+            album = _id3_text(id3, 'TALB')
+            date = _id3_text(id3, 'TDRC')
+            tracknumber = _id3_text(id3, 'TRCK')
+            genre = _id3_text(id3, 'TCON')
+            albumartist = _id3_text(id3, 'TPE2')
+            bpm = _id3_text(id3, 'TBPM')
+            key = _id3_text(id3, 'TKEY')
+            mixartist = _id3_text(id3, 'TPE4')
+            comment = _id3_comment(id3)
+            lyrics = _id3_lyrics(id3)
+
+            if title:
+                tags['title'] = title
+            if artist:
+                tags['artist'] = artist
+            if album:
+                tags['album'] = album
+            if date:
+                tags['date'] = date
+            if tracknumber:
+                tags['tracknumber'] = tracknumber
+            if genre:
+                tags['genre'] = genre
+            if albumartist:
+                tags['albumartist'] = albumartist
+            if comment:
+                tags['comment'] = comment
+            if bpm:
+                tags['bpm'] = bpm
+            if key:
+                tags['key'] = key
+            if mixartist:
+                tags['mixartist'] = mixartist
+            if lyrics:
+                tags['lyrics'] = _normalize_lyrics_text(lyrics)
+
+            for key_name in id3.keys():
+                if str(key_name).startswith('APIC'):
+                    tags['picture'] = id3[key_name]
+                    break
+            return tags
+
+        # WAV / other: best-effort Easy-style keys when present.
+        audio = File(source_path)
+        if audio is None:
+            return tags
         if audio.get('title'):
             tags['title'] = audio['title'][0]
         if audio.get('artist'):
             tags['artist'] = audio['artist'][0]
         if audio.get('album'):
             tags['album'] = audio['album'][0]
-        if audio.get('date'):
-            tags['date'] = audio['date'][0]
-        if audio.get('year'):
-            tags['year'] = audio['year'][0]
-        if audio.get('tracknumber'):
-            tags['tracknumber'] = audio['tracknumber'][0]
-        if audio.get('genre'):
-            tags['genre'] = audio['genre'][0]
-        if audio.get('albumartist'):
-            tags['albumartist'] = audio['albumartist'][0]
-        if audio.get('comment'):
-            tags['comment'] = audio['comment'][0]
-        if audio.get('bpm'):
-            tags['bpm'] = audio['bpm'][0]
-        
-        # Key - use initialkey
-        if audio.get('initialkey'):
-            tags['key'] = audio['initialkey'][0]
-        
-        # Mix artist - lowercase
-        if audio.get('mixartist'):
-            tags['mixartist'] = audio['mixartist'][0]
-        
-        # Lyrics - handle as list and join properly
-        if audio.get('unsyncedlyrics'):
-            lyrics_data = audio['unsyncedlyrics']
-            if isinstance(lyrics_data, list):
-                lyrics_text = '\n'.join(lyrics_data)
-            else:
-                lyrics_text = str(lyrics_data)
-            # Remove everything before || in the first line if present
-            lines = lyrics_text.split('\n')
-            if lines and '||' in lines[0]:
-                lines[0] = lines[0].split('||', 1)[1]
-            tags['lyrics'] = '\n'.join(lines)
-        elif audio.get('lyrics'):
-            lyrics_data = audio['lyrics']
-            if isinstance(lyrics_data, list):
-                lyrics_text = '\n'.join(lyrics_data)
-            else:
-                lyrics_text = str(lyrics_data)
-            # Remove everything before || in the first line if present
-            lines = lyrics_text.split('\n')
-            if lines and '||' in lines[0]:
-                lines[0] = lines[0].split('||', 1)[1]
-            tags['lyrics'] = '\n'.join(lines)
-        
-        # Try to extract cover art (first picture)
         if getattr(audio, 'pictures', None):
             tags['picture'] = audio.pictures[0]
     except Exception as e:
         print(f"  Warning: Could not read source audio tags: {e}")
-    
+
+    return tags
+
+
+def merge_catalog_display_into_tags(tags, display):
+    """Fill missing delivery-tag fields from registry display (operator catalog cache)."""
+    if not isinstance(tags, dict):
+        tags = {}
+    if not isinstance(display, dict):
+        return tags
+
+    mapping = [
+        ('title', 'title'),
+        ('artist', 'artist'),
+        ('album', 'album'),
+        ('date', 'date'),
+        ('tracknumber', 'tracknumber'),
+        ('bpm', 'bpm'),
+        ('genre', 'genre'),
+        ('comment', 'comment'),
+        ('lyrics', 'lyrics'),
+    ]
+    for tag_key, display_key in mapping:
+        current = str(tags.get(tag_key) or '').strip()
+        if current:
+            continue
+        value = display.get(display_key)
+        if value is None:
+            continue
+        text = str(value).strip() if not isinstance(value, list) else '\n'.join(str(v) for v in value).strip()
+        if text:
+            tags[tag_key] = text
+
+    initialkey = str(display.get('initialkey') or '').strip()
+    if initialkey and not str(tags.get('key') or '').strip():
+        tags['key'] = initialkey
+
     return tags
 
 
@@ -997,7 +1198,7 @@ def set_id3_tags(mp3_path, tags):
         if 'comment' in tags:
             id3.add(COMM(encoding=3, lang='eng', desc='', text=[tags['comment']]))
         if 'bpm' in tags:
-            id3.add(TBP(encoding=3, text=[tags['bpm']]))
+            id3.add(TBPM(encoding=3, text=[tags['bpm']]))
         if 'key' in tags:
             id3.add(TKEY(encoding=3, text=[tags['key']]))
         if 'mixartist' in tags:
@@ -1013,11 +1214,14 @@ def set_id3_tags(mp3_path, tags):
         # Add cover art if available
         if 'picture' in tags:
             picture = tags['picture']
-            id3.add(APIC(encoding=3, 
-                        mime=picture.mime,
-                        type=3,  # Cover front
-                        desc='',
-                        data=picture.data))
+            mime = getattr(picture, 'mime', None) or 'image/jpeg'
+            data = getattr(picture, 'data', None)
+            if data:
+                id3.add(APIC(encoding=3, 
+                            mime=mime,
+                            type=3,  # Cover front
+                            desc='',
+                            data=data))
         
         id3.save(mp3_path, v2_version=4)
     except Exception as e:
@@ -1076,10 +1280,19 @@ def delivery_queue_needs_ffmpeg(queue):
         if not master_filename:
             continue
         source_path, _source_tier = resolve_audio_working_path(master_filename)
-        if not Path(source_path).exists():
+        source = Path(source_path)
+        if not source.exists():
             continue
-        if audio_delivery_mode(source_path) == 'transcode':
-            return True
+        if audio_delivery_mode(source_path) != 'transcode':
+            continue
+        mp3_path = AUDIO_OPT_DIR / (Path(master_filename).stem + '.mp3')
+        if audio_delivery_is_fresh(
+            str(source_path),
+            str(mp3_path),
+            item.get('recorded_source_mtime'),
+        ):
+            continue
+        return True
     return False
 
 
@@ -1091,7 +1304,7 @@ def process_track_cover(cover_filename):
     stem = Path(cover_filename).stem
     optimal_path = IMG_OPT_DIR / (stem + '.jpg')
     thumb_path = IMG_THUMB_DIR / (stem + '.jpg')
-    print(f"  → Processing cover: {cover_filename}")
+    print(f"  → Track cover (Files): refreshing player images for {cover_filename}")
     write_cover_delivery_variants(
         str(orig_cover_path),
         str(optimal_path),
@@ -1100,23 +1313,68 @@ def process_track_cover(cover_filename):
     )
 
 
-def process_audio_delivery(master_filename, cover_filename=None):
+def process_audio_delivery(
+    master_filename,
+    cover_filename=None,
+    display_title='',
+    display_artist='',
+    display=None,
+    asset_id='',
+    recorded_source_mtime=None,
+):
     """Convert one registry audio asset to a delivery MP3."""
     source_path, source_tier = resolve_audio_working_path(master_filename)
     source = Path(source_path)
     if not source.exists() or not source.is_file():
+        label = format_track_label(display_artist, display_title, master_filename)
+        print(f"\n🎵 Processing: {label}")
         print(f"  ❌ Source audio not found for {master_filename}")
         return False
 
     mp3_filename = Path(master_filename).stem + '.mp3'
     mp3_path = AUDIO_OPT_DIR / mp3_filename
     delivery_mode = audio_delivery_mode(source_path)
+    source_mtime = int(source.stat().st_mtime)
+    force_rebuild = os.environ.get('BANDPROMO_FORCE_AUDIO_DELIVERY', '').strip() == '1'
+    catalog = display if isinstance(display, dict) else {}
+    if not display_title:
+        display_title = str(catalog.get('title') or '').strip()
+    if not display_artist:
+        display_artist = str(catalog.get('artist') or '').strip()
 
-    print(f"\n🎵 Processing: {master_filename}")
+    # Prefer registry display for the headline when tags are not read yet.
+    headline = format_track_label(display_artist, display_title, master_filename)
+    print(f"\n🎵 Processing: {headline}")
     print(f"  → Source tier: {source_tier}")
-    print(f"  → Delivery route: {'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'}")
     print("  → Reading source audio tags...")
     tags = get_audio_tags(str(source_path))
+    tags = merge_catalog_display_into_tags(tags, catalog)
+    tag_artist = str(tags.get('artist') or '').strip()
+    tag_title = str(tags.get('title') or '').strip()
+    if tag_artist or tag_title:
+        print(f"  → Tags: {format_track_label(tag_artist, tag_title, master_filename)}")
+        headline = format_track_label(
+            tag_artist or display_artist,
+            tag_title or display_title,
+            master_filename,
+        )
+    else:
+        print("  → Tags: no artist/title on the source file")
+        if display_artist or display_title:
+            print(f"  → Using catalog display: {format_track_label(display_artist, display_title, master_filename)}")
+
+    print(f"  → Asset file: {master_filename}")
+
+    if (
+        not force_rebuild
+        and audio_delivery_is_fresh(str(source_path), str(mp3_path), recorded_source_mtime)
+    ):
+        print("  → Delivery: already up to date (master unchanged since last build) — skipped")
+        if asset_id:
+            update_audio_asset_delivery(asset_id, source_mtime, ready=True)
+        return 'skipped'
+
+    print(f"  → Delivery route: {'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'}")
 
     if delivery_mode == 'copy':
         print("  → Copying MP3 source to delivery tier...")
@@ -1126,16 +1384,21 @@ def process_audio_delivery(master_filename, cover_filename=None):
         converted_ok = convert_audio_to_mp3(str(source_path), str(mp3_path))
 
     if not converted_ok:
-        print("  ❌ Failed to convert audio")
+        print(f"  ❌ Failed to convert audio ({headline})")
         return False
 
-    print("  → Applying ID3 tags...")
+    print("  → Applying ID3 tags to delivery MP3...")
     set_id3_tags(str(mp3_path), tags)
 
     if cover_filename:
         process_track_cover(cover_filename)
+    elif tags.get('picture') is not None:
+        print("  → Track cover: none assigned in Files; embedded artwork was copied into the delivery MP3")
     else:
-        print("  → No playlist-linked cover for this asset")
+        print("  → Track cover: none assigned in Files and no embedded artwork on the source")
+
+    if asset_id:
+        update_audio_asset_delivery(asset_id, source_mtime, ready=True)
 
     return True
 
@@ -1214,14 +1477,28 @@ def main():
             sys.exit(1)
 
     converted = 0
+    skipped = 0
     failed = 0
 
     if include_audio:
         print("\n🎵 Processing registered audio delivery...")
+        if os.environ.get('BANDPROMO_FORCE_AUDIO_DELIVERY', '').strip() == '1':
+            print("ℹ️  BANDPROMO_FORCE_AUDIO_DELIVERY=1 — rebuilding every delivery MP3")
         for item in audio_queue:
             master_filename = item.get('master_filename')
             cover_filename = cover_filename_for_audio(master_filename, cover_lookup)
-            if process_audio_delivery(master_filename, cover_filename):
+            result = process_audio_delivery(
+                master_filename,
+                cover_filename,
+                display_title=item.get('display_title') or '',
+                display_artist=item.get('display_artist') or '',
+                display=item.get('display') if isinstance(item.get('display'), dict) else {},
+                asset_id=item.get('asset_id') or '',
+                recorded_source_mtime=item.get('recorded_source_mtime'),
+            )
+            if result == 'skipped':
+                skipped += 1
+            elif result:
                 converted += 1
             else:
                 failed += 1
@@ -1353,6 +1630,7 @@ def main():
     print(f"✅ Optimization complete!")
     if include_audio:
         print(f"   Converted tracks : {converted}")
+        print(f"   Skipped (fresh)  : {skipped}")
         print(f"   Failed           : {failed}")
     else:
         print("   Converted tracks : skipped (image-only mode)")

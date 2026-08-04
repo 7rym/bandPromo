@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-04 12:55 - Policy lock: Visual identity completion track (M1–M6) — three-tier visuals like audio, `asset_id` addressing before on-disk masters, XXH3 for freshness/dedupe (not mtime; SHA-256 only for release ZIP crypto), operator role+context titles, shared-ref delete, replace-upload same `ast_*`, release packages require registry subset + import merge (no analytics). PLATFORM-MODEL / MEDIA-HANDLING / PORTABILITY / TODO / ROADMAP updated; Brand-assets fold absorbed into M1–M4.
+
+2026-08-03 23:25 - Publish build log: fold stage label into the `====` script banner (`Stage N/M — …` + `Script: …`) instead of a separate `── Stage ──` line above `Running:`.
+
+2026-08-03 23:05 - Audio delivery tag reader: MP3 masters use ID3 frames (`TIT2`/`TPE1`/…); optimizeMedia was probing EasyID3-style keys on raw `mutagen.mp3.MP3`, so the build falsely logged “no artist/title” and could rewrite delivery ID3 empty after copy. Reader now matches `audioMasterMetadata.py`, fills missing fields from registry display, and uses `TBPM` correctly.
+
+2026-08-03 22:55 - Restore audio description/lyrics/cover from unregistered leftover masters onto matching live `ast_*` assets (identity match); writes tags onto the live master and re-links Visual pool sidecars. Wired into Content autofix audio-display sync and full Publish preflight. Local Retroscopy hour tracks restored (10/12 with pool covers; #06/#07 had no leftover sidecar — embedded art only).
+
+2026-08-03 22:45 - Files → Audio empty titles/edit: registry `display{}` was blank after re-register even though masters had tags (C/A/T badges all red; editor looked empty). Full Publish preflight now rebinds stale release/playlist links and fills incomplete audio display from master tags (skips rows that already have title+artist+duration). Local install display cache refreshed; intentional orphans (e.g. Party with a banana) stay unassociated.
+
+2026-08-03 22:30 - Content autofix: rebind stale release/playlist audio membership when registry IDs were replaced (re-upload). Matches live assets by artist/title identity (including `#06` ↔ `#06 FINAL` / `#11 NEWER WIP` suffixes), repairs playlist `entries` (not only legacy `tracks`), and clears player payloads so the next publish rebuilds from live masters. Files → Audio “orphan” means not on a release — true unassociated uploads stay orphaned.
+
+2026-08-03 22:05 - Audio delivery skip-if-fresh: store master `source_mtime` on `assets[].delivery` after a successful build; later Publish/optimize skips unchanged masters (logs “already up to date”), records skipped counts, and only requires ffmpeg when a track actually needs a rebuild (`BANDPROMO_FORCE_AUDIO_DELIVERY=1` forces all).
+
+2026-08-03 21:55 - Publish audio log: lead with track title/artist (tags + catalog display), put `ast_*` filename after source tier, clarify track-cover lines (Files assignment vs embedded art), and process the delivery queue in artist/title order instead of raw master-filename sort.
+
+2026-08-03 21:35 - Shell media install harden: restore/heal missing demo poster paths (cover→share fallback), brand duplicate no longer keeps a broken missing-file path when cloning from locked bandPromo Default, Publish runs shell-media heal before build, starter-pack checks include `bandPromo_cover.png`, and social-assets diagnostics stop telling operators to edit the locked default brand.
+
+2026-08-03 21:25 - Publish social-assets failure: when the share/poster source file is missing, `makeSocial.py` now names the config keys, active brand + poster slot, operator fix path (Content → Branding → Shell media), demo `bandPromo_*` note, and nearby `media/special/` images; `makePlaylists.py` cover warning points at the same Branding poster slot.
+
+2026-08-03 21:15 - Content editors: put a left-aligned ← Back control on Playlist, Gallery, Pages, and Branding edit headers (same pattern as Catalogue release edit); drop named ← Playlists/Galleries/Pages/Branding buttons on the right.
+
+2026-08-03 21:10 - Brands: allocate opaque `brd_{ulid}` storage ids on duplicate (including setup “Your own brand”); Content → Branding pool shows title + locked/active only — no copy-copy slugs. Legacy ids remain valid; PLATFORM-MODEL documents the contract.
+
+2026-08-03 21:00 - Files Visual/Brand/SFX asset modal Delete: capture the selection key before closing the modal so confirm no longer opens with an empty file list (and silently no-ops).
+
 2026-08-03 14:25 - Player coverflow: resolve playlist catalog art via visual delivery thumbs (not only legacy img/photo thumb paths), then fall back to owning release poster and first track cover so coverflow no longer shows letter placeholders when a playlist poster was never set.
 
 2026-08-03 13:50 - Delivery smoothness P0+P1a: tag/cover saves keep last-good `/play` payloads (no empty wipe), sync ID3 onto existing optimal MP3s, quiet-republish affected playlists, and clear false “Prepare your songs” pending; shared covers use exact SHA-256 of intake/embedded bytes to link existing Visual assets instead of extracting per-stem clones, with migrate hash backfill + content-hash dedupe.

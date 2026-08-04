@@ -462,6 +462,10 @@ def get_configured_cover_filename():
     source_path = ROOT_DIR / Path(relative_cover_path)
     if not source_path.exists() or not source_path.is_file():
         print(f"Warning: Configured media.cover not found: {source_path}")
+        print("         Fix: Admin → Content → Branding → active brand → Shell media → Poster / share image")
+        print("         (Saving Active syncs media.cover / social.share_image in web-config.json.)")
+        if source_path.name.lower().startswith('bandpromo_'):
+            print("         Note: bandPromo_* is a bundled demo filename — restore seed media or retarget the poster.")
         return None
 
     suffix = source_path.suffix.lower()

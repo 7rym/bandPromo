@@ -48,11 +48,11 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
 | Brand containers + semantic player colors (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
-| Visual pool + role tags + registry-scoped delivery | Phases 0b–2 shipped (2026-07-21); Phase 3 remainders open |
+| Visual pool + role tags + registry-scoped delivery | Phases 0b–2 + Phase 3 UX shipped; **identity completion M1–M6** policy locked 2026-08-04 (see TODO) |
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** v0.8 **management machine** — Visual registry/delivery Phases 0b–2, content AI wizards, brand-filter remainders. Files → Visual operator UX + Brand assets label shipped (2026-07-15/16). Brand core, backup/export, analytics SQLite tail shipped. **Still open:** page container metadata, OG/share wiring (v0.9). See [TODO.md](TODO.md).
+**Next focus:** v0.8 **Visual identity completion (M1–M6)** — `asset_id` refs everywhere → on-disk visual masters → XXH3 skip-if-fresh → quit dual-write/`special` → operator Files titles → release-package export. Content AI wizards remain defined. Page container metadata / OG polish still v0.9. See [TODO.md](TODO.md).
 
 ## Core vs modules
 

@@ -933,11 +933,16 @@ What ships today for opaque track/illustration/photo delivery:
 - Player loads **optimal** for the main cover and **thumb** for playlist list/cover-flow (fallback to optimal → original)
 - Product naming: pool is **Visual**; **Still** / **Living** are type filters. Do not introduce a top-level `stills/` folder that would exclude video.
 
-Remaining debt (visual media slice after Phase 3 operator wiring, 2026-07-21):
+Remaining debt (visual identity completion track, policy locked 2026-08-04):
 
-- dedicated lightbox/share variants beyond the card (720px) cap
-- relocate originals into `media/visual/original/` when Brand assets fold lands
-- living-cover master tag rewrite `filename → ast_*`
+- **M1** — `asset_id` resolution everywhere (brand shell, pages, galleries, track/living cover, social); temporary dual-read
+- **M2** — on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters
+- **M3** — XXH3 skip-if-fresh for visual + audio (`delivery.source_xxh3`); operator-facing Publish log; migrate `content_sha256` → `content_xxh3`
+- **M4** — stop dual-write to stem optimal/thumb; fold `media/special/`; drop dual-read; register-or-fail
+- **M5** — Files Visual titles = role + linked context
+- **M6** — release package export + registry-subset import merge
+
+Do not kill legacy trees before M1 consumers resolve `asset_id`. Do not start M2 masters alone while brand/pages still store path strings.
 
 ### Visual media rework plan (v0.8.4)
 
@@ -1120,6 +1125,9 @@ Current implementation note:
 - Build-required state now also records concrete task units (`playlist-scan`, `audio-delivery`, `image-delivery`, `social-assets`, `manifest`) alongside the legacy `full` / `optimize` action so the operator inbox and save/upload feedback can speak in task terms even before the manual build controls are fully split by task.
 - The Build tab now speaks in task-oriented operator language (`Run Publish Build` and `Refresh Image Files`) instead of the older vague `Full Build` / `Optimize Media` pairing, while still routing those buttons through the same current heavy-runner endpoints.
 - `Refresh Image Files` now truly runs the image-delivery path only: it regenerates track cover JPEGs, photos, and illustration derivatives without re-encoding audio delivery files. The full publish build still runs the optimizer in full mode so audio delivery regeneration remains part of the full publish pipeline.
+- Audio delivery is skip-if-fresh today via master **mtime** (`assets[].delivery.source_mtime`). **Target (M3):** both audio and visual delivery skip when master **XXH3** matches `delivery.source_xxh3` (not mtime — safer on Google Drive). Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Visual asset-id variants currently rebuild every Publish until M3.
+- Share/OG crops become named **delivery variants** of the share Visual asset (not sibling files beside `media/special/`) once Brand-assets fold + M1 land.
+- Publish log vocabulary (target): operator title + product variants (`card` / `thumb` / poster / stream) only — no “Optimal / Converted cover / Variant” jargon.
 - Theme-cover changes and image-only uploads now auto-run the image-delivery path in the background when that cheap refresh succeeds, so those safe cases no longer have to leave a manual image-refresh task behind just to regenerate derived JPEG assets.
 - Real metadata changes still rely on the older coarse manual build controls, so task-level follow-up remains only partially complete until those controls are split beyond `full` / `optimize`.
 
@@ -1160,6 +1168,12 @@ bandPromo should stop forcing operators to work directly with raw source filenam
 - the original upload name remains recorded in the registry for trust and recovery
 
 Playlist reorder must not rename files or rewrite embedded track numbers. Release membership is unordered; an embedded track number remains independent source metadata.
+
+Files → Audio **orphan** means the asset is not on any release document (not “unprocessed”). After re-upload/re-register under a new `ast_*` id, Content autofix sync-releases rebinds stale release tracks and playlist `entries` onto the live registry row by artist/title identity (including common suffixes such as `FINAL` / `NEWER WIP`). Leftover master files for deleted ids may remain on disk until cleaned separately.
+
+Registry `display{}` is what Files → Audio titles and the metadata health badges (C/A/T/R/D/L) read. Upload and Content autofix fill it from master tags; full Publish preflight also fills **incomplete** rows only (does not overwrite complete operator-saved display). A media rebuild alone does not invent titles when `display` is empty and tags were never copied into the registry.
+
+When re-upload leaves rich tags on unregistered leftover masters, Publish/autofix can copy empty description/lyrics/cover onto the matching live asset (and rewrite those tags onto the live master).
 
 ## Current metadata contract
 

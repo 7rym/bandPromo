@@ -110,10 +110,21 @@ def main():
         if not isinstance(asset, dict):
             missing_registry.append({'file': name, 'error': 'asset_not_registered'})
             continue
+        display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+        delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+        recorded_mtime = delivery.get('source_mtime')
+        try:
+            recorded_mtime = int(recorded_mtime) if recorded_mtime is not None and str(recorded_mtime).strip() != '' else None
+        except (TypeError, ValueError):
+            recorded_mtime = None
         targets.append({
             'requested': name,
             'master_filename': master_filename,
             'cover': cover_lookup.get(master_filename) or cover_lookup.get(Path(master_filename).stem),
+            'display_title': str(display.get('title') or '').strip(),
+            'display_artist': str(display.get('artist') or '').strip(),
+            'asset_id': str(asset.get('id') or '').strip(),
+            'recorded_source_mtime': recorded_mtime,
         })
 
     om.AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
@@ -128,12 +139,23 @@ def main():
         return
 
     prepared = []
+    skipped = []
     failed = list(missing_registry)
 
     for item in targets:
         master_filename = item['master_filename']
-        ok = om.process_audio_delivery(master_filename, item.get('cover'))
-        if ok:
+        result = om.process_audio_delivery(
+            master_filename,
+            item.get('cover'),
+            display_title=item.get('display_title') or '',
+            display_artist=item.get('display_artist') or '',
+            asset_id=item.get('asset_id') or '',
+            recorded_source_mtime=item.get('recorded_source_mtime'),
+        )
+        if result == 'skipped':
+            skipped.append(item['requested'])
+            prepared.append(item['requested'])
+        elif result:
             prepared.append(item['requested'])
         else:
             failed.append({'file': item['requested'], 'error': 'delivery_preparation_failed'})
@@ -147,6 +169,7 @@ def main():
     emit_json({
         'ok': len(still_missing) == 0 and not failed,
         'prepared': prepared,
+        'skipped': skipped,
         'failed': failed,
         'still_missing': still_missing,
     })

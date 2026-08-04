@@ -1749,7 +1749,14 @@ function bandpromo_asset_ensure_audio_display_after_upload(
     ];
 }
 
-function bandpromo_asset_refresh_all_audio_displays(string $root): array
+/**
+ * Refresh registry display from master tags.
+ *
+ * @param bool $onlyIncomplete When true, skip rows that already have title+artist+duration
+ *                             (Publish path — do not overwrite operator-saved display).
+ * @return array{changed:int, items: list<string>}
+ */
+function bandpromo_asset_refresh_all_audio_displays(string $root, bool $onlyIncomplete = false): array
 {
     bandpromo_asset_registry_ensure_migrated($root);
 
@@ -1762,6 +1769,10 @@ function bandpromo_asset_refresh_all_audio_displays(string $root): array
 
         $masterFile = basename(trim((string) ($asset['master_filename'] ?? '')));
         if ($masterFile === '') {
+            continue;
+        }
+
+        if ($onlyIncomplete && bandpromo_asset_audio_display_is_complete(bandpromo_asset_read_audio_display($asset))) {
             continue;
         }
 
@@ -2521,4 +2532,446 @@ function bandpromo_release_repair_catalog_release_ids(string $root): int
     }
 
     return $changed;
+}
+
+/**
+ * Normalize artist+title for matching re-registered audio assets.
+ */
+function bandpromo_audio_identity_fingerprint(string $artist, string $title): string
+{
+    $normalize = static function (string $value): string {
+        $value = strtolower(trim($value));
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+
+        return $value;
+    };
+
+    return $normalize($artist) . "\n" . $normalize($title);
+}
+
+/**
+ * Extra identity keys so "#06" can match "#06 FINAL" / "#11 NEWER WIP".
+ *
+ * @return list<string>
+ */
+function bandpromo_audio_identity_keys(string $artist, string $title): array
+{
+    $title = trim($title);
+    $artist = trim($artist);
+    if ($title === '') {
+        return [];
+    }
+
+    $keys = [bandpromo_audio_identity_fingerprint($artist, $title)];
+    $looseTitle = trim((string) preg_replace(
+        '/\s+(\(|\[)?(final|newer\s+wip|wip|trance|radio\s+edit|extended(?:\s+version)?|original(?:\s+club)?\s+mix)(\)|\])?\s*$/iu',
+        '',
+        $title
+    ));
+    if ($looseTitle !== '' && strcasecmp($looseTitle, $title) !== 0) {
+        $keys[] = bandpromo_audio_identity_fingerprint($artist, $looseTitle);
+    }
+
+    if (preg_match('/^(.*?#\s*\d{1,3})\b/u', $looseTitle !== '' ? $looseTitle : $title, $matches) === 1) {
+        $seriesTitle = trim((string) ($matches[1] ?? ''));
+        if ($seriesTitle !== '') {
+            $keys[] = bandpromo_audio_identity_fingerprint($artist, $seriesTitle);
+            $keys[] = bandpromo_audio_identity_fingerprint('', $seriesTitle);
+        }
+    }
+
+    return array_values(array_unique(array_filter($keys, static fn(string $key): bool => $key !== "\n" && $key !== '')));
+}
+
+/**
+ * Index live audio assets by identity fingerprint and master basename.
+ *
+ * @return array{by_fingerprint: array<string, list<string>>, by_master: array<string, string>}
+ */
+function bandpromo_release_live_audio_identity_index(string $root): array
+{
+    $byFingerprint = [];
+    $byMaster = [];
+
+    foreach (bandpromo_asset_load_registry($root)['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || strtolower((string) ($asset['kind'] ?? 'audio')) !== 'audio') {
+            continue;
+        }
+        $assetId = trim((string) ($asset['id'] ?? $assetId));
+        if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+
+        $masterFile = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($masterFile !== '') {
+            $byMaster[strtolower($masterFile)] = $assetId;
+            $stem = strtolower((string) pathinfo($masterFile, PATHINFO_FILENAME));
+            if ($stem !== '') {
+                $byMaster[$stem] = $assetId;
+            }
+        }
+
+        $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+        $title = trim((string) ($display['title'] ?? ''));
+        $artist = trim((string) ($display['artist'] ?? ''));
+        if ($title === '' && $masterFile !== '') {
+            $inspect = bandpromo_release_inspect_master_metadata($root, $masterFile);
+            $title = trim((string) ($inspect['title'] ?? ''));
+            if ($artist === '') {
+                $artist = trim((string) ($inspect['artist'] ?? ''));
+            }
+        }
+        if ($title === '') {
+            continue;
+        }
+        foreach (bandpromo_audio_identity_keys($artist, $title) as $key) {
+            if (!isset($byFingerprint[$key])) {
+                $byFingerprint[$key] = [];
+            }
+            if (!in_array($assetId, $byFingerprint[$key], true)) {
+                $byFingerprint[$key][] = $assetId;
+            }
+        }
+    }
+
+    return [
+        'by_fingerprint' => $byFingerprint,
+        'by_master' => $byMaster,
+    ];
+}
+
+/**
+ * Resolve a replacement live asset id for a stale membership reference.
+ */
+function bandpromo_release_resolve_replacement_audio_asset_id(
+    string $root,
+    string $staleAssetId,
+    array $identityIndex,
+    string $hintTitle = '',
+    string $hintArtist = ''
+): string {
+    $staleAssetId = trim($staleAssetId);
+    if ($staleAssetId !== '' && bandpromo_asset_is_asset_id($staleAssetId)) {
+        $existing = bandpromo_asset_lookup_by_id($root, $staleAssetId);
+        if (is_array($existing) && strtolower((string) ($existing['kind'] ?? 'audio')) === 'audio') {
+            return (string) ($existing['id'] ?? $staleAssetId);
+        }
+    }
+
+    $byMaster = $identityIndex['by_master'] ?? [];
+    foreach ([$staleAssetId . '.mp3', $staleAssetId . '.flac', $staleAssetId . '.wav', $staleAssetId] as $candidate) {
+        $hit = $byMaster[strtolower($candidate)] ?? '';
+        if (is_string($hit) && $hit !== '') {
+            return $hit;
+        }
+    }
+
+    $title = trim($hintTitle);
+    $artist = trim($hintArtist);
+    if ($title === '' && $staleAssetId !== '') {
+        foreach (['.mp3', '.flac', '.wav'] as $ext) {
+            $leftover = $root . '/media/audio/master/' . $staleAssetId . $ext;
+            if (!is_file($leftover)) {
+                continue;
+            }
+            $inspect = bandpromo_release_inspect_master_metadata($root, $staleAssetId . $ext);
+            $title = trim((string) ($inspect['title'] ?? ''));
+            if ($artist === '') {
+                $artist = trim((string) ($inspect['artist'] ?? ''));
+            }
+            break;
+        }
+    }
+
+    if ($title === '') {
+        return '';
+    }
+
+    foreach (bandpromo_audio_identity_keys($artist, $title) as $key) {
+        $matches = $identityIndex['by_fingerprint'][$key] ?? [];
+        if (count($matches) === 1) {
+            return (string) $matches[0];
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Rebind release track asset_ids that point at deleted registry entries onto live audio
+ * assets with the same embedded artist/title (common after re-upload/re-register).
+ *
+ * @return array{rebound:int, unresolved:int, remaps: array<string,string>, releases: list<string>}
+ */
+function bandpromo_release_repair_stale_membership_asset_ids(string $root): array
+{
+    $identityIndex = bandpromo_release_live_audio_identity_index($root);
+    $remaps = [];
+    $rebound = 0;
+    $unresolved = 0;
+    $touchedReleases = [];
+
+    foreach (bandpromo_release_registry_entries($root) as $entry) {
+        $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        if ($releaseId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_release_load_document($root, $releaseId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
+        if ($tracks === []) {
+            continue;
+        }
+
+        $changed = false;
+        $seen = [];
+        $nextTracks = [];
+        foreach ($tracks as $track) {
+            if (!is_array($track)) {
+                continue;
+            }
+            $oldId = trim((string) ($track['asset_id'] ?? ''));
+            if ($oldId === '') {
+                continue;
+            }
+
+            $replacement = $remaps[$oldId] ?? '';
+            if ($replacement === '') {
+                $replacement = bandpromo_release_resolve_replacement_audio_asset_id(
+                    $root,
+                    $oldId,
+                    $identityIndex
+                );
+                if ($replacement !== '' && $replacement !== $oldId) {
+                    $remaps[$oldId] = $replacement;
+                }
+            }
+
+            if ($replacement === '') {
+                if (!bandpromo_asset_is_asset_id($oldId) || bandpromo_asset_lookup_by_id($root, $oldId) === null) {
+                    $unresolved++;
+                }
+                $normalized = bandpromo_release_normalize_track_entry($track);
+                if ($normalized !== null && !isset($seen[$normalized['asset_id']])) {
+                    $seen[$normalized['asset_id']] = true;
+                    $nextTracks[] = $normalized;
+                }
+                continue;
+            }
+
+            if ($replacement !== $oldId) {
+                $track['asset_id'] = $replacement;
+                $changed = true;
+                $rebound++;
+            }
+            $normalized = bandpromo_release_normalize_track_entry($track);
+            if ($normalized === null || isset($seen[$normalized['asset_id']])) {
+                continue;
+            }
+            $seen[$normalized['asset_id']] = true;
+            $nextTracks[] = $normalized;
+        }
+
+        if ($changed) {
+            $document['tracks'] = $nextTracks;
+            bandpromo_release_write_document(
+                $root,
+                bandpromo_release_normalize_document($document, $releaseId, $root)
+            );
+            $touchedReleases[] = $releaseId;
+        }
+    }
+
+    return [
+        'rebound' => $rebound,
+        'unresolved' => $unresolved,
+        'remaps' => $remaps,
+        'releases' => $touchedReleases,
+    ];
+}
+
+/**
+ * Copy description/lyrics/cover from unregistered leftover masters onto matching live
+ * audio assets (common after re-upload left rich tags on the old ast_* files).
+ *
+ * Only fills empty live fields. Writes tags onto the live master and re-links pool covers.
+ *
+ * @return array{restored:int, covers:int, skipped:int, items: list<array<string,string>>}
+ */
+function bandpromo_asset_restore_audio_meta_from_unregistered_masters(string $root): array
+{
+    require_once __DIR__ . '/light-build-tasks.php';
+    require_once __DIR__ . '/audio-master-detail-helpers.php';
+
+    $identityIndex = bandpromo_release_live_audio_identity_index($root);
+    $registry = bandpromo_asset_load_registry($root);
+    $masterDir = $root . '/media/audio/master';
+    $imgDir = $root . '/media/img/original';
+
+    $restored = 0;
+    $covers = 0;
+    $skipped = 0;
+    $items = [];
+    $seenLive = [];
+
+    if (!is_dir($masterDir)) {
+        return [
+            'restored' => 0,
+            'covers' => 0,
+            'skipped' => 0,
+            'items' => [],
+        ];
+    }
+
+    foreach (scandir($masterDir) ?: [] as $filename) {
+        if ($filename === '.' || $filename === '..') {
+            continue;
+        }
+        $filename = basename((string) $filename);
+        $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['mp3', 'flac', 'wav'], true)) {
+            continue;
+        }
+
+        $staleId = bandpromo_asset_id_from_master_filename($filename);
+        if ($staleId === null || isset($registry['assets'][$staleId])) {
+            continue;
+        }
+
+        $inspect = bandpromo_release_inspect_master_metadata($root, $filename);
+        $title = trim((string) ($inspect['title'] ?? ''));
+        $artist = trim((string) ($inspect['artist'] ?? ''));
+        $comment = trim((string) ($inspect['comment'] ?? ''));
+        $lyrics = (string) ($inspect['lyrics'] ?? '');
+        $sidecar = basename(trim((string) ($inspect['sidecar_cover'] ?? '')));
+        if ($sidecar === '' || !is_file($imgDir . '/' . $sidecar)) {
+            $sidecar = '';
+        }
+
+        if ($comment === '' && trim($lyrics) === '' && $sidecar === '') {
+            $skipped++;
+            continue;
+        }
+
+        $liveId = bandpromo_release_resolve_replacement_audio_asset_id(
+            $root,
+            $staleId,
+            $identityIndex,
+            $title,
+            $artist
+        );
+        if ($liveId === '' || $liveId === $staleId || isset($seenLive[$liveId])) {
+            $skipped++;
+            continue;
+        }
+
+        $liveAsset = bandpromo_asset_lookup_by_id($root, $liveId);
+        if ($liveAsset === null || strtolower((string) ($liveAsset['kind'] ?? '')) !== 'audio') {
+            $skipped++;
+            continue;
+        }
+
+        $liveMaster = basename(trim((string) ($liveAsset['master_filename'] ?? '')));
+        if ($liveMaster === '') {
+            $skipped++;
+            continue;
+        }
+
+        $display = bandpromo_asset_read_audio_display($liveAsset);
+        $liveComment = trim((string) ($display['comment'] ?? ''));
+        $liveLyrics = trim((string) ($display['lyrics'] ?? ''));
+        $liveCover = basename(trim((string) ($display['cover'] ?? '')));
+
+        $nextComment = $liveComment !== '' ? $liveComment : $comment;
+        $nextLyrics = $liveLyrics !== '' ? $liveLyrics : $lyrics;
+        $needCover = $liveCover === '' && $sidecar !== '';
+        $needText = ($liveComment === '' && $comment !== '') || ($liveLyrics === '' && trim($lyrics) !== '');
+
+        if (!$needText && !$needCover) {
+            $skipped++;
+            continue;
+        }
+
+        $seenLive[$liveId] = true;
+
+        $fields = [
+            'title' => trim((string) ($display['title'] ?? '')) !== ''
+                ? trim((string) $display['title'])
+                : $title,
+            'artist' => trim((string) ($display['artist'] ?? '')) !== ''
+                ? trim((string) $display['artist'])
+                : $artist,
+            'album' => trim((string) ($display['album'] ?? '')) !== ''
+                ? trim((string) $display['album'])
+                : trim((string) ($inspect['album'] ?? '')),
+            'date' => trim((string) ($display['date'] ?? '')) !== ''
+                ? trim((string) $display['date'])
+                : trim((string) ($inspect['date'] ?? '')),
+            'tracknumber' => trim((string) ($display['tracknumber'] ?? '')) !== ''
+                ? trim((string) $display['tracknumber'])
+                : trim((string) ($inspect['tracknumber'] ?? '')),
+            'bpm' => trim((string) ($display['bpm'] ?? '')),
+            'initialkey' => trim((string) ($display['initialkey'] ?? '')),
+            'genre' => trim((string) ($display['genre'] ?? '')),
+            'comment' => $nextComment,
+            'lyrics' => $nextLyrics,
+            'living_cover' => trim((string) ($display['living_cover'] ?? '')),
+        ];
+
+        if ($needText) {
+            $tagResult = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', [
+                'action' => 'update',
+                'filename' => $liveMaster,
+                'fields' => $fields,
+            ]);
+            $tagData = is_array($tagResult['data'] ?? null) ? $tagResult['data'] : null;
+            if (!$tagResult['ok'] || !is_array($tagData) || empty($tagData['ok'])) {
+                $skipped++;
+                continue;
+            }
+        }
+
+        $coverBasename = $liveCover;
+        if ($needCover) {
+            $coverResult = bandpromo_audio_master_apply_cover_selection(
+                $root,
+                $liveMaster,
+                'media/img/original/' . $sidecar
+            );
+            if (!empty($coverResult['ok'])) {
+                $coverBasename = basename(trim((string) ($coverResult['sidecar_cover'] ?? $sidecar)));
+                $covers++;
+            } else {
+                // Still point the pool file even if embed sync fails.
+                $coverBasename = $sidecar;
+                $covers++;
+            }
+        }
+
+        bandpromo_asset_update_entry($root, $liveId, [
+            'display' => bandpromo_asset_build_audio_display_from_fields($fields, [
+                'duration_seconds' => (int) ($display['duration'] ?? $inspect['duration_seconds'] ?? 0),
+                'sidecar_cover' => $coverBasename,
+                'living_cover' => $fields['living_cover'],
+            ]),
+        ]);
+
+        $restored++;
+        $items[] = [
+            'from' => $filename,
+            'to' => $liveMaster,
+            'asset_id' => $liveId,
+        ];
+    }
+
+    return [
+        'restored' => $restored,
+        'covers' => $covers,
+        'skipped' => $skipped,
+        'items' => $items,
+    ];
 }

@@ -7,6 +7,7 @@ declare(strict_types=1);
  */
 require_once __DIR__ . '/theme-storage.php';
 
+/** @deprecated Legacy fixed id from early setup; new operator brands use brd_{ulid}. */
 const BANDPROMO_BRAND_OPERATOR_DEFAULT_ID = 'your-own-brand';
 const BANDPROMO_BRAND_OPERATOR_DEFAULT_TITLE = 'Your own brand';
 
@@ -211,13 +212,16 @@ function bandpromo_brand_ensure_operator_brand(string $root): ?array
         }
     }
 
-    $brandId = BANDPROMO_BRAND_OPERATOR_DEFAULT_ID;
-    bandpromo_brand_duplicate(
+    $document = bandpromo_brand_duplicate(
         $root,
         BANDPROMO_BRAND_DEFAULT_ID,
-        $brandId,
+        '',
         BANDPROMO_BRAND_OPERATOR_DEFAULT_TITLE
     );
+    $brandId = bandpromo_brand_canonical_id((string) ($document['id'] ?? ''));
+    if ($brandId === '') {
+        throw new RuntimeException('Could not create operator brand.');
+    }
     bandpromo_brand_set_active_id($root, $brandId);
 
     return bandpromo_brand_registry_entry($root, $brandId);

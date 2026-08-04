@@ -174,7 +174,33 @@ Implementation order:
 - [x] **Branding editor IA** — Shell media = assignment slots only; Brand assets = sibling assignable pool; Live preview shows shell chrome (logo/backdrop), not an asset gallery. *(2026-07-16)*
 - [x] **Phase 3 remainders (operator wiring, 2026-07-21)** — brand filter chip on Files → Visual + pickers; Content pool variant gating (`pool_ready` / missing variant names); track-cover assign stores pool ref + embed (no stem sidecar copy); build prefers assigned cover.
 - [x] **Sound effects pool (2026-07-21)** — Files → Sound effects (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`); Branding welcome/logged-in slots assign any SFX clip (no per-slot file roles); migrate special shell audio refs. Extra UI SFX slots (click/zoom) deferred until needed.
-- [ ] **Phase 3 Brand-assets fold** — fold Brand assets into Visual after special migration / relocate originals under `media/visual/original/`; living-cover master tag `filename → ast_*` still deferred.
+
+### Visual identity completion (M1–M6) — policy locked 2026-08-04
+
+Replaces the old single “Phase 3 Brand-assets fold” checkbox. Order is dependency-strict: **resolver/`asset_id` first**, then on-disk masters, then XXH3 freshness, then kill legacy dual-write/`special`, then Files titles, then release export. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PORTABILITY.md](PORTABILITY.md).
+
+Policy — **locked**:
+
+- [x] Lock **three-tier visuals** — original → `media/visual/master/ast_*` → `media/visual/delivery/{ast_*}/…` (same shape as audio).
+- [x] Lock **`asset_id` addressing** — brand/pages/galleries/covers/living/social resolve via asset id; paths only as resolved URLs.
+- [x] Lock **XXH3 content hashing** — freshness + dedupe (`content_xxh3` / `delivery.source_xxh3`); not mtime; SHA-256 only for release ZIP crypto integrity.
+- [x] Lock **operator titles** — role + linked context; `ast_*` secondary; original name tertiary; shared “used by N”.
+- [x] Lock **replace upload** — same original filename → same `ast_*`.
+- [x] Lock **release package portable truth** — masters + campaign docs + **registry subset**; no analytics; import merges registries.
+
+Implementation order:
+
+- [ ] **M1 — `asset_id` resolution everywhere** — brand shell slots, page picture blocks, galleries, track cover + living-cover tag, social/OG; dual-read fallbacks; autofix path refs.
+- [ ] **M2 — on-disk visual masters** — `media/visual/original/` + `media/visual/master/ast_*`; backfill; delivery reads masters.
+- [ ] **M3 — XXH3 skip-if-fresh + Publish log** — visual + align audio off mtime; migrate `content_sha256` → `content_xxh3`; operator log vocabulary; `xxhash` dependency.
+- [ ] **M4 — quit legacy conversion** — stop stem optimal/thumb dual-write; fold `media/special/`; drop dual-read; register-or-fail; demo heal on asset_id.
+- [ ] **M5 — Files Visual operator titles** — role + context headlines; origin visibility.
+- [ ] **M6 — release export + import merge** — closure walk ZIP; allow `data/assets/` merge; container registry merge; no silent overwrite.
+
+Related open items (absorbed into M1 unless noted):
+
+- [ ] **Living cover `filename → ast_*`** — part of M1.
+- [ ] **Export builder** — part of M6 (see Release package section below).
 
 ### Player Markdown (closed-beta feedback)
 
@@ -227,11 +253,13 @@ Policy — **locked**:
 - [x] Lock **release-scoped handoff** — third portability service beside full backup and site data export; not a full-site ZIP.
 - [x] Lock **Release owns campaign** — package includes identity, playlists, galleries, pages, masters, visuals/SFX — not tracklist-only.
 - [x] Lock **Playlist = listening product** — album/single/tour packages reuse release-owned tracks.
-- [x] Lock **master tags as portable truth** — lyrics, Markdown descriptions, embedded cover art, `BANDPROMO_LIVING_COVER` travel in masters; target Publish regenerates delivery tier.
+- [x] Lock **master tags as portable truth for audio packaging** — lyrics, Markdown descriptions, embedded cover art travel in masters; visual roles/brand scope travel in the **registry subset**; living cover becomes `asset_id`; target Publish regenerates delivery tier.
+- [x] Lock **registry subset required** — release ZIP includes filtered `data/assets` rows for the campaign closure; import merges into target registry (no master-only round-trip).
 - [x] Lock **import creates new release slot** — no silent overwrite on target without explicit operator confirm (demo seed may refresh locked demo id).
 - [x] Lock **setup uses the same importer** — bandPromo Demo Release package replaces loose default-theme media ZIP as the product story.
 - [x] Lock **ambassador workflow** — prepare on one install, import on another; bandPromo takes no marketplace cut.
 - [x] Lock **export-time human names** — manifest labels use readable titles; on-disk paths remain `ast_{ULID}`.
+- [x] Lock **analytics stay out of release packages** — usage logs remain site-wide (full backup **Data**); not release-scoped.
 
 Implementation order:
 
@@ -239,12 +267,12 @@ Implementation order:
 - [x] **Release hub admin IA** — work from Release; Branding/Playlists framed under it.
 - [x] **Import flow** — shared setup + admin importer for Demo Release / operator packages.
 - [x] **Demo Release package** — replace default-theme ZIP contents/story with campaign package.
-- [ ] **Export builder** — after import UX is stable; validate completeness; ZIP campaign subset + manifest.
+- [ ] **Export builder (M6)** — after Visual identity M1–M2 (stable `asset_id` closure); validate completeness; ZIP campaign subset + masters + registry slice + manifest; import merges registries.
 - [ ] **Ambassador docs** — short operator-facing how-to.
 
 ### Beta fleet sync + legacy audit gate (v0.8 exit)
 
-**Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual pool Phases 0b–3** are shipped. Also complete **Favicon + PWA icons from Branding** (Brand section above) before calling v0.8 closed — operators must not depend on manual icon generators. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
+**Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual identity completion M1–M4** (at minimum resolver + masters + freshness + legacy dual-write exit) are shipped. Also complete **Favicon + PWA icons from Branding** (Brand section above) before calling v0.8 closed — operators must not depend on manual icon generators. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
 
 Closed-beta fleet today: **3 remote test sites** — **Vanilla** (demo-content install), **Twisted Chronicles** (band campaign), **HITZ** (label + long-form shows). Personas and feedback focus: [USE-CASES.md](USE-CASES.md).
 
