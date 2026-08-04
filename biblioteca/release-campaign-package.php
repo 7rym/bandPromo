@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Shared Release campaign package import (setup + admin).
- * Export is deferred until the Release hub model is stable.
+ * Shared Release campaign package import/export (setup + admin).
+ * Export includes masters + campaign docs + asset registry subset; import merges registries.
  */
 
 require_once __DIR__ . '/json-file-helpers.php';
@@ -79,6 +79,7 @@ function bandpromo_release_campaign_normalize_relative_path(string $path): strin
         'data/playlists/',
         'data/galleries/',
         'data/pages/',
+        'data/assets/',
         'media/',
         'release-package-manifest.json',
     ];
@@ -200,6 +201,11 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
             if (!is_array($decoded)) {
                 throw new RuntimeException('Invalid JSON in release package: ' . $relative);
             }
+            if ($destinationRelative === 'data/assets/registry.json') {
+                bandpromo_release_campaign_merge_asset_registry($root, $decoded);
+                $imported++;
+                continue;
+            }
             $decoded = bandpromo_release_campaign_remap_document($decoded, $destinationRelative, $sourceReleaseId, $targetReleaseId);
             if (!bandpromo_json_write_file($destination, $decoded)) {
                 throw new RuntimeException('Could not write imported JSON: ' . $destinationRelative);
@@ -291,6 +297,351 @@ function bandpromo_release_campaign_allocate_id(string $root, string $title): st
     }
 
     return $candidate;
+}
+
+/**
+ * Merge a packaged asset registry subset into the install registry (no silent wipe).
+ *
+ * @param array<string, mixed> $incoming
+ */
+function bandpromo_release_campaign_merge_asset_registry(string $root, array $incoming): int
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    bandpromo_asset_registry_ensure_migrated($root);
+    $registry = bandpromo_asset_load_registry($root);
+    $incomingAssets = is_array($incoming['assets'] ?? null) ? $incoming['assets'] : [];
+    $merged = 0;
+
+    foreach ($incomingAssets as $assetId => $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        $assetId = trim((string) ($asset['id'] ?? $assetId));
+        if (!bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+        $normalized = bandpromo_asset_normalize_entry(array_merge($asset, ['id' => $assetId]));
+        if ($normalized === null) {
+            continue;
+        }
+        $existing = $registry['assets'][$assetId] ?? null;
+        if (is_array($existing)) {
+            // Prefer incoming portable fields; keep local delivery cache when present.
+            $delivery = is_array($existing['delivery'] ?? null) ? $existing['delivery'] : [];
+            if (is_array($normalized['delivery'] ?? null) && $normalized['delivery'] !== []) {
+                $delivery = array_merge($delivery, $normalized['delivery']);
+            }
+            $normalized['delivery'] = $delivery;
+        }
+        $registry['assets'][$assetId] = $normalized;
+        if ($normalized['master_filename'] !== '') {
+            $registry['by_master_filename'][$normalized['master_filename']] = $assetId;
+        }
+        if ($normalized['original_filename'] !== '') {
+            $registry['by_original_filename'][$normalized['original_filename']] = $assetId;
+        }
+        $merged++;
+    }
+
+    bandpromo_asset_write_registry($root, $registry);
+
+    return $merged;
+}
+
+/**
+ * Collect asset ids referenced by a release campaign (tracks, covers, brand slots, galleries, pages).
+ *
+ * @return list<string>
+ */
+function bandpromo_release_campaign_collect_asset_ids(string $root, string $releaseId): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    $ids = [];
+    $add = static function (string $id) use (&$ids): void {
+        $id = trim($id);
+        if ($id !== '' && bandpromo_asset_is_asset_id($id)) {
+            $ids[$id] = true;
+        }
+    };
+
+    try {
+        $release = bandpromo_release_load_document($root, $releaseId);
+    } catch (Throwable $throwable) {
+        return [];
+    }
+
+    $add((string) ($release['poster_asset_id'] ?? ''));
+    foreach (is_array($release['tracks'] ?? null) ? $release['tracks'] : [] as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $add((string) ($track['asset_id'] ?? ''));
+    }
+
+    $brandId = trim((string) ($release['brand_id'] ?? ''));
+    if ($brandId !== '') {
+        try {
+            $brand = bandpromo_theme_load_document($root, $brandId);
+            foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
+                $add((string) $slotId);
+            }
+        } catch (Throwable $throwable) {
+            // Brand optional.
+        }
+    }
+
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        if (($asset['kind'] ?? '') === 'audio' && trim((string) ($asset['release_id'] ?? '')) === $releaseId) {
+            $add((string) $assetId);
+            $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+            $add((string) ($display['cover'] ?? ''));
+            $add((string) ($display['living_cover'] ?? ''));
+        }
+    }
+
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $doc = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+            continue;
+        }
+        $add((string) ($doc['poster_asset_id'] ?? ''));
+        foreach (is_array($doc['entries'] ?? null) ? $doc['entries'] : [] as $row) {
+            if (is_array($row)) {
+                $add((string) ($row['asset_id'] ?? ''));
+            }
+        }
+    }
+
+    foreach (bandpromo_gallery_registry_entries($root) as $entry) {
+        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($galleryId === '') {
+            continue;
+        }
+        try {
+            $doc = bandpromo_gallery_load_document($root, $galleryId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+            continue;
+        }
+        foreach (is_array($doc['entries'] ?? null) ? $doc['entries'] : [] as $row) {
+            if (is_array($row)) {
+                $add((string) ($row['asset_id'] ?? ''));
+            }
+        }
+    }
+
+    foreach (bandpromo_page_registry_ids($root) as $pageId) {
+        try {
+            $doc = bandpromo_page_load_document($root, $pageId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+            continue;
+        }
+        $add((string) ($doc['poster_asset_id'] ?? ''));
+        foreach (is_array($doc['blocks'] ?? null) ? $doc['blocks'] : [] as $block) {
+            if (is_array($block)) {
+                $add((string) ($block['asset_id'] ?? ''));
+            }
+        }
+    }
+
+    return array_keys($ids);
+}
+
+/**
+ * Build a release campaign ZIP (masters + campaign docs + registry subset).
+ *
+ * @return array{ok: bool, path: string, release_id: string, files: int, asset_ids: list<string>}
+ */
+function bandpromo_release_campaign_export_to_zip(string $root, string $releaseId, string $zipPath): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('ZipArchive is required to export release packages.');
+    }
+
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    $release = bandpromo_release_load_document($root, $releaseId);
+    $assetIds = bandpromo_release_campaign_collect_asset_ids($root, $releaseId);
+    $paths = [];
+    $addPath = static function (string $relative) use (&$paths, $root): void {
+        $relative = bandpromo_release_campaign_normalize_relative_path($relative);
+        if ($relative === '') {
+            return;
+        }
+        $absolute = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        if (is_file($absolute)) {
+            $paths[$relative] = $absolute;
+        }
+    };
+
+    $addPath('data/releases/' . $releaseId . '.json');
+    $brandId = bandpromo_brand_canonical_id((string) ($release['brand_id'] ?? ''));
+    if ($brandId !== '') {
+        $addPath('data/brands/' . $brandId . '.json');
+    }
+
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $doc = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) === $releaseId) {
+            $addPath('data/playlists/' . $playlistId . '.json');
+        }
+    }
+    foreach (bandpromo_gallery_registry_entries($root) as $entry) {
+        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($galleryId === '') {
+            continue;
+        }
+        try {
+            $doc = bandpromo_gallery_load_document($root, $galleryId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) === $releaseId) {
+            $addPath('data/galleries/' . $galleryId . '.json');
+        }
+    }
+    foreach (bandpromo_page_registry_ids($root) as $pageId) {
+        try {
+            $doc = bandpromo_page_load_document($root, $pageId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) === $releaseId) {
+            $addPath('data/pages/' . $pageId . '.json');
+        }
+    }
+
+    $registry = bandpromo_asset_load_registry($root);
+    $subsetAssets = [];
+    foreach ($assetIds as $assetId) {
+        $asset = $registry['assets'][$assetId] ?? null;
+        if (!is_array($asset)) {
+            continue;
+        }
+        $subsetAssets[$assetId] = $asset;
+        $kind = (string) ($asset['kind'] ?? '');
+        if ($kind === 'audio') {
+            $master = basename((string) ($asset['master_filename'] ?? ''));
+            if ($master !== '') {
+                $addPath('media/audio/master/' . $master);
+            }
+            $original = basename((string) ($asset['original_filename'] ?? ''));
+            if ($original !== '') {
+                $addPath('media/audio/original/' . $original);
+            }
+        } elseif ($kind === 'visual') {
+            $original = basename((string) ($asset['original_filename'] ?? ''));
+            if ($original !== '') {
+                $addPath('media/visual/original/' . $original);
+                $legacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
+                if ($legacy !== '' && is_file($legacy)) {
+                    $rel = str_replace('\\', '/', substr($legacy, strlen(rtrim($root, '/\\'))));
+                    $addPath(ltrim($rel, '/'));
+                }
+            }
+            $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
+            if ($format !== '') {
+                $addPath('media/visual/master/' . bandpromo_asset_master_filename_for_ulid($assetId, $format));
+            }
+        } elseif ($kind === 'sfx') {
+            $original = basename((string) ($asset['original_filename'] ?? ''));
+            if ($original !== '') {
+                $addPath('media/sfx/original/' . $original);
+            }
+        }
+    }
+
+    $subset = [
+        'version' => (int) ($registry['version'] ?? 1),
+        'assets' => $subsetAssets,
+        'by_master_filename' => [],
+        'by_original_filename' => [],
+    ];
+    foreach ($subsetAssets as $assetId => $asset) {
+        $master = (string) ($asset['master_filename'] ?? '');
+        $original = (string) ($asset['original_filename'] ?? '');
+        if ($master !== '') {
+            $subset['by_master_filename'][$master] = $assetId;
+        }
+        if ($original !== '') {
+            $subset['by_original_filename'][$original] = $assetId;
+        }
+    }
+
+    $workdir = $root . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . '.bandpromo-release-export-' . $releaseId;
+    if (!is_dir($workdir) && !mkdir($workdir, 0750, true) && !is_dir($workdir)) {
+        throw new RuntimeException('Could not create export work directory.');
+    }
+    $assetsDir = $workdir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'assets';
+    if (!is_dir($assetsDir) && !mkdir($assetsDir, 0750, true) && !is_dir($assetsDir)) {
+        throw new RuntimeException('Could not create export assets directory.');
+    }
+    $subsetPath = $assetsDir . DIRECTORY_SEPARATOR . 'registry.json';
+    if (!bandpromo_json_write_file($subsetPath, $subset)) {
+        throw new RuntimeException('Could not write registry subset for export.');
+    }
+    $paths['data/assets/registry.json'] = $subsetPath;
+
+    $manifest = [
+        'release_export_version' => BANDPROMO_RELEASE_CAMPAIGN_EXPORT_VERSION,
+        'release_id' => $releaseId,
+        'title' => (string) ($release['title'] ?? $releaseId),
+        'paths' => array_keys($paths),
+        'asset_ids' => $assetIds,
+        'exported_at' => gmdate('c'),
+    ];
+    $manifestPath = $workdir . DIRECTORY_SEPARATOR . 'release-package-manifest.json';
+    if (!bandpromo_json_write_file($manifestPath, $manifest)) {
+        throw new RuntimeException('Could not write release-package-manifest.json.');
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new RuntimeException('Could not create release package ZIP.');
+    }
+    $zip->addFile($manifestPath, 'release-package-manifest.json');
+    foreach ($paths as $relative => $absolute) {
+        $zip->addFile($absolute, $relative);
+    }
+    $zip->close();
+
+    return [
+        'ok' => true,
+        'path' => $zipPath,
+        'release_id' => $releaseId,
+        'files' => count($paths) + 1,
+        'asset_ids' => $assetIds,
+    ];
 }
 
 function bandpromo_release_campaign_ensure_registry_entries(string $root, string $releaseId): void

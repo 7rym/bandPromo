@@ -601,6 +601,7 @@ function bandpromo_theme_heal_install_shell_media(string $root): array
             continue;
         }
         $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+        $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
         $changed = false;
         $isLockedDefault = !empty($document['locked']) || !empty($document['system'])
             || $brandId === BANDPROMO_BRAND_DEFAULT_ID;
@@ -619,10 +620,21 @@ function bandpromo_theme_heal_install_shell_media(string $root): array
             } elseif ($before !== '' && $after === '') {
                 $notes[] = 'Brand ' . $brandId . ' ' . $slot . ': still missing on disk: ' . $before;
             }
+            $pathForId = bandpromo_theme_normalize_media_web_path((string) ($assets[$slot] ?? $after));
+            $currentId = trim((string) ($assetIds[$slot] ?? ''));
+            if ($currentId === '' && $pathForId !== '') {
+                $found = bandpromo_theme_lookup_asset_id_for_path($root, $pathForId);
+                if ($found !== '') {
+                    $assetIds[$slot] = $found;
+                    $changed = true;
+                    $notes[] = 'Brand ' . $brandId . ' ' . $slot . ' asset_id → ' . $found;
+                }
+            }
         }
         if ($changed) {
             $document['assets'] = $assets;
-            bandpromo_json_write_file($path, bandpromo_theme_normalize_document($document, $brandId));
+            $document['asset_ids'] = $assetIds;
+            bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
             if ($brandId === $activeId) {
                 bandpromo_theme_sync_assets_to_config($root, $document);
             }

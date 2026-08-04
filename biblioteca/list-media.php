@@ -375,6 +375,9 @@ function bandpromo_list_media_build_entry(
             $entry['brand_id'] = (string) ($visualAsset['brand_id'] ?? '');
             $entry['role'] = (string) ($visualAsset['role'] ?? 'unassigned');
             $entry['has_alpha'] = !empty($visualAsset['has_alpha']);
+            $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
+            $entry['operator_title'] = bandpromo_visual_operator_title($root, $visualAsset, $entry);
+            $entry['display_title'] = $entry['operator_title'];
             if (($visualAsset['media_type'] ?? '') !== '') {
                 $entry['media_type'] = (string) $visualAsset['media_type'];
             }
@@ -459,8 +462,9 @@ function bandpromo_list_media_build_entry(
     }
 
     if ($bucket === 'illustrations' && !array_key_exists('pool_ready', $entry)) {
-        // Unregistered illustrations stay available (dual-read legacy optimal).
-        $entry['pool_ready'] = true;
+        // M4 register-or-fail: unregistered illustrations are not pool-ready.
+        $entry['pool_ready'] = false;
+        $entry['pool_ready_reason'] = 'Not registered in the visual asset registry';
     }
 
     if ($bucket === 'video') {

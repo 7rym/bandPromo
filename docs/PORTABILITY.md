@@ -66,7 +66,7 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 
 **Purpose:** move **one release campaign** — masters, identity, EPK, linked listening products (playlists), galleries, pages, and visuals — between installs without a full site backup. Setup installs the **bandPromo Demo Release** with this same importer.
 
-**Status:** product model locked 2026-07-21 (Release = campaign umbrella; Playlist = listening product). **Import shipped** (setup + Admin → Release hub); export deferred until hub UX is stable.
+**Status:** product model locked 2026-07-21 (Release = campaign umbrella; Playlist = listening product). **Import shipped** (setup + Admin → Release hub). **Export builder shipped** 2026-08-04 (`bandpromo_release_campaign_export_to_zip`) with registry-subset merge on import.
 
 **What travels in a release package**
 
@@ -87,7 +87,7 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 - Listener accounts, **analytics / usage logs**, admin audit history (those stay in full site backup **Data** component)
 - Delivery-tier files as the source of truth — target regenerates on Publish
 
-**Portable truth:** masters (audio tags + visual bytes) + campaign JSON + **registry subset**. Masters alone are not enough for visual roles or campaign graph. Export builder and import-side registry merge are required (see [TODO.md](TODO.md) Visual identity completion M6).
+**Portable truth:** masters (audio tags + visual bytes) + campaign JSON + **registry subset**. Masters alone are not enough for visual roles or campaign graph. Export builder and import-side registry merge are required (Visual identity completion M6 — shipped).
 
 **Import flow (target install / setup)**
 

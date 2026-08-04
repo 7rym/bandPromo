@@ -325,22 +325,28 @@ def process_one_video(source_path: Path, asset_id: str = ''):
     built = False
     skipped = False
     failed = False
+    # M4: registered assets write only media/visual/delivery/{ast_*}/ (no stem dual-write).
+    write_legacy = asset_id == ''
 
-    if needs_refresh(source_path, legacy_target):
-        ok = copy_mp4(source_path, legacy_target) if mode == 'copy' else transcode_to_mp4(source_path, legacy_target)
-        if ok:
-            built = True
-            print(f"  ✓ Wrote legacy delivery file: {legacy_target.name}")
+    if write_legacy:
+        if needs_refresh(source_path, legacy_target):
+            ok = copy_mp4(source_path, legacy_target) if mode == 'copy' else transcode_to_mp4(source_path, legacy_target)
+            if ok:
+                built = True
+                print(f"  ✓ Wrote legacy delivery file: {legacy_target.name}")
+            else:
+                failed = True
+                return {'built': False, 'skipped': False, 'failed': True, 'poster': False}
         else:
-            failed = True
-            return {'built': False, 'skipped': False, 'failed': True, 'poster': False}
-    else:
-        skipped = True
-        print(f"  ✓ Legacy delivery file is up to date: {legacy_target.name}")
+            skipped = True
+            print(f"  ✓ Legacy delivery file is up to date: {legacy_target.name}")
 
-    poster_ok = ensure_video_poster(source_path, legacy_poster)
-    if poster_ok and legacy_poster.exists():
-        print(f"  ✓ Legacy poster is up to date: {legacy_poster.name}")
+        poster_ok = ensure_video_poster(source_path, legacy_poster)
+        if poster_ok and legacy_poster.exists():
+            print(f"  ✓ Legacy poster is up to date: {legacy_poster.name}")
+    else:
+        poster_ok = False
+        print("  → Skipping legacy video/optimal dual-write (registered asset)")
 
     variants = {}
     if asset_id:
@@ -353,13 +359,15 @@ def process_one_video(source_path: Path, asset_id: str = ''):
                 ok = copy_mp4(source_path, stream_path)
             else:
                 ok = transcode_to_mp4(source_path, stream_path)
-            if not ok and legacy_target.exists():
+            if not ok and write_legacy and legacy_target.exists():
                 ok = copy_mp4(legacy_target, stream_path)
             if ok:
+                built = True
                 print(f"  ✓ Wrote asset stream: {stream_path}")
             else:
                 failed = True
         elif stream_path.exists():
+            skipped = True
             print(f"  ✓ Asset stream up to date: {stream_path.name}")
 
         if stream_path.exists():
@@ -368,7 +376,7 @@ def process_one_video(source_path: Path, asset_id: str = ''):
         if ensure_video_poster(source_path, poster_path) and poster_path.exists():
             variants['poster'] = variant_manifest_entry(poster_path, 'jpg')
             print(f"  ✓ Wrote asset poster: {poster_path.name}")
-        elif legacy_poster.exists():
+        elif write_legacy and legacy_poster.exists():
             try:
                 poster_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(str(legacy_poster), str(poster_path))
@@ -383,7 +391,7 @@ def process_one_video(source_path: Path, asset_id: str = ''):
         'built': built,
         'skipped': skipped,
         'failed': failed,
-        'poster': bool(poster_ok and legacy_poster.exists()),
+        'poster': bool(poster_ok and write_legacy and legacy_poster.exists()) or bool(variants.get('poster')),
     }
 
 
@@ -443,18 +451,10 @@ def main():
     ]
 
     if source_files:
-        print(f"\n📁 Processing {len(source_files)} unregistered video source(s) (legacy dual-read)...")
-
-    for source_path in source_files:
-        result = process_one_video(source_path, asset_id='')
-        if result['failed']:
-            failed += 1
-        elif result['built']:
-            built += 1
-        else:
-            skipped += 1
-        if result['poster']:
-            posters_ready += 1
+        print(f"\n📁 {len(source_files)} unregistered video source(s) — skipped (register-or-fail)")
+        for source_path in source_files:
+            print(f"  ⚠️  Unregistered video {source_path.name} — run Content autofix / register before Publish")
+        skipped += len(source_files)
 
     if not visual_queue and not source_files:
         print("ℹ️  No source videos found. Skipping video delivery build.")

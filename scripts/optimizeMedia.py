@@ -811,16 +811,7 @@ def process_visual_image_asset(asset):
             variants_written[variant] = variant_manifest_entry(written)
             print("    → Built {}: {}".format(variant, Path(written).name))
 
-    # Dual-read: also refresh legacy optimal/thumb trees from the same source.
-    bucket = str(asset.get('intake_bucket') or '').strip().lower()
-    stem = Path(str(asset.get('original_filename') or source.name)).stem
-    if bucket == 'photo':
-        legacy_opt = PHOTO_OPT_DIR / (stem + '.jpg')
-        legacy_thumb = PHOTO_THUMB_DIR / (stem + '.jpg')
-    else:
-        legacy_opt = IMG_OPT_DIR / (stem + '.jpg')
-        legacy_thumb = IMG_THUMB_DIR / (stem + '.jpg')
-    write_cover_delivery_variants(str(source), str(legacy_opt), str(legacy_thumb), quality=80)
+    # M4: no longer dual-write stem optimal/thumb trees — delivery is asset-id only.
 
     if variants_written:
         source_digest = file_xxh3_hex(source)
@@ -1687,50 +1678,31 @@ def main():
     else:
         print("  ✓ No registered visual image assets")
 
-    # ── Photos (legacy dual-read trees; registry pass above is primary) ──────────
-    print("\n📷 Processing photos (legacy dual-read)...")
+    # ── Unregistered intake (register-or-fail) ───────────────────────────────────
+    print("\n📷 Photos / illustrations intake check (register-or-fail)...")
     photo_exts = {'.png', '.jpg', '.jpeg', '.webp'}
-    photo_count = 0
     registered_visual_names = {
         os.path.basename(str(a.get('original_filename') or ''))
         for a in visual_queue
     }
-    if PHOTO_ORIG_DIR.exists():
-        for src in sorted(PHOTO_ORIG_DIR.iterdir()):
-            if src.is_file() and src.suffix.lower() in photo_exts:
-                if src.name in registered_visual_names:
-                    continue
-                dest = PHOTO_OPT_DIR / (src.stem + '.jpg')
-                thumb = PHOTO_THUMB_DIR / (src.stem + '.jpg')
-                print(f"  Processing: {src.name} → {dest.name} + thumb")
-                write_cover_delivery_variants(str(src), str(dest), str(thumb), quality=80)
-                photo_count += 1
-        if photo_count == 0:
-            print("  ✓ No unregistered photos found in original/")
+    orphan_count = 0
+    for label, orig_dir in (('photo', PHOTO_ORIG_DIR), ('illustration', IMG_ORIG_DIR)):
+        if not orig_dir.exists():
+            continue
+        for src in sorted(orig_dir.iterdir()):
+            if not src.is_file() or src.suffix.lower() not in photo_exts:
+                continue
+            if src.name in registered_visual_names:
+                continue
+            orphan_count += 1
+            print(
+                "  ⚠️  Unregistered {} {} — skipped (run Content autofix / register before Publish)"
+                .format(label, src.name)
+            )
+    if orphan_count == 0:
+        print("  ✓ No unregistered image originals waiting for registry")
     else:
-        print(f"  ⚠️  Photo original directory not found: {PHOTO_ORIG_DIR}")
-
-    # ── User illustrations (legacy dual-read for unregistered only) ────────────
-    print("\n🖼️  Processing user illustrations (legacy dual-read)...")
-    IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    IMG_THUMB_DIR.mkdir(parents=True, exist_ok=True)
-    img_illus_count = 0
-    # Skip cover art filenames that belong to tracks (already handled above)
-    track_covers = set(cover_lookup.values()) if cover_lookup else set()
-    if IMG_ORIG_DIR.exists():
-        for src in sorted(IMG_ORIG_DIR.iterdir()):
-            if src.is_file() and src.suffix.lower() in photo_exts and src.name not in track_covers:
-                if src.name in registered_visual_names:
-                    continue
-                dest = IMG_OPT_DIR / (src.stem + '.jpg')
-                thumb = IMG_THUMB_DIR / (src.stem + '.jpg')
-                print(f"  Processing: {src.name} → {dest.name} + thumb")
-                write_cover_delivery_variants(str(src), str(dest), str(thumb), quality=80)
-                img_illus_count += 1
-        if img_illus_count == 0:
-            print("  ✓ No unregistered illustrations found in img/original/")
-    else:
-        print(f"  ⚠️  img/original/ directory not found: {IMG_ORIG_DIR}")
+        print("  ⚠️  {} unregistered image(s) were not converted (register-or-fail)".format(orphan_count))
 
     # ── Cleanup old files in optimized dirs ──────────────────────────────────────────
     print("\n🧹 Cleaning up optimized directories...")

@@ -938,11 +938,11 @@ Remaining debt (visual identity completion track, policy locked 2026-08-04):
 - **M1** — shipped: `asset_id` resolution + dual-read consumers
 - **M2** — shipped: on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters first
 - **M3** — shipped: XXH3 skip-if-fresh for audio + visual images (`delivery.source_xxh3`); `content_xxh3` dual-read with legacy `content_sha256`
-- **M4** — stop dual-write to stem optimal/thumb; fold `media/special/`; drop dual-read; register-or-fail
-- **M5** — Files Visual titles = role + linked context
-- **M6** — release package export + registry-subset import merge
+- **M4** — shipped core: stop dual-write; register-or-fail; drop stem optimal dual-read; shell `asset_ids` heal (`media/special/` intake still accepted)
+- **M5** — shipped: Files Visual `operator_title` = role + context
+- **M6** — shipped: release campaign export ZIP + asset registry subset merge on import
 
-Do not kill legacy trees before consumers resolve `asset_id` (M1). Legacy intake dual-read stays until M4.
+Physical `media/special/` retirement can follow after Brand-assets upload lands in Visual-only intake.
 
 ### Visual media rework plan (v0.8.4)
 

@@ -287,7 +287,66 @@ function bandpromo_visual_variant_relative_url(string $root, string $assetId, st
 }
 
 /**
- * Dual-read: prefer asset-id variants, fall back to legacy stem optimal/thumb/poster.
+ * Operator-facing visual title: role + linked context (Files / pickers).
+ */
+function bandpromo_visual_operator_title(string $root, array $asset, array $entry = []): string
+{
+    $role = bandpromo_asset_normalize_visual_role((string) ($asset['role'] ?? $entry['role'] ?? 'unassigned'));
+    $roleLabels = [
+        'unassigned' => 'Unassigned',
+        'track-cover' => 'Track cover',
+        'release-cover' => 'Release cover',
+        'brand-logo' => 'Brand logo',
+        'brand-portrait' => 'Brand portrait',
+        'shell-background-image' => 'Shell background',
+        'shell-background-video' => 'Shell living background',
+        'living-cover' => 'Living cover',
+        'gallery' => 'Gallery',
+        'page-illustration' => 'Page picture',
+        'style-ref' => 'Style reference',
+        'typography-sample' => 'Typography sample',
+        'share' => 'Share image',
+    ];
+    $label = $roleLabels[$role] ?? ucwords(str_replace('-', ' ', $role));
+
+    $context = trim((string) ($entry['brand_title'] ?? ''));
+    if ($context === '') {
+        $brandId = trim((string) ($asset['brand_id'] ?? $entry['brand_id'] ?? ''));
+        if ($brandId !== '') {
+            require_once __DIR__ . '/theme-storage.php';
+            try {
+                $doc = bandpromo_theme_load_document($root, $brandId);
+                $context = trim((string) ($doc['title'] ?? ''));
+                if ($context === '') {
+                    $context = $brandId;
+                }
+            } catch (Throwable $throwable) {
+                $context = $brandId;
+            }
+        }
+    }
+
+    if ($context === '' && $role === 'track-cover') {
+        $ref = is_array($entry['reference_info'] ?? null) ? $entry['reference_info'] : [];
+        $context = trim((string) ($ref['label'] ?? $ref['title'] ?? $entry['cover_info']['label'] ?? ''));
+    }
+
+    if ($context === '') {
+        $releaseTitle = trim((string) ($entry['release_title'] ?? ''));
+        if ($releaseTitle !== '') {
+            $context = $releaseTitle;
+        }
+    }
+
+    if ($context !== '') {
+        return $label . ' — ' . $context;
+    }
+
+    return $label;
+}
+
+/**
+ * Resolve a public URL for a visual asset/variant (delivery first; originals for admin preview).
  */
 function bandpromo_visual_resolve_url(
     string $root,
@@ -327,55 +386,35 @@ function bandpromo_visual_resolve_url(
         return '';
     }
 
-    $stem = (string) pathinfo($filename, PATHINFO_FILENAME);
-
-    if ($variant === 'standard-stream') {
-        if (bandpromo_video_delivery_ready($root, $filename)) {
-            return '/media/video/optimal/' . bandpromo_video_delivery_basename($filename);
-        }
-
-        return '';
-    }
-
-    if ($variant === 'poster') {
-        if (bandpromo_video_poster_ready($root, $filename)) {
-            return bandpromo_video_poster_relative_url($filename);
-        }
-
-        return '';
-    }
-
-    if ($variant === 'thumb') {
-        if ($bucket === 'photo' || $bucket === '') {
-            $thumb = $root . '/media/photo/thumb/' . $stem . '.jpg';
-            if (is_file($thumb)) {
-                return '/media/photo/thumb/' . $stem . '.jpg';
+    // M4: no stem optimal/thumb dual-read. Prefer unified visual original, then master file URL,
+    // then legacy intake originals so admin previews work before delivery is rebuilt.
+    require_once __DIR__ . '/visual-master-helpers.php';
+    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+        $originalFilename = basename((string) ($asset['original_filename'] ?? $filename));
+        if ($originalFilename !== '') {
+            $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
+            if ($unified !== '' && is_file($unified)) {
+                return '/media/visual/original/' . $originalFilename;
             }
         }
-        $thumb = $root . '/media/img/thumb/' . $stem . '.jpg';
-        if (is_file($thumb)) {
-            return '/media/img/thumb/' . $stem . '.jpg';
+        $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION))));
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId !== '' && $format !== '') {
+            $masterPath = bandpromo_visual_master_path($root, $assetId, $format);
+            if ($masterPath !== '' && is_file($masterPath)) {
+                return '/media/visual/master/' . basename($masterPath);
+            }
         }
     }
 
-    if ($bucket === 'photo') {
-        $optimal = bandpromo_photo_delivery_path($root, $filename);
-        if (is_file($optimal)) {
-            return '/media/photo/optimal/' . bandpromo_photo_delivery_basename($filename);
-        }
+    if ($variant === 'standard-stream' || $variant === 'poster') {
+        // Video delivery variants only — no legacy media/video/optimal dual-read.
+        return '';
     }
 
-    $imgOptimal = $root . '/media/img/optimal/' . $stem . '.jpg';
-    if (is_file($imgOptimal)) {
-        return '/media/img/optimal/' . $stem . '.jpg';
-    }
-
-    $photoOptimal = bandpromo_photo_delivery_path($root, $filename);
-    if (is_file($photoOptimal)) {
-        return '/media/photo/optimal/' . bandpromo_photo_delivery_basename($filename);
-    }
-
-    // Fall back to intake originals so admin previews work before delivery variants exist.
+    $bucket = bandpromo_asset_normalize_intake_bucket(
+        is_array($asset) ? (string) ($asset['intake_bucket'] ?? $intakeBucket) : $intakeBucket
+    );
     $originalBases = [
         'photo' => '/media/photo/original',
         'img' => '/media/img/original',

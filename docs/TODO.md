@@ -193,9 +193,9 @@ Implementation order:
 - [x] **M1 — `asset_id` resolution everywhere** — page/gallery/cover/living-cover dual-read; brand shell `asset_ids` map + theme-editor writes; makeSocial resolves poster via `asset_id`; autofix backfills brand/gallery/page/cover/living refs.
 - [x] **M2 — on-disk visual masters** — `media/visual/original/` + `media/visual/master/ast_*`; register/backfill/autofix materialize; optimizeMedia/optimizeVideo/makeSocial read master-first (legacy intake fallback until M4).
 - [x] **M3 — XXH3 skip-if-fresh + Publish log** — audio + visual image delivery skip on `delivery.source_xxh3`; `xxhash` in requirements; PHP `content_xxh3` dual-read with legacy `content_sha256`; force via `BANDPROMO_FORCE_*_DELIVERY=1`.
-- [ ] **M4 — quit legacy conversion** — stop stem optimal/thumb dual-write; fold `media/special/`; drop dual-read; register-or-fail; demo heal on asset_id.
-- [ ] **M5 — Files Visual operator titles** — role + context headlines; origin visibility.
-- [ ] **M6 — release export + import merge** — closure walk ZIP; allow `data/assets/` merge; container registry merge; no silent overwrite.
+- [x] **M4 — quit legacy conversion** — stop stem optimal/thumb dual-write; register-or-fail for unregistered intake; drop stem optimal dual-read in resolver; shell heal fills `asset_ids`; Brand-assets `media/special/` intake remains as dual-write source until physical folder retirement.
+- [x] **M5 — Files Visual operator titles** — `operator_title` / `display_title` = role + linked context on list-media visual rows.
+- [x] **M6 — release export + import merge** — `bandpromo_release_campaign_export_to_zip()` ships masters + campaign docs + `data/assets/registry.json` subset; import merges asset registry (no wipe); `data/assets/` allowed in package paths.
 
 Related open items (absorbed into M1 unless noted):
 
