@@ -44,8 +44,15 @@ function bandpromo_gallery_normalize_id(string $galleryId): string
 
 function bandpromo_gallery_normalize_entry(array $entry): ?array
 {
+    require_once __DIR__ . '/asset-registry.php';
+
+    $assetId = trim((string) ($entry['asset_id'] ?? ''));
+    if ($assetId !== '' && !bandpromo_asset_is_asset_id($assetId)) {
+        $assetId = '';
+    }
+
     $src = bandpromo_gallery_normalize_src_path((string) ($entry['src'] ?? ''));
-    if ($src === '') {
+    if ($src === '' && $assetId === '') {
         return null;
     }
 
@@ -55,9 +62,9 @@ function bandpromo_gallery_normalize_entry(array $entry): ?array
     }
 
     $normalized = [
-        'src' => $src,
+        'src' => $src !== '' ? $src : $assetId,
         'type' => $type,
-        'asset_id' => trim((string) ($entry['asset_id'] ?? '')),
+        'asset_id' => $assetId,
         'name' => trim((string) ($entry['name'] ?? '')),
         'alt' => trim((string) ($entry['alt'] ?? '')),
     ];
@@ -316,6 +323,7 @@ function bandpromo_gallery_materialize_items(string $root, string $galleryId): a
             'type' => (string) ($entry['type'] ?? 'image'),
             'name' => (string) ($entry['name'] ?? ''),
             'alt' => (string) ($entry['alt'] ?? ''),
+            'asset_id' => trim((string) ($entry['asset_id'] ?? '')),
         ];
         if (($entry['type'] ?? '') === 'video' && !empty($entry['poster'])) {
             $item['poster'] = (string) $entry['poster'];

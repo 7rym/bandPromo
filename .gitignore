@@ -115,6 +115,8 @@ media/sfx/original/*
 media/**/optimal/
 media/video/poster/
 media/visual/delivery/
+media/visual/original/
+media/visual/master/
 
 # Master working copies are local runtime artifacts until the storage model is finalized
 media/**/master/

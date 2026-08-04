@@ -258,7 +258,9 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         $visualAsset = bandpromo_asset_lookup_visual($root, $safe, 'video');
         if ($visualAsset !== null) {
             require_once __DIR__ . '/media-delivery-helpers.php';
+            require_once __DIR__ . '/visual-master-helpers.php';
             bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
+            bandpromo_visual_delete_tier_files($root, $visualAsset);
             bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
         }
     } elseif (in_array($target, ['illustrations', 'photos'], true)) {
@@ -272,7 +274,9 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         $visualAsset = bandpromo_asset_lookup_visual($root, $safe, $intakeBucket);
         if ($visualAsset !== null) {
             require_once __DIR__ . '/media-delivery-helpers.php';
+            require_once __DIR__ . '/visual-master-helpers.php';
             bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
+            bandpromo_visual_delete_tier_files($root, $visualAsset);
             bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
         }
     } elseif ($target === 'special') {
@@ -281,7 +285,9 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             $visualAsset = bandpromo_asset_lookup_visual($root, $safe, 'special');
             if ($visualAsset !== null) {
                 require_once __DIR__ . '/media-delivery-helpers.php';
+                require_once __DIR__ . '/visual-master-helpers.php';
                 bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
+                bandpromo_visual_delete_tier_files($root, $visualAsset);
                 bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
             }
         }

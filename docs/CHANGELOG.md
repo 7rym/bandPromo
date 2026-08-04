@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-04 15:05 - M2 visual masters: `media/visual/original/` + `media/visual/master/ast_*.{ext}` with relocate/materialize helpers; new visual registrations get ULID master filenames; registry migrate + Content autofix backfill existing assets; optimizeMedia/optimizeVideo/makeSocial read master-first (legacy intake fallback); delete removes tier files; gitignore unified original/master trees.
+
+2026-08-04 14:10 - M1 complete: brand shell parallel `asset_ids` map (normalize/resolve/sync + theme-editor drag/click writes); `makeSocial.py` prefers active brand poster `asset_id` → visual delivery; page picture picker persists `block.asset_id`; Content autofix backfills brand/gallery/page asset_ids and rewrites audio `display.cover` / `living_cover` filenames to `ast_*` when registered.
+
+2026-08-04 13:20 - M1a visual `asset_id` read-path: page picture allowlist accepts `/media/visual/delivery/` (+ resolve by `asset_id`); gallery entries/materialize prefer registry delivery URLs; track-cover and living-cover resolvers accept `ast_*` with filename dual-read.
+
 2026-08-04 12:55 - Policy lock: Visual identity completion track (M1–M6) — three-tier visuals like audio, `asset_id` addressing before on-disk masters, XXH3 for freshness/dedupe (not mtime; SHA-256 only for release ZIP crypto), operator role+context titles, shared-ref delete, replace-upload same `ast_*`, release packages require registry subset + import merge (no analytics). PLATFORM-MODEL / MEDIA-HANDLING / PORTABILITY / TODO / ROADMAP updated; Brand-assets fold absorbed into M1–M4.
 
 2026-08-03 23:25 - Publish build log: fold stage label into the `====` script banner (`Stage N/M — …` + `Script: …`) instead of a separate `── Stage ──` line above `Running:`.

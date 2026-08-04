@@ -33,6 +33,8 @@ VIDEO_ORIG_DIR = ROOT_DIR / 'media' / 'video' / 'original'
 VIDEO_OPT_DIR = ROOT_DIR / 'media' / 'video' / 'optimal'
 VIDEO_POSTER_DIR = ROOT_DIR / 'media' / 'video' / 'poster'
 VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
+VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
+VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.mov', '.webm')
 TRANSCODE_EXTENSIONS = ('.mov', '.webm')
@@ -208,16 +210,31 @@ def load_registry_visual_video_queue():
 
 
 def visual_video_source_path(asset):
-    bucket = str(asset.get('intake_bucket') or '').strip().lower()
+    """Master-first source path for video delivery (legacy intake fallback)."""
+    asset_id = str(asset.get('id') or '').strip()
     filename = os.path.basename(str(asset.get('original_filename') or '').strip())
-    if not filename:
-        return None
-    if bucket == 'special':
-        path = ROOT_DIR / 'media' / 'special' / filename
-    else:
-        path = VIDEO_ORIG_DIR / filename
-    if path.exists() and path.is_file():
-        return path
+    master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+    fmt = str(asset.get('master_format') or '').strip().lower()
+    if not fmt and filename:
+        fmt = Path(filename).suffix.lstrip('.').lower()
+
+    candidates = []
+    if asset_id.startswith('ast_') and fmt:
+        candidates.append(VISUAL_MASTER_DIR / '{}.{}'.format(asset_id, fmt))
+    if master_name.startswith('ast_'):
+        candidates.append(VISUAL_MASTER_DIR / master_name)
+    if filename:
+        candidates.append(VISUAL_ORIG_DIR / filename)
+
+    bucket = str(asset.get('intake_bucket') or '').strip().lower()
+    if filename:
+        if bucket == 'special':
+            candidates.append(ROOT_DIR / 'media' / 'special' / filename)
+        candidates.append(VIDEO_ORIG_DIR / filename)
+
+    for path in candidates:
+        if path.is_file():
+            return path
     return None
 
 

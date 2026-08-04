@@ -53,14 +53,36 @@ function bandpromo_gallery_normalize_src_path(string $src): string
 
 function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): string
 {
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/asset-registry.php';
+
     $src = bandpromo_gallery_normalize_src_path($src);
+    $ref = trim($src);
+    $assetId = '';
+    if (bandpromo_asset_is_asset_id($ref)) {
+        $assetId = $ref;
+    } elseif (bandpromo_asset_is_asset_id(basename($ref))) {
+        $assetId = basename($ref);
+    }
+
+    if ($assetId !== '') {
+        $resolved = bandpromo_visual_resolve_url($root_dir, $assetId, 'card');
+        if ($resolved !== '') {
+            return $resolved;
+        }
+    }
+
     if ($src === '') {
         return '';
     }
 
+    // Prefer registry delivery when src is a legacy stem path.
     $filename = basename($src);
-    if ($filename === '') {
-        return $src;
+    if ($filename !== '') {
+        $resolved = bandpromo_visual_resolve_url($root_dir, $filename, 'card');
+        if ($resolved !== '' && str_starts_with($resolved, '/media/visual/delivery/')) {
+            return $resolved;
+        }
     }
 
     if (str_starts_with($src, '/media/photo/optimal/') && is_file($root_dir . $src)) {
@@ -68,7 +90,7 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
     }
 
     $deliveryRelative = '/media/photo/optimal/' . bandpromo_photo_delivery_basename($filename);
-    if (is_file($root_dir . $deliveryRelative)) {
+    if ($filename !== '' && is_file($root_dir . $deliveryRelative)) {
         return $deliveryRelative;
     }
 
@@ -92,44 +114,86 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
         return $original;
     }
 
-    return $deliveryRelative;
+    return $filename !== '' ? $deliveryRelative : $src;
 }
 
 function bandpromo_gallery_normalize_items(string $root_dir, array $items): array {
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/asset-registry.php';
+
     foreach ($items as $index => $item) {
         if (!is_array($item)) {
             continue;
         }
 
         $type = strtolower(trim((string) ($item['type'] ?? '')));
+        $assetId = trim((string) ($item['asset_id'] ?? ''));
+        if ($assetId !== '' && !bandpromo_asset_is_asset_id($assetId)) {
+            $assetId = '';
+        }
+
         if ($type === 'video') {
+            if ($assetId !== '') {
+                $stream = bandpromo_visual_resolve_url($root_dir, $assetId, 'standard-stream');
+                $poster = bandpromo_visual_resolve_url($root_dir, $assetId, 'poster');
+                if ($stream !== '') {
+                    $items[$index]['src'] = $stream;
+                }
+                if ($poster !== '') {
+                    $items[$index]['poster'] = $poster;
+                }
+                $items[$index]['asset_id'] = $assetId;
+                continue;
+            }
+
             $filename = bandpromo_gallery_video_filename_from_src((string) ($item['src'] ?? ''));
             if ($filename === '') {
                 continue;
             }
 
-            $delivery_relative = bandpromo_gallery_video_delivery_relative_path($filename);
-            if (is_file($root_dir . $delivery_relative)) {
-                $items[$index]['src'] = $delivery_relative;
+            $preview = bandpromo_video_admin_preview_relative_url($root_dir, $filename);
+            if ($preview !== '') {
+                $items[$index]['src'] = $preview;
             } else {
-                $normalizedSrc = bandpromo_gallery_normalize_src_path((string) ($item['src'] ?? ''));
-                if ($normalizedSrc !== '') {
-                    $items[$index]['src'] = $normalizedSrc;
+                $delivery_relative = bandpromo_gallery_video_delivery_relative_path($filename);
+                if (is_file($root_dir . $delivery_relative)) {
+                    $items[$index]['src'] = $delivery_relative;
+                } else {
+                    $normalizedSrc = bandpromo_gallery_normalize_src_path((string) ($item['src'] ?? ''));
+                    if ($normalizedSrc !== '') {
+                        $items[$index]['src'] = $normalizedSrc;
+                    }
                 }
             }
 
-            $poster_relative = bandpromo_gallery_video_poster_relative_path($filename);
-            if (is_file($root_dir . $poster_relative)) {
-                $items[$index]['poster'] = $poster_relative;
+            $posterUrl = '';
+            $asset = bandpromo_asset_lookup_visual($root_dir, $filename, 'video')
+                ?? bandpromo_asset_lookup_by_original_filename($root_dir, $filename);
+            if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+                $posterUrl = bandpromo_visual_resolve_url($root_dir, (string) ($asset['id'] ?? ''), 'poster');
+                $items[$index]['asset_id'] = (string) ($asset['id'] ?? '');
+            }
+            if ($posterUrl === '') {
+                $poster_relative = bandpromo_gallery_video_poster_relative_path($filename);
+                if (is_file($root_dir . $poster_relative)) {
+                    $posterUrl = $poster_relative;
+                }
+            }
+            if ($posterUrl !== '') {
+                $items[$index]['poster'] = $posterUrl;
             } elseif (isset($items[$index]['poster'])) {
                 unset($items[$index]['poster']);
             }
             continue;
         }
 
-        $resolved = bandpromo_gallery_resolve_image_src($root_dir, (string) ($item['src'] ?? ''));
+        $srcRef = $assetId !== '' ? $assetId : (string) ($item['src'] ?? '');
+        $resolved = bandpromo_gallery_resolve_image_src($root_dir, $srcRef);
         if ($resolved !== '') {
             $items[$index]['src'] = $resolved;
+        }
+        if ($assetId !== '') {
+            $items[$index]['asset_id'] = $assetId;
         }
         if ($type === '') {
             $items[$index]['type'] = 'image';

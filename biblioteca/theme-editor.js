@@ -560,13 +560,23 @@
             const source = String(file?.pool_source || 'special');
             const name = assetBasename(file?.name || '');
             if (!name) return '';
+            // Prefer delivery URLs when Publish has produced them.
+            const cardUrl = String(file?.card_url || '').trim();
+            const streamUrl = String(file?.stream_url || '').trim();
+            const kind = mediaKindFromFile(file);
+            if (kind === 'video' && streamUrl) {
+                return streamUrl;
+            }
+            if (kind === 'image' && cardUrl) {
+                return cardUrl;
+            }
             if (source === 'sfx') {
                 return `/media/sfx/original/${name}`;
             }
             if (source === 'special') {
                 return specialMediaPath(name);
             }
-            const bucket = String(file?.intake_bucket || (mediaKindFromFile(file) === 'video' ? 'video' : 'illustrations'));
+            const bucket = String(file?.intake_bucket || (kind === 'video' ? 'video' : 'illustrations'));
             return `${visualIntakeBasePath(bucket)}/${name}`;
         }
 
@@ -802,11 +812,12 @@
             slot.setAttribute('aria-pressed', selectedShellSlotKey === key ? 'true' : 'false');
         }
 
-        function setShellAssetValue(key, path, { silent = false } = {}) {
+        function setShellAssetValue(key, path, { silent = false, assetId = '' } = {}) {
             if (!editorDocument || editorDocument.locked) return false;
             const field = shellFieldByKey(key);
             if (!field) return false;
             const next = String(path || '').trim();
+            const nextAssetId = String(assetId || '').trim();
             if (next) {
                 const kind = mediaKindFromPath(next);
                 if (!shellSlotAcceptsKind(field, kind)) {
@@ -824,7 +835,11 @@
             if (!editorDocument.assets || typeof editorDocument.assets !== 'object') {
                 editorDocument.assets = {};
             }
+            if (!editorDocument.asset_ids || typeof editorDocument.asset_ids !== 'object') {
+                editorDocument.asset_ids = {};
+            }
             editorDocument.assets[key] = next;
+            editorDocument.asset_ids[key] = next ? nextAssetId : '';
             updateShellSlotDom(key);
             previewDocument = cloneDocument(editorDocument);
             renderPreview(previewDocument);
@@ -921,9 +936,11 @@
                         thumb = `<video src="${escapeHtml(thumbUrl)}" muted loop playsinline preload="metadata"></video>`;
                     }
                 }
+                const assetId = String(file.asset_id || '').trim();
                 return `<button type="button" class="theme-brand-tile"
                         data-brand-path="${escapeHtml(path)}"
                         data-brand-kind="${escapeHtml(kind)}"
+                        data-brand-asset-id="${escapeHtml(assetId)}"
                         draggable="${locked ? 'false' : 'true'}"
                         ${locked ? 'disabled' : ''}
                         title="${escapeHtml(kindLabel(kind) + ' · ' + source)}">
@@ -1031,12 +1048,13 @@
                         || event.dataTransfer.getData('text/plain');
                     const kind = event.dataTransfer.getData('application/x-bandpromo-kind')
                         || mediaKindFromPath(path);
+                    const assetId = event.dataTransfer.getData('application/x-bandpromo-asset-id') || '';
                     const field = shellFieldByKey(key);
                     if (!field || !shellSlotAcceptsKind(field, kind)) {
                         notifyThemeError(`${field?.label || 'Slot'} accepts ${field?.accept.map(kindLabel).join(' / ') || 'matching media'} only.`);
                         return;
                     }
-                    setShellAssetValue(key, path);
+                    setShellAssetValue(key, path, { assetId });
                     selectedShellSlotKey = key;
                     updateShellSlotDom(key);
                     renderBrandAssetsGrid();
@@ -1067,8 +1085,10 @@
                 if (!tile || !(event.dataTransfer)) return;
                 const path = tile.getAttribute('data-brand-path') || '';
                 const kind = tile.getAttribute('data-brand-kind') || '';
+                const assetId = tile.getAttribute('data-brand-asset-id') || '';
                 event.dataTransfer.setData('application/x-bandpromo-path', path);
                 event.dataTransfer.setData('application/x-bandpromo-kind', kind);
+                event.dataTransfer.setData('application/x-bandpromo-asset-id', assetId);
                 event.dataTransfer.setData('text/plain', path);
                 event.dataTransfer.effectAllowed = 'copy';
                 tile.classList.add('is-dragging');
@@ -1091,6 +1111,7 @@
                 if (!tile) return;
                 const path = tile.getAttribute('data-brand-path') || '';
                 const kind = tile.getAttribute('data-brand-kind') || '';
+                const assetId = tile.getAttribute('data-brand-asset-id') || '';
                 if (!selectedShellSlotKey) {
                     notifyThemeError('Select a shell slot first, or drag the asset onto a slot.');
                     return;
@@ -1100,7 +1121,7 @@
                     notifyThemeError(`${field?.label || 'Slot'} accepts ${field?.accept.map(kindLabel).join(' / ') || 'matching media'} only.`);
                     return;
                 }
-                setShellAssetValue(selectedShellSlotKey, path);
+                setShellAssetValue(selectedShellSlotKey, path, { assetId });
             });
 
             loadBrandAssetPool();
@@ -1405,11 +1426,20 @@
             if (!editorDocument.assets || typeof editorDocument.assets !== 'object') {
                 editorDocument.assets = {};
             }
+            if (!editorDocument.asset_ids || typeof editorDocument.asset_ids !== 'object') {
+                editorDocument.asset_ids = {};
+            }
             formEl.querySelectorAll('[data-asset-key]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement)) return;
                 const key = input.getAttribute('data-asset-key') || '';
                 if (!key) return;
-                editorDocument.assets[key] = String(input.value || '').trim();
+                const next = String(input.value || '').trim();
+                const previous = String(editorDocument.assets[key] || '').trim();
+                editorDocument.assets[key] = next;
+                // Manual path edits clear the parallel asset_id unless unchanged.
+                if (next !== previous) {
+                    editorDocument.asset_ids[key] = '';
+                }
             });
         }
 

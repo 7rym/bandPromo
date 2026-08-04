@@ -1713,6 +1713,12 @@
             const selected = flatImages.find((item) => item.value === imagePickerSelected);
             block.src = imagePickerSelected;
             block.alt = selected?.title || 'Picture';
+            const assetId = String(selected?.asset_id || '').trim();
+            if (assetId) {
+                block.asset_id = assetId;
+            } else {
+                delete block.asset_id;
+            }
 
             const card = blocksEl?.querySelector(`.page-block-card[data-block-index="${imagePickerTargetIndex}"]`);
             if (card) {

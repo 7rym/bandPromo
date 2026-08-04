@@ -18,7 +18,13 @@ $images = [];
 $flatImages = [];
 $seen = [];
 
-$addItem = static function (string $title, string $value, string $thumbUrl, string $group) use (&$images, &$flatImages, &$seen): void {
+$addItem = static function (
+    string $title,
+    string $value,
+    string $thumbUrl,
+    string $group,
+    string $assetId = ''
+) use (&$images, &$flatImages, &$seen): void {
     $value = trim($value);
     if ($value === '' || isset($seen[$value])) {
         return;
@@ -29,6 +35,7 @@ $addItem = static function (string $title, string $value, string $thumbUrl, stri
         'value' => $value,
         'thumb_url' => $thumbUrl !== '' ? $thumbUrl : $value,
         'group' => $group,
+        'asset_id' => $assetId,
     ];
     $flatImages[] = $item;
 };
@@ -54,7 +61,7 @@ foreach ($registry['assets'] as $asset) {
         continue;
     }
     $group = $bucket === 'photo' ? 'Photos' : ($bucket === 'special' ? 'Brand assets' : 'Illustrations');
-    $addItem($filename, $cardUrl, $thumbUrl !== '' ? $thumbUrl : $cardUrl, $group);
+    $addItem($filename, $cardUrl, $thumbUrl !== '' ? $thumbUrl : $cardUrl, $group, $assetId);
 }
 
 // Legacy optimal trees for unregistered files.

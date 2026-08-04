@@ -467,6 +467,354 @@ function bandpromo_content_autofix_refresh_validation(string $root, bool $dryRun
     return $step;
 }
 
+/**
+ * Backfill brand shell asset_ids from current path slots (dual-write map).
+ */
+function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    $step = bandpromo_content_autofix_step_result('brand_asset_ids', 'Backfill brand shell asset_ids');
+    bandpromo_theme_ensure_seeded($root);
+
+    foreach (bandpromo_theme_registry_entries($root) as $entry) {
+        $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_theme_load_document($root, $brandId);
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $brandId . ': ' . $throwable->getMessage();
+            continue;
+        }
+
+        $assetIds = bandpromo_theme_normalize_asset_ids(
+            is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : []
+        );
+        $assets = bandpromo_theme_normalize_assets(
+            is_array($document['assets'] ?? null) ? $document['assets'] : []
+        );
+        $changed = false;
+
+        foreach ($assets as $slot => $path) {
+            $current = trim((string) ($assetIds[$slot] ?? ''));
+            if ($current !== '') {
+                $step['skipped']++;
+                continue;
+            }
+            $path = trim((string) $path);
+            if ($path === '') {
+                continue;
+            }
+            $found = bandpromo_theme_lookup_asset_id_for_path($root, $path);
+            if ($found === '') {
+                continue;
+            }
+            $assetIds[$slot] = $found;
+            $changed = true;
+            $step['changed']++;
+            $step['items'][] = [
+                'brand' => $brandId,
+                'slot' => $slot,
+                'asset_id' => $found,
+            ];
+        }
+
+        if (!$changed) {
+            continue;
+        }
+
+        $document['asset_ids'] = $assetIds;
+        $materialized = bandpromo_theme_materialize_asset_urls($root, $document);
+        $document = $materialized['document'];
+        if (!$dryRun) {
+            bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+            if (bandpromo_brand_active_id($root) === $brandId) {
+                bandpromo_theme_sync_assets_to_config($root, $document);
+            }
+        }
+    }
+
+    return $step;
+}
+
+/**
+ * Backfill gallery entry asset_ids from src paths.
+ */
+function bandpromo_content_autofix_sync_gallery_asset_ids(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/gallery-storage.php';
+    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    $step = bandpromo_content_autofix_step_result('gallery_asset_ids', 'Backfill gallery entry asset_ids');
+    bandpromo_gallery_ensure_seeded($root);
+
+    foreach (bandpromo_gallery_registry_entries($root) as $entry) {
+        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($galleryId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_gallery_load_document($root, $galleryId);
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $galleryId . ': ' . $throwable->getMessage();
+            continue;
+        }
+
+        $entries = is_array($document['entries'] ?? null) ? $document['entries'] : [];
+        $changed = false;
+        foreach ($entries as $index => $galleryEntry) {
+            if (!is_array($galleryEntry)) {
+                continue;
+            }
+            $current = trim((string) ($galleryEntry['asset_id'] ?? ''));
+            if ($current !== '' && bandpromo_asset_is_asset_id($current)) {
+                $step['skipped']++;
+                continue;
+            }
+            $src = trim((string) ($galleryEntry['src'] ?? ''));
+            if ($src === '') {
+                continue;
+            }
+            $found = bandpromo_theme_lookup_asset_id_for_path($root, $src);
+            if ($found === '' && bandpromo_asset_is_asset_id($src)) {
+                $found = $src;
+            }
+            if ($found === '') {
+                $basename = basename($src);
+                $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
+                if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+                    $found = (string) ($asset['id'] ?? '');
+                }
+            }
+            if ($found === '') {
+                continue;
+            }
+            $entries[$index]['asset_id'] = $found;
+            $changed = true;
+            $step['changed']++;
+            $step['items'][] = [
+                'gallery' => $galleryId,
+                'src' => $src,
+                'asset_id' => $found,
+            ];
+        }
+
+        if ($changed && !$dryRun) {
+            $document['entries'] = $entries;
+            bandpromo_gallery_write_document($root, $document);
+        }
+    }
+
+    return $step;
+}
+
+/**
+ * Backfill page picture block + poster asset_ids.
+ */
+function bandpromo_content_autofix_sync_page_asset_ids(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/page-blocks.php';
+
+    $step = bandpromo_content_autofix_step_result('page_asset_ids', 'Backfill page picture asset_ids');
+    bandpromo_page_seed_all_if_missing($root);
+
+    foreach (bandpromo_page_registry_ids($root) as $pageId) {
+        try {
+            $document = bandpromo_page_load_document($root, $pageId);
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $pageId . ': ' . $throwable->getMessage();
+            continue;
+        }
+
+        $changed = false;
+        $posterId = trim((string) ($document['poster_asset_id'] ?? ''));
+        if ($posterId === '') {
+            // No path field for poster; skip unless already set.
+            $step['skipped']++;
+        } elseif (!bandpromo_asset_is_asset_id($posterId)) {
+            $document['poster_asset_id'] = '';
+            $changed = true;
+            $step['changed']++;
+        }
+
+        $blocks = is_array($document['blocks'] ?? null) ? $document['blocks'] : [];
+        foreach ($blocks as $index => $block) {
+            if (!is_array($block)) {
+                continue;
+            }
+            $type = (string) ($block['type'] ?? '');
+            if ($type !== 'picture' && $type !== 'picture_richtext') {
+                continue;
+            }
+            $current = trim((string) ($block['asset_id'] ?? ''));
+            if ($current !== '' && bandpromo_asset_is_asset_id($current)) {
+                $step['skipped']++;
+                continue;
+            }
+            $src = trim((string) ($block['src'] ?? ''));
+            if ($src === '') {
+                continue;
+            }
+            $found = bandpromo_theme_lookup_asset_id_for_path($root, $src);
+            if ($found === '') {
+                $basename = basename(parse_url($src, PHP_URL_PATH) ?: $src);
+                $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
+                if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+                    $found = (string) ($asset['id'] ?? '');
+                }
+            }
+            if ($found === '') {
+                continue;
+            }
+            $blocks[$index]['asset_id'] = $found;
+            $changed = true;
+            $step['changed']++;
+            $step['items'][] = [
+                'page' => $pageId,
+                'block' => $index,
+                'asset_id' => $found,
+            ];
+        }
+
+        if ($changed && !$dryRun) {
+            $document['blocks'] = $blocks;
+            bandpromo_page_save_document($root, $document);
+        }
+    }
+
+    return $step;
+}
+
+/**
+ * Rewrite audio display.cover / living_cover filename refs to asset_ids when known.
+ */
+function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'audio_visual_refs',
+        'Rewrite audio cover/living-cover refs to asset_ids'
+    );
+    $registry = bandpromo_asset_load_registry($root);
+
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+        $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+        $changes = [];
+
+        $cover = trim((string) ($display['cover'] ?? ''));
+        if ($cover !== '' && !bandpromo_asset_is_asset_id($cover)) {
+            $visual = bandpromo_asset_lookup_by_original_filename($root, basename($cover));
+            if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+                $found = (string) ($visual['id'] ?? '');
+                if ($found !== '') {
+                    $changes['cover'] = $found;
+                }
+            }
+        } else {
+            $step['skipped']++;
+        }
+
+        $living = trim((string) ($display['living_cover'] ?? ''));
+        if ($living !== '' && !bandpromo_asset_is_asset_id($living)) {
+            $visual = bandpromo_asset_lookup_by_original_filename($root, basename($living));
+            if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+                $found = (string) ($visual['id'] ?? '');
+                if ($found !== '') {
+                    $changes['living_cover'] = $found;
+                }
+            }
+        } elseif ($living !== '') {
+            $step['skipped']++;
+        }
+
+        if ($changes === []) {
+            continue;
+        }
+
+        $step['changed']++;
+        $step['items'][] = [
+            'asset_id' => (string) $assetId,
+            'changes' => $changes,
+        ];
+        if (!$dryRun) {
+            bandpromo_asset_update_entry($root, (string) $assetId, [
+                'display' => $changes,
+            ]);
+        }
+    }
+
+    return $step;
+}
+
+/**
+ * Relocate visual originals + materialize media/visual/master/ast_* (M2).
+ */
+function bandpromo_content_autofix_materialize_visual_masters(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/visual-master-helpers.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'materialize_visual_masters',
+        'Prepare visual originals/masters under media/visual/'
+    );
+    $registry = bandpromo_asset_load_registry($root);
+
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $working = bandpromo_visual_working_path($root, $asset);
+        $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo(
+            (string) ($asset['original_filename'] ?? ''),
+            PATHINFO_EXTENSION
+        ))));
+        $masterPath = $format !== ''
+            ? bandpromo_visual_master_path($root, (string) $assetId, $format)
+            : '';
+        $needsMaster = $masterPath === '' || !is_file($masterPath);
+        $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
+        $unified = $originalFilename !== ''
+            ? bandpromo_visual_unified_original_path($root, $originalFilename)
+            : '';
+        $needsOriginal = $unified !== '' && !is_file($unified);
+        $currentMaster = basename(trim((string) ($asset['master_filename'] ?? '')));
+        $needsCanonical = $currentMaster === ''
+            || !bandpromo_asset_is_asset_id((string) pathinfo($currentMaster, PATHINFO_FILENAME));
+
+        if (!$needsMaster && !$needsOriginal && !$needsCanonical) {
+            $step['skipped']++;
+            continue;
+        }
+        if ($working === '' && $needsMaster) {
+            $step['errors'][] = (string) $assetId . ': no source bytes for visual master';
+            continue;
+        }
+
+        $step['changed']++;
+        $step['items'][] = [
+            'asset_id' => (string) $assetId,
+            'original' => $originalFilename,
+            'needs_original' => $needsOriginal,
+            'needs_master' => $needsMaster || $needsCanonical,
+        ];
+        if (!$dryRun) {
+            bandpromo_visual_ensure_tiers_for_asset($root, (string) $assetId);
+        }
+    }
+
+    return $step;
+}
+
 function bandpromo_content_autofix_run(string $root, bool $dryRun = false): array
 {
     $steps = [];
@@ -518,10 +866,15 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
     $pipeline = [
         'bandpromo_content_autofix_materialize_audio_masters',
         'bandpromo_content_autofix_canonicalize_master_filenames',
+        'bandpromo_content_autofix_materialize_visual_masters',
         'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_releases',
         'bandpromo_content_autofix_sync_audio_display',
+        'bandpromo_content_autofix_sync_brand_asset_ids',
+        'bandpromo_content_autofix_sync_gallery_asset_ids',
+        'bandpromo_content_autofix_sync_page_asset_ids',
+        'bandpromo_content_autofix_sync_audio_visual_refs',
         'bandpromo_content_autofix_sync_config_scope',
         'bandpromo_content_autofix_refresh_validation',
     ];

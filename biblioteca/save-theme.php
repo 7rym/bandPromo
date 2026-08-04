@@ -40,9 +40,10 @@ try {
     }
 
     $document = bandpromo_theme_normalize_document(array_merge($existing, $decoded), $themeId);
-    bandpromo_json_write_file(bandpromo_theme_document_path($root, $themeId), $document);
+    bandpromo_theme_write_document($root, $document);
+    $document = bandpromo_theme_load_document($root, $themeId);
 
-    if (bandpromo_theme_active_id($root) === $themeId) {
+    if (bandpromo_brand_active_id($root) === bandpromo_brand_canonical_id($themeId)) {
         bandpromo_theme_sync_assets_to_config($root, $document);
     }
 

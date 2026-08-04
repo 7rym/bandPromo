@@ -65,7 +65,33 @@ function bandpromo_living_cover_validate_video_path(string $root, string $path):
 
 function bandpromo_living_cover_player_url(string $root, string $videoFilename): string
 {
-    $safe = bandpromo_living_cover_normalize_video_filename($videoFilename);
+    require_once __DIR__ . '/asset-registry.php';
+
+    $ref = trim($videoFilename);
+    if ($ref === '') {
+        return '';
+    }
+
+    // Prefer asset-id / registry delivery stream.
+    $asset = null;
+    if (bandpromo_asset_is_asset_id($ref)) {
+        $asset = bandpromo_asset_lookup_by_id($root, $ref);
+    }
+    if ($asset === null) {
+        $safe = bandpromo_living_cover_normalize_video_filename($ref);
+        if ($safe !== '') {
+            $asset = bandpromo_asset_lookup_visual($root, $safe, 'video')
+                ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
+        }
+    }
+    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+        $stream = bandpromo_visual_resolve_url($root, (string) ($asset['id'] ?? ''), 'standard-stream');
+        if ($stream !== '') {
+            return $stream;
+        }
+    }
+
+    $safe = bandpromo_living_cover_normalize_video_filename($ref);
     if ($safe === '') {
         return '';
     }
@@ -93,10 +119,26 @@ function bandpromo_living_cover_admin_preview_url(string $root, string $videoFil
 
 function bandpromo_living_cover_enrich_detail(string $root, array $detail): array
 {
-    $filename = bandpromo_living_cover_normalize_video_filename((string) ($detail['living_cover'] ?? ''));
+    require_once __DIR__ . '/asset-registry.php';
+
+    $raw = trim((string) ($detail['living_cover'] ?? ''));
+    $filename = $raw;
+    if (bandpromo_asset_is_asset_id($raw)) {
+        $asset = bandpromo_asset_lookup_by_id($root, $raw);
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            $filename = basename((string) ($asset['original_filename'] ?? $raw));
+            $detail['living_cover_asset_id'] = $raw;
+        }
+    } else {
+        $filename = bandpromo_living_cover_normalize_video_filename($raw);
+    }
+
     $detail['living_cover'] = $filename;
-    $detail['living_cover_player_url'] = $filename !== ''
-        ? bandpromo_living_cover_player_url($root, $filename)
+    $resolveRef = trim((string) ($detail['living_cover_asset_id'] ?? '')) !== ''
+        ? (string) $detail['living_cover_asset_id']
+        : $filename;
+    $detail['living_cover_player_url'] = $resolveRef !== ''
+        ? bandpromo_living_cover_player_url($root, $resolveRef)
         : '';
     $detail['living_cover_preview_url'] = $filename !== ''
         ? bandpromo_living_cover_admin_preview_url($root, $filename)

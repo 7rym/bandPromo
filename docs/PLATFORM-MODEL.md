@@ -280,9 +280,9 @@ Three **operator pools** (Files). Two heavy pipelines (music audio vs visual); S
 
 ### Asset identity applies to visual media too
 
-Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visual assets follow the **same three-tier contract** (target; on-disk master rename still in progress):
+Audio already uses `ast_{ULID}` on disk and in `data/assets/registry.json`. Visual assets follow the **same three-tier contract**:
 
-- **Original** preserved under the upload name (audit/recovery) with `original_filename` in registry — under `media/visual/original/` once Brand-assets fold completes; legacy intake buckets until then
+- **Original** preserved under the upload name with `original_filename` in registry — copied to `media/visual/original/` (legacy intake buckets remain dual-read until M4)
 - **Master** stored as `media/visual/master/ast_{ULID}.{ext}` (canonical regeneration source)
 - **Delivery** variants under `media/visual/delivery/{ast_{ULID}}/{variant}` — not human upload stems
 

@@ -190,8 +190,8 @@ Policy — **locked**:
 
 Implementation order:
 
-- [ ] **M1 — `asset_id` resolution everywhere** — brand shell slots, page picture blocks, galleries, track cover + living-cover tag, social/OG; dual-read fallbacks; autofix path refs.
-- [ ] **M2 — on-disk visual masters** — `media/visual/original/` + `media/visual/master/ast_*`; backfill; delivery reads masters.
+- [x] **M1 — `asset_id` resolution everywhere** — page/gallery/cover/living-cover dual-read; brand shell `asset_ids` map + theme-editor writes; makeSocial resolves poster via `asset_id`; autofix backfills brand/gallery/page/cover/living refs.
+- [x] **M2 — on-disk visual masters** — `media/visual/original/` + `media/visual/master/ast_*`; register/backfill/autofix materialize; optimizeMedia/optimizeVideo/makeSocial read master-first (legacy intake fallback until M4).
 - [ ] **M3 — XXH3 skip-if-fresh + Publish log** — visual + align audio off mtime; migrate `content_sha256` → `content_xxh3`; operator log vocabulary; `xxhash` dependency.
 - [ ] **M4 — quit legacy conversion** — stop stem optimal/thumb dual-write; fold `media/special/`; drop dual-read; register-or-fail; demo heal on asset_id.
 - [ ] **M5 — Files Visual operator titles** — role + context headlines; origin visibility.
@@ -199,7 +199,7 @@ Implementation order:
 
 Related open items (absorbed into M1 unless noted):
 
-- [ ] **Living cover `filename → ast_*`** — part of M1.
+- [x] **Living cover `filename → ast_*`** — autofix rewrites `display.living_cover` / cover to `ast_*` when registry match exists (read-path already dual-read).
 - [ ] **Export builder** — part of M6 (see Release package section below).
 
 ### Player Markdown (closed-beta feedback)

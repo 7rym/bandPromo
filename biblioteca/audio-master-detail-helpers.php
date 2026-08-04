@@ -73,7 +73,22 @@ function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $co
 {
     require_once __DIR__ . '/asset-registry.php';
 
-    $coverFilename = basename(trim($coverFilename));
+    $ref = trim($coverFilename);
+    if ($ref === '') {
+        return '';
+    }
+
+    if (bandpromo_asset_is_asset_id($ref)) {
+        $visual = bandpromo_asset_lookup_by_id($root, $ref);
+        if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+            $path = bandpromo_asset_visual_original_path($root, $visual);
+            if ($path !== '' && is_file($path)) {
+                return $path;
+            }
+        }
+    }
+
+    $coverFilename = basename($ref);
     if ($coverFilename === '') {
         return '';
     }
@@ -107,12 +122,20 @@ function bandpromo_audio_master_resolve_pool_cover_url(string $root, ?string $co
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/asset-registry.php';
 
-    $coverFilename = basename(trim((string) $cover));
-    if ($coverFilename === '') {
+    $ref = trim((string) $cover);
+    if ($ref === '') {
         return '';
     }
 
-    $visual = bandpromo_asset_lookup_by_original_filename($root, $coverFilename);
+    $visual = null;
+    if (bandpromo_asset_is_asset_id($ref)) {
+        $visual = bandpromo_asset_lookup_by_id($root, $ref);
+    }
+    if ($visual === null) {
+        $coverFilename = basename($ref);
+        $visual = bandpromo_asset_lookup_by_original_filename($root, $coverFilename);
+    }
+
     if (is_array($visual) && ($visual['kind'] ?? '') === 'visual' && !empty($visual['id'])) {
         $url = bandpromo_visual_resolve_url(
             $root,
@@ -121,13 +144,17 @@ function bandpromo_audio_master_resolve_pool_cover_url(string $root, ?string $co
             (string) ($visual['intake_bucket'] ?? '')
         );
         if ($url !== '') {
-            $path = bandpromo_audio_master_resolve_pool_cover_path($root, $coverFilename);
+            $path = bandpromo_audio_master_resolve_pool_cover_path(
+                $root,
+                basename((string) ($visual['original_filename'] ?? $ref))
+            );
             $version = $path !== '' ? (string) filemtime($path) : (string) time();
 
             return $url . (str_contains($url, '?') ? '&' : '?') . 'v=' . rawurlencode($version);
         }
     }
 
+    $coverFilename = basename($ref);
     $path = bandpromo_audio_master_resolve_pool_cover_path($root, $coverFilename);
     if ($path === '') {
         return '';

@@ -311,6 +311,8 @@ function bandpromo_page_is_allowed_image_src(string $src): bool {
     $allowedPrefixes = [
         '/media/img/optimal/',
         '/media/photo/optimal/',
+        '/media/visual/delivery/',
+        '/media/special/',
     ];
 
     foreach ($allowedPrefixes as $prefix) {
@@ -319,7 +321,42 @@ function bandpromo_page_is_allowed_image_src(string $src): bool {
         }
     }
 
+    // Bare asset id or basename that resolves later.
+    require_once __DIR__ . '/asset-registry.php';
+    $ref = basename(trim($src));
+    if ($ref !== '' && bandpromo_asset_is_asset_id($ref)) {
+        return true;
+    }
+
     return false;
+}
+
+/**
+ * Resolve a page picture block to a public delivery URL (asset_id preferred).
+ */
+function bandpromo_page_resolve_picture_src(string $root, array $block): string
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    $assetId = trim((string) ($block['asset_id'] ?? ''));
+    if ($assetId !== '') {
+        $url = bandpromo_visual_resolve_url($root, $assetId, 'card');
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    $src = trim((string) ($block['src'] ?? ''));
+    if ($src === '') {
+        return '';
+    }
+
+    if (str_starts_with($src, '/media/visual/delivery/') || str_starts_with($src, 'http')) {
+        return $src;
+    }
+
+    $resolved = bandpromo_visual_resolve_url($root, basename($src), 'card');
+    return $resolved !== '' ? $resolved : $src;
 }
 
 function bandpromo_page_plain_fragment_to_html(array $block): string {
@@ -518,8 +555,20 @@ function bandpromo_page_normalize_block(array $block): ?array {
     }
 
     if ($type === 'picture' || $type === 'picture_richtext') {
+        $assetId = trim((string) ($block['asset_id'] ?? ''));
+        require_once __DIR__ . '/asset-registry.php';
+        if ($assetId !== '' && !bandpromo_asset_is_asset_id($assetId)) {
+            $assetId = '';
+        }
+
         $src = bandpromo_page_normalize_url((string) ($block['src'] ?? ''));
-        if (!bandpromo_page_is_allowed_image_src($src)) {
+        if ($src === '' && $assetId !== '') {
+            $src = $assetId;
+        }
+        if (!bandpromo_page_is_allowed_image_src($src) && $assetId === '') {
+            return null;
+        }
+        if ($src === '' && $assetId === '') {
             return null;
         }
 
@@ -534,12 +583,15 @@ function bandpromo_page_normalize_block(array $block): ?array {
 
         $normalized = [
             'type' => $resolvedType,
-            'src' => $src,
+            'src' => $src !== '' ? $src : $assetId,
             'alt' => $alt,
             'width_num' => $style['width_num'],
             'width_den' => $style['width_den'],
             'flow' => $style['flow'],
         ];
+        if ($assetId !== '') {
+            $normalized['asset_id'] = $assetId;
+        }
 
         if ($resolvedType === 'picture_richtext') {
             $normalized['body'] = $body;

@@ -202,6 +202,15 @@ function bandpromo_theme_default_document(): array
             'welcome_audio' => '/media/sfx/original/bandPromo_welcome.flac',
             'loggedin_audio' => '/media/sfx/original/bandPromo_loggedin.flac',
         ],
+        // Parallel map: shell slot → registry asset id (paths in assets[] remain dual-read URLs).
+        'asset_ids' => [
+            'logo' => '',
+            'poster' => '',
+            'background_image' => '',
+            'background_video' => '',
+            'welcome_audio' => '',
+            'loggedin_audio' => '',
+        ],
     ];
 }
 
@@ -288,6 +297,186 @@ function bandpromo_theme_normalize_assets(array $assets): array
     }
 
     return $normalized;
+}
+
+/**
+ * Normalize parallel shell slot → asset_id map (empty string when unset).
+ *
+ * @param array<string, mixed> $assetIds
+ * @return array<string, string>
+ */
+function bandpromo_theme_normalize_asset_ids(array $assetIds): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $defaults = bandpromo_theme_default_document()['asset_ids'];
+    $normalized = [];
+    foreach ($defaults as $key => $_default) {
+        $value = trim((string) ($assetIds[$key] ?? ''));
+        if ($value !== '' && !bandpromo_asset_is_asset_id($value)) {
+            $value = '';
+        }
+        $normalized[$key] = $value;
+    }
+
+    return $normalized;
+}
+
+/**
+ * Resolve a public media URL for a brand shell slot (asset_id preferred, path dual-read).
+ */
+function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, string $slotKey): string
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/sfx-helpers.php';
+
+    $slotKey = trim($slotKey);
+    $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
+    $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+    $assetId = trim((string) ($assetIds[$slotKey] ?? ''));
+    $pathFallback = trim((string) ($assets[$slotKey] ?? ''));
+
+    if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+        $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+        if (is_array($asset)) {
+            $kind = (string) ($asset['kind'] ?? '');
+            $mediaType = (string) ($asset['media_type'] ?? '');
+            $filename = basename((string) ($asset['original_filename'] ?? $asset['master_filename'] ?? ''));
+
+            if ($kind === 'sfx' || ($kind === 'visual' && $mediaType === 'audio')) {
+                if ($filename !== '') {
+                    return bandpromo_sfx_web_path($filename);
+                }
+            }
+
+            if ($kind === 'visual' && $mediaType === 'video') {
+                $stream = bandpromo_visual_resolve_url($root, $assetId, 'standard-stream');
+                if ($stream !== '') {
+                    return $stream;
+                }
+                if ($filename !== '') {
+                    $special = '/media/special/' . $filename;
+                    if (bandpromo_theme_resolve_media_absolute_path($root, $special) !== null) {
+                        return $special;
+                    }
+                    $videoOrig = '/media/video/original/' . $filename;
+                    if (bandpromo_theme_resolve_media_absolute_path($root, $videoOrig) !== null) {
+                        return $videoOrig;
+                    }
+                }
+            }
+
+            if ($kind === 'visual') {
+                // Logo / alpha: prefer original special path when present; else delivery card.
+                if ($slotKey === 'logo' && $filename !== '') {
+                    $special = '/media/special/' . $filename;
+                    if (bandpromo_theme_resolve_media_absolute_path($root, $special) !== null) {
+                        return $special;
+                    }
+                }
+                $variant = $slotKey === 'logo' ? 'card' : 'card';
+                $resolved = bandpromo_visual_resolve_url($root, $assetId, $variant);
+                if ($resolved !== '') {
+                    return $resolved;
+                }
+                if ($filename !== '') {
+                    foreach ([
+                        '/media/special/' . $filename,
+                        '/media/img/original/' . $filename,
+                        '/media/photo/original/' . $filename,
+                    ] as $candidate) {
+                        if (bandpromo_theme_resolve_media_absolute_path($root, $candidate) !== null) {
+                            return $candidate;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if ($pathFallback !== '' && ($pathFallback[0] === '/' || preg_match('/^https?:\/\//i', $pathFallback) === 1)) {
+        return $pathFallback;
+    }
+
+    return '';
+}
+
+/**
+ * Look up a registry asset id for a shell media web path (best-effort backfill).
+ */
+function bandpromo_theme_lookup_asset_id_for_path(string $root, string $webPath): string
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $webPath = trim(str_replace('\\', '/', $webPath));
+    if ($webPath === '' || preg_match('#^https?://#i', $webPath) === 1) {
+        return '';
+    }
+    if ($webPath[0] !== '/') {
+        $webPath = '/' . $webPath;
+    }
+
+    if (preg_match('#^/media/visual/delivery/(ast_[0-9a-z]+)/#i', $webPath, $matches) === 1) {
+        $assetId = strtolower($matches[1]);
+        if (bandpromo_asset_lookup_by_id($root, $assetId) !== null) {
+            return $assetId;
+        }
+    }
+
+    $basename = basename($webPath);
+    if ($basename === '' || $basename === '.' || $basename === '..') {
+        return '';
+    }
+
+    $asset = bandpromo_asset_lookup_by_original_filename($root, $basename)
+        ?? bandpromo_asset_lookup_by_master_filename($root, $basename);
+    if (!is_array($asset)) {
+        return '';
+    }
+
+    $kind = (string) ($asset['kind'] ?? '');
+    if ($kind !== 'visual' && $kind !== 'sfx') {
+        return '';
+    }
+
+    return (string) ($asset['id'] ?? '');
+}
+
+/**
+ * Refresh assets[] URLs from asset_ids when resolution succeeds (keeps dual-read in sync).
+ *
+ * @return array{document: array, changed: bool}
+ */
+function bandpromo_theme_materialize_asset_urls(string $root, array $document): array
+{
+    $assetIds = bandpromo_theme_normalize_asset_ids(
+        is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : []
+    );
+    $assets = bandpromo_theme_normalize_assets(
+        is_array($document['assets'] ?? null) ? $document['assets'] : []
+    );
+    $changed = false;
+
+    foreach ($assetIds as $key => $assetId) {
+        if ($assetId === '') {
+            continue;
+        }
+        $resolved = bandpromo_theme_resolve_shell_slot_url($root, [
+            'asset_ids' => $assetIds,
+            'assets' => $assets,
+        ], $key);
+        if ($resolved === '' || $resolved === ($assets[$key] ?? '')) {
+            continue;
+        }
+        $assets[$key] = $resolved;
+        $changed = true;
+    }
+
+    $document['asset_ids'] = $assetIds;
+    $document['assets'] = $assets;
+
+    return ['document' => $document, 'changed' => $changed];
 }
 
 /**
@@ -626,6 +815,7 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
         'tone_notes' => bandpromo_brand_normalize_narrative_field($input['tone_notes'] ?? '', 2000),
         'tokens' => bandpromo_theme_normalize_tokens(is_array($input['tokens'] ?? null) ? $input['tokens'] : []),
         'assets' => bandpromo_theme_normalize_assets(is_array($input['assets'] ?? null) ? $input['assets'] : []),
+        'asset_ids' => bandpromo_theme_normalize_asset_ids(is_array($input['asset_ids'] ?? null) ? $input['asset_ids'] : []),
     ];
 }
 
@@ -687,6 +877,9 @@ function bandpromo_theme_write_document(string $root, array $document, array $op
     if (!empty($document['locked']) && empty($options['allow_locked'])) {
         throw new RuntimeException('Brand is locked and cannot be edited.');
     }
+
+    $materialized = bandpromo_theme_materialize_asset_urls($root, $document);
+    $document = $materialized['document'];
 
     bandpromo_theme_registry_ensure_dir($root);
     if (!bandpromo_json_write_file(bandpromo_theme_document_path($root, $document['id']), $document)) {
@@ -774,6 +967,8 @@ function bandpromo_theme_sync_assets_to_config(string $root, array $document): v
         return;
     }
 
+    $materialized = bandpromo_theme_materialize_asset_urls($root, $document);
+    $document = $materialized['document'];
     $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
     $map = [
         'logo' => ['install.brand.logo', 'install.theme.logo', 'media.logo'],
@@ -791,7 +986,10 @@ function bandpromo_theme_sync_assets_to_config(string $root, array $document): v
     ];
 
     foreach ($map as $assetKey => $paths) {
-        $value = trim((string) ($assets[$assetKey] ?? ''));
+        $value = bandpromo_theme_resolve_shell_slot_url($root, $document, $assetKey);
+        if ($value === '') {
+            $value = trim((string) ($assets[$assetKey] ?? ''));
+        }
         foreach ($paths as $path) {
             bandpromo_config_set_path($config, $path, $value);
         }

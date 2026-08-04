@@ -122,7 +122,10 @@ function bandpromo_asset_visual_original_dir(string $root, string $intakeBucket)
     return '';
 }
 
-function bandpromo_asset_visual_original_path(string $root, array $asset): string
+/**
+ * Legacy intake path for a visual asset (pre-M2 buckets). Prefer bandpromo_visual_working_path().
+ */
+function bandpromo_asset_visual_legacy_original_path(string $root, array $asset): string
 {
     $filename = basename(trim((string) ($asset['original_filename'] ?? '')));
     $bucket = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
@@ -133,6 +136,24 @@ function bandpromo_asset_visual_original_path(string $root, array $asset): strin
     $dir = bandpromo_asset_visual_original_dir($root, $bucket);
 
     return $dir === '' ? '' : ($dir . '/' . $filename);
+}
+
+/**
+ * Best-effort original bytes path: unified visual original, then legacy intake.
+ */
+function bandpromo_asset_visual_original_path(string $root, array $asset): string
+{
+    require_once __DIR__ . '/visual-master-helpers.php';
+
+    $filename = basename(trim((string) ($asset['original_filename'] ?? '')));
+    if ($filename !== '') {
+        $unified = bandpromo_visual_unified_original_path($root, $filename);
+        if (is_file($unified)) {
+            return $unified;
+        }
+    }
+
+    return bandpromo_asset_visual_legacy_original_path($root, $asset);
 }
 
 function bandpromo_asset_file_sha256(string $path): string
@@ -717,15 +738,19 @@ function bandpromo_asset_register_visual(
                 bandpromo_asset_ensure_visual_content_sha256($root, (string) ($updated['id'] ?? ''));
                 $updated = bandpromo_asset_lookup_by_id($root, (string) ($updated['id'] ?? '')) ?? $updated;
             }
+            require_once __DIR__ . '/visual-master-helpers.php';
+            $tiered = bandpromo_visual_ensure_tiers_for_asset($root, (string) ($updated['id'] ?? ''));
 
-            return $updated;
+            return is_array($tiered) ? $tiered : $updated;
         }
         if (trim((string) ($existing['content_sha256'] ?? '')) === '') {
             bandpromo_asset_ensure_visual_content_sha256($root, (string) ($existing['id'] ?? ''));
             $existing = bandpromo_asset_lookup_by_id($root, (string) ($existing['id'] ?? '')) ?? $existing;
         }
+        require_once __DIR__ . '/visual-master-helpers.php';
+        $tiered = bandpromo_visual_ensure_tiers_for_asset($root, (string) ($existing['id'] ?? ''));
 
-        return $existing;
+        return is_array($tiered) ? $tiered : $existing;
     }
 
     $assetId = isset($options['asset_id']) && bandpromo_asset_is_asset_id((string) $options['asset_id'])
@@ -739,6 +764,10 @@ function bandpromo_asset_register_visual(
     }
 
     $contentSha = strtolower(trim((string) ($options['content_sha256'] ?? '')));
+    $masterFormat = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
+    $masterFilename = isset($options['master_filename'])
+        ? basename(trim((string) $options['master_filename']))
+        : bandpromo_asset_master_filename_for_ulid($assetId, $masterFormat !== '' ? $masterFormat : 'bin');
     $entry = [
         'id' => $assetId,
         'kind' => 'visual',
@@ -748,8 +777,8 @@ function bandpromo_asset_register_visual(
         'role' => $role,
         'has_alpha' => !empty($options['has_alpha']),
         'original_filename' => $originalFilename,
-        'master_filename' => $originalFilename,
-        'master_format' => strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION)),
+        'master_filename' => $masterFilename,
+        'master_format' => $masterFormat,
         'release_id' => '',
         'slug' => '',
         'display' => [],
@@ -761,7 +790,7 @@ function bandpromo_asset_register_visual(
 
     $registry = bandpromo_asset_load_registry($root);
     $registry['assets'][$assetId] = $entry;
-    $registry['by_master_filename'][$originalFilename] = $assetId;
+    $registry['by_master_filename'][$masterFilename] = $assetId;
     $registry['by_original_filename'][$originalFilename] = $assetId;
     bandpromo_asset_write_registry($root, $registry);
 
@@ -769,8 +798,13 @@ function bandpromo_asset_register_visual(
         bandpromo_asset_ensure_visual_content_sha256($root, $assetId);
     }
 
-    return bandpromo_asset_lookup_by_id($root, $assetId)
-        ?? (bandpromo_asset_normalize_entry($entry) ?? $entry);
+    require_once __DIR__ . '/visual-master-helpers.php';
+    $tiered = bandpromo_visual_ensure_tiers_for_asset($root, $assetId);
+
+    return is_array($tiered)
+        ? $tiered
+        : (bandpromo_asset_lookup_by_id($root, $assetId)
+            ?? (bandpromo_asset_normalize_entry($entry) ?? $entry));
 }
 
 function bandpromo_asset_register_audio_master(
@@ -831,7 +865,7 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     $previousMaster = (string) ($entry['master_filename'] ?? '');
     $previousOriginal = (string) ($entry['original_filename'] ?? '');
 
-    foreach (['release_id', 'slug', 'original_filename', 'brand_id', 'media_type', 'intake_bucket'] as $key) {
+    foreach (['release_id', 'slug', 'original_filename', 'brand_id', 'media_type', 'intake_bucket', 'master_filename', 'master_format'] as $key) {
         if (array_key_exists($key, $changes)) {
             $entry[$key] = trim((string) $changes[$key]);
         }
@@ -1491,11 +1525,17 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
                     $changed = true;
                 }
                 $registry['by_original_filename'][$entry] = $existingId;
-                $registry['by_master_filename'][$entry] = $existingId;
+                $existingMaster = basename(trim((string) ($existing['master_filename'] ?? '')));
+                if ($existingMaster !== '' && bandpromo_asset_is_asset_id((string) pathinfo($existingMaster, PATHINFO_FILENAME))) {
+                    $registry['by_master_filename'][$existingMaster] = $existingId;
+                } else {
+                    $registry['by_master_filename'][$entry] = $existingId;
+                }
                 continue;
             }
 
             $assetId = bandpromo_generate_asset_id();
+            $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, $ext);
             $normalized = bandpromo_asset_normalize_entry([
                 'id' => $assetId,
                 'kind' => 'visual',
@@ -1505,7 +1545,7 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
                 'role' => 'unassigned',
                 'has_alpha' => false,
                 'original_filename' => $entry,
-                'master_filename' => $entry,
+                'master_filename' => $masterFilename,
                 'master_format' => $ext,
                 'tags' => ['unassigned'],
                 'delivery' => [],
@@ -1516,7 +1556,7 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
             }
 
             $registry['assets'][$assetId] = $normalized;
-            $registry['by_master_filename'][$entry] = $assetId;
+            $registry['by_master_filename'][$masterFilename] = $assetId;
             $registry['by_original_filename'][$entry] = $assetId;
             $changed = true;
         }
@@ -1615,6 +1655,34 @@ function bandpromo_asset_registry_ensure_migrated(string $root): void
         bandpromo_sfx_migrate_from_special($root);
     } catch (Throwable $throwable) {
         // Best-effort migrate; Files → Sound effects still works for new uploads.
+    }
+
+    // Visual M2 tiers: best-effort relocate + master materialize when missing.
+    require_once __DIR__ . '/visual-master-helpers.php';
+    try {
+        $fresh = bandpromo_asset_load_registry($root);
+        foreach ($fresh['assets'] as $assetId => $asset) {
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+                continue;
+            }
+            $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo(
+                (string) ($asset['original_filename'] ?? ''),
+                PATHINFO_EXTENSION
+            ))));
+            $masterPath = $format !== ''
+                ? bandpromo_visual_master_path($root, (string) $assetId, $format)
+                : '';
+            $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
+            $needs = ($masterPath === '' || !is_file($masterPath))
+                || $masterName === ''
+                || !bandpromo_asset_is_asset_id((string) pathinfo($masterName, PATHINFO_FILENAME));
+            if (!$needs) {
+                continue;
+            }
+            bandpromo_visual_ensure_tiers_for_asset($root, (string) $assetId);
+        }
+    } catch (Throwable $throwable) {
+        // Autofix / Publish can retry; do not block admin boot.
     }
 }
 

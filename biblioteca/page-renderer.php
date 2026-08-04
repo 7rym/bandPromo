@@ -35,7 +35,15 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
     }
 
     if ($type === 'picture' || $type === 'picture_richtext') {
-        $src = bandpromo_page_escape((string) ($block['src'] ?? ''));
+        $srcRaw = '';
+        if ($root !== null && $root !== '') {
+            require_once __DIR__ . '/page-blocks.php';
+            $srcRaw = bandpromo_page_resolve_picture_src($root, $block);
+        }
+        if ($srcRaw === '') {
+            $srcRaw = (string) ($block['src'] ?? '');
+        }
+        $src = bandpromo_page_escape($srcRaw);
         if ($src === '') {
             return '';
         }

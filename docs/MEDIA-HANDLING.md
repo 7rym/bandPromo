@@ -935,14 +935,14 @@ What ships today for opaque track/illustration/photo delivery:
 
 Remaining debt (visual identity completion track, policy locked 2026-08-04):
 
-- **M1** — `asset_id` resolution everywhere (brand shell, pages, galleries, track/living cover, social); temporary dual-read
-- **M2** — on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters
+- **M1** — shipped: `asset_id` resolution + dual-read consumers
+- **M2** — shipped: on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters first
 - **M3** — XXH3 skip-if-fresh for visual + audio (`delivery.source_xxh3`); operator-facing Publish log; migrate `content_sha256` → `content_xxh3`
 - **M4** — stop dual-write to stem optimal/thumb; fold `media/special/`; drop dual-read; register-or-fail
 - **M5** — Files Visual titles = role + linked context
 - **M6** — release package export + registry-subset import merge
 
-Do not kill legacy trees before M1 consumers resolve `asset_id`. Do not start M2 masters alone while brand/pages still store path strings.
+Do not kill legacy trees before consumers resolve `asset_id` (M1). Legacy intake dual-read stays until M4.
 
 ### Visual media rework plan (v0.8.4)
 

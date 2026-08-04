@@ -15,6 +15,8 @@ ROOT_DIR    = SCRIPT_DIR.parent
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
 BRANDS_DIR  = ROOT_DIR / 'data' / 'brands'
+ASSETS_REGISTRY = ROOT_DIR / 'data' / 'assets' / 'registry.json'
+VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
 
 # Target dimensions per platform
 PLATFORMS = {
@@ -60,12 +62,110 @@ def normalize_media_path(value):
     return '/' + text.lstrip('/')
 
 
+def load_asset_registry():
+    if not ASSETS_REGISTRY.is_file():
+        return {}
+    try:
+        with open(ASSETS_REGISTRY, 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+        assets = payload.get('assets') if isinstance(payload, dict) else None
+        return assets if isinstance(assets, dict) else {}
+    except Exception:
+        return {}
+
+
+def resolve_visual_delivery_image(asset_id, preferred_variants=('card', 'share', 'poster')):
+    """Return a local Path under media/visual/delivery/{asset_id}/ when present."""
+    asset_id = str(asset_id or '').strip()
+    if not asset_id.startswith('ast_'):
+        return None
+    delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
+    if not delivery_dir.is_dir():
+        return None
+    for variant in preferred_variants:
+        for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+            candidate = delivery_dir / f'{variant}{ext}'
+            if candidate.is_file():
+                return candidate
+    # Any image in the delivery folder as last resort.
+    for path in sorted(delivery_dir.iterdir()):
+        if path.is_file() and path.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp'):
+            return path
+    return None
+
+
+def resolve_asset_id_to_path(asset_id):
+    """Resolve registry asset_id → on-disk image path (delivery preferred)."""
+    asset_id = str(asset_id or '').strip()
+    if not asset_id.startswith('ast_'):
+        return None
+    delivery = resolve_visual_delivery_image(asset_id)
+    if delivery is not None:
+        return delivery
+
+    assets = load_asset_registry()
+    asset = assets.get(asset_id)
+    if not isinstance(asset, dict):
+        return None
+    filename = str(asset.get('original_filename') or asset.get('master_filename') or '').strip()
+    filename = Path(filename).name
+    master_name = str(asset.get('master_filename') or '').strip()
+    master_name = Path(master_name).name
+    fmt = str(asset.get('master_format') or '').strip().lower()
+    if not fmt and filename:
+        fmt = Path(filename).suffix.lstrip('.').lower()
+
+    candidates = []
+    if fmt:
+        candidates.append(ROOT_DIR / 'media' / 'visual' / 'master' / f'{asset_id}.{fmt}')
+    if master_name.startswith('ast_'):
+        candidates.append(ROOT_DIR / 'media' / 'visual' / 'master' / master_name)
+    if filename:
+        candidates.append(ROOT_DIR / 'media' / 'visual' / 'original' / filename)
+    bucket = str(asset.get('intake_bucket') or '').strip().lower()
+    if filename:
+        if bucket == 'special' or bucket == '':
+            candidates.append(SPECIAL_DIR / filename)
+        if bucket == 'photo':
+            candidates.append(ROOT_DIR / 'media' / 'photo' / 'original' / filename)
+        else:
+            candidates.append(ROOT_DIR / 'media' / 'img' / 'original' / filename)
+            candidates.append(SPECIAL_DIR / filename)
+            candidates.append(ROOT_DIR / 'media' / 'photo' / 'original' / filename)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def resolve_share_image(config):
     """
     Return the local Path of the configured share image.
-    social.share_image is a URL-style path like /media/special/bandPromo_share.png.
+    Prefer active brand asset_ids.poster, then social.share_image path.
     """
+    brand_id = active_brand_id(config)
+    brand_doc = load_brand_document(brand_id)
+    if isinstance(brand_doc, dict):
+        asset_ids = brand_doc.get('asset_ids') if isinstance(brand_doc.get('asset_ids'), dict) else {}
+        poster_asset_id = str(asset_ids.get('poster') or '').strip()
+        if poster_asset_id:
+            resolved = resolve_asset_id_to_path(poster_asset_id)
+            if resolved is not None:
+                return resolved
+        assets = brand_doc.get('assets') if isinstance(brand_doc.get('assets'), dict) else {}
+        brand_poster = normalize_media_path(assets.get('poster', ''))
+        if brand_poster.startswith('/media/'):
+            candidate = ROOT_DIR / brand_poster.lstrip('/')
+            if candidate.is_file():
+                return candidate
+
     path_str = config_get(config, 'social.share_image', '/media/special/bandPromo_share.png')
+    path_str = normalize_media_path(path_str)
+    # Bare asset ids occasionally land in config during migration.
+    if str(path_str).startswith('ast_') or str(path_str).lstrip('/').startswith('ast_'):
+        resolved = resolve_asset_id_to_path(str(path_str).lstrip('/'))
+        if resolved is not None:
+            return resolved
     return ROOT_DIR / str(path_str).lstrip('/\\')
 
 
@@ -143,10 +243,13 @@ def print_missing_share_image_help(config, src_image):
     brand_doc = load_brand_document(brand_id)
     brand_title = ''
     brand_poster = ''
+    poster_asset_id = ''
     if isinstance(brand_doc, dict):
         brand_title = str(brand_doc.get('title') or '').strip()
         assets = brand_doc.get('assets') if isinstance(brand_doc.get('assets'), dict) else {}
         brand_poster = normalize_media_path(assets.get('poster', ''))
+        asset_ids = brand_doc.get('asset_ids') if isinstance(brand_doc.get('asset_ids'), dict) else {}
+        poster_asset_id = str(asset_ids.get('poster') or '').strip()
 
     print('  ❌ Share / poster source image is missing on disk.')
     print(f'     Missing file: {relative}')
@@ -160,6 +263,8 @@ def print_missing_share_image_help(config, src_image):
     if brand_id:
         label = f'{brand_title} ({brand_id})' if brand_title else brand_id
         print(f'     Active brand: {label}')
+        if poster_asset_id:
+            print(f'     Brand Shell media → Poster asset_id: {poster_asset_id}')
         if brand_poster:
             print(f'     Brand Shell media → Poster slot: {brand_poster}')
             if brand_poster == configured:
