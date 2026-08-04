@@ -48,7 +48,8 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
 | Brand containers + semantic player colors (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
-| Visual pool + role tags + registry-scoped delivery | Phases 0b–2 + Phase 3 UX shipped; **identity completion M1–M6** policy locked 2026-08-04 (see TODO) |
+| Visual pool + role tags + registry-scoped delivery | Phases 0b–2 + **identity completion M1–M6 shipped** 2026-08-04 (`asset_id`, masters, XXH3, register-or-fail, operator titles, campaign export); physical `media/special/` retirement residual |
+
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
