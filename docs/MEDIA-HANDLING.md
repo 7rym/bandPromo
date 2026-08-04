@@ -937,7 +937,7 @@ Remaining debt (visual identity completion track, policy locked 2026-08-04):
 
 - **M1** — shipped: `asset_id` resolution + dual-read consumers
 - **M2** — shipped: on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters first
-- **M3** — XXH3 skip-if-fresh for visual + audio (`delivery.source_xxh3`); operator-facing Publish log; migrate `content_sha256` → `content_xxh3`
+- **M3** — shipped: XXH3 skip-if-fresh for audio + visual images (`delivery.source_xxh3`); `content_xxh3` dual-read with legacy `content_sha256`
 - **M4** — stop dual-write to stem optimal/thumb; fold `media/special/`; drop dual-read; register-or-fail
 - **M5** — Files Visual titles = role + linked context
 - **M6** — release package export + registry-subset import merge
@@ -1125,9 +1125,9 @@ Current implementation note:
 - Build-required state now also records concrete task units (`playlist-scan`, `audio-delivery`, `image-delivery`, `social-assets`, `manifest`) alongside the legacy `full` / `optimize` action so the operator inbox and save/upload feedback can speak in task terms even before the manual build controls are fully split by task.
 - The Build tab now speaks in task-oriented operator language (`Run Publish Build` and `Refresh Image Files`) instead of the older vague `Full Build` / `Optimize Media` pairing, while still routing those buttons through the same current heavy-runner endpoints.
 - `Refresh Image Files` now truly runs the image-delivery path only: it regenerates track cover JPEGs, photos, and illustration derivatives without re-encoding audio delivery files. The full publish build still runs the optimizer in full mode so audio delivery regeneration remains part of the full publish pipeline.
-- Audio delivery is skip-if-fresh today via master **mtime** (`assets[].delivery.source_mtime`). **Target (M3):** both audio and visual delivery skip when master **XXH3** matches `delivery.source_xxh3` (not mtime — safer on Google Drive). Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Visual asset-id variants currently rebuild every Publish until M3.
+- Audio + visual image delivery skip-if-fresh via master **XXH3** (`assets[].delivery.source_xxh3`). Legacy audio `source_mtime` remains as a one-build migration fallback until XXH3 is recorded. Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Requires Python `xxhash` (`pip install -r scripts/requirements.txt`).
+- Publish log vocabulary: operator title + product variants (`card` / `thumb` / poster / stream); skip lines say “already up to date (master XXH3 match)”.
 - Share/OG crops become named **delivery variants** of the share Visual asset (not sibling files beside `media/special/`) once Brand-assets fold + M1 land.
-- Publish log vocabulary (target): operator title + product variants (`card` / `thumb` / poster / stream) only — no “Optimal / Converted cover / Variant” jargon.
 - Theme-cover changes and image-only uploads now auto-run the image-delivery path in the background when that cheap refresh succeeds, so those safe cases no longer have to leave a manual image-refresh task behind just to regenerate derived JPEG assets.
 - Real metadata changes still rely on the older coarse manual build controls, so task-level follow-up remains only partially complete until those controls are split beyond `full` / `optimize`.
 

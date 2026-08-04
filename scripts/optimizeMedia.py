@@ -23,6 +23,11 @@ from mutagen import File
 from mutagen.flac import FLAC
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBPM, TKEY, TPE4, USLT, TXXX
 
+try:
+    import xxhash
+except ImportError:
+    xxhash = None
+
 import stdio_utf8
 stdio_utf8.configure()
 
@@ -588,6 +593,23 @@ def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75,
     return str(dest_path)
 
 
+def file_xxh3_hex(path):
+    """Return lowercase XXH3-64 hex digest of file bytes, or '' if unavailable."""
+    if xxhash is None:
+        return ''
+    try:
+        hasher = xxhash.xxh3_64()
+        with open(path, 'rb') as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest().lower()
+    except Exception:
+        return ''
+
+
 def visual_original_path_for_asset(asset):
     """Legacy intake path only (img/photo/special/video). Prefer visual_working_path_for_asset()."""
     bucket = str(asset.get('intake_bucket') or '').strip().lower()
@@ -683,7 +705,7 @@ def variant_manifest_entry(abs_path):
     }
 
 
-def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None):
+def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None, source_xxh3=None):
     """Patch registry.json delivery.variants for one visual asset."""
     if not asset_id or not ASSET_REGISTRY_FILE.exists():
         return False
@@ -702,6 +724,10 @@ def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None):
     existing.update(variants_map)
     delivery['variants'] = existing
     delivery['visual_ready'] = True
+    delivery['built_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    delivery['checked_at'] = delivery['built_at']
+    if source_xxh3:
+        delivery['source_xxh3'] = str(source_xxh3).lower()
     asset['delivery'] = delivery
     if has_alpha is not None:
         asset['has_alpha'] = bool(has_alpha)
@@ -718,6 +744,34 @@ def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None):
         return False
 
 
+def visual_image_delivery_is_fresh(asset, source_path, required_variants):
+    """True when required delivery variants exist and master XXH3 matches."""
+    if xxhash is None:
+        return False
+    if os.environ.get('BANDPROMO_FORCE_VISUAL_DELIVERY', '').strip() == '1':
+        return False
+    delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+    recorded = str(delivery.get('source_xxh3') or '').strip().lower()
+    if not recorded:
+        return False
+    current = file_xxh3_hex(source_path)
+    if not current or current != recorded:
+        return False
+    asset_id = str(asset.get('id') or '').strip()
+    delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
+    if not delivery_dir.is_dir():
+        return False
+    for variant in required_variants:
+        found = False
+        for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+            if (delivery_dir / '{}{}'.format(variant, ext)).is_file():
+                found = True
+                break
+        if not found:
+            return False
+    return True
+
+
 def process_visual_image_asset(asset):
     """Write media/visual/delivery/{id}/{variant} plus legacy dual-read copies."""
     asset_id = str(asset.get('id') or '').strip()
@@ -726,6 +780,11 @@ def process_visual_image_asset(asset):
         return False
 
     role = str(asset.get('role') or 'unassigned')
+    required = role_image_variants(role)
+    if visual_image_delivery_is_fresh(asset, source, required):
+        print("    → Delivery: already up to date (master XXH3 match) — skipped")
+        return 'skipped'
+
     preserve_alpha = role in ('brand-logo', 'style-ref') or bool(asset.get('has_alpha'))
     has_alpha = image_source_has_alpha(source)
     if has_alpha:
@@ -735,7 +794,7 @@ def process_visual_image_asset(asset):
     delivery_dir.mkdir(parents=True, exist_ok=True)
     variants_written = {}
 
-    for variant in role_image_variants(role):
+    for variant in required:
         max_edge = variant_max_edge(variant, COVER_OPTIMAL_MAX_EDGE if variant != 'thumb' else COVER_THUMB_MAX_EDGE)
         if max_edge <= 0:
             max_edge = COVER_OPTIMAL_MAX_EDGE
@@ -750,10 +809,11 @@ def process_visual_image_asset(asset):
         )
         if written:
             variants_written[variant] = variant_manifest_entry(written)
+            print("    → Built {}: {}".format(variant, Path(written).name))
 
     # Dual-read: also refresh legacy optimal/thumb trees from the same source.
     bucket = str(asset.get('intake_bucket') or '').strip().lower()
-    stem = source.stem
+    stem = Path(str(asset.get('original_filename') or source.name)).stem
     if bucket == 'photo':
         legacy_opt = PHOTO_OPT_DIR / (stem + '.jpg')
         legacy_thumb = PHOTO_THUMB_DIR / (stem + '.jpg')
@@ -763,7 +823,15 @@ def process_visual_image_asset(asset):
     write_cover_delivery_variants(str(source), str(legacy_opt), str(legacy_thumb), quality=80)
 
     if variants_written:
-        update_visual_asset_delivery(asset_id, variants_written, has_alpha=has_alpha)
+        source_digest = file_xxh3_hex(source)
+        update_visual_asset_delivery(
+            asset_id,
+            variants_written,
+            has_alpha=has_alpha,
+            source_xxh3=source_digest or None,
+        )
+        if not source_digest and xxhash is None:
+            print("    ⚠️  Install Python package `xxhash` for skip-if-fresh (pip install -r scripts/requirements.txt)")
         return True
     return False
 
@@ -862,6 +930,8 @@ def load_registry_audio_delivery_queue():
 
         display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
         delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+        recorded_xxh3 = str(delivery.get('source_xxh3') or '').strip().lower() or None
+        # Legacy mtime fingerprint (pre-M3) — ignored once XXH3 is present.
         recorded_mtime = delivery.get('source_mtime')
         try:
             recorded_mtime = int(recorded_mtime) if recorded_mtime is not None and str(recorded_mtime).strip() != '' else None
@@ -875,6 +945,7 @@ def load_registry_audio_delivery_queue():
             'display_title': str(display.get('title') or '').strip(),
             'display_artist': str(display.get('artist') or '').strip(),
             'display': display,
+            'recorded_source_xxh3': recorded_xxh3,
             'recorded_source_mtime': recorded_mtime,
         })
 
@@ -887,7 +958,7 @@ def load_registry_audio_delivery_queue():
     return queue
 
 
-def update_audio_asset_delivery(asset_id, source_mtime, ready=True):
+def update_audio_asset_delivery(asset_id, source_xxh3, ready=True, source_mtime=None):
     """Patch registry.json delivery flags for one audio asset after optimize."""
     if not asset_id or not ASSET_REGISTRY_FILE.exists():
         return False
@@ -903,7 +974,10 @@ def update_audio_asset_delivery(asset_id, source_mtime, ready=True):
         return False
     delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
     delivery['audio_optimal'] = bool(ready)
-    delivery['source_mtime'] = int(source_mtime)
+    if source_xxh3:
+        delivery['source_xxh3'] = str(source_xxh3).lower()
+    if source_mtime is not None:
+        delivery['source_mtime'] = int(source_mtime)
     delivery['built_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     delivery['checked_at'] = delivery['built_at']
     asset['delivery'] = delivery
@@ -920,23 +994,34 @@ def update_audio_asset_delivery(asset_id, source_mtime, ready=True):
         return False
 
 
-def audio_delivery_is_fresh(source_path, mp3_path, recorded_source_mtime=None):
-    """True when delivery MP3 exists and still matches the recorded master mtime.
+def audio_delivery_is_fresh(source_path, mp3_path, recorded_source_xxh3=None, recorded_source_mtime=None):
+    """True when delivery MP3 exists and master XXH3 matches the last successful build.
 
-    First builds (no recorded mtime) always rebuild so we learn the fingerprint.
-    Later publishes skip when the master file is unchanged since the last successful build.
+    Falls back to legacy mtime fingerprint only when XXH3 is unavailable (no xxhash package
+    or no recorded digest yet). First builds always rebuild so we learn the fingerprint.
     """
     try:
         source = Path(source_path)
         dest = Path(mp3_path)
         if not source.is_file() or not dest.is_file() or dest.stat().st_size <= 0:
             return False
-        if recorded_source_mtime is None:
+        if os.environ.get('BANDPROMO_FORCE_AUDIO_DELIVERY', '').strip() == '1':
             return False
+
+        current_xxh3 = file_xxh3_hex(source)
+        if recorded_source_xxh3 and current_xxh3:
+            return current_xxh3 == str(recorded_source_xxh3).lower()
+
+        # Legacy mtime path (pre-M3 installs) until the next successful build stores XXH3.
+        if recorded_source_mtime is None or current_xxh3:
+            # Prefer learning XXH3: if we can hash, treat missing recorded xxh3 as stale.
+            if current_xxh3 and not recorded_source_xxh3:
+                return False
+            if recorded_source_mtime is None:
+                return False
         current_mtime = int(source.stat().st_mtime)
         if int(recorded_source_mtime) != current_mtime:
             return False
-        # Delivery should not be older than the master we claim to have built from.
         if int(dest.stat().st_mtime) < current_mtime:
             return False
         return True
@@ -1321,6 +1406,7 @@ def delivery_queue_needs_ffmpeg(queue):
         if audio_delivery_is_fresh(
             str(source_path),
             str(mp3_path),
+            item.get('recorded_source_xxh3'),
             item.get('recorded_source_mtime'),
         ):
             continue
@@ -1353,6 +1439,7 @@ def process_audio_delivery(
     display=None,
     asset_id='',
     recorded_source_mtime=None,
+    recorded_source_xxh3=None,
 ):
     """Convert one registry audio asset to a delivery MP3."""
     source_path, source_tier = resolve_audio_working_path(master_filename)
@@ -1367,6 +1454,7 @@ def process_audio_delivery(
     mp3_path = AUDIO_OPT_DIR / mp3_filename
     delivery_mode = audio_delivery_mode(source_path)
     source_mtime = int(source.stat().st_mtime)
+    source_digest = file_xxh3_hex(source)
     force_rebuild = os.environ.get('BANDPROMO_FORCE_AUDIO_DELIVERY', '').strip() == '1'
     catalog = display if isinstance(display, dict) else {}
     if not display_title:
@@ -1399,11 +1487,21 @@ def process_audio_delivery(
 
     if (
         not force_rebuild
-        and audio_delivery_is_fresh(str(source_path), str(mp3_path), recorded_source_mtime)
+        and audio_delivery_is_fresh(
+            str(source_path),
+            str(mp3_path),
+            recorded_source_xxh3,
+            recorded_source_mtime,
+        )
     ):
-        print("  → Delivery: already up to date (master unchanged since last build) — skipped")
+        print("  → Delivery: already up to date (master XXH3 match) — skipped")
         if asset_id:
-            update_audio_asset_delivery(asset_id, source_mtime, ready=True)
+            update_audio_asset_delivery(
+                asset_id,
+                source_digest or recorded_source_xxh3,
+                ready=True,
+                source_mtime=source_mtime,
+            )
         return 'skipped'
 
     print(f"  → Delivery route: {'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'}")
@@ -1430,7 +1528,14 @@ def process_audio_delivery(
         print("  → Track cover: none assigned in Files and no embedded artwork on the source")
 
     if asset_id:
-        update_audio_asset_delivery(asset_id, source_mtime, ready=True)
+        update_audio_asset_delivery(
+            asset_id,
+            source_digest,
+            ready=True,
+            source_mtime=source_mtime,
+        )
+        if not source_digest and xxhash is None:
+            print("  ⚠️  Install Python package `xxhash` for skip-if-fresh (pip install -r scripts/requirements.txt)")
 
     return True
 
@@ -1527,6 +1632,7 @@ def main():
                 display=item.get('display') if isinstance(item.get('display'), dict) else {},
                 asset_id=item.get('asset_id') or '',
                 recorded_source_mtime=item.get('recorded_source_mtime'),
+                recorded_source_xxh3=item.get('recorded_source_xxh3'),
             )
             if result == 'skipped':
                 skipped += 1
@@ -1562,16 +1668,22 @@ def main():
         deduped.append(asset)
     visual_queue = deduped
     visual_count = 0
+    visual_skipped = 0
     visual_failed = 0
     if visual_queue:
         for asset in visual_queue:
             label = asset.get('original_filename') or asset.get('id')
             print(f"  Processing visual: {label}")
-            if process_visual_image_asset(asset):
+            result = process_visual_image_asset(asset)
+            if result == 'skipped':
+                visual_skipped += 1
+            elif result:
                 visual_count += 1
             else:
                 visual_failed += 1
                 print(f"    ⚠️  Skipped or failed: {label}")
+        if visual_skipped:
+            print(f"  ✓ Visual images rebuilt: {visual_count}; already up to date: {visual_skipped}")
     else:
         print("  ✓ No registered visual image assets")
 

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-04 16:20 - M3 XXH3 skip-if-fresh: audio + visual image delivery compare master XXH3 to `delivery.source_xxh3` (mtime only as legacy one-build fallback); `xxhash` added to scripts/requirements.txt; PHP stores/looks up `content_xxh3` alongside legacy `content_sha256`; Publish logs “already up to date (master XXH3 match)”; force via `BANDPROMO_FORCE_AUDIO_DELIVERY` / `BANDPROMO_FORCE_VISUAL_DELIVERY`.
+
 2026-08-04 15:05 - M2 visual masters: `media/visual/original/` + `media/visual/master/ast_*.{ext}` with relocate/materialize helpers; new visual registrations get ULID master filenames; registry migrate + Content autofix backfill existing assets; optimizeMedia/optimizeVideo/makeSocial read master-first (legacy intake fallback); delete removes tier files; gitignore unified original/master trees.
 
 2026-08-04 14:10 - M1 complete: brand shell parallel `asset_ids` map (normalize/resolve/sync + theme-editor drag/click writes); `makeSocial.py` prefers active brand poster `asset_id` → visual delivery; page picture picker persists `block.asset_id`; Content autofix backfills brand/gallery/page asset_ids and rewrites audio `display.cover` / `living_cover` filenames to `ast_*` when registered.

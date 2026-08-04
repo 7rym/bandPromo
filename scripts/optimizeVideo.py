@@ -27,6 +27,11 @@ if hasattr(sys.stdout, 'reconfigure'):
 else:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
+try:
+    import xxhash
+except ImportError:
+    xxhash = None
+
 SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent
 VIDEO_ORIG_DIR = ROOT_DIR / 'media' / 'video' / 'original'
@@ -257,7 +262,23 @@ def variant_manifest_entry(abs_path: Path, format_hint: str = ''):
     }
 
 
-def update_visual_asset_delivery(asset_id, variants_map):
+def file_xxh3_hex(path):
+    if xxhash is None:
+        return ''
+    try:
+        hasher = xxhash.xxh3_64()
+        with open(path, 'rb') as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest().lower()
+    except Exception:
+        return ''
+
+
+def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None):
     if not asset_id or not ASSET_REGISTRY_FILE.exists():
         return False
     try:
@@ -275,6 +296,10 @@ def update_visual_asset_delivery(asset_id, variants_map):
     existing.update(variants_map)
     delivery['variants'] = existing
     delivery['visual_ready'] = True
+    delivery['built_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    delivery['checked_at'] = delivery['built_at']
+    if source_xxh3:
+        delivery['source_xxh3'] = str(source_xxh3).lower()
     asset['delivery'] = delivery
     assets[asset_id] = asset
     payload['assets'] = assets
@@ -352,7 +377,7 @@ def process_one_video(source_path: Path, asset_id: str = ''):
                 pass
 
         if variants:
-            update_visual_asset_delivery(asset_id, variants)
+            update_visual_asset_delivery(asset_id, variants, source_xxh3=file_xxh3_hex(source_path) or None)
 
     return {
         'built': built,

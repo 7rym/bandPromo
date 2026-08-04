@@ -166,6 +166,22 @@ function bandpromo_asset_file_sha256(string $path): string
     return is_string($hash) ? strtolower($hash) : '';
 }
 
+/**
+ * XXH3-64 hex digest of file bytes (PHP 8.1+ hash_file('xxh3')).
+ */
+function bandpromo_asset_file_xxh3(string $path): string
+{
+    if ($path === '' || !is_file($path)) {
+        return '';
+    }
+    if (!in_array('xxh3', hash_algos(), true)) {
+        return '';
+    }
+    $hash = @hash_file('xxh3', $path);
+
+    return is_string($hash) ? strtolower($hash) : '';
+}
+
 function bandpromo_asset_bytes_sha256(string $bytes): string
 {
     if ($bytes === '') {
@@ -202,7 +218,7 @@ function bandpromo_asset_lookup_visual_by_content_sha256(string $root, string $s
 }
 
 /**
- * Ensure content_sha256 is stored for a visual asset from its intake original bytes.
+ * Ensure content_xxh3 (and legacy content_sha256) are stored for a visual asset.
  */
 function bandpromo_asset_ensure_visual_content_sha256(string $root, string $assetId): string
 {
@@ -215,16 +231,32 @@ function bandpromo_asset_ensure_visual_content_sha256(string $root, string $asse
     if (($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
         return '';
     }
-    $existing = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
-    if ($existing !== '') {
-        return $existing;
+    $existingXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? '')));
+    $existingSha = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
+    if ($existingXxh3 !== '' && $existingSha !== '') {
+        return $existingXxh3;
     }
     $path = bandpromo_asset_visual_original_path($root, $asset);
-    $hash = bandpromo_asset_file_sha256($path);
-    if ($hash === '') {
+    if ($path === '' || !is_file($path)) {
+        return $existingXxh3 !== '' ? $existingXxh3 : $existingSha;
+    }
+    if ($existingXxh3 === '') {
+        $xxh3 = bandpromo_asset_file_xxh3($path);
+        if ($xxh3 !== '') {
+            $asset['content_xxh3'] = $xxh3;
+            $existingXxh3 = $xxh3;
+        }
+    }
+    if ($existingSha === '') {
+        $sha = bandpromo_asset_file_sha256($path);
+        if ($sha !== '') {
+            $asset['content_sha256'] = $sha;
+            $existingSha = $sha;
+        }
+    }
+    if ($existingXxh3 === '' && $existingSha === '') {
         return '';
     }
-    $asset['content_sha256'] = $hash;
     $normalized = bandpromo_asset_normalize_entry($asset);
     if ($normalized === null) {
         return '';
@@ -232,7 +264,37 @@ function bandpromo_asset_ensure_visual_content_sha256(string $root, string $asse
     $registry['assets'][$assetId] = $normalized;
     bandpromo_asset_write_registry($root, $registry);
 
-    return $hash;
+    return $existingXxh3 !== '' ? $existingXxh3 : $existingSha;
+}
+
+/**
+ * Prefer content_xxh3; fall back to legacy content_sha256 during migration.
+ */
+function bandpromo_asset_lookup_visual_by_content_digest(string $root, string $xxh3 = '', string $sha256 = ''): ?array
+{
+    $xxh3 = strtolower(trim($xxh3));
+    $sha256 = strtolower(trim($sha256));
+    $registry = bandpromo_asset_load_registry($root);
+
+    if ($xxh3 !== '') {
+        foreach ($registry['assets'] as $asset) {
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+                continue;
+            }
+            if (($asset['media_type'] ?? '') !== 'image') {
+                continue;
+            }
+            if (strtolower(trim((string) ($asset['content_xxh3'] ?? ''))) === $xxh3) {
+                return bandpromo_asset_normalize_entry($asset);
+            }
+        }
+    }
+
+    if ($sha256 !== '') {
+        return bandpromo_asset_lookup_visual_by_content_sha256($root, $sha256);
+    }
+
+    return null;
 }
 
 function bandpromo_asset_infer_media_type_from_filename(string $filename): string
@@ -380,6 +442,7 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
             'tags' => $tags,
             'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [],
             'content_sha256' => strtolower(trim((string) ($entry['content_sha256'] ?? ''))),
+            'content_xxh3' => strtolower(trim((string) ($entry['content_xxh3'] ?? ''))),
             'created_at' => trim((string) ($entry['created_at'] ?? gmdate('c'))),
         ];
     }
@@ -878,6 +941,9 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     }
     if (array_key_exists('content_sha256', $changes)) {
         $entry['content_sha256'] = strtolower(trim((string) $changes['content_sha256']));
+    }
+    if (array_key_exists('content_xxh3', $changes)) {
+        $entry['content_xxh3'] = strtolower(trim((string) $changes['content_xxh3']));
     }
     if (isset($changes['display']) && is_array($changes['display'])) {
         $existingDisplay = is_array($entry['display'] ?? null) ? $entry['display'] : [];
