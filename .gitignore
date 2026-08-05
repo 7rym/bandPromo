@@ -91,6 +91,8 @@ media/img/original/*.jpg
 *.tar.gz
 dist/
 build/
+.bandpromo-theme-package/
+.bandpromo-demo-release-package/
 
 # Ignore all user icons except the default zip
 media/icons/*

@@ -210,7 +210,7 @@ def save_jpg_optimized(img, dest_path, quality):
 
 def optimize_shell_brand_media_images():
     """
-    Resize the active brand's shell logo/background images referenced in web-config.json.
+    Resize the base brand's shell logo/background images referenced in web-config.json.
     Keeps logo as PNG (transparency), background can switch to JPG if alpha-free.
 
     This reduces the multi-MB 'first paint' contention caused by /media/special/* assets.
@@ -1751,9 +1751,8 @@ def main():
     else:
         print("   Converted tracks : skipped (image-only mode)")
         print("   Failed           : 0")
-    print(f"   Photos optimized       : {photo_count}")
-    print(f"   Illustrations optimized: {img_illus_count}")
-    print(f"   Visual registry images : {visual_count} (failed {visual_failed})")
+    print(f"   Unregistered images skipped : {orphan_count}")
+    print(f"   Visual registry images : rebuilt {visual_count}, fresh {visual_skipped}, failed {visual_failed}")
     print(f"   Cleaned up files       : {removed}")
     if include_audio:
         print(f"   Audio output     : {AUDIO_OPT_DIR}")

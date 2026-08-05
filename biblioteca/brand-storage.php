@@ -117,6 +117,10 @@ function bandpromo_brand_css_variables(array $document): array
         $vars['font-family'] = $fontBase;
     }
 
+    foreach (bandpromo_theme_effects_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
     return $vars;
 }
 
@@ -162,6 +166,33 @@ function bandpromo_brand_render_css_for_id(string $root, string $brandId): strin
     }
 }
 
+/**
+ * Resolve player visual shell URLs for a brand document (logo + still/living backgrounds).
+ * Empty string when a slot is unset or unresolvable — caller falls back per-slot.
+ *
+ * @return array{logo:string,background_image:string,background_video:string}
+ */
+function bandpromo_brand_player_shell_assets(string $root, array $document): array
+{
+    require_once __DIR__ . '/theme-storage.php';
+
+    $slots = ['logo', 'background_image', 'background_video'];
+    $out = [
+        'logo' => '',
+        'background_image' => '',
+        'background_video' => '',
+    ];
+
+    foreach ($slots as $slot) {
+        $resolved = trim(bandpromo_theme_resolve_shell_slot_url($root, $document, $slot));
+        if ($resolved !== '') {
+            $out[$slot] = $resolved;
+        }
+    }
+
+    return $out;
+}
+
 function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): array
 {
     $styles = [];
@@ -179,6 +210,7 @@ function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): a
                 'id' => $brandId,
                 'title' => (string) ($document['title'] ?? $brandId),
                 'css_variables' => bandpromo_brand_css_variables($document),
+                'assets' => bandpromo_brand_player_shell_assets($root, $document),
             ];
         } catch (Throwable $throwable) {
             continue;

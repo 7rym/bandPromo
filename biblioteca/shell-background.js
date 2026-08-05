@@ -196,9 +196,37 @@
         global.addEventListener('load', afterLoad, { once: true });
     }
 
-    function updateBackground() {
+    function resetLivingAttach() {
+        livingAttachScheduled = false;
+        livingAttached = false;
+        const video = document.getElementById('bg-video');
+        if (!(video instanceof HTMLVideoElement)) {
+            return;
+        }
+        try {
+            video.pause();
+        } catch (error) {
+            // Ignore pause failures.
+        }
+        video.style.display = 'none';
+        video.removeAttribute('autoplay');
+        document.body.classList.remove('shell-bg-video');
+    }
+
+    function updateBackground(options) {
+        const force = !!(options && options.force);
+        if (force) {
+            resetLivingAttach();
+        }
+
         const video = document.getElementById('bg-video');
         if (!video) {
+            // Still allow image-only shells (no #bg-video element).
+            const mode = shellBackgroundMode();
+            const hasImageSource = !!(global.appConfig?.media?.background_image);
+            if (hasImageSource || mode === 'still') {
+                showBgImage();
+            }
             return;
         }
 
@@ -251,6 +279,7 @@
         updateBackground,
         shellBackgroundMode,
         scheduleLivingBackgroundAttach,
+        resetLivingAttach,
     };
     // Back-compat for login.js callers.
     global.showBgImage = showBgImage;

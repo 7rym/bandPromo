@@ -46,13 +46,12 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 - Release owns track pool + associations to playlists / galleries / pages (exclusive — no stealing across releases).
 - Playlist catalog exposure by `publish_date` (empty date = public), demo visibility, and non-empty tracks.
-- Player brand **CSS tokens** follow the **selected playlist’s** owning release brand (else install active brand). Tracks do not carry player brand.
+- Player brand **CSS tokens** and **visual shell** (logo, still/living backgrounds) follow the **selected playlist’s** owning release brand (else install base brand). Tracks do not carry player brand. Welcome/Logged-in SFX stay on Base (login).
 - Content → Player can enable **global** page tabs (`show_in_player`). FAQ stays login/global (info lightbox), not a release Bio.
 
 ### Target / planned (not shipped)
 
 - **Release-contextual player pages:** Playlists | Lyrics always; optional **global** pages from Content → Player (may be empty); then pages **associated to the current track’s release** append to the nav. Playing a newer release’s track shows that release’s Bio/EPK instead of the previous campaign’s.
-- **Brand shell override runtime:** player shell media (logo, still/living backgrounds, SFX) follow the release brand while playing — today shell media stays on the **active** brand via config.
 - Hard scoping of playlist/gallery/page pickers to that release’s pools only (today: soft “prefer”; association exclusivity already enforced).
 
 ### Feedback focus
@@ -77,19 +76,13 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 - Same catalogue / association / playlist `publish_date` model as other installs.
 - One player shell panel and one master text field (`lyrics` / USLT), Markdown-rendered.
-- Site-wide rename of `player.modules.lyrics.label` exists but is **install-wide** — wrong for HITZ (needs both labels).
-
-### Target / planned (not shipped)
-
-- Per-master **text role:** `lyrics` | `tracklist` (default `lyrics`).
-- While that track is current, the locked shell nav label switches to Lyrics or Tracklist; same storage field and panel.
-- Admin audio editor labels the textarea (and health chips) from the role.
+- Per-track **text panel role:** `lyrics` | `notes` (default `lyrics`). Notes mode uses optional player tab label (default **Tracklist**; e.g. Show notes).
+- Files → Audio editor: Lyrics ↔ Notes toggle + optional label; health chips follow the panel label.
 - Deferred: separate Tracklist field, dual tabs, timed cue tracklists.
 
 ### Feedback focus
 
 - Mixing artist releases and long-form episodes in Catalogue / Files.
-- Lyrics field misuse until the role ships.
 - Brand active vs per-release tokens when many artist brands share one install.
 
 ---
@@ -103,7 +96,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 | FAQ | Required login/global surface | Same (not a campaign Bio) |
 | Gallery in player | Page with gallery blocks | Same (no Gallery module tab) |
 | Brand tokens in player | Playlist → owning release brand → active fallback | Same |
-| Brand shell media in player | Active brand via config | Per-release shell override |
-| Lyrics vs Tracklist label | Site-wide label only | Per-track role |
+| Brand shell media in player | Per-release visual shell (logo/still/living); SFX stay Active/login | Same |
+| Lyrics vs Notes panel label | Per-track `text_role` + optional `notes_label` (default Tracklist) | Same |
 
 Idle / first-load contextual pages (which release’s tabs before play starts) is decided when contextual tabs are implemented — not in this policy snapshot.

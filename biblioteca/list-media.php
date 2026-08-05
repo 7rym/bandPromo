@@ -121,7 +121,11 @@ function bandpromo_load_audio_validation_map(string $root): array {
                 'title' => ['label' => 'Title', 'state' => isset($warning_set['missing_title_tag']) ? 'required' : 'good'],
                 'release' => ['label' => 'Release', 'state' => isset($warning_set['missing_album_tag']) ? 'improvable' : 'good'],
                 'description' => ['label' => 'Description', 'state' => $has_description ? 'good' : 'improvable'],
-                'lyrics' => ['label' => 'Lyrics', 'state' => isset($warning_set['missing_lyrics']) ? 'improvable' : (
+                'lyrics' => ['label' => (
+                    bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')) === 'notes'
+                        ? bandpromo_asset_player_text_panel_label('notes', (string) ($display['notes_label'] ?? ''))
+                        : 'Lyrics'
+                ), 'state' => isset($warning_set['missing_lyrics']) ? 'improvable' : (
                     trim((string) ($display['lyrics'] ?? '')) !== '' ? 'good' : 'improvable'
                 )],
             ],
@@ -160,7 +164,11 @@ function bandpromo_audio_metadata_health_for_listing(
             'title' => ['label' => 'Title', 'state' => $display['title'] !== '' ? 'good' : 'required'],
             'release' => ['label' => 'Release', 'state' => $display['album'] !== '' ? 'good' : 'improvable'],
             'description' => ['label' => 'Description', 'state' => $display['comment'] !== '' ? 'good' : 'improvable'],
-            'lyrics' => ['label' => 'Lyrics', 'state' => $display['lyrics'] !== '' ? 'good' : 'improvable'],
+            'lyrics' => ['label' => (
+                bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')) === 'notes'
+                    ? bandpromo_asset_player_text_panel_label('notes', (string) ($display['notes_label'] ?? ''))
+                    : 'Lyrics'
+            ), 'state' => $display['lyrics'] !== '' ? 'good' : 'improvable'],
         ],
     ];
 }

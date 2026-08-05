@@ -208,7 +208,7 @@ function bandpromo_release_effective_brand_id(string $root, string $releaseId): 
                 return $brandId;
             }
         } catch (Throwable $throwable) {
-            // Fall back to install active brand.
+            // Fall back to install base brand.
         }
     }
 
@@ -1573,11 +1573,12 @@ function bandpromo_release_resolve_track_display_labels(
     ];
 }
 
-function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string $releaseTitle = ''): array
+function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string $releaseTitle = '', array $preserveDisplay = []): array
 {
     $artist = trim((string) ($inspect['artist'] ?? ''));
     $rawTitle = trim((string) ($inspect['title'] ?? ''));
     $labels = bandpromo_release_resolve_track_display_labels($rawTitle, $artist, $releaseTitle);
+    $preserve = bandpromo_asset_read_audio_display(['display' => $preserveDisplay]);
 
     return [
         'title' => $labels['title'],
@@ -1592,6 +1593,8 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
         'genre' => trim((string) ($inspect['genre'] ?? '')),
         'comment' => trim((string) ($inspect['comment'] ?? '')),
         'lyrics' => (string) ($inspect['lyrics'] ?? ''),
+        'text_role' => $preserve['text_role'],
+        'notes_label' => $preserve['notes_label'],
         'living_cover' => bandpromo_living_cover_normalize_video_filename((string) ($inspect['living_cover'] ?? '')),
         'cover' => basename(trim((string) ($inspect['sidecar_cover'] ?? $inspect['cover'] ?? ''))),
         'synced_at' => gmdate('c'),
@@ -1618,6 +1621,8 @@ function bandpromo_asset_build_audio_display_from_fields(array $fields, array $i
         'genre' => trim((string) ($fields['genre'] ?? '')),
         'comment' => trim((string) ($fields['comment'] ?? '')),
         'lyrics' => (string) ($fields['lyrics'] ?? ''),
+        'text_role' => bandpromo_asset_normalize_text_role((string) ($fields['text_role'] ?? 'lyrics')),
+        'notes_label' => bandpromo_asset_normalize_notes_label((string) ($fields['notes_label'] ?? '')),
         'living_cover' => bandpromo_living_cover_normalize_video_filename(
             (string) ($fields['living_cover'] ?? ($inspectData['living_cover'] ?? ''))
         ),
@@ -1661,7 +1666,8 @@ function bandpromo_asset_refresh_audio_display(string $root, string $masterFile,
     }
 
     $inspect = bandpromo_release_inspect_master_metadata($root, $masterFile);
-    $display = bandpromo_asset_build_audio_display_from_inspect($inspect, $releaseTitle);
+    $existingDisplay = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+    $display = bandpromo_asset_build_audio_display_from_inspect($inspect, $releaseTitle, $existingDisplay);
     if (trim((string) ($display['title'] ?? '')) === '') {
         return false;
     }
@@ -1708,7 +1714,8 @@ function bandpromo_asset_ensure_audio_display_after_upload(
     $fromTags = $rawTitle !== '';
 
     if ($fromTags) {
-        $display = bandpromo_asset_build_audio_display_from_inspect($inspect);
+        $existingDisplay = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+        $display = bandpromo_asset_build_audio_display_from_inspect($inspect, '', $existingDisplay);
     } else {
         $stemSource = $originalFilename !== '' ? $originalFilename : $masterFilename;
         $stem = pathinfo($stemSource, PATHINFO_FILENAME);
@@ -1722,6 +1729,7 @@ function bandpromo_asset_ensure_audio_display_after_upload(
         if ($title === '') {
             $title = 'Untitled';
         }
+        $existing = bandpromo_asset_read_audio_display($asset);
         $display = bandpromo_asset_build_audio_display_from_fields([
             'title' => $title,
             'artist' => trim((string) ($inspect['artist'] ?? '')),
@@ -1733,6 +1741,8 @@ function bandpromo_asset_ensure_audio_display_after_upload(
             'genre' => trim((string) ($inspect['genre'] ?? '')),
             'comment' => trim((string) ($inspect['comment'] ?? '')),
             'lyrics' => (string) ($inspect['lyrics'] ?? ''),
+            'text_role' => $existing['text_role'],
+            'notes_label' => $existing['notes_label'],
             'living_cover' => (string) ($inspect['living_cover'] ?? ''),
         ], $inspect);
     }

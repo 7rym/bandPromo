@@ -83,7 +83,7 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 
 **What does not travel**
 
-- Unrelated releases or install-wide config as source of truth (`web-config.json`, Active brand pointer)
+- Unrelated releases or install-wide config as source of truth (`web-config.json`, base brand pointer)
 - Listener accounts, **analytics / usage logs**, admin audit history (those stay in full site backup **Data** component)
 - Delivery-tier files as the source of truth — target regenerates on Publish
 

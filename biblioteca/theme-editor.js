@@ -180,67 +180,6 @@
             return document ? JSON.parse(JSON.stringify(document)) : null;
         }
 
-        function narrativeKeywordsString(document) {
-            const keywords = document?.keywords;
-            if (!Array.isArray(keywords)) {
-                return '';
-            }
-            return keywords.map((item) => String(item || '').trim()).filter(Boolean).join(', ');
-        }
-
-        function parseKeywordsInput(value) {
-            return String(value || '')
-                .split(/[,;\n]+/)
-                .map((item) => item.trim())
-                .filter(Boolean);
-        }
-
-        function collectNarrativeFields() {
-            if (!editorDocument || editorDocument.locked) {
-                return;
-            }
-            formEl.querySelectorAll('[data-narrative-field]').forEach((input) => {
-                const field = input.getAttribute('data-narrative-field') || '';
-                if (!field) {
-                    return;
-                }
-                if (field === 'keywords') {
-                    editorDocument.keywords = parseKeywordsInput(input.value);
-                    return;
-                }
-                editorDocument[field] = String(input.value || '').trim();
-            });
-        }
-
-        function renderNarrativeFields(locked) {
-            const mood = escapeHtml(String(editorDocument?.mood || ''));
-            const keywords = escapeHtml(narrativeKeywordsString(editorDocument));
-            const toneNotes = escapeHtml(String(editorDocument?.tone_notes || ''));
-            const disabled = locked ? 'disabled' : '';
-
-            return `
-                <div class="theme-editor-section">
-                    <h5>Brand narrative</h5>
-                    <p class="theme-field-hint">Canon for this visual era — mood, keywords, and tone notes for content AI wizards and operator reference.</p>
-                    <div class="theme-token-grid theme-token-grid--stacked">
-                        <div class="theme-token-field">
-                            <label for="brand-mood">Mood</label>
-                            <input type="text" id="brand-mood" data-narrative-field="mood" maxlength="500" value="${mood}" placeholder="e.g. Gritty winter club energy" ${disabled}>
-                        </div>
-                        <div class="theme-token-field">
-                            <label for="brand-keywords">Keywords</label>
-                            <input type="text" id="brand-keywords" data-narrative-field="keywords" value="${keywords}" placeholder="e.g. electronic, neon, dance, party" ${disabled}>
-                            <p class="theme-field-hint">Comma-separated tags describing this brand era.</p>
-                        </div>
-                        <div class="theme-token-field">
-                            <label for="brand-tone-notes">Tone notes</label>
-                            <textarea id="brand-tone-notes" class="theme-narrative-textarea" data-narrative-field="tone_notes" maxlength="2000" rows="4" placeholder="Voice, attitude, and copy guidance for this era." ${disabled}>${toneNotes}</textarea>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
         function tokenValue(document, path) {
             if (!document || !document.tokens) return '';
             const segments = path.split('.');
@@ -360,6 +299,25 @@
             }).join('')}</div>`;
         }
 
+        function renderEffectsFields(locked) {
+            const dim = String(tokenValue(editorDocument, 'effects.backdrop_dim') || '72');
+            const blur = String(tokenValue(editorDocument, 'effects.panel_blur') || '5');
+            return `
+                <div class="theme-effects-grid">
+                    <label class="theme-effect-field">
+                        <span class="theme-effect-label">Backdrop dim <strong data-effect-value="backdrop_dim">${escapeHtml(dim)}</strong>%</span>
+                        <input type="range" min="0" max="100" step="1" value="${escapeHtml(dim)}" data-token-path="effects.backdrop_dim" data-effect-range="backdrop_dim" ${locked ? 'disabled' : ''}>
+                        <span class="theme-field-hint">Darkens the still/living shell background behind the player and login.</span>
+                    </label>
+                    <label class="theme-effect-field">
+                        <span class="theme-effect-label">Panel blur <strong data-effect-value="panel_blur">${escapeHtml(blur)}</strong>px</span>
+                        <input type="range" min="0" max="24" step="1" value="${escapeHtml(blur)}" data-token-path="effects.panel_blur" data-effect-range="panel_blur" ${locked ? 'disabled' : ''}>
+                        <span class="theme-field-hint">Softens playlist rows, lyrics, pages, and gallery panels over the backdrop.</span>
+                    </label>
+                </div>
+            `;
+        }
+
         function themeTitleValue() {
             return titleInput instanceof HTMLInputElement
                 ? String(titleInput.value || '').trim()
@@ -378,7 +336,7 @@
             const locked = !!document.locked;
             const badges = [];
             if (isActive) {
-                badges.push('<span class="theme-editor-badge theme-editor-badge--active">Active</span>');
+                badges.push('<span class="theme-editor-badge theme-editor-badge--active">Base</span>');
             }
             if (locked) {
                 badges.push('<span class="theme-editor-badge theme-editor-badge--locked">Locked</span>');
@@ -503,6 +461,10 @@
             } else if (fontBase) {
                 rules.push(`--theme-heading-font:${fontBase}`);
             }
+            const dim = Math.max(0, Math.min(100, parseInt(tokenValue(document, 'effects.backdrop_dim') || '72', 10) || 72));
+            const blur = Math.max(0, Math.min(24, parseInt(tokenValue(document, 'effects.panel_blur') || '5', 10) || 0));
+            rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
+            rules.push(`--panel-blur:${blur}px`);
             previewStyleEl.textContent = rules.length
                 ? `#themeEditorPreview .theme-preview-canvas{${rules.join(';')};}`
                 : '';
@@ -523,97 +485,11 @@
             return 'other';
         }
 
-        function mediaKindFromFile(file) {
-            const declared = String(file?.media_type || '').trim();
-            if (declared === 'image' || declared === 'video' || declared === 'audio') {
-                return declared;
-            }
-            return mediaKindFromPath(file?.name || '');
-        }
-
         function kindLabel(kind) {
             if (kind === 'image') return 'Still';
             if (kind === 'video') return 'Living';
             if (kind === 'audio') return 'Audio';
             return 'File';
-        }
-
-        function specialMediaUrl(pathOrName) {
-            const name = assetBasename(pathOrName);
-            if (!name) return '';
-            return `/media/special/${encodeURIComponent(name)}`;
-        }
-
-        function specialMediaPath(pathOrName) {
-            const name = assetBasename(pathOrName);
-            if (!name) return '';
-            return `/media/special/${name}`;
-        }
-
-        function visualIntakeBasePath(bucket) {
-            if (bucket === 'video') return '/media/video/original';
-            if (bucket === 'photos') return '/media/photo/original';
-            return '/media/img/original';
-        }
-
-        function poolFilePath(file) {
-            const source = String(file?.pool_source || 'special');
-            const name = assetBasename(file?.name || '');
-            if (!name) return '';
-            // Prefer delivery URLs when Publish has produced them.
-            const cardUrl = String(file?.card_url || '').trim();
-            const streamUrl = String(file?.stream_url || '').trim();
-            const kind = mediaKindFromFile(file);
-            if (kind === 'video' && streamUrl) {
-                return streamUrl;
-            }
-            if (kind === 'image' && cardUrl) {
-                return cardUrl;
-            }
-            if (source === 'sfx') {
-                return `/media/sfx/original/${name}`;
-            }
-            if (source === 'special') {
-                return specialMediaPath(name);
-            }
-            const bucket = String(file?.intake_bucket || (kind === 'video' ? 'video' : 'illustrations'));
-            return `${visualIntakeBasePath(bucket)}/${name}`;
-        }
-
-        function poolFileThumbUrl(file) {
-            const kind = mediaKindFromFile(file);
-            const source = String(file?.pool_source || 'special');
-            if (kind === 'video') {
-                const preview = String(file?.preview_url || '').trim();
-                if (preview) return preview;
-                const poster = String(file?.poster_url || '').trim();
-                if (poster) return poster;
-            }
-            if (source === 'sfx') {
-                return '';
-            }
-            if (source === 'special') {
-                return specialMediaUrl(file?.name || '');
-            }
-            return poolFilePath(file);
-        }
-
-        function poolFileFitsSlot(file, field) {
-            if (!field) return true;
-            const kind = mediaKindFromFile(file);
-            if (!shellSlotAcceptsKind(field, kind)) {
-                return false;
-            }
-            // Logo stays Brand-assets stills only (transparency-friendly special intake).
-            if (field.key === 'logo' && String(file?.pool_source || '') !== 'special') {
-                return false;
-            }
-            // Shell audio comes from Sound effects (legacy special audio still accepted).
-            if (kind === 'audio') {
-                const source = String(file?.pool_source || '');
-                return source === 'sfx' || source === 'special';
-            }
-            return true;
         }
 
         function renderShellPreviewChrome(document) {
@@ -641,57 +517,64 @@
             {
                 key: 'logo',
                 label: 'Logo',
-                emptyLabel: 'Drop a still logo',
+                emptyLabel: 'No logo selected',
                 accept: ['image'],
                 clearable: false,
-                note: 'Still image for login and player chrome.',
+                pickerTargets: 'special',
+                pickerTitle: 'Choose logo',
+                note: 'Shown on login and in the player header.',
             },
             {
                 key: 'poster',
                 label: 'Poster / share cover',
-                emptyLabel: 'Drop a still poster',
+                emptyLabel: 'No poster selected',
                 accept: ['image'],
                 clearable: false,
-                note: 'Still cover for share cards and shell presentation.',
+                pickerTargets: 'illustrations,photos,special',
+                pickerTitle: 'Choose poster / share cover',
+                note: 'Share cards and shell presentation cover.',
             },
             {
                 key: 'background_image',
                 label: 'Still background',
-                emptyLabel: 'Drop a still background',
+                emptyLabel: 'No still background',
                 accept: ['image'],
                 clearable: true,
-                note: 'Still shell backdrop on login and player.',
+                pickerTargets: 'illustrations,photos,special',
+                pickerTitle: 'Choose still background',
+                note: 'Still backdrop on login and player.',
             },
             {
                 key: 'background_video',
                 label: 'Living background',
-                emptyLabel: 'Drop a living background',
+                emptyLabel: 'No living background',
                 accept: ['video'],
                 clearable: true,
-                note: 'Living (video) shell backdrop on login and player.',
+                pickerTargets: 'video',
+                pickerTitle: 'Choose living background',
+                note: 'Video backdrop (falls back to still when needed).',
             },
             {
                 key: 'welcome_audio',
                 label: 'Welcome audio',
-                emptyLabel: 'Drop a sound effect',
+                emptyLabel: 'No welcome audio',
                 accept: ['audio'],
                 clearable: true,
-                note: 'Short intro sound on the login surface. Pick from Files → Sound effects.',
+                pickerTargets: 'sfx',
+                pickerTitle: 'Choose welcome audio',
+                note: 'Short sound on the login screen.',
             },
             {
                 key: 'loggedin_audio',
                 label: 'Logged-in audio',
-                emptyLabel: 'Drop a sound effect',
+                emptyLabel: 'No logged-in audio',
                 accept: ['audio'],
                 clearable: true,
-                note: 'Sound once visitors are inside the site. Pick from Files → Sound effects.',
+                pickerTargets: 'sfx',
+                pickerTitle: 'Choose logged-in audio',
+                note: 'Sound after visitors enter the site.',
             },
         ];
-
-        let brandAssetFiles = [];
-        let brandAssetFilter = 'all';
-        let selectedShellSlotKey = '';
-        let brandAssetsLoading = false;
 
         function shellFieldByKey(key) {
             return SHELL_MEDIA_FIELDS.find((field) => field.key === key) || null;
@@ -710,15 +593,13 @@
             }
             const kind = mediaKindFromPath(path);
             if (kind === 'image') {
-                return `<img class="theme-shell-slot-thumb" src="${escapeHtml(path)}" alt="" loading="lazy">
-                    <span class="theme-shell-slot-status">Assigned</span>`;
+                return `<img class="theme-shell-slot-thumb" src="${escapeHtml(path)}" alt="" loading="lazy">`;
             }
             if (kind === 'video') {
-                return `<video class="theme-shell-slot-thumb" src="${escapeHtml(path)}" muted loop playsinline preload="metadata"></video>
-                    <span class="theme-shell-slot-status">Assigned</span>`;
+                return `<video class="theme-shell-slot-thumb" src="${escapeHtml(path)}" muted loop playsinline preload="metadata"></video>`;
             }
             return `<div class="theme-shell-slot-empty theme-shell-slot-empty--audio" aria-hidden="true">♪</div>
-                <span class="theme-shell-slot-status">Assigned</span>`;
+                <span class="theme-shell-slot-status">Sound effect assigned</span>`;
         }
 
         function renderShellMediaFields(locked) {
@@ -727,36 +608,48 @@
                 : {};
             const slots = SHELL_MEDIA_FIELDS.map((field) => {
                 const value = String(assets[field.key] || '').trim();
-                const selectedClass = selectedShellSlotKey === field.key ? ' is-selected' : '';
                 const filledClass = value ? ' is-filled' : '';
+                const chooseBtn = !locked
+                    ? `<button type="button" class="icon-btn media-picker-open audio-master-cover-action theme-shell-slot-choose"
+                            data-field="theme_asset_${escapeHtml(field.key)}"
+                            data-title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
+                            data-targets="${escapeHtml(field.pickerTargets || 'special')}"
+                            title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
+                            aria-label="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}">✎</button>`
+                    : '';
                 const clearBtn = field.clearable && !locked
-                    ? `<button type="button" class="icon-btn theme-shell-slot-clear" data-shell-clear="${escapeHtml(field.key)}" title="Clear">Clear</button>`
+                    ? `<button type="button" class="icon-btn audio-master-cover-action theme-shell-slot-clear"
+                            data-shell-clear="${escapeHtml(field.key)}"
+                            title="Clear"
+                            aria-label="Clear ${escapeHtml(field.label)}">↺</button>`
+                    : '';
+                const overlay = (chooseBtn || clearBtn)
+                    ? `<div class="theme-shell-slot-overlay-actions audio-master-cover-overlay-actions">${chooseBtn}${clearBtn}</div>`
                     : '';
                 return `
-                    <div class="theme-shell-slot${selectedClass}${filledClass}${locked ? ' is-locked' : ''}"
+                    <div class="theme-shell-slot${filledClass}${locked ? ' is-locked' : ''}"
                          data-shell-slot="${escapeHtml(field.key)}"
-                         data-accept="${escapeHtml(field.accept.join(','))}"
-                         role="button"
-                         tabindex="${locked ? '-1' : '0'}"
-                         aria-pressed="${selectedShellSlotKey === field.key ? 'true' : 'false'}"
-                         aria-label="${escapeHtml(field.label)}">
+                         data-accept="${escapeHtml(field.accept.join(','))}">
                         <div class="theme-shell-slot-head">
                             <strong>${escapeHtml(field.label)}</strong>
                             <span class="theme-shell-slot-kind">${escapeHtml(field.accept.map(kindLabel).join(' · '))}</span>
                         </div>
-                        <div class="theme-shell-slot-body">
-                            ${renderShellSlotPreviewHtml(field, value)}
+                        <div class="theme-shell-slot-preview">
+                            ${overlay}
+                            <div class="theme-shell-slot-media">
+                                ${renderShellSlotPreviewHtml(field, value)}
+                            </div>
                         </div>
                         <input type="hidden" id="theme_asset_${escapeHtml(field.key)}" value="${escapeHtml(value)}"
-                               data-asset-key="${escapeHtml(field.key)}">
-                        <div class="theme-shell-slot-actions">${clearBtn}</div>
+                               data-asset-key="${escapeHtml(field.key)}"
+                               data-empty-label="${escapeHtml(field.emptyLabel)}">
                         <p class="theme-shell-slot-note">${escapeHtml(field.note)}</p>
                     </div>`;
             }).join('');
 
             const slotHint = locked
                 ? 'bandPromo Default is locked — shell media cannot be changed here.'
-                : 'Select a slot, then pick from Brand assets below (or drag onto a slot). Filenames stay hidden.';
+                : 'Click ✎ on a slot to choose media. Upload under Files → Brand assets, Visual, or Sound effects first.';
 
             return `
                 <div class="theme-editor-section theme-editor-section--shell-media">
@@ -764,32 +657,6 @@
                     <p class="theme-field-hint">${slotHint}</p>
                     <div class="theme-shell-media-grid" id="themeShellSlots">
                         ${slots}
-                    </div>
-                </div>`;
-        }
-
-        function renderBrandAssetsPoolSection(locked) {
-            const poolHint = locked
-                ? 'bandPromo Default is locked — assignable media cannot be used here.'
-                : 'Upload under Files → Brand assets (or Visual for living stills/video). Assign into Shell media slots above.';
-
-            return `
-                <div class="theme-editor-section theme-editor-section--brand-assets">
-                    <h5>Brand assets</h5>
-                    <p class="theme-field-hint">${poolHint}</p>
-                    <div class="theme-brand-assets" id="themeBrandAssets">
-                        <div class="theme-brand-assets-head">
-                            <div class="theme-brand-assets-filters" role="group" aria-label="Media type">
-                                <button type="button" class="theme-brand-filter is-active" data-brand-filter="all" ${locked ? 'disabled' : ''}>All</button>
-                                <button type="button" class="theme-brand-filter" data-brand-filter="image" ${locked ? 'disabled' : ''}>Still</button>
-                                <button type="button" class="theme-brand-filter" data-brand-filter="video" ${locked ? 'disabled' : ''}>Living</button>
-                                <button type="button" class="theme-brand-filter" data-brand-filter="audio" ${locked ? 'disabled' : ''}>Audio</button>
-                            </div>
-                            <a class="theme-brand-assets-link" href="?tab=files&amp;fpanel=special">Open Files → Brand assets</a>
-                            <a class="theme-brand-assets-link" href="?tab=files&amp;fpanel=visual">Visual</a>
-                        </div>
-                        <p class="theme-brand-assets-status" id="themeBrandAssetsStatus">Loading media…</p>
-                        <div class="theme-brand-assets-grid" id="themeBrandAssetsGrid" aria-label="Brand assets pool"></div>
                     </div>
                 </div>`;
         }
@@ -803,13 +670,11 @@
             if (input instanceof HTMLInputElement) {
                 input.value = value;
             }
-            const body = slot.querySelector('.theme-shell-slot-body');
-            if (body) {
-                body.innerHTML = renderShellSlotPreviewHtml(field, value);
+            const media = slot.querySelector('.theme-shell-slot-media');
+            if (media) {
+                media.innerHTML = renderShellSlotPreviewHtml(field, value);
             }
             slot.classList.toggle('is-filled', !!value);
-            slot.classList.toggle('is-selected', selectedShellSlotKey === key);
-            slot.setAttribute('aria-pressed', selectedShellSlotKey === key ? 'true' : 'false');
         }
 
         function setShellAssetValue(key, path, { silent = false, assetId = '' } = {}) {
@@ -847,219 +712,10 @@
             return true;
         }
 
-        function selectShellSlot(key) {
-            if (!editorDocument || editorDocument.locked) return;
-            selectedShellSlotKey = selectedShellSlotKey === key ? '' : key;
-            formEl.querySelectorAll('[data-shell-slot]').forEach((slot) => {
-                const slotKey = slot.getAttribute('data-shell-slot') || '';
-                const selected = slotKey === selectedShellSlotKey;
-                slot.classList.toggle('is-selected', selected);
-                slot.setAttribute('aria-pressed', selected ? 'true' : 'false');
-            });
-            renderBrandAssetsGrid();
-        }
-
-        function filteredBrandAssets() {
-            return brandAssetFiles.filter((file) => {
-                const kind = mediaKindFromFile(file);
-                if (brandAssetFilter !== 'all' && kind !== brandAssetFilter) {
-                    return false;
-                }
-                if (selectedShellSlotKey) {
-                    const field = shellFieldByKey(selectedShellSlotKey);
-                    if (!poolFileFitsSlot(file, field)) {
-                        return false;
-                    }
-                } else if (kind === 'audio') {
-                    const source = String(file?.pool_source || '');
-                    if (source !== 'sfx' && source !== 'special') {
-                        return false;
-                    }
-                }
-                return true;
-            });
-        }
-
-        function renderBrandAssetsGrid() {
-            const grid = document.getElementById('themeBrandAssetsGrid');
-            const status = document.getElementById('themeBrandAssetsStatus');
-            if (!grid || !status) return;
-
-            formEl.querySelectorAll('.theme-brand-filter').forEach((button) => {
-                const filter = button.getAttribute('data-brand-filter') || 'all';
-                button.classList.toggle('is-active', filter === brandAssetFilter);
-            });
-
-            if (brandAssetsLoading) {
-                status.textContent = 'Loading media…';
-                grid.innerHTML = '';
-                return;
-            }
-
-            const files = filteredBrandAssets();
-            if (!brandAssetFiles.length) {
-                status.innerHTML = 'No assignable media yet. Upload under <a href="?tab=files&amp;fpanel=special">Brand assets</a> or <a href="?tab=files&amp;fpanel=visual">Visual</a>.';
-                grid.innerHTML = '';
-                return;
-            }
-            if (!files.length) {
-                if (brandAssetFilter === 'video' || selectedShellSlotKey === 'background_video') {
-                    status.innerHTML = 'No living media visible here. Upload a video under <a href="?tab=files&amp;fpanel=special">Brand assets</a>, or add living video under <a href="?tab=files&amp;fpanel=visual">Visual</a>.';
-                } else {
-                    status.textContent = selectedShellSlotKey
-                        ? 'No matching media for the selected slot.'
-                        : 'No media match this filter.';
-                }
-                grid.innerHTML = '';
-                return;
-            }
-
-            status.textContent = selectedShellSlotKey
-                ? `Showing media that fit “${shellFieldByKey(selectedShellSlotKey)?.label || selectedShellSlotKey}”. Click or drag onto the Shell media slot.`
-                : 'Drag onto a Shell media slot, or select a slot first then click. Living can come from Brand assets or Visual.';
-
-            const locked = !!editorDocument?.locked;
-            grid.innerHTML = files.map((file) => {
-                const kind = mediaKindFromFile(file);
-                const path = poolFilePath(file);
-                const thumbUrl = poolFileThumbUrl(file);
-                const source = String(file.pool_source || 'special') === 'visual'
-                    ? 'Visual'
-                    : (String(file.pool_source || '') === 'sfx' ? 'SFX' : 'Brand');
-                let thumb = `<span class="theme-brand-tile-placeholder">${kind === 'audio' ? '♪' : kind === 'video' ? '▶' : '◻'}</span>`;
-                if (kind === 'image') {
-                    thumb = `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">`;
-                } else if (kind === 'video') {
-                    if (/\.(png|jpe?g|webp|gif)$/i.test(thumbUrl)) {
-                        thumb = `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">`;
-                    } else {
-                        thumb = `<video src="${escapeHtml(thumbUrl)}" muted loop playsinline preload="metadata"></video>`;
-                    }
-                }
-                const assetId = String(file.asset_id || '').trim();
-                return `<button type="button" class="theme-brand-tile"
-                        data-brand-path="${escapeHtml(path)}"
-                        data-brand-kind="${escapeHtml(kind)}"
-                        data-brand-asset-id="${escapeHtml(assetId)}"
-                        draggable="${locked ? 'false' : 'true'}"
-                        ${locked ? 'disabled' : ''}
-                        title="${escapeHtml(kindLabel(kind) + ' · ' + source)}">
-                    <span class="theme-brand-tile-thumb">${thumb}</span>
-                    <span class="theme-brand-tile-label">${escapeHtml(kindLabel(kind))} · ${escapeHtml(source)}</span>
-                </button>`;
-            }).join('');
-        }
-
-        async function loadBrandAssetPool() {
-            const status = document.getElementById('themeBrandAssetsStatus');
-            brandAssetsLoading = true;
-            renderBrandAssetsGrid();
-            try {
-                const [specialResp, visualResp, sfxResp] = await Promise.all([
-                    fetch('/biblioteca/list-media.php?target=special', { credentials: 'same-origin' }),
-                    fetch('/biblioteca/list-media.php?target=visual', { credentials: 'same-origin' }),
-                    fetch('/biblioteca/list-media.php?target=sfx', { credentials: 'same-origin' }),
-                ]);
-                const specialData = await specialResp.json().catch(() => ({}));
-                const visualData = await visualResp.json().catch(() => ({}));
-                const sfxData = await sfxResp.json().catch(() => ({}));
-                if (!specialResp.ok || specialData.error) {
-                    throw new Error(specialData.error || 'Could not load Brand assets');
-                }
-                const specialFiles = (Array.isArray(specialData.files) ? specialData.files : [])
-                    .filter((file) => mediaKindFromFile(file) !== 'audio')
-                    .map((file) => Object.assign({}, file, {
-                        pool_source: 'special',
-                    }));
-                const visualFiles = (!visualResp.ok || visualData.error)
-                    ? []
-                    : (Array.isArray(visualData.files) ? visualData.files : [])
-                        .filter((file) => {
-                            const kind = mediaKindFromFile(file);
-                            return kind === 'image' || kind === 'video';
-                        })
-                        .map((file) => Object.assign({}, file, {
-                            pool_source: 'visual',
-                        }));
-                const sfxFiles = (!sfxResp.ok || sfxData.error)
-                    ? []
-                    : (Array.isArray(sfxData.files) ? sfxData.files : [])
-                        .filter((file) => mediaKindFromFile(file) === 'audio')
-                        .map((file) => Object.assign({}, file, {
-                            pool_source: 'sfx',
-                        }));
-                // Prefer Sound effects; keep legacy special audio only when not already in sfx.
-                const sfxNames = new Set(sfxFiles.map((file) => String(file.name || '')));
-                const legacySpecialAudio = (Array.isArray(specialData.files) ? specialData.files : [])
-                    .filter((file) => mediaKindFromFile(file) === 'audio' && !sfxNames.has(String(file.name || '')))
-                    .map((file) => Object.assign({}, file, {
-                        pool_source: 'special',
-                    }));
-                brandAssetFiles = specialFiles.concat(visualFiles).concat(sfxFiles).concat(legacySpecialAudio);
-            } catch (error) {
-                brandAssetFiles = [];
-                if (status) {
-                    status.textContent = error.message || 'Could not load media';
-                }
-            } finally {
-                brandAssetsLoading = false;
-                renderBrandAssetsGrid();
-            }
-        }
-
         function bindShellMediaUi() {
-            const locked = !!editorDocument?.locked;
-            if (locked) {
-                selectedShellSlotKey = '';
-                loadBrandAssetPool();
+            if (!!editorDocument?.locked) {
                 return;
             }
-
-            formEl.querySelectorAll('[data-shell-slot]').forEach((slot) => {
-                const key = slot.getAttribute('data-shell-slot') || '';
-                slot.addEventListener('click', (event) => {
-                    if (event.target.closest('[data-shell-clear]')) return;
-                    selectShellSlot(key);
-                });
-                slot.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        selectShellSlot(key);
-                    }
-                });
-                slot.addEventListener('dragover', (event) => {
-                    const kinds = String(slot.getAttribute('data-accept') || '').split(',').filter(Boolean);
-                    const dragKind = formEl.dataset.dragKind || '';
-                    if (!kinds.length || (dragKind && !kinds.includes(dragKind))) {
-                        slot.classList.remove('is-drop-target');
-                        return;
-                    }
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'copy';
-                    slot.classList.add('is-drop-target');
-                });
-                slot.addEventListener('dragleave', () => {
-                    slot.classList.remove('is-drop-target');
-                });
-                slot.addEventListener('drop', (event) => {
-                    event.preventDefault();
-                    slot.classList.remove('is-drop-target');
-                    const path = event.dataTransfer.getData('application/x-bandpromo-path')
-                        || event.dataTransfer.getData('text/plain');
-                    const kind = event.dataTransfer.getData('application/x-bandpromo-kind')
-                        || mediaKindFromPath(path);
-                    const assetId = event.dataTransfer.getData('application/x-bandpromo-asset-id') || '';
-                    const field = shellFieldByKey(key);
-                    if (!field || !shellSlotAcceptsKind(field, kind)) {
-                        notifyThemeError(`${field?.label || 'Slot'} accepts ${field?.accept.map(kindLabel).join(' / ') || 'matching media'} only.`);
-                        return;
-                    }
-                    setShellAssetValue(key, path, { assetId });
-                    selectedShellSlotKey = key;
-                    updateShellSlotDom(key);
-                    renderBrandAssetsGrid();
-                });
-            });
 
             formEl.querySelectorAll('[data-shell-clear]').forEach((button) => {
                 button.addEventListener('click', (event) => {
@@ -1070,61 +726,9 @@
                 });
             });
 
-            formEl.querySelectorAll('.theme-brand-filter').forEach((button) => {
-                button.addEventListener('click', () => {
-                    brandAssetFilter = button.getAttribute('data-brand-filter') || 'all';
-                    renderBrandAssetsGrid();
-                });
-            });
-
-            const grid = document.getElementById('themeBrandAssetsGrid');
-            grid?.addEventListener('dragstart', (event) => {
-                const tile = event.target instanceof Element
-                    ? event.target.closest('.theme-brand-tile')
-                    : null;
-                if (!tile || !(event.dataTransfer)) return;
-                const path = tile.getAttribute('data-brand-path') || '';
-                const kind = tile.getAttribute('data-brand-kind') || '';
-                const assetId = tile.getAttribute('data-brand-asset-id') || '';
-                event.dataTransfer.setData('application/x-bandpromo-path', path);
-                event.dataTransfer.setData('application/x-bandpromo-kind', kind);
-                event.dataTransfer.setData('application/x-bandpromo-asset-id', assetId);
-                event.dataTransfer.setData('text/plain', path);
-                event.dataTransfer.effectAllowed = 'copy';
-                tile.classList.add('is-dragging');
-                formEl.dataset.dragKind = kind;
-            });
-            grid?.addEventListener('dragend', (event) => {
-                const tile = event.target instanceof Element
-                    ? event.target.closest('.theme-brand-tile')
-                    : null;
-                tile?.classList.remove('is-dragging');
-                delete formEl.dataset.dragKind;
-                formEl.querySelectorAll('.theme-shell-slot.is-drop-target').forEach((slot) => {
-                    slot.classList.remove('is-drop-target');
-                });
-            });
-            grid?.addEventListener('click', (event) => {
-                const tile = event.target instanceof Element
-                    ? event.target.closest('.theme-brand-tile')
-                    : null;
-                if (!tile) return;
-                const path = tile.getAttribute('data-brand-path') || '';
-                const kind = tile.getAttribute('data-brand-kind') || '';
-                const assetId = tile.getAttribute('data-brand-asset-id') || '';
-                if (!selectedShellSlotKey) {
-                    notifyThemeError('Select a shell slot first, or drag the asset onto a slot.');
-                    return;
-                }
-                const field = shellFieldByKey(selectedShellSlotKey);
-                if (!field || !shellSlotAcceptsKind(field, kind)) {
-                    notifyThemeError(`${field?.label || 'Slot'} accepts ${field?.accept.map(kindLabel).join(' / ') || 'matching media'} only.`);
-                    return;
-                }
-                setShellAssetValue(selectedShellSlotKey, path, { assetId });
-            });
-
-            loadBrandAssetPool();
+            window.bandpromoShellMediaPicked = function bandpromoShellMediaPicked(key, path, assetId) {
+                setShellAssetValue(String(key || ''), path, { assetId: String(assetId || '') });
+            };
         }
 
         function renderPreviewMarkup(document) {
@@ -1235,7 +839,7 @@
             if (setActiveBtn) {
                 setActiveBtn.hidden = !document;
                 setActiveBtn.disabled = !!isActive;
-                setActiveBtn.textContent = isActive ? '✓ Active brand' : '★ Set active';
+                setActiveBtn.textContent = isActive ? '✓ Base brand' : '★ Set as base';
                 setActiveBtn.classList.toggle('btn-saved', !!isActive);
             }
         }
@@ -1249,7 +853,7 @@
             }
             saveUi?.reset();
             if (editorHint) {
-                editorHint.textContent = 'Select a brand from the pool, then click edit to change colors, narrative, typography, shell media, and Brand assets assignment.';
+                editorHint.textContent = 'Select a brand, then click edit to change colors, fonts, and shell media.';
             }
             renderPoolList();
             updateActionButtons(previewDocument);
@@ -1285,7 +889,7 @@
             const parts = [];
             if (entry.locked) parts.push('locked');
             if (entry.id === activeThemeId) {
-                parts.push('<span class="theme-pool-meta-active">active</span>');
+                parts.push('<span class="theme-pool-meta-active">base</span>');
             }
             return parts.join(' · ');
         }
@@ -1362,7 +966,7 @@
                 const id = entry.id || '';
                 const selectedClass = id === selectedThemeId ? ' playlist-editor-row-selected' : '';
                 const activeClass = id === activeThemeId ? ' theme-pool-row--active' : '';
-                const activeDot = id === activeThemeId ? '<span class="theme-pool-active-dot" title="Active brand">●</span>' : '';
+                const activeDot = id === activeThemeId ? '<span class="theme-pool-active-dot" title="Base brand">●</span>' : '';
                 const title = escapeHtml(entry.title || id);
                 const deleteBtn = themeCanDelete(entry)
                     ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-theme-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${title}">🗑️</button>`
@@ -1396,7 +1000,6 @@
 
             formEl.innerHTML = `
                 ${locked ? '<p class="theme-editor-locked-note">bandPromo Default is protected. Duplicate it to customize this brand.</p>' : ''}
-                ${renderNarrativeFields(locked)}
                 <div class="theme-editor-section">
                     <h5>Typography</h5>
                     <div class="theme-token-grid theme-token-grid--stacked">
@@ -1406,16 +1009,18 @@
                 </div>
                 <div class="theme-editor-section theme-editor-section--colors">
                     <h5>Colors</h5>
-                    <p class="theme-field-hint">Type a full hex code (e.g. #FF6F61), or use the color square on the right. Changes appear in the live preview immediately.</p>
+                    <p class="theme-field-hint">Type a hex color (e.g. #FF6F61) or use the color square. Accent transparency (alpha) is derived automatically from Primary/Secondary — not a separate control.</p>
                     ${renderCompactColors(locked)}
                 </div>
+                <div class="theme-editor-section theme-editor-section--effects">
+                    <h5>Readability</h5>
+                    <p class="theme-field-hint">Dim busy still/living backdrops and soften glass panels so text stays readable.</p>
+                    ${renderEffectsFields(locked)}
+                </div>
                 ${renderShellMediaFields(locked)}
-                ${renderBrandAssetsPoolSection(locked)}
             `;
 
             syncThemeSettingsPanel(editorDocument);
-            selectedShellSlotKey = '';
-            brandAssetFilter = 'all';
             bindShellMediaUi();
         }
 
@@ -1447,7 +1052,6 @@
             if (!editorDocument || editorDocument.locked) {
                 return;
             }
-            collectNarrativeFields();
             collectAssetsFromForm();
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement) || input.hidden) return;
@@ -1665,9 +1269,15 @@
             }
             if (
                 input.hasAttribute('data-token-path')
-                || input.hasAttribute('data-narrative-field')
                 || input.hasAttribute('data-asset-key')
             ) {
+                if (input.hasAttribute('data-effect-range')) {
+                    const key = input.getAttribute('data-effect-range') || '';
+                    const readout = formEl.querySelector(`[data-effect-value="${key}"]`);
+                    if (readout) {
+                        readout.textContent = String(input.value || '');
+                    }
+                }
                 collectFormIntoDocument();
             }
         });
@@ -1768,7 +1378,7 @@
                 }
                 renderPoolList();
             } catch (error) {
-                notifyThemeError(error.message || 'Could not set active theme');
+                notifyThemeError(error.message || 'Could not set base brand');
             } finally {
                 updateActionButtons(isEditing ? editorDocument : previewDocument);
             }

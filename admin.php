@@ -1453,7 +1453,7 @@ if ($tab === 'analytics') {
                 <?php elseif ($contentTab === 'pages'): ?>
                     Campaign pages (for example Bio) are owned by a release. FAQ is required for the login info lightbox. Today, other pages appear in the player only when enabled under Content → Player (site-wide). Target: also show pages associated to the playing track’s release.
                 <?php elseif ($contentTab === 'themes'): ?>
-                    Branding has two layers. <strong>Active</strong> is the install baseline (login + shell media in config). <strong>Release brand</strong> (set on the Catalogue release that owns the playlist) drives player color/typography when that playlist is selected — tracks do not carry their own brand. Shell media (logo/backgrounds) stay on Active until per-release shell override ships. bandPromo Default stays locked — duplicate it. Saving Active syncs shell paths into site config. Full publish no longer resets Active to the demo brand.
+                    Branding has two layers. <strong>Base</strong> is the site default for login and shell media (logo, backgrounds, welcome sounds). A <strong>release brand</strong> (set on the Catalogue release) can override player colors and fonts when that release’s playlist is playing — tracks do not carry their own brand. Shell media still follow Base until per-release shell override ships. Duplicate <em>bandPromo Default</em> to customize (it stays locked). Saving Base writes shell paths into site config.
                 <?php elseif ($contentTab === 'player'): ?>
                     Choose Still or Living for the player shell background, then arrange layout tabs. Playlist and Lyrics always stay first. Optional pages here are global (always on). Assign still/living media under Content → Branding. Shift/Ctrl-click moves multiple items together.
                 <?php endif; ?>
@@ -1548,7 +1548,7 @@ if ($tab === 'analytics') {
                                             <label class="playlist-settings-field release-editor-form-row">
                                                 <span class="release-editor-form-label">Branding</span>
                                                 <select id="releaseSettingsBrandId" aria-label="Release brand">
-                                                    <option value="">Install default</option>
+                                                    <option value="">Base brand</option>
                                                 </select>
                                             </label>
                                             <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
@@ -1694,6 +1694,34 @@ if ($tab === 'analytics') {
                                                 ]); ?>
                                             </label>
                                             <p class="hint">Playlist promotion uses this <strong>UTC calendar day</strong>; track playability still follows each release date.</p>
+                                            <label class="playlist-settings-field">
+                                                <span>Package type</span>
+                                                <select id="playlistSettingsPackageType" aria-label="Playlist package type">
+                                                    <option value="single">Single</option>
+                                                    <option value="ep">EP</option>
+                                                    <option value="album">Album</option>
+                                                    <option value="show">Show</option>
+                                                    <option value="podcast">Podcast</option>
+                                                    <option value="live">Live</option>
+                                                    <option value="compilation">Compilation</option>
+                                                    <option value="other" selected>Other</option>
+                                                </select>
+                                            </label>
+                                            <label class="playlist-settings-field">
+                                                <span>Player track order</span>
+                                                <select id="playlistSettingsPlayOrder" aria-label="Player track order">
+                                                    <option value="stored">As listed (first track first)</option>
+                                                    <option value="reverse">Newest first (reverse list)</option>
+                                                </select>
+                                            </label>
+                                            <p class="hint">Shows and podcasts default to newest first so you can append episodes at the bottom of the edit list.</p>
+                                            <label class="playlist-settings-field playlist-settings-field--wide playlist-settings-default-flag">
+                                                <span class="playlist-settings-checkbox-row">
+                                                    <input type="checkbox" id="playlistSettingsSetAsDefault">
+                                                    <span>Default playlist for the player</span>
+                                                </span>
+                                            </label>
+                                            <p class="hint">When set, the player opens this playlist first (if it is public and has tracks). Otherwise the latest publish date wins.</p>
                                             <label class="playlist-settings-field release-catalog-meta-field--id">
                                                 <span>Slug</span>
                                                 <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
@@ -2077,12 +2105,12 @@ if ($tab === 'analytics') {
                             <div class="player-layout-col-head player-layout-col-head--active">
                                 <h4 class="player-layout-col-title">Live preview</h4>
                                 <div class="player-layout-save-row theme-editor-actions">
-                                    <button type="button" id="themeSetActiveBtn" class="btn" hidden>★ Set active</button>
+                                    <button type="button" id="themeSetActiveBtn" class="btn" hidden>★ Set as base</button>
                                     <button type="button" id="themeSaveBtn" class="btn" hidden>💾 Save brand</button>
                                 </div>
                             </div>
                             <div class="player-layout-panel-body theme-editor-preview-body">
-                                <p class="hint player-layout-hint" id="themeEditorHint">Select a brand from the pool, then click edit to change its tokens.</p>
+                                <p class="hint player-layout-hint" id="themeEditorHint">Select a brand, then click edit to change colors, fonts, and shell media.</p>
                                 <div class="theme-editor-preview-frame" id="themeEditorPreview">
                                     <p class="theme-editor-empty">No theme selected.</p>
                                 </div>
@@ -2253,7 +2281,7 @@ if ($tab === 'analytics') {
                 <?php elseif ($configTab === 'support'): ?>
                     Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
-                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> on the active brand.
+                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> on the base brand.
                 <?php endif; ?>
             </div>
 
@@ -2469,7 +2497,7 @@ if ($tab === 'analytics') {
                         <div class="asset-picker-control" id="soc_share_image_picker">
                             <span id="soc_share_image_label" class="asset-picker-value<?php echo $ogImage === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($ogImageLabel); ?></span>
                         </div>
-                        <div class="field-note">Poster / share cover is edited under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> (active brand Shell media). Saving that brand updates the image used in these previews.</div>
+                        <div class="field-note">Poster / share cover is edited under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> (base brand Shell media). Saving that brand updates the image used in these previews.</div>
                     </div>
                     <div class="form-group social-form-full">
                         <label for="soc_keywords">Keywords <span class="hint">(SEO meta keywords)</span></label>
@@ -3099,10 +3127,20 @@ if ($tab === 'analytics') {
                         <span class="field-note"><span id="audioMasterDescriptionCount">0</span>/300 characters</span>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="audioMasterFieldLyrics">Lyrics</label>
-                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="8"></textarea>
-                    <div class="field-note">Markdown supported. Single line breaks are preserved in the lyrics panel.</div>
+                <div class="form-group audio-master-text-panel">
+                    <div class="audio-master-text-panel-header">
+                        <div class="audio-master-text-role-toggle" role="group" aria-label="Text panel type">
+                            <button type="button" class="audio-master-text-role-btn is-active" data-text-role="lyrics" id="audioMasterTextRoleLyrics" aria-pressed="true">Lyrics</button>
+                            <button type="button" class="audio-master-text-role-btn" data-text-role="notes" id="audioMasterTextRoleNotes" aria-pressed="false">Notes</button>
+                        </div>
+                    </div>
+                    <div class="audio-master-notes-label-wrap" id="audioMasterNotesLabelWrap" hidden>
+                        <label for="audioMasterFieldNotesLabel">Player tab label</label>
+                        <input type="text" id="audioMasterFieldNotesLabel" name="notes_label" maxlength="24" autocomplete="off" placeholder="Tracklist">
+                        <div class="field-note">Shown on the player nav while this track plays. Default: Tracklist.</div>
+                    </div>
+                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="8" aria-label="Lyrics"></textarea>
+                    <div class="field-note">Restricted Markdown: headings, lists, links, emphasis, code. Lyrics mode keeps single line breaks; Notes uses normal paragraphs.</div>
                 </div>
             </form>
 

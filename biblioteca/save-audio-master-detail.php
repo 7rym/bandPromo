@@ -61,6 +61,13 @@ foreach ($allowed_keys as $key) {
     $normalized_fields[$key] = trim((string) $value);
 }
 
+// Registry-only presentation flags (not written into master audio tags).
+$text_role = bandpromo_asset_normalize_text_role((string) ($fields['text_role'] ?? 'lyrics'));
+$notes_label = bandpromo_asset_normalize_notes_label((string) ($fields['notes_label'] ?? ''));
+if ($text_role !== 'notes') {
+    $notes_label = '';
+}
+
 $cover_path = trim((string) ($payload['cover_path'] ?? ''));
 $cover_mode = trim((string) ($payload['cover_mode'] ?? 'preserve'));
 if (!in_array($cover_mode, ['preserve', 'set', 'clear'], true)) {
@@ -175,15 +182,27 @@ $current_fields['living_cover'] = $existing_living_cover;
 $metadata_changed = $current_fields !== $normalized_fields;
 $sidecar_cover = trim((string) ($current_detail['sidecar_cover'] ?? ''));
 $cover_changed = ($cover_mode === 'clear' && $sidecar_cover !== '') || $cover_mode === 'set';
+$current_text_role = bandpromo_asset_normalize_text_role((string) ($current_detail['text_role'] ?? 'lyrics'));
+$current_notes_label = bandpromo_asset_normalize_notes_label((string) ($current_detail['notes_label'] ?? ''));
+if ($current_text_role !== 'notes') {
+    $current_notes_label = '';
+}
+$text_panel_changed = ($current_text_role !== $text_role) || ($current_notes_label !== $notes_label);
+
+$display_fields = $normalized_fields;
+$display_fields['text_role'] = $text_role;
+$display_fields['notes_label'] = $notes_label;
 
 if (!$metadata_changed && !$cover_changed) {
     $data = $current_detail;
     $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
         ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
     $display = bandpromo_asset_read_audio_display($asset);
-    if (!bandpromo_asset_audio_display_is_complete($display)) {
-        bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, $data);
+    if (!bandpromo_asset_audio_display_is_complete($display) || $text_panel_changed) {
+        bandpromo_asset_sync_audio_display_from_fields($root, $filename, $display_fields, $data);
     }
+    $data['text_role'] = $text_role;
+    $data['notes_label'] = $notes_label;
     $build_state = bandpromo_get_build_required_state();
 
     bandpromo_admin_audit_log('audio_master_metadata_saved', [
@@ -191,7 +210,8 @@ if (!$metadata_changed && !$cover_changed) {
         'target_id' => $filename,
         'status' => 'ok',
         'data' => [
-            'no_change' => true,
+            'no_change' => !$text_panel_changed,
+            'text_panel_changed' => $text_panel_changed,
         ],
     ]);
 
@@ -200,7 +220,7 @@ if (!$metadata_changed && !$cover_changed) {
         'detail' => $data,
         'build_required' => !empty($build_state['required']),
         'build_required_state' => $build_state,
-        'no_change' => true,
+        'no_change' => !$text_panel_changed,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -245,7 +265,11 @@ $updatedSidecarCover = array_key_exists('sidecar_cover', $cover_result)
     : (string) ($data['sidecar_cover'] ?? '');
 $data['sidecar_cover'] = $updatedSidecarCover;
 
-bandpromo_asset_sync_audio_display_from_fields($root, $filename, $normalized_fields, is_array($data) ? $data : []);
+bandpromo_asset_sync_audio_display_from_fields($root, $filename, $display_fields, is_array($data) ? $data : []);
+if (is_array($data)) {
+    $data['text_role'] = $text_role;
+    $data['notes_label'] = $notes_label;
+}
 
 // Keep last-good player payloads readable; never wipe to empty tracks on tag/cover save.
 $canonicalMaster = bandpromo_audio_master_canonical_filename($root, $filename);

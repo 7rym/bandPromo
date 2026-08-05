@@ -141,7 +141,7 @@ def resolve_asset_id_to_path(asset_id):
 def resolve_share_image(config):
     """
     Return the local Path of the configured share image.
-    Prefer active brand asset_ids.poster, then social.share_image path.
+    Prefer base brand asset_ids.poster, then social.share_image path.
     """
     brand_id = active_brand_id(config)
     brand_doc = load_brand_document(brand_id)
@@ -262,7 +262,7 @@ def print_missing_share_image_help(config, src_image):
             print(f'       - {item}')
     if brand_id:
         label = f'{brand_title} ({brand_id})' if brand_title else brand_id
-        print(f'     Active brand: {label}')
+        print(f'     Base brand: {label}')
         if poster_asset_id:
             print(f'     Brand Shell media → Poster asset_id: {poster_asset_id}')
         if brand_poster:
@@ -281,7 +281,7 @@ def print_missing_share_image_help(config, src_image):
         print('     bandPromo Default is locked — you cannot edit its Poster slot in Branding.')
         print('     Do one of the following:')
         print('     A) Content → Branding → edit YOUR brand (a duplicate) → Shell media → Poster,')
-        print('        Save, then Set active on that brand so Publish uses it.')
+        print('        Save, then Set as base on that brand so Publish uses it.')
         print('     B) Restore the missing starter file (Dashboard → Site update / reinstall starter')
         print('        pack, or for local source trees restore media/special/bandPromo_cover.png).')
         editable = []
@@ -307,9 +307,9 @@ def print_missing_share_image_help(config, src_image):
                 print(f'       - {label}')
     else:
         print('     1. Admin → Content → Branding')
-        print('     2. Edit the active brand → Shell media → Poster / share image')
+        print('     2. Edit the base brand → Shell media → Poster / share image')
         print('     3. Choose an existing image (or upload one), then Save brand')
-        print('        If this brand is Active, saving syncs the path into web-config.json.')
+        print('        If this brand is Base, saving syncs the path into web-config.json.')
     print('     Optional: Settings → Sharing only describes SEO text; the image itself is the Branding poster slot.')
 
     suggestions = suggest_special_images()

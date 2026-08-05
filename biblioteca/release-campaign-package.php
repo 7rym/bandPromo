@@ -102,8 +102,8 @@ function bandpromo_release_campaign_is_allowed_entry(string $relativePath): bool
 }
 
 /**
- * Demo/campaign import may claim the install active brand only on first run.
- * Routine full builds must not reset an operator-chosen active brand (e.g. HITZ).
+ * Demo/campaign import may claim the install base brand only on first run.
+ * Routine full builds must not reset an operator-chosen base brand (e.g. HITZ).
  */
 function bandpromo_release_campaign_should_claim_active_brand(string $root): bool
 {
@@ -229,7 +229,7 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
                 bandpromo_theme_set_active_id($root, $brandId);
             }
         } catch (Throwable $throwable) {
-            // Best-effort active brand pointer.
+            // Best-effort base brand pointer.
         }
     }
 
@@ -763,7 +763,7 @@ function bandpromo_release_campaign_seed_demo_from_templates(string $root): arra
         'mode' => 'demo',
         'allow_demo_overwrite' => true,
         // Local template re-seed runs on every full build when the remote demo
-        // package is already installed — never steal the operator active brand.
+        // package is already installed — never steal the operator base brand.
         'set_active_brand' => false,
     ]);
 }
@@ -815,7 +815,7 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 $import = bandpromo_release_campaign_import_from_zip($root, $downloadPath, [
                     'mode' => 'demo',
                     'allow_demo_overwrite' => true,
-                    // First install may claim active brand; later package refreshes must not.
+                    // First install may claim base brand; later package refreshes must not.
                     'set_active_brand' => bandpromo_release_campaign_should_claim_active_brand($root),
                 ]);
                 bandpromo_json_write_file($markerPath, [
@@ -824,7 +824,12 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                     'package_file' => (string) ($demoPackage['package_file'] ?? ''),
                     'installed_at' => gmdate('c'),
                 ]);
-                bandpromo_release_rrmdir($workDir);
+                if (!bandpromo_release_rrmdir_best_effort($workDir)) {
+                    bandpromo_release_log(
+                        $logger,
+                        '[demo release] Package imported; leftover workdir could not be removed yet (safe to ignore).'
+                    );
+                }
                 $campaignFromRemote = true;
                 bandpromo_release_log($logger, '[demo release] ' . $import['message']);
 

@@ -47,7 +47,7 @@ The important distinction is:
 
 ### Install scope
 
-Assets that belong to the whole install or **active brand**:
+Assets that belong to the whole install or **base brand**:
 
 - logo and lockups
 - favicon/app icons
@@ -125,15 +125,15 @@ Before bandPromo exposes true multi-release administration, operators should sti
 That means the current admin/UI model should remain:
 
 - Catalogue of releases with per-release identity brands
-- Install **active** brand for login / shell media baseline under **Content → Branding** (Set active), not a separate Settings → Theme editor
+- Install **base** brand for login / shell media baseline under **Content → Branding** (Set as base), not a separate Settings → Theme editor
 - Release brand tokens overlay in the player while tracks from that release play
 
 Under the hood, brand documents and `release.brand_id` links are already the ownership model ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 The practical distinction is:
 
-- exposed now: Catalogue + Branding editor; active brand pointer; player CSS tokens from the selected playlist’s owning release brand
-- prepared / planned: per-release shell media in the player (Brand shell override runtime); hard content-pool scoping
+- exposed now: Catalogue + Branding editor; base brand pointer; player CSS tokens **and** visual shell (logo/still/living) from the selected playlist’s owning release brand; login shell + SFX stay Base
+- prepared / planned: hard content-pool scoping
 - do **not** plan “many releases share one era brand” as peer Releases — use playlists under one Release
 
 Legacy **`media/special/`** and the Files → **Brand assets** tab are **not** a brand role — they are intake workarounds migrating into the Visual pool with explicit role tags and `brand_id`.
@@ -988,8 +988,8 @@ Brand/logos: Visual pool assets with `brand-logo` (or contextual upload from bra
 
 | Upload path | Default `brand_id` | Default `role` |
 |-------------|-------------------|----------------|
-| Picker in context (release cover, brand slot, page picture) | Release's brand or active brand | Role implied by picker |
-| Bulk drop into Visual pool | Install active brand | `unassigned` |
+| Picker in context (release cover, brand slot, page picture) | Release's brand or base brand | Role implied by picker |
+| Bulk drop into Visual pool | Install base brand | `unassigned` |
 | AI wizard output | Release/brand from wizard | Target role + `origin: ai-generated` |
 
 Operators may change role and brand after upload in Files → Visual (single or batch). Notifications nudge when assets remain `unassigned`; delivery is not blocked for bulk uploads unless a specific picker requires a role.
@@ -1152,7 +1152,7 @@ This matrix defines the preferred future behavior.
 
 ### Naming guidance for admin UI
 
-Files → **Brand assets** is the legacy intake home for install branding files (`media/special/`). In **Content → Branding**, **Shell media** holds assignment slots only; a sibling **Brand assets** pool supplies Still / Living / Audio tiles for those slots (upload still happens under Files). Saving the active brand syncs those paths into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
+Files → **Brand assets** is the legacy intake home for install branding files (`media/special/`). In **Content → Branding**, **Shell media** holds assignment slots only; each slot uses the shared media picker (same pattern as release/playlist covers). Upload still happens under Files. Saving the base brand syncs those paths into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
 
 ### Nondestructive naming policy
 

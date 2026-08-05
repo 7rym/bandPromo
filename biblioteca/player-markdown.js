@@ -52,37 +52,11 @@
         return escaped;
     }
 
-    function splitParagraphs(markdown) {
-        const normalized = String(markdown).replace(/\r\n?/g, '\n').trim();
-        if (normalized === '') {
-            return [];
-        }
-        const chunks = normalized.split(/\n\s*\n/);
-        return chunks.map((chunk) => chunk.trim()).filter(Boolean);
-    }
-
-    function renderLyrics(markdown) {
-        const paragraphs = splitParagraphs(markdown);
-        if (!paragraphs.length) {
-            return '';
-        }
-
-        const html = paragraphs.map((paragraph) => {
-            const lines = paragraph.split('\n');
-            const renderedLines = lines.map((line) => {
-                const trimmed = line.replace(/\s+$/, '');
-                if (trimmed === '') {
-                    return '<br>';
-                }
-                return renderInline(trimmed);
-            });
-            return `<p>${renderedLines.join('<br>')}</p>`;
-        });
-
-        return `<div class="player-markdown player-markdown--lyrics">${html.join('')}</div>`;
-    }
-
-    function renderDefault(markdown) {
+    /**
+     * Restricted block Markdown. When hardBreaks is true (lyrics mode), consecutive
+     * plain lines become a single paragraph joined with <br> instead of spaces.
+     */
+    function renderBlocks(markdown, hardBreaks) {
         const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n');
         const html = [];
         let paragraphLines = [];
@@ -96,7 +70,11 @@
             if (!paragraphLines.length) {
                 return;
             }
-            html.push(`<p>${renderInline(paragraphLines.join(' ').trim())}</p>`);
+            if (hardBreaks) {
+                html.push(`<p>${paragraphLines.map((line) => renderInline(line)).join('<br>')}</p>`);
+            } else {
+                html.push(`<p>${renderInline(paragraphLines.join(' ').trim())}</p>`);
+            }
             paragraphLines = [];
         };
 
@@ -194,7 +172,7 @@
 
             flushList();
             flushQuote();
-            paragraphLines.push(line.trim());
+            paragraphLines.push(hardBreaks ? line.replace(/\s+$/, '') : line.trim());
         });
 
         if (inCodeBlock) {
@@ -204,11 +182,7 @@
         flushList();
         flushQuote();
 
-        if (!html.length) {
-            return '';
-        }
-
-        return `<div class="player-markdown">${html.join('')}</div>`;
+        return html;
     }
 
     function stripToPlainText(markdown) {
@@ -233,8 +207,20 @@
         if (source === '') {
             return '';
         }
-        const mode = options && options.mode === 'lyrics' ? 'lyrics' : 'default';
-        return mode === 'lyrics' ? renderLyrics(source) : renderDefault(source);
+        const rawMode = options && options.mode ? String(options.mode) : 'default';
+        const mode = rawMode === 'lyrics' || rawMode === 'notes' ? rawMode : 'default';
+        const hardBreaks = mode === 'lyrics';
+        const html = renderBlocks(source, hardBreaks);
+        if (!html.length) {
+            return '';
+        }
+        let className = 'player-markdown';
+        if (mode === 'lyrics') {
+            className += ' player-markdown--lyrics';
+        } else if (mode === 'notes') {
+            className += ' player-markdown--notes';
+        }
+        return `<div class="${className}">${html.join('')}</div>`;
     }
 
     global.bandpromoPlayerMarkdown = {

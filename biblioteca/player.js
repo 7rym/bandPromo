@@ -366,6 +366,16 @@ function syncLyricsTab(song) {
     }
 
     const hasLyrics = hasDisplayableLyrics(song);
+    const textRole = String(song?.text_role || 'lyrics').trim().toLowerCase() === 'notes'
+        ? 'notes'
+        : 'lyrics';
+    let panelLabel = String(window.BANDPROMO_LYRICS_LABEL || 'Lyrics').trim() || 'Lyrics';
+    if (textRole === 'notes') {
+        const notesLabel = String(song?.notes_label || '').trim();
+        panelLabel = notesLabel !== '' ? notesLabel : 'Tracklist';
+    }
+    lyricsButton.textContent = panelLabel;
+
     lyricsButton.hidden = !hasLyrics;
     lyricsButton.disabled = !hasLyrics;
     lyricsButton.setAttribute('aria-hidden', hasLyrics ? 'false' : 'true');
@@ -374,7 +384,10 @@ function syncLyricsTab(song) {
         lyricsButton.removeAttribute('title');
     } else {
         lyricsButton.setAttribute('tabindex', '-1');
-        lyricsButton.setAttribute('title', 'Lyrics are unavailable for this track');
+        lyricsButton.setAttribute(
+            'title',
+            textRole === 'notes' ? `${panelLabel} is unavailable for this track` : 'Lyrics are unavailable for this track'
+        );
     }
 
     if (!hasLyrics && lyricsBox.classList.contains('active')) {
@@ -1330,26 +1343,85 @@ function applyPlaylistBrand(brandId) {
     }
     window.BANDPROMO_PLAYLIST_BRAND_ID = resolvedBrandId;
     const brand = brandStylesById[resolvedBrandId];
-    if (!brand || !brand.css_variables || typeof brand.css_variables !== 'object') {
+    if (!brand || typeof brand !== 'object') {
         return;
     }
 
     const root = document.documentElement;
-    const vars = brand.css_variables;
-    Object.entries(vars).forEach(([key, value]) => {
-        if (typeof value !== 'string' || value.trim() === '') {
-            return;
-        }
-        if (key === 'font-family') {
-            root.style.fontFamily = value;
-            return;
-        }
-        root.style.setProperty(key, value);
-    });
+    const vars = (brand.css_variables && typeof brand.css_variables === 'object')
+        ? brand.css_variables
+        : null;
+    if (vars) {
+        Object.entries(vars).forEach(([key, value]) => {
+            if (typeof value !== 'string' || value.trim() === '') {
+                return;
+            }
+            if (key === 'font-family') {
+                root.style.fontFamily = value;
+                return;
+            }
+            root.style.setProperty(key, value);
+        });
 
-    const themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeMeta && typeof vars['--bg-color'] === 'string' && vars['--bg-color'].trim() !== '') {
-        themeMeta.setAttribute('content', vars['--bg-color'].trim());
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta && typeof vars['--bg-color'] === 'string' && vars['--bg-color'].trim() !== '') {
+            themeMeta.setAttribute('content', vars['--bg-color'].trim());
+        }
+    }
+
+    applyPlaylistShellMedia(brand);
+}
+
+function installShellBaseline() {
+    const baseline = window.BANDPROMO_INSTALL_SHELL_MEDIA;
+    if (baseline && typeof baseline === 'object') {
+        return {
+            logo: String(baseline.logo || '').trim(),
+            background_image: String(baseline.background_image || '').trim(),
+            background_video: String(baseline.background_video || '').trim(),
+        };
+    }
+    const media = (window.appConfig && window.appConfig.media) || {};
+    return {
+        logo: String(media.logo || '').trim(),
+        background_image: String(media.background_image || '').trim(),
+        background_video: String(media.background_video || '').trim(),
+    };
+}
+
+function applyPlaylistShellMedia(brand) {
+    const assets = (brand && brand.assets && typeof brand.assets === 'object') ? brand.assets : {};
+    const baseline = installShellBaseline();
+    const next = {
+        logo: String(assets.logo || '').trim() || baseline.logo,
+        background_image: String(assets.background_image || '').trim() || baseline.background_image,
+        background_video: String(assets.background_video || '').trim() || baseline.background_video,
+    };
+
+    window.appConfig = window.appConfig || {};
+    window.appConfig.media = Object.assign({}, window.appConfig.media || {}, next);
+
+    const logoImg = document.querySelector('.content-logo-img');
+    if (logoImg && next.logo) {
+        if (logoImg.getAttribute('src') !== next.logo) {
+            logoImg.setAttribute('src', next.logo);
+        }
+        if (brand && brand.title) {
+            logoImg.setAttribute('alt', String(brand.title));
+        }
+    }
+
+    const bgVideo = document.getElementById('bg-video');
+    if (bgVideo) {
+        if (next.background_video) {
+            bgVideo.setAttribute('data-src', next.background_video);
+        } else {
+            bgVideo.removeAttribute('data-src');
+        }
+    }
+
+    if (window.bandpromoShellBackground && typeof window.bandpromoShellBackground.updateBackground === 'function') {
+        window.bandpromoShellBackground.updateBackground({ force: true });
     }
 }
 
@@ -1941,7 +2013,11 @@ function updateVisuals(index) {
     // Main info
     songTitle.innerText = song.title;
     artistName.innerText = song.artist;
-    setPlayerMarkdownHtml(lyricsBox, hasDisplayableLyrics(song) ? song.lyrics : '', 'lyrics');
+    setPlayerMarkdownHtml(
+        lyricsBox,
+        hasDisplayableLyrics(song) ? song.lyrics : '',
+        String(song?.text_role || 'lyrics').trim().toLowerCase() === 'notes' ? 'notes' : 'lyrics'
+    );
     lyricsBox.scrollTop = 0; // Reset scroll position to top
 
     // Build cover path

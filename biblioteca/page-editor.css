@@ -1324,6 +1324,20 @@
     flex: 1 1 100%;
 }
 
+.playlist-settings-checkbox-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text, #e8e8e8);
+}
+
+.playlist-settings-checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
 .release-catalog-meta-fields {
     display: grid;
     grid-template-columns: minmax(0, 200px) minmax(0, 1fr);

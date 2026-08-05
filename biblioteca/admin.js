@@ -3875,7 +3875,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             </div>`;
                         }
 
-                        return `<div class="media-picker-tile" role="button" tabindex="0" data-picker-target="${pathType}" data-filename="${encodedName}" title="${safeLabel}" aria-label="${safeLabel}">
+                        return `<div class="media-picker-tile" role="button" tabindex="0" data-picker-target="${pathType}" data-filename="${encodedName}" data-asset-id="${bandpromoAdminEscapeHtml(String(file.asset_id || '').trim())}" title="${safeLabel}" aria-label="${safeLabel}">
                             <span class="media-picker-tile-media">${mediaMarkup}${previewBtn}</span>
                             <span class="media-picker-tile-label">${safeLabel}</span>
                         </div>`;
@@ -4033,8 +4033,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const target = selectBtn.dataset.pickerTarget;
                         const filename = decodeURIComponent(selectBtn.dataset.filename || '');
                         const selectedPath = buildMediaPath(target, filename);
+                        const selectedAssetId = String(selectBtn.dataset.assetId || '').trim();
                         if (mediaPickerState.fieldId === 'audioMasterFieldLivingCoverPath') {
                             applyAudioMasterLivingCoverSelection(selectedPath);
+                        } else if (
+                            String(mediaPickerState.fieldId || '').startsWith('theme_asset_')
+                            && typeof window.bandpromoShellMediaPicked === 'function'
+                        ) {
+                            const shellKey = String(mediaPickerState.fieldId).slice('theme_asset_'.length);
+                            window.bandpromoShellMediaPicked(shellKey, selectedPath, selectedAssetId);
                         } else {
                             setPickerFieldValue(mediaPickerState.fieldId, selectedPath);
                             if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
@@ -4181,6 +4188,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioMasterDescriptionCount = document.getElementById('audioMasterDescriptionCount');
             const audioMasterVersionField = document.getElementById('audioMasterFieldVersion');
             const audioMasterForm = document.getElementById('audioMasterForm');
+            const audioMasterNotesLabelWrap = document.getElementById('audioMasterNotesLabelWrap');
+            const audioMasterNotesLabelField = document.getElementById('audioMasterFieldNotesLabel');
+            const audioMasterTextRoleButtons = Array.from(
+                document.querySelectorAll('.audio-master-text-role-btn[data-text-role]')
+            );
+            let audioMasterTextRole = 'lyrics';
             let deleteTarget = null;
             let deleteFiles  = [];
             let activeAudioMasterFile = null;
@@ -4675,6 +4688,30 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return 'Track details';
             }
 
+            function syncAudioMasterTextPanelUi() {
+                const role = audioMasterTextRole === 'notes' ? 'notes' : 'lyrics';
+                audioMasterTextRole = role;
+                audioMasterTextRoleButtons.forEach((btn) => {
+                    const isActive = String(btn.getAttribute('data-text-role') || '') === role;
+                    btn.classList.toggle('is-active', isActive);
+                    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                });
+                if (audioMasterFields.lyrics) {
+                    audioMasterFields.lyrics.setAttribute('aria-label', role === 'notes' ? 'Notes' : 'Lyrics');
+                }
+                if (audioMasterNotesLabelWrap) {
+                    audioMasterNotesLabelWrap.hidden = role !== 'notes';
+                }
+            }
+
+            function setAudioMasterTextRole(role, options = {}) {
+                audioMasterTextRole = String(role || '').trim().toLowerCase() === 'notes' ? 'notes' : 'lyrics';
+                if (audioMasterTextRole !== 'notes' && audioMasterNotesLabelField && options.clearLabel) {
+                    audioMasterNotesLabelField.value = '';
+                }
+                syncAudioMasterTextPanelUi();
+            }
+
             function updateAudioMasterDescriptionCounter() {
                 if (!audioMasterDescriptionCount || !audioMasterFields.comment) return;
                 audioMasterDescriptionCount.textContent = String((audioMasterFields.comment.value || '').length);
@@ -4816,6 +4853,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     input.value = detail && typeof detail[key] === 'string' ? detail[key] : '';
                 });
+                setAudioMasterTextRole(detail && detail.text_role, { clearLabel: false });
+                if (audioMasterNotesLabelField) {
+                    audioMasterNotesLabelField.value = detail && typeof detail.notes_label === 'string'
+                        ? detail.notes_label
+                        : '';
+                }
+                syncAudioMasterTextPanelUi();
                 updateAudioMasterDescriptionCounter();
             }
 
@@ -4945,6 +4989,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             if (audioMasterFields.comment) {
                 audioMasterFields.comment.addEventListener('input', updateAudioMasterDescriptionCounter);
             }
+
+            audioMasterTextRoleButtons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    setAudioMasterTextRole(btn.getAttribute('data-text-role'), { clearLabel: true });
+                });
+            });
+            syncAudioMasterTextPanelUi();
 
             // ── Admin media preview — powered by biblioteca/lightbox.js ──────────
             let _adminLb = null;
@@ -5349,6 +5400,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         fields[key] = input ? String(input.value || '').trim() : '';
                     });
                     fields.title = combineAudioTitleParts(fields.title, audioMasterVersionField ? audioMasterVersionField.value : '');
+                    fields.text_role = audioMasterTextRole === 'notes' ? 'notes' : 'lyrics';
+                    fields.notes_label = fields.text_role === 'notes' && audioMasterNotesLabelField
+                        ? String(audioMasterNotesLabelField.value || '').trim()
+                        : '';
 
                     const validationError = validateAudioMasterFields(fields);
                     if (validationError) {
@@ -7006,6 +7061,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistAvailableSection = document.getElementById('playlistAvailableSection');
                 const playlistSettingsTitle = document.getElementById('playlistSettingsTitle');
                 const playlistSettingsPublishDate = document.getElementById('playlistSettingsPublishDate');
+                const playlistSettingsPackageType = document.getElementById('playlistSettingsPackageType');
+                const playlistSettingsPlayOrder = document.getElementById('playlistSettingsPlayOrder');
+                const playlistSettingsSetAsDefault = document.getElementById('playlistSettingsSetAsDefault');
                 const playlistSettingsSlug = document.getElementById('playlistSettingsSlug');
                 const playlistSettingsSlugPreview = document.getElementById('playlistSettingsSlugPreview');
                 const playlistSettingsDescription = document.getElementById('playlistSettingsDescription');
@@ -7018,9 +7076,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistCoverPlaceholder = document.getElementById('playlistCoverPlaceholder');
                 const playlistCoverPreviewShell = document.getElementById('playlistCoverPreviewShell');
                 const playlistCoverClearBtn = document.getElementById('playlistCoverClearBtn');
+                let playlistPackageTypeDefaults = {
+                    single: 'stored',
+                    ep: 'stored',
+                    album: 'stored',
+                    show: 'reverse',
+                    podcast: 'reverse',
+                    live: 'stored',
+                    compilation: 'stored',
+                    other: 'stored',
+                };
                 let playlistSettingsBaseline = {
                     title: '',
                     publish_date: '',
+                    package_type: 'other',
+                    play_order: 'stored',
+                    set_as_default: false,
                     slug: '',
                     description: '',
                     short_description: '',
@@ -7029,6 +7100,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let playlistSettingsSaving = false;
                 let playlistSettingsSaveQueued = false;
                 let pendingPlaylistCoverPreviewUrl = '';
+                let suppressPlaylistPackageTypeOrderSync = false;
 
                 function normalizePlaylistDateForInput(value) {
                     if (typeof window.bandpromoNormalizeIsoDateInput === 'function') {
@@ -7063,6 +7135,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                function defaultPlayOrderForPackageType(packageType) {
+                    const key = String(packageType || 'other').trim().toLowerCase();
+                    return playlistPackageTypeDefaults[key] === 'reverse' ? 'reverse' : 'stored';
+                }
+
                 function readPlaylistSettingsFromForm() {
                     const entry = playlistEntry(selectedPlaylistId);
                     const title = playlistSettingsTitle instanceof HTMLInputElement
@@ -7071,6 +7148,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const publishDate = playlistSettingsPublishDate instanceof HTMLInputElement
                         ? String(playlistSettingsPublishDate.value || '').trim()
                         : normalizePlaylistDateForInput(entry?.publish_date);
+                    const packageType = playlistSettingsPackageType instanceof HTMLSelectElement
+                        ? String(playlistSettingsPackageType.value || 'other').trim().toLowerCase()
+                        : String(entry?.package_type || 'other').trim().toLowerCase() || 'other';
+                    const playOrder = playlistSettingsPlayOrder instanceof HTMLSelectElement
+                        ? (String(playlistSettingsPlayOrder.value || '').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored')
+                        : (String(entry?.play_order || 'stored').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored');
+                    const setAsDefault = playlistSettingsSetAsDefault instanceof HTMLInputElement
+                        ? Boolean(playlistSettingsSetAsDefault.checked)
+                        : Boolean(entry?.is_default);
                     const slug = playlistSettingsSlug instanceof HTMLInputElement
                         ? String(playlistSettingsSlug.value || '').trim()
                         : String(entry?.slug || entry?.id || '').trim();
@@ -7087,6 +7173,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return {
                         title,
                         publish_date: publishDate,
+                        package_type: packageType || 'other',
+                        play_order: playOrder,
+                        set_as_default: setAsDefault,
                         slug,
                         description,
                         short_description: shortDescription,
@@ -7274,11 +7363,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const entry = playlistEntry(playlistId);
                     const title = String(entry?.title || playlistId || '');
                     const publish = normalizePlaylistDateForInput(entry?.publish_date);
+                    const packageType = String(entry?.package_type || 'other').trim().toLowerCase() || 'other';
+                    const playOrder = String(entry?.play_order || defaultPlayOrderForPackageType(packageType)).trim().toLowerCase() === 'reverse'
+                        ? 'reverse'
+                        : 'stored';
+                    const setAsDefault = Boolean(entry?.is_default);
                     const slug = String(entry?.slug || entry?.id || playlistId || '').trim();
                     const description = String(entry?.description || '').trim();
                     const shortDescription = String(entry?.short_description || '').trim();
                     const posterAssetId = String(entry?.poster_asset_id || '').trim();
 
+                    suppressPlaylistPackageTypeOrderSync = true;
                     if (playlistSettingsTitle instanceof HTMLInputElement) {
                         playlistSettingsTitle.value = title;
                     }
@@ -7287,6 +7382,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (typeof window.bandpromoSyncIsoDateField === 'function') {
                             window.bandpromoSyncIsoDateField(playlistSettingsPublishDate);
                         }
+                    }
+                    if (playlistSettingsPackageType instanceof HTMLSelectElement) {
+                        playlistSettingsPackageType.value = packageType;
+                        if (playlistSettingsPackageType.value !== packageType) {
+                            playlistSettingsPackageType.value = 'other';
+                        }
+                    }
+                    if (playlistSettingsPlayOrder instanceof HTMLSelectElement) {
+                        playlistSettingsPlayOrder.value = playOrder;
+                    }
+                    if (playlistSettingsSetAsDefault instanceof HTMLInputElement) {
+                        playlistSettingsSetAsDefault.checked = setAsDefault;
                     }
                     if (playlistSettingsSlug instanceof HTMLInputElement) {
                         playlistSettingsSlug.value = slug;
@@ -7301,6 +7408,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (playlistSettingsPosterAssetId instanceof HTMLInputElement) {
                         playlistSettingsPosterAssetId.value = posterAssetId;
                     }
+                    suppressPlaylistPackageTypeOrderSync = false;
                     pendingPlaylistCoverPreviewUrl = posterAssetId
                         ? (String(entry?.poster_preview_url || '').trim() || playlistMediaPreviewUrlFromReference(posterAssetId))
                         : '';
@@ -7323,7 +7431,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     const settings = readPlaylistSettingsFromForm();
-                    const { title, publish_date: publishDate, slug, description, short_description: shortDescription, poster_asset_id: posterAssetId } = settings;
+                    const {
+                        title,
+                        publish_date: publishDate,
+                        package_type: packageType,
+                        play_order: playOrder,
+                        set_as_default: setAsDefault,
+                        slug,
+                        description,
+                        short_description: shortDescription,
+                        poster_asset_id: posterAssetId,
+                    } = settings;
 
                     if (!title) {
                         if (!silent && playlistSettingsStatus) {
@@ -7369,6 +7487,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             body: JSON.stringify({
                                 title,
                                 publish_date: publishDate,
+                                package_type: packageType,
+                                play_order: playOrder,
+                                set_as_default: setAsDefault,
                                 slug,
                                 description,
                                 short_description: shortDescription,
@@ -7395,8 +7516,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             pendingPlaylistCoverPreviewUrl = '';
                         }
 
-                        playlistSettingsBaseline = readPlaylistSettingsFromForm();
-                        updatePlaylistCoverPreview();
+                        syncPlaylistSettingsPanel(selectedPlaylistId);
                         if (!silent && playlistSettingsStatus) {
                             playlistSettingsStatus.textContent = 'Saved.';
                         }
@@ -7461,15 +7581,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     const trackCount = Number(entry.track_count || 0);
                     const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
-                    const publishDate = bandpromoAdminEscapeHtml(String(entry.publish_date || '').trim());
-                    const releaseId = bandpromoAdminEscapeHtml(String(entry.release_id || '').trim());
+                    const publishDate = String(entry.publish_date || '').trim();
+                    const releaseTitle = String(entry.release_title || '').trim();
+                    const packageLabel = String(entry.package_type_label || '').trim();
+                    const parts = [];
 
-                    let line = bandpromoAdminEscapeHtml(tracksLabel);
-                    if (publishDate) {
-                        line += ` · ${publishDate}`;
+                    if (publishDate && releaseTitle) {
+                        parts.push(
+                            `Published ${bandpromoAdminEscapeHtml(publishDate)} from the release "${bandpromoAdminEscapeHtml(releaseTitle)}"`
+                        );
+                    } else if (publishDate) {
+                        parts.push(`Published ${bandpromoAdminEscapeHtml(publishDate)}`);
+                    } else if (releaseTitle) {
+                        parts.push(`From the release "${bandpromoAdminEscapeHtml(releaseTitle)}"`);
                     }
-                    if (releaseId) {
-                        line += ` · release ${releaseId}`;
+
+                    parts.push(`(${bandpromoAdminEscapeHtml(tracksLabel)})`);
+
+                    let line = parts.join(' ');
+                    if (packageLabel) {
+                        line += ` · ${bandpromoAdminEscapeHtml(packageLabel)}`;
+                    }
+                    if (entry.is_default) {
+                        line += ' · Default';
                     }
 
                     return line;
@@ -7569,11 +7703,32 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         throw new Error(data.error || 'Could not load playlists');
                     }
                     playlists = Array.isArray(data.playlists) ? data.playlists : [];
+                    if (Array.isArray(data.package_types) && data.package_types.length) {
+                        const nextDefaults = {};
+                        data.package_types.forEach((row) => {
+                            const id = String(row?.id || '').trim().toLowerCase();
+                            if (!id) {
+                                return;
+                            }
+                            nextDefaults[id] = String(row?.default_play_order || '').trim().toLowerCase() === 'reverse'
+                                ? 'reverse'
+                                : 'stored';
+                        });
+                        if (Object.keys(nextDefaults).length) {
+                            playlistPackageTypeDefaults = nextDefaults;
+                        }
+                    }
                     if (releaseFilterId) {
                         const scoped = playlists.filter((entry) => String(entry.release_id || '').trim() === releaseFilterId);
                         defaultPlaylistId = String(scoped[0]?.id || playlists[0]?.id || 'bandpromo-demo');
                     } else {
-                        defaultPlaylistId = String(data.active_playlist_id || data.demo_playlist_id || playlists[0]?.id || 'bandpromo-demo');
+                        defaultPlaylistId = String(
+                            data.default_playlist_id
+                            || data.active_playlist_id
+                            || data.demo_playlist_id
+                            || playlists[0]?.id
+                            || 'bandpromo-demo'
+                        );
                     }
                     if (!selectedPlaylistId || !playlists.some((entry) => String(entry.id || '') === selectedPlaylistId)) {
                         selectedPlaylistId = defaultPlaylistId;
@@ -7725,6 +7880,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     savePlaylistSettings();
                 });
                 playlistSettingsPublishDate?.addEventListener('blur', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsPackageType?.addEventListener('change', () => {
+                    if (!suppressPlaylistPackageTypeOrderSync && playlistSettingsPlayOrder instanceof HTMLSelectElement) {
+                        playlistSettingsPlayOrder.value = defaultPlayOrderForPackageType(
+                            playlistSettingsPackageType instanceof HTMLSelectElement
+                                ? playlistSettingsPackageType.value
+                                : 'other'
+                        );
+                    }
+                    savePlaylistSettings();
+                });
+                playlistSettingsPlayOrder?.addEventListener('change', () => {
+                    savePlaylistSettings();
+                });
+                playlistSettingsSetAsDefault?.addEventListener('change', () => {
                     savePlaylistSettings();
                 });
                 playlistSettingsSlug?.addEventListener('blur', () => {

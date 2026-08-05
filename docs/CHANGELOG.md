@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-05 13:40 - Checkpoint housekeeping: ignore local theme/demo release package work directories so generated extraction trees never enter Git.
+
+2026-08-05 12:00 - Player layout: support link sits in-flow under the player (`#beggars-banquet`) instead of fixed overlay; player rail capped with vw so content keeps a fair share (`--player-rail` / responsive `--card-size`).
+
+2026-08-04 23:20 - Notes cue-sheet polish: fix CSS specificity so base heading rules no longer force coral on h2+; softer hierarchy (accent intro, calm entries, hairline separators), body 1.35, readable padding.
+
+2026-08-04 23:15 - Player Notes mode: denser cue-sheet Markdown (`player-markdown--notes`) — tighter rhythm, body line-height 1.2, only h1 keeps primary accent; entry headings step down in white/muted.
+
+2026-08-04 23:00 - Player responsive grid: mediaplayer column tracks `--card-size` + side gutters (`calc(...) 1fr`) instead of a greedy `minmax(0, 800px)` track that left empty player chrome and crushed `#content-container`.
+
+2026-08-04 22:50 - Player Markdown: restore a clear h1–h4 size spread for operator styling; paragraph line-height 1.1; keep tight heading→paragraph gaps.
+
+2026-08-04 22:45 - Player Markdown spacing: tighter heading→paragraph gaps and compact heading sizes (system default; not a brand control).
+
+2026-08-04 22:15 - Brand Panel blur also applies to playlist rows, page and gallery panels (same `--panel-blur` token as lyrics/login).
+
+2026-08-04 22:00 - Tester feedback: lyrics/Notes Markdown now renders headings/lists (lyrics keeps hard line breaks; Notes uses default paragraphs); Branding adds Readability controls (backdrop dim + panel blur); accent alpha stays auto-derived from Primary/Secondary.
+
+2026-08-04 21:45 - TODO: capture Delivery smoothness leftovers (orphan visual delivery GC, Deliverables skip/reuse summary, Visual pool honesty polish); Cursor plans closed with remaining audit todos deferred here.
+
+2026-08-04 21:25 - Track details form: Lyrics/Notes field uses only the role toggle (no duplicate field label); textarea `aria-label` follows the active role.
+
+2026-08-04 21:10 - Publish fix: starter-pack install no longer fails on Google Drive `desktop.ini` (skip during copy_tree; workdir cleanup is best-effort with retries after a successful install).
+
+2026-08-04 20:55 - Operator label rename: install **Active** brand → **Base** brand (Set as base / Base badge / help copy). Storage pointers (`active_theme_id` / `active_brand_id`) unchanged.
+
+2026-08-04 20:50 - Branding editor: hide Brand narrative (mood/keywords/tone) from the operator UI for now; fields remain in brand documents for future premade themes / AI helpers.
+
+2026-08-04 20:35 - Branding Shell media: cover-style overlay ✎/↺ on larger slot previews; tightened operator helper copy on the Branding editor.
+
+2026-08-04 20:20 - Branding Shell media: replace the in-editor Brand assets drag/click pool with per-slot ✎ pickers (same shared media picker as covers); logo → Brand assets, poster/still → Visual+Brand assets, living → Visual video, SFX → Sound effects; picker tiles pass `asset_id` into brand `asset_ids`.
+
+2026-08-04 19:30 - Playlist operator UX: friendly pool meta (`Published DATE from the release "TITLE" (N tracks)`); pin default playlist via `install.pointers.default_playlist_id` (player fallback remains latest public `publish_date`); `package_type` + `play_order` (`stored`/`reverse`, shows/podcasts default reverse) in storage, settings UI, and player payload track order. Playlist settings saves no longer wipe published player tracks (order applies at load time).
+
+2026-08-04 18:35 - Per-track text panel role: Lyrics ↔ Notes toggle in Files → Audio (`display.text_role` + optional `notes_label`, default player nav Tracklist); same Lyrics tag/registry content; player `syncLyricsTab` renames the locked nav; live overlay on playlist payload without full Publish.
+
+2026-08-04 17:45 - Brand shell override runtime: player applies release-brand logo + still/living backgrounds on playlist select (payload `brand_styles[].assets`); CSS tokens unchanged; install Active baseline kept for empty slots and login SFX; system scrim over busy shell media; living background re-attaches after playlist switch.
+
+2026-08-04 13:55 - Publish fix: `optimizeMedia.py` summary referenced removed `photo_count`/`img_illus_count` after M4 register-or-fail, causing `NameError` and failing Rebuild all deliverables; summary now reports `orphan_count` and visual rebuilt/fresh/failed counts.
+
 2026-08-04 17:40 - Visual identity M4–M6: stop stem dual-write + register-or-fail; Files `operator_title`; shell `asset_ids` heal; release campaign export ZIP (`export-release-package.php` / `bandpromo_release_campaign_export_to_zip`) with registry subset; import merges `data/assets/registry.json`.
 
 2026-08-04 17:10 - M4/M5: stop visual stem optimal/thumb dual-write; register-or-fail skips unregistered image/video intake on Publish; resolver drops stem optimal dual-read (delivery → unified original/master → intake); shell heal backfills brand `asset_ids`; Files Visual exposes `operator_title` (role + context). Physical `media/special/` fold deferred; M6 export still open.

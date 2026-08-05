@@ -9,7 +9,12 @@ declare(strict_types=1);
 
 function bandpromo_player_markdown_normalize_mode(string $mode): string
 {
-    return $mode === 'lyrics' ? 'lyrics' : 'default';
+    $mode = strtolower(trim($mode));
+    if ($mode === 'lyrics' || $mode === 'notes') {
+        return $mode;
+    }
+
+    return 'default';
 }
 
 function bandpromo_player_markdown_strip_to_plain_text(string $markdown): string
@@ -112,32 +117,13 @@ function bandpromo_player_markdown_split_paragraphs(string $markdown): array
     return $paragraphs;
 }
 
-function bandpromo_player_markdown_render_lyrics(string $markdown): string
-{
-    $paragraphs = bandpromo_player_markdown_split_paragraphs($markdown);
-    if ($paragraphs === []) {
-        return '';
-    }
-
-    $html = [];
-    foreach ($paragraphs as $paragraph) {
-        $lines = preg_split('/\n/', $paragraph) ?: [];
-        $renderedLines = [];
-        foreach ($lines as $line) {
-            $line = rtrim((string) $line);
-            if ($line === '') {
-                $renderedLines[] = '<br>';
-                continue;
-            }
-            $renderedLines[] = bandpromo_player_markdown_render_inline($line);
-        }
-        $html[] = '<p>' . implode('<br>', $renderedLines) . '</p>';
-    }
-
-    return '<div class="player-markdown player-markdown--lyrics">' . implode('', $html) . '</div>';
-}
-
-function bandpromo_player_markdown_render_default(string $markdown): string
+/**
+ * Restricted block Markdown. When $hardBreaks is true (lyrics mode), consecutive
+ * plain lines become one paragraph joined with <br> instead of spaces.
+ *
+ * @return list<string>
+ */
+function bandpromo_player_markdown_render_blocks(string $markdown, bool $hardBreaks): array
 {
     $lines = preg_split('/\r\n|\r|\n/', $markdown) ?: [];
     $html = [];
@@ -148,11 +134,19 @@ function bandpromo_player_markdown_render_default(string $markdown): string
     $codeLines = [];
     $inCodeBlock = false;
 
-    $flushParagraph = static function () use (&$html, &$paragraphLines): void {
+    $flushParagraph = static function () use (&$html, &$paragraphLines, $hardBreaks): void {
         if ($paragraphLines === []) {
             return;
         }
-        $html[] = '<p>' . bandpromo_player_markdown_render_inline(trim(implode(' ', $paragraphLines))) . '</p>';
+        if ($hardBreaks) {
+            $parts = [];
+            foreach ($paragraphLines as $line) {
+                $parts[] = bandpromo_player_markdown_render_inline((string) $line);
+            }
+            $html[] = '<p>' . implode('<br>', $parts) . '</p>';
+        } else {
+            $html[] = '<p>' . bandpromo_player_markdown_render_inline(trim(implode(' ', $paragraphLines))) . '</p>';
+        }
         $paragraphLines = [];
     };
 
@@ -247,7 +241,7 @@ function bandpromo_player_markdown_render_default(string $markdown): string
 
         $flushList();
         $flushQuote();
-        $paragraphLines[] = trim($line);
+        $paragraphLines[] = $hardBreaks ? rtrim($line) : trim($line);
     }
 
     if ($inCodeBlock) {
@@ -258,11 +252,37 @@ function bandpromo_player_markdown_render_default(string $markdown): string
     $flushList();
     $flushQuote();
 
+    return $html;
+}
+
+function bandpromo_player_markdown_render_lyrics(string $markdown): string
+{
+    $html = bandpromo_player_markdown_render_blocks($markdown, true);
+    if ($html === []) {
+        return '';
+    }
+
+    return '<div class="player-markdown player-markdown--lyrics">' . implode('', $html) . '</div>';
+}
+
+function bandpromo_player_markdown_render_default(string $markdown): string
+{
+    $html = bandpromo_player_markdown_render_blocks($markdown, false);
     if ($html === []) {
         return '';
     }
 
     return '<div class="player-markdown">' . implode('', $html) . '</div>';
+}
+
+function bandpromo_player_markdown_render_notes(string $markdown): string
+{
+    $html = bandpromo_player_markdown_render_blocks($markdown, false);
+    if ($html === []) {
+        return '';
+    }
+
+    return '<div class="player-markdown player-markdown--notes">' . implode('', $html) . '</div>';
 }
 
 function bandpromo_player_markdown_render(string $markdown, string $mode = 'default'): string
@@ -272,7 +292,13 @@ function bandpromo_player_markdown_render(string $markdown, string $mode = 'defa
         return '';
     }
 
-    return bandpromo_player_markdown_normalize_mode($mode) === 'lyrics'
-        ? bandpromo_player_markdown_render_lyrics($markdown)
-        : bandpromo_player_markdown_render_default($markdown);
+    $normalized = bandpromo_player_markdown_normalize_mode($mode);
+    if ($normalized === 'lyrics') {
+        return bandpromo_player_markdown_render_lyrics($markdown);
+    }
+    if ($normalized === 'notes') {
+        return bandpromo_player_markdown_render_notes($markdown);
+    }
+
+    return bandpromo_player_markdown_render_default($markdown);
 }

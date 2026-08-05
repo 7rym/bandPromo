@@ -26,6 +26,8 @@
     --primary-a50: color-mix(in srgb, var(--primary-color) 50%, transparent);
     --secondary-a20: color-mix(in srgb, var(--secondary-color) 20%, transparent);
     --secondary-a30: color-mix(in srgb, var(--secondary-color) 30%, transparent);
+    --shell-scrim-strength: 0.72;
+    --panel-blur: 5px;
 }
 
 body {
@@ -57,7 +59,7 @@ body {
     height: 100%;
     object-fit: cover;
     object-position: center center;
-    z-index: -1;
+    z-index: -2;
     display: none;
     background: var(--bg-color, #000);
     pointer-events: none;
@@ -72,6 +74,18 @@ body.shell-bg-image {
 
 body.shell-bg-video {
     background-image: none;
+}
+
+/* Brand-tunable scrim over busy still/living backgrounds (effects.backdrop_dim). */
+body.shell-bg-image::before,
+body.shell-bg-video::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #000;
+    opacity: var(--shell-scrim-strength, 0.72);
 }
 
 /*
@@ -121,10 +135,18 @@ Breakpoints:
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
-    :root { --card-size: 320px; }
+    :root {
+        --card-size: min(320px, 34vw);
+        --player-side-gutter: clamp(20px, 2.5vw, 40px);
+        --player-rail: min(
+            calc(var(--card-size) + 2 * var(--player-side-gutter)),
+            42vw
+        );
+    }
     body {
         display: grid;
-        grid-template-columns: minmax(0, 800px) minmax(0, 1fr);
+        /* Player rail tracks cover size but never steals more than ~42vw from content. */
+        grid-template-columns: var(--player-rail) minmax(0, 1fr);
         grid-template-rows: auto auto auto auto;
         gap: 0px;
         align-items: start;
@@ -142,14 +164,17 @@ Breakpoints:
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        max-width: 800px;
+        max-width: none;
         min-width: 0;
+        box-sizing: border-box;
+        overflow-x: visible;
     }
     #content-container {
         grid-column: 2;
         grid-row: 1 / 6;
         width: 100%;
         max-width: none;
+        min-width: 0;
         height: calc(100vh - 20px);
         display: flex;
         flex-direction: column;
@@ -162,10 +187,17 @@ Breakpoints:
 
 
 @media (min-width: 1024px) and (max-width: 1365px) {
-    :root { --card-size: 430px; }
+    :root {
+        --card-size: min(430px, 34vw);
+        --player-side-gutter: clamp(24px, 2.8vw, 48px);
+        --player-rail: min(
+            calc(var(--card-size) + 2 * var(--player-side-gutter)),
+            40vw
+        );
+    }
     body {
         display: grid;
-        grid-template-columns: minmax(0, 800px) minmax(0, 1fr);
+        grid-template-columns: var(--player-rail) minmax(0, 1fr);
         grid-template-rows: auto auto auto auto;
         gap: 0px;
         align-items: start;
@@ -183,14 +215,17 @@ Breakpoints:
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        max-width: 800px;
+        max-width: none;
         min-width: 0;
+        box-sizing: border-box;
+        overflow-x: visible;
     }
     #content-container {
         grid-column: 2;
         grid-row: 1 / 6;
         width: 100%;
         max-width: none;
+        min-width: 0;
         height: calc(100vh - 20px);
         display: flex;
         flex-direction: column;
@@ -202,7 +237,14 @@ Breakpoints:
 }
 
 @media (min-width: 1366px) {
-    :root { --card-size: 600px; }
+    :root {
+        --card-size: min(560px, 32vw);
+        --player-side-gutter: clamp(28px, 3vw, 56px);
+        --player-rail: min(
+            calc(var(--card-size) + 2 * var(--player-side-gutter)),
+            38vw
+        );
+    }
     body {
         background-image: 
             linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8));
@@ -210,7 +252,7 @@ Breakpoints:
         background-position: center;
         background-attachment: fixed;
         display: grid;
-        grid-template-columns: minmax(0, 800px) minmax(0, 1fr);
+        grid-template-columns: var(--player-rail) minmax(0, 1fr);
         grid-template-rows: auto auto auto auto;
         gap: 0px;
         padding: 4px 0 0 0;
@@ -226,14 +268,17 @@ Breakpoints:
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        max-width: 800px;
+        max-width: none;
         min-width: 0;
+        box-sizing: border-box;
+        overflow-x: visible;
     }
     #content-container {
         grid-column: 2;
         grid-row: 1 / 6;
         width: 100%;
         max-width: none;
+        min-width: 0;
         height: calc(100vh - 20px);
         display: flex;
         flex-direction: column;
@@ -409,8 +454,9 @@ body.debug-modal-open {
 
 /* 3D Scene Container */
 .scene {
-    width: var(--card-size);
-    height: var(--card-size);
+    width: min(var(--card-size), 100%);
+    aspect-ratio: 1 / 1;
+    height: auto;
     perspective: 1000px;
     margin-bottom: 8px;
     position: relative;
@@ -666,22 +712,41 @@ button.pulse-guide {
 }
 
 .support-link-button {
-    position: fixed;
-    left: 10px;
-    bottom: 50px;
-    z-index: 10000;
+    position: static;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 14px 18px;
+    margin: 10px auto 0;
+    padding: 10px 16px;
     border-radius: 999px;
     background: var(--support-button-background, #323842);
     color: var(--support-button-text, #ffffff);
     text-decoration: none;
     font-weight: 600;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    max-width: calc(100vw - 20px);
+    font-size: 0.9rem;
+    line-height: 1.2;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+    max-width: min(100%, calc(var(--card-size, 400px) + 24px));
     box-sizing: border-box;
+    z-index: 20;
+}
+
+#beggars-banquet {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: calc(var(--card-size, 400px) + 24px);
+    margin: 0 auto;
+    padding: 0 8px 8px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    z-index: 20;
+}
+
+#beggars-banquet:not(:has(.support-link-button)) {
+    display: none;
+    padding: 0;
 }
 
 .content-toggle {
@@ -728,7 +793,8 @@ button.pulse-guide {
     font-style: italic;
     line-height: 1.6;
     color: #ddd;
-    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
     transition: opacity 0.3s;
@@ -739,6 +805,7 @@ button.pulse-guide {
     text-align: left;
     font-style: normal;
     color: inherit;
+    line-height: 1.1;
 }
 
 .player-markdown--lyrics {
@@ -747,7 +814,8 @@ button.pulse-guide {
 }
 
 .player-markdown p {
-    margin: 0 0 0.75em;
+    margin: 0 0 0.45em;
+    line-height: 1.1;
 }
 
 .player-markdown p:last-child {
@@ -760,19 +828,47 @@ button.pulse-guide {
 .player-markdown h4,
 .player-markdown h5,
 .player-markdown h6 {
-    margin: 0 0 0.5em;
+    margin: 0.7em 0 0.15em;
     color: var(--primary-color);
     font-style: normal;
+    line-height: 1.15;
+    font-weight: 700;
+}
+
+/* Styling scale for operators (visual hierarchy more than outline structure). */
+.player-markdown h1 { font-size: 1.75em; }
+.player-markdown h2 { font-size: 1.45em; }
+.player-markdown h3 { font-size: 1.2em; }
+.player-markdown h4 { font-size: 1.05em; }
+.player-markdown h5,
+.player-markdown h6 { font-size: 1em; font-weight: 600; }
+
+.player-markdown h1:first-child,
+.player-markdown h2:first-child,
+.player-markdown h3:first-child,
+.player-markdown h4:first-child,
+.player-markdown h5:first-child,
+.player-markdown h6:first-child {
+    margin-top: 0;
+}
+
+.player-markdown h1 + p,
+.player-markdown h2 + p,
+.player-markdown h3 + p,
+.player-markdown h4 + p,
+.player-markdown h5 + p,
+.player-markdown h6 + p {
+    margin-top: 0;
 }
 
 .player-markdown ul,
 .player-markdown ol {
-    margin: 0 0 0.75em;
+    margin: 0 0 0.45em;
     padding-left: 1.25em;
 }
 
 .player-markdown blockquote {
-    margin: 0 0 0.75em;
+    margin: 0 0 0.45em;
     padding-left: 0.75em;
     border-left: 2px solid var(--primary-a40);
     color: #bbb;
@@ -808,6 +904,123 @@ button.pulse-guide {
     border: 0;
     border-top: 1px solid var(--primary-a20);
     margin: 0.75em 0;
+}
+
+/* Notes cue-sheet — must follow base heading rules (higher specificity).
+   Soft: one accent intro, calm entry titles, readable body — not neon stack. */
+.lyrics-box:has(.player-markdown--notes) {
+    font-style: normal;
+    text-align: left;
+    line-height: 1.35;
+    color: var(--text-color, #fff);
+    padding: 12px 18px 64px 14px;
+}
+
+.player-markdown.player-markdown--notes {
+    text-align: left;
+    font-style: normal;
+    line-height: 1.35;
+    max-width: 42rem;
+}
+
+.player-markdown.player-markdown--notes p {
+    margin: 0 0 0.55em;
+    line-height: 1.35;
+    font-weight: 400;
+    color: color-mix(in srgb, var(--text-color, #fff) 78%, transparent);
+}
+
+.player-markdown.player-markdown--notes h1,
+.player-markdown.player-markdown--notes h2,
+.player-markdown.player-markdown--notes h3,
+.player-markdown.player-markdown--notes h4,
+.player-markdown.player-markdown--notes h5,
+.player-markdown.player-markdown--notes h6 {
+    text-shadow: none;
+    letter-spacing: -0.01em;
+}
+
+.player-markdown.player-markdown--notes h1 {
+    margin: 0 0 0.85em;
+    font-size: 1.35em;
+    font-weight: 650;
+    line-height: 1.25;
+    color: var(--primary-color);
+}
+
+.player-markdown.player-markdown--notes h2 {
+    margin: 1.05em 0 0.2em;
+    padding-top: 0.55em;
+    border-top: 1px solid color-mix(in srgb, var(--text-color, #fff) 10%, transparent);
+    font-size: 0.98em;
+    font-weight: 600;
+    line-height: 1.3;
+    color: color-mix(in srgb, var(--text-color, #fff) 92%, var(--primary-color) 8%);
+}
+
+.player-markdown.player-markdown--notes h2:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.player-markdown.player-markdown--notes h1 + h2 {
+    margin-top: 0.35em;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.player-markdown.player-markdown--notes h3 {
+    margin: 0.85em 0 0.15em;
+    font-size: 0.92em;
+    font-weight: 600;
+    line-height: 1.3;
+    color: color-mix(in srgb, var(--text-color, #fff) 82%, transparent);
+}
+
+.player-markdown.player-markdown--notes h4,
+.player-markdown.player-markdown--notes h5,
+.player-markdown.player-markdown--notes h6 {
+    margin: 0.7em 0 0.12em;
+    font-size: 0.88em;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-text-muted, #bbb);
+}
+
+.player-markdown.player-markdown--notes h1:first-child,
+.player-markdown.player-markdown--notes h3:first-child,
+.player-markdown.player-markdown--notes h4:first-child,
+.player-markdown.player-markdown--notes h5:first-child,
+.player-markdown.player-markdown--notes h6:first-child {
+    margin-top: 0;
+}
+
+.player-markdown.player-markdown--notes h1 + p,
+.player-markdown.player-markdown--notes h2 + p,
+.player-markdown.player-markdown--notes h3 + p,
+.player-markdown.player-markdown--notes h4 + p,
+.player-markdown.player-markdown--notes h5 + p,
+.player-markdown.player-markdown--notes h6 + p {
+    margin-top: 0;
+}
+
+.player-markdown.player-markdown--notes ul,
+.player-markdown.player-markdown--notes ol {
+    margin: 0 0 0.55em;
+    padding-left: 1.15em;
+}
+
+.player-markdown.player-markdown--notes blockquote {
+    margin: 0 0 0.55em;
+    padding-left: 0.75em;
+    border-left: 2px solid var(--primary-a30);
+    color: var(--color-text-muted, #bbb);
+}
+
+.player-markdown.player-markdown--notes hr {
+    margin: 0.9em 0;
+    border-top-color: color-mix(in srgb, var(--text-color, #fff) 12%, transparent);
 }
 
 .playlist-track-description.player-markdown-host {
@@ -852,6 +1065,8 @@ button.pulse-guide {
     align-items: flex-start;
     cursor: pointer;
     transition: all 0.2s ease;
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 @media (hover: hover) {
@@ -1303,6 +1518,8 @@ audio {
     line-height: 1.6;
     color: var(--color-text-muted);
     text-align: center;
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .page-box a {
@@ -1381,6 +1598,8 @@ audio {
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
     display: none;
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .gallery-box.active {
@@ -1402,6 +1621,8 @@ audio {
     display: flex;
     gap: 12px;
     align-items: flex-start;
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .track-cover {
@@ -1626,10 +1847,9 @@ audio {
     }
 
     .support-link-button {
-        left: 10px;
-        bottom: 12px;
-        padding: 7px 10px;
-        font-size: 0.72rem;
+        margin-top: 8px;
+        padding: 7px 12px;
+        font-size: 0.78rem;
         gap: 5px;
         border-radius: 18px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
@@ -1690,10 +1910,9 @@ audio {
     }
 
     .support-link-button {
-        left: 12px;
-        bottom: 14px;
-        padding: 8px 11px;
-        font-size: 0.74rem;
+        margin-top: 8px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
         gap: 5px;
         border-radius: 18px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
@@ -1838,14 +2057,13 @@ audio {
     }
 
     .support-link-button {
-        left: 8px;
-        bottom: 8px;
-        padding: 6px 9px;
-        font-size: 0.68rem;
+        margin-top: 6px;
+        padding: 7px 11px;
+        font-size: 0.75rem;
         gap: 4px;
         border-radius: 16px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.24);
-        max-width: 140px;
+        max-width: 100%;
     }
 }
 

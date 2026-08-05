@@ -43,19 +43,24 @@ function bandpromo_release_ensure_dir(string $path): void {
     }
 }
 
-function bandpromo_release_rrmdir(string $path): void {
+function bandpromo_release_rrmdir(string $path, int $retries = 3): void {
     if (!file_exists($path) && !is_link($path)) {
         return;
     }
 
     if (is_file($path) || is_link($path)) {
+        $basename = strtolower(basename($path));
+        // Google Drive recreates desktop.ini; never let it block workdir cleanup.
+        if ($basename === 'desktop.ini') {
+            @chmod($path, 0666);
+        }
         if (!@unlink($path)) {
             throw new RuntimeException('Could not remove file: ' . $path);
         }
         return;
     }
 
-    $items = scandir($path);
+    $items = @scandir($path);
     if ($items === false) {
         throw new RuntimeException('Could not inspect directory: ' . $path);
     }
@@ -65,11 +70,42 @@ function bandpromo_release_rrmdir(string $path): void {
             continue;
         }
 
-        bandpromo_release_rrmdir($path . DIRECTORY_SEPARATOR . $item);
+        bandpromo_release_rrmdir($path . DIRECTORY_SEPARATOR . $item, $retries);
     }
 
-    if (!@rmdir($path)) {
-        throw new RuntimeException('Could not remove directory: ' . $path);
+    $attempts = max(1, $retries);
+    for ($i = 0; $i < $attempts; $i++) {
+        if (@rmdir($path)) {
+            return;
+        }
+        // Windows + Google Drive often holds the folder briefly after extract/copy.
+        usleep(150000 * ($i + 1));
+        clearstatcache(true, $path);
+        if (!file_exists($path)) {
+            return;
+        }
+        // Retry deleting any desktop.ini Google Drive may have rewritten mid-cleanup.
+        $desktopIni = $path . DIRECTORY_SEPARATOR . 'desktop.ini';
+        if (is_file($desktopIni) || is_link($desktopIni)) {
+            @chmod($desktopIni, 0666);
+            @unlink($desktopIni);
+        }
+    }
+
+    throw new RuntimeException('Could not remove directory: ' . $path);
+}
+
+/**
+ * Best-effort recursive delete for temporary workdirs.
+ * Returns false when the tree cannot be fully removed (e.g. Google Drive lock).
+ */
+function bandpromo_release_rrmdir_best_effort(string $path): bool
+{
+    try {
+        bandpromo_release_rrmdir($path);
+        return true;
+    } catch (Throwable $throwable) {
+        return false;
     }
 }
 
@@ -244,6 +280,12 @@ function bandpromo_release_sha256_file(string $path): string {
 function bandpromo_release_copy_tree(string $sourceRoot, string $targetRoot, string $relativePath = ''): void {
     $sourcePath = $relativePath === '' ? $sourceRoot : $sourceRoot . DIRECTORY_SEPARATOR . $relativePath;
     $targetPath = $relativePath === '' ? $targetRoot : $targetRoot . DIRECTORY_SEPARATOR . $relativePath;
+    $basename = strtolower(basename($sourcePath));
+
+    // Google Drive injects desktop.ini into extracted folders; never install those.
+    if ($basename === 'desktop.ini') {
+        return;
+    }
 
     if (is_dir($sourcePath) && !is_link($sourcePath)) {
         bandpromo_release_ensure_dir($targetPath);
@@ -253,7 +295,7 @@ function bandpromo_release_copy_tree(string $sourceRoot, string $targetRoot, str
         }
 
         foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
+            if ($item === '.' || $item === '..' || strcasecmp($item, 'desktop.ini') === 0) {
                 continue;
             }
 
@@ -265,7 +307,7 @@ function bandpromo_release_copy_tree(string $sourceRoot, string $targetRoot, str
     }
 
     bandpromo_release_ensure_dir(dirname($targetPath));
-    if (!copy($sourcePath, $targetPath)) {
+    if (!@copy($sourcePath, $targetPath)) {
         throw new RuntimeException('Could not copy extracted package file into place: ' . $relativePath);
     }
 }
@@ -766,7 +808,14 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
     $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'default-theme.zip';
     $extractDir = $workDir . DIRECTORY_SEPARATOR . 'extract';
 
-    bandpromo_release_rrmdir($workDir);
+    if (!bandpromo_release_rrmdir_best_effort($workDir)) {
+        bandpromo_release_log(
+            $logger,
+            '[starter pack] Could not fully clear previous package workdir (often Google Drive lock). Continuing with a fresh extract folder…'
+        );
+        // Prefer a unique extract dir when the old workdir is stuck.
+        $extractDir = $workDir . DIRECTORY_SEPARATOR . 'extract-' . gmdate('YmdHis');
+    }
     bandpromo_release_ensure_dir($extractDir);
 
     bandpromo_release_log($logger, '[starter pack] Downloading demo content package...');
@@ -798,7 +847,12 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
     }
 
     bandpromo_release_write_default_theme_marker($root, $package);
-    bandpromo_release_rrmdir($workDir);
+    if (!bandpromo_release_rrmdir_best_effort($workDir)) {
+        bandpromo_release_log(
+            $logger,
+            '[starter pack] Demo content installed; leftover package workdir could not be removed yet (Google Drive often locks extract/). Safe to ignore.'
+        );
+    }
     bandpromo_release_log($logger, '[starter pack] Demo content package installed successfully.');
 
     return [

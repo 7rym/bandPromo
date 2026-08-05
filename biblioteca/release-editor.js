@@ -418,7 +418,7 @@
                 return;
             }
             const selected = String(releaseSettingsBrandId.value || releaseEntry(selectedReleaseId)?.brand_id || '');
-            releaseSettingsBrandId.innerHTML = '<option value="">Install default</option>';
+            releaseSettingsBrandId.innerHTML = '<option value="">Base brand</option>';
             releaseBrandCatalog.forEach((brand) => {
                 const id = String(brand?.id || '').trim();
                 if (!id) {

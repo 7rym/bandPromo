@@ -475,6 +475,8 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
         'genre' => trim((string) ($display['genre'] ?? '')),
         'comment' => trim((string) ($display['comment'] !== '' ? $display['comment'] : ($playlistEntry['description'] ?? ''))),
         'lyrics' => (string) ($display['lyrics'] !== '' ? $display['lyrics'] : ($playlistEntry['lyrics'] ?? '')),
+        'text_role' => (string) ($display['text_role'] ?? 'lyrics'),
+        'notes_label' => (string) ($display['notes_label'] ?? ''),
         'duration_seconds' => max(0, (int) ($display['duration'] > 0 ? $display['duration'] : ($playlistEntry['duration'] ?? 0))),
         'bitrate_kbps' => 0,
         'sample_rate_hz' => 0,

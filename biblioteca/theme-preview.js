@@ -29,7 +29,7 @@
             }
             value = value[part];
         }
-        return typeof value === 'string' ? value.trim() : '';
+        return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
     }
 
     function renderShellPreviewChrome(document) {
@@ -163,6 +163,12 @@
         } else if (baseFont) {
             rules.push(`--theme-heading-font:${baseFont}`);
         }
+        const dimRaw = tokenValue(document, 'effects.backdrop_dim');
+        const blurRaw = tokenValue(document, 'effects.panel_blur');
+        const dim = Math.max(0, Math.min(100, parseInt(dimRaw || '72', 10) || 72));
+        const blur = Math.max(0, Math.min(24, parseInt(blurRaw || '5', 10) || 0));
+        rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
+        rules.push(`--panel-blur:${blur}px`);
 
         style.textContent = rules.length ? `${selector}{${rules.join(';')};}` : '';
         container.innerHTML = renderMarkup(document);

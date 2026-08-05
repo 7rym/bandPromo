@@ -119,10 +119,10 @@ Policy — **locked**:
 Implementation order:
 
 - [x] **Brand storage + migration** — `data/brands/` registry; migrate `data/themes/` + `active_theme_id` → `active_brand_id`; compatibility reads. *(Shipped build 320.)*
-- [x] **Content → Branding editor** — mood/keywords/tone narrative fields; duplicate + Set active; brand labeling in admin UI.
+- [x] **Content → Branding editor** — duplicate + Set as base; brand labeling in admin UI. Mood/keywords/tone narrative fields remain in brand documents for future premade themes / AI helpers; hidden from the operator editor for now (2026-08-04).
 - [x] **Release editor brand picker** — `brand_id` on releases; inherit install default when empty.
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
-- [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses active brand CSS tokens.
+- [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
 - [x] **Welcome nudge** — auto-provision editable operator brand from bandPromo Default; post-setup suggestions for media, FAQ, Pages, and backup import.
 - [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
@@ -171,7 +171,7 @@ Implementation order:
 - [x] **Phase 1 — format-aware delivery** — preserve alpha; sanity max dimensions per role; stop white-background flatten for alpha sources. *(2026-07-21: `delivery-contexts.json` + alpha → PNG / opaque → JPEG in `optimizeMedia.py`.)*
 - [x] **Phase 2 — multi-variant storage** — `media/visual/delivery/{asset_id}/{variant}`; per-asset variant manifest. Merge legacy `img/` + `photo/` into the visual family here (not a separate `stills/` tree). *(2026-07-21: delivery paths asset-id based; originals still legacy intake until Phase 3 Brand-assets fold.)*
 - [x] **Phase 3 — Files → Visual (operator UX)** — single Files tab merging Illustrations/Photos/Video with type/usage/role filters; old `fpanel=` URLs redirect; pickers browse Visual for image/video contexts. **Brand assets** (`special`) stays a separate legacy intake tab. *(2026-07-15; rename from Theme 2026-07-16)*
-- [x] **Branding editor IA** — Shell media = assignment slots only; Brand assets = sibling assignable pool; Live preview shows shell chrome (logo/backdrop), not an asset gallery. *(2026-07-16)*
+- [x] **Branding editor IA** — Shell media = assignment slots with shared media picker (same ✎ flow as covers); Live preview shows shell chrome (logo/backdrop), not an asset gallery. *(2026-07-16; picker UX 2026-08-04)*
 - [x] **Phase 3 remainders (operator wiring, 2026-07-21)** — brand filter chip on Files → Visual + pickers; Content pool variant gating (`pool_ready` / missing variant names); track-cover assign stores pool ref + embed (no stem sidecar copy); build prefers assigned cover.
 - [x] **Sound effects pool (2026-07-21)** — Files → Sound effects (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`); Branding welcome/logged-in slots assign any SFX clip (no per-slot file roles); migrate special shell audio refs. Extra UI SFX slots (click/zoom) deferred until needed.
 
@@ -196,6 +196,14 @@ Implementation order:
 - [x] **M4 — quit legacy conversion** — stop stem optimal/thumb dual-write; register-or-fail for unregistered intake; drop stem optimal dual-read in resolver; shell heal fills `asset_ids`; Brand-assets `media/special/` intake remains as dual-write source until physical folder retirement.
 - [x] **M5 — Files Visual operator titles** — `operator_title` / `display_title` = role + linked context on list-media visual rows.
 - [x] **M6 — release export + import merge** — `bandpromo_release_campaign_export_to_zip()` ships masters + campaign docs + `data/assets/registry.json` subset; import merges asset registry (no wipe); `data/assets/` allowed in package paths.
+
+### Delivery smoothness leftovers (deferred 2026-08-04)
+
+P0 tag-save `/play` calm + P1a shared-cover exact-hash link shipped 2026-08-03. Skip-if-fresh largely landed under M3. Remaining housekeeping (not urgent):
+
+- [ ] **Orphan visual delivery GC** — prune stale `media/visual/delivery/{asset_id}/` trees when the asset is gone or remapped.
+- [ ] **Deliverables skip/reuse summary** — operator-facing Publish/Deliverables counts for skipped-fresh variants and reused covers (beyond build-log lines).
+- [ ] **Visual pool honesty polish** — first-class “used by N” / Unused vs Orphan chips (partial `reference_count` / orphan plumbing already exists).
 
 Related open items (absorbed into M1 unless noted):
 
@@ -375,7 +383,8 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement `data/releases` + required track membership + release `locked` guards.
 - [x] Remove playlist-save → master tag sync (`bandpromo_sync_playlist_order_to_audio_masters`) and `playlist_tracknumber` metadata fallbacks.
 - [x] Implement `data/playlists` + registry; admin/runtime reads use containers (legacy playlist artifacts removed).
-- [x] Implement playlist selector in player **Playlists** tab; default = latest system playlist with `publish_date <= now`. Selector renders when two or more `kind: "system"` playlists exist.
+- [x] Implement playlist selector in player **Playlists** tab; default = pinned `install.pointers.default_playlist_id` when still player-visible, else latest system playlist with `publish_date <= now`. Selector renders when two or more `kind: "system"` playlists exist.
+- [x] Playlist package type + play order (`stored` / `reverse`); shows/podcasts default reverse for newest-first playback; admin pool meta uses release title.
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
 - [x] Implement first gallery **module block** on pages (minimum: `grid` preset).
@@ -408,8 +417,8 @@ Deferred to v0.9 (implement after v0.8 definitions are stable):
 Deferred to v1+:
 
 - [ ] **Release-contextual player page tabs** — Content → Player keeps optional **global** pages; pages associated to the current track’s release append to the nav (Playlists | Lyrics first). FAQ stays login/global. Idle/first-load context decided at implementation. Policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md) Twisted Chronicles.
-- [ ] **Per-track Lyrics / Tracklist role** — one shell panel and one master text field; role `lyrics` | `tracklist` renames the locked nav label while that track plays (HITZ). Dual fields / timed cues deferred further.
-- [ ] **Brand shell override runtime** — login applies active brand shell assets; player applies release brand shell assets; system-owned scrim for busy backgrounds (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → System shell vs brand overlay).
+- [x] **Per-track text panel role (Lyrics ↔ Notes)** — one shell panel and one master Lyrics field; registry `display.text_role` (`lyrics`|`notes`) + optional `notes_label` (default player label **Tracklist**); renames the locked nav while that track plays. Dual fields / timed cues deferred.
+- [x] **Brand shell override runtime** — login applies base brand shell assets; player applies release-brand logo + still/living backgrounds on playlist select (CSS tokens already did); Welcome/Logged-in SFX stay Base/login; system-owned scrim over busy backgrounds.
 - [ ] **Brand typography v2** — web/display font slots per brand.
 - [ ] **Brand starter templates** — duplicate-only era/genre seeds (optional convenience, not a theme engine).
 - [ ] Fan credits ledger and rebate/boon mechanics.
@@ -620,5 +629,5 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 - **v0.8 = management machine** — Brand (replaces Theme), Visual pool + role tags, release `brand_id`, content AI wizards, delivery scaling. See **v0.8 management slice**.
 - **v0.9** — access-tier implementation, login/anonymous entry, user roles, Chromecast/cast implementation.
 - **v2+ = marketing machine** — campaign automation and marketing AI from existing catalog content.
-- Current operator model: one active brand (duplicate demo default), multiple releases/playlists/galleries — releases link to shared brands by era.
+- Current operator model: one base brand (duplicate demo default), multiple releases/playlists/galleries — releases link to shared brands by era.
 - If a task does not help ship or define the current v0.8 milestone, it probably belongs in the roadmap, not here.

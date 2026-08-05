@@ -53,7 +53,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** v0.8 **Visual identity completion (M1–M6)** — `asset_id` refs everywhere → on-disk visual masters → XXH3 skip-if-fresh → quit dual-write/`special` → operator Files titles → release-package export. Content AI wizards remain defined. Page container metadata / OG polish still v0.9. See [TODO.md](TODO.md).
+**Next focus:** v0.8 residual polish — physical Brand-assets `media/special/` fold into Visual-only intake; Content AI wizards remain defined. Page container metadata / OG polish still v0.9. See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -111,7 +111,7 @@ Initial brand support should focus on:
 - **release `brand_id` links** — many releases (singles, EPs, album, post-album singles) may share one brand; release cover stays **`poster_asset_id` on the release**
 - explicit **role tags** on visual uploads; brand filter in Files and pickers
 - operator-friendly favicon package intake (RealFaviconGenerator ZIP → `media/icons/`)
-- module templates inheriting from the active brand
+- module templates inheriting from the base brand
 
 The first brand system does not need arbitrary custom templating. It needs a clean brand API and a Visual pool filtered by `brand_id` + role.
 
@@ -551,7 +551,7 @@ Closed-beta fleet personas (Vanilla demo install, **Twisted Chronicles** band ca
 
 - **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Branding, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
 - **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
-- **Planned (player context — policy locked 2026-07-22):** release-contextual player page tabs; per-track Lyrics/Tracklist role; brand shell override runtime ([PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md), [TODO.md](TODO.md)).
+- **Planned (player context — policy locked 2026-07-22):** release-contextual player page tabs ([PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md), [TODO.md](TODO.md)). Brand shell override (visual) and Lyrics ↔ Notes text panel role shipped.
 - **Planned v0.8 management slice (remaining):** unified Visual tab polish; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
 - **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** (Vanilla / Twisted Chronicles / HITZ) to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
@@ -779,7 +779,7 @@ Expected capabilities:
 - garbage collection for derived helper artifacts (for example cached validation reports under `data/validation/`), so stale reports can be regenerated and old caches pruned safely before v1.0.
 - tours/events support
 - simple merch/shop support or clear merch integration path
-- brand shell override support sufficient for different-looking installs (token overlay in v0.8; full shell asset runtime in v1)
+- brand shell override support sufficient for different-looking installs (token + visual shell overlay shipped; Welcome/Logged-in SFX remain Active/login)
 - module structure stable enough for future expansion
 - setup and branding reproducible without code surgery
 - operator control preserved without centralized platform dependency

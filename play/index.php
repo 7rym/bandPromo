@@ -233,16 +233,44 @@ if ($supportEnabled && $supportUrl !== '') {
     <?php
     require_once '../biblioteca/config-loader.php';
     require_once '../biblioteca/player-modules.php';
-    $backgroundVideo = get_config_nonempty('release.theme.background_video', null);
-    $backgroundImage = get_config_nonempty('release.theme.background_image', null);
+    $installLogo = (string) get_config('install.brand.logo', '/media/special/bandPromo_logo.png');
+    $installBackgroundVideo = get_config_nonempty('release.theme.background_video', null);
+    $installBackgroundImage = get_config_nonempty('release.theme.background_image', null);
+    $installShellMedia = [
+        'logo' => $installLogo !== '' ? $installLogo : '/media/special/bandPromo_logo.png',
+        'background_image' => is_string($installBackgroundImage) ? $installBackgroundImage : '',
+        'background_video' => is_string($installBackgroundVideo) ? $installBackgroundVideo : '',
+    ];
+
+    $playerShellMedia = $installShellMedia;
+    $playerBrandTitle = 'Band Logo';
+    try {
+        $playerBrandDoc = bandpromo_brand_load_document($playerRoot, $playerBrandId);
+        $playerBrandTitle = trim((string) ($playerBrandDoc['title'] ?? '')) !== ''
+            ? (string) $playerBrandDoc['title']
+            : $playerBrandTitle;
+        $resolvedShell = bandpromo_brand_player_shell_assets($playerRoot, $playerBrandDoc);
+        foreach (['logo', 'background_image', 'background_video'] as $shellSlot) {
+            if (($resolvedShell[$shellSlot] ?? '') !== '') {
+                $playerShellMedia[$shellSlot] = $resolvedShell[$shellSlot];
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Keep install/Active shell baseline.
+    }
+
+    $backgroundVideo = $playerShellMedia['background_video'] !== '' ? $playerShellMedia['background_video'] : null;
+    $backgroundImage = $playerShellMedia['background_image'] !== '' ? $playerShellMedia['background_image'] : null;
+    $playerLogo = $playerShellMedia['logo'] !== '' ? $playerShellMedia['logo'] : $installShellMedia['logo'];
     $shellBackgroundMode = bandpromo_player_shell_background_mode();
     ?>
     <script>
+        window.BANDPROMO_INSTALL_SHELL_MEDIA = <?php echo json_encode($installShellMedia, JSON_UNESCAPED_SLASHES); ?>;
         window.appConfig = window.appConfig || {};
         window.appConfig.media = {
             background_video: <?php echo json_encode($backgroundVideo); ?>,
             background_image: <?php echo json_encode($backgroundImage); ?>,
-            logo: <?php echo json_encode(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>
+            logo: <?php echo json_encode($playerLogo); ?>
         };
         window.appConfig.player = Object.assign({}, window.appConfig.player || {}, {
             shell_background: <?php echo json_encode($shellBackgroundMode); ?>,
@@ -305,13 +333,23 @@ if ($supportEnabled && $supportUrl !== '') {
         <audio id="audioPlayer" controls controlsList="nodownload noplaybackrate" preload="none"></audio>
 
         <div id="beggars-banquet">
-            &nbsp;
+            <?php if ($supportEnabled && $supportMode === 'link' && $supportUrl !== ''): ?>
+            <a
+                href="<?php echo htmlspecialchars($supportUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="support-link-button"
+                style="--support-button-background: <?php echo htmlspecialchars($supportButtonBackgroundColor, ENT_QUOTES, 'UTF-8'); ?>; --support-button-text: <?php echo htmlspecialchars($supportButtonTextColor, ENT_QUOTES, 'UTF-8'); ?>;"
+            >
+                <?php echo htmlspecialchars($supportLabel, ENT_QUOTES, 'UTF-8'); ?>
+            </a>
+            <?php endif; ?>
         </div>
     </div>
 
     <div id="content-container">
         <div class="content-logo">
-            <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="Band Logo" class="content-logo-img">
+            <img src="<?php echo htmlspecialchars($playerLogo, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($playerBrandTitle, ENT_QUOTES, 'UTF-8'); ?>" class="content-logo-img">
         </div>
         <div class="content-toggle">
             <?php
@@ -464,6 +502,19 @@ if ($supportEnabled && $supportUrl !== '') {
         window.BANDPROMO_PLAYER_TABS = <?php echo json_encode($playerTabs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEFAULT_PLAYER_VIEW = <?php echo json_encode($defaultPlayerView, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_ID = <?php echo json_encode($activePlaylistId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_LYRICS_LABEL = <?php
+            $lyricsModuleLabel = 'Lyrics';
+            try {
+                $playerModules = bandpromo_player_modules_config();
+                $lyricsModuleLabel = trim((string) ($playerModules['lyrics']['label'] ?? 'Lyrics'));
+                if ($lyricsModuleLabel === '') {
+                    $lyricsModuleLabel = 'Lyrics';
+                }
+            } catch (Throwable $throwable) {
+                $lyricsModuleLabel = 'Lyrics';
+            }
+            echo json_encode($lyricsModuleLabel, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ?>;
         window.BANDPROMO_PLAYLIST_SLUG = <?php echo json_encode($activePlaylistSlug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_CATALOG = <?php echo json_encode($playlistCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEEP_LINK = <?php echo json_encode([
@@ -508,16 +559,6 @@ if ($supportEnabled && $supportUrl !== '') {
             'floating-chat.donateButton.text-color': <?php echo json_encode($supportButtonTextColor); ?>
         });
     </script>
-    <?php elseif ($supportEnabled && $supportMode === 'link' && $supportUrl !== ''): ?>
-    <a
-        href="<?php echo htmlspecialchars($supportUrl, ENT_QUOTES, 'UTF-8'); ?>"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="support-link-button"
-        style="--support-button-background: <?php echo htmlspecialchars($supportButtonBackgroundColor, ENT_QUOTES, 'UTF-8'); ?>; --support-button-text: <?php echo htmlspecialchars($supportButtonTextColor, ENT_QUOTES, 'UTF-8'); ?>;"
-    >
-        <?php echo htmlspecialchars($supportLabel, ENT_QUOTES, 'UTF-8'); ?>
-    </a>
     <?php endif; ?>
     <script>
         if ('serviceWorker' in navigator) {

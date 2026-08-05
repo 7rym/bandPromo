@@ -207,6 +207,19 @@ body.shell-bg-image {
     background-repeat: no-repeat;
 }
 
+/* Brand-tunable scrim (login Base brand; effects.backdrop_dim). */
+body.shell-bg-image::before,
+body.shell-bg-video::before,
+body.video-loaded::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #000;
+    opacity: var(--shell-scrim-strength, 0.72);
+}
+
 #bg-video {
     position: fixed;
     top: 0;
@@ -215,7 +228,7 @@ body.shell-bg-image {
     height: 100%;
     object-fit: cover;
     object-position: center center;
-    z-index: -1;
+    z-index: -2;
     display: none;
     background: var(--bg-color, #000);
     pointer-events: none;
@@ -450,7 +463,7 @@ body.shell-bg-image {
     width: 90%;
     box-shadow: 0 0 40px var(--primary-a30);
     animation: slideIn 0.3s ease;
-    backdrop-filter: blur(5px);
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .info-lightbox-close {

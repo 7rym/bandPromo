@@ -2259,6 +2259,62 @@ canvas { max-width: 100%; height: auto; }
     margin: 0;
 }
 
+.audio-master-text-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.audio-master-text-role-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.audio-master-text-role-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted, #9aa3b2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 5px 12px;
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+.audio-master-text-role-btn.is-active {
+    background: var(--primary-a20, rgba(0, 210, 255, 0.2));
+    color: var(--text, #fff);
+}
+
+.audio-master-text-role-btn:focus-visible {
+    outline: 2px solid var(--primary-color, #00d2ff);
+    outline-offset: -2px;
+    z-index: 1;
+}
+
+.audio-master-notes-label-wrap {
+    margin-bottom: 8px;
+}
+
+.audio-master-notes-label-wrap label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.9em;
+}
+
+.audio-master-notes-label-wrap input {
+    width: 100%;
+    max-width: 280px;
+}
+
 .audio-master-description-note {
     text-align: right;
 }

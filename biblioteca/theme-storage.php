@@ -127,6 +127,35 @@ function bandpromo_theme_default_color_tokens(): array
     ];
 }
 
+function bandpromo_theme_default_effects_tokens(): array
+{
+    return [
+        // Percent 0–100 (maps to --shell-scrim-strength 0–1). Default matches prior fixed scrim mid tone.
+        'backdrop_dim' => '72',
+        // Pixels 0–24 for glass panels (playlist rows, lyrics, pages, gallery, login).
+        'panel_blur' => '5',
+    ];
+}
+
+function bandpromo_theme_normalize_int_token(mixed $value, int $min, int $max, int $fallback): string
+{
+    if (is_numeric($value)) {
+        $n = (int) round((float) $value);
+    } else {
+        $n = (int) preg_replace('/\D+/', '', trim((string) $value));
+    }
+    if ($n < $min || $n > $max) {
+        // Empty / garbage → fallback; out-of-range clamp when clearly numeric intent
+        if (!is_numeric($value) && trim((string) $value) === '') {
+            $n = $fallback;
+        } else {
+            $n = max($min, min($max, $n));
+        }
+    }
+
+    return (string) $n;
+}
+
 function bandpromo_theme_css_variable_map(): array
 {
     return [
@@ -140,6 +169,32 @@ function bandpromo_theme_css_variable_map(): array
         'color.link' => '--color-link',
         'color.link_hover' => '--color-link-hover',
         'color.link_visited' => '--color-link-visited',
+    ];
+}
+
+/**
+ * Extra CSS vars derived from effects tokens (not 1:1 path map).
+ *
+ * @return array<string, string>
+ */
+function bandpromo_theme_effects_css_variables(array $document): array
+{
+    $dim = (int) bandpromo_theme_normalize_int_token(
+        bandpromo_theme_token_value($document, 'effects.backdrop_dim'),
+        0,
+        100,
+        72
+    );
+    $blur = (int) bandpromo_theme_normalize_int_token(
+        bandpromo_theme_token_value($document, 'effects.panel_blur'),
+        0,
+        24,
+        5
+    );
+
+    return [
+        '--shell-scrim-strength' => number_format($dim / 100, 2, '.', ''),
+        '--panel-blur' => $blur . 'px',
     ];
 }
 
@@ -186,6 +241,7 @@ function bandpromo_theme_default_document(): array
         'tone_notes' => 'Neutral platform defaults; duplicate and customize as release identity.',
         'tokens' => [
             'color' => bandpromo_theme_default_color_tokens(),
+            'effects' => bandpromo_theme_default_effects_tokens(),
             'layout' => [
                 'card_size_base' => '400px',
             ],
@@ -244,14 +300,31 @@ function bandpromo_theme_normalize_tokens(array $tokens): array
 {
     $defaults = bandpromo_theme_default_document()['tokens'];
     $color = is_array($tokens['color'] ?? null) ? $tokens['color'] : [];
+    $effects = is_array($tokens['effects'] ?? null) ? $tokens['effects'] : [];
     $layout = is_array($tokens['layout'] ?? null) ? $tokens['layout'] : [];
     $typography = is_array($tokens['typography'] ?? null) ? $tokens['typography'] : [];
     $defaultColor = bandpromo_theme_default_color_tokens();
+    $defaultEffects = bandpromo_theme_default_effects_tokens();
 
     $normalizedColor = [];
     foreach ($defaultColor as $key => $fallback) {
         $normalizedColor[$key] = bandpromo_theme_normalize_hex_color((string) ($color[$key] ?? ''), $fallback);
     }
+
+    $normalizedEffects = [
+        'backdrop_dim' => bandpromo_theme_normalize_int_token(
+            $effects['backdrop_dim'] ?? $defaultEffects['backdrop_dim'],
+            0,
+            100,
+            (int) $defaultEffects['backdrop_dim']
+        ),
+        'panel_blur' => bandpromo_theme_normalize_int_token(
+            $effects['panel_blur'] ?? $defaultEffects['panel_blur'],
+            0,
+            24,
+            (int) $defaultEffects['panel_blur']
+        ),
+    ];
 
     $cardSize = trim((string) ($layout['card_size_base'] ?? $defaults['layout']['card_size_base']));
     if ($cardSize === '' || !preg_match('/^\d+(px|rem|em|%)$/', $cardSize)) {
@@ -266,6 +339,7 @@ function bandpromo_theme_normalize_tokens(array $tokens): array
 
     return [
         'color' => $normalizedColor,
+        'effects' => $normalizedEffects,
         'layout' => [
             'card_size_base' => $cardSize,
         ],
@@ -1046,7 +1120,7 @@ function bandpromo_theme_set_active_id(string $root, string $themeId): void
     bandpromo_config_set_path($config, 'install.pointers.active_brand_id', $themeId);
     bandpromo_config_set_path($config, 'install.pointers.active_theme_id', $legacyId);
     if (!bandpromo_json_write_file($configPath, $config)) {
-        throw new RuntimeException('Could not update active brand pointer.');
+        throw new RuntimeException('Could not update base brand pointer.');
     }
 
     $document = bandpromo_theme_load_document($root, $themeId);
@@ -1096,6 +1170,10 @@ function bandpromo_theme_render_css(string $root): string
     }
 
     foreach (bandpromo_theme_derived_alpha_css_variables() as $cssVar => $value) {
+        $rules[] = $cssVar . ':' . $value;
+    }
+
+    foreach (bandpromo_theme_effects_css_variables($document) as $cssVar => $value) {
         $rules[] = $cssVar . ':' . $value;
     }
 

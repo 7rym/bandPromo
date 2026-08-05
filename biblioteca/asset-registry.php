@@ -994,6 +994,41 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     return $normalized;
 }
 
+function bandpromo_asset_normalize_text_role(string $role): string
+{
+    $role = strtolower(trim($role));
+
+    return $role === 'notes' ? 'notes' : 'lyrics';
+}
+
+function bandpromo_asset_normalize_notes_label(string $label): string
+{
+    $label = trim(preg_replace('/\s+/u', ' ', $label) ?? $label);
+    if ($label === '') {
+        return '';
+    }
+    if (function_exists('mb_substr')) {
+        return (string) mb_substr($label, 0, 24, 'UTF-8');
+    }
+
+    return substr($label, 0, 24);
+}
+
+/**
+ * Player nav label for the locked text panel (Lyrics vs Notes label / Tracklist).
+ */
+function bandpromo_asset_player_text_panel_label(string $textRole, string $notesLabel = '', string $lyricsFallback = 'Lyrics'): string
+{
+    if (bandpromo_asset_normalize_text_role($textRole) !== 'notes') {
+        $lyricsFallback = trim($lyricsFallback);
+
+        return $lyricsFallback !== '' ? $lyricsFallback : 'Lyrics';
+    }
+    $notesLabel = bandpromo_asset_normalize_notes_label($notesLabel);
+
+    return $notesLabel !== '' ? $notesLabel : 'Tracklist';
+}
+
 function bandpromo_asset_read_audio_display(?array $asset): array
 {
     if (!is_array($asset)) {
@@ -1010,6 +1045,8 @@ function bandpromo_asset_read_audio_display(?array $asset): array
             'genre' => '',
             'comment' => '',
             'lyrics' => '',
+            'text_role' => 'lyrics',
+            'notes_label' => '',
             'living_cover' => '',
             'cover' => '',
             'synced_at' => '',
@@ -1031,6 +1068,8 @@ function bandpromo_asset_read_audio_display(?array $asset): array
         'genre' => trim((string) ($display['genre'] ?? '')),
         'comment' => trim((string) ($display['comment'] ?? '')),
         'lyrics' => (string) ($display['lyrics'] ?? ''),
+        'text_role' => bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')),
+        'notes_label' => bandpromo_asset_normalize_notes_label((string) ($display['notes_label'] ?? '')),
         'living_cover' => trim((string) ($display['living_cover'] ?? '')),
         'cover' => basename(trim((string) ($display['cover'] ?? ''))),
         'synced_at' => trim((string) ($display['synced_at'] ?? '')),
