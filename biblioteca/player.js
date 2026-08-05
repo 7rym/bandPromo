@@ -396,6 +396,9 @@ function syncLyricsTab(song) {
 }
 
 const audioPlayer = document.getElementById('audioPlayer');
+const audioSeek = document.getElementById('audioSeek');
+const audioTimeCurrent = document.getElementById('audioTimeCurrent');
+const audioTimeDuration = document.getElementById('audioTimeDuration');
 const coverImage = document.getElementById('coverImage');
 const coverVideo = document.getElementById('coverVideo');
 const reflectionImage = document.getElementById('reflectionImage');
@@ -422,6 +425,7 @@ const debugDataBody = document.getElementById('debugDataBody');
 let hasStartedCurrentTrack = false;
 let lastPlayLogAt = 0;
 let isUserSeeking = false;
+let isScrubberDragging = false;
 let lastSeekFinishedAt = 0;
 const ANALYTICS_INACTIVITY_TIMEOUT_MS = Number.isFinite(window.BANDPROMO_ANALYTICS_INACTIVITY_TIMEOUT_MS)
     ? window.BANDPROMO_ANALYTICS_INACTIVITY_TIMEOUT_MS
@@ -707,6 +711,57 @@ function formatTime(seconds) {
     const minutes = Math.floor(totalSeconds / 60);
     const remainingSeconds = totalSeconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function getAudioDurationSeconds() {
+    const live = Number(audioPlayer?.duration);
+    if (Number.isFinite(live) && live > 0) {
+        return live;
+    }
+    const expected = Number(audioPlayer?.dataset?.expectedDuration);
+    if (Number.isFinite(expected) && expected > 0) {
+        return expected;
+    }
+    const playlistDuration = Number(playList[currentIndex]?.duration);
+    if (Number.isFinite(playlistDuration) && playlistDuration > 0) {
+        return playlistDuration;
+    }
+    return 0;
+}
+
+function syncAudioScrubber(force = false) {
+    if (!audioSeek || !audioTimeCurrent || !audioTimeDuration) {
+        return;
+    }
+
+    const duration = getAudioDurationSeconds();
+    const current = Number(audioPlayer?.currentTime) || 0;
+    const hasDuration = duration > 0;
+
+    audioSeek.disabled = !hasDuration;
+    if (hasDuration && (force || Number(audioSeek.max) !== duration)) {
+        audioSeek.max = String(duration);
+    }
+    if (!isScrubberDragging || force) {
+        audioSeek.value = String(hasDuration ? Math.min(current, duration) : 0);
+    }
+    audioTimeCurrent.textContent = formatTime(isScrubberDragging ? Number(audioSeek.value) || 0 : current);
+    audioTimeDuration.textContent = formatTime(duration);
+}
+
+function seekAudioFromScrubber() {
+    if (!audioSeek || audioSeek.disabled) {
+        return;
+    }
+    const nextTime = Number(audioSeek.value);
+    if (!Number.isFinite(nextTime)) {
+        return;
+    }
+    isUserSeeking = true;
+    audioPlayer.currentTime = Math.max(0, nextTime);
+    if (audioTimeCurrent) {
+        audioTimeCurrent.textContent = formatTime(nextTime);
+    }
 }
 
 function getDisplayModeLabel() {
@@ -1835,6 +1890,7 @@ function checkExpected() {
 }
 audioPlayer.addEventListener('timeupdate', checkExpected);
 audioPlayer.addEventListener('timeupdate', updateMediaSessionPositionState);
+audioPlayer.addEventListener('timeupdate', () => syncAudioScrubber());
 
 audioPlayer.addEventListener('seeking', () => {
     isUserSeeking = true;
@@ -1843,6 +1899,7 @@ audioPlayer.addEventListener('seeking', () => {
 audioPlayer.addEventListener('seeked', () => {
     isUserSeeking = false;
     lastSeekFinishedAt = Date.now();
+    syncAudioScrubber(true);
 });
 
 // warn if metadata duration differs
@@ -1852,7 +1909,35 @@ audioPlayer.addEventListener('loadedmetadata', () => {
         console.warn('Metadata duration', audioPlayer.duration, 'differs from expected', exp);
     }
     updateMediaSessionPositionState();
+    syncAudioScrubber(true);
 });
+
+audioPlayer.addEventListener('durationchange', () => syncAudioScrubber(true));
+audioPlayer.addEventListener('emptied', () => syncAudioScrubber(true));
+
+if (audioSeek) {
+    audioSeek.addEventListener('pointerdown', () => {
+        isScrubberDragging = true;
+    });
+    audioSeek.addEventListener('pointerup', () => {
+        isScrubberDragging = false;
+        seekAudioFromScrubber();
+    });
+    audioSeek.addEventListener('pointercancel', () => {
+        isScrubberDragging = false;
+        syncAudioScrubber(true);
+    });
+    audioSeek.addEventListener('input', () => {
+        isScrubberDragging = true;
+        if (audioTimeCurrent) {
+            audioTimeCurrent.textContent = formatTime(Number(audioSeek.value) || 0);
+        }
+    });
+    audioSeek.addEventListener('change', () => {
+        isScrubberDragging = false;
+        seekAudioFromScrubber();
+    });
+}
 
 audioPlayer.addEventListener('ratechange', updateMediaSessionPositionState);
 
@@ -1957,13 +2042,17 @@ function setAudioSrc(filename) {
     audioPlayer.src = encoded;
     hasStartedCurrentTrack = false;
     isUserSeeking = false;
+    isScrubberDragging = false;
     resumeAfterVisibilityPause = false;
 
     // set expected duration from playlist (caller should set before calling)
     const song = playList[currentIndex];
     if (song && song.duration != null) {
         audioPlayer.dataset.expectedDuration = song.duration;
+    } else {
+        delete audioPlayer.dataset.expectedDuration;
     }
+    syncAudioScrubber(true);
 
     updateMediaSessionMetadata();
     if (!audioPlayer.paused) {
@@ -2160,6 +2249,22 @@ function togglePlay() {
     document.getElementById('playBtn').blur();
 }
 
+function revealActiveContentTab(button) {
+    if (!(button instanceof HTMLElement) || typeof button.scrollIntoView !== 'function') {
+        return;
+    }
+    const strip = button.closest('.content-toggle');
+    if (!(strip instanceof HTMLElement) || strip.scrollWidth <= strip.clientWidth + 2) {
+        return;
+    }
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    button.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: reducedMotion ? 'auto' : 'smooth',
+    });
+}
+
 // Toggle between content views
 function toggleView(view) {
     const lyricsBox = document.getElementById('lyricsBox');
@@ -2185,6 +2290,7 @@ function toggleView(view) {
     }
     if (targetButton) {
         targetButton.classList.add('active');
+        window.requestAnimationFrame(() => revealActiveContentTab(targetButton));
     }
     if (playlistSelector) {
         playlistSelector.hidden = view !== 'playlist';
@@ -2489,6 +2595,11 @@ function removePulseGuide() {
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof window.updateBackground === 'function') {
         window.updateBackground();
+    }
+
+    const activeContentTab = document.querySelector('.content-toggle button[data-view].active');
+    if (activeContentTab) {
+        window.requestAnimationFrame(() => revealActiveContentTab(activeContentTab));
     }
 
     // If a page tab is the default view, hydrate it now so the panel is not stuck on “Loading…”.

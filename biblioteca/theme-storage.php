@@ -296,6 +296,36 @@ function bandpromo_theme_normalize_hex_color(string $value, string $fallback): s
     return $fallback;
 }
 
+function bandpromo_theme_normalize_font_family(string $value, string $fallback = '', bool $allowEmpty = false): string
+{
+    $value = trim((string) preg_replace('/\s+/u', ' ', $value));
+    if ($value === '') {
+        return $allowEmpty ? '' : $fallback;
+    }
+    if (
+        strlen($value) > 180
+        || preg_match('/^[\p{L}\p{N}\s,\'"\-]+$/u', $value) !== 1
+        || substr_count($value, "'") % 2 !== 0
+        || substr_count($value, '"') % 2 !== 0
+    ) {
+        return $allowEmpty ? '' : $fallback;
+    }
+
+    $families = array_values(array_filter(array_map('trim', explode(',', $value)), static function (string $family): bool {
+        return $family !== '';
+    }));
+    if ($families === []) {
+        return $allowEmpty ? '' : $fallback;
+    }
+
+    $normalized = implode(', ', $families);
+    if (preg_match('/(?:^|,\s*)(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-serif|ui-sans-serif|ui-monospace)$/i', $normalized) !== 1) {
+        $normalized .= ', sans-serif';
+    }
+
+    return $normalized;
+}
+
 function bandpromo_theme_normalize_tokens(array $tokens): array
 {
     $defaults = bandpromo_theme_default_document()['tokens'];
@@ -331,11 +361,16 @@ function bandpromo_theme_normalize_tokens(array $tokens): array
         $cardSize = (string) $defaults['layout']['card_size_base'];
     }
 
-    $fontBase = trim((string) ($typography['font_family_base'] ?? $defaults['typography']['font_family_base']));
-    if ($fontBase === '') {
-        $fontBase = (string) $defaults['typography']['font_family_base'];
-    }
-    $fontHeading = trim((string) ($typography['font_family_heading'] ?? ''));
+    $defaultFontBase = (string) $defaults['typography']['font_family_base'];
+    $fontBase = bandpromo_theme_normalize_font_family(
+        (string) ($typography['font_family_base'] ?? $defaultFontBase),
+        $defaultFontBase
+    );
+    $fontHeading = bandpromo_theme_normalize_font_family(
+        (string) ($typography['font_family_heading'] ?? ''),
+        '',
+        true
+    );
 
     return [
         'color' => $normalizedColor,
@@ -1167,7 +1202,10 @@ function bandpromo_theme_render_css(string $root): string
     $fontBase = bandpromo_theme_token_value($document, 'typography.font_family_base');
     if ($fontBase !== '') {
         $rules[] = 'font-family:' . $fontBase;
+        $rules[] = '--brand-font-body:' . $fontBase;
     }
+    $fontHeading = bandpromo_theme_token_value($document, 'typography.font_family_heading');
+    $rules[] = '--brand-font-heading:' . ($fontHeading !== '' ? $fontHeading : 'var(--brand-font-body)');
 
     foreach (bandpromo_theme_derived_alpha_css_variables() as $cssVar => $value) {
         $rules[] = $cssVar . ':' . $value;

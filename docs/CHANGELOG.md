@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-05 21:15 - Checkpoint: responsive player contract, seek-only scrubber, mobile portrait density, track-info rename, support CTA hardening, and floating-widget cleanup for tester release.
+
+2026-08-05 21:05 - Housekeeping: remove dead Ko-fi floating-widget loader left after support CTA standardization; update third-party notices to match the in-flow link-only support path.
+
+2026-08-05 21:00 - Playlist coverflow: drop selector/coverflow margins and align thumbs tightly so the playlist strip no longer wastes vertical space.
+
+2026-08-05 20:40 - Mobile portrait compression: rename `.info-container` to `.track-info`; replace native audio chrome with a slim seek/time scrubber; tighten stacked player chrome and fit content tabs on one row without overflow.
+
+2026-08-05 20:05 - Playlist coverflow: remove vertical padding so the selector strip hugs the cover thumbs in every view.
+
+2026-08-05 19:45 - Player sizing limits: cap release logos at 100px high on large screens and 80px in compact/phone layouts; cap the active playlist cover at 80px below the full landscape-desktop layout.
+
+2026-08-05 15:20 - Responsive follow-up: keep measured prose blocks as full-width flex rows so quarter-width Bio media stays in one row; hide the player rail scrollbar while retaining short-viewport scrolling.
+
+2026-08-05 14:15 - Responsive player contract: replace competing device/pointer grids with stacked + dimension-aware split modes; separate cover/rail/content measures; center readable Notes/prose while keeping galleries wide; scroll narrow tabs to the active view; wire validated body/heading brand fonts at runtime; standardize the support CTA as an in-flow, contrast-checked link with a reduced-motion-safe intermittent halo.
+
 2026-08-05 13:40 - Checkpoint housekeeping: ignore local theme/demo release package work directories so generated extraction trees never enter Git.
 
 2026-08-05 12:00 - Player layout: support link sits in-flow under the player (`#beggars-banquet`) instead of fixed overlay; player rail capped with vw so content keeps a fair share (`--player-rail` / responsive `--card-size`).

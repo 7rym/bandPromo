@@ -8776,7 +8776,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     fullConfig.support = assignConfigFields(fullConfig.support, {
                         enabled: !!document.getElementById('cfg_support_enabled')?.checked,
-                        mode: (document.getElementById('cfg_support_mode')?.value || 'link').trim(),
+                        mode: 'link',
                         label: (document.getElementById('cfg_support_label')?.value || '').trim(),
                         url: (document.getElementById('cfg_support_url')?.value || '').trim(),
                         kofi_page_id: (document.getElementById('cfg_support_kofi_page_id')?.value || '').trim(),

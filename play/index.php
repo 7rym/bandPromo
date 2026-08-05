@@ -84,6 +84,41 @@ function bandpromo_support_parse_kofi_page_id(string $value): string {
     return preg_replace('/[^a-zA-Z0-9_-]/', '', $trimmed);
 }
 
+function bandpromo_player_support_hex(string $value, string $fallback): string {
+    $value = strtolower(trim($value));
+    if (preg_match('/^#[0-9a-f]{6}$/', $value) === 1) {
+        return $value;
+    }
+    if (preg_match('/^#([0-9a-f])([0-9a-f])([0-9a-f])$/', $value, $matches) === 1) {
+        return '#' . $matches[1] . $matches[1] . $matches[2] . $matches[2] . $matches[3] . $matches[3];
+    }
+
+    return $fallback;
+}
+
+function bandpromo_player_support_luminance(string $hex): float {
+    $channels = [
+        hexdec(substr($hex, 1, 2)) / 255,
+        hexdec(substr($hex, 3, 2)) / 255,
+        hexdec(substr($hex, 5, 2)) / 255,
+    ];
+    foreach ($channels as &$channel) {
+        $channel = $channel <= 0.04045
+            ? $channel / 12.92
+            : (($channel + 0.055) / 1.055) ** 2.4;
+    }
+    unset($channel);
+
+    return 0.2126 * $channels[0] + 0.7152 * $channels[1] + 0.0722 * $channels[2];
+}
+
+function bandpromo_player_support_contrast(string $first, string $second): float {
+    $a = bandpromo_player_support_luminance($first);
+    $b = bandpromo_player_support_luminance($second);
+
+    return (max($a, $b) + 0.05) / (min($a, $b) + 0.05);
+}
+
 $origin = bandpromo_current_origin();
 $preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
 
@@ -143,20 +178,27 @@ if (file_exists($versionFile)) {
 }
 
 $supportEnabled = (bool) get_config('support.enabled', false);
-$supportMode = (string) get_config('support.mode', 'link');
 $supportLabel = trim((string) get_config('support.label', 'Support'));
 if ($supportLabel === '') {
     $supportLabel = 'Support';
 }
+$supportLabel = function_exists('mb_substr')
+    ? mb_substr($supportLabel, 0, 80, 'UTF-8')
+    : substr($supportLabel, 0, 80);
 $supportUrl = trim((string) get_config('support.url', ''));
 $supportKofiPageId = bandpromo_support_parse_kofi_page_id((string) get_config('support.kofi_page_id', ''));
-$supportButtonBackgroundColor = trim((string) get_config('support.button_background_color', '#323842'));
-if ($supportButtonBackgroundColor === '') {
-    $supportButtonBackgroundColor = '#323842';
-}
-$supportButtonTextColor = trim((string) get_config('support.button_text_color', '#ffffff'));
-if ($supportButtonTextColor === '') {
-    $supportButtonTextColor = '#ffffff';
+$supportButtonBackgroundColor = bandpromo_player_support_hex(
+    (string) get_config('support.button_background_color', '#323842'),
+    '#323842'
+);
+$supportButtonTextColor = bandpromo_player_support_hex(
+    (string) get_config('support.button_text_color', '#ffffff'),
+    '#ffffff'
+);
+if (bandpromo_player_support_contrast($supportButtonBackgroundColor, $supportButtonTextColor) < 4.5) {
+    $blackContrast = bandpromo_player_support_contrast($supportButtonBackgroundColor, '#000000');
+    $whiteContrast = bandpromo_player_support_contrast($supportButtonBackgroundColor, '#ffffff');
+    $supportButtonTextColor = $blackContrast >= $whiteContrast ? '#000000' : '#ffffff';
 }
 
 $currentUsername = trim((string) ($_SESSION['username'] ?? ''));
@@ -177,9 +219,11 @@ $debugInfo = [
 if ($supportUrl === '' && $supportKofiPageId !== '') {
     $supportUrl = 'https://ko-fi.com/' . rawurlencode($supportKofiPageId);
 }
-
-if ($supportEnabled && $supportUrl !== '') {
-    $supportMode = 'link';
+if ($supportUrl !== '') {
+    $supportScheme = strtolower((string) parse_url($supportUrl, PHP_URL_SCHEME));
+    if (!filter_var($supportUrl, FILTER_VALIDATE_URL) || !in_array($supportScheme, ['http', 'https'], true)) {
+        $supportUrl = '';
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -295,13 +339,13 @@ if ($supportEnabled && $supportUrl !== '') {
         <p id="loading-msg-operator" class="loading-msg-operator" hidden></p>
     </div>
 
-    <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>
-        <strong>Publish build required.</strong>
-        <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Open System → Deliverables.</span>
-        <a href="/admin.php?tab=system&amp;stab=deliverables">Open Deliverables</a>
-    </div>
-
     <div id="mediaplayer">
+        <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>
+            <strong>Publish build required.</strong>
+            <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Open System → Deliverables.</span>
+            <a href="/admin.php?tab=system&amp;stab=deliverables">Open Deliverables</a>
+        </div>
+
         <div class="scene">
             <div class="side-card prev" onclick="prevSong()">
                 <img src="" id="prevCover" alt="Previous">
@@ -318,7 +362,7 @@ if ($supportEnabled && $supportUrl !== '') {
             </div>
         </div>
 
-        <div class="info-container">
+        <div class="track-info">
             <canvas id="analyzer"></canvas>
             <h3 id="artistName">Artist</h3>
             <h2 id="songTitle">Title</h2>
@@ -330,10 +374,15 @@ if ($supportEnabled && $supportUrl !== '') {
             <button onclick="nextSong()">Next &#9654;</button>
         </div>
 
-        <audio id="audioPlayer" controls controlsList="nodownload noplaybackrate" preload="none"></audio>
+        <audio id="audioPlayer" preload="none"></audio>
+        <div class="audio-scrubber" id="audioScrubber">
+            <span id="audioTimeCurrent" class="audio-scrubber-time">0:00</span>
+            <input type="range" id="audioSeek" class="audio-scrubber-range" min="0" max="0" step="0.1" value="0" aria-label="Seek" disabled>
+            <span id="audioTimeDuration" class="audio-scrubber-time">0:00</span>
+        </div>
 
         <div id="beggars-banquet">
-            <?php if ($supportEnabled && $supportMode === 'link' && $supportUrl !== ''): ?>
+            <?php if ($supportEnabled && $supportUrl !== ''): ?>
             <a
                 href="<?php echo htmlspecialchars($supportUrl, ENT_QUOTES, 'UTF-8'); ?>"
                 target="_blank"
@@ -549,17 +598,6 @@ if ($supportEnabled && $supportUrl !== '') {
     <script src="/biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/player-markdown.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
-    <?php if ($supportEnabled && $supportMode === 'floating_widget' && $supportKofiPageId !== ''): ?>
-    <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
-    <script>
-        kofiWidgetOverlay.draw(<?php echo json_encode($supportKofiPageId); ?>, {
-            'type': 'floating-chat',
-            'floating-chat.donateButton.text': <?php echo json_encode($supportLabel); ?>,
-            'floating-chat.donateButton.background-color': <?php echo json_encode($supportButtonBackgroundColor); ?>,
-            'floating-chat.donateButton.text-color': <?php echo json_encode($supportButtonTextColor); ?>
-        });
-    </script>
-    <?php endif; ?>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js?v=<?php echo rawurlencode($appVersion); ?>', {

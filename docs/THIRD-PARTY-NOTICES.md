@@ -108,17 +108,15 @@ Planned future dependencies should not be listed here until they are actually ad
   - outbound HTTPS download support is required for bootstrap install and Site update
   - usage is governed by GitHub's service terms and the operator's hosting/network policy
 
-### Ko-fi overlay widget
+### Ko-fi
 
-- Purpose: optional floating support widget on the player page
-- Used by: `play/index.php` when Support mode is set to `floating_widget`
-- Script source: `https://storage.ko-fi.com/cdn/scripts/overlay-widget.js`
+- Purpose: optional operator-owned support destination linked from the player
+- Used by: Settings → Support (Ko-fi handle / direct URL) and the in-flow support button on `play/index.php`
 - Homepage: <https://ko-fi.com/>
 - Notes:
-  - this is a hosted remote script, not a vendored library in the repository
-  - usage is governed by Ko-fi's service terms and hosted script behavior
-  - operators can use link-button support mode instead to avoid loading Ko-fi's script
-  - deployments with strict privacy, CSP, or third-party-script restrictions may choose to disable this integration
+  - bandPromo does not load Ko-fi's floating overlay widget; support is a provider-neutral link button only
+  - when operators enter a Ko-fi handle without a full URL, the player links to `https://ko-fi.com/<handle>`
+  - usage is governed by Ko-fi's service terms when visitors follow that outbound link
 
 ### Cloudflare speed test endpoint
 

@@ -115,7 +115,10 @@ function bandpromo_brand_css_variables(array $document): array
     $fontBase = bandpromo_theme_token_value($document, 'typography.font_family_base');
     if ($fontBase !== '') {
         $vars['font-family'] = $fontBase;
+        $vars['--brand-font-body'] = $fontBase;
     }
+    $fontHeading = bandpromo_theme_token_value($document, 'typography.font_family_heading');
+    $vars['--brand-font-heading'] = $fontHeading !== '' ? $fontHeading : 'var(--brand-font-body)';
 
     foreach (bandpromo_theme_effects_css_variables($document) as $cssVar => $value) {
         $vars[$cssVar] = $value;

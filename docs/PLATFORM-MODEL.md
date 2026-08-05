@@ -688,7 +688,7 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens.
 
-**Layout:** Player cover art size (`--card-size`) is **not** a brand token. Responsive breakpoints and orientation rules live in `biblioteca/style.css`.
+**Layout:** Player cover art size (`--card-size`) is **not** a brand token. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Cover size, player rail, content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints are platform-owned in `biblioteca/style.css`. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
 
 **Asset refs (Visual / Sound effects pools, scoped to this release identity):**
 
@@ -710,8 +710,17 @@ Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Seconda
 
 - `typography.font_family_base` — body/UI stack
 - `typography.font_family_heading` — optional; falls back to base
+- Runtime exposes these as `--brand-font-body` and `--brand-font-heading`; custom family stacks are syntax-validated and receive a generic fallback.
+- Operators choose font families. The platform owns sizes, heading scale, line-height, spacing, wrapping, readable measures, and control geometry so a brand font cannot redefine the responsive shell.
 
 Renderer injects tokens as `:root` overrides when a brand is active.
+
+### Public support call-to-action
+
+- Support remains an external, operator-owned destination; bandPromo does not become the payment flow.
+- The public player uses one provider-neutral in-flow link below the audio controls. Floating third-party widgets are not part of the responsive contract because the platform cannot guarantee that they will avoid content.
+- Operators control enabled state, short label, destination, and validated colors. bandPromo controls placement, maximum dimensions, contrast floor, and the brief intermittent attention halo.
+- Motion pauses during interaction and is disabled by `prefers-reduced-motion`.
 
 ### Brand document sketch
 

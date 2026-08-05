@@ -5,7 +5,7 @@
 }
 
 body {
-    font-family: inherit;
+    font-family: var(--brand-font-body, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
     background-color: var(--bg-color, #000);
     color: var(--text-color, #fff);
     background-size: cover;
@@ -16,6 +16,22 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--brand-font-heading, var(--brand-font-body, 'Segoe UI', sans-serif));
+}
+
+button,
+input,
+select,
+textarea {
+    font-family: var(--brand-font-body, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
 }
 
 .login-container {

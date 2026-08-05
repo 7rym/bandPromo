@@ -1,6 +1,7 @@
 /* Structured page content rendered from JSON block documents. */
 
 .page-content {
+    --page-measure-inset: max(2px, calc((100% - var(--prose-measure, 52rem)) / 2));
     width: 100%;
     text-align: left;
     display: flex;
@@ -22,12 +23,26 @@
     box-sizing: border-box;
 }
 
+.page-content > .page-richtext,
 .page-content > .page-list,
 .page-content > .page-quote,
 .page-content > .page-callout,
 .page-content > .page-heading,
 .page-content > .page-paragraph {
-    padding: 2px;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 2px var(--page-measure-inset);
+}
+
+.page-content > .page-list {
+    padding-left: calc(var(--page-measure-inset) + 1.2rem);
+}
+
+.page-content > .page-quote,
+.page-content > .page-callout {
+    padding-left: calc(var(--page-measure-inset) + 14px);
+    padding-right: calc(var(--page-measure-inset) + 14px);
 }
 
 .page-content::after {
@@ -37,7 +52,9 @@
 }
 
 .page-richtext {
-    margin: 0 0 14px;
+    width: 100%;
+    max-width: var(--prose-measure, min(70ch, 52rem));
+    margin: 0 auto 14px;
     padding: 2px;
     box-sizing: border-box;
     text-align: left;
@@ -412,7 +429,7 @@
 .page-list {
     margin: 0 auto 14px;
     padding-left: 1.2rem;
-    max-width: 34rem;
+    max-width: var(--prose-measure, min(70ch, 52rem));
     color: var(--color-text-muted, #dddddd);
     text-align: left;
 }
@@ -423,7 +440,7 @@
 
 .page-quote {
     margin: 0 auto 14px;
-    max-width: 34rem;
+    max-width: var(--prose-measure, min(70ch, 52rem));
     padding: 12px 14px;
     border-left: 3px solid var(--primary-color);
     background: var(--primary-a08);
@@ -505,7 +522,7 @@
 
 .page-callout {
     margin: 0 auto 14px;
-    max-width: 34rem;
+    max-width: var(--prose-measure, min(70ch, 52rem));
     padding: 12px 14px;
     border-radius: 10px;
     text-align: left;

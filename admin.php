@@ -2386,7 +2386,6 @@ if ($tab === 'analytics') {
             $cfgFull = bandpromo_load_runtime_config_raw();
             $cfgSupport = $cfgFull['support'] ?? [];
             $supportEnabled = !empty($cfgSupport['enabled']);
-            $supportMode = (string) ($cfgSupport['mode'] ?? 'link');
             $supportLabel = (string) ($cfgSupport['label'] ?? 'Support');
             $supportUrl = (string) ($cfgSupport['url'] ?? '');
             $supportKofiPageId = (string) ($cfgSupport['kofi_page_id'] ?? '');
@@ -2394,9 +2393,9 @@ if ($tab === 'analytics') {
             $supportButtonTextColor = (string) ($cfgSupport['button_text_color'] ?? '#ffffff');
             ?>
             <div class="card">
-                <h3>💛 Support Links and Widgets</h3>
+                <h3>💛 Support link</h3>
                 <p class="card-note">
-                    Choose how, or whether, visitors are invited to support you from the player page. This does not make bandPromo the payment flow. It only controls the public call-to-action that points people to your operator-owned support destination.
+                    Choose whether visitors are invited to support you from the player. bandPromo keeps the call-to-action safely inside the player rail and sends visitors to your operator-owned destination.
                 </p>
                 <div class="config-form-grid">
                     <div class="form-group config-form-full">
@@ -2406,15 +2405,8 @@ if ($tab === 'analytics') {
                         </label>
                     </div>
                     <div class="form-group">
-                        <label for="cfg_support_mode">Display mode</label>
-                        <select id="cfg_support_mode">
-                            <option value="link" <?php echo $supportMode === 'link' ? 'selected' : ''; ?>>Link button</option>
-                            <option value="floating_widget" <?php echo $supportMode === 'floating_widget' ? 'selected' : ''; ?>>Ko-fi floating widget</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
                         <label for="cfg_support_label">Button text</label>
-                        <input type="text" id="cfg_support_label" value="<?php echo htmlspecialchars($supportLabel); ?>" placeholder="Support">
+                        <input type="text" id="cfg_support_label" value="<?php echo htmlspecialchars($supportLabel); ?>" maxlength="80" placeholder="Support">
                         <div class="field-note">Write the short public message visitors should see, such as Support, Tip Jar, Back This Release, or Join on Ko-fi.</div>
                     </div>
                     <div class="form-group config-form-full">
@@ -2425,7 +2417,7 @@ if ($tab === 'analytics') {
                     <div class="form-group config-form-full">
                         <label for="cfg_support_kofi_page_id">Ko-fi page ID / handle</label>
                         <input type="text" id="cfg_support_kofi_page_id" value="<?php echo htmlspecialchars($supportKofiPageId); ?>" placeholder="yourhandle">
-                        <div class="field-note">Only needed for Ko-fi-specific behavior. The floating widget uses this handle directly, and Link button mode can use it as a fallback when you do not enter a full direct URL.</div>
+                        <div class="field-note">Optional fallback when no direct URL is entered; bandPromo links to your Ko-fi page.</div>
                     </div>
                     <div class="form-group">
                         <label for="cfg_support_button_background_color">Button background color</label>
@@ -2435,7 +2427,7 @@ if ($tab === 'analytics') {
                     <div class="form-group">
                         <label for="cfg_support_button_text_color">Button text color</label>
                         <input type="text" id="cfg_support_button_text_color" value="<?php echo htmlspecialchars($supportButtonTextColor); ?>" placeholder="#ffffff">
-                        <div class="field-note">Make sure the text stays readable against the button background.</div>
+                        <div class="field-note">Saving requires at least 4.5:1 contrast against the button background.</div>
                     </div>
                 </div>
                 <textarea id="cfgSupportFullSource" style="display:none"><?php echo htmlspecialchars(json_encode($cfgFull, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}'); ?></textarea>
