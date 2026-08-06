@@ -242,8 +242,12 @@ function bandpromo_build_run_launch_diagnostics(
             'exec python --version: ' . ($pythonVersion['ok'] ? $pythonVersion['output'] : $pythonVersion['error'])
         );
 
+        $vendorPath = str_replace('\\', '/', $root . '/scripts/vendor');
+        $importCode = 'import sys; sys.path.insert(0, '
+            . var_export($vendorPath, true)
+            . '); import PIL, mutagen, xxhash; print("imports-ok")';
         $pythonImports = bandpromo_build_diag_exec_output(
-            $pythonCommand . ' -c ' . escapeshellarg('import PIL, mutagen; print("imports-ok")')
+            $pythonCommand . ' -c ' . escapeshellarg($importCode)
         );
         $checks['python_imports'] = $pythonImports;
         bandpromo_build_diag_log(
@@ -253,10 +257,22 @@ function bandpromo_build_run_launch_diagnostics(
     }
 
     $ffmpegLookup = bandpromo_build_diag_shell_lookup('ffmpeg');
-    $checks['ffmpeg'] = $ffmpegLookup;
+    $bundledUnix = $root . '/scripts/bin/ffmpeg';
+    $bundledWin = $root . '/scripts/bin/ffmpeg.exe';
+    $ffmpegBundledPath = is_file($bundledUnix) ? $bundledUnix : (is_file($bundledWin) ? $bundledWin : '');
+    $ffmpegOk = $ffmpegBundledPath !== '' || ($ffmpegLookup['ok'] ?? false);
+    $checks['ffmpeg'] = [
+        'ok' => $ffmpegOk,
+        'output' => $ffmpegBundledPath !== ''
+            ? ('bundled ' . $ffmpegBundledPath)
+            : (string) ($ffmpegLookup['output'] ?? ''),
+        'error' => $ffmpegOk ? '' : (string) ($ffmpegLookup['error'] ?? 'not found'),
+    ];
     bandpromo_build_diag_log(
         $logFile,
-        'ffmpeg: ' . ($ffmpegLookup['ok'] ? $ffmpegLookup['output'] : $ffmpegLookup['error'])
+        'ffmpeg: ' . ($checks['ffmpeg']['ok']
+            ? ($checks['ffmpeg']['output'] !== '' ? $checks['ffmpeg']['output'] : 'available')
+            : ($checks['ffmpeg']['error'] !== '' ? $checks['ffmpeg']['error'] : 'not found'))
     );
 
     $recommended = 'failed';
@@ -309,14 +325,14 @@ function bandpromo_build_run_launch_diagnostics(
     if (!($checks['python_imports']['ok'] ?? true)) {
         bandpromo_build_diag_log(
             $logFile,
-            'Warning: Python imports failed. Even with a working launcher, the build may fail until Pillow/mutagen are installed on the host.'
+            'Warning: Python imports failed (PIL/mutagen/xxhash). Rebuild will try scripts/vendor bootstrap automatically.'
         );
     }
 
     if (!($checks['ffmpeg']['ok'] ?? true)) {
         bandpromo_build_diag_log(
             $logFile,
-            'Warning: ffmpeg was not found on PATH. Video delivery stages may fail on this host.'
+            'Warning: ffmpeg was not found on PATH or in scripts/bin. Video delivery stages may fail on this host.'
         );
     }
 

@@ -29,6 +29,17 @@ from pathlib import Path
 
 import zipfile
 
+SCRIPT_DIR = Path(__file__).parent
+ROOT_DIR   = SCRIPT_DIR.parent
+
+# Site-local vendor path before any third-party imports in child stages.
+sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
+
 # Debug: capture default encoding BEFORE any reconfiguration
 _default_encoding = sys.stdout.encoding
 
@@ -41,10 +52,9 @@ else:
 print("Python version: " + sys.version)
 print("Default stdout encoding: " + str(_default_encoding))
 
-SCRIPT_DIR = Path(__file__).parent
-ROOT_DIR   = SCRIPT_DIR.parent
-
 REQUIREMENTS = SCRIPT_DIR / 'requirements.txt'
+VENDOR_DIR = SCRIPT_DIR / 'vendor'
+VENDOR_WHEELS_DIR = SCRIPT_DIR / 'vendor-wheels'
 FFMPEG_BIN   = SCRIPT_DIR / 'bin' / ('ffmpeg.exe' if platform.system() == 'Windows' else 'ffmpeg')
 SUPPORTED_AUDIO_EXTENSIONS = ('.flac', '.mp3', '.wav')
 KNOWN_AUDIO_EXTENSIONS = SUPPORTED_AUDIO_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg', '.wma')
@@ -185,28 +195,115 @@ def seed_page_runtime_files():
     sys.stdout.flush()
     return True
 
+def _verify_required_python_imports():
+    """Return (ok, missing_names) for PIL/mutagen/xxhash after vendor bootstrap."""
+    try:
+        import bandpromo_python_path as bpp
+        bpp.ensure_vendor_on_sys_path()
+        names = bpp.required_import_names()
+    except Exception:
+        names = ('PIL', 'mutagen', 'xxhash')
+        vendor = str(VENDOR_DIR)
+        if vendor not in sys.path:
+            sys.path.insert(0, vendor)
+
+    missing = []
+    for name in names:
+        try:
+            __import__(name)
+        except Exception:
+            missing.append(name)
+    return (missing == [], missing)
+
+
+def _pip_install_to_vendor(extra_args):
+    """Run pip install --target scripts/vendor for this interpreter."""
+    VENDOR_DIR.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        sys.executable, '-m', 'pip', 'install',
+        '-r', str(REQUIREMENTS),
+        '--target', str(VENDOR_DIR),
+        '--upgrade',
+        '--only-binary=:all:',
+    ] + list(extra_args)
+    return subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+
+
 def install_pip_dependencies():
-    """Attempt pip install; always returns True (sub-scripts handle missing imports)."""
+    """Install build deps into scripts/vendor for this host Python (no operator pip)."""
+    py_tag = 'cp{0}{1}'.format(sys.version_info[0], sys.version_info[1])
     print('Checking Python dependencies...')
+    print('  Interpreter: {0} ({1})'.format(sys.executable, py_tag))
     sys.stdout.flush()
+
     if not REQUIREMENTS.exists():
         print('  WARNING requirements.txt not found, skipping')
         sys.stdout.flush()
         return True
+
     try:
-        result = subprocess.run(
-            [sys.executable, '-m', 'pip', 'install', '-r', str(REQUIREMENTS),
-             '--quiet', '--only-binary=:all:'],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        import bandpromo_python_path as bpp
+        bpp.ensure_vendor_on_sys_path()
+    except Exception:
+        vendor = str(VENDOR_DIR)
+        if vendor not in sys.path:
+            sys.path.insert(0, vendor)
+
+    ok, missing = _verify_required_python_imports()
+    if ok:
+        print('  OK Dependencies already available for ' + py_tag)
+        sys.stdout.flush()
+        return True
+
+    # 1) Network install into site-local vendor (writable under the install).
+    try:
+        result = _pip_install_to_vendor([])
         if result.returncode == 0:
-            print('  OK Dependencies installed')
+            ok, missing = _verify_required_python_imports()
+            if ok:
+                print('  OK Dependencies installed into scripts/vendor for ' + py_tag)
+                sys.stdout.flush()
+                return True
         else:
-            print('  WARNING pip install skipped (will use system packages)')
+            err = (result.stderr or result.stdout or '').strip()
+            if err:
+                print('  NOTE pip --target install did not succeed for ' + py_tag)
     except Exception as e:
-        print('  WARNING Could not run pip: ' + str(e))
+        print('  NOTE Could not run pip --target: ' + str(e))
+
+    # 2) Offline wheels matched to this interpreter.
+    if VENDOR_WHEELS_DIR.is_dir():
+        try:
+            result = _pip_install_to_vendor([
+                '--no-index',
+                '--find-links', str(VENDOR_WHEELS_DIR),
+            ])
+            if result.returncode == 0:
+                ok, missing = _verify_required_python_imports()
+                if ok:
+                    print('  OK Dependencies installed from scripts/vendor-wheels for ' + py_tag)
+                    sys.stdout.flush()
+                    return True
+        except Exception as e:
+            print('  NOTE Offline wheel install failed: ' + str(e))
+
+    ok, missing = _verify_required_python_imports()
+    if ok:
+        print('  OK Dependencies available after bootstrap')
+        sys.stdout.flush()
+        return True
+
+    print('  WARNING Missing Python packages for {0}: {1}'.format(
+        py_tag, ', '.join(missing) if missing else 'unknown'
+    ))
+    print('  Build continues; stages that need those packages will report clearly.')
     sys.stdout.flush()
-    return True  # Always continue - sub-scripts fail with clear messages if needed
+    return True
 
 
 
@@ -364,6 +461,12 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
     env = os.environ.copy()
     env['BUILD_ROOT'] = str(ROOT_DIR)
     env['PYTHONIOENCODING'] = 'utf-8:replace'
+    vendor_str = str(VENDOR_DIR)
+    existing_pythonpath = str(env.get('PYTHONPATH') or '').strip()
+    if existing_pythonpath:
+        env['PYTHONPATH'] = vendor_str + os.pathsep + existing_pythonpath
+    else:
+        env['PYTHONPATH'] = vendor_str
     if env_extras:
         env.update(env_extras)
 

@@ -1641,12 +1641,14 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
 
             $assetId = bandpromo_generate_asset_id();
             $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, $ext);
+            $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : '';
             $normalized = bandpromo_asset_normalize_entry([
                 'id' => $assetId,
                 'kind' => 'visual',
                 'media_type' => $mediaType,
                 'intake_bucket' => $intakeBucket,
                 'brand_id' => $brandId,
+                'release_id' => $releaseId,
                 'role' => 'unassigned',
                 'has_alpha' => false,
                 'original_filename' => $entry,

@@ -22,6 +22,14 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
+
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
 else:
@@ -32,7 +40,6 @@ try:
 except ImportError:
     xxhash = None
 
-SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent
 VIDEO_ORIG_DIR = ROOT_DIR / 'media' / 'video' / 'original'
 VIDEO_OPT_DIR = ROOT_DIR / 'media' / 'video' / 'optimal'
@@ -43,10 +50,50 @@ VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.mov', '.webm')
 TRANSCODE_EXTENSIONS = ('.mov', '.webm')
+_XXHASH_WARNED = False
+
+
+def warn_xxhash_once():
+    global _XXHASH_WARNED
+    if xxhash is not None or _XXHASH_WARNED:
+        return
+    _XXHASH_WARNED = True
+    print('  ⚠️  xxhash unavailable — skip-if-fresh disabled until scripts/vendor bootstrap succeeds')
 
 
 def get_ffmpeg_path():
-    return os.environ.get('FFMPEG_PATH', 'ffmpeg')
+    """Resolve ffmpeg: FFMPEG_PATH env, bundled scripts/bin, then PATH."""
+    candidates = []
+    env_path = str(os.environ.get('FFMPEG_PATH') or '').strip()
+    if env_path:
+        candidates.append(env_path)
+
+    bundled_name = 'ffmpeg.exe' if os.name == 'nt' else 'ffmpeg'
+    candidates.append(str(SCRIPT_DIR / 'bin' / bundled_name))
+    candidates.append('ffmpeg')
+
+    seen = set()
+    for candidate in candidates:
+        key = candidate.lower()
+        if not candidate or key in seen:
+            continue
+        seen.add(key)
+        if candidate not in ('ffmpeg', 'ffmpeg.exe') and not Path(candidate).is_file():
+            continue
+        try:
+            result = subprocess.run(
+                [candidate, '-version'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            if result.returncode == 0:
+                return candidate
+        except FileNotFoundError:
+            continue
+        except OSError:
+            continue
+    return 'ffmpeg'
 
 
 def check_ffmpeg():
@@ -55,6 +102,8 @@ def check_ffmpeg():
         subprocess.run([ffmpeg, '-version'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         return True
     except (FileNotFoundError, subprocess.CalledProcessError):
+        return False
+    except OSError:
         return False
 
 
@@ -194,6 +243,18 @@ def load_asset_registry():
     except Exception:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def basename_lower(value) -> str:
+    name = basename_safe(value)
+    return name.lower() if name else ''
+
+
+def basename_safe(value) -> str:
+    text = str(value or '').strip().replace('\\', '/')
+    if text == '':
+        return ''
+    return Path(text).name
 
 
 def load_registry_visual_video_queue():
@@ -412,7 +473,11 @@ def main():
     skipped = 0
     failed = 0
     posters_ready = 0
+    unregistered_skipped = 0
     processed_names = set()
+
+    if xxhash is None:
+        warn_xxhash_once()
 
     visual_queue = load_registry_visual_video_queue()
     if visual_queue:
@@ -425,6 +490,12 @@ def main():
                 continue
             result = process_one_video(source, asset_id=str(asset.get('id') or ''))
             processed_names.add(source.name.lower())
+            original_name = basename_lower(asset.get('original_filename'))
+            if original_name:
+                processed_names.add(original_name)
+            master_name = basename_lower(asset.get('master_filename'))
+            if master_name:
+                processed_names.add(master_name)
             if result['failed']:
                 failed += 1
             elif result['built']:
@@ -453,8 +524,8 @@ def main():
     if source_files:
         print(f"\n📁 {len(source_files)} unregistered video source(s) — skipped (register-or-fail)")
         for source_path in source_files:
-            print(f"  ⚠️  Unregistered video {source_path.name} — run Content autofix / register before Publish")
-        skipped += len(source_files)
+            print(f"  ⚠️  Unregistered video {source_path.name} — register the visual asset before Publish")
+        unregistered_skipped = len(source_files)
 
     if not visual_queue and not source_files:
         print("ℹ️  No source videos found. Skipping video delivery build.")
@@ -463,6 +534,8 @@ def main():
     print("\n" + "=" * 70)
     print(f"Built/updated video delivery files: {built}")
     print(f"Already up to date: {skipped}")
+    if unregistered_skipped:
+        print(f"Unregistered intake skipped: {unregistered_skipped}")
     print(f"Poster files ready: {posters_ready}")
     print(f"Failures: {failed}")
     print(f"Visual delivery root: {VISUAL_DELIVERY_ROOT}")

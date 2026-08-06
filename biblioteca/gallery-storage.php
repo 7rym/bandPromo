@@ -457,6 +457,147 @@ function bandpromo_gallery_remove_legacy_main_gallery(string $root): void
     }
 }
 
+function bandpromo_gallery_demo_template_path(string $root): string
+{
+    return $root . '/biblioteca/templates/bandpromo-demo.gallery.template.json';
+}
+
+/**
+ * Seed or heal the demo gallery from the tracked template when empty or missing
+ * the rollercoaster video entry. Resolves asset_ids from the registry when known.
+ */
+function bandpromo_gallery_heal_demo_entries(string $root): void
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $templatePath = bandpromo_gallery_demo_template_path($root);
+    if (!is_file($templatePath)) {
+        return;
+    }
+
+    $template = bandpromo_json_read_array_file($templatePath);
+    if (!is_array($template) || !is_array($template['entries'] ?? null) || $template['entries'] === []) {
+        return;
+    }
+
+    try {
+        $document = bandpromo_gallery_load_document($root, BANDPROMO_GALLERY_DEMO_ID);
+    } catch (Throwable $throwable) {
+        $document = bandpromo_gallery_default_document();
+    }
+
+    $entries = is_array($document['entries'] ?? null) ? $document['entries'] : [];
+    $needsSeed = $entries === [];
+    $hasRollercoaster = false;
+    foreach ($entries as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $src = strtolower(str_replace('\\', '/', (string) ($entry['src'] ?? '')));
+        $name = strtolower((string) ($entry['name'] ?? ''));
+        $assetId = trim((string) ($entry['asset_id'] ?? ''));
+        if (
+            strpos($src, 'bandpromo_rollercoaster') !== false
+            || strpos($name, 'rollercoaster') !== false
+        ) {
+            $hasRollercoaster = true;
+            break;
+        }
+        if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+            $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+            $original = strtolower((string) ($asset['original_filename'] ?? ''));
+            if (strpos($original, 'bandpromo_rollercoaster') !== false) {
+                $hasRollercoaster = true;
+                break;
+            }
+        }
+    }
+
+    $rollerPath = $root . '/media/video/original/bandPromo_rollercoaster.mp4';
+    $needsRollercoaster = is_file($rollerPath) && !$hasRollercoaster;
+
+    if (!$needsSeed && !$needsRollercoaster) {
+        // Still backfill missing asset_ids on existing demo entries.
+        $changed = false;
+        foreach ($entries as $index => $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $current = trim((string) ($entry['asset_id'] ?? ''));
+            if ($current !== '' && bandpromo_asset_is_asset_id($current)) {
+                continue;
+            }
+            $basename = basename(str_replace('\\', '/', (string) ($entry['src'] ?? '')));
+            if ($basename === '') {
+                continue;
+            }
+            $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+                continue;
+            }
+            $entries[$index]['asset_id'] = (string) ($asset['id'] ?? '');
+            $changed = true;
+        }
+        if ($changed) {
+            $document['entries'] = $entries;
+            bandpromo_gallery_write_document($root, $document);
+        }
+        return;
+    }
+
+    if ($needsSeed) {
+        $seeded = [];
+        foreach ($template['entries'] as $templateEntry) {
+            if (!is_array($templateEntry)) {
+                continue;
+            }
+            $normalized = bandpromo_gallery_normalize_entry($templateEntry);
+            if ($normalized === null) {
+                continue;
+            }
+            $basename = basename(str_replace('\\', '/', (string) ($normalized['src'] ?? '')));
+            if ($basename !== '') {
+                $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
+                if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+                    $normalized['asset_id'] = (string) ($asset['id'] ?? '');
+                }
+            }
+            // Only keep template rows whose media file exists (or already has asset_id).
+            $srcRel = ltrim(str_replace('\\', '/', (string) ($normalized['src'] ?? '')), '/');
+            if (($normalized['asset_id'] ?? '') === '' && $srcRel !== '' && !is_file($root . '/' . $srcRel)) {
+                continue;
+            }
+            $seeded[] = $normalized;
+        }
+        $document['entries'] = $seeded;
+        bandpromo_gallery_write_document($root, $document);
+        return;
+    }
+
+    // Demo gallery has entries but is missing the rollercoaster video — append it.
+    foreach ($template['entries'] as $templateEntry) {
+        if (!is_array($templateEntry)) {
+            continue;
+        }
+        $src = strtolower((string) ($templateEntry['src'] ?? ''));
+        if (strpos($src, 'bandpromo_rollercoaster') === false) {
+            continue;
+        }
+        $normalized = bandpromo_gallery_normalize_entry($templateEntry);
+        if ($normalized === null) {
+            break;
+        }
+        $asset = bandpromo_asset_lookup_by_original_filename($root, 'bandPromo_rollercoaster.mp4');
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            $normalized['asset_id'] = (string) ($asset['id'] ?? '');
+        }
+        $entries[] = $normalized;
+        $document['entries'] = $entries;
+        bandpromo_gallery_write_document($root, $document);
+        break;
+    }
+}
+
 function bandpromo_gallery_ensure_demo_gallery(string $root): void
 {
     $registry = bandpromo_gallery_load_registry($root);
@@ -485,6 +626,8 @@ function bandpromo_gallery_ensure_demo_gallery(string $root): void
     if (!is_file($demoPath)) {
         bandpromo_gallery_write_document($root, bandpromo_gallery_default_document());
     }
+
+    bandpromo_gallery_heal_demo_entries($root);
 }
 
 function bandpromo_gallery_migrate_from_legacy(string $root): void

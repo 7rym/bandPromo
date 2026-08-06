@@ -19,6 +19,15 @@ import sys
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+
+SCRIPT_DIR   = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
+
 from mutagen import File
 from mutagen.flac import FLAC
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBPM, TKEY, TPE4, USLT, TXXX
@@ -32,7 +41,6 @@ import stdio_utf8
 stdio_utf8.configure()
 
 # Find the root directory (scripts/..)
-SCRIPT_DIR   = Path(__file__).parent
 ROOT_DIR     = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
@@ -47,6 +55,15 @@ ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
+_XXHASH_WARNED = False
+
+
+def warn_xxhash_missing_once():
+    global _XXHASH_WARNED
+    if xxhash is not None or _XXHASH_WARNED:
+        return
+    _XXHASH_WARNED = True
+    print('  ⚠️  xxhash unavailable — skip-if-fresh disabled until scripts/vendor bootstrap succeeds')
 
 # Player card max CSS is 600px; deliver slightly above for sharpness.
 COVER_OPTIMAL_MAX_EDGE = 720
@@ -822,7 +839,7 @@ def process_visual_image_asset(asset):
             source_xxh3=source_digest or None,
         )
         if not source_digest and xxhash is None:
-            print("    ⚠️  Install Python package `xxhash` for skip-if-fresh (pip install -r scripts/requirements.txt)")
+            warn_xxhash_missing_once()
         return True
     return False
 
@@ -1526,7 +1543,7 @@ def process_audio_delivery(
             source_mtime=source_mtime,
         )
         if not source_digest and xxhash is None:
-            print("  ⚠️  Install Python package `xxhash` for skip-if-fresh (pip install -r scripts/requirements.txt)")
+            warn_xxhash_missing_once()
 
     return True
 

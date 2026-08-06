@@ -183,6 +183,7 @@ Where practical, the updater runs required post-update tasks automatically, such
 - manifest refresh
 - build-required recalculation
 - required migrations for the shipped version
+- site-local Python dependency bootstrap into `scripts/vendor/` (operators never run `pip` themselves; offline wheels in `scripts/vendor-wheels/` match the host Python version)
 
 ### 5. Report the outcome clearly
 

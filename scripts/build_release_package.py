@@ -88,6 +88,7 @@ REQUIRED_STARTER_MEDIA = (
     "media/special/bandPromo_cover.png",
     "media/audio/original/bandPromo_the_very_first_song.flac",
     "media/audio/original/bandPromo_the_second_song.flac",
+    "media/video/original/bandPromo_rollercoaster.mp4",
 )
 
 
