@@ -53,8 +53,9 @@ Operators inherit starter examples, may hide them ("Hide demo catalog"), and rep
 
 | Slot | Id today | What it is |
 |------|----------|------------|
-| **Default release slot** | `primary` | Empty catalog workspace — upload fallback, admin landing, delete safety net. Display title **Default release** on new seeds. **Not** demo; **not** "most important album." |
-| **Operator catalog** | Any id they create | Real releases, playlists, galleries, pages, brands ("Summer EP", tour campaigns, etc.) |
+| **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real release. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
+| **Operator catalog** | Any id they create (or import via PRP) | Real releases, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
+| **Platform demo** | `bandpromo-demo` | Locked campaign from **`bandPromo-demo.prp`** at setup; hideable; read-only for operators; base shell brand until overridden |
 
 ### Asset provenance (orthogonal to actor)
 
@@ -94,12 +95,13 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 
 | Word in code/docs | Read it as |
 |-------------------|------------|
-| `primary` (release id) | **Default operator slot** — display title **Default release** on new seeds |
-| `bandpromo-demo` | **Platform starter example** (hideable) |
+| `primary` (release id) | **Invisible orphan/upload bucket** — not an operator-facing campaign |
+| `bandpromo-demo` | **Platform demo campaign** from `bandPromo-demo.prp` (hideable, read-only) |
+| `.prp` / PRP | **Portable release package** — bandPromo ZIP for one campaign ([PORTABILITY.md](PORTABILITY.md)) |
 | `system` (playlist `kind`) | **Site-level playlist** until user playlists exist |
 | `system: true` (brand) | **Platform-shipped, locked** — duplicate to customize |
 | `user-upload` (origin) | **Operator upload** (not fan upload) |
-| `bundled-placeholder` | **Platform demo file** |
+| `bundled-placeholder` | **Platform demo file** (legacy wording; demo media travels in the demo PRP) |
 | Theme | Legacy name for **Brand** |
 
 ### How to read any path in five seconds
@@ -124,22 +126,26 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` | Seed identity for the demo release; often the install base brand on fresh installs |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.prp`** as install **base shell**; locked; remains login/fallback until the operator selects another base |
 
-Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json`. Welcome/Logged-in SFX stay on the base brand (login). Remaining player context: release-contextual page tabs ([TODO.md](TODO.md)).
+Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
-**Publish must not steal Base:** Demo Release package ensure/seed on full build may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
+**Publish must not steal Base:** Demo PRP ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player nav — current vs target:**
+**Player chrome (install-owned):** Vanilla seeds `playlist_selector: coverflow` and `shell_background: living` in `web-config` / setup — **not** inside a PRP.
 
-| | Current (shipped) | Target |
-|--|-------------------|--------|
-| Shell | Playlists + Lyrics always | Same (nav label follows per-track text role — Lyrics vs Notes label) |
-| Pages | Site-wide tabs from Content → Player (`show_in_player` / `tab_order`) | Optional **global** pages from Player editor + **contextual** pages associated to the **current track’s release** |
-| Gallery | No dedicated Gallery module tab; use a page with gallery blocks | Same |
-| FAQ | Login / global required surface | Same — not a campaign Bio |
+**Player nav — locked target (implement with PRP slice):**
 
-Associating a page to a release does **not** yet add a player tab.
+| | Rule |
+|--|------|
+| Shell | Playlists + Lyrics/Notes always |
+| Campaign pages | Tabs for pages owned by the **current track’s `release_id`** (`show_in_player`). **Idle player** (nothing playing): **no** campaign page tabs |
+| Gallery | Demo (and operator) **Gallery page** with a gallery block; not a separate mandatory module tab |
+| FAQ | **System-owned** install page — login/platform help; **not** in any PRP; survives hide-demo |
+
+Associating a page to a release enables contextual tabs when that release’s track is playing (implementation in progress with PRP).
+
+**Duplicate campaign (same install):** New container/brand/release ids; **shared** media `ast_*`; cannot delete an asset while multiple containers reference it. **Import** between installs **keeps** ids. See [PORTABILITY.md](PORTABILITY.md).
 
 **Lyrics vs Notes (shipped):** One shell panel and one master Lyrics field (tag + `display.lyrics`). Per-track `display.text_role` is `lyrics` (default) or `notes`; when Notes, optional `notes_label` (default player nav **Tracklist**, e.g. Show notes / Transcript). Site-wide `player.modules.lyrics.label` remains the Lyrics-mode fallback. Dual fields / timed cues deferred.
 
@@ -151,12 +157,13 @@ Associating a page to a release does **not** yet add a player tab.
 flowchart TB
   subgraph platform [Platform / System]
     shell[Shell: player, login, layout, fallbacks]
-    demo[Starter examples: bandpromo-demo + bandPromo_* files]
+    faq[System FAQ]
+    demo[Demo campaign via bandPromo-demo.prp]
     templates[Tracked seeds + code]
   end
 
   subgraph operator [Operator owns the install]
-    defaultSlot[Default slot: primary release]
+    orphanBucket[Invisible primary orphan bucket]
     catalog[Releases, playlists, pages, galleries, brands]
     uploads[Uploads + AI-confirmed assets]
   end
@@ -167,10 +174,11 @@ flowchart TB
   end
 
   templates -->|first-run seed| catalog
-  demo -->|parallel on fresh install| catalog
-  defaultSlot -->|empty until filled| catalog
+  demo -->|setup imports PRP| catalog
+  orphanBucket -->|invisible catch-all| uploads
   uploads --> catalog
   shell --> access
+  faq --> access
   catalog -->|publish + release_date| access
   future -.->|v0.9+| access
 ```
@@ -864,7 +872,7 @@ Disabled modules: hide editor entry points; renderer skips block type with admin
 
 - **Access:** [ACCESS-MODEL.md](ACCESS-MODEL.md) — VIP per-release default + per-track override; anonymous sees embargoed tracks locked, not hidden.
 - **Delivery / PWA / cast:** [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — PHP authorizes, static delivery serves bytes; cast scope = full playable/viewable media (v0.9+).
-- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export (fresh install import), and **release package** export/import (planned v0.9).
+- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export, and **portable release packages (PRP / `.prp`)**.
 
 ## `web-config.json` target shape (install shell)
 

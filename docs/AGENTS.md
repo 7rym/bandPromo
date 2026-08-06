@@ -7,7 +7,8 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 - bandPromo is a PHP-based music site with an admin panel, setup flow, media build pipeline, and analytics.
 - Runtime/user-managed content lives outside tracked templates and is created during setup.
-- The entire `/media`, `/data`, `/log`, and `/backups` trees are git-ignored. Demo/starter assets never live in the repository; setup downloads them from the published default-theme / Demo Release packages onto the host.
+- **Campaign content** is portable via **PRP** (`.prp` ZIP) — see [PORTABILITY.md](PORTABILITY.md). Setup imports `bandPromo-demo.prp`; do not invent parallel default-theme/demo content packages for new work.
+- The entire `/media`, `/data`, `/log`, and `/backups` trees are git-ignored. Demo masters travel in the demo PRP / published artifacts, not as tracked git binaries.
 - Apache/PHP protection stubs (root `.htaccess`, `.user.ini`, `play/.htaccess`, deny-all stubs under data/log/backups/media) are generated from `biblioteca/templates/runtime/` by setup when missing — not tracked at install paths.
 - Operators can verify and repair those managed stubs from **System → Security** (`security-sanity-check.php` / `security-sanity-repair.php`). Repair overwrites drifted managed stubs only; it never rewrites `web-config.json`.
 - IDE preferences (`.vscode/`, `.editorconfig`) are local-only and not tracked.
@@ -117,3 +118,4 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 _Last updated: 2026-08-06_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
+- **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PRP / `.prp` contract is source of truth for demo and operator campaign handoff.

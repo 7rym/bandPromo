@@ -9,7 +9,8 @@ Related: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
 ## Principles
 
 - bandPromo remains a **closed authenticated site** through v0.8 beta; tier rules are defined now and enforced in v0.9.
-- **FAQ page** (`faq`) is always required — login help, shared-link context, operator guidance.
+- **FAQ** (`faq`) is a **system-owned** required page — platform/login help and shared-link context. It is **not** part of any portable release package (PRP). It survives **Hide demo catalog**. Operators may edit copy; they cannot delete FAQ.
+- Campaign pages (Bio, Gallery, News, …) belong to releases via `release_id` and travel in PRPs when owned by that campaign.
 - **Release date** on each release is the primary public availability threshold.
 - **Playlist publish date** controls playlist promotion and default selection; it does not override per-track release gates.
 - **Operators and developers** always bypass availability gates.
@@ -71,9 +72,11 @@ Storage sketch on release membership:
 
 ### FAQ page
 
-- Required system page (`faq`); cannot be deleted.
-- Surfaces: login lightbox, shared-link explanations, operator-authored site rules.
-- Lives in `data/pages/faq.json` like any page container.
+- **System-owned** required page (`faq`); cannot be deleted; **not** included in PRPs.
+- Explains the **platform** (login, player, what bandPromo does) more than campaign content.
+- Seeded from a platform template at setup (not from `bandPromo-demo.prp`).
+- Surfaces: login lightbox, shared-link explanations, operator-editable site rules.
+- Lives in `data/pages/faq.json` like any page container; hide-demo does not remove it.
 
 ### Login flow
 

@@ -15,7 +15,9 @@ Rules for this file:
 
 ## Current milestone
 
-**v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and content AI wizards. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
+**v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and **portable release packages (PRP)**. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
+
+**Active gate (2026-08-06):** lock and ship **PRP** (`.prp`) as the only campaign data handoff — setup imports `bandPromo-demo.prp`; Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable release packages.
 
 **v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool Phase 3 Brand-assets fold (relocate `media/special/` visuals → `media/visual/original/`; living-cover `ast_*`), content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Sound effects + Brand assetsor pool + Brand assets rename + content date-field unification shipped (2026-07-15/16). Visual registry + multi-variant delivery Phases 0b–2 shipped (2026-07-21). — **not published as a Site-update package yet**.
 
@@ -252,30 +254,49 @@ Implementation order:
 - [x] **Player loop** — existing `<video>` on flip-card cover.
 - [ ] **Visual registry IDs for living cover** — store visual asset id instead of video filename in master tags (registry Phases 0b–2 shipped; this tag rewrite remains).
 
-### Release package export / import (ambassador + demo handoff)
+### Portable release packages (PRP) — active v0.8 gate
 
-Policy updated 2026-07-21 — see [PORTABILITY.md](PORTABILITY.md) → Release package export / import; [PLATFORM-MODEL.md](PLATFORM-MODEL.md) Release umbrella.
+Policy lock **2026-08-06** — see [PORTABILITY.md](PORTABILITY.md) §3; [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
 
-Policy — **locked**:
+**Product — locked:**
 
-- [x] Lock **release-scoped handoff** — third portability service beside full backup and site data export; not a full-site ZIP.
-- [x] Lock **Release owns campaign** — package includes identity, playlists, galleries, pages, masters, visuals/SFX — not tracklist-only.
-- [x] Lock **Playlist = listening product** — album/single/tour packages reuse release-owned tracks.
-- [x] Lock **master tags as portable truth for audio packaging** — lyrics, Markdown descriptions, embedded cover art travel in masters; visual roles/brand scope travel in the **registry subset**; living cover becomes `asset_id`; target Publish regenerates delivery tier.
-- [x] Lock **registry subset required** — release ZIP includes filtered `data/assets` rows for the campaign closure; import merges into target registry (no master-only round-trip).
-- [x] Lock **import creates new release slot** — no silent overwrite on target without explicit operator confirm (demo seed may refresh locked demo id).
-- [x] Lock **setup uses the same importer** — bandPromo Demo Release package replaces loose default-theme media ZIP as the product story.
-- [x] Lock **ambassador workflow** — prepare on one install, import on another; bandPromo takes no marketplace cut.
-- [x] Lock **export-time human names** — manifest labels use readable titles; on-disk paths remain `ast_{ULID}`.
-- [x] Lock **analytics stay out of release packages** — usage logs remain site-wide (full backup **Data**); not release-scoped.
+- [x] Lock **`.prp`** — bandPromo-specific ZIP (rename to `.zip` OK); not DistroKid/distributor format.
+- [x] Lock **PRPs only** for campaign data — no parallel default-theme / demo-release **content** ZIPs.
+- [x] Lock **masters only** in PRP; deliverables built on import/Publish; disposable.
+- [x] Lock **stable IDs** on export/import (`ast_*`, release, containers).
+- [x] Lock **demo PRP** — setup imports `bandPromo-demo.prp`; locked base shell brand; operator read-only; optional hide; localhost-only source edits; system re-import overwrites.
+- [x] Lock **demo pages in PRP** — Bio + Gallery page (gallery block → demo gallery); **FAQ is system-owned**, not in PRP.
+- [x] Lock **player chrome** — Cover flow + Living on install; campaign page tabs follow **current track’s `release_id`**; idle = no campaign pages.
+- [x] Lock **Primary** — invisible orphan/upload bucket; operators never manage it as a release.
+- [x] Lock **duplicate** — new container ids, **shared** media `ast_*`, multi-ref delete guard.
+- [x] Lock **import collision** — operator chooses; analytics/logs stay out of PRPs.
+- [x] Lock **ambassador workflow** — prepare on one install, import on another; no marketplace cut.
 
-Implementation order:
+**Implementation order (active):**
 
-- [x] **Ownership fields + migrate** — `release_id` on brand/playlist/gallery/page; dual-read legacy links.
-- [x] **Release hub admin IA** — work from Release; Branding/Playlists framed under it.
-- [x] **Import flow** — shared setup + admin importer for Demo Release / operator packages.
-- [x] **Demo Release package** — replace default-theme ZIP contents/story with campaign package.
-- [ ] **Export builder (M6)** — after Visual identity M1–M2 (stable `asset_id` closure); validate completeness; ZIP campaign subset + masters + registry slice + manifest; import merges registries.
+- [x] **Docs lock** — PORTABILITY / PLATFORM-MODEL / ACCESS-MODEL / TODO aligned to PRP (2026-08-06).
+- [ ] **PRP schema + export builder** — complete Bio/Gallery/brand/masters/registry; emit `.prp`.
+- [ ] **Setup imports demo PRP only** — retire parallel content seed packages.
+- [ ] **System FAQ seed + coverflow/living defaults**.
+- [ ] **Contextual page tabs** — current track `release_id`; hide-demo aware.
+- [ ] **Duplicate + multi-ref delete guard**.
+- [ ] **Import collision UI**; system demo overwrite.
+- [ ] **Ship `bandPromo-demo.prp`** with application release packaging.
+- [ ] **Validate** — local → bandpromo.site fresh → Winter Party / Retroscopy roundtrip → HITZ → TC.
+
+**Follow-ups (not blocking PRP schema, priority after validate):**
+
+- [ ] **Analytics / play-logs** — store and export **UID-only** asset/release handles (no filename identity).
+- [ ] **Full site backup** — rewrite export/import for UID asset model (see [PORTABILITY.md](PORTABILITY.md) §1).
+
+Legacy checklist (superseded wording kept for history):
+
+- [x] Lock **release-scoped handoff** — third portability service beside full backup and site data export.
+- [x] Lock **Release owns campaign** — package includes identity, playlists, galleries, pages, masters, visuals/SFX.
+- [x] Lock **registry subset required** — filtered `data/assets` rows; import merges.
+- [x] **Ownership fields + migrate** — `release_id` on brand/playlist/gallery/page.
+- [x] **Release hub admin IA**.
+- [x] **Import flow** — shared setup + admin importer (evolve to PRP-only).
 - [ ] **Ambassador docs** — short operator-facing how-to.
 
 ### Beta fleet sync + legacy audit gate (v0.8 exit)

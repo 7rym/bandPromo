@@ -1,10 +1,10 @@
 # bandPromo Portability: Backup, Export, and Moved Sites
 
-Source of truth for operator backup, data export/import, and host migration.
+Source of truth for operator backup, data export/import, host migration, and **portable release packages (PRP)**.
 
-**Status:** policy locked for v0.8 (2026-06-15). **Implementation:** Admin → System → **Backup & export** ships component picker export, ZIP import (restore + cross-site migrate), ready/job list with download/delete (2026-07-13). **Release package** export/import policy locked (2026-07-15); implementation planned v0.9. Setup-time import and richer URL repair remain planned.
+**Status:** policy locked for v0.8 (2026-06-15); **PRP product lock 2026-08-06** (see §3). **Implementation:** Admin → System → **Backup & export** ships component picker export, ZIP import (restore + cross-site migrate), ready/job list with download/delete (2026-07-13). Campaign import/export builders exist; completing **PRP-only** setup (`.prp`, demo as locked import, no parallel content ZIPs) is the active v0.8 management gate.
 
-Related: [INSTALL-UPDATE.md](INSTALL-UPDATE.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
+Related: [INSTALL-UPDATE.md](INSTALL-UPDATE.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ACCESS-MODEL.md](ACCESS-MODEL.md), [ROADMAP.md](ROADMAP.md).
 
 ## Three operator services
 
@@ -25,13 +25,15 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 
 **Excludes:**
 
-- tracked application PHP/JS (reinstalled from release package)
-- `vendor/` (regenerated or shipped with package)
+- tracked application PHP/JS (reinstalled from the **application** GitHub Release package)
+- `vendor/` (regenerated or shipped with the app package)
 - `backups/` (operator archive staging area; never packed into another backup)
+
+**Follow-up (priority TODO):** rewrite full backup export/import for the **UID-only asset model** once PRPs are the sole campaign handoff path.
 
 **Restore flow:**
 
-1. Deploy current bandPromo **release package** to target folder (bootstrap or updater).
+1. Deploy current bandPromo **application** release package to target folder (bootstrap or updater).
 2. Upload/extract **full backup** over preserved runtime paths.
 3. Run moved-site URL repair if host changed (below).
 4. Admin post-restore checklist: version match, build-required recalc, smoke playback.
@@ -48,10 +50,12 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 | **Config + containers + media manifest** | above + asset registry with storage paths | Validates media presence on import |
 | **Config + containers + media bundle** | above + `media/` subset (masters + required delivery) | One-step migration to empty host |
 
+Prefer **PRP round-trips** for one-campaign moves. Use data export when moving an entire install’s config/containers.
+
 **Import flow (fresh install):**
 
-1. Bootstrap/install release package on new host.
-2. Complete setup wizard (or skip demo seed when import detected).
+1. Bootstrap/install application package on new host.
+2. Complete setup (imports `bandPromo-demo.prp` unless a full data import replaces that path).
 3. Admin → **Import data package** → validates structure, merges `data/`, applies `web-config` install pointers.
 4. If media bundle included: extract to `media/`; if not: operator uploads or copies media separately using manifest checklist.
 5. **Repair site URL** wizard runs automatically when `install.site.url` disagrees with current host.
@@ -62,58 +66,71 @@ bandPromo offers **three distinct portability services**, not one combined ZIP:
 - overwrite application code from export package
 - silently merge with wrong schema version (require compatible `export_version`)
 
-### 3. Release package export / import
+### 3. Portable release package (PRP) export / import
 
-**Purpose:** move **one release campaign** — masters, identity, EPK, linked listening products (playlists), galleries, pages, and visuals — between installs without a full site backup. Setup installs the **bandPromo Demo Release** with this same importer.
+**Purpose:** move **one release campaign** between installs without a full site backup. Setup installs **`bandPromo-demo.prp`** with this same importer. Operators may rename `.prp` to `.zip`; the archive is a normal ZIP with a bandPromo-specific layout (not a DistroKid/distributor format).
 
-**Status:** product model locked 2026-07-21 (Release = campaign umbrella; Playlist = listening product). **Import shipped** (setup + Admin → Release hub). **Export builder shipped** 2026-08-04 (`bandpromo_release_campaign_export_to_zip`) with registry-subset merge on import.
+**Status:** product lock **2026-08-06**. Partial import/export code shipped earlier; completing PRP-only vanilla setup and operator UX is the active gate before v0.9.
 
-**What travels in a release package**
+#### What a PRP is
+
+| Rule | Decision |
+|------|----------|
+| **Unit** | One campaign (Release umbrella): brand, tracks, playlists, galleries, owned pages, masters, registry subset |
+| **File** | ZIP; preferred extension `.prp` |
+| **IDs** | **Keep** `ast_*`, release, playlist, gallery, page, brand ids across export/import |
+| **Media** | **Masters only** — no `optimal/` / delivery tier; target builds deliverables on import or Publish |
+| **Not included** | Analytics / play-logs, unrelated releases, `web-config.json` as portable truth, install FAQ (system-owned) |
+| **Data packages** | **PRPs only** for campaign content — no parallel default-theme / demo-release **content** ZIPs |
+
+#### What travels in a PRP
 
 | Layer | Included | Notes |
 |-------|----------|-------|
-| **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id` |
-| **Identity (brand)** | `data/brands/{id}.json` + shell media | Owned by the release (`release_id`); slots address Visual/SFX by **`asset_id`** (path strings are transitional) |
-| **Track masters** | `media/audio/master/*` (and originals as needed) | Exclusive catalog home |
-| **Master tags** | Inside FLAC/MP3 | Title, artist, lyrics, cover, living cover (`asset_id` once living-cover rewrite lands) |
-| **Playlists** | Playlist docs with `release_id` | Album order, singles packages, etc. |
-| **Galleries / pages** | Docs with `release_id` | Press gallery, Bio, … — picture/gallery items carry `asset_id` |
-| **Linked visuals / SFX** | Master files + **asset registry subset** | Covers, living covers, brand slots — roles/brand scope live in registry, not EXIF |
-| **Export manifest** | `release-package-manifest.json` | Title, `release_export_version`, checklist |
+| **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id`, `tracks[]` |
+| **Identity (brand)** | `data/brands/{id}.json` + shell **masters** | Owned by the release; slots address Visual/SFX by **`asset_id`** |
+| **Track masters** | `media/audio/master/*` (and originals as needed) | Tags inside masters |
+| **Playlists** | Docs with `release_id` | Listening products |
+| **Galleries / pages** | Docs with `release_id` | Demo PRP: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
+| **Linked visuals / SFX** | Master files + **asset registry subset** | Roles/brand scope in registry |
+| **Manifest** | `release-package-manifest.json` | `release_export_version`, title, paths, flags (`platform_demo`, locked), bandPromo `VERSION` |
 
-**What does not travel**
+#### Demo PRP (`bandPromo-demo.prp`)
 
-- Unrelated releases or install-wide config as source of truth (`web-config.json`, base brand pointer)
-- Listener accounts, **analytics / usage logs**, admin audit history (those stay in full site backup **Data** component)
-- Delivery-tier files as the source of truth — target regenerates on Publish
+- Imported at **setup** first; becomes the locked **base shell** brand (secure fallback until the operator selects another base).
+- **Read-only** for operators; optional **hide** when they want only their own catalog; cannot delete.
+- Operators may **duplicate** as a template: **new container ids**, **shared** media `ast_*`; delete blocked while an asset is multi-referenced.
+- Only a **localhost developer** may change the demo PRP source and re-export it.
+- System re-import of demo defaults to **overwrite** so delivery can rebuild.
 
-**Portable truth:** masters (audio tags + visual bytes) + campaign JSON + **registry subset**. Masters alone are not enough for visual roles or campaign graph. Export builder and import-side registry merge are required (Visual identity completion M6 — shipped).
+#### Operator import collisions
 
-**Import flow (target install / setup)**
+When imported ids already exist, the operator chooses (refuse / overwrite / skip-existing). Labels are implementation detail; silent overwrite of operator campaigns is forbidden.
+
+#### Duplicate vs import
+
+| Operation | Container ids | Media `ast_*` |
+|-----------|---------------|---------------|
+| **Export → import** (between installs) | **Keep** | **Keep** |
+| **Duplicate** (same install, template) | **New** | **Shared** (same files); multi-ref delete guard |
+
+#### Import flow
 
 1. Validate `release_export_version` and bandPromo compatibility.
-2. Create or refresh the release slot (demo may be locked; operator imports create new slots without silent overwrite).
-3. Extract masters, identity, playlists, galleries, pages; **merge asset + container registries**; set ownership `release_id` links.
-4. Optionally set install active identity to the imported release’s brand.
-5. Operator/setup runs Publish for streaming delivery.
-6. Smoke-check playback, shell identity, Bio, gallery.
+2. Apply collision policy (operator UI or system overwrite for demo).
+3. Extract masters + campaign docs; **merge** asset + container registries (**keep ids**).
+4. Setup: set install base brand to demo brand when importing demo PRP (first-run / system path).
+5. Build deliverables (Publish / post-import delivery).
+6. Smoke-check playback, shell, Bio/Gallery contextual tabs.
 
-**Ambassador and services model**
+#### Ambassador and services model
 
-bandPromo does not operate a marketplace or take a cut. The product enables a practical workflow:
+bandPromo does not operate a marketplace or take a cut. Ambassadors and release preparers hand off real PRPs; commercial terms stay between people.
 
-| Actor | Role |
-|-------|------|
-| **Ambassador** | Experienced beta tester who demos bandPromo to prospective operators using **real prepared releases** |
-| **Release preparer** | Anyone who packages metadata, artwork, living covers, and EPK copy on a source install |
-| **Target operator** | Imports the package, publishes on their domain, owns the live site |
-
-Ambassadors can advance from tester to demo helper by maintaining showcase releases on their own sites and transferring them to prospect demo installs. Operators who are skilled at release packaging may **sell preparation as a service** (freelance, label services, agency work) — bandPromo supplies the portable handoff; commercial terms stay between people.
-
-**Security and integrity**
+#### Security and integrity
 
 - Same zip-slip and path validation bar as site backup import.
-- Release packages contain masters and media — treat downloads like full backups (HTTPS, store safely).
+- PRPs contain masters — treat downloads like backups (HTTPS, store safely).
 - Import refuses incompatible schema versions with plain-language upgrade instructions.
 
 ## Moved-site recovery
@@ -132,7 +149,7 @@ Package updater and bootstrap already preserve:
 
 `web-config.json`, `.env`, `data/`, `media/`, `log/`, `backups/`
 
-Full backup is a **superset** operators control on demand. Data export is a **selective** site portability tool. Release package export is a **release-scoped** handoff tool.
+Full backup is a **superset** operators control on demand. Data export is a **selective** site portability tool. **PRP** export is a **release-scoped** handoff tool. Application code updates use GitHub **application** Release ZIPs (not PRPs).
 
 ## Operator UX (target)
 
@@ -156,12 +173,12 @@ Presets: all four = full site backup; platform + data = legacy data export tier.
 | Delete server archive | Admin → System → Backup & export | Removes `backups/{id}.zip` | **Shipped** |
 | Import during setup | Setup wizard | Guided merge + URL repair | Planned |
 | Restore full backup | Manual extract or admin import | Replace runtime paths | **Shipped** (admin import) |
-| Export release package | Admin → Releases (planned) | Release-scoped ZIP | Planned |
-| Import release package | Admin → Releases or Backup & export (planned) | New release slot on target | Planned |
+| Export PRP (`.prp`) | Admin → Catalogue / Release | Campaign ZIP | **In progress** (builder exists; PRP-only product path active) |
+| Import PRP | Setup + Admin | New or refreshed release slot | **In progress** (demo PRP = setup gate) |
 
 Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
 
-**Import modes**
+**Import modes (site backup)**
 
 | Mode | Use when | Behaviour |
 |------|----------|-----------|
@@ -178,10 +195,10 @@ Listener and admin-audit SQLite live under **Data** (`data/`). Include that comp
 
 Export manifest includes:
 
-- `export_version` (site backup) or `release_export_version` (release package)
+- `export_version` (site backup) or `release_export_version` (PRP)
 - bandPromo `VERSION` at export time
 - `exported_at`
 - optional `install_id` (non-secret reference)
-- for release packages: human-readable release title and per-track checklist (export-time labels only)
+- for PRPs: human-readable release title, path checklist, optional `platform_demo` / lock flags
 
 Import refuses incompatible major schema versions with plain-language upgrade instructions.
