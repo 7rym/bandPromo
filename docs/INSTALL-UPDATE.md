@@ -6,6 +6,7 @@ This guide is for operators who want to run bandPromo without relying on Git, SS
 
 - You can upload files into the folder where your site should live.
 - Your host can run PHP 8+ with `pdo_sqlite` enabled and SQLite **3.8.0+** bundled with that PHP build.
+- Your host provides **Python 3.6.9+** for publish/rebuild (bandPromo installs Pillow/mutagen/xxhash into site-local `scripts/vendor/`; operators never run `pip`).
 - Your host allows outbound HTTPS requests so the bootstrap installer can download the published release package and query the GitHub Releases API for beta prereleases.
 - You can open a URL in the browser after uploading the installer file.
 
@@ -183,7 +184,7 @@ Where practical, the updater runs required post-update tasks automatically, such
 - manifest refresh
 - build-required recalculation
 - required migrations for the shipped version
-- site-local Python dependency bootstrap into `scripts/vendor/` (operators never run `pip` themselves; offline wheels in `scripts/vendor-wheels/` match the host Python version)
+- site-local Python dependency bootstrap into `scripts/vendor/` (operators never run `pip` themselves; offline wheels in `scripts/vendor-wheels/` match the host Python, including **cp36** / Python 3.6.9)
 
 ### 5. Report the outcome clearly
 

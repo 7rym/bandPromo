@@ -3,9 +3,9 @@
 Operators never pip-install system packages. Dependencies live under
 scripts/vendor/ (writable on the host) with offline wheels in
 scripts/vendor-wheels/ as fallback.
-"""
 
-from __future__ import annotations
+Must stay importable on CPython 3.6.9+ (hard floor for all scripts/).
+"""
 
 import sys
 from pathlib import Path
@@ -15,7 +15,7 @@ VENDOR_DIR = SCRIPT_DIR / "vendor"
 VENDOR_WHEELS_DIR = SCRIPT_DIR / "vendor-wheels"
 
 
-def ensure_vendor_on_sys_path() -> Path:
+def ensure_vendor_on_sys_path():
     """Prepend scripts/vendor to sys.path when present. Returns the vendor path."""
     vendor = VENDOR_DIR
     vendor_str = str(vendor)
@@ -24,7 +24,7 @@ def ensure_vendor_on_sys_path() -> Path:
     return vendor
 
 
-def python_tag() -> str:
+def python_tag():
     """PEP 425 interpreter tag for the running Python (e.g. cp312)."""
     return "cp{0}{1}".format(sys.version_info[0], sys.version_info[1])
 

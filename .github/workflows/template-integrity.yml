@@ -42,3 +42,9 @@ jobs:
           python -m json.tool biblioteca/templates/faq.template.json >/dev/null
 
           echo "Template integrity checks passed."
+
+      - name: Python 3.6 scripts compat gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_python36_compat.py

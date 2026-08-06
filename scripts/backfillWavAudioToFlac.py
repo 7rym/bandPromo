@@ -45,14 +45,15 @@ def convert_wav_to_flac(ffmpeg_path, source_path, target_path):
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
+        universal_newlines=True,
     )
     if result.returncode != 0 or not target_path.is_file():
         if target_path.exists():
             target_path.unlink()
-        raise RuntimeError(result.stdout.strip() or f'ffmpeg failed for {source_path.name}')
+        raise RuntimeError(
+            (result.stdout or '').strip()
+            or 'ffmpeg failed for {0}'.format(source_path.name)
+        )
 
 
 def load_config():

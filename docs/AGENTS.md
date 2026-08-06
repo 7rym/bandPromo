@@ -29,6 +29,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Keep repository-authored text in English only.
 - Exception: content inside `biblioteca/templates/` and runtime user data (for example `data/`) may contain any language.
 - Always add a timestamped note to `docs/CHANGELOG.md` whenever repository files are changed.
+- **Python 3.6.9 hard floor:** every file under `scripts/` must parse and run on CPython **3.6.9+** (shared-host baseline, e.g. bandpromo.site). Do not use `from __future__ import annotations`, PEP 604 `X | Y`, PEP 585 `list[str]`/`dict[...]`, `subprocess` `text=`/`capture_output=`, or `shutil.rmtree(..., onexc=)`. Prefer `typing.List`/`Dict`/`Optional`/`Union`, `universal_newlines=True`, and `stdout=`/`stderr=` pipes. Run `python scripts/check_python36_compat.py` before committing script changes.
 
 ### VERSION + push/pull workflow
 
@@ -115,4 +116,4 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 
 _Last updated: 2026-08-06_
 
-- **Python requirements:** `Pillow`, `mutagen`, `ffmpeg` (see [README.md](README.md))
+- **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.

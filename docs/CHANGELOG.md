@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-06 17:00 - Python **3.6.9 hard floor** for all `scripts/`: 3.6-safe syntax/APIs (`bandpromo_python_path`, `version_format`, `build_release_package`, `backfillWavAudioToFlac`); cp36 offline Pillow/xxhash wheels + requirements env markers; `check_python36_compat.py` gate in Template integrity CI; INSTALL/AGENTS document the floor.
+
 2026-08-06 15:40 - Vanilla build hygiene: install Python deps into site-local `scripts/vendor/` (offline `scripts/vendor-wheels/` matched to host Python); quiet xxhash spam; ffmpeg diag respects bundled `scripts/bin`; demo gallery seeds/heals Rollercoaster via visual `asset_id` contract; rollercoaster required in default-theme starter media; optimizeVideo accounts for registry original filenames.
 
 2026-08-06 14:50 - Site update follow-up: always auto-start **Rebuild all deliverables** on `run_recommended=1` (no longer gated on build-required state, which could skip the rebuild after redirect); toast copy matches whether rebuild started; package update always returns Deliverables follow-up; notification CTA says **Open Dashboard → Site update**.

@@ -9,9 +9,9 @@ App ZIP contents come from tracked repository files. Default-theme and Demo
 Release media come from on-disk runtime media/ (never from git). CI seeds that
 tree from the previous published default-theme package before running this
 script; local developers typically already have media/ from setup.
-"""
 
-from __future__ import annotations
+Must stay runnable on CPython 3.6.9+ (hard floor for all scripts/).
+"""
 
 import argparse
 import hashlib
@@ -22,6 +22,7 @@ import shutil
 import stat
 import subprocess
 import sys
+from typing import Dict, List, Optional, Tuple
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
@@ -92,31 +93,38 @@ REQUIRED_STARTER_MEDIA = (
 )
 
 
-def read_version() -> str:
+def read_version():
+    # type: () -> str
     version_text = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not version_text:
         raise RuntimeError("VERSION is empty.")
     return version_text
 
 
-def slugify_version(version_text: str) -> str:
+def slugify_version(version_text):
+    # type: (str) -> str
     return version_text.lower().replace(" ", "-")
 
 
-def git(*args: str) -> str:
+def git(*args):
+    # type: (*str) -> str
+    cmd = ["git"]
+    cmd.extend(args)
     result = subprocess.run(
-        ["git", *args],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
+        cmd,
+        cwd=str(ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
         check=True,
     )
     return result.stdout.strip()
 
 
-def tracked_files() -> list[str]:
+def tracked_files():
+    # type: () -> List[str]
     output = git("ls-files")
-    files: list[str] = []
+    files = []  # type: List[str]
     for relative_path in output.splitlines():
         relative_path = relative_path.strip().replace("\\", "/")
         if not relative_path:
@@ -129,19 +137,23 @@ def tracked_files() -> list[str]:
     return files
 
 
-def package_name(version_text: str) -> str:
-    return f"bandpromo-{slugify_version(version_text)}.zip"
+def package_name(version_text):
+    # type: (str) -> str
+    return "bandpromo-{0}.zip".format(slugify_version(version_text))
 
 
-def default_theme_package_name(version_text: str) -> str:
-    return f"bandpromo-default-theme-{slugify_version(version_text)}.zip"
+def default_theme_package_name(version_text):
+    # type: (str) -> str
+    return "bandpromo-default-theme-{0}.zip".format(slugify_version(version_text))
 
 
-def demo_release_package_name(version_text: str) -> str:
-    return f"bandpromo-demo-release-{slugify_version(version_text)}.zip"
+def demo_release_package_name(version_text):
+    # type: (str) -> str
+    return "bandpromo-demo-release-{0}.zip".format(slugify_version(version_text))
 
 
-def sha256_file(path: Path) -> str:
+def sha256_file(path):
+    # type: (Path) -> str
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -149,13 +161,18 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def ensure_runtime_protection_files() -> list[str]:
+def ensure_runtime_protection_files():
+    # type: () -> List[str]
     """Materialize Apache/PHP protection stubs from templates if missing."""
-    paths: list[str] = []
+    paths = []  # type: List[str]
     for template_name, relative_path in RUNTIME_PROTECTION_MAP:
         template = RUNTIME_TEMPLATES / template_name
         if not template.is_file():
-            raise RuntimeError(f"Missing runtime template: {template.relative_to(ROOT).as_posix()}")
+            raise RuntimeError(
+                "Missing runtime template: {0}".format(
+                    template.relative_to(ROOT).as_posix()
+                )
+            )
         target = ROOT / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.is_file():
@@ -164,10 +181,11 @@ def ensure_runtime_protection_files() -> list[str]:
     return paths
 
 
-def collect_media_files() -> list[str]:
+def collect_media_files():
+    # type: () -> List[str]
     """Collect packaging media from on-disk runtime media/ (never from git)."""
     media_root = ROOT / "media"
-    files: list[str] = []
+    files = []  # type: List[str]
 
     if media_root.is_dir():
         for path in media_root.rglob("*"):
@@ -176,7 +194,7 @@ def collect_media_files() -> list[str]:
             if path.name.lower() in MEDIA_JUNK_NAMES:
                 continue
             relative = path.relative_to(ROOT).as_posix()
-            lowered = f"/{relative.lower()}/"
+            lowered = "/{0}/".format(relative.lower())
             if any(part in lowered for part in MEDIA_SKIP_PATH_PARTS):
                 continue
             files.append(relative)
@@ -198,9 +216,10 @@ def collect_media_files() -> list[str]:
     return sorted(set(files))
 
 
-def require_starter_media(media_files: list[str]) -> None:
+def require_starter_media(media_files):
+    # type: (List[str]) -> None
     present = set(media_files)
-    missing: list[str] = []
+    missing = []  # type: List[str]
     for path in REQUIRED_STARTER_MEDIA:
         if path not in present or not (ROOT / path).is_file():
             missing.append(path)
@@ -211,33 +230,31 @@ def require_starter_media(media_files: list[str]) -> None:
             "Required starter media is missing from on-disk media/. "
             "Seed local media via setup, or download/extract the latest "
             "bandpromo-default-theme-*.zip into the workspace before packaging. "
-            f"Missing: {missing_list}"
+            "Missing: {0}".format(missing_list)
         )
 
 
-def write_zip(archive_path: Path, files: list[str]) -> None:
+def write_zip(archive_path, files):
+    # type: (Path, List[str]) -> None
     if archive_path.exists():
         archive_path.unlink()
 
-    with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
+    with ZipFile(str(archive_path), "w", compression=ZIP_DEFLATED) as archive:
         for relative_path in files:
             source_path = ROOT / relative_path
             if not source_path.is_file():
                 continue
-            archive.write(source_path, relative_path)
+            archive.write(str(source_path), relative_path)
 
 
-def write_demo_release_zip(
-    archive_path: Path,
-    package_template_files: list[str],
-    media_files: list[str],
-) -> list[str]:
+def write_demo_release_zip(archive_path, package_template_files, media_files):
+    # type: (Path, List[str], List[str]) -> List[str]
     """Write Demo Release ZIP with install-relative paths for docs + media/."""
     if archive_path.exists():
         archive_path.unlink()
 
-    written: list[str] = []
-    with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
+    written = []  # type: List[str]
+    with ZipFile(str(archive_path), "w", compression=ZIP_DEFLATED) as archive:
         for relative_path in package_template_files:
             if not relative_path.startswith(DEMO_RELEASE_TEMPLATE_PREFIX):
                 continue
@@ -245,23 +262,19 @@ def write_demo_release_zip(
             if not source_path.is_file():
                 continue
             arcname = relative_path[len(DEMO_RELEASE_TEMPLATE_PREFIX) :]
-            archive.write(source_path, arcname)
+            archive.write(str(source_path), arcname)
             written.append(arcname)
         for relative_path in media_files:
             source_path = ROOT / relative_path
             if not source_path.is_file():
                 continue
-            archive.write(source_path, relative_path)
+            archive.write(str(source_path), relative_path)
             written.append(relative_path)
     return written
 
 
-def build_zip(
-    output_dir: Path,
-    package_url_base: str | None = None,
-    manifest_url: str | None = None,
-    release_tag: str | None = None,
-) -> tuple[Path, Path, Path, dict[str, object]]:
+def build_zip(output_dir, package_url_base=None, manifest_url=None, release_tag=None):
+    # type: (Path, Optional[str], Optional[str], Optional[str]) -> Tuple[Path, Path, Path, Dict[str, object]]
     version_text = read_version()
     files = tracked_files()
     if not files:
@@ -306,7 +319,7 @@ def build_zip(
         default_theme_files,
     )
 
-    manifest: dict[str, object] = {
+    manifest = {  # type: Dict[str, object]
         "version": version_text,
         "package_file": archive_path.name,
         "sha256": sha256_file(archive_path),
@@ -371,7 +384,8 @@ def build_zip(
     return archive_path, default_theme_archive_path, demo_release_archive_path, manifest
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args():
+    # type: () -> argparse.Namespace
     parser = argparse.ArgumentParser(description="Build a distributable bandPromo release package.")
     parser.add_argument(
         "--output-dir",
@@ -401,7 +415,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def handle_remove_readonly(func, path, exc_info) -> None:
+def handle_remove_readonly(func, path, exc_info):
+    # type: (object, str, object) -> None
     exc_value = exc_info[1] if isinstance(exc_info, tuple) else exc_info
     if isinstance(exc_value, PermissionError):
         os.chmod(path, stat.S_IWRITE)
@@ -410,12 +425,14 @@ def handle_remove_readonly(func, path, exc_info) -> None:
     raise exc_value
 
 
-def main() -> int:
+def main():
+    # type: () -> int
     args = parse_args()
     output_dir = Path(args.output_dir).resolve()
 
     if args.clean and output_dir.exists():
-        shutil.rmtree(output_dir, onexc=handle_remove_readonly)
+        # onerror is the Python 3.6 API; onexc is 3.12+.
+        shutil.rmtree(str(output_dir), onerror=handle_remove_readonly)
 
     try:
         archive_path, default_theme_archive_path, demo_release_archive_path, manifest = build_zip(
@@ -425,22 +442,24 @@ def main() -> int:
             release_tag=args.release_tag,
         )
     except Exception as exc:  # pragma: no cover - CLI failure path
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print("ERROR: {0}".format(exc), file=sys.stderr)
         return 1
 
-    print(f"Built package: {archive_path}")
-    print(f"Built default theme package: {default_theme_archive_path}")
-    print(f"Built Demo Release package: {demo_release_archive_path}")
-    print(f"Version: {manifest['version']}")
-    print(f"SHA256: {manifest['sha256']}")
-    print(f"App package tracked files: {manifest['tracked_file_count']}")
+    print("Built package: {0}".format(archive_path))
+    print("Built default theme package: {0}".format(default_theme_archive_path))
+    print("Built Demo Release package: {0}".format(demo_release_archive_path))
+    print("Version: {0}".format(manifest["version"]))
+    print("SHA256: {0}".format(manifest["sha256"]))
+    print("App package tracked files: {0}".format(manifest["tracked_file_count"]))
     print(
-        "Default theme media files: "
-        f"{manifest['default_theme_package']['tracked_file_count']}"
+        "Default theme media files: {0}".format(
+            manifest["default_theme_package"]["tracked_file_count"]
+        )
     )
     print(
-        "Demo Release package files: "
-        f"{manifest['demo_release_package']['tracked_file_count']}"
+        "Demo Release package files: {0}".format(
+            manifest["demo_release_package"]["tracked_file_count"]
+        )
     )
     return 0
 
