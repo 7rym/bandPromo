@@ -491,6 +491,9 @@ function bandpromo_package_run_post_update_tasks(string $root, array $applyResul
         'default_theme' => $defaultTheme,
         'default_theme_error' => $defaultThemeError,
         'build_required' => $buildRequired,
-        'follow_up' => !empty($buildRequired['required']) ? 'open_build_tab' : 'none',
+        // Always open Deliverables after a package update. Rebuild all deliverables
+        // is the normal next step so listener-ready files match the new app code,
+        // even when delivery status already looked clear.
+        'follow_up' => 'open_build_tab',
     ];
 }

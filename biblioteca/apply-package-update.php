@@ -95,9 +95,7 @@ try {
     ]);
 
     $message = 'bandPromo was updated to ' . $applyResult['installed_version'] . '.';
-    if (($postUpdate['follow_up'] ?? '') === 'open_build_tab') {
-        $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
-    }
+    $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
 
     // Re-check and rewrite cache so Notifications immediately show up to date.
     bandpromo_package_write_update_cache($root, bandpromo_package_check_update($root));

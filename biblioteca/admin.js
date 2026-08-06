@@ -841,15 +841,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                if (!payload || typeof showAdminToast !== 'function') {
+                if (!payload || typeof payload !== 'object') {
+                    return null;
+                }
+
+                return String(payload.version || '').trim();
+            }
+
+            function showPostPackageUpdateToast(installedVersion, runResult) {
+                if (typeof showAdminToast !== 'function') {
                     return;
                 }
 
-                const version = String(payload.version || '').trim();
-                const message = version
-                    ? `Site update to ${version} installed. Rebuilding deliverables for your public site…`
-                    : 'Site update installed. Rebuilding deliverables for your public site…';
-                showAdminToast(message, 'success');
+                const version = String(installedVersion || '').trim();
+                const versionPrefix = version
+                    ? `Site update to ${version} installed. `
+                    : 'Site update installed. ';
+
+                if (runResult === 'started' || runResult === 'already-running') {
+                    showAdminToast(
+                        versionPrefix + 'Rebuilding deliverables for your public site…',
+                        'success'
+                    );
+                    return;
+                }
+
+                showAdminToast(
+                    versionPrefix + 'Click Rebuild all deliverables to refresh your public site.',
+                    'success'
+                );
             }
 
             function rememberPostPackageUpdateFollowUp(installedVersion) {
@@ -982,7 +1002,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         { text: 'A newer bandPromo package is published. Application files can be updated while web-config.json, .env, data/, media/, and log/ stay preserved.' },
                     ],
                     actions: [
-                        { label: 'Go to Site update', href: '?tab=welcome#packageUpdateCard' },
+                        { label: 'Open Dashboard → Site update', href: '?tab=welcome#packageUpdateCard' },
                     ],
                 };
             }
@@ -8899,10 +8919,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let currentBuildTasks = [];
 
             function runRecommendedAction() {
-                if (pollTimer) return;
+                if (pollTimer) {
+                    return 'already-running';
+                }
                 if (buildBtn && !buildBtn.disabled) {
                     buildBtn.click();
+                    return 'started';
                 }
+                return 'unavailable';
             }
 
             function maybeRunRecommendedActionFromQuery() {
@@ -8912,11 +8936,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 triggeredBuildRunFromQuery = true;
                 clearRecommendedRunQuery();
-                consumePostPackageUpdateFlash();
+                const postUpdateVersion = consumePostPackageUpdateFlash();
                 openBuildLogCard();
 
-                if (currentBuildRequired) {
-                    runRecommendedAction();
+                // run_recommended=1 is an explicit follow-up (Site update or Notifications).
+                // Always start Rebuild all deliverables — do not gate on build-required
+                // state, which can read false after redirect and skip the rebuild while
+                // the toast still claimed it was running.
+                const runResult = runRecommendedAction();
+                if (postUpdateVersion !== null) {
+                    showPostPackageUpdateToast(postUpdateVersion, runResult);
                 }
             }
 
@@ -9394,7 +9423,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 isDeliverablesViewActive()
                     ? { full: true, inventory: true }
                     : { scope: 'lite' }
-            );
+            ).finally(() => {
+                // If the notifications fetch fails, still honor run_recommended=1
+                // (Site update follow-up must not depend on that endpoint succeeding).
+                maybeRunRecommendedActionFromQuery();
+            });
 
             (function initContentAutofix() {
                 const statusEl = document.getElementById('contentAutofixStatus');

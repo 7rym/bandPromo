@@ -203,10 +203,10 @@ Package update **preserves** your content. It replaces application PHP/JS only. 
 
 **What to do next (normal workflow):**
 
-1. After **Install update** succeeds, bandPromo opens **System → Deliverables**, starts **Rebuild all deliverables**, and shows the build log automatically.
+1. After **Install update** succeeds, bandPromo opens **System → Deliverables**, starts **Rebuild all deliverables**, and shows the build log automatically — even when delivery status already looked clear.
 2. Wait for the rebuild to finish, then smoke-test admin and playback.
 
-If you land on Deliverables without an auto-run (for example after a manual package apply), open **Notifications** or **System → Deliverables** and run **Rebuild all deliverables** once. After every package update, bandPromo marks delivery work as pending — this refreshes listener-ready files and the site manifest. It is expected, not an error.
+If the auto-run cannot start (for example the rebuild button is unavailable), the success toast tells you to click **Rebuild all deliverables** yourself. Notifications also keep a **Fix first** item while package-update delivery work remains pending.
 
 **What Site update does not do:**
 

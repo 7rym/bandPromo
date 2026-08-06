@@ -150,6 +150,7 @@ function bandpromo_reason_action(string $reason): string {
         'social_config_changed' => 'full',
         'media_image_upload' => 'optimize',
         'release_tags_sync' => 'full',
+        'package_update' => 'full',
     ];
     return $map[$reason] ?? 'none';
 }

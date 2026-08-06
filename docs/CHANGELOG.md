@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-06 14:50 - Site update follow-up: always auto-start **Rebuild all deliverables** on `run_recommended=1` (no longer gated on build-required state, which could skip the rebuild after redirect); toast copy matches whether rebuild started; package update always returns Deliverables follow-up; notification CTA says **Open Dashboard → Site update**.
+
 2026-08-06 11:45 - System → Security: install sanity check compares managed Apache/PHP stubs to `biblioteca/templates/runtime/`, with preview/repair (CSRF + audit) for missing/empty/drifted files; writes `log/security-sanity-latest.json`. Build preflight also seeds missing protection stubs.
 
 2026-08-06 10:50 - Repo hygiene: drop IDE prefs (`.vscode/`, `.editorconfig`) from git; fully ignore `data/`, `log/`, and `backups/`; move Apache/PHP host stubs into `biblioteca/templates/runtime/` so setup regenerates them when missing.
