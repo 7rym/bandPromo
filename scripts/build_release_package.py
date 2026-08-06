@@ -27,7 +27,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = ROOT / "dist"
-MEDIA_HTACCESS_TEMPLATE = ROOT / "biblioteca" / "templates" / "media.htaccess"
+RUNTIME_TEMPLATES = ROOT / "biblioteca" / "templates" / "runtime"
+MEDIA_HTACCESS_TEMPLATE = RUNTIME_TEMPLATES / "media.htaccess"
 
 # Tracked files are the source of truth for the app package surface, but some
 # tracked repository paths are still developer/repo infrastructure rather than
@@ -39,12 +40,29 @@ EXCLUDED_PREFIXES = (
     "build/",
     "__pycache__/",
     "media/",
+    "data/",
+    "log/",
+    "backups/",
 )
 
 EXCLUDED_FILES = {
     ".gitignore",
+    ".editorconfig",
     "desktop.ini",
+    ".htaccess",
+    ".user.ini",
 }
+
+# Install-relative runtime protection files written from tracked templates.
+RUNTIME_PROTECTION_MAP = (
+    ("root.htaccess", ".htaccess"),
+    ("user.ini", ".user.ini"),
+    ("play.htaccess", "play/.htaccess"),
+    ("deny-all.htaccess", "data/.htaccess"),
+    ("deny-all.htaccess", "log/.htaccess"),
+    ("deny-all.htaccess", "backups/.htaccess"),
+    ("media.htaccess", "media/.htaccess"),
+)
 
 DEMO_RELEASE_TEMPLATE_PREFIX = "biblioteca/templates/demo-release-package/"
 
@@ -130,6 +148,21 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def ensure_runtime_protection_files() -> list[str]:
+    """Materialize Apache/PHP protection stubs from templates if missing."""
+    paths: list[str] = []
+    for template_name, relative_path in RUNTIME_PROTECTION_MAP:
+        template = RUNTIME_TEMPLATES / template_name
+        if not template.is_file():
+            raise RuntimeError(f"Missing runtime template: {template.relative_to(ROOT).as_posix()}")
+        target = ROOT / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.is_file():
+            target.write_bytes(template.read_bytes())
+        paths.append(relative_path.replace("\\", "/"))
+    return paths
+
+
 def collect_media_files() -> list[str]:
     """Collect packaging media from on-disk runtime media/ (never from git)."""
     media_root = ROOT / "media"
@@ -150,7 +183,7 @@ def collect_media_files() -> list[str]:
     # Always emit the security rule from the tracked template.
     if not MEDIA_HTACCESS_TEMPLATE.is_file():
         raise RuntimeError(
-            "Missing biblioteca/templates/media.htaccess — required to package media/.htaccess."
+            "Missing biblioteca/templates/runtime/media.htaccess — required to package media/.htaccess."
         )
     htaccess_path = ROOT / "media" / ".htaccess"
     htaccess_path.parent.mkdir(parents=True, exist_ok=True)
@@ -237,6 +270,10 @@ def build_zip(
     if not app_files:
         raise RuntimeError("No tracked application files found to package.")
 
+    for relative_path in ensure_runtime_protection_files():
+        if relative_path not in app_files:
+            app_files.append(relative_path)
+
     default_theme_files = collect_media_files()
     require_starter_media(default_theme_files)
 
@@ -283,7 +320,8 @@ def build_zip(
         },
         "notes": [
             "This package is built only on explicit operator/developer action.",
-            "Tracked runtime state such as web-config.json, .env, data/, and log/ is excluded from the package surface by repository policy.",
+            "Tracked runtime state such as web-config.json, .env, data/, log/, and media/ is excluded from git by repository policy.",
+            "Apache/PHP protection stubs (.htaccess, .user.ini) are generated from biblioteca/templates/runtime/ during setup and packaging; they are not tracked at install paths.",
             "The entire /media tree is git-ignored. Default-theme and Demo Release media are packaged from on-disk runtime media/ (seeded by setup locally, or from the previous published default-theme ZIP in CI).",
             "Setup uses the shared Demo Release importer; operator package export follows after Release hub UX stabilizes.",
         ],

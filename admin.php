@@ -591,7 +591,7 @@ if (!in_array($configTab, ['basics', 'support', 'sharing'], true)) {
 }
 
 // System sub-tab
-$allowedSystemTabs = ['deliverables', 'publish', 'audit', 'backup'];
+$allowedSystemTabs = ['deliverables', 'publish', 'audit', 'backup', 'security'];
 $systemTab = $_GET['stab'] ?? 'deliverables';
 if ($systemTab === 'activity') {
     $systemTab = 'backup';
@@ -2549,10 +2549,13 @@ if ($tab === 'analytics') {
                 <a href="?tab=system&amp;stab=deliverables" class="tab-link <?php echo $systemTab === 'deliverables' ? 'active' : ''; ?>">📦 Deliverables</a>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
                 <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup, export &amp; import</a>
+                <a href="?tab=system&amp;stab=security" class="tab-link <?php echo $systemTab === 'security' ? 'active' : ''; ?>">🔒 Security</a>
                 <?php if ($systemTab === 'deliverables'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
                 <?php elseif ($systemTab === 'audit'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
+                <?php elseif ($systemTab === 'security'): ?>
+                <button class="help-toggle-btn collapsed" id="helpBtn-security" onclick="toggleHelp('security')" title="Show/hide help">ⓘ</button>
                 <?php else: ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-backup-export" onclick="toggleHelp('backup-export')" title="Show/hide help">ⓘ</button>
                 <?php endif; ?>
@@ -2904,6 +2907,32 @@ if ($tab === 'analytics') {
                 </div>
                 <p id="releasePackageImportStatus" class="status-text backup-export-panel-status"></p>
                 <?php endif; ?>
+            </div>
+            <?php elseif ($systemTab === 'security'): ?>
+            <div class="admin-help-box collapsed" id="help-security">
+                Verifies that this install still has the managed Apache/PHP protection stubs bandPromo expects
+                (<code>.htaccess</code>, <code>.user.ini</code>, and deny-all rules under <code>data/</code>, <code>log/</code>, <code>backups/</code>, and <code>media/</code>).
+                <br><br>
+                <strong>Check</strong> only reports. <strong>Repair</strong> recreates missing or drifted managed stubs from
+                <code>biblioteca/templates/runtime/</code>. Custom edits to those managed files will be overwritten.
+                Site config (<code>web-config.json</code>) is checked for presence/validity but is never overwritten here.
+            </div>
+
+            <div id="securitySanityCard" class="card security-sanity-card">
+                <div class="build-validation-head">
+                    <h3>🔒 Host protection</h3>
+                    <span id="securitySanityOverall" class="badge audit-status-badge status-neutral">Not checked</span>
+                </div>
+                <p id="securitySanityMessage" class="card-note">
+                    Run a security sanity check to verify managed protection files on this install.
+                </p>
+                <div class="publish-actions-toolbar security-sanity-actions">
+                    <button type="button" id="securitySanityCheckBtn" class="btn btn-primary">🔍 Check install</button>
+                    <button type="button" id="securitySanityPreviewBtn" class="btn" hidden>👀 Preview repair</button>
+                    <button type="button" id="securitySanityRepairBtn" class="btn btn-amber" hidden>🩹 Repair managed stubs</button>
+                </div>
+                <p id="securitySanityStatus" class="build-log-status publish-action-status" hidden></p>
+                <ul id="securitySanityReport" class="security-sanity-report" hidden></ul>
             </div>
             <?php endif; ?>
         </div>

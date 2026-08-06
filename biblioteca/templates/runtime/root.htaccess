@@ -41,4 +41,3 @@
         Header set Cache-Control "private, no-store, max-age=0"
     </IfModule>
 </FilesMatch>
-

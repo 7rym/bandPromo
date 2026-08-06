@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-08-06 10:00 - Git policy: ignore the entire `/media` tree and untrack remaining demo/special assets; package theme/demo ZIPs from on-disk media (CI seeds from the previous default-theme ZIP); keep `media/.htaccess` as `biblioteca/templates/media.htaccess`.
+2026-08-06 11:45 - System → Security: install sanity check compares managed Apache/PHP stubs to `biblioteca/templates/runtime/`, with preview/repair (CSRF + audit) for missing/empty/drifted files; writes `log/security-sanity-latest.json`. Build preflight also seeds missing protection stubs.
+
+2026-08-06 10:50 - Repo hygiene: drop IDE prefs (`.vscode/`, `.editorconfig`) from git; fully ignore `data/`, `log/`, and `backups/`; move Apache/PHP host stubs into `biblioteca/templates/runtime/` so setup regenerates them when missing.
+
+2026-08-06 10:00 - Git policy: ignore the entire `/media` tree and untrack remaining demo/special assets; package theme/demo ZIPs from on-disk media (CI seeds from the previous default-theme ZIP); keep `media/.htaccess` as a tracked template under `biblioteca/templates/` (later moved to `runtime/`).
 
 2026-08-05 21:15 - Checkpoint: responsive player contract, seek-only scrubber, mobile portrait density, track-info rename, support CTA hardening, and floating-widget cleanup for tester release.
 

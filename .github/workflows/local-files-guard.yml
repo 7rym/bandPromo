@@ -20,6 +20,9 @@ jobs:
 
           blocked=(
             ".env"
+            ".editorconfig"
+            ".htaccess"
+            ".user.ini"
             "FTP_PASS"
             "credentials.txt"
             "web-config.json"
@@ -30,6 +33,7 @@ jobs:
             "biblioteca/bio.php"
             "biblioteca/gallery.json"
             "site.webmanifest"
+            "play/.htaccess"
           )
 
           matches=()
@@ -39,12 +43,11 @@ jobs:
             fi
           done
 
-          media_matches="$(git ls-files 'media/' || true)"
-          if [ -n "$media_matches" ]; then
+          for pattern in 'media/' 'data/' 'log/' 'backups/' '.vscode/'; do
             while IFS= read -r line; do
               [ -n "$line" ] && matches+=("$line")
-            done <<< "$media_matches"
-          fi
+            done < <(git ls-files "$pattern" || true)
+          done
 
           if [ "${#matches[@]}" -gt 0 ]; then
             echo "The following local-only files are tracked and must be removed from git:"
@@ -52,7 +55,8 @@ jobs:
               echo " - $m"
             done
             echo "Use: git rm --cached <file> to untrack while keeping local files."
-            echo "The entire media/ tree must stay untracked; demo media ships via published starter/theme packages."
+            echo "Runtime trees (data/, log/, backups/, media/) and IDE prefs (.vscode/, .editorconfig) must stay untracked."
+            echo "Apache/PHP stubs are generated from biblioteca/templates/runtime/ by setup."
             exit 1
           fi
 

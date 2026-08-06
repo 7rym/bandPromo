@@ -251,12 +251,13 @@ Write-Output 'Git'
 $gitStatus | ForEach-Object { Write-Output ('  {0}' -f $_) }
 Write-Output ''
 
-Write-Output 'Workspace tasks'
+Write-Output 'Session scripts'
+Write-Output '  - scripts/session-start.ps1'
+Write-Output '  - scripts/session-end.ps1'
+Write-Output '  - scripts/start-dev-server.ps1 / scripts/stop-dev-server.ps1'
 if ($taskLabels.Count -gt 0) {
+    Write-Output 'Local IDE tasks (optional, untracked)'
     $taskLabels | ForEach-Object { Write-Output ('  - {0}' -f $_) }
-}
-else {
-    Write-Output '  - none found (.vscode/tasks.json missing or empty)'
 }
 Write-Output ''
 

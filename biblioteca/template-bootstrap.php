@@ -16,11 +16,49 @@ require_once __DIR__ . '/release-ownership-helpers.php';
 
 function bandpromo_template_map(): array {
     $root = dirname(__DIR__);
+    $runtimeTemplates = $root . '/biblioteca/templates/runtime';
+    $denyAll = $runtimeTemplates . '/deny-all.htaccess';
+
     return [
         [
             'template' => $root . '/biblioteca/templates/web-config.template.json',
             'target' => $root . '/web-config.json',
             'kind' => 'json',
+        ],
+        [
+            'template' => $runtimeTemplates . '/root.htaccess',
+            'target' => $root . '/.htaccess',
+            'kind' => 'text',
+        ],
+        [
+            'template' => $runtimeTemplates . '/user.ini',
+            'target' => $root . '/.user.ini',
+            'kind' => 'text',
+        ],
+        [
+            'template' => $runtimeTemplates . '/play.htaccess',
+            'target' => $root . '/play/.htaccess',
+            'kind' => 'text',
+        ],
+        [
+            'template' => $denyAll,
+            'target' => $root . '/data/.htaccess',
+            'kind' => 'text',
+        ],
+        [
+            'template' => $denyAll,
+            'target' => $root . '/log/.htaccess',
+            'kind' => 'text',
+        ],
+        [
+            'template' => $denyAll,
+            'target' => $root . '/backups/.htaccess',
+            'kind' => 'text',
+        ],
+        [
+            'template' => $runtimeTemplates . '/media.htaccess',
+            'target' => $root . '/media/.htaccess',
+            'kind' => 'text',
         ],
     ];
 }

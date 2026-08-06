@@ -19,11 +19,15 @@ Remaining release risks are mostly **session abuse hardening** (CSRF, login rate
 | Item | Mitigation |
 | --- | --- |
 | Listener sessions could open admin panel and admin APIs | `bandpromo_require_admin_session()` in `biblioteca/auth.php`, `biblioteca/admin-api-guard.php`, `admin.php` access-denied page, and admin biblioteca endpoints |
-| Log files potentially web-readable | `log/.htaccess` denies direct HTTP access |
+| Log files potentially web-readable | Setup-generated `log/.htaccess` (from `biblioteca/templates/runtime/deny-all.htaccess`) denies direct HTTP access; **System → Security** can detect missing/drifted stubs and repair managed files |
 
 ## Critical — fix before wider public beta
 
 _None open after the admin-role guard. Re-verify on each release._
+
+## Install protection sanity (operator tool)
+
+**System → Security** runs `bandpromo_security_sanity_check()` against runtime directories, `web-config.json` presence/JSON validity, and managed Apache/PHP stubs. Repair rewrites only template-owned stubs (`biblioteca/templates/runtime/`) after CSRF confirmation and writes an audit entry; it does **not** overwrite `web-config.json`. Latest report: `log/security-sanity-latest.json`.
 
 ## High — should fix soon
 
@@ -45,7 +49,7 @@ _None open after the admin-role guard. Re-verify on each release._
 | Sensitive build debug in API | `build.php`, `get-build-log.php` | Paths and environment hints in JSON responses |
 | Quiz answer leakage | `quiz.php` | Correct answers sent to client |
 | IP header trust | `rate-limit.php`, `admin-audit.php` | `X-Forwarded-For` accepted without trusted-proxy boundary |
-| SQLite file permissions | `data/analytics/events.sqlite` | Relies on `data/.htaccess` and host filesystem permissions; verify on each deployment |
+| SQLite file permissions | `data/analytics/events.sqlite` | Relies on setup-generated `data/.htaccess` and host filesystem permissions; verify on each deployment |
 
 ## Low / informational
 
@@ -54,9 +58,9 @@ _None open after the admin-role guard. Re-verify on each release._
 | SQL injection | Low risk for current surface: activity-store uses PDO prepared statements only; no ad-hoc SQL from request input |
 | Path traversal on upload/delete/download | `basename()`, extension routing, fixed directories |
 | Page HTML XSS | HTMLPurifier in `biblioteca/page-text-sanitize.php` (page save/render pipeline) |
-| `data/` HTTP exposure | Denied via `data/.htaccess` (includes analytics SQLite under `data/analytics/`) |
+| `data/` HTTP exposure | Denied via setup-generated `data/.htaccess` (includes analytics SQLite under `data/analytics/`) |
 | HTTPS | Enforced except localhost (`https.php`) |
-| Direct JSON access | Root `.htaccess` rewrites for config/highscores/quiz |
+| Direct JSON access | Root `.htaccess` (from `biblioteca/templates/runtime/root.htaccess`) rewrites for config/highscores/quiz |
 | Quiz score integrity | Server-side validation + rate limits |
 | Command injection in build | `proc_open` with fixed script paths |
 | Third-party admin scripts | Chart.js is self-hosted under `vendor/chart.js`; Ko-fi widget remains optional operator-controlled remote script on the player |

@@ -4,10 +4,12 @@ Thumbs.db
 
 # Runtime preservation checklist for future ZIP installs/updates:
 # - Keep operator-owned runtime state out of git so package installs/updates never overwrite it.
-# - The main preserved runtime roots are /data and /media.
+# - The main preserved runtime roots are /data, /log, /backups, and /media.
 # - Local site config and environment files must also stay outside git.
 # - Demo/starter media is never repo-owned. It arrives via the published default-theme /
 #   Demo Release packages during setup, and lives only under ignored /media on the host.
+# - Apache/PHP protection stubs are generated from biblioteca/templates/runtime/ by setup
+#   (and packaging), not tracked at install paths.
 
 # Google Drive sync artifacts (Windows + Google Drive File Sync creates these everywhere)
 # These MUST be ignored or they corrupt .git/refs/ when committed
@@ -24,10 +26,10 @@ Desktop.ini
 */.sync
 */.sync/**
 
-# IDE & Editor
-.vscode/*
-!.vscode/tasks.json
+# IDE / local editor preferences (not product)
+.vscode/
 .idea/
+.editorconfig
 *.swp
 *.swo
 *~
@@ -52,8 +54,6 @@ FTP_PASS
 credentials.txt
 web-config.json
 
-# User-managed content (stored in data/ at runtime, never overwritten by git pull or ZIP update)
-data/gallery.json
 # Legacy local paths from older versions
 biblioteca/bio.php
 biblioteca/gallery.json
@@ -61,18 +61,18 @@ biblioteca/gallery.json
 # Build artifacts (generated from web-config.json)
 site.webmanifest
 
-# Data folders (runtime/server-managed, always preserve on install/update)
-data/*
+# Runtime folders (operator/server-managed; always preserve on install/update)
+data/
 log/
 backups/
-# But track the .htaccess files that protect runtime folders
-!data/.htaccess
-!log/.htaccess
-!backups/.htaccess
 
 # Entire media root is runtime-only (operator uploads, generated tiers, and setup-seeded demo).
-# Never track /media. Theme/demo ZIPs are built from on-disk media when packaging.
 media/
+
+# Host Apache/PHP stubs — generated from biblioteca/templates/runtime/
+/.htaccess
+/.user.ini
+/play/.htaccess
 
 # Defense in depth: media binaries outside /media must not enter git either
 *.flac

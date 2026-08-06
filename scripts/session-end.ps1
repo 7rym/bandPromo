@@ -28,10 +28,16 @@ function Test-ForbiddenPath {
         '^Desktop\.ini$',
         '^web-config\.json$',
         '^\.env$',
+        '^\.editorconfig$',
+        '^\.vscode\\',
+        '^\.htaccess$',
+        '^\.user\.ini$',
         '^data\\',
         '^media\\',
         '^log\\',
-        '^dist\\'
+        '^backups\\',
+        '^dist\\',
+        '^play\\\.htaccess$'
     )
 
     foreach ($pattern in $forbiddenPatterns) {
@@ -58,7 +64,6 @@ function Test-AllowedRepositoryPath {
         'docs/',
         'biblioteca/',
         '.github/',
-        '.vscode/',
         'play/'
     )
 

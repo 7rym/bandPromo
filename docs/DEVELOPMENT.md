@@ -33,7 +33,7 @@ Tracked application updates must preserve that runtime state.
 That is acceptable for local work:
 
 - **Publish build** launches `scripts/build.py` through PHP (`biblioteca/build.php` → `build-runner.php`) using `proc_open` only (`php.exe` → `python.exe`). No `cmd.exe`, PowerShell, or `.bat` files.
-- **Production** Apache/nginx installs deny direct HTTP access to `log/` through tracked `log/.htaccess` (and `data/.htaccess`).
+- **Production** Apache/nginx installs deny direct HTTP access to `log/` and `data/` through setup-generated `.htaccess` stubs (from `biblioteca/templates/runtime/`). Operators can re-check and repair those managed stubs from **System → Security**.
 
 Do not add a PHP router script to mimic `.htaccess` in dev — it duplicates production policy, triggers false-positive antivirus heuristics, and treats a symptom of web-root runner files that the launcher already prevents.
 
@@ -61,8 +61,7 @@ Use the session scripts when opening or closing repository work.
 ### Session start
 
 - CLI: `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
-- VS Code task: `bandPromo: Session start`
-- VS Code/Cursor chat slash prompt: `/bandpromo-session-start`
+- Cursor chat slash prompt: `/bandpromo-session-start`
 
 Session start:
 
@@ -76,8 +75,7 @@ Flags: `-SkipPull`, `-SkipSessionBump`, `-SkipDevServer`
 ### Session end
 
 - CLI: `powershell -ExecutionPolicy Bypass -File scripts/session-end.ps1 -CommitMessage "..." [-Push] [-Publish] [-ReleaseSummary "..."]`
-- VS Code task: `bandPromo: Session end` (prompts for commit message; pushes and publishes by default)
-- VS Code/Cursor chat slash prompt: `/bandpromo-session-end`
+- Cursor chat slash prompt: `/bandpromo-session-end`
 
 Session end:
 

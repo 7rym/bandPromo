@@ -51,6 +51,13 @@ KNOWN_AUDIO_EXTENSIONS = SUPPORTED_AUDIO_EXTENSIONS + ('.wav', '.aif', '.aiff', 
 
 RUNTIME_TEMPLATE_MAP = (
     ('biblioteca/templates/web-config.template.json', 'web-config.json', 'json'),
+    ('biblioteca/templates/runtime/root.htaccess', '.htaccess', 'text'),
+    ('biblioteca/templates/runtime/user.ini', '.user.ini', 'text'),
+    ('biblioteca/templates/runtime/play.htaccess', 'play/.htaccess', 'text'),
+    ('biblioteca/templates/runtime/deny-all.htaccess', 'data/.htaccess', 'text'),
+    ('biblioteca/templates/runtime/deny-all.htaccess', 'log/.htaccess', 'text'),
+    ('biblioteca/templates/runtime/deny-all.htaccess', 'backups/.htaccess', 'text'),
+    ('biblioteca/templates/runtime/media.htaccess', 'media/.htaccess', 'text'),
 )
 
 PAGE_TEMPLATE_MAP = (

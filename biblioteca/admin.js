@@ -9735,6 +9735,199 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             })();
 
+            (function initSecuritySanityCheck() {
+                const card = document.getElementById('securitySanityCard');
+                const overallEl = document.getElementById('securitySanityOverall');
+                const messageEl = document.getElementById('securitySanityMessage');
+                const statusEl = document.getElementById('securitySanityStatus');
+                const reportEl = document.getElementById('securitySanityReport');
+                const checkBtn = document.getElementById('securitySanityCheckBtn');
+                const previewBtn = document.getElementById('securitySanityPreviewBtn');
+                const repairBtn = document.getElementById('securitySanityRepairBtn');
+
+                if (!card || !overallEl || !messageEl || !statusEl || !reportEl || !checkBtn || !previewBtn || !repairBtn) {
+                    return;
+                }
+
+                let latestCheck = null;
+                let latestPreview = null;
+
+                function setBusy(busy) {
+                    checkBtn.disabled = busy;
+                    previewBtn.disabled = busy;
+                    repairBtn.disabled = busy;
+                }
+
+                function setOverall(status, label) {
+                    overallEl.className = 'badge audit-status-badge ' + status;
+                    overallEl.textContent = label;
+                }
+
+                function statusClassForCheck(status) {
+                    if (status === 'ok') {
+                        return 'is-ok';
+                    }
+                    if (status === 'template_missing' || status === 'unreadable' || status === 'invalid' || status === 'error') {
+                        return 'is-error';
+                    }
+                    return 'is-issue';
+                }
+
+                function renderCheckReport(report) {
+                    latestCheck = report;
+                    reportEl.replaceChildren();
+                    const checks = Array.isArray(report?.checks) ? report.checks : [];
+                    if (!checks.length) {
+                        reportEl.hidden = true;
+                        return;
+                    }
+
+                    checks.forEach((item) => {
+                        const li = document.createElement('li');
+                        li.className = 'security-sanity-report-item ' + statusClassForCheck(String(item.status || ''));
+
+                        const title = document.createElement('div');
+                        title.className = 'security-sanity-report-title';
+                        const label = document.createElement('strong');
+                        label.textContent = item.label || item.id || 'Check';
+                        const badge = document.createElement('span');
+                        badge.className = 'badge audit-status-badge ' + (
+                            item.status === 'ok' ? 'status-ok'
+                                : (item.status === 'missing' || item.status === 'empty' || item.status === 'drifted') ? 'status-warning'
+                                    : 'status-error'
+                        );
+                        badge.textContent = String(item.status || 'unknown');
+                        title.appendChild(label);
+                        title.appendChild(badge);
+
+                        const path = document.createElement('div');
+                        path.className = 'security-sanity-report-path';
+                        path.textContent = item.path || '';
+
+                        const detail = document.createElement('p');
+                        detail.className = 'security-sanity-report-detail';
+                        detail.textContent = item.detail || '';
+
+                        li.appendChild(title);
+                        if (item.path) {
+                            li.appendChild(path);
+                        }
+                        if (item.detail) {
+                            li.appendChild(detail);
+                        }
+                        reportEl.appendChild(li);
+                    });
+                    reportEl.hidden = false;
+                }
+
+                function applyCheckUi(report) {
+                    const secure = !!(report && report.secure);
+                    const repairable = Number(report?.repairable_count || 0);
+                    messageEl.textContent = report?.message || '';
+                    if (secure) {
+                        setOverall('status-ok', 'Secure');
+                        previewBtn.hidden = true;
+                        repairBtn.hidden = true;
+                    } else if (repairable > 0) {
+                        setOverall('status-warning', 'Needs repair');
+                        previewBtn.hidden = false;
+                        repairBtn.hidden = false;
+                    } else {
+                        setOverall('status-error', 'Needs attention');
+                        previewBtn.hidden = true;
+                        repairBtn.hidden = true;
+                    }
+                    renderCheckReport(report || {});
+                }
+
+                async function runCheck() {
+                    setBusy(true);
+                    statusEl.hidden = false;
+                    statusEl.textContent = 'Checking install protection…';
+                    latestPreview = null;
+                    try {
+                        const resp = await fetch('/biblioteca/security-sanity-check.php', {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || data.ok !== true) {
+                            throw new Error(data.error || 'Security check failed');
+                        }
+                        applyCheckUi(data);
+                        statusEl.textContent = data.message || 'Check complete.';
+                    } catch (error) {
+                        setOverall('status-error', 'Check failed');
+                        statusEl.textContent = error.message || 'Security check failed';
+                        previewBtn.hidden = true;
+                        repairBtn.hidden = true;
+                    } finally {
+                        setBusy(false);
+                    }
+                }
+
+                async function runRepair(dryRun) {
+                    setBusy(true);
+                    statusEl.hidden = false;
+                    statusEl.textContent = dryRun ? 'Previewing repair…' : 'Repairing managed stubs…';
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const resp = await fetch('/biblioteca/security-sanity-repair.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                dry_run: dryRun,
+                                csrf_token: csrfToken,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || data.ok === false) {
+                            throw new Error(data.error || (Array.isArray(data.errors) && data.errors[0]) || 'Repair failed');
+                        }
+                        latestPreview = dryRun ? data : null;
+                        if (data.check) {
+                            applyCheckUi(data.check);
+                        }
+                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Repair complete.');
+                        if (dryRun) {
+                            repairBtn.hidden = Number(data.changed_total || 0) === 0;
+                            previewBtn.hidden = false;
+                        } else {
+                            previewBtn.hidden = Number(data.check?.repairable_count || 0) === 0;
+                            repairBtn.hidden = Number(data.check?.repairable_count || 0) === 0;
+                        }
+                    } catch (error) {
+                        statusEl.textContent = error.message || 'Repair failed';
+                    } finally {
+                        setBusy(false);
+                    }
+                }
+
+                checkBtn.addEventListener('click', () => {
+                    runCheck().catch(() => {});
+                });
+                previewBtn.addEventListener('click', () => {
+                    runRepair(true).catch(() => {});
+                });
+                repairBtn.addEventListener('click', () => {
+                    const count = Number(latestCheck?.repairable_count || latestPreview?.changed_total || 0);
+                    if (count <= 0) {
+                        return;
+                    }
+                    const confirmed = window.confirm(
+                        'Repair managed Apache/PHP protection stubs from templates?\n\n'
+                        + 'Missing and drifted managed files will be overwritten. web-config.json is never changed here.'
+                    );
+                    if (!confirmed) {
+                        return;
+                    }
+                    runRepair(false).catch(() => {});
+                });
+
+                runCheck().catch(() => {});
+            })();
+
             (function initBackupExportTab() {
                 const jobsWrap = document.getElementById('siteBackupJobsWrap');
                 const jobsStatus = document.getElementById('siteBackupJobsStatus');

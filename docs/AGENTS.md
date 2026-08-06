@@ -7,14 +7,17 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 - bandPromo is a PHP-based music site with an admin panel, setup flow, media build pipeline, and analytics.
 - Runtime/user-managed content lives outside tracked templates and is created during setup.
-- The entire `/media` tree is git-ignored. Demo/starter assets never live in the repository; setup downloads them from the published default-theme / Demo Release packages onto the host.
+- The entire `/media`, `/data`, `/log`, and `/backups` trees are git-ignored. Demo/starter assets never live in the repository; setup downloads them from the published default-theme / Demo Release packages onto the host.
+- Apache/PHP protection stubs (root `.htaccess`, `.user.ini`, `play/.htaccess`, deny-all stubs under data/log/backups/media) are generated from `biblioteca/templates/runtime/` by setup when missing — not tracked at install paths.
+- Operators can verify and repair those managed stubs from **System → Security** (`security-sanity-check.php` / `security-sanity-repair.php`). Repair overwrites drifted managed stubs only; it never rewrites `web-config.json`.
+- IDE preferences (`.vscode/`, `.editorconfig`) are local-only and not tracked.
 
 ## Key Conventions
 
 - Treat documentation as source-of-truth. If code and docs disagree, update docs in the same change.
 - When updating planning docs or TODO lists, order work from policy/cases/definitions first and implementation second. Keep sections conceptually coherent; do not let headings become mixed bags of unrelated tasks.
 - At the start of every session, check the active environment context first: OS, current shell, workspace root, available tasks, and language runtimes relevant to the task.
-- Default to the fast startup path first: run `scripts/session-start.ps1` or the workspace task `bandPromo: Session start` to sync the repo, bump the session number, start the dev server, and gather the standard environment/worktree/backlog summary. Use `scripts/session-end.ps1` or `bandPromo: Session end` for publishable checkpoints.
+- Default to the fast startup path first: run `scripts/session-start.ps1` to sync the repo, bump the session number, start the dev server, and gather the standard environment/worktree/backlog summary. Use `scripts/session-end.ps1` for publishable checkpoints.
 - Choose commands and tooling that match the active session environment. On Windows + PowerShell sessions, prefer PowerShell-native commands and repo tasks/scripts; do not probe Bash/Linux command variants first unless the environment explicitly provides them or the task requires them.
 - Treat an unqualified "checkpoint" request as a publishable checkpoint unless the user explicitly asks for status-only: summarize progress against the current milestone/checkpoint docs, run focused validation for the touched work, bump `VERSION`, commit the checkpoint, push it, **publish the GitHub Release package** (see below), and then verify local/remote sync with the repository's pull-after-push workflow.
 - Do not add runtime fallbacks that silently use example/template files in production paths.
@@ -85,15 +88,14 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - `admin.php`: admin panel entrypoint
 - `setup.php`: first-run/bootstrap flow
 - `play/index.php`: player UI
-- `biblioteca/templates/`: tracked seed templates (includes `media.htaccess` for packaged `media/.htaccess`)
-- `data/`: runtime user-managed content (ignored except .htaccess)
-- `media/`: runtime media root — **fully git-ignored**; demo/starter assets arrive via setup packages only
+- `biblioteca/templates/`: tracked seed templates (including `runtime/` Apache/PHP stubs)
+- `data/`, `log/`, `backups/`, `media/`: runtime roots — **fully git-ignored**
 - `scripts/build.py`: media/build pipeline
 - `.github/workflows/`: policy and CI workflows
 
 ## Common Pitfalls
 
-- Accidentally tracking local files from `data/`, root config, generated assets, or anything under `media/`.
+- Accidentally tracking local files from `data/`, `log/`, `backups/`, `media/`, root config, generated assets, `.vscode/`, or `.editorconfig`.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to bump `VERSION` before pushing changes to `main`.
 - Reaching for Bash/Linux commands in a Windows PowerShell session before checking the active environment and available repo tasks.
@@ -102,7 +104,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
 - **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
 - **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
-- **Committing `/media`:** Ignore rules must keep the whole tree untracked. Release packaging reads on-disk `media/` (CI seeds it from the previous default-theme ZIP); never re-add demo binaries to git.
+- **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Release packaging reads on-disk `media/` (CI seeds it from the previous default-theme ZIP) and emits protection stubs from `biblioteca/templates/runtime/`; never re-add demo binaries or host Apache stubs to git.
 
 ## When in Doubt
 
@@ -111,6 +113,6 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Ask for confirmation before destructive or wide-reaching repository operations.
 
 
-_Last updated: 2026-05-03_
+_Last updated: 2026-08-06_
 
 - **Python requirements:** `Pillow`, `mutagen`, `ffmpeg` (see [README.md](README.md))
