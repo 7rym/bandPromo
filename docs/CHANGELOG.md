@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-06 10:00 - Git policy: ignore the entire `/media` tree and untrack remaining demo/special assets; package theme/demo ZIPs from on-disk media (CI seeds from the previous default-theme ZIP); keep `media/.htaccess` as `biblioteca/templates/media.htaccess`.
+
 2026-08-05 21:15 - Checkpoint: responsive player contract, seek-only scrubber, mobile portrait density, track-info rename, support CTA hardening, and floating-widget cleanup for tester release.
 
 2026-08-05 21:05 - Housekeeping: remove dead Ko-fi floating-widget loader left after support CTA standardization; update third-party notices to match the in-flow link-only support path.

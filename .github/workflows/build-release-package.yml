@@ -3,6 +3,9 @@ name: "Build release package artifact"
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-release-package:
     runs-on: ubuntu-latest
@@ -14,6 +17,41 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+
+      - name: Seed media/ from latest default-theme package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bp-theme-seed
+          if ! gh release download --repo "${{ github.repository }}" --pattern 'bandpromo-default-theme-*.zip' --dir /tmp/bp-theme-seed; then
+            echo "ERROR: Could not download bandpromo-default-theme-*.zip from the latest GitHub Release."
+            echo "Package builds need a previous theme package to seed ignored media/."
+            exit 1
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          seed_dir = Path("/tmp/bp-theme-seed")
+          zips = sorted(seed_dir.glob("bandpromo-default-theme-*.zip"))
+          if not zips:
+              raise SystemExit("No default-theme ZIP found after download.")
+          theme_zip = zips[-1]
+          root = Path.cwd()
+          with ZipFile(theme_zip) as archive:
+              members = [name for name in archive.namelist() if name.replace("\\", "/").startswith("media/")]
+              if not members:
+                  raise SystemExit(f"{theme_zip.name} contains no media/ paths.")
+              for name in members:
+                  normalized = name.replace("\\", "/")
+                  if normalized.endswith("/"):
+                      continue
+                  target = root / normalized
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(archive.read(name))
+          print(f"Extracted {len(members)} media paths from {theme_zip.name}")
+          PY
 
       - name: Build distributable package
         run: python scripts/build_release_package.py --clean

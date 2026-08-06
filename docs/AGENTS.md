@@ -7,6 +7,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 - bandPromo is a PHP-based music site with an admin panel, setup flow, media build pipeline, and analytics.
 - Runtime/user-managed content lives outside tracked templates and is created during setup.
+- The entire `/media` tree is git-ignored. Demo/starter assets never live in the repository; setup downloads them from the published default-theme / Demo Release packages onto the host.
 
 ## Key Conventions
 
@@ -84,14 +85,15 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - `admin.php`: admin panel entrypoint
 - `setup.php`: first-run/bootstrap flow
 - `play/index.php`: player UI
-- `biblioteca/templates/`: tracked seed templates
+- `biblioteca/templates/`: tracked seed templates (includes `media.htaccess` for packaged `media/.htaccess`)
 - `data/`: runtime user-managed content (ignored except .htaccess)
+- `media/`: runtime media root — **fully git-ignored**; demo/starter assets arrive via setup packages only
 - `scripts/build.py`: media/build pipeline
 - `.github/workflows/`: policy and CI workflows
 
 ## Common Pitfalls
 
-- Accidentally tracking local files from `data/`, root config, or generated assets.
+- Accidentally tracking local files from `data/`, root config, generated assets, or anything under `media/`.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to bump `VERSION` before pushing changes to `main`.
 - Reaching for Bash/Linux commands in a Windows PowerShell session before checking the active environment and available repo tasks.
@@ -100,6 +102,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
 - **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
 - **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
+- **Committing `/media`:** Ignore rules must keep the whole tree untracked. Release packaging reads on-disk `media/` (CI seeds it from the previous default-theme ZIP); never re-add demo binaries to git.
 
 ## When in Doubt
 

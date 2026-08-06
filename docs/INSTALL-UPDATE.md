@@ -75,7 +75,7 @@ Preserved runtime paths include at least:
 - `media/`
 - `log/`
 
-Bundled demo content (locked release `bandpromo-demo`) is installed from the setup starter pack before the first publish build on the host. That package includes demo audio (`media/audio/original/bandPromo_*.flac`), visuals, and icons. Demo media is not tracked as general operator uploads in git.
+Bundled demo content (locked release `bandpromo-demo`) is installed from the setup starter pack before the first publish build on the host. That package includes demo audio (`media/audio/original/bandPromo_*.flac`), visuals, and icons. The entire `/media` tree is git-ignored; demo media never resides in the repository and is not treated as operator uploads in git.
 
 ### 6. Continue into setup
 
@@ -90,7 +90,7 @@ Setup should then:
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 
-The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Demo audio/media are delivered by the setup starter pack and publish build — not copied from git-tracked files in the repository.
+The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Demo audio/media are delivered by the setup starter pack and publish build — never copied from git-tracked files, because `/media` is fully ignored.
 
 ## If the bootstrap stops
 

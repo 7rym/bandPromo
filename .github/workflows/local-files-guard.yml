@@ -39,11 +39,11 @@ jobs:
             fi
           done
 
-          icon_matches=$(git ls-files "media/icons/*" | grep -v '^media/icons/bP-icons.zip$' || true)
-          if [ -n "$icon_matches" ]; then
+          media_matches="$(git ls-files 'media/' || true)"
+          if [ -n "$media_matches" ]; then
             while IFS= read -r line; do
               [ -n "$line" ] && matches+=("$line")
-            done <<< "$icon_matches"
+            done <<< "$media_matches"
           fi
 
           if [ "${#matches[@]}" -gt 0 ]; then
@@ -52,6 +52,7 @@ jobs:
               echo " - $m"
             done
             echo "Use: git rm --cached <file> to untrack while keeping local files."
+            echo "The entire media/ tree must stay untracked; demo media ships via published starter/theme packages."
             exit 1
           fi
 

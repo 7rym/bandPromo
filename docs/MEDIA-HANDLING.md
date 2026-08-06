@@ -616,7 +616,7 @@ Operator-facing summary:
 
 Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s static player payload so `/play` can load without a full site rebuild.
 
-Bundled demo audio is **not** git-tracked. It arrives via the setup starter pack as locked release `bandpromo-demo` and is built into the normal three-tier layout on the host.
+Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via the setup starter pack (locked release `bandpromo-demo` / published default-theme package) and are built into the normal three-tier layout on the host.
 
 It is not:
 

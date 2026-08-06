@@ -4,6 +4,11 @@
 This script is intentionally manual/explicit. It does not run as part of every
 build, and it should only be used for builds that qualify as distributable
 packages.
+
+App ZIP contents come from tracked repository files. Default-theme and Demo
+Release media come from on-disk runtime media/ (never from git). CI seeds that
+tree from the previous published default-theme package before running this
+script; local developers typically already have media/ from setup.
 """
 
 from __future__ import annotations
@@ -22,16 +27,18 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = ROOT / "dist"
+MEDIA_HTACCESS_TEMPLATE = ROOT / "biblioteca" / "templates" / "media.htaccess"
 
-# Tracked files are the source of truth for the package surface, but some tracked
-# repository paths are still developer/repo infrastructure rather than operator
-# install payload.
+# Tracked files are the source of truth for the app package surface, but some
+# tracked repository paths are still developer/repo infrastructure rather than
+# operator install payload.
 EXCLUDED_PREFIXES = (
     ".github/",
     ".vscode/",
     "dist/",
     "build/",
     "__pycache__/",
+    "media/",
 )
 
 EXCLUDED_FILES = {
@@ -39,11 +46,31 @@ EXCLUDED_FILES = {
     "desktop.ini",
 }
 
-DEFAULT_THEME_PREFIXES = (
-    "media/",
+DEMO_RELEASE_TEMPLATE_PREFIX = "biblioteca/templates/demo-release-package/"
+
+MEDIA_JUNK_NAMES = {
+    "desktop.ini",
+    "thumbs.db",
+    ".ds_store",
+}
+
+MEDIA_SKIP_PATH_PARTS = (
+    "/optimal/",
+    "/master/",
+    "/poster/",
+    "/visual/delivery/",
+    "/visual/original/",
+    "/visual/master/",
 )
 
-DEMO_RELEASE_TEMPLATE_PREFIX = "biblioteca/templates/demo-release-package/"
+REQUIRED_STARTER_MEDIA = (
+    "media/.htaccess",
+    "media/icons/bP-icons.zip",
+    "media/special/bandPromo_logo.png",
+    "media/special/bandPromo_cover.png",
+    "media/audio/original/bandPromo_the_very_first_song.flac",
+    "media/audio/original/bandPromo_the_second_song.flac",
+)
 
 
 def read_version() -> str:
@@ -103,17 +130,55 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def split_release_files(files: list[str]) -> tuple[list[str], list[str]]:
-    app_files: list[str] = []
-    default_theme_files: list[str] = []
+def collect_media_files() -> list[str]:
+    """Collect packaging media from on-disk runtime media/ (never from git)."""
+    media_root = ROOT / "media"
+    files: list[str] = []
 
-    for relative_path in files:
-        if any(relative_path.startswith(prefix) for prefix in DEFAULT_THEME_PREFIXES):
-            default_theme_files.append(relative_path)
-        else:
-            app_files.append(relative_path)
+    if media_root.is_dir():
+        for path in media_root.rglob("*"):
+            if not path.is_file():
+                continue
+            if path.name.lower() in MEDIA_JUNK_NAMES:
+                continue
+            relative = path.relative_to(ROOT).as_posix()
+            lowered = f"/{relative.lower()}/"
+            if any(part in lowered for part in MEDIA_SKIP_PATH_PARTS):
+                continue
+            files.append(relative)
 
-    return app_files, default_theme_files
+    # Always emit the security rule from the tracked template.
+    if not MEDIA_HTACCESS_TEMPLATE.is_file():
+        raise RuntimeError(
+            "Missing biblioteca/templates/media.htaccess — required to package media/.htaccess."
+        )
+    htaccess_path = ROOT / "media" / ".htaccess"
+    htaccess_path.parent.mkdir(parents=True, exist_ok=True)
+    if (not htaccess_path.is_file()) or (
+        htaccess_path.read_bytes() != MEDIA_HTACCESS_TEMPLATE.read_bytes()
+    ):
+        htaccess_path.write_bytes(MEDIA_HTACCESS_TEMPLATE.read_bytes())
+    if "media/.htaccess" not in files:
+        files.append("media/.htaccess")
+
+    return sorted(set(files))
+
+
+def require_starter_media(media_files: list[str]) -> None:
+    present = set(media_files)
+    missing: list[str] = []
+    for path in REQUIRED_STARTER_MEDIA:
+        if path not in present or not (ROOT / path).is_file():
+            missing.append(path)
+
+    if missing:
+        missing_list = ", ".join(missing)
+        raise RuntimeError(
+            "Required starter media is missing from on-disk media/. "
+            "Seed local media via setup, or download/extract the latest "
+            "bandpromo-default-theme-*.zip into the workspace before packaging. "
+            f"Missing: {missing_list}"
+        )
 
 
 def write_zip(archive_path: Path, files: list[str]) -> None:
@@ -168,11 +233,12 @@ def build_zip(
     if not files:
         raise RuntimeError("No tracked files found to package.")
 
-    app_files, default_theme_files = split_release_files(files)
+    app_files = list(files)
     if not app_files:
         raise RuntimeError("No tracked application files found to package.")
-    if not default_theme_files:
-        raise RuntimeError("No tracked default theme files found to package.")
+
+    default_theme_files = collect_media_files()
+    require_starter_media(default_theme_files)
 
     demo_template_files = [
         path for path in files if path.startswith(DEMO_RELEASE_TEMPLATE_PREFIX)
@@ -218,7 +284,7 @@ def build_zip(
         "notes": [
             "This package is built only on explicit operator/developer action.",
             "Tracked runtime state such as web-config.json, .env, data/, and log/ is excluded from the package surface by repository policy.",
-            "Tracked media starter assets ship as default_theme_package (dual-read) and inside demo_release_package (campaign docs + media).",
+            "The entire /media tree is git-ignored. Default-theme and Demo Release media are packaged from on-disk runtime media/ (seeded by setup locally, or from the previous published default-theme ZIP in CI).",
             "Setup uses the shared Demo Release importer; operator package export follows after Release hub UX stabilizes.",
         ],
         "default_theme_package": {
@@ -330,11 +396,11 @@ def main() -> int:
     print(f"SHA256: {manifest['sha256']}")
     print(f"App package tracked files: {manifest['tracked_file_count']}")
     print(
-        "Default theme tracked files: "
+        "Default theme media files: "
         f"{manifest['default_theme_package']['tracked_file_count']}"
     )
     print(
-        "Demo Release tracked files: "
+        "Demo Release package files: "
         f"{manifest['demo_release_package']['tracked_file_count']}"
     )
     return 0
