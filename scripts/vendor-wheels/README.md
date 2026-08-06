@@ -11,6 +11,8 @@ interpreter. Supported offline ABIs:
 
 `mutagen` ships as `py3-none-any` and works across those interpreters.
 
-Operators never run pip themselves.
+Operators never run pip themselves. When host pip is too old to accept
+manylinux2014 / manylinux_2_17 tags, `build.py` unpacks matching wheels
+directly into `scripts/vendor/` (wheels are ZIP files).
 
 Do not commit `scripts/vendor/` — that directory is created on each host.

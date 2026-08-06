@@ -234,6 +234,51 @@ def _pip_install_to_vendor(extra_args):
     )
 
 
+def _pip_failure_note(result):
+    """Return a short one-line note from pip stdout/stderr."""
+    err = (result.stderr or result.stdout or '').strip()
+    if not err:
+        return ''
+    line = err.splitlines()[-1].strip()
+    if len(line) > 180:
+        line = line[:177] + '...'
+    return line
+
+
+def _wheel_matches_interpreter(wheel_name, py_tag):
+    """True when a vendor-wheels filename is usable for this interpreter tag."""
+    name = wheel_name.lower()
+    if not name.endswith('.whl'):
+        return False
+    if 'py3-none-any' in name or 'py2.py3-none-any' in name:
+        return True
+    # CPython 3.6 wheels use the historical cp36m ABI tag.
+    if py_tag == 'cp36':
+        return '-cp36-' in name or '-cp36m-' in name
+    token = '-{0}-'.format(py_tag)
+    return token in name
+
+
+def _extract_offline_wheels(py_tag):
+    """Unpack matching .whl ZIP contents into scripts/vendor/ (bypasses old pip tags)."""
+    if not VENDOR_WHEELS_DIR.is_dir():
+        return []
+
+    VENDOR_DIR.mkdir(parents=True, exist_ok=True)
+    matched = []
+    for path in sorted(VENDOR_WHEELS_DIR.glob('*.whl')):
+        if not _wheel_matches_interpreter(path.name, py_tag):
+            continue
+        matched.append(path)
+
+    extracted = []
+    for path in matched:
+        with zipfile.ZipFile(str(path), 'r') as archive:
+            archive.extractall(str(VENDOR_DIR))
+        extracted.append(path.name)
+    return extracted
+
+
 def install_pip_dependencies():
     """Install build deps into scripts/vendor for this host Python (no operator pip)."""
     py_tag = 'cp{0}{1}'.format(sys.version_info[0], sys.version_info[1])
@@ -270,13 +315,14 @@ def install_pip_dependencies():
                 sys.stdout.flush()
                 return True
         else:
-            err = (result.stderr or result.stdout or '').strip()
-            if err:
-                print('  NOTE pip --target install did not succeed for ' + py_tag)
+            print('  NOTE pip --target install did not succeed for ' + py_tag)
+            note = _pip_failure_note(result)
+            if note:
+                print('  NOTE ' + note)
     except Exception as e:
         print('  NOTE Could not run pip --target: ' + str(e))
 
-    # 2) Offline wheels matched to this interpreter.
+    # 2) Offline wheels via pip --find-links (needs a pip that accepts the tags).
     if VENDOR_WHEELS_DIR.is_dir():
         try:
             result = _pip_install_to_vendor([
@@ -289,8 +335,28 @@ def install_pip_dependencies():
                     print('  OK Dependencies installed from scripts/vendor-wheels for ' + py_tag)
                     sys.stdout.flush()
                     return True
+            else:
+                print('  NOTE pip offline wheel install did not succeed for ' + py_tag)
+                note = _pip_failure_note(result)
+                if note:
+                    print('  NOTE ' + note)
         except Exception as e:
             print('  NOTE Offline wheel install failed: ' + str(e))
+
+    # 3) Direct wheel extract — works when host pip rejects manylinux2014 tags.
+    try:
+        extracted = _extract_offline_wheels(py_tag)
+        if extracted:
+            print('  Extracted {0} offline wheel(s) into scripts/vendor for {1}'.format(
+                len(extracted), py_tag
+            ))
+            ok, missing = _verify_required_python_imports()
+            if ok:
+                print('  OK Dependencies available from extracted vendor-wheels for ' + py_tag)
+                sys.stdout.flush()
+                return True
+    except Exception as e:
+        print('  NOTE Direct wheel extract failed: ' + str(e))
 
     ok, missing = _verify_required_python_imports()
     if ok:

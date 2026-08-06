@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-06 17:15 - Vendor bootstrap: if host pip rejects manylinux2014 tags (common on Python 3.6 shared hosts), unpack matching `scripts/vendor-wheels/*.whl` directly into `scripts/vendor/` and log pip failure tails.
+
 2026-08-06 17:00 - Python **3.6.9 hard floor** for all `scripts/`: 3.6-safe syntax/APIs (`bandpromo_python_path`, `version_format`, `build_release_package`, `backfillWavAudioToFlac`); cp36 offline Pillow/xxhash wheels + requirements env markers; `check_python36_compat.py` gate in Template integrity CI; INSTALL/AGENTS document the floor.
 
 2026-08-06 15:40 - Vanilla build hygiene: install Python deps into site-local `scripts/vendor/` (offline `scripts/vendor-wheels/` matched to host Python); quiet xxhash spam; ffmpeg diag respects bundled `scripts/bin`; demo gallery seeds/heals Rollercoaster via visual `asset_id` contract; rollercoaster required in default-theme starter media; optimizeVideo accounts for registry original filenames.
