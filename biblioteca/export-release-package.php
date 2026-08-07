@@ -7,7 +7,7 @@ bandpromo_enforce_https();
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/admin-audit.php';
-require_once __DIR__ . '/release-campaign-package.php';
+require_once __DIR__ . '/site-backup-portability.php';
 require_once __DIR__ . '/release-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -36,6 +36,8 @@ if (!validate_csrf_token($csrfToken)) {
 
 $root = dirname(__DIR__);
 $releaseId = bandpromo_release_normalize_id((string) ($decoded['release_id'] ?? ''));
+$actor = trim((string) ($_SESSION['username'] ?? ''));
+
 if ($releaseId === '') {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'release_id is required.']);
@@ -43,46 +45,38 @@ if ($releaseId === '') {
 }
 
 try {
-    bandpromo_release_load_document($root, $releaseId);
-} catch (Throwable $throwable) {
-    http_response_code(404);
-    echo json_encode(['ok' => false, 'error' => 'Unknown release.']);
-    exit;
-}
+    $job = bandpromo_site_backup_enqueue_prp($root, $releaseId, $actor);
 
-$backupsDir = $root . DIRECTORY_SEPARATOR . 'backups';
-if (!is_dir($backupsDir) && !mkdir($backupsDir, 0750, true) && !is_dir($backupsDir)) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Could not create backups directory.']);
-    exit;
-}
-
-$safeStamp = gmdate('Ymd-His');
-$zipName = 'release-package-' . $releaseId . '-' . $safeStamp . '.zip';
-$zipPath = $backupsDir . DIRECTORY_SEPARATOR . $zipName;
-
-try {
-    $result = bandpromo_release_campaign_export_to_zip($root, $releaseId, $zipPath);
-
-    bandpromo_admin_audit_log('release_package_exported', [
+    bandpromo_admin_audit_log('release_package_queued', [
         'target_type' => 'release',
         'target_id' => $releaseId,
         'status' => 'ok',
         'data' => [
-            'files' => (int) ($result['files'] ?? 0),
-            'asset_ids' => count($result['asset_ids'] ?? []),
-            'filename' => $zipName,
+            'job_id' => (string) ($job['id'] ?? ''),
+            'filename' => (string) ($job['filename'] ?? ''),
         ],
     ]);
 
     echo json_encode([
         'ok' => true,
+        'queued' => true,
         'release_id' => $releaseId,
-        'filename' => $zipName,
-        'path' => 'backups/' . $zipName,
-        'files' => (int) ($result['files'] ?? 0),
-        'asset_count' => count($result['asset_ids'] ?? []),
-        'message' => 'Release package ready under backups/' . $zipName . '.',
+        'job' => $job,
+        'job_id' => (string) ($job['id'] ?? ''),
+        'filename' => (string) ($job['filename'] ?? ''),
+        'message' => 'PRP export queued. It will appear under System → Backup, export & import when ready.',
+        'jobs_url' => '?tab=system&stab=backup',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+        bandpromo_site_backup_dispatch_job($root, (string) $job['id']);
+    }
+} catch (InvalidArgumentException $throwable) {
+    http_response_code(400);
+    echo json_encode([
+        'ok' => false,
+        'error' => $throwable->getMessage(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);
@@ -91,3 +85,5 @@ try {
         'error' => $throwable->getMessage(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
+
+exit;

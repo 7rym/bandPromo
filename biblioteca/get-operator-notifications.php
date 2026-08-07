@@ -95,7 +95,24 @@ $buildState = bandpromo_get_build_required_state();
 // Finalize/prune only — never auto-spawn video jobs from Notifications polling.
 $backgroundTasks = bandpromo_reconcile_background_tasks(false);
 $packageForceRefresh = isset($_GET['force_package']) && (string) $_GET['force_package'] === '1';
-$packageUpdate = bandpromo_package_check_update_cached($rootDir, 900, $packageForceRefresh);
+// Package/GitHub status is Welcome-only. Other tabs must not pay for remote checks.
+$includePackage = $packageForceRefresh
+    || (isset($_GET['include_package']) && (string) $_GET['include_package'] === '1');
+$packageUpdate = $includePackage
+    ? bandpromo_package_check_update_cached($rootDir, 900, $packageForceRefresh)
+    : [
+        'installed_version' => bandpromo_package_read_installed_version($rootDir),
+        'remote_version' => null,
+        'update_available' => false,
+        'ahead_of_published' => false,
+        'up_to_date' => false,
+        'ready' => false,
+        'checks' => [],
+        'manifest_error' => null,
+        'release_notes' => [],
+        'last_update' => null,
+        'skipped_until_welcome' => true,
+    ];
 $welcomeSetupComplete = bandpromo_admin_welcome_setup_is_complete($rootDir);
 
 if ($scope === 'lite') {
@@ -122,6 +139,9 @@ if ($scope === 'lite') {
             'checks' => $packageUpdate['checks'] ?? [],
             'release_notes' => $packageUpdate['release_notes'] ?? [],
             'last_update' => $packageUpdate['last_update'] ?? null,
+            'skipped_on_localhost' => !empty($packageUpdate['skipped_on_localhost']),
+            'skip_reason' => $packageUpdate['skip_reason'] ?? null,
+            'skipped_until_welcome' => !empty($packageUpdate['skipped_until_welcome']),
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
@@ -181,6 +201,9 @@ echo json_encode([
         'checks' => $packageUpdate['checks'] ?? [],
         'release_notes' => $packageUpdate['release_notes'] ?? [],
         'last_update' => $packageUpdate['last_update'] ?? null,
+        'skipped_on_localhost' => !empty($packageUpdate['skipped_on_localhost']),
+        'skip_reason' => $packageUpdate['skip_reason'] ?? null,
+        'skipped_until_welcome' => !empty($packageUpdate['skipped_until_welcome']),
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 exit;

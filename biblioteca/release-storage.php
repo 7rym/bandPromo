@@ -288,6 +288,7 @@ function bandpromo_release_poster_filename_candidates(string $reference, ?array 
 function bandpromo_release_resolve_poster_preview_url(string $root, string $posterReference): string
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/asset-registry.php';
 
     $posterReference = trim($posterReference);
     if ($posterReference === '') {
@@ -298,7 +299,35 @@ function bandpromo_release_resolve_poster_preview_url(string $root, string $post
         return $posterReference;
     }
 
+    // Path refs: map intake originals onto delivery card/thumb when registered.
     if (preg_match('#^/media/#', $posterReference)) {
+        $basename = basename(str_replace('\\', '/', $posterReference));
+        $stem = (string) pathinfo($basename, PATHINFO_FILENAME);
+        $asset = null;
+        if (bandpromo_asset_is_asset_id($stem)) {
+            $asset = bandpromo_asset_lookup_by_id($root, $stem);
+        }
+        if ($asset === null && $basename !== '') {
+            $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
+        }
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            $url = bandpromo_visual_resolve_url(
+                $root,
+                (string) ($asset['id'] ?? ''),
+                'card',
+                (string) ($asset['intake_bucket'] ?? ''),
+                false
+            );
+            if ($url !== '') {
+                return $url;
+            }
+        }
+
+        // Never paint multi-MB intake originals in Catalogue / release chrome.
+        if (preg_match('#^/media/(?:img|photo|visual)/original/#', str_replace('\\', '/', $posterReference))) {
+            return '';
+        }
+
         $path = $root . str_replace('/', DIRECTORY_SEPARATOR, $posterReference);
 
         return is_file($path) ? $posterReference : '';
@@ -313,19 +342,11 @@ function bandpromo_release_resolve_poster_preview_url(string $root, string $post
             $root,
             (string) ($asset['id'] ?? ''),
             'card',
-            (string) ($asset['intake_bucket'] ?? '')
+            (string) ($asset['intake_bucket'] ?? ''),
+            false
         );
         if ($url !== '') {
             return $url;
-        }
-    }
-
-    foreach (bandpromo_release_poster_filename_candidates($posterReference, $asset) as $filename) {
-        foreach (bandpromo_release_visual_media_bases() as $base) {
-            $path = $root . str_replace('/', DIRECTORY_SEPARATOR, $base . '/' . $filename);
-            if (is_file($path)) {
-                return $base . '/' . $filename;
-            }
         }
     }
 
@@ -837,7 +858,11 @@ function bandpromo_release_sync_demo_audio_assets(string $root): void
     }
 
     $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
-    $document['locked'] = true;
+    require_once __DIR__ . '/https.php';
+    // Keep remote/operator installs locked; localhost may unlock for PRP source edits.
+    if (!bandpromo_is_local_dev_host()) {
+        $document['locked'] = true;
+    }
     $document['title'] = 'bandPromo demo';
     $document['tracks'] = $tracks;
     bandpromo_release_write_document($root, $document);
@@ -1148,7 +1173,13 @@ function bandpromo_release_is_protected_id(string $releaseId): bool
 
 function bandpromo_release_is_system_managed(string $releaseId): bool
 {
-    return bandpromo_release_normalize_id($releaseId) === BANDPROMO_RELEASE_DEMO_ID;
+    if (bandpromo_release_normalize_id($releaseId) !== BANDPROMO_RELEASE_DEMO_ID) {
+        return false;
+    }
+
+    require_once __DIR__ . '/https.php';
+    // Localhost developers may edit the platform demo campaign source.
+    return !bandpromo_is_local_dev_host();
 }
 
 /**
@@ -1249,6 +1280,9 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
     } catch (Throwable $throwable) {
         // Keep registry-only fields when the document is missing.
     }
+
+    $entry['system_managed'] = bandpromo_release_is_system_managed($releaseId);
+    $entry['protected'] = bandpromo_release_is_protected_id($releaseId);
 
     return $entry;
 }
@@ -1586,6 +1620,9 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
         'artist' => $artist,
         'album' => trim((string) ($inspect['album'] ?? '')),
         'duration' => max(0, (int) ($inspect['duration_seconds'] ?? $inspect['duration'] ?? 0)),
+        'bitrate_kbps' => max(0, (int) ($inspect['bitrate_kbps'] ?? $preserve['bitrate_kbps'] ?? 0)),
+        'sample_rate_hz' => max(0, (int) ($inspect['sample_rate_hz'] ?? $preserve['sample_rate_hz'] ?? 0)),
+        'bit_depth' => max(0, (int) ($inspect['bit_depth'] ?? $preserve['bit_depth'] ?? 0)),
         'date' => trim((string) ($inspect['date'] ?? '')),
         'tracknumber' => trim((string) ($inspect['tracknumber'] ?? '')),
         'bpm' => trim((string) ($inspect['bpm'] ?? '')),
@@ -1601,19 +1638,40 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
      ];
 }
 
-function bandpromo_asset_build_audio_display_from_fields(array $fields, array $inspectData = []): array
+function bandpromo_asset_build_audio_display_from_fields(array $fields, array $inspectData = [], array $preserveDisplay = []): array
 {
     $artist = trim((string) ($fields['artist'] ?? ''));
     $album = trim((string) ($fields['album'] ?? ''));
     $rawTitle = trim((string) ($fields['title'] ?? ''));
     $labels = bandpromo_release_resolve_track_display_labels($rawTitle, $artist, '');
+    $preserve = bandpromo_asset_read_audio_display(['display' => $preserveDisplay]);
+
+    $duration = max(0, (int) ($inspectData['duration_seconds'] ?? $inspectData['duration'] ?? 0));
+    if ($duration <= 0) {
+        $duration = max(0, (int) ($preserve['duration'] ?? 0));
+    }
+    $bitrate = max(0, (int) ($inspectData['bitrate_kbps'] ?? 0));
+    if ($bitrate <= 0) {
+        $bitrate = max(0, (int) ($preserve['bitrate_kbps'] ?? 0));
+    }
+    $sampleRate = max(0, (int) ($inspectData['sample_rate_hz'] ?? 0));
+    if ($sampleRate <= 0) {
+        $sampleRate = max(0, (int) ($preserve['sample_rate_hz'] ?? 0));
+    }
+    $bitDepth = max(0, (int) ($inspectData['bit_depth'] ?? 0));
+    if ($bitDepth <= 0) {
+        $bitDepth = max(0, (int) ($preserve['bit_depth'] ?? 0));
+    }
 
     return [
         'title' => $labels['title'],
         'version' => $labels['version'],
         'artist' => $artist,
         'album' => $album,
-        'duration' => max(0, (int) ($inspectData['duration_seconds'] ?? $inspectData['duration'] ?? 0)),
+        'duration' => $duration,
+        'bitrate_kbps' => $bitrate,
+        'sample_rate_hz' => $sampleRate,
+        'bit_depth' => $bitDepth,
         'date' => trim((string) ($fields['date'] ?? '')),
         'tracknumber' => trim((string) ($fields['tracknumber'] ?? '')),
         'bpm' => trim((string) ($fields['bpm'] ?? '')),
@@ -1624,9 +1682,14 @@ function bandpromo_asset_build_audio_display_from_fields(array $fields, array $i
         'text_role' => bandpromo_asset_normalize_text_role((string) ($fields['text_role'] ?? 'lyrics')),
         'notes_label' => bandpromo_asset_normalize_notes_label((string) ($fields['notes_label'] ?? '')),
         'living_cover' => bandpromo_living_cover_normalize_video_filename(
-            (string) ($fields['living_cover'] ?? ($inspectData['living_cover'] ?? ''))
+            (string) ($fields['living_cover'] ?? ($inspectData['living_cover'] ?? $preserve['living_cover'] ?? ''))
         ),
-        'cover' => basename(trim((string) ($inspectData['sidecar_cover'] ?? $inspectData['cover'] ?? ''))),
+        'cover' => basename(trim((string) (
+            $inspectData['sidecar_cover']
+            ?? $inspectData['cover']
+            ?? $preserve['cover']
+            ?? ''
+        ))),
         'synced_at' => gmdate('c'),
     ];
 }
@@ -1648,8 +1711,9 @@ function bandpromo_asset_sync_audio_display_from_fields(
         return;
     }
 
+    $existingDisplay = is_array($asset['display'] ?? null) ? $asset['display'] : [];
     bandpromo_asset_update_entry($root, (string) $asset['id'], [
-        'display' => bandpromo_asset_build_audio_display_from_fields($fields, $inspectData),
+        'display' => bandpromo_asset_build_audio_display_from_fields($fields, $inspectData, $existingDisplay),
     ]);
 }
 
@@ -2457,6 +2521,268 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
     }
 
     return bandpromo_release_admin_registry_entry($root, $updated);
+}
+
+/**
+ * Move a real campaign that was incorrectly stored as the invisible `primary`
+ * orphan/upload bucket onto a normal operator release id, then restore an empty
+ * primary document. Local installs that renamed Default release in place need this.
+ *
+ * @return array{ok:bool,dry_run:bool,from:string,to:string,actions:list<string>,skipped?:string}
+ */
+function bandpromo_release_migrate_campaign_off_primary(string $root, string $newId = '', bool $dryRun = false): array
+{
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    $fromId = BANDPROMO_RELEASE_DEFAULT_ID;
+    $actions = [];
+
+    try {
+        $source = bandpromo_release_load_document($root, $fromId);
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'dry_run' => $dryRun,
+            'from' => $fromId,
+            'to' => '',
+            'actions' => [],
+            'skipped' => 'Could not load primary release: ' . $throwable->getMessage(),
+        ];
+    }
+
+    $title = trim((string) ($source['title'] ?? ''));
+    $tracks = is_array($source['tracks'] ?? null) ? $source['tracks'] : [];
+    $isDefaultEmpty = ($title === '' || strcasecmp($title, 'Default release') === 0)
+        && $tracks === []
+        && trim((string) ($source['brand_id'] ?? '')) === ''
+        && trim((string) ($source['poster_asset_id'] ?? '')) === '';
+
+    if ($isDefaultEmpty) {
+        return [
+            'ok' => true,
+            'dry_run' => $dryRun,
+            'from' => $fromId,
+            'to' => '',
+            'actions' => [],
+            'skipped' => 'primary is already an empty orphan bucket.',
+        ];
+    }
+
+    $preferred = bandpromo_release_normalize_id($newId !== '' ? $newId : bandpromo_release_slug_from_title($title));
+    if ($preferred === '' || $preferred === $fromId || $preferred === BANDPROMO_RELEASE_DEMO_ID) {
+        $preferred = 'operator-release';
+    }
+
+    $registry = bandpromo_release_load_registry($root);
+    $existing = [];
+    foreach ($registry['releases'] as $entry) {
+        $existing[(string) ($entry['id'] ?? '')] = true;
+    }
+    $toId = $preferred;
+    $suffix = 2;
+    while (isset($existing[$toId])) {
+        $toId = substr($preferred, 0, 44) . '-' . $suffix;
+        $suffix++;
+    }
+
+    $trackAssetIds = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $assetId = trim((string) ($track['asset_id'] ?? ''));
+        if ($assetId !== '') {
+            $trackAssetIds[$assetId] = true;
+        }
+    }
+    $posterId = trim((string) ($source['poster_asset_id'] ?? ''));
+    if ($posterId !== '') {
+        $trackAssetIds[$posterId] = true;
+    }
+
+    $actions[] = 'Create release ' . $toId . ' from primary campaign "' . $title . '" (' . count($tracks) . ' tracks).';
+    $actions[] = 'Reset primary to empty orphan/upload bucket.';
+
+    if ($dryRun) {
+        return [
+            'ok' => true,
+            'dry_run' => true,
+            'from' => $fromId,
+            'to' => $toId,
+            'actions' => $actions,
+        ];
+    }
+
+    $maxOrder = 0;
+    foreach ($registry['releases'] as &$regEntry) {
+        $maxOrder = max($maxOrder, (int) ($regEntry['sort_order'] ?? 0));
+        if ((string) ($regEntry['id'] ?? '') === $fromId) {
+            $regEntry['title'] = 'Default release';
+            $regEntry['slug'] = $fromId;
+        }
+    }
+    unset($regEntry);
+
+    $registry['releases'][] = [
+        'id' => $toId,
+        'title' => $title !== '' ? $title : $toId,
+        'slug' => $toId,
+        'sort_order' => $maxOrder + 10,
+        'system' => false,
+    ];
+    bandpromo_release_write_registry($root, $registry);
+
+    $document = $source;
+    $document['id'] = $toId;
+    $document['slug'] = $toId;
+    $document['title'] = $title !== '' ? $title : $toId;
+    bandpromo_release_write_document($root, bandpromo_release_normalize_document($document, $toId, $root));
+
+    $emptyPrimary = bandpromo_release_default_document();
+    $emptyPrimary['release_date'] = gmdate('Y-m-d');
+    bandpromo_release_write_document($root, $emptyPrimary);
+
+    // Assets tagged to primary that belong to this campaign.
+    $assetRegistry = bandpromo_asset_load_registry($root);
+    $assetChanged = 0;
+    foreach ($assetRegistry['assets'] as $assetId => $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        if ((string) ($asset['release_id'] ?? '') !== $fromId) {
+            continue;
+        }
+        if (!isset($trackAssetIds[$assetId]) && (string) ($asset['kind'] ?? '') === 'audio') {
+            // Leave true orphans on primary.
+            continue;
+        }
+        if ((string) ($asset['kind'] ?? '') === 'audio' || $assetId === $posterId) {
+            $asset['release_id'] = $toId;
+            $normalized = bandpromo_asset_normalize_entry($asset);
+            if ($normalized !== null) {
+                $assetRegistry['assets'][$assetId] = $normalized;
+                $assetChanged++;
+            }
+        }
+    }
+    if ($assetChanged > 0) {
+        bandpromo_asset_write_registry($root, $assetRegistry);
+        $actions[] = 'Retagged ' . $assetChanged . ' asset registry release_id value(s).';
+    }
+
+    // Brands pointing at primary.
+    try {
+        bandpromo_theme_ensure_seeded($root);
+        foreach (bandpromo_theme_registry_entries($root) as $brandEntry) {
+            $brandId = trim((string) ($brandEntry['id'] ?? ''));
+            if ($brandId === '') {
+                continue;
+            }
+            try {
+                $brandDoc = bandpromo_theme_load_document($root, $brandId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            if ((string) ($brandDoc['release_id'] ?? '') !== $fromId) {
+                continue;
+            }
+            $brandDoc['release_id'] = $toId;
+            bandpromo_theme_write_document($root, $brandDoc);
+            $actions[] = 'Brand ' . $brandId . ' → release_id ' . $toId . '.';
+        }
+    } catch (Throwable $throwable) {
+        $actions[] = 'Brand retarget skipped: ' . $throwable->getMessage();
+    }
+
+    // Playlists: retarget release_id; rename playlist id "primary" when it is the campaign playlist.
+    try {
+        bandpromo_playlist_ensure_seeded($root);
+        $playlistRegistry = bandpromo_playlist_load_registry($root);
+        $playlistIds = [];
+        foreach ($playlistRegistry['playlists'] as $entry) {
+            if (is_array($entry)) {
+                $playlistIds[] = (string) ($entry['id'] ?? '');
+            }
+        }
+
+        foreach ($playlistIds as $playlistId) {
+            if ($playlistId === '') {
+                continue;
+            }
+            try {
+                $playlist = bandpromo_playlist_load_document($root, $playlistId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $releaseId = (string) ($playlist['release_id'] ?? '');
+            if ($releaseId !== $fromId && $playlistId !== $fromId) {
+                continue;
+            }
+
+            if ($playlistId === $fromId) {
+                // Rename primary playlist → new campaign id (file + registry).
+                $newPlaylistId = $toId;
+                $suffix = 2;
+                while ($newPlaylistId !== $fromId && is_file(bandpromo_playlist_document_path($root, $newPlaylistId))) {
+                    $newPlaylistId = substr($toId, 0, 44) . '-' . $suffix;
+                    $suffix++;
+                }
+                $playlist['id'] = $newPlaylistId;
+                $playlist['slug'] = bandpromo_playlist_normalize_slug(
+                    (string) ($playlist['slug'] ?? $newPlaylistId),
+                    $newPlaylistId
+                );
+                $playlist['release_id'] = $toId;
+                if (isset($playlist['entries']) && is_array($playlist['entries'])) {
+                    foreach ($playlist['entries'] as &$entry) {
+                        if (!is_array($entry)) {
+                            continue;
+                        }
+                        if ((string) ($entry['release_id'] ?? '') === $fromId) {
+                            $entry['release_id'] = $toId;
+                        }
+                    }
+                    unset($entry);
+                }
+                bandpromo_playlist_write_document($root, $playlist);
+
+                $playlistRegistry['playlists'] = array_values(array_filter(
+                    $playlistRegistry['playlists'],
+                    static fn(array $entry): bool => (string) ($entry['id'] ?? '') !== $fromId
+                ));
+                $playlistRegistry['playlists'][] = [
+                    'id' => $newPlaylistId,
+                    'title' => (string) ($playlist['title'] ?? $newPlaylistId),
+                    'kind' => (string) ($playlist['kind'] ?? 'system'),
+                    'publish_date' => (string) ($playlist['publish_date'] ?? ''),
+                    'sort_order' => 20,
+                ];
+                bandpromo_playlist_write_registry($root, $playlistRegistry);
+                $oldPath = bandpromo_playlist_document_path($root, $fromId);
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
+                $actions[] = 'Renamed playlist primary → ' . $newPlaylistId . '.';
+                continue;
+            }
+
+            $playlist['release_id'] = $toId;
+            bandpromo_playlist_write_document($root, $playlist);
+            $actions[] = 'Playlist ' . $playlistId . ' → release_id ' . $toId . '.';
+        }
+    } catch (Throwable $throwable) {
+        $actions[] = 'Playlist retarget skipped: ' . $throwable->getMessage();
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'from' => $fromId,
+        'to' => $toId,
+        'actions' => $actions,
+    ];
 }
 
 function bandpromo_release_delete(string $root, string $releaseId): void

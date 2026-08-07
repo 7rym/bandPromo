@@ -79,7 +79,7 @@ Prefer **PRP round-trips** for one-campaign moves. Use data export when moving a
 | **Unit** | One campaign (Release umbrella): brand, tracks, playlists, galleries, owned pages, masters, registry subset |
 | **File** | ZIP; preferred extension `.prp` |
 | **IDs** | **Keep** `ast_*`, release, playlist, gallery, page, brand ids across export/import |
-| **Media** | **Masters only** — no `optimal/` / delivery tier; target builds deliverables on import or Publish |
+| **Media** | **Masters only** — no upload `original/` tier, no `optimal/` / delivery; target builds deliverables on import or Publish. Registry may still record `original_filename` as metadata. Sound effects follow the same rule (`media/sfx/master/`; delivery under `media/sfx/optimal/` is rebuilt on the target). |
 | **Not included** | Analytics / play-logs, unrelated releases, `web-config.json` as portable truth, install FAQ (system-owned) |
 | **Data packages** | **PRPs only** for campaign content — no parallel default-theme / demo-release **content** ZIPs |
 
@@ -89,10 +89,10 @@ Prefer **PRP round-trips** for one-campaign moves. Use data export when moving a
 |-------|----------|-------|
 | **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id`, `tracks[]` |
 | **Identity (brand)** | `data/brands/{id}.json` + shell **masters** | Owned by the release; slots address Visual/SFX by **`asset_id`** |
-| **Track masters** | `media/audio/master/*` (and originals as needed) | Tags inside masters |
+| **Track masters** | `media/audio/master/*` | Canonical tagged masters; originals stay on the source host |
 | **Playlists** | Docs with `release_id` | Listening products |
 | **Galleries / pages** | Docs with `release_id` | Demo PRP: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
-| **Linked visuals / SFX** | Master files + **asset registry subset** | Roles/brand scope in registry |
+| **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | No upload originals or delivery in the package; SFX delivery rebuilt as `media/sfx/optimal/{ast_*}.mp3` |
 | **Manifest** | `release-package-manifest.json` | `release_export_version`, title, paths, flags (`platform_demo`, locked), bandPromo `VERSION` |
 
 #### Demo PRP (`bandPromo-demo.prp`)

@@ -22,6 +22,22 @@ Session/auth checks stay in PHP. Playback bytes come from a **cache-friendly pro
 
 Delivery files use `ast_{ULID}` names (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)). Operators never manage delivery paths directly.
 
+### Tagless audio delivery (locked)
+
+**Delivery MP3s carry no metadata tags** (no ID3, no APEv2, no embedded APIC). After copy or transcode, the build strips all tags.
+
+| Concern | Where it lives |
+|---------|----------------|
+| Title / artist / album / lyrics | Asset registry + published playlist JSON |
+| Still / living covers | Separate visual delivery URLs (not inside the MP3) |
+| Lock screen / Bluetooth text | Media Session API from playlist JSON |
+| Chromecast / custom receiver UI | Cast `MediaMetadata` + custom receiver from registry (v0.9+) |
+| Operator source of truth | **Master** files keep full tags |
+
+Rationale: smaller delivery files, no dual-tag bloat, and cache scrapers who grab delivery bytes get audio only — not catalog identity. Masters remain fully tagged for editing, PRP export, and distributor packaging.
+
+Previously tagged delivery files are treated as stale on the next audio-delivery / Publish pass so installs migrate automatically.
+
 ### Authorization flow
 
 ```
@@ -84,7 +100,9 @@ Installed phone experience should beat browser tab for:
 
 - Cast uses **delivery-tier URLs** with the same availability grants as local playback.
 - Cast sender lives in the **player shell** and **page media surfaces**; not a separate PHP stream.
-- Receiver displays metadata from asset registry + release container (title, artist, artwork).
+- Receiver displays metadata from asset registry + release container (title, artist, artwork) via Cast `MediaMetadata` / `customData` — **not** by reading ID3 from the delivery MP3.
+- Custom CAF receivers (own on-screen design) render entirely from sender/receiver app data; delivery URLs supply audio/video bytes only.
+- Media Session artwork on the sender phone may reach some cars via AVRCP Cover Art when OS + head unit support it; that path also does not depend on embedded MP3 tags.
 - No cast of unreleased/locked content for tiers that cannot play it locally.
 - Chromecast is first target; architecture stays provider-agnostic (`cast_target` abstraction).
 

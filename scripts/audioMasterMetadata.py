@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from mutagen import File
+from mutagen.apev2 import APEv2, APENoHeaderError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, TXXX, USLT
 
@@ -347,7 +348,19 @@ def set_id3_text_frame(tags, frame_id, frame_class, value):
         tags.add(frame_class(encoding=3, text=[value]))
 
 
+def strip_ape_tags(path):
+    """Remove leftover APEv2 blocks so ID3 is the only MP3 tag source."""
+    try:
+        ape = APEv2(str(path))
+        ape.delete()
+    except APENoHeaderError:
+        return
+    except Exception:
+        return
+
+
 def update_mp3(path, fields):
+    strip_ape_tags(path)
     try:
         tags = ID3(str(path))
     except ID3NoHeaderError:
@@ -472,7 +485,7 @@ def main():
         respond({'ok': True, 'filename': path.name})
 
     if action == 'sync_delivery_tags':
-        # Patch ID3 on existing optimal MP3 from the (already updated) master — no transcode.
+        # Ensure existing optimal MP3 stays tagless (no ID3/APIC rewrite after master edits).
         import optimizeMedia as om
 
         delivery_name = path.stem + '.mp3'
@@ -485,13 +498,13 @@ def main():
                 'delivery': delivery_name,
             }, 0)
 
-        tags = om.get_audio_tags(str(path))
-        om.set_id3_tags(str(delivery_path), tags)
+        om.strip_delivery_audio_tags(str(delivery_path))
         respond({
             'ok': True,
             'filename': path.name,
             'delivery': delivery_name,
             'synced': True,
+            'stripped': True,
         })
 
     respond({'ok': False, 'error': 'Unsupported action'}, 1)

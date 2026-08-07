@@ -76,7 +76,7 @@ Preserved runtime paths include at least:
 - `media/`
 - `log/`
 
-Bundled demo content (locked release `bandpromo-demo`) is installed from the setup starter pack before the first publish build on the host. That package includes demo audio (`media/audio/original/bandPromo_*.flac`), visuals, and icons. The entire `/media` tree is git-ignored; demo media never resides in the repository and is not treated as operator uploads in git.
+Bundled demo content (locked release `bandpromo-demo`) is installed from **`bandPromo-demo.prp`** during setup (first build with `ensure_demo`). The entire `/media` tree is git-ignored; demo media never resides in the repository and is not treated as operator uploads in git.
 
 ### 6. Continue into setup
 
@@ -87,11 +87,11 @@ Setup should then:
 - verify required PHP extensions (including `pdo_sqlite` for activity logging)
 - create the first admin account
 - seed the required runtime files from tracked templates
-- download the required default theme package if its starter assets are not already present on the server
+- import **`bandPromo-demo.prp`** on the first setup build (`ensure_demo`) when the published Demo PRP is available (local template seed is the fallback)
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 
-The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Demo audio/media are delivered by the setup starter pack and publish build — never copied from git-tracked files, because `/media` is fully ignored.
+The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Demo audio/media travel in the Demo PRP — never as git-tracked binaries, because `/media` is fully ignored. Later Admin **Publish** builds do **not** re-download the Demo PRP; they use content already on the host.
 
 ## If the bootstrap stops
 

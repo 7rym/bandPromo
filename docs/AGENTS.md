@@ -115,7 +115,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Ask for confirmation before destructive or wide-reaching repository operations.
 
 
-_Last updated: 2026-08-06_
+_Last updated: 2026-08-07_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
 - **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PRP / `.prp` contract is source of truth for demo and operator campaign handoff.

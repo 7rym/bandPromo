@@ -149,8 +149,13 @@ def default_theme_package_name(version_text):
 
 def demo_release_package_name(version_text):
     # type: (str) -> str
-    return "bandpromo-demo-release-{0}.zip".format(slugify_version(version_text))
+    # Portable release package (ZIP bytes, .prp extension).
+    return "bandPromo-demo-{0}.prp".format(slugify_version(version_text))
 
+
+def demo_release_package_alias_name():
+    # type: () -> str
+    return "bandPromo-demo.prp"
 
 def sha256_file(path):
     # type: (Path) -> str
@@ -247,9 +252,9 @@ def write_zip(archive_path, files):
             archive.write(str(source_path), relative_path)
 
 
-def write_demo_release_zip(archive_path, package_template_files, media_files):
-    # type: (Path, List[str], List[str]) -> List[str]
-    """Write Demo Release ZIP with install-relative paths for docs + media/."""
+def write_demo_release_zip(archive_path, package_template_files, media_files, version_text):
+    # type: (Path, List[str], List[str], str) -> List[str]
+    """Write Demo PRP (.prp = ZIP) with install-relative paths for docs + media/."""
     if archive_path.exists():
         archive_path.unlink()
 
@@ -262,7 +267,25 @@ def write_demo_release_zip(archive_path, package_template_files, media_files):
             if not source_path.is_file():
                 continue
             arcname = relative_path[len(DEMO_RELEASE_TEMPLATE_PREFIX) :]
-            archive.write(str(source_path), arcname)
+            if arcname == "release-package-manifest.json":
+                # Enrich tracked template with packaging metadata.
+                try:
+                    manifest = json.loads(source_path.read_text(encoding="utf-8"))
+                except Exception:
+                    manifest = {}
+                if not isinstance(manifest, dict):
+                    manifest = {}
+                manifest["release_export_version"] = int(
+                    manifest.get("release_export_version") or 1
+                )
+                manifest["format"] = "prp"
+                manifest["platform_demo"] = True
+                manifest["bandpromo_version"] = version_text
+                manifest["exported_at"] = ""
+                payload = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+                archive.writestr(arcname, payload.encode("utf-8"))
+            else:
+                archive.write(str(source_path), arcname)
             written.append(arcname)
         for relative_path in media_files:
             source_path = ROOT / relative_path
@@ -317,7 +340,12 @@ def build_zip(output_dir, package_url_base=None, manifest_url=None, release_tag=
         demo_release_archive_path,
         demo_template_files,
         default_theme_files,
+        version_text,
     )
+    demo_alias_path = output_dir / demo_release_package_alias_name()
+    if demo_alias_path.exists():
+        demo_alias_path.unlink()
+    shutil.copy2(str(demo_release_archive_path), str(demo_alias_path))
 
     manifest = {  # type: Dict[str, object]
         "version": version_text,
@@ -336,8 +364,8 @@ def build_zip(output_dir, package_url_base=None, manifest_url=None, release_tag=
             "This package is built only on explicit operator/developer action.",
             "Tracked runtime state such as web-config.json, .env, data/, log/, and media/ is excluded from git by repository policy.",
             "Apache/PHP protection stubs (.htaccess, .user.ini) are generated from biblioteca/templates/runtime/ during setup and packaging; they are not tracked at install paths.",
-            "The entire /media tree is git-ignored. Default-theme and Demo Release media are packaged from on-disk runtime media/ (seeded by setup locally, or from the previous published default-theme ZIP in CI).",
-            "Setup uses the shared Demo Release importer; operator package export follows after Release hub UX stabilizes.",
+            "The entire /media tree is git-ignored. Default-theme media and the Demo PRP are packaged from on-disk runtime media/ (seeded by setup locally, or from the previous published default-theme ZIP in CI).",
+            "Setup imports bandPromo-demo.prp (portable release package) for the locked platform demo campaign.",
         ],
         "default_theme_package": {
             "version": version_text,
@@ -350,12 +378,15 @@ def build_zip(output_dir, package_url_base=None, manifest_url=None, release_tag=
         "demo_release_package": {
             "version": version_text,
             "package_file": demo_release_archive_path.name,
+            "package_alias": demo_alias_path.name,
             "sha256": sha256_file(demo_release_archive_path),
             "tracked_file_count": len(demo_paths),
             "paths": demo_paths,
-            "role": "demo_release_campaign",
+            "role": "platform_demo_prp",
+            "format": "prp",
             "release_id": "bandpromo-demo",
             "release_export_version": 1,
+            "platform_demo": True,
         },
     }
 
@@ -447,7 +478,8 @@ def main():
 
     print("Built package: {0}".format(archive_path))
     print("Built default theme package: {0}".format(default_theme_archive_path))
-    print("Built Demo Release package: {0}".format(demo_release_archive_path))
+    print("Built Demo PRP: {0}".format(demo_release_archive_path))
+    print("Demo PRP alias: {0}".format(output_dir / demo_release_package_alias_name()))
     print("Version: {0}".format(manifest["version"]))
     print("SHA256: {0}".format(manifest["sha256"]))
     print("App package tracked files: {0}".format(manifest["tracked_file_count"]))
@@ -457,7 +489,7 @@ def main():
         )
     )
     print(
-        "Demo Release package files: {0}".format(
+        "Demo PRP files: {0}".format(
             manifest["demo_release_package"]["tracked_file_count"]
         )
     )

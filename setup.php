@@ -700,8 +700,8 @@ $siteContactHtml = htmlspecialchars($siteContact);
 
   <!-- STEP 3: Build -->
   <div class="panel" id="panel-3">
-    <h1>Downloading demo content and building site</h1>
-    <p class="subtitle">bandPromo is built around your content, so before running for the first time, we add some demo content to make sure everything works as expected. Then we build everything required to run your new bandPromo installation. You can hide the demo content later in the Admin panel after you upload your own.</p>
+    <h1>Installing demo content and building site</h1>
+    <p class="subtitle">bandPromo is built around your content, so before running for the first time, we import the Demo PRP (or local demo seed) to make sure everything works as expected. Then we build everything required to run your new bandPromo installation. You can hide the demo content later in the Admin panel after you upload your own.</p>
     <?php if (!class_exists('ZipArchive')): ?>
     <div class="msg" style="display:block;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:#f0b429;">
       ZipArchive is not available on this host. The build can still run, but bootstrap package install/update flows and multi-file downloads will remain unavailable until the PHP ZipArchive extension is enabled.
@@ -1108,7 +1108,11 @@ document.getElementById('s3-build').addEventListener('click', async () => {
   setSpin('s3-spin', true);
 
   try {
-    const res  = await fetch('/biblioteca/build.php', { method: 'POST' });
+    const res  = await fetch('/biblioteca/build.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ensure_demo: true }),
+    });
     const data = await res.json();
     if (!data.ok) {
       showMsg('s3-error', data.error || 'Could not start build.', 'error');

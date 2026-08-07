@@ -314,6 +314,31 @@ function bandpromo_package_last_update_record(string $root): ?array {
 
 function bandpromo_package_check_update(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
     $installedVersion = bandpromo_package_read_installed_version($root);
+
+    // Localhost/dev: never call GitHub. Firewall/AV timeouts block PHP's single-threaded
+    // built-in server and freeze every other admin request for 10–20s.
+    if (bandpromo_is_local_dev_host()) {
+        $checks = bandpromo_package_collect_environment_checks($root);
+
+        return [
+            'installed_version' => $installedVersion,
+            'remote_version' => null,
+            'update_available' => false,
+            'ahead_of_published' => false,
+            'up_to_date' => true,
+            'ready' => false,
+            'checks' => $checks,
+            'manifest_requirements' => null,
+            'manifest_error' => null,
+            'package_file' => null,
+            'release_notes' => [],
+            'generated_at_utc' => null,
+            'last_update' => bandpromo_package_last_update_record($root),
+            'skipped_on_localhost' => true,
+            'skip_reason' => 'Site update checks are disabled on localhost (no remote GitHub calls).',
+        ];
+    }
+
     $checks = bandpromo_package_collect_environment_checks($root);
     $ready = bandpromo_package_environment_ready($checks);
 
@@ -362,6 +387,7 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
         'release_notes' => is_array($manifest) && isset($manifest['notes']) && is_array($manifest['notes']) ? array_values($manifest['notes']) : [],
         'generated_at_utc' => is_array($manifest) ? ($manifest['generated_at_utc'] ?? null) : null,
         'last_update' => $lastUpdate,
+        'skipped_on_localhost' => false,
     ];
 }
 
@@ -385,6 +411,11 @@ function bandpromo_package_write_update_cache(string $root, array $result): void
 
 function bandpromo_package_check_update_cached(string $root, int $ttlSeconds = 900, bool $forceRefresh = false): array
 {
+    // Localhost never consults cache or GitHub — keep admin requests non-blocking.
+    if (bandpromo_is_local_dev_host()) {
+        return bandpromo_package_check_update($root);
+    }
+
     $cachePath = bandpromo_package_update_cache_path($root);
     $installedNow = bandpromo_package_read_installed_version($root);
 

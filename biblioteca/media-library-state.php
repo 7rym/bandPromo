@@ -304,11 +304,12 @@ function bandpromo_media_is_effectively_hidden_for_install(string $target, strin
 
     $root = dirname(__DIR__);
     require_once __DIR__ . '/demo-catalog-state.php';
+    // Settings → Show bandPromo demo catalog is the sole gate for campaign demo media.
     if (!bandpromo_demo_catalog_is_visible($root)) {
         return true;
     }
 
-    // Brand assets: only hide a bundled still/living/audio demo once the operator
+    // Brand shell assets: only hide a bundled still/living/audio demo once the operator
     // has uploaded a replacement of the same kind (uploading a logo must not hide
     // the bundled living background video).
     if ($target === 'special') {
@@ -319,7 +320,7 @@ function bandpromo_media_is_effectively_hidden_for_install(string $target, strin
         );
     }
 
-    return bandpromo_media_has_visible_user_uploads($target);
+    return false;
 }
 
 /**

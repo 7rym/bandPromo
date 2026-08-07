@@ -64,6 +64,7 @@
 
         const PROTECTED_RELEASE_IDS = new Set(['primary', 'bandpromo-demo']);
         const SYSTEM_MANAGED_RELEASE_IDS = new Set(['bandpromo-demo']);
+        const isLocalDevHost = window.BANDPROMO_LOCAL_DEV === true;
         const ASSOCIATION_KINDS = ['playlists', 'galleries', 'pages'];
         const ASSOCIATION_LABELS = {
             playlists: { singular: 'playlist', plural: 'playlists', available: 'Available playlists', associated: 'Associated playlists' },
@@ -219,9 +220,32 @@
 
         async function loadSiteSharingContext() {
             try {
+                const embedded = window.BANDPROMO_SITE_SHARING;
+                if (embedded && typeof embedded === 'object') {
+                    siteSharing = {
+                        siteName: String(embedded.siteName || 'bandPromo').trim() || 'bandPromo',
+                        siteUrl: String(embedded.siteUrl || '').trim(),
+                        siteContact: String(embedded.siteContact || '').trim(),
+                        twitter: String(embedded.twitter || '').trim(),
+                        facebook: String(embedded.facebook || '').trim(),
+                        instagram: String(embedded.instagram || '').trim(),
+                    };
+                    const playlistId = String(embedded.defaultPlaylistId || '').trim();
+                    if (playlistId !== '') {
+                        defaultPlayerPlaylistId = playlistId;
+                    }
+                    const playlistSlug = String(embedded.defaultPlaylistSlug || '').trim();
+                    if (playlistSlug !== '') {
+                        defaultPlayerPlaylistSlug = playlistSlug;
+                    }
+                    return;
+                }
                 const response = await fetch('/biblioteca/get-config.php', {
                     credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                 });
                 if (!response.ok) {
                     return;
@@ -275,7 +299,26 @@
             if (/^https?:\/\//i.test(raw)) {
                 return raw;
             }
+
+            const deliveryCardFromAssetId = (id) => {
+                const assetId = String(id || '').trim();
+                if (!/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(assetId)) {
+                    return '';
+                }
+                return `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`;
+            };
+
             if (raw.startsWith('/media/')) {
+                const intakeOriginal = raw.match(/^\/media\/(?:img|photo|visual)\/original\/([^/?#]+)$/i);
+                if (intakeOriginal) {
+                    const stem = String(intakeOriginal[1] || '').replace(/\.[^.]+$/, '');
+                    const card = deliveryCardFromAssetId(stem);
+                    if (card) {
+                        return card;
+                    }
+                    // Do not paint multi-MB intake originals in Catalogue chrome.
+                    return '';
+                }
                 const parts = raw.split('/');
                 const file = parts.pop() || '';
                 return `${parts.join('/')}/${encodeURIComponent(file)}`;
@@ -285,9 +328,13 @@
             if (!basename) {
                 return '';
             }
-            // Fallback guesses for bare filenames / asset refs before server preview URL arrives.
-            const bases = ['/media/img/original', '/media/photo/original', '/media/special'];
-            return `${bases[0]}/${encodeURIComponent(basename)}`;
+            const stem = basename.replace(/\.[^.]+$/, '');
+            const card = deliveryCardFromAssetId(stem) || deliveryCardFromAssetId(basename);
+            if (card) {
+                return card;
+            }
+            // No bare-filename guess into /media/img/original — wait for server poster_preview_url.
+            return '';
         }
 
         function releaseCoverPreviewUrl(value, entry = null) {
@@ -1697,10 +1744,17 @@
         }
 
         function releaseIsSystemManaged(entryOrId) {
+            if (typeof entryOrId === 'object' && entryOrId && typeof entryOrId.system_managed === 'boolean') {
+                return entryOrId.system_managed;
+            }
             const releaseId = typeof entryOrId === 'string'
                 ? entryOrId
                 : String(entryOrId?.id || '');
-            return SYSTEM_MANAGED_RELEASE_IDS.has(releaseId);
+            if (!SYSTEM_MANAGED_RELEASE_IDS.has(releaseId)) {
+                return false;
+            }
+            // Localhost developers may edit the platform demo campaign source.
+            return !isLocalDevHost;
         }
 
         function releaseCanDelete(entry) {
@@ -1783,11 +1837,6 @@
                 return '';
             }
 
-            const chunks = [];
-            if (releaseIsSystemManaged(entry)) {
-                chunks.push('demo');
-            }
-
             const trackCount = Number(entry.track_count || 0);
             const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
             const releaseDate = escapeHtml(String(entry.release_date || '').trim());
@@ -1795,10 +1844,6 @@
             let line = escapeHtml(tracksLabel);
             if (releaseDate) {
                 line += ` released ${releaseDate}`;
-            }
-
-            if (chunks.length) {
-                return `${escapeHtml(chunks.join(' '))} ${line}`.trim();
             }
 
             return line;
@@ -2160,6 +2205,12 @@
                 const deleteBtn = releaseCanDelete(entry)
                     ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-release-id="${escapeHtml(id)}" title="Delete release" aria-label="Delete ${title}">🗑️</button>`
                     : '';
+                const duplicateBtn = id && id !== 'primary'
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-release-id="${escapeHtml(id)}" title="Duplicate campaign (shared media)" aria-label="Duplicate ${title}">⧉</button>`
+                    : '';
+                const exportBtn = id && id !== 'primary'
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-release-id="${escapeHtml(id)}" title="Export portable release package (.prp)" aria-label="Export ${title}">📦</button>`
+                    : '';
                 const editBtn = releaseCanOpenEditor(entry)
                     ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit release" aria-label="Edit ${title}">✏️</button>`
                     : '';
@@ -2173,6 +2224,8 @@
                     </span>
                     <span class="page-pool-row-actions">
                         ${lockControl}
+                        ${exportBtn}
+                        ${duplicateBtn}
                         ${editBtn}
                         ${deleteBtn}
                     </span>
@@ -2238,7 +2291,21 @@
 
         async function loadReleaseRegistry() {
             await loadBrandCatalog();
-            const data = await fetchJson('/biblioteca/get-releases.php');
+            let data;
+            if (typeof window.loadReleasesCatalog === 'function') {
+                const list = await window.loadReleasesCatalog();
+                data = {
+                    releases: Array.isArray(list) ? list : (window.bandpromoReleasesCatalog || []),
+                    default_release_id: 'primary',
+                };
+            } else if (Array.isArray(window.bandpromoReleasesCatalog) && window.bandpromoReleasesCatalog.length) {
+                data = {
+                    releases: window.bandpromoReleasesCatalog,
+                    default_release_id: 'primary',
+                };
+            } else {
+                data = await fetchJson('/biblioteca/get-releases.php');
+            }
             releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : []);
             if (!releaseEntry(selectedReleaseId)) {
                 selectedReleaseId = releases[0]?.id || data.default_release_id || 'primary';
@@ -2302,6 +2369,54 @@
             syncReleaseUrl(releaseId, false);
             renderReleasePoolList();
             await loadReleasePreview();
+        }
+
+        async function exportReleasePackage(releaseId) {
+            const entry = releaseEntry(releaseId);
+            if (!entry || releaseId === 'primary') {
+                return;
+            }
+            const sourceTitle = String(entry.title || releaseId).trim() || releaseId;
+            showReleaseToast(`Queueing PRP export for "${sourceTitle}"…`);
+            const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                ? await refreshAdminCsrfToken()
+                : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+            const data = await fetchJson('/biblioteca/export-release-package.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    release_id: releaseId,
+                    csrf_token: csrfToken,
+                }),
+            });
+            const message = data.message || 'PRP export queued.';
+            showReleaseToast(message);
+            if (window.confirm(`${message}\n\nOpen System → Backup, export & import to watch progress / download?`)) {
+                window.location.href = String(data.jobs_url || '?tab=system&stab=backup');
+            }
+        }
+
+        async function duplicateReleaseCampaign(releaseId) {
+            const entry = releaseEntry(releaseId);
+            if (!entry || releaseId === 'primary') {
+                return;
+            }
+            const sourceTitle = String(entry.title || releaseId).trim() || releaseId;
+            if (!window.confirm(`Duplicate "${sourceTitle}" as a new campaign?\n\nNew containers; shared media files.`)) {
+                return;
+            }
+            const data = await fetchJson('/biblioteca/duplicate-release-campaign.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ release_id: releaseId }),
+            });
+            releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : releases);
+            renderReleasePoolList();
+            const newId = String(data.release_id || '').trim();
+            showReleaseToast(data.message || 'Campaign duplicated.');
+            if (newId) {
+                await openReleaseEditor(newId);
+            }
         }
 
         async function deleteRelease(releaseId) {
@@ -3032,6 +3147,32 @@
                 event.stopPropagation();
                 const releaseId = deleteBtn.getAttribute('data-release-id') || '';
                 openReleaseDeleteModal(releaseId);
+                return;
+            }
+
+            const duplicateBtn = event.target instanceof HTMLElement
+                ? event.target.closest('.page-pool-duplicate-btn')
+                : null;
+            if (duplicateBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                const releaseId = duplicateBtn.getAttribute('data-release-id') || '';
+                duplicateReleaseCampaign(releaseId).catch((error) => {
+                    showReleaseToast(error.message || 'Could not duplicate campaign', 'error');
+                });
+                return;
+            }
+
+            const exportBtn = event.target instanceof HTMLElement
+                ? event.target.closest('.page-pool-export-btn')
+                : null;
+            if (exportBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                const releaseId = exportBtn.getAttribute('data-release-id') || '';
+                exportReleasePackage(releaseId).catch((error) => {
+                    showReleaseToast(error.message || 'Could not export package', 'error');
+                });
                 return;
             }
 

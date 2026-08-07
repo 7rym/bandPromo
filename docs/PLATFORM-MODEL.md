@@ -259,7 +259,7 @@ Admin UI, player, and notifications **read** the registry and published containe
 | Trigger | What updates |
 |---------|----------------|
 | Audio/image/video **upload** | Register asset; queue delivery job; **files index** entry (size/mtime/format/delivery flags) |
-| **Tag / cover / living-cover save** | `assets[].display` (+ cover/living refs); **keep last-good** player payloads; patch delivery MP3 tags when present; quiet republish playlists that include the track (never leave `/play` on empty `tracks`) |
+| **Tag / cover / living-cover save** | `assets[].display` (+ cover/living refs); **keep last-good** player payloads; ensure delivery MP3 stays **tagless** when present; quiet republish playlists that include the track (never leave `/play` on empty `tracks`) |
 | **Delivery job success/fail** | `assets[].delivery.audio_optimal` + `data/delivery/inventory-snapshot.json`; **files index** pool_ready / video meta |
 | **Catalog register / autofix** (explicit operator action) | Membership, masters |
 | **Publish** | Player playlist payloads in `data/playlists/{id}.json`, validation report, inventory snapshot / delivery flags, **full files-index rebuild** |
@@ -278,7 +278,7 @@ Three **operator pools** (Files). Two heavy pipelines (music audio vs visual); S
 |------|----------|------------------|
 | **Audio** | Catalog / release music tracks | Files → Audio; release + playlist references |
 | **Visual** | Still images **and** video | Files → Visual; gallery/page/brand/release visuals |
-| **Sound effects** | Brand UI / navigation / interaction clips (welcome, login, future click/zoom, …) | Files → Sound effects; owned by **brands**; assigned from Content → Branding slots |
+| **Sound effects** | Brand UI / navigation / interaction clips (welcome, login, future click/zoom, …) | Files → Sound effects; owned by **brands**; assigned from Content → Branding slots; three-tier `media/sfx/{original,master,optimal}` |
 
 **Shipped (2026-07-21):** visual registry/delivery + Phase 3 operator wiring; **Sound effects** pool (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`).
 
@@ -298,7 +298,13 @@ Containers, galleries, pages, brands, track covers, living covers, and social/sh
 
 **Replace upload:** same `original_filename` reuses one `ast_*` and overwrites master bytes (no clone storm).
 
-**Operator address (Files / pickers):** role + linked context title first (e.g. `Track cover — Party with a banana`, `Brand logo — bandPromo Default`); `ast_*` secondary; original upload name tertiary. Shared assets show “used by N”; delete warns when multiple live refs.
+**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. Role + linked context (`operator_title`) remains a secondary address for assignment chips (e.g. `Track cover — Party with a banana`).
+
+**Operator address (Files / pickers):** **title first** when set; else role + linked context; `ast_*` secondary; original upload name tertiary. Shared assets show “used by N”; delete warns when multiple live refs.
+
+**Still masters — EXIF read, IPTC write:** Camera **EXIF** stays camera-origin (read `DateTimeOriginal` / GPS for `captured_at`; do not overwrite editorial fields into EXIF). Operator title / description / keywords are written as **IPTC Core** serialized in an **XMP** packet on the **master** image only. Autofix heals *empty* registry `display` from embedded IPTC/XMP (and EXIF dates).
+
+**Video masters — MKV; delivery — MP4:** On register/materialize, remux intake to `media/visual/master/ast_*.mkv` with stream copy (no re-encode). Matroska tags carry title / description / keywords / date. Original intake bytes stay under `media/visual/original/` (or legacy intake). Delivery stays `standard-stream.mp4` (silent except `role=gallery`). Browsers never load MKV.
 
 **Shared track covers:** identical intake/embedded image bytes map to one Visual asset. Content identity uses **XXH3** (`content_xxh3`; dual-read legacy `content_sha256` during migration). Multiple audio tracks link to that `asset_id`; build must not mint per-stem clones when a match exists.
 
@@ -562,19 +568,20 @@ Pages use **sanitized HTML richtext** (TinyMCE + HTMLPurifier). Player-facing op
 4. **Playlist track descriptions** — render through the same sanitizer; fix current unescaped `innerHTML` insertion.
 5. **Share/OG** — when a Markdown field feeds meta tags, strip Markdown to plain text (no `**` in `og:description`).
 
-### Master files and delivery (no tagging changes)
+### Master files and delivery (tagless delivery)
 
-Markdown support is **display-only**. The audio pipeline is unchanged:
+Markdown support is **display-only**. Audio identity for listeners is registry + playlist payload, not delivery-file tags:
 
-- Admin save → `audioMasterMetadata.py` writes UTF-8 text to master tags.
-- Publish → `optimizeMedia.py` copies tags to delivery MP3.
-- Build → `makePlaylists.py` reads tags into the player payload.
+- Admin save → `audioMasterMetadata.py` writes UTF-8 text to **master** tags.
+- Publish / audio delivery → `optimizeMedia.py` produces tagless delivery MP3s (strip ID3/APEv2 after copy or transcode).
+- Build → `makePlaylists.py` reads **master** tags (and registry display) into the player payload.
 
-No new Vorbis/ID3 frame types, re-encode, or master migration required.
+No ID3/APIC on delivery. See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) (tagless audio delivery).
 
 ### Admin UX (v1)
 
-- Keep textareas; add helper copy: **Markdown supported**.
+- Keep textareas for long prose; helper copy: **Markdown** plus a **?** control that opens the shared help modal (`#markdownHelpModal`).
+- Help covers the restricted allowlist and Lyrics vs Notes line-break behavior; short descriptions / titles / page richtext stay out of Markdown.
 - Live preview optional (later); not required for first ship.
 - Character limits unchanged (e.g. track description 300 chars counts Markdown source).
 
@@ -590,7 +597,7 @@ No new Vorbis/ID3 frame types, re-encode, or master migration required.
 
 **Status:** policy locked (2026-07-15 — closed-beta feedback). Implementation in [TODO.md](TODO.md).
 
-Short, silent, looping video on the **main flip-card cover** when the operator assigns a **living cover** and video delivery is ready. Full music videos and gallery playback stay separate.
+Short, silent, looping video on the **main flip-card cover** when the operator assigns a **living cover** and video delivery is ready. Full music videos and gallery playback stay separate. Publish builds living-cover / shell-background streams **without an audio track**; only `role=gallery` video delivery keeps soundtrack.
 
 ### Operator control
 
@@ -605,7 +612,7 @@ Assign in **Files → Audio → track editor → Living cover**. Pick any video 
 
 Value is the stable on-disk video filename, not a human title. No sidecar files. No playlist JSON field.
 
-**Do not** bake living-cover references into delivery MP3 tags in v1 unless the audio pipeline explicitly copies custom tags; player materialization reads the **master** tag via `playlistTrackEntries.py`, and fills an empty tag from the asset-registry display when the track editor has already assigned a living cover.
+**Do not** bake living-cover references into delivery MP3 tags; delivery audio is tagless. Player materialization reads the **master** tag via `playlistTrackEntries.py`, and fills an empty tag from the asset-registry display when the track editor has already assigned a living cover.
 
 ### Player resolution
 
@@ -814,6 +821,10 @@ Content editors use one pattern (shipped for playlist/gallery/pages):
 1. Left: pool of **containers** (playlists, galleries, pages, brands).
 2. Right: preview of selected container.
 3. **Add** or **edit** replaces the container list with a pool of **assets** (or block types) to insert.
+
+### Gallery assembly (v0.8)
+
+Gallery membership is built with a searchable **multi-select media picker** (type, role, brand/release, date, keyword; title + larger thumb), then an **ordered selected list** with explicit reorder. Do not rely on Available↔Associated drag-and-drop of tiny `ast_*` thumbs as the primary flow — concert galleries need searchable named media (e.g. assemble `Hamburg Grand Stage 2026-05-17` from titled stills/clips).
 
 ## Module registry
 

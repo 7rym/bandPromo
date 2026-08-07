@@ -195,6 +195,10 @@ function bandpromo_media_reference_config_entries(string $target): array
 
     if ($target === 'sfx') {
         return [
+            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/optimal', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
+            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/optimal', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
+            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/master', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
+            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/master', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
             ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/original', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
             ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/original', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
         ];

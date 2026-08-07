@@ -302,3 +302,28 @@ function bandpromo_player_markdown_render(string $markdown, string $mode = 'defa
 
     return bandpromo_player_markdown_render_default($markdown);
 }
+
+/**
+ * Compact "?" control that opens the shared admin Markdown help modal.
+ */
+function bandpromo_admin_markdown_help_trigger(): string
+{
+    return '<button type="button" class="markdown-help-open"'
+        . ' aria-haspopup="dialog"'
+        . ' aria-controls="markdownHelpModal"'
+        . ' title="How Markdown formatting works"'
+        . ' aria-label="How Markdown formatting works">?</button>';
+}
+
+/**
+ * Field note with an inline Markdown help trigger.
+ */
+function bandpromo_admin_markdown_help_note(string $label = 'Markdown supported'): string
+{
+    $safe = htmlspecialchars(trim($label) !== '' ? trim($label) : 'Markdown supported', ENT_QUOTES, 'UTF-8');
+
+    return '<span class="field-note markdown-help-note">'
+        . '<span class="markdown-help-note-label">' . $safe . '</span> '
+        . bandpromo_admin_markdown_help_trigger()
+        . '</span>';
+}

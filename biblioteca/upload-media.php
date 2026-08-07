@@ -75,7 +75,7 @@ if (!is_dir($tmp_dir)) mkdir($tmp_dir, 0750, true);
 
 $audio_exts = ['flac', 'mp3', 'wav'];
 $image_exts = ['png', 'jpg', 'jpeg', 'webp'];
-$video_exts = ['mp4', 'webm', 'mov'];
+$video_exts = ['mp4', 'webm', 'mov', 'mkv'];
 
 function bandpromo_finalize_uploaded_file(string $root_dir, string $target_hint, string $ext, string $safe_name, string $dest): array {
     if (!in_array($target_hint, ['special', 'sfx'], true) || $ext !== 'wav') {
@@ -185,7 +185,7 @@ function bandpromo_upload_resolve_files_index_target(string $target_hint, string
 }
 
 function bandpromo_is_video_extension(string $ext): bool {
-    return in_array($ext, ['mp4', 'webm', 'mov'], true);
+    return in_array($ext, ['mp4', 'webm', 'mov', 'mkv'], true);
 }
 
 function bandpromo_ffmpeg_command(): string {

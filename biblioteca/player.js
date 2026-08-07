@@ -1779,6 +1779,7 @@ async function loadConfig() {
             }
             bindPlaylistSelector();
         } else {
+            syncCampaignPageTabs();
             showPlayerLoadError('This playlist has no playable tracks yet.');
         }
     } catch (e) {
@@ -2095,8 +2096,49 @@ function initPlayer(index) {
     }
 }
 
+// Campaign page tabs follow the current track's release_id (idle / no match → hide).
+function syncCampaignPageTabs() {
+    const tabs = Array.isArray(window.BANDPROMO_PLAYER_TABS) ? window.BANDPROMO_PLAYER_TABS : [];
+    const song = Array.isArray(playList) && playList[currentIndex] ? playList[currentIndex] : null;
+    const releaseId = song ? String(song.release_id || '').trim() : '';
+    const activeBtn = document.querySelector('.content-toggle button[data-view].active');
+    const activeView = activeBtn ? String(activeBtn.getAttribute('data-view') || '') : '';
+    let activeHidden = false;
+
+    tabs.forEach((tab) => {
+        if (!tab || String(tab.kind || '') !== 'page') {
+            return;
+        }
+        const view = String(tab.view || '');
+        if (view === '') {
+            return;
+        }
+        const pageRelease = String(tab.release_id || '').trim();
+        const show = releaseId !== '' && pageRelease !== '' && pageRelease === releaseId;
+        const btn = document.querySelector(`.content-toggle button[data-view="${view}"]`);
+        const box = document.querySelector(`[data-content-box="${view}"]`);
+        if (btn) {
+            btn.hidden = !show;
+            if (!show && view === activeView) {
+                activeHidden = true;
+            }
+        }
+        if (box) {
+            box.hidden = !show;
+            if (!show) {
+                box.classList.remove('active');
+            }
+        }
+    });
+
+    if (activeHidden) {
+        toggleView(getPreferredPrimaryView(song));
+    }
+}
+
 // Update visuals (Text, Images, Side-covers)
 function updateVisuals(index) {
+    syncCampaignPageTabs();
     const song = playList[index];
     
     // Main info

@@ -1250,7 +1250,6 @@ function bandpromo_playlist_ensure_seeded(string $root): void
     $running[$root] = true;
 
     try {
-        bandpromo_asset_registry_ensure_migrated($root);
         bandpromo_release_ensure_seeded($root);
         bandpromo_playlist_registry_ensure_dir($root);
 

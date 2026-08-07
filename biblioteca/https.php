@@ -70,6 +70,34 @@ function bandpromo_is_https_request(): bool
     return $forwardedProto === 'https';
 }
 
+/**
+ * Keep PHP session files off synced folders (e.g. Google Drive worktrees).
+ * Session lock/read on a synced path routinely costs multi-second waits per request.
+ */
+function bandpromo_configure_session_storage(): void
+{
+    static $configured = false;
+    if ($configured || session_status() !== PHP_SESSION_NONE) {
+        return;
+    }
+    $configured = true;
+
+    // Windows local/dev installs: sessions under %LOCALAPPDATA% (not the repo).
+    if (DIRECTORY_SEPARATOR === '\\') {
+        $base = getenv('LOCALAPPDATA');
+        if (!is_string($base) || trim($base) === '') {
+            $base = sys_get_temp_dir();
+        }
+        $path = rtrim(str_replace('\\', '/', (string) $base), '/') . '/bandPromo/php-sessions';
+        if (!is_dir($path)) {
+            @mkdir($path, 0700, true);
+        }
+        if (is_dir($path) && is_writable($path)) {
+            session_save_path(str_replace('/', DIRECTORY_SEPARATOR, $path));
+        }
+    }
+}
+
 function bandpromo_current_scheme(): string
 {
     return bandpromo_is_https_request() ? 'https' : 'http';
@@ -87,6 +115,9 @@ function bandpromo_current_origin(): string
 
 function bandpromo_enforce_https(): void
 {
+    // Must run before any session_start() on this request.
+    bandpromo_configure_session_storage();
+
     // Canonicalize local loopback to localhost to avoid SSL upgrade traps.
     if (bandpromo_is_local_loopback_host()) {
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';

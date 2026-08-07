@@ -308,6 +308,7 @@ function bandpromo_audio_display_label_for_listing(
     $releaseId = (string) ($releaseMeta['release_id'] ?? '');
     $releaseDate = trim((string) ($releaseMeta['release_date'] ?? ''));
     $trackNumber = (int) bandpromo_release_find_track_number_for_master($root, $filename);
+    $displayDate = trim((string) ($display['date'] ?? ''));
 
     return [
         'display_title' => $title,
@@ -315,6 +316,7 @@ function bandpromo_audio_display_label_for_listing(
         'display_artist' => $artist,
         'display_subtitle' => '',
         'display_duration' => max(0, $duration),
+        'display_date' => $displayDate,
         'release_id' => $releaseId,
         'release_title' => trim((string) ($releaseMeta['release_title'] ?? '')),
         'release_date' => $releaseDate,
@@ -326,8 +328,14 @@ function bandpromo_audio_display_label_for_listing(
 
 function bandpromo_audio_files_listing_sort(array $left, array $right): int
 {
-    $leftDate = trim((string) ($left['release_date'] ?? ''));
-    $rightDate = trim((string) ($right['release_date'] ?? ''));
+    $leftDate = trim((string) ($left['display_date'] ?? ''));
+    if ($leftDate === '') {
+        $leftDate = trim((string) ($left['release_date'] ?? ''));
+    }
+    $rightDate = trim((string) ($right['display_date'] ?? ''));
+    if ($rightDate === '') {
+        $rightDate = trim((string) ($right['release_date'] ?? ''));
+    }
 
     if ($leftDate !== '' && $rightDate !== '') {
         $dateCompare = strcmp($rightDate, $leftDate);
@@ -384,10 +392,15 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
     $releaseTracknumber = bandpromo_release_find_track_number_for_master($root, $filename);
     $embeddedTracknumber = trim((string) ($detail['tracknumber'] ?? ''));
 
+    $releaseMeta = bandpromo_release_audio_listing_meta($root, $filename);
     $detail['release_tracknumber'] = $releaseTracknumber;
     $detail['suggested_tracknumber'] = $embeddedTracknumber !== ''
         ? $embeddedTracknumber
         : $releaseTracknumber;
+    $detail['release_id'] = (string) ($releaseMeta['release_id'] ?? '');
+    $detail['release_title'] = trim((string) ($releaseMeta['release_title'] ?? ''));
+    $detail['on_release'] = !empty($releaseMeta['on_release']);
+    $detail['release_orphan'] = !empty($releaseMeta['release_orphan']);
     $detail['release_locked'] = bandpromo_release_is_master_locked($root, $filename);
     $detail['master_filename'] = $masterFilename;
     $detail['sidecar_cover'] = $sidecarCover;
@@ -478,9 +491,9 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
         'text_role' => (string) ($display['text_role'] ?? 'lyrics'),
         'notes_label' => (string) ($display['notes_label'] ?? ''),
         'duration_seconds' => max(0, (int) ($display['duration'] > 0 ? $display['duration'] : ($playlistEntry['duration'] ?? 0))),
-        'bitrate_kbps' => 0,
-        'sample_rate_hz' => 0,
-        'bit_depth' => 0,
+        'bitrate_kbps' => max(0, (int) ($display['bitrate_kbps'] ?? 0)),
+        'sample_rate_hz' => max(0, (int) ($display['sample_rate_hz'] ?? 0)),
+        'bit_depth' => max(0, (int) ($display['bit_depth'] ?? 0)),
         'file_size_bytes' => $masterExists ? (int) filesize($masterPath) : 0,
         'sidecar_cover' => trim((string) ($display['cover'] ?? '')),
         'living_cover' => trim((string) (
@@ -490,6 +503,39 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
         )),
         'source' => 'asset-registry',
     ];
+
+    // One-shot probe when stream tech was never cached (common before this fix).
+    $needsStreamTech = $masterExists
+        && ($detail['bitrate_kbps'] <= 0 || $detail['sample_rate_hz'] <= 0 || $detail['bit_depth'] <= 0);
+    if ($needsStreamTech) {
+        $inspect = bandpromo_release_inspect_master_metadata($root, $masterFilename);
+        if (!empty($inspect['ok'])) {
+            $detail['bitrate_kbps'] = max(0, (int) ($inspect['bitrate_kbps'] ?? 0));
+            $detail['sample_rate_hz'] = max(0, (int) ($inspect['sample_rate_hz'] ?? 0));
+            $detail['bit_depth'] = max(0, (int) ($inspect['bit_depth'] ?? 0));
+            if ($detail['duration_seconds'] <= 0) {
+                $detail['duration_seconds'] = max(0, (int) ($inspect['duration_seconds'] ?? 0));
+            }
+            if (!empty($inspect['embedded_cover_present'])) {
+                $detail['embedded_cover_present'] = true;
+            }
+
+            $persistDisplay = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+            $persistDisplay['bitrate_kbps'] = $detail['bitrate_kbps'];
+            $persistDisplay['sample_rate_hz'] = $detail['sample_rate_hz'];
+            $persistDisplay['bit_depth'] = $detail['bit_depth'];
+            if ($detail['duration_seconds'] > 0) {
+                $persistDisplay['duration'] = $detail['duration_seconds'];
+            }
+            try {
+                bandpromo_asset_update_entry($root, (string) ($asset['id'] ?? ''), [
+                    'display' => $persistDisplay,
+                ]);
+            } catch (Throwable $throwable) {
+                // Detail response still carries probed values even if cache write fails.
+            }
+        }
+    }
 
     return bandpromo_audio_master_enrich_detail($root, $filename, $detail);
 }

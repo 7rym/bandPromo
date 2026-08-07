@@ -12,6 +12,16 @@
             "sort_order": 10
         },
         {
+            "id": "gallery",
+            "title": "Gallery",
+            "label": "Gallery",
+            "surface": "player",
+            "show_in_player": true,
+            "required": false,
+            "system": true,
+            "sort_order": 15
+        },
+        {
             "id": "faq",
             "title": "FAQ / Info",
             "label": "FAQ",

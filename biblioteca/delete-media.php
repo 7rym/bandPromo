@@ -199,6 +199,21 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         ];
     }
 
+    // Multi-ref / in-use guard: never unlink while containers still point at this file
+    // unless the operator explicitly requested detach-first.
+    if (!$detach_references && $reference_summary['total'] > 0) {
+        $multi = $reference_summary['total'] > 1;
+        return [
+            'ok' => false,
+            'filename' => $safe,
+            'error' => $multi
+                ? 'This media is referenced by multiple containers. Remove or detach those references before deleting the shared file.'
+                : 'This media is still referenced. Detach references first, or remove the reference from the owning container.',
+            'references' => $references,
+            'reference_summary' => $reference_summary,
+        ];
+    }
+
     $reference_cleanup = [
         'playlist_tracks_removed' => 0,
         'playlist_covers_cleared' => 0,
@@ -292,7 +307,17 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             }
         }
     } elseif ($target === 'sfx') {
-        bandpromo_asset_unregister_by_original_filename($root, $safe);
+        require_once __DIR__ . '/sfx-helpers.php';
+        $sfxAsset = bandpromo_asset_lookup_by_original_filename($root, $safe);
+        if (!is_array($sfxAsset) || ($sfxAsset['kind'] ?? '') !== 'sfx') {
+            $sfxAsset = bandpromo_asset_lookup_by_master_filename($root, $safe);
+        }
+        if (is_array($sfxAsset) && ($sfxAsset['kind'] ?? '') === 'sfx') {
+            bandpromo_sfx_delete_tier_files($root, $sfxAsset);
+            bandpromo_asset_unregister($root, (string) ($sfxAsset['id'] ?? ''));
+        } else {
+            bandpromo_asset_unregister_by_original_filename($root, $safe);
+        }
     }
 
     bandpromo_media_set_hidden_for_install($target, $safe, false);

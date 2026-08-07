@@ -73,7 +73,7 @@ function bandpromo_page_normalize_registry_entry(array $entry, int $fallbackOrde
     }
 
     $required = $id === BANDPROMO_PAGE_REQUIRED_ID || !empty($entry['required']);
-    $system = !empty($entry['system']) || in_array($id, ['bio', 'faq'], true);
+    $system = !empty($entry['system']) || in_array($id, ['bio', 'faq', 'gallery'], true);
     $showInPlayer = array_key_exists('show_in_player', $entry)
         ? (bool) $entry['show_in_player']
         : ($surface !== 'login');
@@ -107,6 +107,16 @@ function bandpromo_page_default_registry(): array {
                 'required' => false,
                 'system' => true,
                 'sort_order' => 10,
+            ],
+            [
+                'id' => 'gallery',
+                'title' => 'Gallery',
+                'label' => 'Gallery',
+                'surface' => 'player',
+                'show_in_player' => true,
+                'required' => false,
+                'system' => true,
+                'sort_order' => 15,
             ],
             [
                 'id' => 'faq',
@@ -162,6 +172,32 @@ function bandpromo_page_normalize_registry(array $input): array {
         'version' => BANDPROMO_PAGE_REGISTRY_VERSION,
         'pages' => $pages,
     ];
+}
+
+function bandpromo_page_ensure_system_pages(string $root): void
+{
+    $registry = bandpromo_page_load_registry($root);
+    $byId = [];
+    foreach ($registry['pages'] as $entry) {
+        if (is_array($entry)) {
+            $byId[(string) ($entry['id'] ?? '')] = true;
+        }
+    }
+
+    $changed = false;
+    foreach (bandpromo_page_default_registry()['pages'] as $entry) {
+        $id = (string) ($entry['id'] ?? '');
+        if ($id === '' || isset($byId[$id])) {
+            continue;
+        }
+        $registry['pages'][] = $entry;
+        $byId[$id] = true;
+        $changed = true;
+    }
+
+    if ($changed) {
+        bandpromo_page_write_registry($root, $registry);
+    }
 }
 
 function bandpromo_page_write_registry(string $root, array $registry): void {

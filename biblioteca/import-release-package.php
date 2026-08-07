@@ -8,6 +8,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/release-campaign-package.php';
+require_once __DIR__ . '/release-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -31,12 +32,12 @@ $root = dirname(__DIR__);
 $file = $_FILES['package'] ?? null;
 if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Upload a release package ZIP.']);
+    echo json_encode(['ok' => false, 'error' => 'Upload a portable release package (.prp or .zip).']);
     exit;
 }
 
 $tmpName = (string) ($file['tmp_name'] ?? '');
-$originalName = (string) ($file['name'] ?? 'package.zip');
+$originalName = (string) ($file['name'] ?? 'package.prp');
 if ($tmpName === '' || !is_uploaded_file($tmpName)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'Invalid upload.']);
@@ -44,10 +45,18 @@ if ($tmpName === '' || !is_uploaded_file($tmpName)) {
 }
 
 $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-if ($extension !== 'zip') {
+if (!in_array($extension, ['prp', 'zip'], true)) {
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Release packages must be ZIP files.']);
+    echo json_encode(['ok' => false, 'error' => 'Release packages must be .prp or .zip files.']);
     exit;
+}
+
+$collision = strtolower(trim((string) ($_POST['collision'] ?? 'refuse')));
+if ($collision === 'skip-existing') {
+    $collision = 'skip';
+}
+if (!in_array($collision, ['refuse', 'overwrite', 'skip', 'allocate'], true)) {
+    $collision = 'refuse';
 }
 
 try {
@@ -55,6 +64,7 @@ try {
         'mode' => 'operator',
         'allow_demo_overwrite' => false,
         'set_active_brand' => false,
+        'collision' => $collision,
     ]);
 
     bandpromo_admin_audit_log('release_package_imported', [
@@ -64,6 +74,7 @@ try {
         'data' => [
             'imported_files' => (int) ($result['imported_files'] ?? 0),
             'filename' => $originalName,
+            'collision' => (string) ($result['collision'] ?? $collision),
         ],
     ]);
 
@@ -72,6 +83,7 @@ try {
         'release_id' => $result['release_id'],
         'message' => $result['message'],
         'imported_files' => $result['imported_files'],
+        'collision' => $result['collision'] ?? $collision,
         'releases' => bandpromo_release_admin_registry_entries($root),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {

@@ -73,6 +73,7 @@ RUNTIME_TEMPLATE_MAP = (
 PAGE_TEMPLATE_MAP = (
     ('biblioteca/templates/pages.registry.template.json', 'data/pages/registry.json'),
     ('biblioteca/templates/bio.template.json', 'data/pages/bio.json'),
+    ('biblioteca/templates/gallery.template.json', 'data/pages/gallery.json'),
     ('biblioteca/templates/faq.template.json', 'data/pages/faq.json'),
 )
 

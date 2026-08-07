@@ -1,9 +1,9 @@
 """
 optimizeMedia — Web-Optimized Media Generator
 Converts source content into bandwidth-efficient web variants:
-- Audio delivery → MP3 files with full ID3 tags when readable
-    - MP3 sources are copied directly into delivery output
-    - FLAC/WAV sources are transcoded to MP3 320kbps
+- Audio delivery → tagless MP3 files (no ID3/APEv2; identity lives in registry + player payload)
+    - MP3 sources are copied directly into delivery output, then stripped
+    - FLAC/WAV sources are transcoded to MP3 320kbps, then stripped
 - Covers → JPEG (optimized quality) for bandwidth savings
 - Photos → JPEG (optimized quality) for bandwidth savings
 
@@ -30,7 +30,8 @@ except Exception:
 
 from mutagen import File
 from mutagen.flac import FLAC
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, COMM, APIC, TCON, TPE2, TBPM, TKEY, TPE4, USLT, TXXX
+from mutagen.apev2 import APEv2, APENoHeaderError
+from mutagen.id3 import ID3, ID3NoHeaderError
 
 try:
     import xxhash
@@ -1002,11 +1003,62 @@ def update_audio_asset_delivery(asset_id, source_xxh3, ready=True, source_mtime=
         return False
 
 
+def delivery_mp3_has_tags(mp3_path):
+    """True when a delivery MP3 still carries ID3 or APEv2 (must rebuild/strip)."""
+    path = Path(mp3_path)
+    if not path.is_file():
+        return False
+    try:
+        ID3(str(path))
+        return True
+    except ID3NoHeaderError:
+        pass
+    except Exception:
+        pass
+    try:
+        APEv2(str(path))
+        return True
+    except APENoHeaderError:
+        return False
+    except Exception:
+        return False
+
+
+def strip_delivery_audio_tags(mp3_path):
+    """Remove all ID3 and APEv2 tags from a delivery MP3 (tagless delivery policy)."""
+    path = str(mp3_path)
+    try:
+        try:
+            ape = APEv2(path)
+            ape.delete()
+        except APENoHeaderError:
+            pass
+        except Exception:
+            pass
+        try:
+            id3 = ID3(path)
+            id3.delete()
+        except ID3NoHeaderError:
+            pass
+        except Exception:
+            pass
+        return True
+    except Exception as exc:
+        print(f"  Warning: Could not strip delivery tags: {exc}")
+        return False
+
+
+def set_id3_tags(mp3_path, tags=None):
+    """Compatibility alias: delivery MP3s are tagless — strip instead of writing."""
+    return strip_delivery_audio_tags(mp3_path)
+
+
 def audio_delivery_is_fresh(source_path, mp3_path, recorded_source_xxh3=None, recorded_source_mtime=None):
-    """True when delivery MP3 exists and master XXH3 matches the last successful build.
+    """True when delivery MP3 exists, is tagless, and master XXH3 matches the last build.
 
     Falls back to legacy mtime fingerprint only when XXH3 is unavailable (no xxhash package
     or no recorded digest yet). First builds always rebuild so we learn the fingerprint.
+    Previously tagged delivery files are treated as stale so Publish migrates them.
     """
     try:
         source = Path(source_path)
@@ -1014,6 +1066,8 @@ def audio_delivery_is_fresh(source_path, mp3_path, recorded_source_xxh3=None, re
         if not source.is_file() or not dest.is_file() or dest.stat().st_size <= 0:
             return False
         if os.environ.get('BANDPROMO_FORCE_AUDIO_DELIVERY', '').strip() == '1':
+            return False
+        if delivery_mp3_has_tags(dest):
             return False
 
         current_xxh3 = file_xxh3_hex(source)
@@ -1291,68 +1345,6 @@ def merge_catalog_display_into_tags(tags, display):
     return tags
 
 
-def set_id3_tags(mp3_path, tags):
-    """Apply tags to MP3 file using ID3."""
-    try:
-        # Remove existing tags
-        try:
-            id3 = ID3(mp3_path)
-            id3.delete()
-        except:
-            pass
-        
-        # Create new ID3 tag
-        id3 = ID3()
-        
-        if 'title' in tags:
-            id3.add(TIT2(encoding=3, text=[tags['title']]))
-        if 'artist' in tags:
-            id3.add(TPE1(encoding=3, text=[tags['artist']]))
-        if 'album' in tags:
-            id3.add(TALB(encoding=3, text=[tags['album']]))
-        if 'date' in tags:
-            id3.add(TDRC(encoding=3, text=[tags['date']]))
-        if 'year' in tags:
-            id3.add(TDRC(encoding=3, text=[tags['year']]))
-        if 'tracknumber' in tags:
-            id3.add(TRCK(encoding=3, text=[tags['tracknumber']]))
-        if 'genre' in tags:
-            id3.add(TCON(encoding=3, text=[tags['genre']]))
-        if 'albumartist' in tags:
-            id3.add(TPE2(encoding=3, text=[tags['albumartist']]))
-        if 'comment' in tags:
-            id3.add(COMM(encoding=3, lang='eng', desc='', text=[tags['comment']]))
-        if 'bpm' in tags:
-            id3.add(TBPM(encoding=3, text=[tags['bpm']]))
-        if 'key' in tags:
-            id3.add(TKEY(encoding=3, text=[tags['key']]))
-        if 'mixartist' in tags:
-            # Use TPE4 (Interpreted by) for Mix Artist
-            id3.add(TPE4(encoding=3, text=[tags['mixartist']]))
-        if 'lyrics' in tags:
-            # Ensure lyrics is a clean string without encoding artifacts
-            lyrics_text = tags['lyrics']
-            if isinstance(lyrics_text, list):
-                lyrics_text = '\n'.join(str(line) for line in lyrics_text)
-            id3.add(USLT(encoding=3, lang='eng', desc='', text=lyrics_text))
-        
-        # Add cover art if available
-        if 'picture' in tags:
-            picture = tags['picture']
-            mime = getattr(picture, 'mime', None) or 'image/jpeg'
-            data = getattr(picture, 'data', None)
-            if data:
-                id3.add(APIC(encoding=3, 
-                            mime=mime,
-                            type=3,  # Cover front
-                            desc='',
-                            data=data))
-        
-        id3.save(mp3_path, v2_version=4)
-    except Exception as e:
-        print(f"  Warning: Could not set ID3 tags: {e}")
-
-
 def convert_audio_to_mp3(source_path, mp3_path):
     """Convert a supported source audio file to MP3 using ffmpeg."""
     ffmpeg = get_ffmpeg_path()
@@ -1474,22 +1466,10 @@ def process_audio_delivery(
     headline = format_track_label(display_artist, display_title, master_filename)
     print(f"\n🎵 Processing: {headline}")
     print(f"  → Source tier: {source_tier}")
-    print("  → Reading source audio tags...")
-    tags = get_audio_tags(str(source_path))
-    tags = merge_catalog_display_into_tags(tags, catalog)
-    tag_artist = str(tags.get('artist') or '').strip()
-    tag_title = str(tags.get('title') or '').strip()
-    if tag_artist or tag_title:
-        print(f"  → Tags: {format_track_label(tag_artist, tag_title, master_filename)}")
-        headline = format_track_label(
-            tag_artist or display_artist,
-            tag_title or display_title,
-            master_filename,
-        )
+    if display_artist or display_title:
+        print(f"  → Catalog display: {format_track_label(display_artist, display_title, master_filename)}")
     else:
-        print("  → Tags: no artist/title on the source file")
-        if display_artist or display_title:
-            print(f"  → Using catalog display: {format_track_label(display_artist, display_title, master_filename)}")
+        print("  → Catalog display: (empty — using filename for logs)")
 
     print(f"  → Asset file: {master_filename}")
 
@@ -1502,7 +1482,7 @@ def process_audio_delivery(
             recorded_source_mtime,
         )
     ):
-        print("  → Delivery: already up to date (master XXH3 match) — skipped")
+        print("  → Delivery: already up to date (tagless + master XXH3 match) — skipped")
         if asset_id:
             update_audio_asset_delivery(
                 asset_id,
@@ -1525,15 +1505,13 @@ def process_audio_delivery(
         print(f"  ❌ Failed to convert audio ({headline})")
         return False
 
-    print("  → Applying ID3 tags to delivery MP3...")
-    set_id3_tags(str(mp3_path), tags)
+    print("  → Stripping tags from delivery MP3 (tagless delivery policy)...")
+    strip_delivery_audio_tags(str(mp3_path))
 
     if cover_filename:
         process_track_cover(cover_filename)
-    elif tags.get('picture') is not None:
-        print("  → Track cover: none assigned in Files; embedded artwork was copied into the delivery MP3")
     else:
-        print("  → Track cover: none assigned in Files and no embedded artwork on the source")
+        print("  → Track cover: none assigned in Files (player uses registry/playlist cover URLs)")
 
     if asset_id:
         update_audio_asset_delivery(

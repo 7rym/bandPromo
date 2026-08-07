@@ -11,6 +11,10 @@ Output:
 - media/video/poster/*.jpg (legacy dual-read)
 - media/visual/delivery/{asset_id}/standard-stream.mp4
 - media/visual/delivery/{asset_id}/poster.jpg
+
+Audio policy:
+- role=gallery → keep soundtrack in delivery
+- all other video roles (living covers, shell backgrounds, unassigned, …) → silent delivery (video track only)
 """
 
 import io
@@ -48,7 +52,7 @@ VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
 VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
 VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
-SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.mov', '.webm')
+SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.mov', '.webm', '.mkv')
 TRANSCODE_EXTENSIONS = ('.mov', '.webm')
 _XXHASH_WARNED = False
 
@@ -115,14 +119,82 @@ def poster_path_for(source_path: Path) -> Path:
     return VIDEO_POSTER_DIR / (source_path.stem + '.jpg')
 
 
-def delivery_mode_for(source_path: Path) -> str:
-    return 'copy' if source_path.suffix.lower() == '.mp4' else 'transcode'
+def remux_mp4_keep_audio(source_path: Path, target_path: Path) -> bool:
+    """Stream-copy into MP4 (e.g. MKV master → delivery). Falls back to re-encode."""
+    ffmpeg = get_ffmpeg_path()
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    command = [
+        ffmpeg,
+        '-y',
+        '-i',
+        str(source_path),
+        '-map',
+        '0:v:0',
+        '-map',
+        '0:a?',
+        '-c',
+        'copy',
+        '-movflags',
+        '+faststart',
+        str(target_path),
+    ]
+    try:
+        result = _run_ffmpeg_capture(command)
+    except Exception as exc:
+        print(f"  ❌ Could not start ffmpeg for MP4 remux: {exc}", file=sys.stderr)
+        return False
+
+    if result.returncode != 0:
+        print("  ❌ ffmpeg MP4 remux failed — falling back to re-encode", file=sys.stderr)
+        return transcode_to_mp4(source_path, target_path, keep_audio=True)
+
+    return True
+
+
+def delivery_mode_for(source_path: Path, keep_audio: bool = True) -> str:
+    """copy = byte-identical MP4 pass-through; remux/transcode otherwise."""
+    suffix = source_path.suffix.lower()
+    if suffix == '.mp4' and keep_audio:
+        return 'copy'
+    if suffix == '.mp4' and not keep_audio:
+        return 'remux-silent'
+    if suffix == '.mkv' and keep_audio:
+        return 'remux-mp4'
+    if suffix == '.mkv' and not keep_audio:
+        return 'remux-silent'
+    return 'transcode'
+
+
+def video_keeps_audio(asset) -> bool:
+    """Gallery videos may keep soundtrack; living covers / shell / other roles are silent."""
+    if not isinstance(asset, dict):
+        return True
+    role = str(asset.get('role') or '').strip().lower()
+    return role == 'gallery'
+
+
+def audio_mode_label(keep_audio: bool) -> str:
+    return 'keep' if keep_audio else 'silent'
+
+
+def recorded_audio_mode(asset) -> str:
+    if not isinstance(asset, dict):
+        return ''
+    delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+    return str(delivery.get('audio_mode') or '').strip().lower()
 
 
 def needs_refresh(source_path: Path, target_path: Path) -> bool:
     if not target_path.exists():
         return True
     return source_path.stat().st_mtime > target_path.stat().st_mtime
+
+
+def stream_needs_refresh(source_path: Path, target_path: Path, asset, keep_audio: bool) -> bool:
+    desired = audio_mode_label(keep_audio)
+    if recorded_audio_mode(asset) != desired:
+        return True
+    return needs_refresh(source_path, target_path)
 
 
 def ensure_directories():
@@ -150,7 +222,8 @@ def _run_ffmpeg_capture(command):
     )
 
 
-def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
+def remux_mp4_silent(source_path: Path, target_path: Path) -> bool:
+    """Fast path: copy video stream, drop all audio (living covers / shell backgrounds)."""
     ffmpeg = get_ffmpeg_path()
     target_path.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -160,8 +233,40 @@ def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
         str(source_path),
         '-map',
         '0:v:0',
+        '-c:v',
+        'copy',
+        '-an',
+        '-movflags',
+        '+faststart',
+        str(target_path),
+    ]
+    try:
+        result = _run_ffmpeg_capture(command)
+    except Exception as exc:
+        print(f"  ❌ Could not start ffmpeg for silent remux: {exc}", file=sys.stderr)
+        return False
+
+    if result.returncode != 0:
+        print("  ❌ ffmpeg silent remux failed — falling back to re-encode", file=sys.stderr)
+        return transcode_to_mp4(source_path, target_path, keep_audio=False)
+
+    return True
+
+
+def transcode_to_mp4(source_path: Path, target_path: Path, keep_audio: bool = True) -> bool:
+    ffmpeg = get_ffmpeg_path()
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    command = [
+        ffmpeg,
+        '-y',
+        '-i',
+        str(source_path),
         '-map',
-        '0:a?',
+        '0:v:0',
+    ]
+    if keep_audio:
+        command.extend(['-map', '0:a?'])
+    command.extend([
         '-vf',
         'scale=trunc(iw/2)*2:trunc(ih/2)*2',
         '-c:v',
@@ -170,12 +275,12 @@ def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
         'yuv420p',
         '-movflags',
         '+faststart',
-        '-c:a',
-        'aac',
-        '-b:a',
-        '192k',
-        str(target_path),
-    ]
+    ])
+    if keep_audio:
+        command.extend(['-c:a', 'aac', '-b:a', '192k'])
+    else:
+        command.append('-an')
+    command.append(str(target_path))
     try:
         result = _run_ffmpeg_capture(command)
     except Exception as exc:
@@ -195,6 +300,17 @@ def transcode_to_mp4(source_path: Path, target_path: Path) -> bool:
         return False
 
     return True
+
+
+def write_delivery_mp4(source_path: Path, target_path: Path, keep_audio: bool) -> bool:
+    mode = delivery_mode_for(source_path, keep_audio=keep_audio)
+    if mode == 'copy':
+        return copy_mp4(source_path, target_path)
+    if mode == 'remux-silent':
+        return remux_mp4_silent(source_path, target_path)
+    if mode == 'remux-mp4':
+        return remux_mp4_keep_audio(source_path, target_path)
+    return transcode_to_mp4(source_path, target_path, keep_audio=keep_audio)
 
 
 def ensure_video_poster(source_path: Path, poster_path: Path) -> bool:
@@ -339,7 +455,7 @@ def file_xxh3_hex(path):
         return ''
 
 
-def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None):
+def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None, audio_mode=None):
     if not asset_id or not ASSET_REGISTRY_FILE.exists():
         return False
     try:
@@ -361,6 +477,8 @@ def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None):
     delivery['checked_at'] = delivery['built_at']
     if source_xxh3:
         delivery['source_xxh3'] = str(source_xxh3).lower()
+    if audio_mode:
+        delivery['audio_mode'] = str(audio_mode).strip().lower()
     asset['delivery'] = delivery
     assets[asset_id] = asset
     payload['assets'] = assets
@@ -375,13 +493,26 @@ def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None):
         return False
 
 
-def process_one_video(source_path: Path, asset_id: str = ''):
-    mode = delivery_mode_for(source_path)
+def process_one_video(source_path: Path, asset_id: str = '', asset=None):
+    keep_audio = video_keeps_audio(asset)
+    mode = delivery_mode_for(source_path, keep_audio=keep_audio)
+    audio_label = audio_mode_label(keep_audio)
     legacy_target = delivery_path_for(source_path)
     legacy_poster = poster_path_for(source_path)
 
     print(f"\n📼 Processing: {source_path.name}")
-    print(f"  → Delivery route: {'MP4 copy' if mode == 'copy' else 'Transcode to MP4'}")
+    if mode == 'copy':
+        route = 'MP4 copy (keep audio)'
+    elif mode == 'remux-silent':
+        route = 'MP4 remux silent (drop audio)'
+    elif mode == 'remux-mp4':
+        route = 'MP4 remux (keep audio, stream copy)'
+    else:
+        route = 'Transcode to MP4 ({})'.format('keep audio' if keep_audio else 'silent')
+    print(f"  → Delivery route: {route}")
+    if isinstance(asset, dict):
+        role = str(asset.get('role') or 'unassigned').strip() or 'unassigned'
+        print(f"  → Role: {role} → audio={audio_label}")
 
     built = False
     skipped = False
@@ -391,7 +522,7 @@ def process_one_video(source_path: Path, asset_id: str = ''):
 
     if write_legacy:
         if needs_refresh(source_path, legacy_target):
-            ok = copy_mp4(source_path, legacy_target) if mode == 'copy' else transcode_to_mp4(source_path, legacy_target)
+            ok = write_delivery_mp4(source_path, legacy_target, keep_audio=True)
             if ok:
                 built = True
                 print(f"  ✓ Wrote legacy delivery file: {legacy_target.name}")
@@ -415,21 +546,18 @@ def process_one_video(source_path: Path, asset_id: str = ''):
         stream_path = delivery_dir / 'standard-stream.mp4'
         poster_path = delivery_dir / 'poster.jpg'
 
-        if needs_refresh(source_path, stream_path):
-            if mode == 'copy':
-                ok = copy_mp4(source_path, stream_path)
-            else:
-                ok = transcode_to_mp4(source_path, stream_path)
+        if stream_needs_refresh(source_path, stream_path, asset, keep_audio):
+            ok = write_delivery_mp4(source_path, stream_path, keep_audio=keep_audio)
             if not ok and write_legacy and legacy_target.exists():
-                ok = copy_mp4(legacy_target, stream_path)
+                ok = write_delivery_mp4(legacy_target, stream_path, keep_audio=keep_audio)
             if ok:
                 built = True
-                print(f"  ✓ Wrote asset stream: {stream_path}")
+                print(f"  ✓ Wrote asset stream: {stream_path} ({audio_label})")
             else:
                 failed = True
         elif stream_path.exists():
             skipped = True
-            print(f"  ✓ Asset stream up to date: {stream_path.name}")
+            print(f"  ✓ Asset stream up to date: {stream_path.name} ({audio_label})")
 
         if stream_path.exists():
             variants['standard-stream'] = variant_manifest_entry(stream_path, 'mp4')
@@ -446,7 +574,12 @@ def process_one_video(source_path: Path, asset_id: str = ''):
                 pass
 
         if variants:
-            update_visual_asset_delivery(asset_id, variants, source_xxh3=file_xxh3_hex(source_path) or None)
+            update_visual_asset_delivery(
+                asset_id,
+                variants,
+                source_xxh3=file_xxh3_hex(source_path) or None,
+                audio_mode=audio_label,
+            )
 
     return {
         'built': built,
@@ -488,7 +621,11 @@ def main():
                 print(f"  ⚠️  Missing source for {asset.get('id')}: {asset.get('original_filename')}")
                 failed += 1
                 continue
-            result = process_one_video(source, asset_id=str(asset.get('id') or ''))
+            result = process_one_video(
+                source,
+                asset_id=str(asset.get('id') or ''),
+                asset=asset,
+            )
             processed_names.add(source.name.lower())
             original_name = basename_lower(asset.get('original_filename'))
             if original_name:

@@ -438,7 +438,9 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
             'master_format' => strtolower(trim((string) ($entry['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION)))),
             'release_id' => trim((string) ($entry['release_id'] ?? '')),
             'slug' => trim((string) ($entry['slug'] ?? '')),
-            'display' => is_array($entry['display'] ?? null) ? $entry['display'] : [],
+            'display' => bandpromo_asset_normalize_visual_display(
+                is_array($entry['display'] ?? null) ? $entry['display'] : []
+            ),
             'tags' => $tags,
             'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [],
             'content_sha256' => strtolower(trim((string) ($entry['content_sha256'] ?? ''))),
@@ -452,7 +454,12 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
             return null;
         }
         if ($masterFilename === '') {
-            $masterFilename = $originalFilename;
+            $formatHint = strtolower(trim((string) ($entry['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION))));
+            if ($formatHint !== '' && bandpromo_asset_is_asset_id($id)) {
+                $masterFilename = bandpromo_asset_master_filename_for_ulid($id, $formatHint);
+            } else {
+                $masterFilename = $originalFilename;
+            }
         }
 
         return [
@@ -469,7 +476,11 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
             'slug' => '',
             'display' => is_array($entry['display'] ?? null) ? $entry['display'] : [],
             'tags' => ['sfx'],
-            'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : ['ready' => true, 'source' => 'original'],
+            'delivery' => is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [
+                'ready' => false,
+                'audio_optimal' => false,
+                'source' => 'master',
+            ],
             'created_at' => trim((string) ($entry['created_at'] ?? gmdate('c'))),
         ];
     }
@@ -596,7 +607,8 @@ function bandpromo_asset_load_registry(string $root): array
         return $cache['registry'];
     }
 
-    bandpromo_asset_registry_ensure_migrated($root);
+    // Light ensure only — never run legacy scandir/hash/tier heals on every registry read.
+    bandpromo_asset_registry_ensure_migrated($root, false);
     $decoded = bandpromo_json_read_array_file(bandpromo_asset_registry_path($root));
     if ($decoded === null) {
         bandpromo_asset_write_registry($root, bandpromo_asset_registry_default());
@@ -947,7 +959,12 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     }
     if (isset($changes['display']) && is_array($changes['display'])) {
         $existingDisplay = is_array($entry['display'] ?? null) ? $entry['display'] : [];
-        $entry['display'] = array_merge($existingDisplay, $changes['display']);
+        $mergedDisplay = array_merge($existingDisplay, $changes['display']);
+        if (($entry['kind'] ?? '') === 'visual') {
+            $entry['display'] = bandpromo_asset_normalize_visual_display($mergedDisplay);
+        } else {
+            $entry['display'] = $mergedDisplay;
+        }
     }
     if (isset($changes['delivery']) && is_array($changes['delivery'])) {
         $existingDelivery = is_array($entry['delivery'] ?? null) ? $entry['delivery'] : [];
@@ -1029,6 +1046,63 @@ function bandpromo_asset_player_text_panel_label(string $textRole, string $notes
     return $notesLabel !== '' ? $notesLabel : 'Tracklist';
 }
 
+function bandpromo_asset_normalize_visual_keywords($raw): array
+{
+    if (is_string($raw)) {
+        $parts = preg_split('/[,;]+/', $raw) ?: [];
+    } elseif (is_array($raw)) {
+        $parts = $raw;
+    } else {
+        $parts = [];
+    }
+
+    $out = [];
+    $seen = [];
+    foreach ($parts as $part) {
+        $keyword = trim((string) $part);
+        if ($keyword === '') {
+            continue;
+        }
+        $key = function_exists('mb_strtolower')
+            ? mb_strtolower($keyword, 'UTF-8')
+            : strtolower($keyword);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $out[] = $keyword;
+    }
+
+    return $out;
+}
+
+/**
+ * Visual registry display: human title/description plus capture metadata.
+ */
+function bandpromo_asset_normalize_visual_display($display): array
+{
+    $display = is_array($display) ? $display : [];
+
+    return [
+        'title' => trim((string) ($display['title'] ?? '')),
+        'description' => trim((string) ($display['description'] ?? '')),
+        'captured_at' => trim((string) ($display['captured_at'] ?? '')),
+        'keywords' => bandpromo_asset_normalize_visual_keywords($display['keywords'] ?? []),
+        'synced_at' => trim((string) ($display['synced_at'] ?? '')),
+    ];
+}
+
+function bandpromo_asset_read_visual_display(?array $asset): array
+{
+    if (!is_array($asset)) {
+        return bandpromo_asset_normalize_visual_display([]);
+    }
+
+    return bandpromo_asset_normalize_visual_display(
+        is_array($asset['display'] ?? null) ? $asset['display'] : []
+    );
+}
+
 function bandpromo_asset_read_audio_display(?array $asset): array
 {
     if (!is_array($asset)) {
@@ -1038,6 +1112,9 @@ function bandpromo_asset_read_audio_display(?array $asset): array
             'artist' => '',
             'album' => '',
             'duration' => 0,
+            'bitrate_kbps' => 0,
+            'sample_rate_hz' => 0,
+            'bit_depth' => 0,
             'date' => '',
             'tracknumber' => '',
             'bpm' => '',
@@ -1061,6 +1138,9 @@ function bandpromo_asset_read_audio_display(?array $asset): array
         'artist' => trim((string) ($display['artist'] ?? '')),
         'album' => trim((string) ($display['album'] ?? '')),
         'duration' => max(0, (int) ($display['duration'] ?? 0)),
+        'bitrate_kbps' => max(0, (int) ($display['bitrate_kbps'] ?? 0)),
+        'sample_rate_hz' => max(0, (int) ($display['sample_rate_hz'] ?? 0)),
+        'bit_depth' => max(0, (int) ($display['bit_depth'] ?? 0)),
         'date' => trim((string) ($display['date'] ?? '')),
         'tracknumber' => trim((string) ($display['tracknumber'] ?? '')),
         'bpm' => trim((string) ($display['bpm'] ?? '')),
@@ -1672,13 +1752,38 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
     return $changed;
 }
 
-function bandpromo_asset_registry_ensure_migrated(string $root): void
+/**
+ * Ensure the asset registry is available.
+ *
+ * @param bool $heavy When true, run legacy scandir / hash backfill / SFX migrate /
+ *                    visual tier materialize. Hot admin reads must pass false (default):
+ *                    PHP process statics do not reliably persist across requests on this
+ *                    host, so a once-per-process heavy migrate was still costing ~5s on
+ *                    every Catalogue / Files navigation.
+ */
+function bandpromo_asset_registry_ensure_migrated(string $root, bool $heavy = false): void
 {
-    static $done = [];
-    if (isset($done[$root])) {
+    static $doneLight = [];
+    static $doneHeavy = [];
+
+    if (!$heavy) {
+        if (isset($doneLight[$root]) || isset($doneHeavy[$root])) {
+            return;
+        }
+        bandpromo_asset_registry_ensure_dir($root);
+        $path = bandpromo_asset_registry_path($root);
+        if (!is_file($path)) {
+            bandpromo_asset_write_registry($root, bandpromo_asset_registry_default());
+        }
+        $doneLight[$root] = true;
         return;
     }
-    $done[$root] = true;
+
+    if (isset($doneHeavy[$root])) {
+        return;
+    }
+    $doneHeavy[$root] = true;
+    $doneLight[$root] = true;
 
     bandpromo_asset_registry_ensure_dir($root);
     $path = bandpromo_asset_registry_path($root);
@@ -1892,6 +1997,92 @@ function bandpromo_list_uncatalogued_audio_originals(string $root): array
     ));
 
     return $items;
+}
+
+/**
+ * Cheap registry-only health snapshot for Welcome (no scandir/hash/tier migrate).
+ *
+ * @return array{
+ *   needs_attention: bool,
+ *   missing_image_delivery: int,
+ *   missing_content_hash: int,
+ *   legacy_audio_masters: int,
+ *   reasons: list<string>,
+ *   href: string
+ * }
+ */
+function bandpromo_asset_registry_health_snapshot(string $root): array
+{
+    $missingImageDelivery = 0;
+    $missingContentHash = 0;
+    $legacyAudioMasters = 0;
+
+    try {
+        $registry = bandpromo_asset_load_registry($root);
+    } catch (Throwable $throwable) {
+        return [
+            'needs_attention' => true,
+            'missing_image_delivery' => 0,
+            'missing_content_hash' => 0,
+            'legacy_audio_masters' => 0,
+            'reasons' => ['Asset registry could not be read.'],
+            'href' => '?tab=system&stab=deliverables#catalog-repair',
+        ];
+    }
+
+    $assets = is_array($registry['assets'] ?? null) ? $registry['assets'] : [];
+    foreach ($assets as $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        $kind = (string) ($asset['kind'] ?? '');
+        if ($kind === 'visual' && (string) ($asset['media_type'] ?? 'image') === 'image') {
+            $delivery = is_array($asset['delivery'] ?? null) ? $asset['delivery'] : [];
+            $variants = is_array($delivery['variants'] ?? null) ? $delivery['variants'] : [];
+            $hasCard = isset($variants['card']) && is_array($variants['card'])
+                && trim((string) ($variants['card']['path'] ?? '')) !== '';
+            $hasThumb = isset($variants['thumb']) && is_array($variants['thumb'])
+                && trim((string) ($variants['thumb']['path'] ?? '')) !== '';
+            if (!$hasCard && !$hasThumb) {
+                $missingImageDelivery++;
+            }
+            if (strtolower(trim((string) ($asset['content_sha256'] ?? ''))) === '') {
+                $missingContentHash++;
+            }
+        }
+        if ($kind === 'audio') {
+            $master = basename(trim((string) ($asset['master_filename'] ?? '')));
+            if ($master !== '' && !str_starts_with($master, BANDPROMO_ASSET_ID_PREFIX)) {
+                $legacyAudioMasters++;
+            }
+        }
+    }
+
+    $reasons = [];
+    if ($missingImageDelivery > 0) {
+        $reasons[] = $missingImageDelivery === 1
+            ? '1 visual is missing delivery thumbnails.'
+            : $missingImageDelivery . ' visuals are missing delivery thumbnails.';
+    }
+    if ($missingContentHash > 0) {
+        $reasons[] = $missingContentHash === 1
+            ? '1 visual is missing a content hash used for dedupe.'
+            : $missingContentHash . ' visuals are missing content hashes used for dedupe.';
+    }
+    if ($legacyAudioMasters > 0) {
+        $reasons[] = $legacyAudioMasters === 1
+            ? '1 audio master still uses a legacy filename.'
+            : $legacyAudioMasters . ' audio masters still use legacy filenames.';
+    }
+
+    return [
+        'needs_attention' => $reasons !== [],
+        'missing_image_delivery' => $missingImageDelivery,
+        'missing_content_hash' => $missingContentHash,
+        'legacy_audio_masters' => $legacyAudioMasters,
+        'reasons' => $reasons,
+        'href' => '?tab=system&stab=deliverables#catalog-repair',
+    ];
 }
 
 function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array

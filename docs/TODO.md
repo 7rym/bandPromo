@@ -199,6 +199,25 @@ Implementation order:
 - [x] **M5 — Files Visual operator titles** — `operator_title` / `display_title` = role + linked context on list-media visual rows.
 - [x] **M6 — release export + import merge** — `bandpromo_release_campaign_export_to_zip()` ships masters + campaign docs + `data/assets/registry.json` subset; import merges asset registry (no wipe); `data/assets/` allowed in package paths.
 
+### Visual naming + gallery pickers (v0.8) — policy locked 2026-08-07
+
+See [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [ADMIN-UI.md](ADMIN-UI.md), [USE-CASES.md](USE-CASES.md) → Twisted Chronicles tour galleries.
+
+Policy — **locked**:
+
+- [x] Lock **visual `display`** — `title`, `description`, optional `captured_at`, optional `keywords`; pickers show title first.
+- [x] Lock **still masters** — EXIF camera-origin (read dates); write **IPTC Core via XMP** for title/description/keywords; heal empty registry display from embeds.
+- [x] Lock **video masters = MKV** — stream-copy remux to `media/visual/master/ast_*.mkv` + Matroska tags; **delivery stays MP4**.
+- [x] Lock **gallery assembly** — searchable multi-select picker + ordered selected list (not Available DnD as primary).
+- [x] Lock **tour use case** — full operator + fan comment/share story in USE-CASES; fan build deferred to **v0.9+**.
+
+Implementation order:
+
+- [ ] **Schema + Files UX** — normalize/write visual `display`; Files drilldown + picker labels use title first.
+- [ ] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal.
+- [ ] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display.
+- [ ] **Gallery multi-select picker** — replace Available DnD primary flow.
+
 ### Delivery smoothness leftovers (deferred 2026-08-04)
 
 P0 tag-save `/play` calm + P1a shared-cover exact-hash link shipped 2026-08-03. Skip-if-fresh largely landed under M3. Remaining housekeeping (not urgent):
@@ -220,6 +239,7 @@ Policy — **locked**:
 
 - [x] Lock **Markdown for player-shell text** — lyrics, track descriptions, release/playlist `description`, and EPK `credits` when shown in player surfaces; not page richtext blocks.
 - [x] Lock **plain-text storage** — source remains Markdown/plain UTF-8 in existing fields and master tags; no HTML baked into FLAC/ID3 or delivery MP3s.
+- [x] Lock **tagless delivery MP3s** — strip all ID3/APEv2 (including APIC) from `media/audio/optimal/`; listener metadata via registry + playlist + Media Session / Cast (see [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md)).
 - [x] Lock **render at output** — restricted Markdown → sanitized HTML in player only; share/OG fields strip Markdown to plain text.
 - [x] Lock **lyrics line breaks** — single newlines render as hard breaks (lyrics mode); do not require blank-line paragraphs.
 - [x] Lock **plain fields unchanged** — `short_description`, titles, tagline, genre, and page HTML blocks stay non-Markdown.
@@ -275,13 +295,13 @@ Policy lock **2026-08-06** — see [PORTABILITY.md](PORTABILITY.md) §3; [PLATFO
 **Implementation order (active):**
 
 - [x] **Docs lock** — PORTABILITY / PLATFORM-MODEL / ACCESS-MODEL / TODO aligned to PRP (2026-08-06).
-- [ ] **PRP schema + export builder** — complete Bio/Gallery/brand/masters/registry; emit `.prp`.
-- [ ] **Setup imports demo PRP only** — retire parallel content seed packages.
-- [ ] **System FAQ seed + coverflow/living defaults**.
-- [ ] **Contextual page tabs** — current track `release_id`; hide-demo aware.
-- [ ] **Duplicate + multi-ref delete guard**.
-- [ ] **Import collision UI**; system demo overwrite.
-- [ ] **Ship `bandPromo-demo.prp`** with application release packaging.
+- [x] **PRP schema + export builder** — Bio/Gallery/brand/masters/registry; emit `.prp`; strip delivery; FAQ excluded.
+- [x] **Setup imports demo PRP** — remote `demo_release_package` as `.prp` with overwrite; local template seed fallback remains until fleet cuts over.
+- [x] **System FAQ seed + coverflow/living defaults**.
+- [x] **Contextual page tabs** — current track `release_id`; idle hides campaign pages (hide-demo catalog filter still open).
+- [x] **Duplicate + multi-ref delete guard** — `duplicate-release-campaign.php`; Files delete refuses in-use without detach.
+- [x] **Import collision UI**; system demo overwrite.
+- [x] **Ship `bandPromo-demo.prp`** — `build_release_package.py` emits versioned + alias `.prp` (publish on next release package workflow).
 - [ ] **Validate** — local → bandpromo.site fresh → Winter Party / Retroscopy roundtrip → HITZ → TC.
 
 **Follow-ups (not blocking PRP schema, priority after validate):**

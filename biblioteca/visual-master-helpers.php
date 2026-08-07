@@ -165,9 +165,13 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
     }
 
     $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
+    $mediaType = strtolower(trim((string) ($asset['media_type'] ?? '')));
     $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
     if ($format === '') {
         $format = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
+    }
+    if ($mediaType === 'video') {
+        $format = 'mkv';
     }
     if ($format === '') {
         return ['ok' => false, 'asset' => null, 'copied' => false, 'changed_registry' => false, 'error' => 'Missing master format'];
@@ -189,11 +193,15 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
         $working = (string) $relocated['path'];
     }
 
-    // Prefer unified original as master source when available.
+    // Prefer unified original as master source when available (unless working is already the MKV master).
     $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
-    if ($unified !== '' && is_file($unified)) {
+    $masterPathTarget = bandpromo_visual_master_path($root, $assetId, $format);
+    $workingIsCanonicalMaster = ($masterPathTarget !== '' && $working !== '' && realpath($working) !== false
+        && realpath($masterPathTarget) !== false
+        && realpath($working) === realpath($masterPathTarget));
+    if (!$workingIsCanonicalMaster && $unified !== '' && is_file($unified)) {
         $working = $unified;
-    } else {
+    } elseif (!$workingIsCanonicalMaster) {
         bandpromo_visual_relocate_original($root, $asset);
         if (is_file($unified)) {
             $working = $unified;
@@ -201,16 +209,51 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
     }
 
     bandpromo_visual_ensure_tier_dirs($root);
-    $masterPath = bandpromo_visual_master_path($root, $assetId, $format);
-    $copy = bandpromo_visual_copy_file_idempotent($working, $masterPath);
-    if (empty($copy['ok'])) {
-        return [
-            'ok' => false,
-            'asset' => null,
-            'copied' => false,
-            'changed_registry' => false,
-            'error' => (string) ($copy['error'] ?? 'Master copy failed'),
-        ];
+    $masterPath = $masterPathTarget;
+
+    $copied = false;
+    if ($mediaType === 'video') {
+        $alreadyMkv = is_file($masterPath)
+            && basename(trim((string) ($asset['master_filename'] ?? ''))) === $canonicalMaster
+            && strtolower(trim((string) ($asset['master_format'] ?? ''))) === 'mkv';
+        if ($alreadyMkv) {
+            $copied = false;
+        } else {
+            $remux = bandpromo_visual_remux_video_master_to_mkv($root, $working, $masterPath);
+            if (empty($remux['ok'])) {
+                return [
+                    'ok' => false,
+                    'asset' => null,
+                    'copied' => false,
+                    'changed_registry' => false,
+                    'error' => (string) ($remux['error'] ?? 'Video master remux failed'),
+                ];
+            }
+            $copied = !empty($remux['copied']);
+        }
+        // Drop stale non-MKV masters left from earlier materializations.
+        foreach (['mp4', 'mov', 'webm', 'm4v'] as $staleExt) {
+            $stale = bandpromo_visual_master_path($root, $assetId, $staleExt);
+            if ($stale !== '' && is_file($stale)) {
+                $staleReal = realpath($stale);
+                $masterReal = is_file($masterPath) ? realpath($masterPath) : false;
+                if ($staleReal !== false && ($masterReal === false || $staleReal !== $masterReal)) {
+                    @unlink($stale);
+                }
+            }
+        }
+    } else {
+        $copy = bandpromo_visual_copy_file_idempotent($working, $masterPath);
+        if (empty($copy['ok'])) {
+            return [
+                'ok' => false,
+                'asset' => null,
+                'copied' => false,
+                'changed_registry' => false,
+                'error' => (string) ($copy['error'] ?? 'Master copy failed'),
+            ];
+        }
+        $copied = !empty($copy['copied']);
     }
 
     $changedRegistry = false;
@@ -226,9 +269,113 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
     return [
         'ok' => true,
         'asset' => $asset,
-        'copied' => !empty($copy['copied']),
+        'copied' => $copied,
         'changed_registry' => $changedRegistry,
     ];
+}
+
+/**
+ * Remux video intake/master to Matroska with stream copy (no re-encode).
+ */
+function bandpromo_visual_remux_video_master_to_mkv(string $root, string $sourcePath, string $destPath): array
+{
+    $sourcePath = (string) $sourcePath;
+    $destPath = (string) $destPath;
+    if ($sourcePath === '' || !is_file($sourcePath)) {
+        return ['ok' => false, 'copied' => false, 'error' => 'Video source missing for MKV remux'];
+    }
+    if ($destPath === '') {
+        return ['ok' => false, 'copied' => false, 'error' => 'Video master destination missing'];
+    }
+
+    $sourceReal = realpath($sourcePath) ?: $sourcePath;
+    $destReal = is_file($destPath) ? (realpath($destPath) ?: $destPath) : $destPath;
+    if (is_file($destPath) && $sourceReal === $destReal) {
+        return ['ok' => true, 'copied' => false];
+    }
+
+    // Same-bytes short-circuit when already MKV and destinations match size+mtime closely.
+    $sourceExt = strtolower((string) pathinfo($sourcePath, PATHINFO_EXTENSION));
+    if ($sourceExt === 'mkv' && is_file($destPath)
+        && filesize($sourcePath) === filesize($destPath)
+        && abs((int) filemtime($sourcePath) - (int) filemtime($destPath)) < 2
+    ) {
+        return ['ok' => true, 'copied' => false];
+    }
+
+    require_once __DIR__ . '/audio-master-helpers.php';
+    $ffmpeg = bandpromo_resolve_ffmpeg_binary($root);
+    if ($ffmpeg === '') {
+        return [
+            'ok' => false,
+            'copied' => false,
+            'error' => 'ffmpeg is required to remux video masters to MKV. Install ffmpeg or place it in scripts/bin/.',
+        ];
+    }
+
+    $destDir = dirname($destPath);
+    if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+        return ['ok' => false, 'copied' => false, 'error' => 'Could not create visual master directory'];
+    }
+
+    $tmpPath = $destPath . '.tmp.' . bin2hex(random_bytes(4)) . '.mkv';
+    $cmd = [
+        $ffmpeg,
+        '-y',
+        '-hide_banner',
+        '-loglevel', 'error',
+        '-i', $sourcePath,
+        '-map', '0',
+        '-c', 'copy',
+        '-sn',
+        $tmpPath,
+    ];
+
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $pipes = [];
+    $process = proc_open($cmd, $descriptors, $pipes, $root);
+    if (!is_resource($process)) {
+        return ['ok' => false, 'copied' => false, 'error' => 'Could not start ffmpeg for video master remux'];
+    }
+    fclose($pipes[0]);
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $code = proc_close($process);
+
+    if ($code !== 0 || !is_file($tmpPath) || filesize($tmpPath) < 1) {
+        @unlink($tmpPath);
+        $detail = trim((string) $stderr);
+        if ($detail === '') {
+            $detail = trim((string) $stdout);
+        }
+
+        return [
+            'ok' => false,
+            'copied' => false,
+            'error' => 'ffmpeg remux to MKV failed'
+                . ($detail !== '' ? ': ' . $detail : ''),
+        ];
+    }
+
+    if (is_file($destPath)) {
+        @unlink($destPath);
+    }
+    if (!@rename($tmpPath, $destPath)) {
+        if (!@copy($tmpPath, $destPath)) {
+            @unlink($tmpPath);
+
+            return ['ok' => false, 'copied' => false, 'error' => 'Could not finalize MKV master'];
+        }
+        @unlink($tmpPath);
+    }
+
+    return ['ok' => true, 'copied' => true];
 }
 
 /**

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/biblioteca/https.php';
 require_once __DIR__ . '/biblioteca/setup-state.php';
 bandpromo_enforce_https();
+bandpromo_configure_session_storage();
 
 session_start();
 
@@ -20,6 +21,7 @@ require_once 'biblioteca/demo-catalog-state.php';
 require_once 'biblioteca/theme-storage.php';
 require_once 'biblioteca/playlist-storage.php';
 require_once 'biblioteca/gallery-storage.php';
+require_once 'biblioteca/player-markdown.php';
 
 function bandpromo_admin_files_permanent_warning_line(bool $include_metadata_edits = false): string
 {
@@ -122,17 +124,6 @@ $welcomeTotalChecks = 0;
 $welcomeSetupComplete = false;
 $welcomeNextSteps = [];
 $welcomePrimaryNotice = '';
-
-// Ensure public media directories have world-readable permissions (0755) so the
-// HTTP server can serve static files.  This is a cheap no-op after the first run.
-foreach (['media', 'media/audio', 'media/audio/original', 'media/audio/optimal',
-          'media/img', 'media/img/original', 'media/img/optimal', 'media/img/thumb',
-          'media/photo', 'media/photo/original', 'media/photo/optimal', 'media/photo/thumb',
-          'media/video', 'media/visual', 'media/visual/delivery', 'media/sfx', 'media/sfx/original', 'media/special'] as $_d) {
-    $_p = __DIR__ . '/' . $_d;
-    if (is_dir($_p)) @chmod($_p, 0755);
-}
-unset($_d, $_p);
 
 // Handle logout
 if (isset($_GET['logout']) && $_GET['logout'] === '1') {
@@ -252,7 +243,9 @@ if ($authenticated) {
 }
 
 require_once __DIR__ . '/biblioteca/config-repair-helpers.php';
-if ($authenticated) {
+// Structural config repair can write web-config.json — only on Settings, never on
+// read-only Catalogue/Files navigations.
+if ($authenticated && (string) ($_GET['tab'] ?? '') === 'settings') {
     try {
         $configRepairResult = bandpromo_config_repair_structure(__DIR__);
         if (!empty($configRepairResult['repaired'])) {
@@ -432,6 +425,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+}
+
+// Auth + CSRF are done. Release the session lock before heavy I/O and HTML
+// so parallel admin API fetches are not serialized behind this page render.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
 }
 
 $users = getAllUsers();
@@ -746,6 +745,31 @@ if ($tab === 'analytics') {
             </div>
 
             <?php if ($welcomeSetupComplete): ?>
+            <?php
+            $catalogHealth = ['needs_attention' => false, 'reasons' => [], 'href' => '?tab=system&stab=deliverables#catalog-repair'];
+            if ($tab === 'welcome') {
+                require_once __DIR__ . '/biblioteca/asset-registry.php';
+                $catalogHealth = bandpromo_asset_registry_health_snapshot(__DIR__);
+            }
+            ?>
+            <?php if (!empty($catalogHealth['needs_attention'])): ?>
+            <div class="card welcome-catalog-repair-card" id="welcomeCatalogRepairCard">
+                <h2>🔧 Catalog needs a repair pass</h2>
+                <p class="card-note">
+                    bandPromo found registry housekeeping that does not run on every page load (so Content stays fast). Preview and apply repairs under System → Deliverables — this does not publish the public site by itself.
+                </p>
+                <?php if (!empty($catalogHealth['reasons']) && is_array($catalogHealth['reasons'])): ?>
+                <ul class="welcome-list">
+                    <?php foreach ($catalogHealth['reasons'] as $reason): ?>
+                    <li><?php echo htmlspecialchars((string) $reason); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+                <div class="card-actions">
+                    <a class="btn btn-primary" href="<?php echo htmlspecialchars((string) ($catalogHealth['href'] ?? '?tab=system&amp;stab=deliverables#catalog-repair')); ?>">Open Repair catalog</a>
+                </div>
+            </div>
+            <?php endif; ?>
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo catalog</h2>
@@ -1193,32 +1217,36 @@ if ($tab === 'analytics') {
                         </span>
                     </div>
                 </div>
-                <div class="media-file-row media-file-list-header" data-media-list-header="audio">
-                    <div class="media-file-row-main">
-                        <label class="media-file-select-wrap" title="Select or clear all visible files">
-                            <input type="checkbox" class="media-file-select-all" data-target="audio" aria-label="Select all visible files">
+                <div class="audio-pool-toolbar" data-media-list-header="audio">
+                    <div class="audio-pool-toolbar-main">
+                        <label class="media-filter-label">
+                            <span class="visually-hidden">Filter by catalogue</span>
+                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
+                                <option value="all">All files</option>
+                                <option value="orphans">Orphans</option>
+                            </select>
                         </label>
-                        <span class="media-file-list-header-thumb" aria-hidden="true"></span>
-                        <div class="media-file-list-header-filters">
-                            <label class="media-filter-label">
-                                <span class="visually-hidden">Filter by catalogue</span>
-                                <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
-                                    <option value="all">All files</option>
-                                    <option value="orphans">Orphans</option>
-                                </select>
-                            </label>
-                            <label class="media-filter-label media-filter-label--grow">
-                                <span class="visually-hidden">Filter by title</span>
-                                <input type="search" class="media-filter-input" data-media-name-filter="audio" placeholder="Filter by title…" autocomplete="off" aria-label="Filter audio by title">
-                            </label>
-                        </div>
-                        <span class="media-file-size media-file-list-header-size" aria-hidden="true">&nbsp;</span>
-                        <span class="media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
-                        </span>
+                        <label class="media-filter-label audio-pool-toolbar-search">
+                            <span class="visually-hidden">Filter by title</span>
+                            <input type="search" class="media-filter-input" data-media-name-filter="audio" placeholder="Filter by title…" autocomplete="off" aria-label="Filter audio by title">
+                        </label>
                     </div>
+                    <div class="audio-pool-toolbar-actions media-file-actions">
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                    </div>
+                </div>
+                <div class="media-file-col-headers" data-audio-sort-headers role="row">
+                    <div class="media-file-select-toggle" role="group" aria-label="Select visible tracks">
+                        <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="audio" aria-pressed="false" title="Select all visible tracks" aria-label="Select all visible tracks">☑</button>
+                        <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="audio" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                    </div>
+                    <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
+                    <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
+                    <button type="button" class="media-file-col-sort" data-audio-sort="release" aria-pressed="false">Release</button>
+                    <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
+                    <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
                 <div id="filelist-audio" class="media-file-list"><span class="text-muted">Loading…</span></div>
                 <div class="media-panel-footer"><span id="audio-count" class="media-count"></span></div>
@@ -1392,6 +1420,28 @@ if ($tab === 'analytics') {
                         <div class="visual-asset-modal-side">
                             <h3 id="poolAssetTitle">Asset</h3>
                             <div id="poolAssetBadges" class="visual-asset-badges"></div>
+                            <form id="poolAssetDisplayForm" class="visual-asset-display-form" hidden>
+                                <label>
+                                    <span>Title</span>
+                                    <input type="text" id="poolAssetDisplayTitle" name="title" maxlength="200" autocomplete="off">
+                                </label>
+                                <label>
+                                    <span>Description</span>
+                                    <textarea id="poolAssetDisplayDescription" name="description" rows="3" maxlength="2000"></textarea>
+                                </label>
+                                <label>
+                                    <span>Keywords</span>
+                                    <input type="text" id="poolAssetDisplayKeywords" name="keywords" maxlength="500" placeholder="Comma-separated" autocomplete="off">
+                                </label>
+                                <label>
+                                    <span>Captured</span>
+                                    <input type="text" id="poolAssetDisplayCapturedAt" name="captured_at" maxlength="10" placeholder="YYYY-MM-DD" autocomplete="off">
+                                </label>
+                                <p id="poolAssetDisplayStatus" class="visual-asset-display-status text-muted" hidden></p>
+                                <div class="visual-asset-display-actions">
+                                    <button type="submit" class="btn btn-primary" id="poolAssetDisplaySaveBtn">Save details</button>
+                                </div>
+                            </form>
                             <dl id="poolAssetDetails" class="visual-asset-details"></dl>
                             <div class="modal-actions visual-asset-modal-actions">
                                 <button type="button" class="btn btn-primary" id="poolAssetDownloadBtn">Download</button>
@@ -1559,7 +1609,7 @@ if ($tab === 'analytics') {
                                                 </span>
                                             </label>
                                             <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
-                                                <span class="release-editor-form-label">Long description (Markdown allowed)</span>
+                                                <span class="release-editor-form-label">Long description <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
                                                 <span class="release-editor-field-stack">
                                                     <textarea id="releaseSettingsDescription" class="release-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long release description" autocomplete="off"></textarea>
                                                 </span>
@@ -1732,7 +1782,7 @@ if ($tab === 'analytics') {
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Description</span>
                                                 <textarea id="playlistSettingsDescription" rows="3" maxlength="4000" placeholder="Campaign summary or listening notes" autocomplete="off"></textarea>
-                                                <div class="field-note">Markdown supported (headings, emphasis, lists, links).</div>
+                                                <?php echo bandpromo_admin_markdown_help_note('Markdown supported'); ?>
                                             </label>
                                             <label class="playlist-settings-field playlist-settings-field--wide">
                                                 <span>Short description</span>
@@ -1857,11 +1907,18 @@ if ($tab === 'analytics') {
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="gallerySettingsStatus"></span>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
-                                    <div class="player-layout-col-head player-layout-col-head--pool" style="height:auto;min-height:0;padding-top:0">
-                                        <h4 class="player-layout-col-title">Available content</h4>
+                                    <div class="player-layout-col-head player-layout-col-head--pool gallery-available-toolbar" style="height:auto;min-height:0;padding-top:0">
+                                        <h4 class="player-layout-col-title">Available media</h4>
                                         <?php echo $poolReleaseFilterHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list gallery-pool-list" id="galleryAvailableList" aria-label="Available content">
+                                    <div class="gallery-picker-toolbar">
+                                        <input type="search" id="galleryAvailableSearch" class="gallery-available-search" placeholder="Search title, keywords…" aria-label="Search available media" autocomplete="off">
+                                        <div class="gallery-picker-actions">
+                                            <button type="button" class="btn btn-primary btn-sm" id="galleryAddSelectedBtn">Add selected</button>
+                                            <button type="button" class="btn btn-sm" id="galleryRemoveSelectedBtn">Remove selected</button>
+                                        </div>
+                                    </div>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list gallery-pool-list" id="galleryAvailableList" aria-label="Available media">
                                         <li class="player-layout-empty">Loading media…</li>
                                     </ol>
                                 </div>
@@ -2565,7 +2622,7 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-build">
                 bandPromo usually keeps listener-ready files current automatically after uploads and saves. This page shows delivery health and lets you rebuild everything when you want extra reassurance.<br><br>
                 <strong>Delivery status</strong> summarizes your catalog and whether streaming files are ready.<br><br>
-                Use <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.
+                Use <strong>Repair catalog</strong> when Welcome suggests registry housekeeping, then <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.
             </div>
 
             <div id="publishStatusCard" class="card publish-status-card">
@@ -2576,6 +2633,21 @@ if ($tab === 'analytics') {
                 <div id="publishStatusSummary" class="publish-status-summary"></div>
             </div>
 
+            <div id="catalog-repair" class="card catalog-repair-card">
+                <div class="build-validation-head">
+                    <h3>🔧 Repair catalog</h3>
+                </div>
+                <p class="card-note">
+                    Heal registry links, legacy master names, missing visual delivery metadata, and related catalog housekeeping. Preview first; apply only when you want those repairs written. This does not publish listener-facing files by itself — use Rebuild below when delivery still needs a refresh.
+                </p>
+                <div class="publish-actions-toolbar">
+                    <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>
+                    <button type="button" id="contentAutofixApplyBtn" class="btn btn-primary" hidden>Apply repairs</button>
+                </div>
+                <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
+                <ul id="contentAutofixReport" class="welcome-list" hidden></ul>
+            </div>
+
             <div id="publishActionsCard" class="card publish-actions-card">
                 <div class="build-validation-head">
                     <h3>⚡ When you want reassurance</h3>
@@ -2584,7 +2656,6 @@ if ($tab === 'analytics') {
                     <button type="button" id="buildBtn" class="btn btn-primary">▶️ Rebuild all deliverables</button>
                     <button type="button" id="recommendedBuildBtn" class="btn" style="display:none"></button>
                 </div>
-                <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
             </div>
 
             <details id="build-log-card" class="card deliverables-log-card">
@@ -2886,21 +2957,52 @@ if ($tab === 'analytics') {
             </div>
             </div>
 
-            <div class="card site-backup-card" id="releasePackageImportCard">
-                <h3>💿 Import release package</h3>
+            <div class="card site-backup-card" id="releasePackageExportCard">
+                <h3>💿 Export portable release package</h3>
                 <p class="card-note">
-                    Import one release campaign (masters, branding, playlists, galleries, pages, and media). This does not replace a full site backup.
-                    Export of operator release packages is not available yet.
+                    Queue one campaign as a <code>.prp</code> archive (masters, brand, playlists, galleries, pages, registry subset).
+                    Large packages build in the background like site backups — download from the job list below when Ready.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="empty-msg">ZipArchive is required to export release packages on this host.</p>
+                <?php else: ?>
+                <div class="form-row">
+                    <label for="releasePackageExportSelect">Release campaign</label>
+                    <select id="releasePackageExportSelect">
+                        <option value="">Loading releases…</option>
+                    </select>
+                </div>
+                <div class="card-actions site-backup-actions backup-builder-actions">
+                    <button type="button" class="btn" id="releasePackageExportBtn">📦 Queue .prp export</button>
+                </div>
+                <p id="releasePackageExportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="card site-backup-card" id="releasePackageImportCard">
+                <h3>💿 Import portable release package</h3>
+                <p class="card-note">
+                    Import one campaign as a <code>.prp</code> (or <code>.zip</code>) file: masters, brand, playlists, galleries, pages, and registry subset.
+                    IDs are kept. If the release already exists, choose how to resolve the collision.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
                 <p class="empty-msg">ZipArchive is required to import release packages on this host.</p>
                 <?php else: ?>
                 <div class="site-backup-import-file-row">
                     <label class="btn btn-secondary site-backup-import-file-label" for="releasePackageImportInput">
-                        Choose ZIP…
+                        Choose .prp…
                     </label>
-                    <input type="file" id="releasePackageImportInput" accept=".zip,application/zip" hidden>
+                    <input type="file" id="releasePackageImportInput" accept=".prp,.zip,application/zip" hidden>
                     <span id="releasePackageImportFilename" class="site-backup-import-filename text-muted"></span>
+                </div>
+                <div class="form-row" style="margin-top:0.75rem;">
+                    <label for="releasePackageImportCollision">If release already exists</label>
+                    <select id="releasePackageImportCollision" name="collision">
+                        <option value="refuse" selected>Refuse (keep local; report conflict)</option>
+                        <option value="overwrite">Overwrite local campaign</option>
+                        <option value="skip">Skip import</option>
+                        <option value="allocate">Import as new release id</option>
+                    </select>
                 </div>
                 <div class="card-actions site-backup-actions backup-builder-actions">
                     <button type="button" class="btn" id="releasePackageImportBtn">📥 Import release package</button>
@@ -3031,143 +3133,193 @@ if ($tab === 'analytics') {
             <button class="modal-close" onclick="closeAudioMasterModal()">✕</button>
             <header class="audio-master-modal-header">
                 <h3 id="audioMasterTitle">Track details</h3>
+                <span id="audioMasterStatus" class="status-text playlist-settings-status--head visual-asset-display-status">Close to save</span>
             </header>
 
-            <div class="audio-master-hero">
-                <div class="audio-master-cover-duo">
-                    <div class="audio-master-cover-card">
-                        <span class="audio-master-cover-card-label">Still cover</span>
-                        <div class="audio-master-cover-preview-shell">
-                            <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
-                                <div class="audio-master-cover-overlay-actions">
-                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose cover">✎</button>
-                                    <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use release cover" aria-label="Use release cover">↺</button>
+            <div class="audio-master-modal-body">
+                <div class="audio-master-hero audio-master-cover-layout">
+                    <div class="audio-master-cover-duo">
+                        <div class="audio-master-cover-card">
+                            <span class="audio-master-cover-card-label">Still cover</span>
+                            <div class="audio-master-cover-preview-shell">
+                                <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
+                                    <div class="audio-master-cover-overlay-actions">
+                                        <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose cover">✎</button>
+                                        <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use release cover" aria-label="Use release cover">↺</button>
+                                    </div>
+                                    <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
+                                    <span id="audioMasterCoverPlaceholder" class="audio-master-cover-placeholder">No cover</span>
                                 </div>
-                                <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
-                                <span id="audioMasterCoverPlaceholder" class="audio-master-cover-placeholder">No cover</span>
+                            </div>
+                        </div>
+                        <div class="audio-master-cover-card">
+                            <span class="audio-master-cover-card-label">Living cover</span>
+                            <div class="audio-master-cover-preview-shell">
+                                <div class="audio-master-cover-preview" id="audioMasterLivingCoverPreviewShell">
+                                    <div class="audio-master-cover-overlay-actions">
+                                        <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldLivingCoverPath" data-title="Choose living cover video" data-targets="video" title="Choose living cover" aria-label="Choose living cover">✎</button>
+                                        <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterLivingCoverClearBtn" title="Clear living cover" aria-label="Clear living cover">↺</button>
+                                    </div>
+                                    <video id="audioMasterLivingCoverPreview" class="audio-master-living-cover-preview" muted loop playsinline preload="metadata" style="display:none;"></video>
+                                    <span id="audioMasterLivingCoverPlaceholder" class="audio-master-cover-placeholder">No living cover</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="audio-master-cover-card">
-                        <span class="audio-master-cover-card-label">Living cover</span>
-                        <div class="audio-master-cover-preview-shell">
-                            <div class="audio-master-cover-preview" id="audioMasterLivingCoverPreviewShell">
-                                <div class="audio-master-cover-overlay-actions">
-                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldLivingCoverPath" data-title="Choose living cover video" data-targets="video" title="Choose living cover" aria-label="Choose living cover">✎</button>
-                                    <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterLivingCoverClearBtn" title="Clear living cover" aria-label="Clear living cover">↺</button>
-                                </div>
-                                <video id="audioMasterLivingCoverPreview" class="audio-master-living-cover-preview" muted loop playsinline preload="metadata" style="display:none;"></video>
-                                <span id="audioMasterLivingCoverPlaceholder" class="audio-master-cover-placeholder">No living cover</span>
+                    <div class="audio-master-hero-meta release-cover-meta">
+                        <p class="field-note audio-master-cover-duo-status" id="audioMasterLivingCoverStatus"></p>
+                        <p class="audio-master-summary-caption release-preview-date">Master audio asset</p>
+                        <div class="audio-master-listen-bar" id="audioMasterListenBar" hidden>
+                            <audio id="audioMasterListenPlayer" class="audio-master-listen-player" controls preload="metadata" controlsList="nodownload" title="Listen to this track"></audio>
+                        </div>
+                        <div class="audio-master-summary audio-master-summary-compact" id="audioMasterSummary">
+                            <div class="audio-master-stat audio-master-stat-compact audio-master-stat-release">
+                                <span class="audio-master-stat-label">In release</span>
+                                <strong id="audioMasterReleaseName">—</strong>
+                            </div>
+                            <div class="audio-master-stat audio-master-stat-compact">
+                                <span class="audio-master-stat-label">Duration</span>
+                                <strong id="audioMasterDuration">—</strong>
+                            </div>
+                            <div class="audio-master-stat audio-master-stat-compact">
+                                <span class="audio-master-stat-label">Format</span>
+                                <strong id="audioMasterFormat">—</strong>
+                            </div>
+                            <div class="audio-master-stat audio-master-stat-compact">
+                                <span class="audio-master-stat-label">Bitrate</span>
+                                <strong id="audioMasterBitrate">—</strong>
+                            </div>
+                            <div class="audio-master-stat audio-master-stat-compact">
+                                <span class="audio-master-stat-label">Sample rate</span>
+                                <strong id="audioMasterSampleRate">—</strong>
+                            </div>
+                            <div class="audio-master-stat audio-master-stat-compact">
+                                <span class="audio-master-stat-label">Bit depth</span>
+                                <strong id="audioMasterBitDepth">—</strong>
+                            </div>
+                            <div class="audio-master-stat audio-master-stat-compact">
+                                <span class="audio-master-stat-label">Filesize</span>
+                                <strong id="audioMasterFilesize">—</strong>
                             </div>
                         </div>
                     </div>
                 </div>
-                <p class="field-note audio-master-cover-duo-status" id="audioMasterLivingCoverStatus"></p>
 
-                <div class="audio-master-summary audio-master-summary-compact" id="audioMasterSummary">
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Track #</span>
-                        <strong id="audioMasterTracknumber">—</strong>
+                <input type="hidden" id="audioMasterFieldCoverPath" name="cover_path" data-empty-label="No new cover selected">
+                <input type="hidden" id="audioMasterFieldLivingCoverPath" data-empty-label="No living cover assigned">
+
+                <form id="audioMasterForm" class="audio-master-form">
+                    <div class="audio-master-form-grid audio-master-form-grid-compact">
+                        <label class="playlist-settings-field form-group-date" for="audioMasterFieldDate">
+                            <span>* Release date</span>
+                            <div class="date-input-shell iso-date-field">
+                                <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
+                                <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
+                                <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">📅</button>
+                            </div>
+                        </label>
+                        <label class="playlist-settings-field" for="audioMasterFieldGenre">
+                            <span>Genre</span>
+                            <input type="text" id="audioMasterFieldGenre" name="genre" autocomplete="off">
+                        </label>
+                        <label class="playlist-settings-field" for="audioMasterFieldBpm">
+                            <span>BPM</span>
+                            <input type="text" id="audioMasterFieldBpm" name="bpm" autocomplete="off" inputmode="numeric" pattern="[0-9]{0,3}" maxlength="3" placeholder="128">
+                        </label>
+                        <label class="playlist-settings-field" for="audioMasterFieldInitialkey">
+                            <span>Key</span>
+                            <input type="text" id="audioMasterFieldInitialkey" name="initialkey" autocomplete="off" maxlength="3" placeholder="8A">
+                        </label>
                     </div>
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Duration</span>
-                        <strong id="audioMasterDuration">—</strong>
+                    <div class="audio-master-form-grid audio-master-form-grid-secondary">
+                        <label class="playlist-settings-field" for="audioMasterFieldArtist">
+                            <span>* Artist</span>
+                            <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off" required>
+                        </label>
+                        <label class="playlist-settings-field" for="audioMasterFieldTitle">
+                            <span>* Title</span>
+                            <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off" required>
+                        </label>
+                        <label class="playlist-settings-field" for="audioMasterFieldVersion">
+                            <span>Version</span>
+                            <input type="text" id="audioMasterFieldVersion" name="version" autocomplete="off" placeholder="Radio Edit">
+                        </label>
                     </div>
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Format</span>
-                        <strong id="audioMasterFormat">—</strong>
+                    <label class="playlist-settings-field playlist-settings-field--wide audio-master-description-group" for="audioMasterFieldComment">
+                        <span>Track description / blurb</span>
+                        <textarea id="audioMasterFieldComment" name="comment" rows="2" maxlength="300"></textarea>
+                        <div class="audio-master-description-meta">
+                            <?php echo bandpromo_admin_markdown_help_note('Markdown in playlist view'); ?>
+                            <span class="field-note"><span id="audioMasterDescriptionCount">0</span>/300</span>
+                        </div>
+                    </label>
+                    <div class="audio-master-text-panel">
+                        <div class="audio-master-text-panel-header">
+                            <div class="audio-master-text-role-toggle" role="group" aria-label="Text panel type">
+                                <button type="button" class="audio-master-text-role-btn is-active" data-text-role="lyrics" id="audioMasterTextRoleLyrics" aria-pressed="true">Lyrics</button>
+                                <button type="button" class="audio-master-text-role-btn" data-text-role="notes" id="audioMasterTextRoleNotes" aria-pressed="false">Notes</button>
+                            </div>
+                            <label class="audio-master-notes-label-wrap" id="audioMasterNotesLabelWrap" for="audioMasterFieldNotesLabel" hidden title="Shown on the player nav while this track plays. Default: Tracklist.">
+                                <span>Player tab label</span>
+                                <input type="text" id="audioMasterFieldNotesLabel" name="notes_label" maxlength="24" autocomplete="off" placeholder="Tracklist">
+                            </label>
+                        </div>
+                        <textarea id="audioMasterFieldLyrics" name="lyrics" rows="10" aria-label="Lyrics"></textarea>
+                        <div class="field-note audio-master-text-panel-note markdown-help-note">
+                            <span class="markdown-help-note-label">Restricted Markdown</span>
+                            <?php echo bandpromo_admin_markdown_help_trigger(); ?>
+                            <span class="markdown-help-note-extra">Lyrics keep line breaks; Notes use paragraphs.</span>
+                        </div>
                     </div>
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Bitrate</span>
-                        <strong id="audioMasterBitrate">—</strong>
-                    </div>
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Sample rate</span>
-                        <strong id="audioMasterSampleRate">—</strong>
-                    </div>
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Bit depth</span>
-                        <strong id="audioMasterBitDepth">—</strong>
-                    </div>
-                    <div class="audio-master-stat audio-master-stat-compact">
-                        <span class="audio-master-stat-label">Filesize</span>
-                        <strong id="audioMasterFilesize">—</strong>
-                    </div>
-                </div>
+                </form>
             </div>
+            <div class="modal-actions audio-master-modal-actions">
+                <button type="button" class="btn btn-danger-outline" id="audioMasterAbortBtn" title="Close without saving">Abort</button>
+                <button type="button" class="btn btn-primary" id="audioMasterDoneBtn" title="Save changes and close">Done</button>
+            </div>
+        </div>
+    </div>
 
-            <input type="hidden" id="audioMasterFieldCoverPath" name="cover_path" data-empty-label="No new cover selected">
-            <input type="hidden" id="audioMasterFieldLivingCoverPath" data-empty-label="No living cover assigned">
-
-            <form id="audioMasterForm">
-                <div class="audio-master-form-grid audio-master-form-grid-compact">
-                    <div class="form-group">
-                        <label for="audioMasterFieldAlbum">Release name</label>
-                        <input type="text" id="audioMasterFieldAlbum" name="album" autocomplete="off" placeholder="Optional — usually set in Catalogue → Release">
+    <div id="markdownHelpModal" class="modal-overlay markdown-help-modal" style="display:none" onclick="if(event.target===this)closeMarkdownHelpModal()">
+        <div class="modal-box markdown-help-modal-box" role="dialog" aria-modal="true" aria-labelledby="markdownHelpModalTitle">
+            <button type="button" class="modal-close" id="markdownHelpModalClose" aria-label="Close">✕</button>
+            <h3 id="markdownHelpModalTitle">Formatting with Markdown</h3>
+            <p class="card-note">These long text fields use a small set of plain-text shortcuts. What you type is stored as text; the player turns it into safe formatting when shown.</p>
+            <div class="markdown-help-body">
+                <h4>What you can use</h4>
+                <dl class="markdown-help-examples">
+                    <div>
+                        <dt><code>**bold**</code> or <code>*italic*</code></dt>
+                        <dd>Emphasis</dd>
                     </div>
-                    <div class="form-group form-group-date">
-                        <label for="audioMasterFieldDate">* Release date</label>
-                        <div class="date-input-shell iso-date-field">
-                            <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
-                            <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
-                            <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">📅</button>
-                        </div>
+                    <div>
+                        <dt><code># Heading</code> … <code>###### Small heading</code></dt>
+                        <dd>Headings</dd>
                     </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldGenre">Genre</label>
-                        <input type="text" id="audioMasterFieldGenre" name="genre" autocomplete="off">
+                    <div>
+                        <dt><code>- item</code> or <code>1. item</code></dt>
+                        <dd>Lists</dd>
                     </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldBpm">BPM</label>
-                        <input type="text" id="audioMasterFieldBpm" name="bpm" autocomplete="off" inputmode="numeric" pattern="[0-9]{0,3}" maxlength="3" placeholder="128">
+                    <div>
+                        <dt><code>[label](https://example.com)</code></dt>
+                        <dd>Links (http, https, or mailto)</dd>
                     </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldInitialkey">Key</label>
-                        <input type="text" id="audioMasterFieldInitialkey" name="initialkey" autocomplete="off" maxlength="3" placeholder="8A">
+                    <div>
+                        <dt><code>`code`</code></dt>
+                        <dd>Inline code</dd>
                     </div>
-                </div>
-                <div class="audio-master-form-grid audio-master-form-grid-secondary">
-                    <div class="form-group">
-                        <label for="audioMasterFieldArtist">* Artist</label>
-                        <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off" required>
+                    <div>
+                        <dt><code>&gt; quoted line</code></dt>
+                        <dd>Block quote</dd>
                     </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldTitle">* Title</label>
-                        <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="audioMasterFieldVersion">Version</label>
-                        <input type="text" id="audioMasterFieldVersion" name="version" autocomplete="off" placeholder="Radio Edit">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="audioMasterFieldComment">Track description</label>
-                    <textarea id="audioMasterFieldComment" name="comment" rows="4" maxlength="300"></textarea>
-                    <div class="audio-master-description-meta">
-                        <span class="field-note">Markdown supported in the player playlist view.</span>
-                        <span class="field-note"><span id="audioMasterDescriptionCount">0</span>/300 characters</span>
-                    </div>
-                </div>
-                <div class="form-group audio-master-text-panel">
-                    <div class="audio-master-text-panel-header">
-                        <div class="audio-master-text-role-toggle" role="group" aria-label="Text panel type">
-                            <button type="button" class="audio-master-text-role-btn is-active" data-text-role="lyrics" id="audioMasterTextRoleLyrics" aria-pressed="true">Lyrics</button>
-                            <button type="button" class="audio-master-text-role-btn" data-text-role="notes" id="audioMasterTextRoleNotes" aria-pressed="false">Notes</button>
-                        </div>
-                    </div>
-                    <div class="audio-master-notes-label-wrap" id="audioMasterNotesLabelWrap" hidden>
-                        <label for="audioMasterFieldNotesLabel">Player tab label</label>
-                        <input type="text" id="audioMasterFieldNotesLabel" name="notes_label" maxlength="24" autocomplete="off" placeholder="Tracklist">
-                        <div class="field-note">Shown on the player nav while this track plays. Default: Tracklist.</div>
-                    </div>
-                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="8" aria-label="Lyrics"></textarea>
-                    <div class="field-note">Restricted Markdown: headings, lists, links, emphasis, code. Lyrics mode keeps single line breaks; Notes uses normal paragraphs.</div>
-                </div>
-            </form>
-
+                </dl>
+                <h4>Lyrics vs Notes</h4>
+                <p>In the track editor, <strong>Lyrics</strong> keeps single line breaks (good for verse lines). <strong>Notes</strong> uses normal paragraphs (good for tracklists and cue sheets).</p>
+                <h4>What stays plain</h4>
+                <p>Short descriptions, titles, and page body blocks do not use Markdown. Page text still uses the toolbar editor.</p>
+            </div>
             <div class="modal-actions">
-                <button type="button" id="audioMasterSaveBtn" class="btn btn-primary">Save metadata</button>
-                <span id="audioMasterStatus" class="status-text"></span>
+                <button type="button" class="btn btn-primary" id="markdownHelpModalDone">Got it</button>
             </div>
         </div>
     </div>
@@ -3197,6 +3349,31 @@ if ($tab === 'analytics') {
         const adminTimeAxisLabel = <?php echo json_encode(bandpromo_admin_time_axis_label()); ?>;
         const adminOperatorTimezone = <?php echo json_encode(bandpromo_admin_timezone()); ?>;
         window.bandpromoDemoCatalogVisible = <?php echo json_encode((bool) $demoCatalogVisible); ?>;
+        window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
+        window.BANDPROMO_SITE_SHARING = <?php
+            $sharePlaylistId = (string) ($contentPlaylist ?? '');
+            if ($sharePlaylistId === '') {
+                $sharePlaylistId = 'bandpromo-demo';
+            }
+            $sharePlaylistSlug = $sharePlaylistId;
+            try {
+                if (function_exists('bandpromo_playlist_public_slug')) {
+                    $sharePlaylistSlug = bandpromo_playlist_public_slug(__DIR__, $sharePlaylistId);
+                }
+            } catch (Throwable $sharePlaylistError) {
+                $sharePlaylistSlug = $sharePlaylistId;
+            }
+            echo json_encode([
+                'siteName' => (string) get_config('site.name', get_config('release.identity.title', 'bandPromo')),
+                'siteUrl' => (string) $siteUrl,
+                'siteContact' => (string) get_config('site.email', get_config('install.site.email', '')),
+                'twitter' => (string) get_config('social.twitter', get_config('install.social.twitter', '')),
+                'facebook' => (string) get_config('social.facebook', get_config('install.social.facebook', '')),
+                'instagram' => (string) get_config('social.instagram', get_config('install.social.instagram', '')),
+                'defaultPlaylistId' => $sharePlaylistId,
+                'defaultPlaylistSlug' => $sharePlaylistSlug !== '' ? $sharePlaylistSlug : $sharePlaylistId,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ?>;
     </script>
     <script>
         window.BANDPROMO_SESSION_AUTH = {

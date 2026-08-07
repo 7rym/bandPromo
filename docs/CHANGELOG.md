@@ -2,6 +2,102 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-08 00:25 - Files → Audio: fix filter toolbar clickability — row `.media-file-actions { width:100% }` no longer covers catalogue/search controls.
+
+2026-08-08 00:20 - Files → Audio quick-edit: Release date chip uses the shared ISO date picker (📅).
+
+2026-08-08 00:15 - Files → Audio quick-edit: drop Release/Track chips; empty optional chips show amber label only; Description/Lyrics/Cover open the full track editor.
+
+2026-08-08 00:05 - Files → Audio: All/None select pill uses checked/unchecked box glyphs (☑ / ☐).
+
+2026-08-08 00:00 - Files → Audio: replace filter-bar select-all checkbox with All/None pill in the list header (left of Track).
+
+2026-08-07 23:55 - Files → Audio: right-align/compress Date+Release columns; fix filter bar so select-all is not full-width (single compact row).
+
+2026-08-07 23:50 - Files → Audio: restyle filter toolbar (compact, separate from grid) and lock Date/Release/Size headers to the same column tracks as row cells.
+
+2026-08-07 23:45 - Files → Audio: Date and Release as separate columns with clickable Track/Date/Release/Size sort headers (default Date ↓).
+
+2026-08-07 23:35 - Fix local Windows session split: `bandpromo_configure_session_storage()` now runs from `bandpromo_enforce_https()` so login/player and `session-check.php` share `%LOCALAPPDATA%/bandPromo/php-sessions` (avoids immediate `session_expired=1` after player load).
+
+2026-08-07 23:30 - Files → Audio: Listen (▶) uses green constructive intent (`.media-action-good`), same as edit/download.
+
+2026-08-07 23:25 - Files → Audio pool: show each track’s publish date (`display_date` from master tags) instead of the catalogue release date; sort prefers the same.
+
+2026-08-07 23:05 - Track editor: save on close (Done / ✕ / backdrop) instead of blur autosave; Abort discards without writing; status shows Close to save / Unsaved changes.
+
+2026-08-07 22:45 - Track editor: move listen preview under Master audio asset (no labels; narrower player).
+
+2026-08-07 22:40 - Files/track editor: admin audio listen preview via authenticated `audio.php` (delivery when ready, else source/master) — compact player in the track editor + ▶ on Files → Audio rows.
+
+2026-08-07 22:30 - Track editor: place Player tab label inline to the right of the Lyrics/Notes pill (no vertical jump when switching to Notes).
+
+2026-08-07 22:25 - Track editor: label the comment field as Track description / blurb.
+
+2026-08-07 22:20 - Admin Markdown help: shared `?` control + modal for restricted player Markdown (track description/lyrics, release & playlist long descriptions); short/meta textareas and page richtext unchanged.
+
+2026-08-07 21:45 - Track editor: stop autosave loop (silent cover-path sync + dirty signature; no toast/refresh on no_change); taller Lyrics/Notes field (min-height 200px).
+
+2026-08-07 21:40 - Track editor: restore the compact Lyrics/Notes pill toggle (clearer active state, less space than Catalogue grey tabs).
+
+2026-08-07 21:35 - Track editor: align with shared editor chrome — cover+`release-cover-meta`, `playlist-settings-field` labels, header autosave status via `visual-asset-display-status`.
+
+2026-08-07 21:25 - Track editor: denser layout (covers beside chips, smaller previews, sticky status footer) and Catalogue-style autosave on blur/cover change; remove the Save metadata button.
+
+2026-08-07 21:18 - Track editor: after a real save, refresh the Files → Audio pool when the modal closes (avoids rebuilding the list under the open editor).
+
+2026-08-07 21:16 - Track editor: style the In release summary chip like Duration/Format (dim label + bold value).
+
+2026-08-07 21:15 - Track editor: replace the Release name input with a summary chip `In release: …` before Duration (Catalogue owns the name; detail now includes `release_title`).
+
+2026-08-07 21:10 - Track editor: Release name is truly read-only (Catalogue owns it; server ignores album edits); drop Track # from the compact summary; label the stats row as Master audio asset.
+
+2026-08-07 21:05 - Track editor summary: persist bitrate / sample rate / bit depth on audio registry display; open path reads them (and one-shot inspect+cache when missing) so the compact summary is filled before the first save.
+
+2026-08-07 20:55 - Files pools: when demo catalog is shown, keep bundled `bandPromo_*` campaign media visible even if the install already has operator uploads (Settings toggle is the gate; Brand assets still use kind-aware shell replacement hide).
+
+2026-08-07 20:50 - Catalogue pool meta: drop the redundant `demo · localhost editable` label on bandPromo demo (localhost editors already know).
+
+2026-08-07 20:45 - Migrate real campaigns off invisible `primary` orphan bucket: add `bandpromo_release_migrate_campaign_off_primary()` + `scripts/migrate_primary_campaign.php`; ran locally to move Winter Party → `winter-party` (playlist/brand/assets retargeted; empty primary restored).
+
+2026-08-07 20:35 - Welcome-only catalog repair nudge (registry-JSON health snapshot; links to System → Deliverables → Repair catalog; no heavy migrate on nav). Catalogue/release cover previews prefer delivery card/thumb and no longer fall back to multi-MB `/media/*/original/` paints; restored Repair catalog Preview/Apply controls on Deliverables.
+
+2026-08-07 20:30 - Admin nav speed (round 4): hot paths no longer run full asset-registry migrate (scandir/hash/SFX/visual tiers) on every Catalogue load — that alone was ~5s on Google Drive; heavy migrate is opt-in for autofix/bootstrap. Sessions remain under LOCALAPPDATA; get-config 403 fixed earlier this session.
+
+2026-08-07 20:20 - Admin read-only nav: remove media chmod scans from admin.php entirely; config structure repair only on Settings; Site update/GitHub package checks only when Welcome requests include_package (not on Catalogue/Files notifications).
+
+2026-08-07 20:10 - Admin nav speed (round 2): release PHP session lock in admin-api-guard + session-check + after admin.php auth (Google Drive session files were serializing every API behind ~5s waits); skip media chmod probes on Windows; dedupe get-releases/get-themes catalog fetches.
+
+2026-08-07 20:00 - Admin localhost speed: skip Site update/GitHub checks on localhost (was blocking PHP's single-threaded server 10–20s per navigation); stop auto GitHub refresh + build-log reads on every tab; Files Visual trusts registry delivery variants (no is_file probes) and paints thumb_url/card_url instead of multi-MB originals.
+
+2026-08-07 14:20 - Implement visual naming rebuildability: registry display title/description/keywords/captured_at; Files/picker title-first labels + drilldown edit; still masters write IPTC Core via XMP (EXIF date read-only via Pillow); video masters remux to MKV with Matroska tags (delivery stays MP4); gallery searchable multi-select add/remove; autofix remux+heal; MKV upload allowed.
+
+2026-08-07 13:50 - Docs lock: visual naming + rebuildability — registry `display` title/description/keywords/date; still masters keep camera EXIF (read) and write IPTC Core via XMP; video masters remux to MKV with Matroska tags (delivery stays MP4); gallery multi-select picker IA; Twisted Chronicles tour gallery use case keeps fan comment/share (build v0.9+).
+
+2026-08-07 12:20 - Video delivery: keep soundtrack only for `role=gallery`; living covers / shell backgrounds / other roles remux or transcode to silent `standard-stream` (MP4 copy path now strips audio when silent).
+
+2026-08-07 12:10 - Sound effects three-tier: `media/sfx/{original,master,optimal}` with `ast_*` masters, tagless 192k delivery MP3s, playback prefers optimal; PRP packs SFX masters; upload/migrate/delete wired.
+
+2026-08-07 12:00 - PRP export is masters-only for real: audio/visual omit `original/` bytes (registry keeps `original_filename`); SFX still ships `media/sfx/original` (its only working tier).
+
+2026-08-07 11:50 - PRP visual export: pack unified `media/visual/original` + `media/visual/master` only (stop dual-packing legacy `img`/`photo`/`video`/`special` copies).
+
+2026-08-07 11:40 - Admin CSRF: `get_csrf_token()` / get-admin-csrf now rotate expired tokens instead of re-issuing a token `validate_csrf_token()` would reject; max age raised to 12h (fixes Backup delete and other mutations after long admin sessions).
+
+2026-08-07 11:25 - Publish build no longer requires Demo PRP / default-theme download: Admin Publish skips ensure; setup passes `ensure_demo` for first-run PRP import only; demo ensure no longer hard-depends on legacy default-theme media ZIP.
+
+2026-08-07 11:20 - Tagless delivery audio (locked): delivery MP3s strip all ID3/APEv2 after build; freshness treats tagged files as stale; Media Session / Cast use registry+playlist metadata (docs: DELIVERY-ARCHITECTURE, PLATFORM-MODEL, MEDIA-HANDLING, FEATURES).
+
+2026-08-07 10:55 - PRP export resolves track `display.cover` / `living_cover` filenames to visual asset ids (so still sidecars + living videos are packed); MP3 master/delivery writes strip leftover APEv2 so ID3 is the sole tag source.
+
+2026-08-07 10:15 - Large backup/PRP downloads: stream in 1 MiB chunks with Accept-Ranges (avoid PHP `readfile` OOM/`ERR_INVALID_RESPONSE` on multi-GB archives); do not emit JSON after headers are sent.
+
+2026-08-06 22:50 - PRP export is a background backup job (queue → build → Ready download in System → Backup list), matching full site backup behavior.
+
+2026-08-06 22:45 - Catalogue + System → Backup & export: export portable release package (`.prp`) with download; platform demo release is editable on localhost only (still protected/undeletable on all hosts).
+
+2026-08-06 22:30 - PRP implementation wave: export emits `.prp` with masters-only registry (strip delivery), FAQ excluded, VERSION/`platform_demo` flags; import keeps IDs with operator collision UI (refuse/overwrite/skip/allocate) and system demo overwrite; Cover flow default; player page tabs follow current track `release_id`; Gallery page in demo package + registry; release packaging builds `bandPromo-demo.prp`; campaign duplicate (shared media) + multi-ref delete guard.
+
 2026-08-06 22:00 - Docs lock: portable release packages (PRP / `.prp`) as the campaign handoff contract — PORTABILITY, PLATFORM-MODEL, ACCESS-MODEL, TODO, AGENTS, FEATURES. Demo PRP = Bio+Gallery; FAQ system-owned; Primary = invisible orphan bucket; Cover flow + Living install chrome; contextual pages by current track release; duplicate shares media; follow-ups for log UID + backup rewrite.
 
 2026-08-06 17:15 - Vendor bootstrap: if host pip rejects manylinux2014 tags (common on Python 3.6 shared hosts), unpack matching `scripts/vendor-wheels/*.whl` directly into `scripts/vendor/` and log pip failure tails.

@@ -325,7 +325,7 @@ function bandpromo_list_media_build_entry(
     if ($bucket === 'sfx') {
         $entry['media_type'] = 'audio';
         $entry['role'] = 'sfx';
-        $entry['pool_ready'] = true;
+        $entry['pool_ready'] = false;
         $entry['reference_info'] = bandpromo_media_reference_describe_file(
             $root,
             'sfx',
@@ -335,10 +335,15 @@ function bandpromo_list_media_build_entry(
             null
         );
         $sfxAsset = bandpromo_asset_lookup_by_original_filename($root, $filename);
+        if (!is_array($sfxAsset) || ($sfxAsset['kind'] ?? '') !== 'sfx') {
+            $sfxAsset = bandpromo_asset_lookup_by_master_filename($root, $filename);
+        }
         if (is_array($sfxAsset) && ($sfxAsset['kind'] ?? '') === 'sfx') {
             $entry['asset_id'] = (string) ($sfxAsset['id'] ?? '');
             $entry['brand_id'] = (string) ($sfxAsset['brand_id'] ?? '');
             $entry['role'] = 'sfx';
+            $delivery = is_array($sfxAsset['delivery'] ?? null) ? $sfxAsset['delivery'] : [];
+            $entry['pool_ready'] = !empty($delivery['ready']) || !empty($delivery['audio_optimal']);
         }
         $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
         // Optional campaign context only — membership for this pool is brand-owned.
@@ -384,8 +389,13 @@ function bandpromo_list_media_build_entry(
             $entry['role'] = (string) ($visualAsset['role'] ?? 'unassigned');
             $entry['has_alpha'] = !empty($visualAsset['has_alpha']);
             $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
+            $visualDisplay = bandpromo_asset_read_visual_display($visualAsset);
+            $entry['display'] = $visualDisplay;
+            $entry['display_description'] = $visualDisplay['description'];
+            $entry['display_captured_at'] = $visualDisplay['captured_at'];
+            $entry['display_keywords'] = $visualDisplay['keywords'];
             $entry['operator_title'] = bandpromo_visual_operator_title($root, $visualAsset, $entry);
-            $entry['display_title'] = $entry['operator_title'];
+            $entry['display_title'] = bandpromo_visual_listing_title($root, $visualAsset, $entry);
             if (($visualAsset['media_type'] ?? '') !== '') {
                 $entry['media_type'] = (string) $visualAsset['media_type'];
             }
@@ -393,6 +403,7 @@ function bandpromo_list_media_build_entry(
                 return null;
             }
             $delivery = is_array($visualAsset['delivery'] ?? null) ? $visualAsset['delivery'] : [];
+            $deliveryVariants = is_array($delivery['variants'] ?? null) ? $delivery['variants'] : [];
             if (isset($delivery['variants']) && is_array($delivery['variants'])) {
                 $entry['delivery_variants'] = $delivery['variants'];
             }
@@ -404,12 +415,8 @@ function bandpromo_list_media_build_entry(
             $entry['required_variants'] = $required;
             $missing = [];
             foreach ($required as $variant) {
-                if (bandpromo_visual_resolve_url(
-                    $root,
-                    (string) ($visualAsset['id'] ?? $filename),
-                    $variant,
-                    $intakeBucket
-                ) === '') {
+                // Registry is source of truth for pool-ready — no disk probes on list.
+                if (!isset($deliveryVariants[$variant]) || !is_array($deliveryVariants[$variant])) {
                     $missing[] = $variant;
                 }
             }
@@ -421,10 +428,9 @@ function bandpromo_list_media_build_entry(
                     . ': ' . implode(', ', $missing);
             }
 
-            $assetId = (string) ($visualAsset['id'] ?? $filename);
             if ($mediaType === 'video') {
-                $posterResolved = bandpromo_visual_resolve_url($root, $assetId, 'poster', $intakeBucket);
-                $streamResolved = bandpromo_visual_resolve_url($root, $assetId, 'standard-stream', $intakeBucket);
+                $posterResolved = bandpromo_visual_registry_variant_url($visualAsset, 'poster');
+                $streamResolved = bandpromo_visual_registry_variant_url($visualAsset, 'standard-stream');
                 if ($posterResolved !== '') {
                     $entry['poster_url'] = $posterResolved;
                 }
@@ -433,8 +439,8 @@ function bandpromo_list_media_build_entry(
                     $entry['preview_url'] = $streamResolved;
                 }
             } else {
-                $thumbResolved = bandpromo_visual_resolve_url($root, $assetId, 'thumb', $intakeBucket);
-                $cardResolved = bandpromo_visual_resolve_url($root, $assetId, 'card', $intakeBucket);
+                $thumbResolved = bandpromo_visual_registry_variant_url($visualAsset, 'thumb');
+                $cardResolved = bandpromo_visual_registry_variant_url($visualAsset, 'card');
                 if ($thumbResolved !== '') {
                     $entry['thumb_url'] = $thumbResolved;
                 }

@@ -272,6 +272,13 @@ function closeUserDetail() {
 // Close modals on Escape
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+        const markdownHelpModal = document.getElementById('markdownHelpModal');
+        if (markdownHelpModal && markdownHelpModal.style.display !== 'none') {
+            if (typeof window.closeMarkdownHelpModal === 'function') {
+                window.closeMarkdownHelpModal();
+            }
+            return;
+        }
         closeUserModal();
         closeUserDetail();
         const previewEl = document.getElementById('adminPreviewLightbox');
@@ -284,6 +291,65 @@ document.addEventListener('keydown', e => {
         if (typeof closeMediaPickerModal === 'function') {
             closeMediaPickerModal();
         }
+    }
+});
+
+function openMarkdownHelpModal() {
+    const modal = document.getElementById('markdownHelpModal');
+    if (!modal) {
+        return;
+    }
+    modal.style.display = 'flex';
+    const closeBtn = document.getElementById('markdownHelpModalClose')
+        || document.getElementById('markdownHelpModalDone');
+    if (closeBtn) {
+        closeBtn.focus();
+    }
+}
+
+function closeMarkdownHelpModal() {
+    const modal = document.getElementById('markdownHelpModal');
+    if (!modal) {
+        return;
+    }
+    modal.style.display = 'none';
+}
+
+window.openMarkdownHelpModal = openMarkdownHelpModal;
+window.closeMarkdownHelpModal = closeMarkdownHelpModal;
+
+document.addEventListener('click', (event) => {
+    const trigger = event.target instanceof Element
+        ? event.target.closest('.markdown-help-open')
+        : null;
+    if (!trigger) {
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    openMarkdownHelpModal();
+});
+
+document.addEventListener('mousedown', (event) => {
+    const trigger = event.target instanceof Element
+        ? event.target.closest('.markdown-help-open')
+        : null;
+    if (!trigger) {
+        return;
+    }
+    // Keep <label> wrappers from focusing the related textarea.
+    event.preventDefault();
+    event.stopPropagation();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const markdownHelpClose = document.getElementById('markdownHelpModalClose');
+    const markdownHelpDone = document.getElementById('markdownHelpModalDone');
+    if (markdownHelpClose) {
+        markdownHelpClose.addEventListener('click', closeMarkdownHelpModal);
+    }
+    if (markdownHelpDone) {
+        markdownHelpDone.addEventListener('click', closeMarkdownHelpModal);
     }
 });
 
@@ -631,6 +697,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function isPreviewable(name, file = null, type = '') {
+                if (type === 'audio' || (file && file.audio_master)) {
+                    return audioAdminListenUrl(file || { name }) !== '';
+                }
                 if (isImage(name)) {
                     return true;
                 }
@@ -641,6 +710,141 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return videoPreviewUrl(file) !== '' || videoPosterUrl(file) !== '';
                 }
                 return true;
+            }
+
+            function audioAdminListenUrl(file, options = {}) {
+                const listing = String(file?.name || file?.filename || '').trim();
+                const master = String(
+                    file?.audio_master?.filename
+                    || file?.master_filename
+                    || ''
+                ).trim();
+                const forceVariant = String(options.variant || '').trim().toLowerCase();
+                const preferOptimal = forceVariant === 'optimal'
+                    || (forceVariant === '' && file?.pool_ready === true);
+                const fileKey = preferOptimal
+                    ? (master || listing)
+                    : (listing || master);
+                if (!fileKey) {
+                    return '';
+                }
+                const params = new URLSearchParams();
+                params.set('file', fileKey);
+                params.set('variant', preferOptimal ? 'optimal' : 'original');
+                return `/biblioteca/audio.php?${params.toString()}`;
+            }
+
+            function pauseAdminAudioPreviews(except = null) {
+                document.querySelectorAll('audio.audio-admin-preview-player, audio.audio-master-listen-player').forEach((el) => {
+                    if (except && el === except) {
+                        return;
+                    }
+                    try {
+                        el.pause();
+                    } catch (_error) {
+                        // ignore
+                    }
+                });
+            }
+
+            function getOrCreateAdminAudioDock() {
+                let dock = document.getElementById('adminAudioListenDock');
+                if (dock) {
+                    return dock;
+                }
+                dock = document.createElement('div');
+                dock.id = 'adminAudioListenDock';
+                dock.className = 'admin-audio-listen-dock';
+                dock.hidden = true;
+                dock.innerHTML = `
+                    <div class="admin-audio-listen-dock-inner">
+                        <span class="admin-audio-listen-dock-title" id="adminAudioListenDockTitle">Listening</span>
+                        <audio class="audio-admin-preview-player admin-audio-listen-dock-player" id="adminAudioListenDockPlayer" controls preload="metadata" controlsList="nodownload"></audio>
+                        <button type="button" class="icon-btn" id="adminAudioListenDockClose" title="Close listen preview" aria-label="Close listen preview">✕</button>
+                    </div>
+                `;
+                document.body.appendChild(dock);
+                const player = dock.querySelector('#adminAudioListenDockPlayer');
+                const closeBtn = dock.querySelector('#adminAudioListenDockClose');
+                if (player) {
+                    player.addEventListener('play', () => pauseAdminAudioPreviews(player));
+                    player.addEventListener('error', () => {
+                        if (player.dataset.listenTriedFallback === '1') {
+                            return;
+                        }
+                        const fallback = String(player.dataset.listenFallback || '').trim();
+                        if (!fallback) {
+                            return;
+                        }
+                        player.dataset.listenTriedFallback = '1';
+                        player.dataset.src = fallback;
+                        player.src = fallback;
+                        player.play().catch(() => {});
+                    });
+                }
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        if (player) {
+                            player.pause();
+                            player.removeAttribute('src');
+                            delete player.dataset.src;
+                        }
+                        dock.hidden = true;
+                    });
+                }
+                return dock;
+            }
+
+            window.toggleAudioFileListen = function(filename) {
+                const nextFilename = String(filename || '').trim();
+                if (!nextFilename) {
+                    return;
+                }
+                const files = mediaFilesState.get('audio') || [];
+                const file = files.find((entry) => String(entry?.name || '') === nextFilename);
+                if (!file) {
+                    showAdminToast('Could not find that audio file.', 'error');
+                    return;
+                }
+                const url = audioAdminListenUrl(file);
+                if (!url) {
+                    showAdminToast('No playable audio is available for this file yet.', 'warning');
+                    return;
+                }
+                const dock = getOrCreateAdminAudioDock();
+                const player = dock.querySelector('#adminAudioListenDockPlayer');
+                const titleEl = dock.querySelector('#adminAudioListenDockTitle');
+                if (titleEl) {
+                    titleEl.textContent = formatAudioListRowBody(audioFileForDisplay(file)) || nextFilename;
+                }
+                dock.hidden = false;
+                bindAdminAudioPreviewElement(player, file);
+                pauseAdminAudioPreviews(player);
+                if (player) {
+                    player.play().catch(() => {
+                        showAdminToast('Could not start audio preview.', 'warning');
+                    });
+                }
+            };
+
+            function bindAdminAudioPreviewElement(audioEl, file) {
+                if (!(audioEl instanceof HTMLAudioElement) || !file) {
+                    return;
+                }
+                const primaryUrl = audioAdminListenUrl(file);
+                const fallbackUrl = audioAdminListenUrl(file, { variant: 'original' });
+                audioEl.dataset.listenPrimary = primaryUrl;
+                audioEl.dataset.listenFallback = fallbackUrl && fallbackUrl !== primaryUrl ? fallbackUrl : '';
+                audioEl.dataset.listenTriedFallback = '0';
+                if (!primaryUrl) {
+                    audioEl.removeAttribute('src');
+                    delete audioEl.dataset.src;
+                    return;
+                }
+                if (audioEl.dataset.src !== primaryUrl) {
+                    audioEl.dataset.src = primaryUrl;
+                    audioEl.src = primaryUrl;
+                }
             }
 
             function videoPosterUrl(file) {
@@ -1602,6 +1806,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 parts.push(poolAssetHeadline(type, file));
+                parts.push(file?.display_title);
+                parts.push(file?.operator_title);
+                parts.push(file?.display_description);
+                parts.push(file?.display?.description);
+                if (Array.isArray(file?.display_keywords)) {
+                    parts.push(...file.display_keywords);
+                }
                 parts.push(...poolAssetReferenceLines(file));
                 parts.push(file?.release_title);
                 parts.push(file?.brand_title);
@@ -1638,23 +1849,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 syncBrandFilterUi();
             }
 
+            let brandFilterCatalogPromise = null;
+
             async function ensureBrandFilterCatalog() {
                 if (brandFilterCatalogLoaded) {
                     return brandFilterCatalog;
                 }
-                try {
-                    const response = await fetch('/biblioteca/get-themes.php', { credentials: 'same-origin' });
-                    const data = await response.json();
-                    if (!response.ok || !data || data.ok === false) {
-                        throw new Error((data && data.error) || 'Could not load brands');
-                    }
-                    brandFilterCatalog = Array.isArray(data.themes) ? data.themes : [];
-                } catch (error) {
-                    brandFilterCatalog = [];
+                if (brandFilterCatalogPromise) {
+                    return brandFilterCatalogPromise;
                 }
-                brandFilterCatalogLoaded = true;
-                syncMediaBrandFilterUi();
-                return brandFilterCatalog;
+                brandFilterCatalogPromise = (async () => {
+                    try {
+                        const response = await fetch('/biblioteca/get-themes.php', { credentials: 'same-origin' });
+                        const data = await response.json();
+                        if (!response.ok || !data || data.ok === false) {
+                            throw new Error((data && data.error) || 'Could not load brands');
+                        }
+                        brandFilterCatalog = Array.isArray(data.themes) ? data.themes : [];
+                    } catch (error) {
+                        brandFilterCatalog = [];
+                    }
+                    brandFilterCatalogLoaded = true;
+                    syncMediaBrandFilterUi();
+                    return brandFilterCatalog;
+                })();
+                try {
+                    return await brandFilterCatalogPromise;
+                } finally {
+                    brandFilterCatalogPromise = null;
+                }
             }
 
             function normalizePoolBrandFilter(value) {
@@ -1804,21 +2027,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '<span class="media-file-release-content">Orphan</span>';
                 }
 
-                const releaseDate = String(file?.release_date || '').trim();
+                const trackDate = audioListPublishDate(file);
                 const releaseTitle = String(file?.release_title || '').trim();
-                if (releaseDate === '' && releaseTitle === '') {
+                if (trackDate === '' && releaseTitle === '') {
                     return '';
                 }
 
-                if (releaseDate !== '' && releaseTitle !== '') {
-                    return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseDate)} · ${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                if (trackDate !== '' && releaseTitle !== '') {
+                    return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(trackDate)} · ${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
                 }
 
                 if (releaseTitle !== '') {
                     return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
                 }
 
-                return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseDate)}</span>`;
+                return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(trackDate)}</span>`;
             }
 
             function formatAudioReleaseContextPlain(file) {
@@ -1830,15 +2053,132 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return 'Orphan';
                 }
 
-                const releaseDate = String(file?.release_date || '').trim();
+                const trackDate = audioListPublishDate(file);
                 const releaseTitle = String(file?.release_title || '').trim();
-                if (releaseDate !== '' && releaseTitle !== '') {
-                    return `${releaseDate} on ${releaseTitle}`;
+                if (trackDate !== '' && releaseTitle !== '') {
+                    return `${trackDate} on ${releaseTitle}`;
                 }
                 if (releaseTitle !== '') {
                     return releaseTitle;
                 }
-                return releaseDate;
+                return trackDate;
+            }
+
+            function audioListPublishDate(file) {
+                const trackDate = String(file?.display_date || '').trim();
+                if (trackDate !== '') {
+                    return trackDate;
+                }
+                // Fallback only when the master tag is empty.
+                return String(file?.release_date || '').trim();
+            }
+
+            function audioListReleaseLabel(file) {
+                if (file?.release_orphan === true) {
+                    return 'Orphan';
+                }
+                return String(file?.release_title || '').trim();
+            }
+
+            let audioListSort = { key: 'date', dir: 'desc' };
+
+            function syncAudioListSortHeaders() {
+                document.querySelectorAll('[data-audio-sort]').forEach((button) => {
+                    const key = String(button.getAttribute('data-audio-sort') || '').trim();
+                    const active = key === audioListSort.key;
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                    if (active) {
+                        button.dataset.sortIndicator = audioListSort.dir === 'asc' ? '↑' : '↓';
+                        button.title = `Sorted ${audioListSort.dir === 'asc' ? 'ascending' : 'descending'}. Click to reverse.`;
+                    } else {
+                        delete button.dataset.sortIndicator;
+                        button.title = `Sort by ${button.textContent.trim()}`;
+                    }
+                });
+            }
+
+            function compareAudioListValues(left, right, key, dir) {
+                const direction = dir === 'asc' ? 1 : -1;
+                if (key === 'size') {
+                    const leftSize = Number(left?.audio_master?.size) || Number(left?.size) || 0;
+                    const rightSize = Number(right?.audio_master?.size) || Number(right?.size) || 0;
+                    if (leftSize !== rightSize) {
+                        return (leftSize - rightSize) * direction;
+                    }
+                    return 0;
+                }
+
+                let leftValue = '';
+                let rightValue = '';
+                if (key === 'date') {
+                    leftValue = audioListPublishDate(left);
+                    rightValue = audioListPublishDate(right);
+                } else if (key === 'release') {
+                    leftValue = audioListReleaseLabel(left);
+                    rightValue = audioListReleaseLabel(right);
+                } else {
+                    leftValue = formatAudioListRowBody(left);
+                    rightValue = formatAudioListRowBody(right);
+                }
+
+                if (leftValue === '' && rightValue === '') {
+                    return 0;
+                }
+                if (leftValue === '') {
+                    return 1;
+                }
+                if (rightValue === '') {
+                    return -1;
+                }
+                return leftValue.localeCompare(rightValue, undefined, {
+                    sensitivity: 'base',
+                    numeric: true,
+                }) * direction;
+            }
+
+            function sortAudioFilesForList(files) {
+                const rows = Array.isArray(files) ? files.slice() : [];
+                rows.sort((leftFile, rightFile) => {
+                    const left = audioFileForDisplay(leftFile);
+                    const right = audioFileForDisplay(rightFile);
+                    const primary = compareAudioListValues(left, right, audioListSort.key, audioListSort.dir);
+                    if (primary !== 0) {
+                        return primary;
+                    }
+                    if (audioListSort.key !== 'track') {
+                        const byTrack = compareAudioListValues(left, right, 'track', 'asc');
+                        if (byTrack !== 0) {
+                            return byTrack;
+                        }
+                    }
+                    return String(leftFile?.name || '').localeCompare(String(rightFile?.name || ''), undefined, {
+                        sensitivity: 'base',
+                        numeric: true,
+                    });
+                });
+                return rows;
+            }
+
+            function setAudioListSort(nextKey) {
+                const key = String(nextKey || '').trim();
+                if (!['track', 'date', 'release', 'size'].includes(key)) {
+                    return;
+                }
+                if (audioListSort.key === key) {
+                    audioListSort = {
+                        key,
+                        dir: audioListSort.dir === 'asc' ? 'desc' : 'asc',
+                    };
+                } else {
+                    audioListSort = {
+                        key,
+                        dir: key === 'track' || key === 'release' ? 'asc' : 'desc',
+                    };
+                }
+                syncAudioListSortHeaders();
+                if (activeMediaPanel === 'audio') {
+                    void loadMediaList('audio', { fromState: true });
+                }
             }
 
             function audioFileForDisplay(file) {
@@ -1872,6 +2212,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (version !== '') {
                         merged.display_version = version;
                     }
+                }
+                if (String(cached.date || '').trim()) {
+                    merged.display_date = String(cached.date).trim();
                 }
 
                 return merged;
@@ -1919,9 +2262,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function buildAudioNameCell(display, file, type) {
                 const source = audioFileForDisplay(file);
                 const labelHtml = buildAudioListRowLabelHtml(source);
-                const releaseHtml = formatAudioReleaseContextMarkup(source);
-                const releaseTrail = releaseHtml !== '' ? ` ${releaseHtml}` : '';
-                return `<span class="media-file-name-wrap"><span class="media-file-name"><strong class="media-file-name-text">${labelHtml}</strong>${releaseTrail}</span><span class="media-file-meta">${formatAudioMasterBadges(source)}</span></span>`;
+                return `<span class="media-file-name-wrap"><span class="media-file-name"><strong class="media-file-name-text">${labelHtml}</strong></span><span class="media-file-meta">${formatAudioMasterBadges(source)}</span></span>`;
+            }
+
+            function buildAudioDateCell(file) {
+                const source = audioFileForDisplay(file);
+                const date = audioListPublishDate(source);
+                return `<span class="media-file-col media-file-col-date">${date !== '' ? bandpromoAdminEscapeHtml(date) : '—'}</span>`;
+            }
+
+            function buildAudioReleaseCell(file) {
+                const source = audioFileForDisplay(file);
+                const label = audioListReleaseLabel(source);
+                if (label === '') {
+                    return '<span class="media-file-col media-file-col-release">—</span>';
+                }
+                return `<span class="media-file-col media-file-col-release" title="${bandpromoAdminEscapeHtml(label)}">${bandpromoAdminEscapeHtml(label)}</span>`;
             }
 
             async function fetchAudioMasterDetailData(filename) {
@@ -1953,27 +2309,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
-            function buildAudioInlineReadonlyChips(detail) {
-                const coverValue = detail.sidecar_cover
-                    ? 'Track cover'
-                    : detail.embedded_cover_present
-                        ? 'Embedded cover'
-                        : detail.current_cover
-                            ? 'Release cover'
-                            : 'Missing';
-                const hasDescription = String(detail.comment || '').trim() !== '';
-                const hasLyrics = String(detail.lyrics || '').trim() !== '';
+            function buildAudioInlineEditorLinkChips(detail, filename) {
+                const safeName = String(filename || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const hasDescription = String(detail?.comment || '').trim() !== '';
+                const hasLyrics = String(detail?.lyrics || '').trim() !== '';
+                const hasCover = Boolean(
+                    detail?.sidecar_cover
+                    || detail?.embedded_cover_present
+                    || detail?.current_cover
+                );
                 const items = [
-                    { label: 'Description', value: hasDescription ? 'Ready' : 'Missing', tone: hasDescription ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
-                    { label: 'Lyrics', value: hasLyrics ? 'Ready' : 'Missing', tone: hasLyrics ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
-                    { label: 'Cover', value: coverValue, tone: coverValue === 'Missing' ? 'media-file-inline-chip-danger' : 'media-file-inline-chip-good' },
+                    { label: 'Description', tone: hasDescription ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
+                    { label: 'Lyrics', tone: hasLyrics ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
+                    { label: 'Cover', tone: hasCover ? 'media-file-inline-chip-good' : 'media-file-inline-chip-amber' },
                 ];
 
-                if (!items.length) {
-                    return '';
-                }
-
-                return items.map((item) => `<span class="media-file-inline-chip ${item.tone}"><span class="media-file-inline-label">${bandpromoAdminEscapeHtml(item.label)}</span>${bandpromoAdminEscapeHtml(item.value)}</span>`).join('');
+                return items.map((item) => (
+                    `<button type="button" class="media-file-inline-chip media-file-inline-chip-button ${item.tone}" onclick="event.stopPropagation(); openAudioMasterModal('${safeName}')" title="Open full editor for ${bandpromoAdminEscapeHtml(item.label)}">`
+                    + `<span class="media-file-inline-label">${bandpromoAdminEscapeHtml(item.label)}</span>`
+                    + `</button>`
+                )).join('');
             }
 
             function getAudioQuickEditInput(container, field) {
@@ -2027,8 +2382,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 { key: 'artist', label: 'Artist', health: 'artist', requirement: 'required', inputType: 'text', read: (detail) => String(detail.artist || '').trim() },
                 { key: 'title', label: 'Title', health: 'title', requirement: 'required', inputType: 'text', read: (detail) => String(audioMasterTitlePartsFromDetail(detail).title || '').trim() },
                 { key: 'version', label: 'Version', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(audioMasterTitlePartsFromDetail(detail).version || '').trim() },
-                { key: 'album', label: 'Release', health: 'release', requirement: 'optional', inputType: 'text', read: (detail) => String(detail.album || '').trim() },
-                { key: 'tracknumber', label: 'Track', health: 'track', requirement: 'improvable', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.suggested_tracknumber || detail.release_tracknumber || detail.tracknumber || '').trim() },
                 { key: 'date', label: 'Release date', health: '', requirement: 'optional', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.date || '').trim() },
                 { key: 'genre', label: 'Genre', health: '', requirement: 'optional', inputType: 'text', read: (detail) => String(detail.genre || '').trim() },
                 { key: 'bpm', label: 'BPM', health: '', requirement: 'optional', inputType: 'text', inputMode: 'numeric', read: (detail) => String(detail.bpm || '').trim() },
@@ -2036,16 +2389,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             ];
 
             function quickEditChipDisplayValue(field, rawValue) {
-                if (String(rawValue || '').trim() !== '') {
-                    return rawValue;
-                }
-                if (field.requirement === 'optional') {
-                    return 'Optional';
-                }
-                if (field.requirement === 'improvable') {
-                    return 'Recommended';
-                }
-                return 'Missing';
+                return String(rawValue || '').trim();
             }
 
             function resolveQuickEditChipTone(field, rawValue, healthFields) {
@@ -2075,16 +2419,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 if (isEditing) {
                     const inputMode = field.inputMode ? ` inputmode="${bandpromoAdminEscapeHtml(field.inputMode)}"` : '';
+                    const disabledAttr = isSaving ? 'disabled' : '';
+                    const dateField = field.key === 'date'
+                        ? `<span class="iso-date-field media-file-inline-date-field">
+                            <input class="iso-date-input media-file-inline-chip-input" type="text" data-quick-field="${bandpromoAdminEscapeHtml(field.key)}" value="${bandpromoAdminEscapeHtml(rawValue)}"${inputMode} placeholder="YYYY-MM-DD" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" ${disabledAttr} onkeydown="handleAudioQuickEditKey(event, '${safeName}', '${field.key}')">
+                            <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
+                            <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date" ${disabledAttr} onclick="event.stopPropagation()">📅</button>
+                        </span>`
+                        : `<input class="media-file-inline-chip-input" type="${bandpromoAdminEscapeHtml(field.inputType || 'text')}" data-quick-field="${bandpromoAdminEscapeHtml(field.key)}" value="${bandpromoAdminEscapeHtml(rawValue)}"${inputMode} ${disabledAttr} onkeydown="handleAudioQuickEditKey(event, '${safeName}', '${field.key}')">`;
                     return `<span class="media-file-inline-chip media-file-inline-chip-editing ${tone}" onclick="event.stopPropagation()">
                         <span class="media-file-inline-label">${bandpromoAdminEscapeHtml(field.label)}</span>
-                        <input class="media-file-inline-chip-input" type="${bandpromoAdminEscapeHtml(field.inputType || 'text')}" data-quick-field="${bandpromoAdminEscapeHtml(field.key)}" value="${bandpromoAdminEscapeHtml(rawValue)}"${inputMode} ${isSaving ? 'disabled' : ''} onkeydown="handleAudioQuickEditKey(event, '${safeName}', '${field.key}')">
-                        <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); saveAudioQuickEdit('${safeName}', '${field.key}')" title="Save ${bandpromoAdminEscapeHtml(field.label)}">✓</button>
-                        <button type="button" class="media-file-inline-chip-btn" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); cancelAudioQuickEdit('${safeName}')" title="Cancel">×</button>
+                        ${dateField}
+                        <button type="button" class="media-file-inline-chip-btn" ${disabledAttr} onclick="event.stopPropagation(); saveAudioQuickEdit('${safeName}', '${field.key}')" title="Save ${bandpromoAdminEscapeHtml(field.label)}">✓</button>
+                        <button type="button" class="media-file-inline-chip-btn" ${disabledAttr} onclick="event.stopPropagation(); cancelAudioQuickEdit('${safeName}')" title="Cancel">×</button>
                     </span>`;
                 }
 
                 return `<button type="button" class="media-file-inline-chip media-file-inline-chip-button ${tone}" ${isSaving ? 'disabled' : ''} onclick="event.stopPropagation(); editAudioQuickEditChip('${safeName}', '${field.key}')" title="Edit ${bandpromoAdminEscapeHtml(field.label)}">
-                    <span class="media-file-inline-label">${bandpromoAdminEscapeHtml(field.label)}</span>${bandpromoAdminEscapeHtml(value)}
+                    <span class="media-file-inline-label">${bandpromoAdminEscapeHtml(field.label)}</span>${value !== '' ? bandpromoAdminEscapeHtml(value) : ''}
                 </button>`;
             }
 
@@ -2103,7 +2455,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '<div class="media-file-inline-details"><span class="media-file-inline-empty">Loading track tags...</span></div>';
                 }
 
-                const safeName = filename.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 const isSaving = audioInlineDetailSaving.has(filename);
                 const health = buildAudioMetadataHealthFromDetail(detail || {}, filename);
                 const healthFields = health && health.fields ? health.fields : {};
@@ -2113,7 +2464,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 return `<div class="media-file-inline-details media-file-quick-edit" data-quick-edit-file="${bandpromoAdminEscapeHtml(filename)}" onclick="event.stopPropagation()">
                     <p class="media-file-quick-edit-intro">Click a tag to edit it in place. Use the full editor for cover art, description, lyrics, and packaging details.</p>
-                    <div class="media-file-inline-chip-list">${chips}${buildAudioInlineReadonlyChips(detail)}</div>
+                    <div class="media-file-inline-chip-list">${chips}${buildAudioInlineEditorLinkChips(detail, filename)}</div>
                     <span class="media-file-quick-edit-status status-text" data-quick-edit-status></span>
                 </div>`;
             }
@@ -2242,11 +2593,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 label.classList.toggle('empty', !fileName);
             }
 
-            function setPickerFieldValue(fieldId, value) {
+            function setPickerFieldValue(fieldId, value, options = {}) {
                 const input = document.getElementById(fieldId);
                 if (!input) return;
                 input.value = value;
                 updatePickerFieldLabel(fieldId);
+                if (options.silent) {
+                    return;
+                }
                 input.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
@@ -2345,16 +2699,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            async function loadReleasesCatalog() {
-                const resp = await fetch('/biblioteca/get-releases.php', { credentials: 'same-origin' });
-                const data = await resp.json();
-                if (!resp.ok || !data || data.ok !== true) {
-                    throw new Error(data?.error || 'Could not load releases');
+            let releasesCatalogPromise = null;
+
+            async function loadReleasesCatalog(options = {}) {
+                const force = options.force === true;
+                if (!force && Array.isArray(releasesCatalog) && releasesCatalog.length > 0 && !releasesCatalogPromise) {
+                    populateReleaseFilterSelects();
+                    syncReleaseFilterUi();
+                    return releasesCatalog;
                 }
-                releasesCatalog = Array.isArray(data.releases) ? data.releases : [];
-                populateReleaseFilterSelects();
-                syncReleaseFilterUi();
+                if (!force && releasesCatalogPromise) {
+                    return releasesCatalogPromise;
+                }
+                releasesCatalogPromise = (async () => {
+                    const resp = await fetch('/biblioteca/get-releases.php', { credentials: 'same-origin' });
+                    const data = await resp.json();
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error(data?.error || 'Could not load releases');
+                    }
+                    releasesCatalog = Array.isArray(data.releases) ? data.releases : [];
+                    window.bandpromoReleasesCatalog = releasesCatalog;
+                    populateReleaseFilterSelects();
+                    syncReleaseFilterUi();
+                    return releasesCatalog;
+                })();
+                try {
+                    return await releasesCatalogPromise;
+                } finally {
+                    releasesCatalogPromise = null;
+                }
             }
+            window.loadReleasesCatalog = loadReleasesCatalog;
 
             async function fetchMediaFiles(type, options = {}) {
                 const resp = await fetch(mediaListUrl(type, options));
@@ -2469,8 +2844,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (scope === 'full' && (options.inventory === true || isDeliverablesViewActive())) {
                     params.set('inventory', '1');
                 }
+                // Site update / GitHub status is Welcome-only (or explicit Check again).
                 if (options.forcePackage === true) {
                     params.set('force_package', '1');
+                    params.set('include_package', '1');
+                } else if (options.includePackage === true || adminPrimaryTab === 'welcome') {
+                    params.set('include_package', '1');
                 }
                 return '/biblioteca/get-operator-notifications.php?' + params.toString();
             }
@@ -2490,7 +2869,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (data.welcome) {
                         latestWelcomeState = data.welcome;
                     }
-                    if (data.package_update) {
+                    if (data.package_update && data.package_update.skipped_until_welcome !== true) {
                         latestPackageUpdate = data.package_update;
                     }
                     latestBackgroundTasks = data.background_tasks || null;
@@ -2512,7 +2891,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     window._videoDeliveryWasRunning = videoRunning;
 
-                    if (typeof renderPackageUpdateStatus === 'function' && data.package_update && !packageUpdateInstallInProgress) {
+                    if (typeof renderPackageUpdateStatus === 'function'
+                        && data.package_update
+                        && data.package_update.skipped_until_welcome !== true
+                        && !packageUpdateInstallInProgress
+                        && adminPrimaryTab === 'welcome'
+                    ) {
                         renderPackageUpdateStatus({
                             ok: true,
                             ...data.package_update,
@@ -2781,36 +3165,46 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncMediaListHeaderSelection(type) {
-                const headerCheckbox = document.querySelector(`.media-file-select-all[data-target="${type}"]`);
-                if (!headerCheckbox) {
-                    return;
-                }
-
                 const rows = getMediaRows(type);
                 const state = getMediaSelectionState(type);
                 const visibleFiles = rows
                     .map((row) => String(row.dataset.file || ''))
                     .filter(Boolean);
                 const selectedCount = visibleFiles.filter((filename) => state.selected.has(filename)).length;
+                const hasRows = visibleFiles.length > 0;
+                const allSelected = hasRows && selectedCount === visibleFiles.length;
+                const noneSelected = selectedCount === 0;
 
-                if (visibleFiles.length === 0) {
-                    headerCheckbox.checked = false;
-                    headerCheckbox.indeterminate = false;
-                    headerCheckbox.disabled = true;
-                    return;
+                const headerCheckbox = document.querySelector(`.media-file-select-all[data-target="${type}"]`);
+                if (headerCheckbox) {
+                    if (!hasRows) {
+                        headerCheckbox.checked = false;
+                        headerCheckbox.indeterminate = false;
+                        headerCheckbox.disabled = true;
+                    } else {
+                        headerCheckbox.disabled = false;
+                        if (noneSelected) {
+                            headerCheckbox.checked = false;
+                            headerCheckbox.indeterminate = false;
+                        } else if (allSelected) {
+                            headerCheckbox.checked = true;
+                            headerCheckbox.indeterminate = false;
+                        } else {
+                            headerCheckbox.checked = false;
+                            headerCheckbox.indeterminate = true;
+                        }
+                    }
                 }
 
-                headerCheckbox.disabled = false;
-                if (selectedCount === 0) {
-                    headerCheckbox.checked = false;
-                    headerCheckbox.indeterminate = false;
-                } else if (selectedCount === visibleFiles.length) {
-                    headerCheckbox.checked = true;
-                    headerCheckbox.indeterminate = false;
-                } else {
-                    headerCheckbox.checked = false;
-                    headerCheckbox.indeterminate = true;
-                }
+                document.querySelectorAll(`[data-media-select-mode][data-target="${type}"]`).forEach((button) => {
+                    const mode = String(button.getAttribute('data-media-select-mode') || '').trim();
+                    button.disabled = !hasRows;
+                    if (mode === 'all') {
+                        button.setAttribute('aria-pressed', allSelected ? 'true' : 'false');
+                    } else if (mode === 'none') {
+                        button.setAttribute('aria-pressed', noneSelected || !hasRows ? 'true' : 'false');
+                    }
+                });
             }
 
             function syncMediaSelectionUi(type) {
@@ -2908,6 +3302,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function poolAssetHeadline(panelType, file) {
+                const humanTitle = String(file?.display_title || file?.display?.title || '').trim();
+                if (humanTitle !== '' && (panelType === 'visual' || panelType === 'special')) {
+                    return humanTitle;
+                }
+
+                const operatorTitle = String(file?.operator_title || '').trim();
+                if (operatorTitle !== '' && (panelType === 'visual' || panelType === 'special')) {
+                    return operatorTitle;
+                }
+
                 const kind = poolAssetKind(panelType, file);
                 const info = getFileReferenceInfo(file);
                 const references = Array.isArray(info.references) ? info.references : [];
@@ -3060,7 +3464,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function poolAssetThumbInnerHtml(panelType, file, pathType) {
                 const kind = poolAssetKind(panelType, file);
-                const url = buildMediaUrl(pathType, file.name);
+                const deliveryThumb = String(file?.thumb_url || file?.card_url || '').trim();
+                const url = deliveryThumb || buildMediaUrl(pathType, file.name);
                 const poster = videoPosterUrl(file);
                 const preview = videoPreviewUrl(file);
                 if (kind === 'image') {
@@ -3271,6 +3676,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const detailsEl = document.getElementById('poolAssetDetails');
                 const downloadBtn = document.getElementById('poolAssetDownloadBtn');
                 const deleteBtn = document.getElementById('poolAssetDeleteBtn');
+                const displayForm = document.getElementById('poolAssetDisplayForm');
                 if (!file || !modal || !previewEl || !titleEl || !badgesEl || !detailsEl) {
                     return;
                 }
@@ -3321,6 +3727,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     previewEl.innerHTML = `<span class="text-muted">No preview for this file type.</span>`;
                 }
 
+                const canEditDisplay = panelType === 'visual' && String(file.asset_id || '').trim() !== '';
+                if (displayForm) {
+                    displayForm.hidden = !canEditDisplay;
+                    if (canEditDisplay) {
+                        fillPoolAssetDisplayForm(file);
+                    }
+                }
+
                 const detailRows = [
                     ['Type', typeLabel],
                     ['Size', fmtSize(Number(file.size) || 0)],
@@ -3336,6 +3750,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? 'Not referenced'
                         : (Number(info.reference_count || 0) > 0 ? 'In use' : 'Not referenced')],
                 ];
+                if (String(file.operator_title || '').trim() !== '' && String(file.display_title || '') !== String(file.operator_title || '')) {
+                    detailRows.push(['Role address', String(file.operator_title)]);
+                }
                 if (kind === 'video' && panelType === 'visual') {
                     let delivery = 'Ready';
                     if (file.delivery_running) delivery = 'Preparing in background';
@@ -3366,6 +3783,136 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 modal.style.display = 'flex';
             }
+
+            function fillPoolAssetDisplayForm(file) {
+                const titleInput = document.getElementById('poolAssetDisplayTitle');
+                const descriptionInput = document.getElementById('poolAssetDisplayDescription');
+                const keywordsInput = document.getElementById('poolAssetDisplayKeywords');
+                const capturedInput = document.getElementById('poolAssetDisplayCapturedAt');
+                const statusEl = document.getElementById('poolAssetDisplayStatus');
+                const display = (file && typeof file.display === 'object' && file.display) ? file.display : {};
+                if (titleInput) {
+                    titleInput.value = String(display.title || file.display_title || '').trim();
+                    // Prefer explicit display.title; if listing fell back to operator title, leave blank for new naming.
+                    if (!String(display.title || '').trim() && String(file.operator_title || '').trim() === titleInput.value) {
+                        titleInput.value = '';
+                    }
+                }
+                if (descriptionInput) {
+                    descriptionInput.value = String(display.description || file.display_description || '');
+                }
+                if (keywordsInput) {
+                    const keywords = Array.isArray(display.keywords)
+                        ? display.keywords
+                        : (Array.isArray(file.display_keywords) ? file.display_keywords : []);
+                    keywordsInput.value = keywords.join(', ');
+                }
+                if (capturedInput) {
+                    capturedInput.value = String(display.captured_at || file.display_captured_at || '').trim();
+                }
+                if (statusEl) {
+                    statusEl.hidden = true;
+                    statusEl.textContent = '';
+                    statusEl.classList.remove('is-error', 'is-success');
+                }
+            }
+
+            async function savePoolAssetDisplay(event) {
+                if (event) {
+                    event.preventDefault();
+                }
+                const panelType = activePoolAsset.panel;
+                const selectionKey = activePoolAsset.key;
+                if (panelType !== 'visual' || !selectionKey) {
+                    return;
+                }
+                const file = findPoolAssetByKey(panelType, selectionKey);
+                const assetId = String(file?.asset_id || '').trim();
+                if (!file || !assetId) {
+                    return;
+                }
+                const statusEl = document.getElementById('poolAssetDisplayStatus');
+                const saveBtn = document.getElementById('poolAssetDisplaySaveBtn');
+                const title = String(document.getElementById('poolAssetDisplayTitle')?.value || '').trim();
+                const description = String(document.getElementById('poolAssetDisplayDescription')?.value || '').trim();
+                const keywords = String(document.getElementById('poolAssetDisplayKeywords')?.value || '').trim();
+                const capturedAt = String(document.getElementById('poolAssetDisplayCapturedAt')?.value || '').trim();
+                if (statusEl) {
+                    statusEl.hidden = false;
+                    statusEl.classList.remove('is-error', 'is-success');
+                    statusEl.textContent = 'Saving…';
+                }
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                }
+                try {
+                    await refreshAdminCsrfToken();
+                    const resp = await fetch('/biblioteca/save-visual-display.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            csrf_token: adminCsrf,
+                            asset_id: assetId,
+                            fields: {
+                                title,
+                                description,
+                                keywords,
+                                captured_at: capturedAt,
+                            },
+                        }),
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && (data.error || data.warning)) || 'Could not save visual details');
+                    }
+                    const display = data.display && typeof data.display === 'object' ? data.display : {
+                        title,
+                        description,
+                        keywords: keywords.split(/[,;]+/).map((part) => part.trim()).filter(Boolean),
+                        captured_at: capturedAt,
+                    };
+                    file.display = display;
+                    file.display_title = String(data.display_title || display.title || file.display_title || '').trim();
+                    file.operator_title = String(data.operator_title || file.operator_title || '').trim();
+                    file.display_description = String(display.description || '');
+                    file.display_captured_at = String(display.captured_at || '');
+                    file.display_keywords = Array.isArray(display.keywords) ? display.keywords : [];
+                    const listEl = document.getElementById('filelist-visual');
+                    if (listEl) {
+                        const files = filterReferencedMediaFiles('visual', getMediaFileState('visual'));
+                        renderPoolList('visual', files, getMediaSelectionState('visual'));
+                    }
+                    const titleEl = document.getElementById('poolAssetTitle');
+                    if (titleEl) {
+                        titleEl.textContent = poolAssetHeadline('visual', file);
+                    }
+                    if (statusEl) {
+                        statusEl.classList.add(data.embed_ok === false ? 'is-error' : 'is-success');
+                        statusEl.textContent = data.embed_ok === false
+                            ? (`Saved in registry. Master embed warning: ${String(data.embed_error || data.warning || 'write failed')}`)
+                            : 'Saved (registry + master metadata).';
+                    }
+                } catch (error) {
+                    if (statusEl) {
+                        statusEl.classList.add('is-error');
+                        statusEl.textContent = error && error.message ? error.message : 'Could not save visual details';
+                    }
+                } finally {
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                    }
+                }
+            }
+
+            (function bindPoolAssetDisplayForm() {
+                const form = document.getElementById('poolAssetDisplayForm');
+                if (!form || form.dataset.bound === '1') {
+                    return;
+                }
+                form.dataset.bound = '1';
+                form.addEventListener('submit', savePoolAssetDisplay);
+            }());
 
             function openVisualAssetModal(selectionKey) {
                 openPoolAssetModal('visual', selectionKey);
@@ -3411,7 +3958,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return adminCsrf;
             }
 
-            async function loadMediaList(type) {
+            async function loadMediaList(type, options = {}) {
                 const listEl  = document.getElementById('filelist-' + type);
                 const countEl = document.getElementById(type + '-count');
                 if (!listEl) return;
@@ -3419,8 +3966,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (poolPanelTypes.has(type)) {
                         await ensureBrandFilterCatalog();
                     }
-                    const allFiles = await fetchMediaFiles(type);
-                    mediaFilesState.set(type, allFiles);
+                    let allFiles;
+                    if (options.fromState === true && mediaFilesState.has(type)) {
+                        allFiles = mediaFilesState.get(type) || [];
+                    } else {
+                        allFiles = await fetchMediaFiles(type);
+                        mediaFilesState.set(type, allFiles);
+                    }
                     const files = filterReferencedMediaFiles(type, allFiles);
                     pruneMediaSelection(type, allFiles);
                     const selection = getMediaSelectionState(type);
@@ -3454,7 +4006,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     setAdminPreviewItems(files, type);
-                    listEl.innerHTML = files.map(f => {
+                    const renderFiles = type === 'audio' ? sortAudioFilesForList(files) : files;
+                    listEl.innerHTML = renderFiles.map(f => {
                         const pathType = resolveFileIntakeBucket(f, type) || type;
                         const basePath = getMediaBasePath(pathType);
                         const selectionKey = mediaFileSelectionKey(type, f);
@@ -3476,10 +4029,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         } else {
                             thumb = `<span class="media-file-icon">${extIcon(f.name)}</span>`;
                         }
+                        const listenUrl = type === 'audio' ? audioAdminListenUrl(f) : '';
+                        const listenAction = type === 'audio' && listenUrl
+                            ? `<button class="icon-btn media-action-btn media-action-good" title="Listen" onclick="event.stopPropagation(); toggleAudioFileListen('${safeName}')">▶</button>`
+                            : '';
                         const previewSrc = rowIsVideo
                             ? (videoPreviewUrl(f) || videoPosterUrl(f))
                             : `${basePath}/${safeName}`;
-                        const preview = isPreviewable(f.name, f, type)
+                        const preview = type !== 'audio' && isPreviewable(f.name, f, type)
                             ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${previewSrc}', '${safeName}')">👁️</button>`
                             : (rowIsVideo && (f.delivery_pending || f.delivery_running)
                                 ? `<button class="icon-btn media-action-btn" title="Preparing in background" disabled>⏳</button>`
@@ -3495,6 +4052,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : mediaReferenceFilterTypes.has(type)
                                 ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span></span>`
                                 : `<span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span>`;
+                        const dateCell = type === 'audio' ? buildAudioDateCell(displaySource) : '';
+                        const releaseCell = type === 'audio' ? buildAudioReleaseCell(displaySource) : '';
+                        const sizeCell = type === 'audio'
+                            ? `<span class="media-file-col media-file-col-size media-file-size">${fmtSize(display.size)}</span>`
+                            : `<span class="media-file-size">${fmtSize(display.size)}</span>`;
                         const isExpandedAudio = type === 'audio' && expandedAudioFile === f.name;
                         const rowAttributes = rowIsEditableAudio
                             ? `data-editable-audio="true" tabindex="0" role="button" aria-expanded="${isExpandedAudio ? 'true' : 'false'}" title="${isExpandedAudio ? 'Collapse quick-edit' : 'Quick-edit track tags'}" onclick="toggleAudioFileDetails('${safeName}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleAudioFileDetails('${safeName}'); }"`
@@ -3510,12 +4072,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 </label>
                                 ${thumb}
                                 ${nameCell}
-                                <span class="media-file-size">${fmtSize(display.size)}</span>
-                                <span class="media-file-actions">${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeKey}')">🗑️</button></span>
+                                ${dateCell}
+                                ${releaseCell}
+                                ${sizeCell}
+                                <span class="media-file-actions">${listenAction}${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeKey}')">🗑️</button></span>
                             </div>
                             ${expandedMarkup}
                         </div>`;
                     }).join('');
+                    if (type === 'audio') {
+                        syncAudioListSortHeaders();
+                        if (typeof window.bandpromoBindIsoDateFields === 'function') {
+                            window.bandpromoBindIsoDateFields(listEl);
+                        }
+                    }
                     syncMediaSelectionUi(type);
                     maybeApplyMediaFocusFromQuery(type);
                     maybeOpenAudioDetailFromQuery(files);
@@ -3728,6 +4298,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
+            document.querySelectorAll('[data-audio-sort]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    setAudioListSort(button.getAttribute('data-audio-sort'));
+                });
+            });
+            syncAudioListSortHeaders();
+
             syncReleaseFilterUi();
             syncBrandFilterUi();
             syncMediaReferenceFilterUi();
@@ -3755,6 +4332,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (checkbox.checked) {
                         selectAllVisibleMediaFiles(type);
                     } else {
+                        clearMediaSelection(type);
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-media-select-mode]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const type = String(button.getAttribute('data-target') || '').trim();
+                    const mode = String(button.getAttribute('data-media-select-mode') || '').trim();
+                    if (!type) {
+                        return;
+                    }
+                    if (mode === 'all') {
+                        selectAllVisibleMediaFiles(type);
+                    } else if (mode === 'none') {
                         clearMediaSelection(type);
                     }
                 });
@@ -3867,7 +4459,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? poolAssetHeadline(target, file)
                                 : 'Asset');
                         const safeLabel = bandpromoAdminEscapeHtml(label);
-                        const url = buildMediaUrl(pathType, file.name);
+                        const deliveryThumb = String(file.thumb_url || file.card_url || '').trim();
+                        const url = deliveryThumb || buildMediaUrl(pathType, file.name);
                         const notReady = target === 'visual' && file.pool_ready === false;
                         const reason = notReady
                             ? String(file.pool_ready_reason || 'Delivery variants not ready yet')
@@ -4187,13 +4780,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioMasterTitle = document.getElementById('audioMasterTitle');
             const audioMasterStatus = document.getElementById('audioMasterStatus');
             const audioMasterFormat = document.getElementById('audioMasterFormat');
-            const audioMasterTracknumber = document.getElementById('audioMasterTracknumber');
+            const audioMasterReleaseName = document.getElementById('audioMasterReleaseName');
             const audioMasterDuration = document.getElementById('audioMasterDuration');
             const audioMasterBitrate = document.getElementById('audioMasterBitrate');
             const audioMasterSampleRate = document.getElementById('audioMasterSampleRate');
             const audioMasterBitDepth = document.getElementById('audioMasterBitDepth');
             const audioMasterFilesize = document.getElementById('audioMasterFilesize');
             const audioMasterSaveBtn = document.getElementById('audioMasterSaveBtn');
+            const audioMasterDoneBtn = document.getElementById('audioMasterDoneBtn');
+            const audioMasterAbortBtn = document.getElementById('audioMasterAbortBtn');
+            const audioMasterListenBar = document.getElementById('audioMasterListenBar');
+            const audioMasterListenPlayer = document.getElementById('audioMasterListenPlayer');
             const audioMasterCoverPreviewShell = document.getElementById('audioMasterCoverPreviewShell');
             const audioMasterCoverPreview = document.getElementById('audioMasterCoverPreview');
             const audioMasterCoverPlaceholder = document.getElementById('audioMasterCoverPlaceholder');
@@ -4220,11 +4817,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let activeAudioMasterDetail = null;
             let audioMasterCoverMode = 'preserve';
             let audioMasterLivingCoverMode = 'preserve';
+            let audioMasterPoolRefreshPending = false;
+            let audioMasterAutosaveReady = false;
+            let audioMasterSaveInFlight = false;
+            let audioMasterSaveQueued = false;
+            let audioMasterClosing = false;
+            let audioMasterSyncingForm = false;
+            let audioMasterLastSavedSignature = '';
 
             const audioMasterFields = {
                 title: document.getElementById('audioMasterFieldTitle'),
                 artist: document.getElementById('audioMasterFieldArtist'),
-                album: document.getElementById('audioMasterFieldAlbum'),
                 date: document.getElementById('audioMasterFieldDate'),
                 bpm: document.getElementById('audioMasterFieldBpm'),
                 initialkey: document.getElementById('audioMasterFieldInitialkey'),
@@ -4232,6 +4835,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 comment: document.getElementById('audioMasterFieldComment'),
                 lyrics: document.getElementById('audioMasterFieldLyrics'),
             };
+
+            function audioMasterReleaseDisplayName(detail) {
+                return String(
+                    (detail && detail.release_title)
+                    || (detail && detail.album)
+                    || ''
+                ).trim();
+            }
 
             function audioMasterCoverPreviewUrl(detail) {
                 const selected = audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '';
@@ -4352,6 +4963,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (options.sync !== false) {
                     syncAudioMasterLivingCoverUi(activeAudioMasterDetail);
                 }
+                if (options.autosave !== false && options.markDirty !== false) {
+                    markAudioMasterDirty();
+                }
             }
 
             function syncAudioMasterLivingCoverUi(detail) {
@@ -4362,7 +4976,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     || (audioMasterLivingCoverPath && String(audioMasterLivingCoverPath.value || '').trim() !== '');
 
                 if (audioMasterLivingCoverMode === 'clear') {
-                    statusParts.push('Removed when you save.');
+                    statusParts.push('Will clear when you save.');
                 } else if (hasAssigned && !previewUrl) {
                     statusParts.push('Publish required before preview and player loop.');
                 } else if (hasAssigned && data.living_cover_delivery_pending) {
@@ -4372,7 +4986,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (audioMasterLivingCoverPreviewShell) {
                     const tooltipParts = ['Optional silent loop on the player flip-card cover.'];
                     if (audioMasterLivingCoverMode === 'clear') {
-                        tooltipParts.push('Living cover will be removed when you save.');
+                        tooltipParts.push('Living cover will clear when you save.');
                     } else if (hasAssigned && data.living_cover_delivery_ready) {
                         tooltipParts.push('Delivery MP4 is ready.');
                     } else if (hasAssigned) {
@@ -4548,31 +5162,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 audioInlineDetailErrors.delete(filename);
 
                 if (options.updateModal !== false && activeAudioMasterFile === filename) {
-                    if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(detail);
-                    setAudioMasterCoverMode('preserve');
-                    if (audioMasterCoverPath) {
-                        setPickerFieldValue('audioMasterFieldCoverPath', '');
+                    audioMasterSyncingForm = true;
+                    try {
+                        if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(detail);
+                        setAudioMasterCoverMode('preserve');
+                        if (audioMasterCoverPath) {
+                            // Silent: dispatching input would queue another autosave and loop on no_change.
+                            setPickerFieldValue('audioMasterFieldCoverPath', '', { silent: true });
+                        }
+                        setAudioMasterLivingCoverMode('preserve');
+                        if (audioMasterLivingCoverPath) {
+                            const assignedLivingCover = String(detail.living_cover || '').trim();
+                            // Set without firing the input handler so mode stays 'preserve'.
+                            audioMasterLivingCoverPath.value = audioMasterLivingCoverStoragePath(assignedLivingCover);
+                            updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
+                        }
+                        setAudioMasterSummary(detail);
+                        setAudioMasterFormValues(detail);
+                        const successMessage = data.no_change
+                            ? 'No changes to save.'
+                            : data.warning
+                                ? data.warning
+                                : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                                    ? 'Track details saved. Validation refreshed.'
+                                    : 'Track details saved.');
+                        setAudioMasterStatus(successMessage, data.warning ? 'error' : 'success');
+                    } finally {
+                        audioMasterSyncingForm = false;
                     }
-                    setAudioMasterLivingCoverMode('preserve');
-                    if (audioMasterLivingCoverPath) {
-                        const assignedLivingCover = String(detail.living_cover || '').trim();
-                        // Set without firing the input handler so mode stays 'preserve'.
-                        audioMasterLivingCoverPath.value = audioMasterLivingCoverStoragePath(assignedLivingCover);
-                        updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
-                    }
-                    setAudioMasterSummary(detail);
-                    setAudioMasterFormValues(detail);
-                    const successMessage = data.no_change
-                        ? 'No changes to save.'
-                        : data.warning
-                            ? data.warning
-                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                                ? 'Track details saved. Validation refreshed.'
-                                : 'Track details saved.');
-                    setAudioMasterStatus(successMessage, data.warning ? 'error' : 'success');
                 }
 
-                if (data.build_required_state) {
+                if (data.build_required_state && !data.no_change) {
                     setBuildRequiredNudge(
                         data.build_required === true,
                         data.build_required_state.reasons || [],
@@ -4580,20 +5200,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         data.build_required_state.tasks || []
                     );
                 }
-                await refreshBuildRequiredState({ full: true });
+                if (!data.no_change) {
+                    await refreshBuildRequiredState({ full: true });
+                }
                 updateAudioFileRowMetadata(filename, detail);
                 if (expandedAudioFile === filename) {
                     loadMediaList('audio');
+                } else if (options.updateModal !== false && activeAudioMasterFile === filename && !data.no_change) {
+                    // Defer full pool refresh until the editor closes so the list
+                    // does not rebuild under the open modal.
+                    audioMasterPoolRefreshPending = true;
                 }
 
-                if (options.showToast !== false) {
-                    const toastMessage = data.no_change
-                        ? 'No changes were saved.'
-                        : (data.warning
-                            ? data.warning
-                            : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
-                                ? 'Track details updated and validation refreshed.'
-                                : 'Track details updated.'));
+                if (options.showToast !== false && !data.no_change) {
+                    const toastMessage = data.warning
+                        ? data.warning
+                        : (Array.isArray(data.auto_tasks) && data.auto_tasks.includes('playlist-scan')
+                            ? 'Track details updated and validation refreshed.'
+                            : 'Track details updated.');
                     showAdminToast(toastMessage, data.warning ? 'warning' : 'success');
                 }
 
@@ -4607,9 +5231,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 activeAudioQuickEdit = { filename: nextFilename, field: nextField };
-                loadMediaList('audio');
+                void loadMediaList('audio', { fromState: true });
                 window.setTimeout(() => {
                     const container = getAudioQuickEditContainer(nextFilename);
+                    if (container && typeof window.bandpromoBindIsoDateFields === 'function') {
+                        window.bandpromoBindIsoDateFields(container);
+                    }
                     const input = getAudioQuickEditInput(container, nextField);
                     if (input) {
                         input.focus();
@@ -4694,7 +5321,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function buildAudioMasterHeading(detail) {
                 const artist = String(detail && detail.artist || '').trim();
                 const title = String(audioMasterTitlePartsFromDetail(detail || {}).title || '').trim();
-                const release = String(detail && detail.album || '').trim();
+                const release = audioMasterReleaseDisplayName(detail);
 
                 if (artist && title) {
                     return `${artist} · ${title}`;
@@ -4750,7 +5377,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         cover: { label: 'Cover', state: hasCover ? 'good' : 'required' },
                         artist: { label: 'Artist', state: hasText(detail && detail.artist) ? 'good' : 'required' },
                         title: { label: 'Title', state: hasText(detail && detail.title) ? 'good' : 'required' },
-                        release: { label: 'Release', state: hasText(detail && detail.album) ? 'good' : 'improvable' },
+                        release: { label: 'Release', state: hasText(audioMasterReleaseDisplayName(detail)) ? 'good' : 'improvable' },
                         track: { label: 'Track', state: hasTrack ? 'good' : (totalTracks > 1 ? 'required' : 'improvable') },
                         description: { label: 'Description', state: hasText(detail && detail.comment) ? 'good' : 'improvable' },
                         lyrics: { label: 'Lyrics', state: hasText(detail && detail.lyrics) ? 'good' : 'improvable' },
@@ -4823,19 +5450,59 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function setAudioMasterStatus(message, type = '') {
                 if (!audioMasterStatus) return;
                 audioMasterStatus.textContent = message || '';
-                audioMasterStatus.classList.remove('audio-master-status-error', 'audio-master-status-success');
+                audioMasterStatus.classList.remove(
+                    'audio-master-status-error',
+                    'audio-master-status-success',
+                    'is-error',
+                    'is-success'
+                );
                 if (type === 'error') {
-                    audioMasterStatus.classList.add('audio-master-status-error');
+                    audioMasterStatus.classList.add('audio-master-status-error', 'is-error');
                 } else if (type === 'success') {
-                    audioMasterStatus.classList.add('audio-master-status-success');
+                    audioMasterStatus.classList.add('audio-master-status-success', 'is-success');
                 }
+            }
+
+            function syncAudioMasterListenPlayer(detail, filename = '') {
+                const listingName = String(filename || activeAudioMasterFile || detail?.filename || '').trim();
+                const masterName = String(detail?.master_filename || '').trim();
+                const files = mediaFilesState.get('audio') || [];
+                const listFile = files.find((entry) => {
+                    const name = String(entry?.name || '');
+                    const master = String(entry?.audio_master?.filename || '');
+                    return name === listingName || master === listingName || master === masterName;
+                }) || null;
+                const listenSource = {
+                    name: listingName || String(listFile?.name || ''),
+                    master_filename: masterName,
+                    audio_master: listFile?.audio_master || (masterName ? { filename: masterName, exists: true } : null),
+                    // Prefer delivery when known ready; otherwise try optimal then fall back to original.
+                    pool_ready: listFile
+                        ? listFile.pool_ready === true
+                        : masterName !== '',
+                };
+                const url = audioAdminListenUrl(listenSource);
+                if (!audioMasterListenBar || !audioMasterListenPlayer) {
+                    return;
+                }
+                if (!url) {
+                    audioMasterListenPlayer.pause();
+                    audioMasterListenPlayer.removeAttribute('src');
+                    delete audioMasterListenPlayer.dataset.src;
+                    audioMasterListenBar.hidden = true;
+                    return;
+                }
+                bindAdminAudioPreviewElement(audioMasterListenPlayer, listenSource);
+                audioMasterListenBar.hidden = false;
+                audioMasterListenPlayer.title = listenSource.pool_ready
+                    ? 'Streaming delivery preview'
+                    : 'Source/master preview (delivery not ready yet)';
             }
 
             function setAudioMasterSummary(detail) {
                 activeAudioMasterDetail = detail || {};
-                if (audioMasterTracknumber) {
-                    const tracknumber = String(detail.suggested_tracknumber || detail.release_tracknumber || '').trim();
-                    audioMasterTracknumber.textContent = tracknumber || '—';
+                if (audioMasterReleaseName) {
+                    audioMasterReleaseName.textContent = audioMasterReleaseDisplayName(detail) || '—';
                 }
                 if (audioMasterFormat) audioMasterFormat.textContent = String(detail.format || '—').toUpperCase();
                 if (audioMasterDuration) audioMasterDuration.textContent = detail.duration_seconds ? formatDuration(detail.duration_seconds) : '—';
@@ -4843,6 +5510,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (audioMasterSampleRate) audioMasterSampleRate.textContent = detail.sample_rate_hz ? `${detail.sample_rate_hz} Hz` : '—';
                 if (audioMasterBitDepth) audioMasterBitDepth.textContent = detail.bit_depth ? `${detail.bit_depth}-bit` : '—';
                 if (audioMasterFilesize) audioMasterFilesize.textContent = detail.file_size_bytes ? fmtSize(detail.file_size_bytes) : '—';
+                syncAudioMasterListenPlayer(detail, activeAudioMasterFile || '');
                 syncAudioMasterCoverUi(detail);
                 syncAudioMasterLivingCoverUi(detail);
             }
@@ -4883,10 +5551,154 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 updateAudioMasterDescriptionCounter();
             }
 
+            function collectAudioMasterFields() {
+                const fields = {};
+                Object.entries(audioMasterFields).forEach(([key, input]) => {
+                    fields[key] = input ? String(input.value || '').trim() : '';
+                });
+                // Catalogue → Release owns the campaign name; keep stored album on save.
+                fields.album = String(activeAudioMasterDetail?.album || '').trim();
+                fields.title = combineAudioTitleParts(
+                    fields.title,
+                    audioMasterVersionField ? audioMasterVersionField.value : ''
+                );
+                fields.text_role = audioMasterTextRole === 'notes' ? 'notes' : 'lyrics';
+                fields.notes_label = fields.text_role === 'notes' && audioMasterNotesLabelField
+                    ? String(audioMasterNotesLabelField.value || '').trim()
+                    : '';
+                return fields;
+            }
+
+            function audioMasterSaveSignature(fields = null) {
+                const nextFields = fields || collectAudioMasterFields();
+                return JSON.stringify({
+                    fields: nextFields,
+                    cover_mode: audioMasterCoverMode,
+                    cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
+                    living_cover_mode: audioMasterLivingCoverMode,
+                    living_cover_path: audioMasterLivingCoverPath
+                        ? String(audioMasterLivingCoverPath.value || '').trim()
+                        : '',
+                });
+            }
+
+            async function saveAudioMasterFromModal(options = {}) {
+                if (!activeAudioMasterFile) {
+                    return null;
+                }
+                if (audioMasterClosing && !options.force) {
+                    return null;
+                }
+                if (!audioMasterAutosaveReady && !options.force) {
+                    return null;
+                }
+                if (audioMasterSyncingForm && !options.force) {
+                    return null;
+                }
+                if (audioMasterSaveInFlight) {
+                    audioMasterSaveQueued = true;
+                    return null;
+                }
+
+                const fields = collectAudioMasterFields();
+                const validationError = validateAudioMasterFields(fields);
+                if (validationError) {
+                    setAudioMasterStatus(validationError, 'error');
+                    return null;
+                }
+
+                const signature = audioMasterSaveSignature(fields);
+                if (signature === audioMasterLastSavedSignature) {
+                    setAudioMasterStatus('Close to save');
+                    return { ok: true, no_change: true, detail: activeAudioMasterDetail || {} };
+                }
+
+                audioMasterSaveInFlight = true;
+                setAudioMasterStatus('Saving…');
+                try {
+                    const data = await persistAudioMasterMetadata(activeAudioMasterFile, fields, {
+                        cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
+                        cover_mode: audioMasterCoverMode,
+                        living_cover_path: audioMasterLivingCoverPath
+                            ? String(audioMasterLivingCoverPath.value || '').trim()
+                            : '',
+                        living_cover_mode: audioMasterLivingCoverMode,
+                    });
+                    await handleAudioMetadataSaveResult(activeAudioMasterFile, data, {
+                        showToast: options.showToast === true,
+                        updateModal: options.updateModal !== false,
+                    });
+                    audioMasterLastSavedSignature = audioMasterSaveSignature();
+                    if (!data.warning) {
+                        setAudioMasterStatus('Saved', 'success');
+                    }
+                    return data;
+                } catch (error) {
+                    setAudioMasterStatus(error.message || 'Could not save metadata', 'error');
+                    if (options.showToast !== false) {
+                        showAdminToast(error.message || 'Could not save metadata', 'error');
+                    }
+                    return null;
+                } finally {
+                    audioMasterSaveInFlight = false;
+                    if (audioMasterSaveQueued) {
+                        audioMasterSaveQueued = false;
+                        await saveAudioMasterFromModal(options);
+                    }
+                }
+            }
+
+            function markAudioMasterDirty() {
+                if (audioMasterSyncingForm || !audioMasterAutosaveReady || !activeAudioMasterFile || audioMasterClosing) {
+                    return;
+                }
+                const signature = audioMasterSaveSignature();
+                if (signature === audioMasterLastSavedSignature) {
+                    setAudioMasterStatus('Close to save');
+                    return;
+                }
+                setAudioMasterStatus('Unsaved changes');
+            }
+
+            function teardownAudioMasterModal(shouldRefreshPool = false) {
+                audioMasterPoolRefreshPending = false;
+                audioMasterSaveQueued = false;
+                if (audioMasterModal) audioMasterModal.style.display = 'none';
+                activeAudioMasterFile = null;
+                activeAudioMasterDetail = null;
+                setAudioMasterCoverMode('preserve');
+                if (audioMasterCoverPath) {
+                    setPickerFieldValue('audioMasterFieldCoverPath', '', { silent: true });
+                }
+                setAudioMasterLivingCoverMode('preserve');
+                if (audioMasterLivingCoverPath) {
+                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '', { silent: true });
+                }
+                if (audioMasterForm) audioMasterForm.reset();
+                if (audioMasterListenPlayer) {
+                    audioMasterListenPlayer.pause();
+                    audioMasterListenPlayer.removeAttribute('src');
+                    delete audioMasterListenPlayer.dataset.src;
+                }
+                if (audioMasterListenBar) {
+                    audioMasterListenBar.hidden = true;
+                }
+                setAudioMasterSummary({});
+                setAudioMasterStatus('Close to save');
+                audioMasterClosing = false;
+                audioMasterLastSavedSignature = '';
+                if (shouldRefreshPool) {
+                    loadMediaList('audio');
+                }
+            }
+
             async function loadAudioMasterDetails(filename) {
                 if (!filename) return;
+                audioMasterAutosaveReady = false;
                 setAudioMasterStatus('Loading…');
                 if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = true;
+                if (audioMasterDoneBtn) audioMasterDoneBtn.disabled = true;
+                if (audioMasterAbortBtn) audioMasterAbortBtn.disabled = true;
                 setAudioMasterCoverMode('preserve');
                 if (audioMasterCoverPath) {
                     setPickerFieldValue('audioMasterFieldCoverPath', '');
@@ -4900,56 +5712,126 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const data = await fetchAudioMasterDetailData(filename);
                     audioInlineDetailCache.set(filename, data);
                     audioInlineDetailErrors.delete(filename);
-                    if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(data);
-                    setAudioMasterLivingCoverMode('preserve');
-                    if (audioMasterLivingCoverPath) {
-                        const assignedLivingCover = String(data.living_cover || '').trim();
-                        audioMasterLivingCoverPath.value = audioMasterLivingCoverStoragePath(assignedLivingCover);
-                        updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
+                    audioMasterSyncingForm = true;
+                    try {
+                        if (audioMasterTitle) audioMasterTitle.textContent = buildAudioMasterHeading(data);
+                        setAudioMasterLivingCoverMode('preserve');
+                        if (audioMasterLivingCoverPath) {
+                            const assignedLivingCover = String(data.living_cover || '').trim();
+                            audioMasterLivingCoverPath.value = audioMasterLivingCoverStoragePath(assignedLivingCover);
+                            updatePickerFieldLabel('audioMasterFieldLivingCoverPath');
+                        }
+                        setAudioMasterSummary(data);
+                        setAudioMasterFormValues(data);
+                    } finally {
+                        audioMasterSyncingForm = false;
                     }
-                    setAudioMasterSummary(data);
-                    setAudioMasterFormValues(data);
-                    setAudioMasterStatus('Ready to edit.', 'success');
+                    audioMasterLastSavedSignature = audioMasterSaveSignature();
+                    setAudioMasterStatus('Close to save');
                     if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = false;
+                    if (audioMasterDoneBtn) audioMasterDoneBtn.disabled = false;
+                    if (audioMasterAbortBtn) audioMasterAbortBtn.disabled = false;
+                    audioMasterAutosaveReady = activeAudioMasterFile === filename;
                 } catch (error) {
                     setAudioMasterSummary({});
                     setAudioMasterFormValues({});
                     setAudioMasterStatus(error.message || 'Could not load track details', 'error');
+                    audioMasterAutosaveReady = false;
+                    audioMasterLastSavedSignature = '';
+                    if (audioMasterDoneBtn) audioMasterDoneBtn.disabled = true;
+                    if (audioMasterAbortBtn) audioMasterAbortBtn.disabled = false;
                 }
             }
 
             window.openAudioMasterModal = function(filename) {
                 activeAudioMasterFile = filename;
+                audioMasterPoolRefreshPending = false;
+                audioMasterAutosaveReady = false;
+                audioMasterSaveQueued = false;
+                audioMasterClosing = false;
+                audioMasterLastSavedSignature = '';
+                pauseAdminAudioPreviews();
+                const dock = document.getElementById('adminAudioListenDock');
+                if (dock) {
+                    dock.hidden = true;
+                }
                 if (audioMasterModal) audioMasterModal.style.display = 'flex';
                 setAudioMasterCoverMode('preserve');
                 if (audioMasterCoverPath) {
-                    setPickerFieldValue('audioMasterFieldCoverPath', '');
+                    setPickerFieldValue('audioMasterFieldCoverPath', '', { silent: true });
                 }
                 setAudioMasterLivingCoverMode('preserve');
                 if (audioMasterLivingCoverPath) {
-                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
+                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '', { silent: true });
                 }
                 setAudioMasterSummary({});
                 setAudioMasterFormValues({});
                 loadAudioMasterDetails(filename);
             };
 
-            window.closeAudioMasterModal = function() {
-                if (audioMasterModal) audioMasterModal.style.display = 'none';
-                activeAudioMasterFile = null;
-                activeAudioMasterDetail = null;
-                setAudioMasterCoverMode('preserve');
-                if (audioMasterCoverPath) {
-                    setPickerFieldValue('audioMasterFieldCoverPath', '');
+            window.closeAudioMasterModal = async function(options = {}) {
+                if (audioMasterClosing) {
+                    return;
                 }
-                setAudioMasterLivingCoverMode('preserve');
-                if (audioMasterLivingCoverPath) {
-                    setPickerFieldValue('audioMasterFieldLivingCoverPath', '');
+                const discard = options.discard === true;
+                audioMasterClosing = true;
+                audioMasterAutosaveReady = false;
+                try {
+                    if (!discard && activeAudioMasterFile) {
+                        audioMasterSaveQueued = false;
+                        while (audioMasterSaveInFlight) {
+                            await new Promise((resolve) => window.setTimeout(resolve, 40));
+                        }
+                        const saved = await saveAudioMasterFromModal({ force: true, showToast: false });
+                        if (saved === null) {
+                            // Validation or save error — keep the editor open.
+                            audioMasterClosing = false;
+                            audioMasterAutosaveReady = true;
+                            return;
+                        }
+                    } else {
+                        audioMasterSaveQueued = false;
+                    }
+                    teardownAudioMasterModal(discard ? false : audioMasterPoolRefreshPending);
+                } catch (error) {
+                    audioMasterClosing = false;
+                    audioMasterAutosaveReady = true;
+                    setAudioMasterStatus(error.message || 'Could not close track editor', 'error');
                 }
-                if (audioMasterForm) audioMasterForm.reset();
-                setAudioMasterSummary({});
-                setAudioMasterStatus('');
             };
+
+            window.abortAudioMasterModal = function() {
+                void closeAudioMasterModal({ discard: true });
+            };
+
+            if (audioMasterListenPlayer) {
+                audioMasterListenPlayer.addEventListener('play', () => {
+                    pauseAdminAudioPreviews(audioMasterListenPlayer);
+                    const dock = document.getElementById('adminAudioListenDock');
+                    const dockPlayer = document.getElementById('adminAudioListenDockPlayer');
+                    if (dockPlayer) {
+                        dockPlayer.pause();
+                    }
+                    if (dock) {
+                        dock.hidden = true;
+                    }
+                });
+                audioMasterListenPlayer.addEventListener('error', () => {
+                    if (audioMasterListenPlayer.dataset.listenTriedFallback === '1') {
+                        audioMasterListenPlayer.title = 'Could not play this file in the browser.';
+                        return;
+                    }
+                    const fallback = String(audioMasterListenPlayer.dataset.listenFallback || '').trim();
+                    if (!fallback) {
+                        audioMasterListenPlayer.title = 'Could not play this file in the browser.';
+                        return;
+                    }
+                    audioMasterListenPlayer.dataset.listenTriedFallback = '1';
+                    audioMasterListenPlayer.dataset.src = fallback;
+                    audioMasterListenPlayer.src = fallback;
+                    audioMasterListenPlayer.title = 'Source/master preview (delivery not ready yet)';
+                });
+            }
 
             if (audioMasterCoverPath) {
                 audioMasterCoverPath.addEventListener('input', () => {
@@ -4957,6 +5839,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         setAudioMasterCoverMode(String(audioMasterCoverPath.value || '').trim() !== '' ? 'set' : 'preserve', { refreshLabel: false });
                     }
                     syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                    markAudioMasterDirty();
                 });
             }
 
@@ -4967,6 +5850,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     setAudioMasterCoverMode('clear');
                     syncAudioMasterCoverUi(activeAudioMasterDetail || {});
+                    markAudioMasterDirty();
                 });
             }
 
@@ -4985,6 +5869,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     setAudioMasterLivingCoverMode('preserve');
                     syncAudioMasterLivingCoverUi(activeAudioMasterDetail || {});
+                    markAudioMasterDirty();
                 });
             }
 
@@ -5003,6 +5888,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         living_cover_delivery_pending: false,
                     };
                     syncAudioMasterLivingCoverUi(activeAudioMasterDetail);
+                    markAudioMasterDirty();
                 });
             }
 
@@ -5013,9 +5899,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             audioMasterTextRoleButtons.forEach((btn) => {
                 btn.addEventListener('click', () => {
                     setAudioMasterTextRole(btn.getAttribute('data-text-role'), { clearLabel: true });
+                    markAudioMasterDirty();
                 });
             });
             syncAudioMasterTextPanelUi();
+
+            const audioMasterDirtyControls = [
+                audioMasterFields.title,
+                audioMasterFields.artist,
+                audioMasterFields.date,
+                audioMasterFields.bpm,
+                audioMasterFields.initialkey,
+                audioMasterFields.genre,
+                audioMasterFields.comment,
+                audioMasterFields.lyrics,
+                audioMasterVersionField,
+                audioMasterNotesLabelField,
+            ];
+            audioMasterDirtyControls.forEach((control) => {
+                control?.addEventListener('input', () => {
+                    markAudioMasterDirty();
+                });
+                control?.addEventListener('change', () => {
+                    markAudioMasterDirty();
+                });
+            });
+            if (audioMasterForm) {
+                audioMasterForm.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    void closeAudioMasterModal();
+                });
+            }
 
             // ── Admin media preview — powered by biblioteca/lightbox.js ──────────
             let _adminLb = null;
@@ -5411,42 +6325,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
+            if (audioMasterDoneBtn) {
+                audioMasterDoneBtn.addEventListener('click', () => {
+                    void closeAudioMasterModal();
+                });
+            }
+            if (audioMasterAbortBtn) {
+                audioMasterAbortBtn.addEventListener('click', () => {
+                    abortAudioMasterModal();
+                });
+            }
             if (audioMasterSaveBtn) {
-                audioMasterSaveBtn.addEventListener('click', async () => {
-                    if (!activeAudioMasterFile) return;
-
-                    const fields = {};
-                    Object.entries(audioMasterFields).forEach(([key, input]) => {
-                        fields[key] = input ? String(input.value || '').trim() : '';
-                    });
-                    fields.title = combineAudioTitleParts(fields.title, audioMasterVersionField ? audioMasterVersionField.value : '');
-                    fields.text_role = audioMasterTextRole === 'notes' ? 'notes' : 'lyrics';
-                    fields.notes_label = fields.text_role === 'notes' && audioMasterNotesLabelField
-                        ? String(audioMasterNotesLabelField.value || '').trim()
-                        : '';
-
-                    const validationError = validateAudioMasterFields(fields);
-                    if (validationError) {
-                        setAudioMasterStatus(validationError, 'error');
-                        return;
-                    }
-
-                    audioMasterSaveBtn.disabled = true;
-                    setAudioMasterStatus('Saving…');
-
-                    try {
-                        const data = await persistAudioMasterMetadata(activeAudioMasterFile, fields, {
-                            cover_path: audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '',
-                            cover_mode: audioMasterCoverMode,
-                            living_cover_path: audioMasterLivingCoverPath ? String(audioMasterLivingCoverPath.value || '').trim() : '',
-                            living_cover_mode: audioMasterLivingCoverMode,
-                        });
-                        await handleAudioMetadataSaveResult(activeAudioMasterFile, data);
-                    } catch (error) {
-                        setAudioMasterStatus(error.message || 'Could not save metadata', 'error');
-                    } finally {
-                        audioMasterSaveBtn.disabled = false;
-                    }
+                audioMasterSaveBtn.addEventListener('click', () => {
+                    void closeAudioMasterModal();
                 });
             }
 
@@ -6082,7 +6973,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     syncGalleryUrl(galleryId, true);
                     syncGallerySettingsPanel(galleryId);
                     if (editorHint) {
-                        editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple items. Move selections back to Available content to remove them from the gallery.';
+                        editorHint.textContent = 'Search and multi-select media on the left, then Add selected. Reorder the gallery on the right. Drag remains available as a shortcut.';
                     }
                     renderGalleryPoolList();
                 }
@@ -6376,6 +7267,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let activeItems = [];
                 let allFiles = [];
                 let galleryPendingFiles = [];
+                let availableSearchNeedle = '';
                 let dragSrc = null;
                 let draggedRows = [];
                 let dragSourceList = '';
@@ -6385,12 +7277,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let selectionAnchorAvailable = '';
                 let selectionAnchorActive = '';
                 let suppressNextClick = false;
+                const availableSearchEl = document.getElementById('galleryAvailableSearch');
+                const addSelectedBtn = document.getElementById('galleryAddSelectedBtn');
+                const removeSelectedBtn = document.getElementById('galleryRemoveSelectedBtn');
 
                 function videoPosterPathFromSrc(src) {
                     const normalized = String(src || '').replace(/\\/g, '/');
                     const pathOnly = normalized.split('?')[0];
                     const fileName = pathOnly.substring(pathOnly.lastIndexOf('/') + 1);
-                    if (!/\.(mp4|webm|mov)$/i.test(fileName)) return '';
+                    if (!/\.(mp4|webm|mov|mkv)$/i.test(fileName)) return '';
                     return '/media/video/poster/' + fileName.replace(/\.[^.]+$/i, '.jpg');
                 }
 
@@ -6407,8 +7302,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return type === 'video' ? 'Video' : 'Photo';
                 }
 
+                function galleryItemLabel(file) {
+                    return String(file?.display_title || file?.title || file?.name || prettifyName(file?.src || '')).trim()
+                        || 'Untitled';
+                }
+
+                function galleryItemHaystack(file) {
+                    const parts = [
+                        galleryItemLabel(file),
+                        file?.name,
+                        file?.description,
+                        file?.operator_title,
+                        ...(Array.isArray(file?.keywords) ? file.keywords : []),
+                    ];
+                    return parts.filter(Boolean).join(' ').toLowerCase();
+                }
+
                 function renderThumbMarkup(item, small) {
-                    const sizeClass = small ? ' gallery-thumb--sm' : '';
+                    const sizeClass = small ? ' gallery-thumb--sm' : ' gallery-thumb--lg';
                     const isVideo = item.type === 'video';
                     const poster = resolveVideoPoster(item);
                     if (isVideo) {
@@ -6572,34 +7483,67 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         availableEl.innerHTML = '<li class="player-layout-empty">No delivery-ready visuals in the pool yet. Upload under Files → Visual, or check Notifications for missing delivery variants.</li>';
                         return;
                     }
-                    const available = allFiles.filter((file) => !taken.has(file.src));
-                    const pendingRows = galleryPendingFiles.map((file) => {
+                    const needle = String(availableSearchNeedle || '').trim().toLowerCase();
+                    const available = allFiles.filter((file) => {
+                        if (taken.has(file.src)) {
+                            return false;
+                        }
+                        if (needle === '') {
+                            return true;
+                        }
+                        return galleryItemHaystack(file).includes(needle);
+                    });
+                    const pendingRows = galleryPendingFiles
+                        .filter((file) => needle === '' || galleryItemHaystack(file).includes(needle))
+                        .map((file) => {
                         const reason = file.pool_ready_reason || 'Delivery variants not ready yet';
+                        const label = galleryItemLabel(file);
                         return `<li class="playlist-editor-row gallery-pool-row playlist-editor-row-pending" draggable="false" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" aria-disabled="true" title="${bandpromoAdminEscapeHtml(reason)}">
-                            ${renderThumbMarkup(file, true)}
+                            ${renderThumbMarkup(file, false)}
                             <span class="playlist-track-info">
-                                <strong>${bandpromoAdminEscapeHtml(file.name)}</strong>
+                                <strong>${bandpromoAdminEscapeHtml(label)}</strong>
                                 <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(reason)}</span>
                             </span>
                         </li>`;
                     }).join('');
                     if (available.length === 0 && !pendingRows) {
-                        availableEl.innerHTML = '<li class="player-layout-empty">All available content is already in the gallery. Use ✕ on the right to move items back here.</li>';
+                        availableEl.innerHTML = needle
+                            ? '<li class="player-layout-empty">No media matches this search.</li>'
+                            : '<li class="player-layout-empty">All matching content is already in the gallery. Select items on the right and click Remove selected, or use ✕.</li>';
                         return;
                     }
                     const readyRows = available.map((file) => {
                         const poster = resolveVideoPoster(file);
                         const selectedClass = selectedAvailable.has(file.src) ? ' playlist-editor-row-selected' : '';
-                        return `<li class="playlist-editor-row gallery-pool-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" data-name="${bandpromoAdminEscapeHtml(file.name)}" aria-selected="${selectedAvailable.has(file.src) ? 'true' : 'false'}">
+                        const label = galleryItemLabel(file);
+                        return `<li class="playlist-editor-row gallery-pool-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" data-name="${bandpromoAdminEscapeHtml(label)}" aria-selected="${selectedAvailable.has(file.src) ? 'true' : 'false'}">
                             <span class="playlist-drag-handle" title="Drag into gallery order">⠿</span>
-                            ${renderThumbMarkup(file, true)}
+                            ${renderThumbMarkup(file, false)}
                             <span class="playlist-track-info">
-                                <strong>${bandpromoAdminEscapeHtml(file.name)}</strong>
+                                <strong>${bandpromoAdminEscapeHtml(label)}</strong>
                                 <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(mediaTypeLabel(file.type))}</span>
                             </span>
                         </li>`;
                     }).join('');
                     availableEl.innerHTML = readyRows + pendingRows;
+                }
+
+                function addSelectedAvailableToGallery() {
+                    const files = allFiles.filter((file) => selectedAvailable.has(file.src));
+                    if (!files.length) {
+                        return;
+                    }
+                    insertActiveItems(files, activeItems.length);
+                    selectedAvailable.clear();
+                    selectionAnchorAvailable = '';
+                    syncAvailableSelectionUi();
+                }
+
+                function removeSelectedActiveFromGallery() {
+                    if (!selectedActive.size) {
+                        return;
+                    }
+                    removeActiveBySrcs(Array.from(selectedActive));
                 }
 
                 function renderGalleryLists() {
@@ -6999,7 +7943,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     : `/media/img/original/${file.name}`);
                             const entry = {
                                 src: deliverySrc || legacySrc,
-                                name: prettifyName(file.name),
+                                name: String(file.display_title || '').trim() || prettifyName(file.name),
+                                display_title: String(file.display_title || '').trim(),
+                                operator_title: String(file.operator_title || '').trim(),
+                                description: String(file.display_description || file.display?.description || '').trim(),
+                                keywords: Array.isArray(file.display_keywords)
+                                    ? file.display_keywords
+                                    : (Array.isArray(file.display?.keywords) ? file.display.keywords : []),
                                 type: kind,
                                 poster: kind === 'video'
                                     ? (file.poster_url || (`/media/video/poster/${String(file.name).replace(/\.[^.]+$/, '.jpg')}`))
@@ -7023,6 +7973,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 registerReleaseFilterListener(reloadGalleryPool);
+
+                if (availableSearchEl) {
+                    availableSearchEl.addEventListener('input', () => {
+                        availableSearchNeedle = String(availableSearchEl.value || '');
+                        renderAvailable();
+                    });
+                }
+                if (addSelectedBtn) {
+                    addSelectedBtn.addEventListener('click', () => addSelectedAvailableToGallery());
+                }
+                if (removeSelectedBtn) {
+                    removeSelectedBtn.addEventListener('click', () => removeSelectedActiveFromGallery());
+                }
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const startInEdit = urlParams.get('edit') === '1';
@@ -7237,7 +8200,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (/^https?:\/\//i.test(raw)) {
                         return raw;
                     }
+
+                    const deliveryCardFromAssetId = (id) => {
+                        const assetId = String(id || '').trim();
+                        if (!/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(assetId)) {
+                            return '';
+                        }
+                        return `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`;
+                    };
+
                     if (raw.startsWith('/media/')) {
+                        const intakeOriginal = raw.match(/^\/media\/(?:img|photo|visual)\/original\/([^/?#]+)$/i);
+                        if (intakeOriginal) {
+                            const stem = String(intakeOriginal[1] || '').replace(/\.[^.]+$/, '');
+                            const card = deliveryCardFromAssetId(stem);
+                            if (card) {
+                                return card;
+                            }
+                            return '';
+                        }
                         const parts = raw.split('/');
                         const file = parts.pop() || '';
                         return `${parts.join('/')}/${encodeURIComponent(file)}`;
@@ -7247,8 +8228,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!basename) {
                         return '';
                     }
-                    // Fallback guesses for bare filenames / asset refs before server preview URL arrives.
-                    return `/media/img/original/${encodeURIComponent(basename)}`;
+                    const stem = basename.replace(/\.[^.]+$/, '');
+                    return deliveryCardFromAssetId(stem) || deliveryCardFromAssetId(basename) || '';
                 }
 
                 function playlistCoverPreviewUrl(rawValue, entryRef) {
@@ -9285,6 +10266,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!buildLog || pollTimer) {
                     return;
                 }
+                // Only touch build.log when the Deliverables UI is active — reading a large
+                // log from Google Drive on every admin tab blocks PHP's single-threaded server.
+                if (!isDeliverablesViewActive()) {
+                    return;
+                }
                 fetch('/biblioteca/get-build-log.php?mode=full')
                     .then((resp) => resp.json())
                     .then((data) => {
@@ -9471,6 +10457,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function runContentAutofix(dryRun) {
                     previewBtn.disabled = true;
                     applyBtn.disabled = true;
+                    statusEl.hidden = false;
                     statusEl.textContent = dryRun ? 'Checking catalog…' : 'Repairing catalog…';
                     if (reportEl) {
                         reportEl.hidden = true;
@@ -9595,6 +10582,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         applyBtn.hidden = false;
                         // Keep Check again visible so a stale quiet-state cache cannot trap operators.
                         refreshBtn.hidden = false;
+                    } else if (data.skipped_on_localhost) {
+                        setCardMode('quiet');
+                        setStatusClass('is-current');
+                        setStatusMessage(data.skip_reason || 'Site update checks are disabled on localhost.');
+                        refreshBtn.hidden = true;
+                        applyBtn.hidden = true;
                     } else if (data.ahead_of_published || data.up_to_date) {
                         setCardMode('quiet');
                         setStatusClass('is-current');
@@ -9756,16 +10749,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     applyPackageUpdate().catch(() => {});
                 });
 
-                // Always hit GitHub on Welcome load. Notifications may still be serving a
-                // 15-minute "up to date" cache from before the latest tester release.
-                refreshPackageUpdateStatus().catch(() => {
-                    if (latestPackageUpdate) {
-                        renderPackageUpdateStatus({
-                            ok: true,
-                            ...latestPackageUpdate,
-                        });
-                    }
-                });
+                // Site update UI lives on Dashboard → Welcome only. Never auto-hit GitHub
+                // from Catalogue/Files/other tabs (card may still exist in the full HTML).
+                if (adminPrimaryTab !== 'welcome') {
+                    return;
+                }
+
+                const isLocalDevHost = window.BANDPROMO_LOCAL_DEV === true
+                    || (() => {
+                        const host = String(window.location.hostname || '').toLowerCase();
+                        return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+                    })();
+                if (isLocalDevHost) {
+                    renderPackageUpdateStatus({
+                        ok: true,
+                        skipped_on_localhost: true,
+                        skip_reason: 'Site update checks are disabled on localhost (no remote GitHub calls).',
+                        up_to_date: true,
+                        update_available: false,
+                        installed_version: null,
+                    });
+                    return;
+                }
+
+                // Paint from the Welcome notifications payload (cached). Operators use
+                // Check again for a live GitHub refresh.
+                if (latestPackageUpdate) {
+                    renderPackageUpdateStatus({
+                        ok: true,
+                        ...latestPackageUpdate,
+                    });
+                }
             })();
 
             (function initSecuritySanityCheck() {
@@ -10057,7 +11071,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>`
                             : '';
                         const downloadHtml = job.download_ready
-                            ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">⬇️ Download</a>`
+                            ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">${String(job.type || '') === 'prp' ? '⬇️ Download .prp' : '⬇️ Download'}</a>`
                             : '';
                         const deleteHtml = job.status !== 'building'
                             ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}">🗑️ Delete</button>`
@@ -10512,10 +11526,121 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                const releasePackageExportSelect = document.getElementById('releasePackageExportSelect');
+                const releasePackageExportBtn = document.getElementById('releasePackageExportBtn');
+                const releasePackageExportStatus = document.getElementById('releasePackageExportStatus');
+
+                async function loadReleasePackageExportOptions() {
+                    if (!(releasePackageExportSelect instanceof HTMLSelectElement)) {
+                        return;
+                    }
+                    try {
+                        let releases = [];
+                        if (typeof loadReleasesCatalog === 'function') {
+                            releases = await loadReleasesCatalog();
+                        } else {
+                            const response = await fetch('/biblioteca/get-releases.php', {
+                                credentials: 'same-origin',
+                                cache: 'no-store',
+                            });
+                            const data = await response.json().catch(() => ({}));
+                            if (!response.ok || data.ok === false) {
+                                throw new Error(data.error || 'Could not load releases');
+                            }
+                            releases = Array.isArray(data.releases) ? data.releases : [];
+                        }
+                        const options = (Array.isArray(releases) ? releases : [])
+                            .filter((entry) => String(entry?.id || '') !== 'primary')
+                            .map((entry) => {
+                                const id = String(entry.id || '').trim();
+                                const title = String(entry.title || id).trim() || id;
+                                return `<option value="${id.replace(/"/g, '&quot;')}">${title.replace(/</g, '&lt;')}</option>`;
+                            });
+                        releasePackageExportSelect.innerHTML = options.length
+                            ? options.join('')
+                            : '<option value="">No exportable releases</option>';
+                    } catch (error) {
+                        releasePackageExportSelect.innerHTML = '<option value="">Could not load releases</option>';
+                        if (releasePackageExportStatus) {
+                            releasePackageExportStatus.textContent = error.message || 'Could not load releases';
+                            releasePackageExportStatus.classList.add('is-error');
+                        }
+                    }
+                }
+
+                async function exportReleasePackageFromBackup() {
+                    if (!(releasePackageExportSelect instanceof HTMLSelectElement)) {
+                        return;
+                    }
+                    const releaseId = String(releasePackageExportSelect.value || '').trim();
+                    if (!releaseId) {
+                        if (releasePackageExportStatus) {
+                            releasePackageExportStatus.textContent = 'Choose a release campaign first.';
+                            releasePackageExportStatus.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (releasePackageExportStatus) {
+                        releasePackageExportStatus.textContent = 'Queueing PRP export…';
+                        releasePackageExportStatus.classList.remove('is-error');
+                    }
+                    if (releasePackageExportBtn instanceof HTMLButtonElement) {
+                        releasePackageExportBtn.disabled = true;
+                    }
+                    try {
+                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                            ? await refreshAdminCsrfToken()
+                            : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                        const response = await fetch('/biblioteca/export-release-package.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                release_id: releaseId,
+                                csrf_token: csrfToken,
+                            }),
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.ok === false) {
+                            throw new Error(data.error || 'Could not queue PRP export');
+                        }
+                        const message = data.message || 'PRP export queued.';
+                        if (releasePackageExportStatus) {
+                            releasePackageExportStatus.textContent = message;
+                        }
+                        if (jobsStatus) {
+                            jobsStatus.textContent = 'Building in background. This list refreshes automatically.';
+                            jobsStatus.classList.remove('is-error');
+                        }
+                        if (typeof refreshBackupJobs === 'function') {
+                            await refreshBackupJobs();
+                        }
+                    } catch (error) {
+                        if (releasePackageExportStatus) {
+                            releasePackageExportStatus.textContent = error.message || 'Export failed';
+                            releasePackageExportStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        if (releasePackageExportBtn instanceof HTMLButtonElement) {
+                            releasePackageExportBtn.disabled = false;
+                        }
+                    }
+                }
+
+                if (releasePackageExportSelect instanceof HTMLSelectElement) {
+                    loadReleasePackageExportOptions().catch(() => {});
+                }
+                if (releasePackageExportBtn) {
+                    releasePackageExportBtn.addEventListener('click', () => {
+                        exportReleasePackageFromBackup().catch(() => {});
+                    });
+                }
+
                 const releasePackageImportInput = document.getElementById('releasePackageImportInput');
                 const releasePackageImportBtn = document.getElementById('releasePackageImportBtn');
                 const releasePackageImportStatus = document.getElementById('releasePackageImportStatus');
                 const releasePackageImportFilename = document.getElementById('releasePackageImportFilename');
+                const releasePackageImportCollision = document.getElementById('releasePackageImportCollision');
 
                 if (releasePackageImportInput instanceof HTMLInputElement) {
                     releasePackageImportInput.addEventListener('change', () => {
@@ -10533,7 +11658,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function importReleasePackage() {
                     if (!(releasePackageImportInput instanceof HTMLInputElement) || !releasePackageImportInput.files?.length) {
                         if (releasePackageImportStatus) {
-                            releasePackageImportStatus.textContent = 'Choose a release package ZIP first.';
+                            releasePackageImportStatus.textContent = 'Choose a .prp or .zip package first.';
                             releasePackageImportStatus.classList.add('is-error');
                         }
                         return;
@@ -10551,6 +11676,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
                         const formData = new FormData();
                         formData.append('package', releasePackageImportInput.files[0]);
+                        const collision = releasePackageImportCollision instanceof HTMLSelectElement
+                            ? String(releasePackageImportCollision.value || 'refuse')
+                            : 'refuse';
+                        formData.append('collision', collision);
                         if (csrfToken) {
                             formData.append('csrf_token', csrfToken);
                         }

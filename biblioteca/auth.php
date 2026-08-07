@@ -191,10 +191,23 @@ function changePassword($username, $newPassword) {
     return setUser($username, $newPassword);
 }
 
-function bandpromo_ensure_session_started(): void {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+function bandpromo_ensure_session_started(bool $readAndClose = false): void {
+    if (!function_exists('bandpromo_configure_session_storage')) {
+        require_once __DIR__ . '/https.php';
     }
+    bandpromo_configure_session_storage();
+
+    if (session_status() !== PHP_SESSION_NONE) {
+        return;
+    }
+
+    if ($readAndClose) {
+        // Auth-only reads: load $_SESSION and release the lock immediately.
+        session_start(['read_and_close' => true]);
+        return;
+    }
+
+    session_start();
 }
 
 function bandpromo_is_authenticated_session(): bool {
@@ -214,15 +227,15 @@ function bandpromo_send_auth_failure(int $status, bool $json, string $message): 
     exit;
 }
 
-function bandpromo_require_authenticated_session(bool $json = true): void {
-    bandpromo_ensure_session_started();
+function bandpromo_require_authenticated_session(bool $json = true, bool $readOnly = false): void {
+    bandpromo_ensure_session_started($readOnly);
     if (!bandpromo_is_authenticated_session()) {
         bandpromo_send_auth_failure(401, $json, 'Unauthorized');
     }
 }
 
-function bandpromo_require_admin_session(bool $json = true): void {
-    bandpromo_require_authenticated_session($json);
+function bandpromo_require_admin_session(bool $json = true, bool $readOnly = true): void {
+    bandpromo_require_authenticated_session($json, $readOnly);
     $username = trim((string) ($_SESSION['username'] ?? ''));
     if ($username === '' || !isAdminUser($username)) {
         bandpromo_send_auth_failure(403, $json, 'Admin privileges required');

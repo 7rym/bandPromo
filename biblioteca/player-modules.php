@@ -153,11 +153,21 @@ function bandpromo_player_tab_from_key(string $root, string $key): ?array {
         return null;
     }
 
+    $releaseId = '';
+    try {
+        require_once __DIR__ . '/page-storage.php';
+        $doc = bandpromo_page_load_document($root, $pageId);
+        $releaseId = trim((string) ($doc['release_id'] ?? ''));
+    } catch (Throwable $throwable) {
+        $releaseId = '';
+    }
+
     return [
         'view' => 'page-' . $pageId,
         'label' => (string) ($entry['label'] ?? $entry['title']),
         'kind' => 'page',
         'page_id' => $pageId,
+        'release_id' => $releaseId,
     ];
 }
 
@@ -189,9 +199,9 @@ function bandpromo_player_normalize_shell_background_mode(mixed $value): string
 function bandpromo_player_playlist_selector_mode(?array $config = null): string
 {
     if ($config === null) {
-        $raw = get_config('player.playlist_selector', 'dropdown');
+        $raw = get_config('player.playlist_selector', 'coverflow');
     } else {
-        $raw = $config['player']['playlist_selector'] ?? 'dropdown';
+        $raw = $config['player']['playlist_selector'] ?? 'coverflow';
     }
 
     return bandpromo_player_normalize_playlist_selector_mode($raw);
@@ -204,7 +214,7 @@ function bandpromo_player_normalize_playlist_selector_mode(mixed $value): string
         return $mode;
     }
 
-    return 'dropdown';
+    return 'coverflow';
 }
 
 function bandpromo_player_layout_admin_state(string $root): array {

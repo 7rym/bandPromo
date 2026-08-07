@@ -142,6 +142,9 @@ try {
     exit;
 }
 
+// Catalogue → Release owns the campaign name; ignore client album edits.
+$normalized_fields['album'] = trim((string) ($current_detail['album'] ?? ''));
+
 $existing_tracknumber = trim((string) ($current_detail['tracknumber'] ?? ''));
 if ($existing_tracknumber === '') {
     $existing_tracknumber = trim((string) ($current_detail['suggested_tracknumber'] ?? ''));

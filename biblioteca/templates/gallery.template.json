@@ -1,0 +1,18 @@
+{
+    "version": 2,
+    "id": "gallery",
+    "title": "Gallery",
+    "release_id": "bandpromo-demo",
+    "updated_at": "2026-08-06T00:00:00Z",
+    "blocks": [
+        {
+            "type": "richtext",
+            "html": "<h2 class=\"page-align-center\">Gallery</h2><p class=\"page-align-center\">Photos and clips from the bandPromo demo campaign.</p>"
+        },
+        {
+            "type": "gallery",
+            "gallery_id": "bandpromo-demo",
+            "preset": "grid"
+        }
+    ]
+}

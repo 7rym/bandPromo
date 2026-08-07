@@ -664,6 +664,10 @@ function bandpromo_gallery_migrate_from_legacy(string $root): void
 function bandpromo_gallery_ensure_seeded(string $root): void
 {
     static $running = [];
+    static $completed = [];
+    if (!empty($completed[$root])) {
+        return;
+    }
     if (!empty($running[$root])) {
         return;
     }
@@ -681,6 +685,7 @@ function bandpromo_gallery_ensure_seeded(string $root): void
         if (!is_file(bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEMO_ID))) {
             bandpromo_gallery_migrate_from_legacy($root);
         }
+        $completed[$root] = true;
     } finally {
         unset($running[$root]);
     }

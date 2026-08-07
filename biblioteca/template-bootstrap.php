@@ -120,7 +120,7 @@ function bandpromo_ensure_runtime_files_seeded(): array {
     $errors = array_merge($errors, bandpromo_page_seed_all_if_missing($root));
 
     try {
-        bandpromo_asset_registry_ensure_migrated($root);
+        bandpromo_asset_registry_ensure_migrated($root, true);
         bandpromo_release_ensure_seeded($root);
         bandpromo_playlist_ensure_seeded($root);
         bandpromo_gallery_ensure_seeded($root);

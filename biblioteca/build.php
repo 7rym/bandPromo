@@ -68,7 +68,7 @@ $debug = [
     'os' => PHP_OS_FAMILY,
     'launcher' => 'php-proc-runner',
     'python' => null,
-    'default_theme_package' => null,
+    'demo_release_package' => null,
     'script' => $script,
     'launch_command' => null,
     'launch_exit_code' => null,
@@ -172,23 +172,33 @@ if ($mode === 'full') {
 
 file_put_contents($log_file, "[setup] Starting publish build...\n", FILE_APPEND);
 
-try {
-    $debug['demo_release_package'] = bandpromo_ensure_demo_release_package(
-        $root_dir,
-        BANDPROMO_RELEASE_MANIFEST_URL,
-        static function (string $message) use ($log_file): void {
-            file_put_contents($log_file, $message . "\n", FILE_APPEND);
-        }
+// First-run setup may request Demo PRP install. Admin Publish never does —
+// campaign content is already on the host (setup import or operator PRP).
+$ensureDemo = !empty($request_data['ensure_demo']) || !empty($_POST['ensure_demo']);
+if ($ensureDemo) {
+    try {
+        $debug['demo_release_package'] = bandpromo_ensure_demo_release_package(
+            $root_dir,
+            BANDPROMO_RELEASE_MANIFEST_URL,
+            static function (string $message) use ($log_file): void {
+                file_put_contents($log_file, $message . "\n", FILE_APPEND);
+            }
+        );
+    } catch (Throwable $throwable) {
+        file_put_contents($log_file, '[demo release] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
+        @unlink($lock_file);
+        echo json_encode([
+            'error' => 'bandPromo could not prepare the Demo PRP this site needs before the first build can continue. ' . $throwable->getMessage(),
+            'debug' => $debug,
+        ]);
+        exit;
+    }
+} else {
+    file_put_contents(
+        $log_file,
+        "[setup] Skipping Demo PRP ensure (Publish uses content already on this host).\n",
+        FILE_APPEND
     );
-    $debug['default_theme_package'] = $debug['demo_release_package']['media'] ?? null;
-} catch (Throwable $throwable) {
-    file_put_contents($log_file, '[demo release] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
-    @unlink($lock_file);
-    echo json_encode([
-        'error' => 'bandPromo could not prepare the Demo Release package this site needs before the build can continue. ' . $throwable->getMessage(),
-        'debug' => $debug,
-    ]);
-    exit;
 }
 
 try {
@@ -214,10 +224,11 @@ if ($mode === 'full') {
     file_put_contents($log_file, "DEBUG Profile: " . $build_profile . "\n", FILE_APPEND);
     file_put_contents($log_file, "DEBUG Stages: " . implode(', ', $build_stage_ids) . "\n", FILE_APPEND);
 }
-if (is_array($debug['default_theme_package'])) {
-    $themePackage = $debug['default_theme_package'];
-    $themeState = !empty($themePackage['installed']) ? 'downloaded' : 'already present';
-    file_put_contents($log_file, "DEBUG Default theme package: {$themeState} ({$themePackage['version']})\n", FILE_APPEND);
+if (is_array($debug['demo_release_package'])) {
+    $demoPackage = $debug['demo_release_package'];
+    $demoState = !empty($demoPackage['installed']) ? 'imported' : 'already present / local seed';
+    $demoVersion = (string) ($demoPackage['version'] ?? $demoPackage['source'] ?? 'n/a');
+    file_put_contents($log_file, "DEBUG Demo PRP: {$demoState} ({$demoVersion})\n", FILE_APPEND);
 }
 file_put_contents($meta_file, json_encode([
     'run_id' => $build_run_id,

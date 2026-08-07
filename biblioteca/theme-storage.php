@@ -454,6 +454,11 @@ function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, s
             $filename = basename((string) ($asset['original_filename'] ?? $asset['master_filename'] ?? ''));
 
             if ($kind === 'sfx' || ($kind === 'visual' && $mediaType === 'audio')) {
+                require_once __DIR__ . '/sfx-helpers.php';
+                $playUrl = bandpromo_sfx_resolve_play_url($root, $asset);
+                if ($playUrl !== '') {
+                    return $playUrl;
+                }
                 if ($filename !== '') {
                     return bandpromo_sfx_web_path($filename);
                 }
@@ -1345,6 +1350,11 @@ function bandpromo_theme_migrate_from_config(string $root): void
 
 function bandpromo_theme_ensure_seeded(string $root): void
 {
+    static $completed = [];
+    if (!empty($completed[$root])) {
+        return;
+    }
+
     bandpromo_theme_migrate_from_themes($root);
     bandpromo_theme_registry_ensure_dir($root);
     if (!is_file(bandpromo_theme_registry_path($root))) {
@@ -1355,8 +1365,9 @@ function bandpromo_theme_ensure_seeded(string $root): void
         bandpromo_theme_migrate_from_config($root);
     }
 
-    // Locked default brand is not editable — heal missing demo shell files / config refs.
+    // Heal once per PHP process — shell path probes are costly on synced folders.
     bandpromo_theme_heal_install_shell_media($root);
+    $completed[$root] = true;
 }
 
 function bandpromo_theme_slug_from_title(string $title): string

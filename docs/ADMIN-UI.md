@@ -80,6 +80,28 @@ Do not mix coral primary + `danger` on the same confirm button — use `.btn.btn
 | `.media-file-inline-chip-amber` | `--intent-warn-*` |
 | `.media-file-inline-chip-danger` | error-tint red (hard health fail) |
 
+## Track editor modal (Files → Audio)
+
+Shares Content/Visual chrome without the pool → preview layout:
+
+| Pattern | Classes |
+|---------|---------|
+| Cover + meta | `.audio-master-cover-layout`, `.release-cover-meta`, shared `.audio-master-cover-preview` |
+| Field labels | `.playlist-settings-field` / `--wide` |
+| Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn` |
+| Autosave status | Header `.playlist-settings-status--head` + `.visual-asset-display-status.is-success/.is-error` (“Close to save” / “Unsaved changes”) |
+| Listen preview | Compact `<audio>` under Master audio asset (`.audio-master-listen-bar`); Files rows use ▶ → `#adminAudioListenDock` via `audio.php` (`.media-action-good`) |
+| Save / Abort | Footer `.audio-master-modal-actions`: **Done** / ✕ / backdrop save on close; **Abort** discards |
+| Audio list columns | Compact `.audio-pool-toolbar` + shared grid; All/None `.audio-select-chip` in header; `[data-audio-sort]` for client sort |
+
+Edits stay local until close. Validation or save errors keep the modal open.
+
+## Markdown help (prose textareas)
+
+Long player-facing prose textareas (track description, lyrics/Notes, release/playlist long description) show **Markdown** plus a **?** control (`.markdown-help-open`) that opens `#markdownHelpModal`. Short descriptions, titles, and page richtext stay plain / toolbar HTML.
+
+Helpers: `bandpromo_admin_markdown_help_trigger()` / `bandpromo_admin_markdown_help_note()` in `biblioteca/player-markdown.php`.
+
 ## Drag-and-drop rows
 
 | Context | Look |
@@ -89,6 +111,15 @@ Do not mix coral primary + `danger` on the same confirm button — use `.btn.btn
 | Associated playlists / galleries / pages | Same card row as Available (border + ✕) |
 
 Do not put `release-associated-track-row` on association pool rows.
+
+## Gallery membership (v0.8)
+
+Primary flow for assembling gallery items:
+
+1. **Searchable multi-select picker** — shared media-picker pattern; filters for type, role, brand/release, date, keyword; show **human title** + larger thumb (not tiny `ast_*`-only chips).
+2. **Ordered selected list** — explicit reorder; multi-select add/remove.
+
+Available↔Associated drag-and-drop of small thumbs is not the primary assembly path for concert-scale galleries.
 
 ## Related docs
 

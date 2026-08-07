@@ -757,7 +757,56 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
 }
 
 /**
+ * Heal empty visual display from embedded IPTC/XMP (stills) or Matroska tags (video).
+ */
+function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/light-build-tasks.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'visual_display_heal',
+        'Heal empty visual display fields from master IPTC/XMP or Matroska tags'
+    );
+
+    if ($dryRun) {
+        $registry = bandpromo_asset_load_registry($root);
+        $pending = 0;
+        foreach ($registry['assets'] as $asset) {
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+                continue;
+            }
+            $display = bandpromo_asset_read_visual_display($asset);
+            if ($display['title'] === '' || $display['description'] === '' || $display['captured_at'] === '') {
+                $pending++;
+            }
+        }
+        $step['changed'] = $pending;
+        if ($pending > 0) {
+            $step['items'][] = ['pending' => $pending];
+        }
+
+        return $step;
+    }
+
+    $result = bandpromo_run_light_json_task('scripts/visualMasterMetadata.py', [
+        'action' => 'heal_empty',
+    ]);
+    $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+    if (empty($result['ok']) || empty($data['ok'])) {
+        $step['errors'][] = (string) ($data['error'] ?? $result['error'] ?? 'Visual display heal failed');
+
+        return $step;
+    }
+
+    $step['changed'] = (int) ($data['count'] ?? 0);
+    $step['items'] = is_array($data['healed'] ?? null) ? $data['healed'] : [];
+
+    return $step;
+}
+
+/**
  * Relocate visual originals + materialize media/visual/master/ast_* (M2).
+ * Video masters remux to MKV.
  */
 function bandpromo_content_autofix_materialize_visual_masters(string $root, bool $dryRun): array
 {
@@ -774,12 +823,14 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
             continue;
         }
         $working = bandpromo_visual_working_path($root, $asset);
+        $mediaType = strtolower(trim((string) ($asset['media_type'] ?? '')));
         $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo(
             (string) ($asset['original_filename'] ?? ''),
             PATHINFO_EXTENSION
         ))));
-        $masterPath = $format !== ''
-            ? bandpromo_visual_master_path($root, (string) $assetId, $format)
+        $expectedFormat = $mediaType === 'video' ? 'mkv' : $format;
+        $masterPath = $expectedFormat !== ''
+            ? bandpromo_visual_master_path($root, (string) $assetId, $expectedFormat)
             : '';
         $needsMaster = $masterPath === '' || !is_file($masterPath);
         $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
@@ -789,7 +840,8 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
         $needsOriginal = $unified !== '' && !is_file($unified);
         $currentMaster = basename(trim((string) ($asset['master_filename'] ?? '')));
         $needsCanonical = $currentMaster === ''
-            || !bandpromo_asset_is_asset_id((string) pathinfo($currentMaster, PATHINFO_FILENAME));
+            || !bandpromo_asset_is_asset_id((string) pathinfo($currentMaster, PATHINFO_FILENAME))
+            || ($mediaType === 'video' && strtolower(trim((string) ($asset['master_format'] ?? ''))) !== 'mkv');
 
         if (!$needsMaster && !$needsOriginal && !$needsCanonical) {
             $step['skipped']++;
@@ -822,7 +874,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
     $changedTotal = 0;
 
     try {
-        bandpromo_asset_registry_ensure_migrated($root);
+        bandpromo_asset_registry_ensure_migrated($root, true);
         bandpromo_release_ensure_seeded($root);
         bandpromo_playlist_ensure_seeded($root);
         bandpromo_gallery_ensure_seeded($root);
@@ -867,6 +919,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'bandpromo_content_autofix_materialize_audio_masters',
         'bandpromo_content_autofix_canonicalize_master_filenames',
         'bandpromo_content_autofix_materialize_visual_masters',
+        'bandpromo_content_autofix_heal_visual_display',
         'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_releases',

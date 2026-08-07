@@ -616,7 +616,7 @@ Operator-facing summary:
 
 Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s static player payload so `/play` can load without a full site rebuild.
 
-Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via the setup starter pack (locked release `bandpromo-demo` / published default-theme package) and are built into the normal three-tier layout on the host.
+Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via setup import of `bandPromo-demo.prp` (or local seed) and are built into the normal three-tier layout on the host. Admin Publish does not re-download demo packages. Sound effects use the same three-tier idea under `media/sfx/{original,master,optimal}` (login plays delivery MP3 when ready).
 
 It is not:
 
@@ -663,6 +663,7 @@ Examples:
 - audio delivery variants: `standard-stream`, `mobile-stream`, `lossless-download` when genuinely supported
 - image delivery variants: `thumb`, `card`, `lightbox`, `share`
 - video delivery variants: `poster`, `standard-stream`, `mobile-stream`
+- **Video soundtrack policy:** `role=gallery` keeps audio in `standard-stream`; all other video roles (living covers, shell backgrounds, unassigned, …) build **silent** delivery (video track only) to save bytes
 
 This keeps the system honest about what each generated asset is for.
 
@@ -682,12 +683,14 @@ Image master:
 - corrected canonical source for future delivery generation
 - may normalize filename, orientation, metadata, or embedded descriptive fields
 - should preserve alpha/transparency and source capabilities when that matters for future outputs
+- **Metadata (locked):** keep camera **EXIF** as read-only provenance (`DateTimeOriginal` / GPS → registry `captured_at`). Write operator **title / description / keywords** as **IPTC Core via XMP** on the master only (not into EXIF editorial fields). Autofix heals empty registry `display` from embedded IPTC/XMP + EXIF dates. Formats in scope: JPG/JPEG, PNG, WebP.
 
 Video master:
 
 - corrected canonical source for future poster/transcode generation
 - may include normalized naming, poster association, and packaging metadata
 - should not be prematurely flattened into one streaming format if the canonical edited source should remain richer
+- **Container (locked):** remux intake → `media/visual/master/ast_*.mkv` with **stream copy** (no re-encode). Matroska tags hold title / description / keywords / date. Original intake preserved. **Delivery stays MP4** (`standard-stream.mp4`; silent except `role=gallery`). Upload allowlist may expand to MKV once masters are MKV; browsers never load master MKV.
 
 ### Important implementation constraint
 
@@ -1074,7 +1077,7 @@ Unsupported files should be replaced with FLAC/MP3/WAV or removed from the audio
 The current pipeline is split into two main metadata paths:
 
 - source audio reading for playlist generation
-- FLAC-to-MP3 conversion with ID3 tag writing for delivery files
+- FLAC-to-MP3 conversion with **tagless** delivery output (strip ID3/APEv2 after build)
 
 That means the platform does not yet use one single universal metadata format internally.
 
@@ -1148,7 +1151,7 @@ This matrix defines the preferred future behavior.
 | Reorder playlist | none for delivery generation; save order only | Save immediately | No build warning |
 | Edit gallery entries or order | none for delivery generation in the common case | Save immediately | No build warning |
 | Edit bio/pages | none | Save immediately | No build warning |
-| Edit metadata in Files -> Audio | `playlist-scan` only when needed; `audio-delivery` only if the optimal MP3 is missing or cover/art bytes changed | Keep **last-good** player playlist payload (never wipe to empty); patch ID3 on existing delivery MP3 when present; quiet republish playlists that include the track; clear “Prepare your songs” when tag-only sync succeeds | `/play` stays up after a typo fix; explain only when delivery must regenerate |
+| Edit metadata in Files -> Audio | `playlist-scan` only when needed; `audio-delivery` only if the optimal MP3 is missing or cover/art bytes changed | Keep **last-good** player playlist payload (never wipe to empty); keep delivery MP3 **tagless** when present; quiet republish playlists that include the track; clear “Prepare your songs” when tag-only sync succeeds | `/play` stays up after a typo fix; explain only when delivery must regenerate |
 
 ### Naming guidance for admin UI
 
@@ -1282,25 +1285,13 @@ When the source file is FLAC, the optimizer currently reads these Vorbis-style f
 
 This is currently the richest metadata path in the codebase.
 
-## Current tags written to generated MP3 files
+## Delivery MP3 tags (locked: tagless)
 
-Generated MP3 delivery files are tagged with ID3v2.4.
+Generated MP3 delivery files are **tagless**: after copy or transcode, the optimizer strips all ID3 and APEv2 blocks (including APIC cover art).
 
-The current writer sets:
+Listener-facing identity (title, artist, album, lyrics, covers) comes from the asset registry and published playlist JSON. Media Session and future Chromecast metadata use those sources — not embedded tags. Masters remain fully tagged for editing and portable release packages.
 
-- `TIT2` from title
-- `TPE1` from artist
-- `TALB` from album
-- `TDRC` from date or year
-- `TRCK` from track number
-- `TCON` from genre
-- `TPE2` from album artist
-- `COMM` from comment
-- `TBP` from BPM
-- `TKEY` from musical key
-- `TPE4` from mix artist
-- `USLT` from lyrics
-- `APIC` from embedded artwork
+See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) § Tagless audio delivery.
 
 ## Current validation output
 

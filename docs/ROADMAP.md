@@ -53,7 +53,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** v0.8 residual polish — physical Brand-assets `media/special/` fold into Visual-only intake; Content AI wizards remain defined. Page container metadata / OG polish still v0.9. See [TODO.md](TODO.md).
+**Next focus:** v0.8 residual polish — visual naming (IPTC/XMP stills, MKV video masters) + gallery multi-select pickers; physical Brand-assets `media/special/` fold into Visual-only intake; Content AI wizards remain defined. Page container metadata / OG polish still v0.9. Fan comment/share on gallery assets is **v0.9+** (keep in USE-CASES tour story). See [TODO.md](TODO.md).
 
 ## Core vs modules
 

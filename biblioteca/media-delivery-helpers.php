@@ -239,10 +239,9 @@ function bandpromo_visual_variant_path(string $root, string $assetId, string $va
     if (isset($variants[$variant]) && is_array($variants[$variant])) {
         $rel = trim((string) ($variants[$variant]['path'] ?? ''));
         if ($rel !== '') {
-            $abs = $root . '/' . ltrim(str_replace('\\', '/', $rel), '/');
-            if (is_file($abs)) {
-                return $abs;
-            }
+            // Trust registry delivery paths for listing/URL paint. Avoid is_file() probes —
+            // on Google Drive / slow hosts they dominate Files → Visual list-media time.
+            return $root . '/' . ltrim(str_replace('\\', '/', $rel), '/');
         }
     }
 
@@ -268,6 +267,28 @@ function bandpromo_visual_variant_path(string $root, string $assetId, string $va
     return '';
 }
 
+/**
+ * Relative URL for a registered visual delivery variant (registry-first, no disk probe).
+ */
+function bandpromo_visual_registry_variant_url(array $asset, string $variant): string
+{
+    $variant = strtolower(trim($variant));
+    if ($variant === 'optimal' || $variant === 'lightbox') {
+        $variant = 'card';
+    }
+    $delivery = is_array($asset['delivery'] ?? null) ? $asset['delivery'] : [];
+    $variants = is_array($delivery['variants'] ?? null) ? $delivery['variants'] : [];
+    if (!isset($variants[$variant]) || !is_array($variants[$variant])) {
+        return '';
+    }
+    $rel = trim((string) ($variants[$variant]['path'] ?? ''));
+    if ($rel === '') {
+        return '';
+    }
+
+    return '/' . ltrim(str_replace('\\', '/', $rel), '/');
+}
+
 function bandpromo_visual_variant_relative_url(string $root, string $assetId, string $variant): string
 {
     $path = bandpromo_visual_variant_path($root, $assetId, $variant);
@@ -287,7 +308,21 @@ function bandpromo_visual_variant_relative_url(string $root, string $assetId, st
 }
 
 /**
- * Operator-facing visual title: role + linked context (Files / pickers).
+ * Primary Files / picker label: human display title when set, else role + context.
+ */
+function bandpromo_visual_listing_title(string $root, array $asset, array $entry = []): string
+{
+    require_once __DIR__ . '/asset-registry.php';
+    $display = bandpromo_asset_read_visual_display($asset);
+    if ($display['title'] !== '') {
+        return $display['title'];
+    }
+
+    return bandpromo_visual_operator_title($root, $asset, $entry);
+}
+
+/**
+ * Operator-facing visual address: role + linked context (Files / pickers).
  */
 function bandpromo_visual_operator_title(string $root, array $asset, array $entry = []): string
 {
@@ -347,12 +382,16 @@ function bandpromo_visual_operator_title(string $root, array $asset, array $entr
 
 /**
  * Resolve a public URL for a visual asset/variant (delivery first; originals for admin preview).
+ *
+ * @param bool $allowOriginalFallback When false (Catalogue / list thumbs), never return
+ *                                    multi-MB intake originals — empty means show a placeholder.
  */
 function bandpromo_visual_resolve_url(
     string $root,
     string $filenameOrAssetId,
     string $variant = 'card',
-    string $intakeBucket = ''
+    string $intakeBucket = '',
+    bool $allowOriginalFallback = true
 ): string {
     require_once __DIR__ . '/asset-registry.php';
 
@@ -371,13 +410,26 @@ function bandpromo_visual_resolve_url(
     }
 
     if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
-        $url = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), $variant);
-        if ($url !== '') {
-            return $url;
+        // Prefer the requested variant, then the other small delivery size.
+        foreach ([$variant, $variant === 'thumb' ? 'card' : 'thumb'] as $tryVariant) {
+            $url = bandpromo_visual_registry_variant_url($asset, $tryVariant);
+            if ($url !== '') {
+                return $url;
+            }
+            $url = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), $tryVariant);
+            if ($url !== '') {
+                return $url;
+            }
+        }
+        if (!$allowOriginalFallback) {
+            return '';
         }
         $filename = basename((string) ($asset['original_filename'] ?? ''));
         $bucket = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? $intakeBucket));
     } else {
+        if (!$allowOriginalFallback) {
+            return '';
+        }
         $filename = basename($ref);
         $bucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
     }

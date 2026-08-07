@@ -41,8 +41,12 @@ try {
         'size_bytes' => (int) ($normalized['size_bytes'] ?? 0),
     ]);
 
+    // Streams and exits on success. Do not wrap post-header failures in JSON.
     bandpromo_site_backup_stream_file($zipPath, $filename);
 } catch (Throwable $e) {
+    if (headers_sent()) {
+        exit;
+    }
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([

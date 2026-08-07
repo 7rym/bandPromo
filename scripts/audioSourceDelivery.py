@@ -57,7 +57,6 @@ def process_filename(filename):
     mp3_filename = Path(filename).stem + '.mp3'
     mp3_path = om.AUDIO_OPT_DIR / mp3_filename
     delivery_mode = om.audio_delivery_mode(source_path)
-    tags = om.get_audio_tags(str(source_path))
 
     if delivery_mode == 'copy':
         converted_ok = om.copy_audio_to_mp3(str(source_path), str(mp3_path))
@@ -67,7 +66,7 @@ def process_filename(filename):
     if not converted_ok:
         return False, 'delivery_conversion_failed'
 
-    om.set_id3_tags(str(mp3_path), tags)
+    om.strip_delivery_audio_tags(str(mp3_path))
 
     info = makePlaylists.parse_audio_file(str(source_path))
     cover_file = os.path.basename(str(info.get('cover') or '').strip())
