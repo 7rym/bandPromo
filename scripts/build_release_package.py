@@ -79,9 +79,22 @@ INSTALL_ICON_PATHS = (
     "media/icons/favicon-32x32.png",
     "media/icons/favicon-96x96.png",
     "media/icons/favicon.ico",
-    "media/icons/favicon.svg",
     "media/icons/web-app-manifest-192x192.png",
     "media/icons/web-app-manifest-512x512.png",
+)
+
+OPTIONAL_ICON_PATHS = (
+    "media/icons/favicon.svg",
+)
+
+REQUIRED_ICON_BASENAMES = (
+    "apple-touch-icon.png",
+    "favicon-16x16.png",
+    "favicon-32x32.png",
+    "favicon-96x96.png",
+    "favicon.ico",
+    "web-app-manifest-192x192.png",
+    "web-app-manifest-512x512.png",
 )
 
 
@@ -169,6 +182,40 @@ def ensure_runtime_protection_files():
     return paths
 
 
+def ensure_install_icons_on_disk():
+    # type: () -> None
+    """Ensure expanded install icons exist (extract bP-icons.zip when needed)."""
+    icons_dir = ROOT / "media" / "icons"
+    zip_path = icons_dir / "bP-icons.zip"
+    missing = [
+        name
+        for name in REQUIRED_ICON_BASENAMES
+        if not (icons_dir / name).is_file()
+    ]
+    if not missing:
+        return
+    if not zip_path.is_file():
+        raise RuntimeError(
+            "Required install icons missing from on-disk media/icons/ and "
+            "bP-icons.zip is absent. Seed media/icons/ from the previous "
+            "bandPromo.zip before packaging. Missing: {0}".format(", ".join(missing))
+        )
+    icons_dir.mkdir(parents=True, exist_ok=True)
+    with ZipFile(str(zip_path), "r") as archive:
+        archive.extractall(str(icons_dir))
+    still_missing = [
+        name
+        for name in REQUIRED_ICON_BASENAMES
+        if not (icons_dir / name).is_file()
+    ]
+    if still_missing:
+        raise RuntimeError(
+            "bP-icons.zip did not provide required install icons: {0}".format(
+                ", ".join(still_missing)
+            )
+        )
+
+
 def write_zip(archive_path, files):
     # type: (Path, List[str]) -> None
     if archive_path.exists():
@@ -250,23 +297,15 @@ def build_zip(
             app_files.append(relative_path)
 
     # Install icons ship with the application package (Demo PRP is masters-only).
-    missing_icons = []  # type: List[str]
+    ensure_install_icons_on_disk()
     for relative_path in INSTALL_ICON_PATHS:
         if (ROOT / relative_path).is_file():
             if relative_path not in app_files:
                 app_files.append(relative_path)
-        elif relative_path.endswith("bP-icons.zip") or relative_path.endswith(
-            ("apple-touch-icon.png", "favicon.ico", "favicon-32x32.png")
-        ):
-            missing_icons.append(relative_path)
-    if missing_icons:
-        raise RuntimeError(
-            "Required install icons missing from on-disk media/icons/. "
-            "Seed icons locally (or extract media/icons/ from the previous "
-            "bandPromo.zip) before packaging. Missing: {0}".format(
-                ", ".join(missing_icons)
+        else:
+            raise RuntimeError(
+                "Required install icon missing after ensure: {0}".format(relative_path)
             )
-        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     archive_path = output_dir / package_alias_name()

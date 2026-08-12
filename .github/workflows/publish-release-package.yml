@@ -75,6 +75,11 @@ jobs:
           if extracted == 0:
               raise SystemExit(f"{app_zip.name} contains no media/icons/ paths.")
           print(f"Extracted {extracted} icon paths from {app_zip.name}")
+          zip_path = root / "media" / "icons" / "bP-icons.zip"
+          if zip_path.is_file():
+              with ZipFile(zip_path) as icons_zip:
+                  icons_zip.extractall(root / "media" / "icons")
+              print(f"Expanded {zip_path.name} into media/icons/")
           PY
 
       - name: Build distributable package with release URLs
