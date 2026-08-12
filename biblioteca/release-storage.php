@@ -498,13 +498,6 @@ function bandpromo_release_default_registry(): array
         'version' => BANDPROMO_RELEASE_REGISTRY_VERSION,
         'releases' => [
             [
-                'id' => BANDPROMO_RELEASE_DEMO_ID,
-                'title' => 'bandPromo Demo Release',
-                'slug' => BANDPROMO_RELEASE_DEMO_ID,
-                'sort_order' => 5,
-                'system' => true,
-            ],
-            [
                 'id' => BANDPROMO_RELEASE_DEFAULT_ID,
                 'title' => 'Default release',
                 'slug' => BANDPROMO_RELEASE_DEFAULT_ID,
@@ -708,10 +701,11 @@ function bandpromo_release_ensure_seeded(string $root): void
             }
             $docPath = bandpromo_release_document_path($root, $releaseId);
             if (!is_file($docPath)) {
-                $document = bandpromo_release_default_document();
+                // Platform demo document arrives via PRP import only — never seed an empty shell.
                 if ($releaseId === BANDPROMO_RELEASE_DEMO_ID) {
-                    $document = bandpromo_release_demo_default_document();
+                    continue;
                 }
+                $document = bandpromo_release_default_document();
                 $document['id'] = $releaseId;
                 $document['slug'] = (string) ($entry['slug'] ?? $releaseId);
                 $document['title'] = (string) ($entry['title'] ?? $document['title']);
@@ -748,123 +742,86 @@ function bandpromo_release_registry_entries(string $root): array
 
 function bandpromo_release_is_demo_filename(string $filename): bool
 {
+    // Legacy filename hint only (shell/media hide helpers). Not ownership.
     return strncmp(basename($filename), 'bandPromo_', 10) === 0;
 }
 
-function bandpromo_release_ensure_demo_release(string $root): void
+function bandpromo_release_is_platform_demo(string $releaseId): bool
 {
-    static $running = [];
-    if (!empty($running[$root])) {
-        return;
-    }
-    $running[$root] = true;
-
-    try {
-        bandpromo_asset_registry_ensure_migrated($root);
-        bandpromo_release_registry_ensure_dir($root);
-
-        $registryPath = bandpromo_release_registry_path($root);
-        $registry = is_file($registryPath)
-            ? bandpromo_release_normalize_registry((array) (bandpromo_json_read_array_file($registryPath) ?? []))
-            : bandpromo_release_default_registry();
-
-        $hasDemo = false;
-        foreach ($registry['releases'] as $entry) {
-            if (($entry['id'] ?? '') === BANDPROMO_RELEASE_DEMO_ID) {
-                $hasDemo = true;
-                break;
-            }
-        }
-
-        if (!$hasDemo) {
-            $registry['releases'][] = [
-                'id' => BANDPROMO_RELEASE_DEMO_ID,
-                'title' => 'bandPromo demo',
-                'slug' => BANDPROMO_RELEASE_DEMO_ID,
-                'sort_order' => 5,
-                'system' => true,
-            ];
-            bandpromo_release_write_registry($root, $registry);
-        }
-
-        $docPath = bandpromo_release_document_path($root, BANDPROMO_RELEASE_DEMO_ID);
-        if (!is_file($docPath)) {
-            $document = bandpromo_release_demo_default_document();
-            $templateDocument = $root . '/biblioteca/templates/bandpromo-demo.release.template.json';
-            if (is_file($templateDocument)) {
-                $decoded = bandpromo_json_read_array_file($templateDocument);
-                if ($decoded !== null) {
-                    try {
-                        $document = bandpromo_release_normalize_document($decoded);
-                    } catch (Throwable $throwable) {
-                        $document = bandpromo_release_demo_default_document();
-                    }
-                }
-            }
-            bandpromo_release_write_document($root, $document);
-        }
-
-        bandpromo_release_sync_demo_audio_assets($root);
-    } finally {
-        unset($running[$root]);
-    }
+    return bandpromo_release_normalize_id($releaseId) === BANDPROMO_RELEASE_DEMO_ID;
 }
 
-function bandpromo_release_sync_demo_audio_assets(string $root): void
+/**
+ * Platform demo may be unlocked only on localhost (PRP authoring).
+ * All other releases may change lock freely.
+ */
+function bandpromo_release_may_change_lock(string $releaseId): bool
 {
-    $registry = bandpromo_asset_load_registry($root);
-    $changed = false;
-    $demoAssets = [];
-
-    foreach ($registry['assets'] as $assetId => $asset) {
-        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
-            continue;
-        }
-
-        $masterFilename = basename((string) ($asset['master_filename'] ?? ''));
-        if ($masterFilename === '') {
-            continue;
-        }
-
-        $releaseId = trim((string) ($asset['release_id'] ?? ''));
-        if (bandpromo_release_is_demo_filename($masterFilename)) {
-            if ($releaseId !== BANDPROMO_RELEASE_DEMO_ID) {
-                $registry['assets'][$assetId]['release_id'] = BANDPROMO_RELEASE_DEMO_ID;
-                $changed = true;
-                $releaseId = BANDPROMO_RELEASE_DEMO_ID;
-            }
-        }
-
-        if ($releaseId === BANDPROMO_RELEASE_DEMO_ID) {
-            $demoAssets[] = $registry['assets'][$assetId];
-        }
+    if (!bandpromo_release_is_platform_demo($releaseId)) {
+        return true;
     }
 
-    if ($changed) {
-        bandpromo_asset_write_registry($root, $registry);
-    }
-
-    usort($demoAssets, static fn(array $left, array $right): int => strnatcasecmp(
-        (string) ($left['master_filename'] ?? ''),
-        (string) ($right['master_filename'] ?? '')
-    ));
-
-    $tracks = [];
-    foreach ($demoAssets as $asset) {
-        $tracks[] = [
-            'asset_id' => (string) ($asset['id'] ?? ''),
-            'slug' => trim((string) ($asset['slug'] ?? '')),
-        ];
-    }
-
-    $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
     require_once __DIR__ . '/https.php';
-    // Keep remote/operator installs locked; localhost may unlock for PRP source edits.
-    if (!bandpromo_is_local_dev_host()) {
-        $document['locked'] = true;
+
+    return bandpromo_is_local_dev_host();
+}
+
+/**
+ * Keep remote installs locked if the platform demo is already present.
+ * Does not create demo content — that arrives only via PRP import.
+ */
+function bandpromo_release_enforce_platform_demo_lock(string $root): void
+{
+    $docPath = bandpromo_release_document_path($root, BANDPROMO_RELEASE_DEMO_ID);
+    if (!is_file($docPath)) {
+        return;
     }
-    $document['title'] = 'bandPromo demo';
-    $document['tracks'] = $tracks;
+
+    require_once __DIR__ . '/https.php';
+    $requestHost = bandpromo_request_host_without_port();
+    if ($requestHost === '' || bandpromo_is_local_dev_host()) {
+        return;
+    }
+
+    try {
+        $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+    } catch (Throwable $throwable) {
+        return;
+    }
+
+    if (!empty($document['locked'])) {
+        return;
+    }
+
+    $document['locked'] = true;
+    bandpromo_release_write_document($root, $document);
+}
+
+/**
+ * @deprecated Demo campaign arrives via PRP only. Kept as a lock-enforce hook for old callers.
+ */
+function bandpromo_release_ensure_demo_release(string $root): void
+{
+    bandpromo_release_enforce_platform_demo_lock($root);
+}
+
+/**
+ * Lock the platform demo after a successful PRP import (setup).
+ */
+function bandpromo_release_lock_platform_demo_after_import(string $root): void
+{
+    $docPath = bandpromo_release_document_path($root, BANDPROMO_RELEASE_DEMO_ID);
+    if (!is_file($docPath)) {
+        return;
+    }
+
+    try {
+        $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+    } catch (Throwable $throwable) {
+        return;
+    }
+
+    $document['locked'] = true;
     bandpromo_release_write_document($root, $document);
 }
 
@@ -881,10 +838,6 @@ function bandpromo_release_id_for_master_filename(string $root, string $masterFi
         return $releaseId;
     }
 
-    if (bandpromo_release_is_demo_filename($masterFilename)) {
-        return BANDPROMO_RELEASE_DEMO_ID;
-    }
-
     return '';
 }
 
@@ -894,11 +847,18 @@ function bandpromo_release_id_for_media_file(string $root, string $target, strin
         return bandpromo_release_id_for_master_filename($root, $filename);
     }
 
-    if (bandpromo_release_is_demo_filename($filename)) {
-        return BANDPROMO_RELEASE_DEMO_ID;
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return '';
     }
 
-    return '';
+    $asset = bandpromo_asset_lookup_by_original_filename($root, $filename)
+        ?? bandpromo_asset_lookup_by_master_filename($root, $filename);
+    if (!is_array($asset)) {
+        return '';
+    }
+
+    return bandpromo_release_normalize_id(trim((string) ($asset['release_id'] ?? '')));
 }
 
 /**
@@ -974,7 +934,7 @@ function bandpromo_release_asset_membership_index(string $root): array
             continue;
         }
         $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
-        if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEMO_ID) {
+        if ($releaseId === '') {
             continue;
         }
 
@@ -1047,23 +1007,6 @@ function bandpromo_release_audio_listing_meta(string $root, string $filename): a
 
     if ($filename === '') {
         return $empty;
-    }
-
-    if (bandpromo_release_is_demo_filename($filename)) {
-        $releaseId = BANDPROMO_RELEASE_DEMO_ID;
-        try {
-            $document = bandpromo_release_load_document($root, $releaseId);
-        } catch (Throwable $throwable) {
-            return $empty;
-        }
-
-        return [
-            'release_id' => $releaseId,
-            'release_title' => trim((string) ($document['title'] ?? '')),
-            'release_date' => trim((string) ($document['release_date'] ?? '')),
-            'release_orphan' => false,
-            'on_release' => true,
-        ];
     }
 
     $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
@@ -1173,13 +1116,12 @@ function bandpromo_release_is_protected_id(string $releaseId): bool
 
 function bandpromo_release_is_system_managed(string $releaseId): bool
 {
-    if (bandpromo_release_normalize_id($releaseId) !== BANDPROMO_RELEASE_DEMO_ID) {
-        return false;
-    }
+    // Deprecated compatibility shim. Demo is a normal locked release after PRP import;
+    // localhost may unlock via bandpromo_release_may_change_lock(). Never freeze edits
+    // harder than the locked flag.
+    unset($releaseId);
 
-    require_once __DIR__ . '/https.php';
-    // Localhost developers may edit the platform demo campaign source.
-    return !bandpromo_is_local_dev_host();
+    return false;
 }
 
 /**
@@ -1281,7 +1223,10 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
         // Keep registry-only fields when the document is missing.
     }
 
-    $entry['system_managed'] = bandpromo_release_is_system_managed($releaseId);
+    $entry['platform_demo'] = bandpromo_release_is_platform_demo($releaseId);
+    $entry['can_change_lock'] = bandpromo_release_may_change_lock($releaseId);
+    // Deprecated: always false. Kept so older clients do not treat demo as non-editable.
+    $entry['system_managed'] = false;
     $entry['protected'] = bandpromo_release_is_protected_id($releaseId);
 
     return $entry;
@@ -1290,7 +1235,7 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
 function bandpromo_release_visible_in_admin_catalog(string $root, array $entry): bool
 {
     $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
-    if ($releaseId === BANDPROMO_RELEASE_DEMO_ID && !bandpromo_demo_catalog_is_visible($root)) {
+    if (!bandpromo_demo_catalog_entity_is_visible($root, $releaseId)) {
         return false;
     }
     if ($releaseId !== BANDPROMO_RELEASE_DEFAULT_ID) {
@@ -1357,8 +1302,10 @@ function bandpromo_release_track_row_from_pool(array $track, string $releaseId =
 {
     $file = trim((string) ($track['file'] ?? ''));
     $resolvedReleaseId = trim((string) ($track['release_id'] ?? $releaseId));
-    $isDemoRelease = $resolvedReleaseId === BANDPROMO_RELEASE_DEMO_ID
-        || ($resolvedReleaseId === '' && strncmp($file, 'bandPromo_', 10) === 0);
+    $origin = trim((string) ($track['origin'] ?? ''));
+    if ($origin === '') {
+        $origin = 'user-upload';
+    }
 
     return [
         'file' => $file,
@@ -1367,7 +1314,7 @@ function bandpromo_release_track_row_from_pool(array $track, string $releaseId =
         'artist' => (string) ($track['artist'] ?? ''),
         'album' => (string) ($track['album'] ?? ''),
         'duration' => (int) ($track['duration'] ?? 0),
-        'origin' => (string) ($track['origin'] ?? ($isDemoRelease ? 'bundled-placeholder' : 'user-upload')),
+        'origin' => $origin,
         'sourceTier' => (string) ($track['sourceTier'] ?? 'master'),
         'deliveryReady' => ($track['deliveryReady'] ?? true) !== false,
         'release_id' => $resolvedReleaseId,
@@ -1946,7 +1893,7 @@ function bandpromo_release_enrich_editor_tracks(string $root, array $tracks): ar
 function bandpromo_release_sync_member_audio_tags(string $root, string $releaseId): int
 {
     $releaseId = bandpromo_release_normalize_id($releaseId);
-    if ($releaseId === '' || bandpromo_release_is_system_managed($releaseId)) {
+    if ($releaseId === '') {
         return 0;
     }
 
@@ -1977,7 +1924,7 @@ function bandpromo_release_sync_member_audio_tags(string $root, string $releaseI
 
         $assetId = (string) ($track['asset_id'] ?? '');
         $masterFile = bandpromo_release_track_master_filename($root, $assetId);
-        if ($masterFile === '' || bandpromo_release_is_demo_filename($masterFile)) {
+        if ($masterFile === '') {
             continue;
         }
 
@@ -2130,7 +2077,9 @@ function bandpromo_release_track_row_from_asset(string $root, array $asset, stri
         'album' => $labels['album'],
         'duration' => $labels['duration'],
         'release_date' => $labels['release_date'],
-        'origin' => bandpromo_release_is_demo_filename($masterFile) ? 'bundled-placeholder' : 'user-upload',
+        'origin' => trim((string) ($asset['origin'] ?? '')) !== ''
+            ? trim((string) $asset['origin'])
+            : 'user-upload',
         'sourceTier' => 'release-container',
         'deliveryReady' => true,
         'release_id' => $releaseId,
@@ -2205,11 +2154,6 @@ function bandpromo_release_admin_editor_state(
         if (isset($activeFiles[$file])) {
             continue;
         }
-        if (bandpromo_release_is_demo_filename((string) $file)) {
-            continue;
-        }
-        // Membership is defined by release document tracks, not asset release_id alone
-        // (catalog repair may set release_id before an operator adds the track).
         $trackReleaseId = bandpromo_release_normalize_id(
             bandpromo_release_id_for_master_filename($root, (string) $file)
         );
@@ -2230,7 +2174,9 @@ function bandpromo_release_admin_editor_state(
         'ok' => true,
         'release_id' => $releaseId,
         'locked' => !empty($document['locked']),
-        'system_managed' => bandpromo_release_is_system_managed($releaseId),
+        'platform_demo' => bandpromo_release_is_platform_demo($releaseId),
+        'can_change_lock' => bandpromo_release_may_change_lock($releaseId),
+        'system_managed' => false,
         'tracks' => $activeTracks,
         'activeTracks' => $activeTracks,
         'availableTracks' => $availableTracks,
@@ -2454,10 +2400,6 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
         throw new InvalidArgumentException('Release id is required.');
     }
 
-    if (bandpromo_release_is_system_managed($releaseId)) {
-        throw new InvalidArgumentException('The bandPromo demo release is managed automatically.');
-    }
-
     $title = trim((string) ($fields['title'] ?? ''));
     if ($title === '') {
         throw new InvalidArgumentException('Release name is required.');
@@ -2469,6 +2411,9 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
     }
 
     $locked = array_key_exists('locked', $fields) ? !empty($fields['locked']) : null;
+    if ($locked === false && !bandpromo_release_may_change_lock($releaseId)) {
+        throw new InvalidArgumentException('The bandPromo demo release can only be unlocked on localhost.');
+    }
 
     $registry = bandpromo_release_load_registry($root);
     $found = false;

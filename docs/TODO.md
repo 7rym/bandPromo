@@ -19,6 +19,8 @@ Rules for this file:
 
 **Active gate (2026-08-06):** lock and ship **PRP** (`.prp`) as the only campaign data handoff — setup imports `bandPromo-demo.prp`; Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable release packages.
 
+**Policy (2026-08-08):** no special-case demo content handling beyond setup PRP import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
+
 **v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool Phase 3 Brand-assets fold (relocate `media/special/` visuals → `media/visual/original/`; living-cover `ast_*`), content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Sound effects + Brand assetsor pool + Brand assets rename + content date-field unification shipped (2026-07-15/16). Visual registry + multi-variant delivery Phases 0b–2 shipped (2026-07-21). — **not published as a Site-update package yet**.
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
@@ -166,6 +168,7 @@ Policy — **locked** (extends v0.8.4 visual media plan):
 - [x] Lock **brand filter** on Visual pool and pickers.
 - [x] Lock **format-by-content** and **dimension-by-context** rules in delivery (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
 - [x] Check in **delivery context registry** JSON (`scripts/delivery-contexts.json` or equivalent).
+- [x] Lock **IG/TikTok native-post share sizes as deferred** — register IG feed **1080×1350**, Stories/Reels & TikTok **1080×1920**; generate only with v2+ API publish. v0.8 `makeSocial.py` stays OG Facebook/Twitter **1200×630** only ([MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
 
 Implementation order:
 
@@ -286,7 +289,7 @@ Policy lock **2026-08-06** — see [PORTABILITY.md](PORTABILITY.md) §3; [PLATFO
 - [x] Lock **stable IDs** on export/import (`ast_*`, release, containers).
 - [x] Lock **demo PRP** — setup imports `bandPromo-demo.prp`; locked base shell brand; operator read-only; optional hide; localhost-only source edits; system re-import overwrites.
 - [x] Lock **demo pages in PRP** — Bio + Gallery page (gallery block → demo gallery); **FAQ is system-owned**, not in PRP.
-- [x] Lock **player chrome** — Cover flow + Living on install; campaign page tabs follow **current track’s `release_id`**; idle = no campaign pages.
+- [x] Lock **player chrome** — Base brand owns playlist selector (default coverflow); shell + track living media preferred when assigned (no Still|Living install toggle); campaign page tabs follow **current track’s `release_id`**; idle = no campaign pages.
 - [x] Lock **Primary** — invisible orphan/upload bucket; operators never manage it as a release.
 - [x] Lock **duplicate** — new container ids, **shared** media `ast_*`, multi-ref delete guard.
 - [x] Lock **import collision** — operator chooses; analytics/logs stay out of PRPs.
@@ -306,6 +309,7 @@ Policy lock **2026-08-06** — see [PORTABILITY.md](PORTABILITY.md) §3; [PLATFO
 
 **Follow-ups (not blocking PRP schema, priority after validate):**
 
+- [x] **Collapse demo special-cases** — remove demo track/playlist sync, template seed fallback, `system_managed` edit freeze, `bandPromo_*`→demo ownership inference, empty demo ensure/create; keep only setup PRP import → lock, localhost unlock + export, hide, duplicate (PLATFORM-MODEL 2026-08-10).
 - [ ] **Analytics / play-logs** — store and export **UID-only** asset/release handles (no filename identity).
 - [ ] **Full site backup** — rewrite export/import for UID asset model (see [PORTABILITY.md](PORTABILITY.md) §1).
 

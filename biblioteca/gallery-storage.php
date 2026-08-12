@@ -113,9 +113,6 @@ function bandpromo_gallery_normalize_document(array $input, ?string $expectedId 
     if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
         $releaseId = '';
     }
-    if ($releaseId === '' && $id === BANDPROMO_GALLERY_DEMO_ID) {
-        $releaseId = 'bandpromo-demo';
-    }
 
     return [
         'version' => BANDPROMO_GALLERY_REGISTRY_VERSION,
@@ -149,7 +146,7 @@ function bandpromo_gallery_default_document(): array
         'id' => BANDPROMO_GALLERY_DEMO_ID,
         'title' => 'bandPromo demo',
         'kind' => 'system',
-        'release_id' => 'bandpromo-demo',
+        'release_id' => '',
         'entries' => [],
     ];
 }
@@ -217,8 +214,19 @@ function bandpromo_gallery_registry_entries(string $root): array
 function bandpromo_gallery_visible_in_admin_catalog(string $root, array $entry): bool
 {
     $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+    if ($galleryId === '') {
+        return false;
+    }
 
-    return bandpromo_demo_catalog_entity_is_visible($root, $galleryId);
+    $owner = '';
+    try {
+        $document = bandpromo_gallery_load_document($root, $galleryId);
+        $owner = (string) ($document['release_id'] ?? '');
+    } catch (Throwable $throwable) {
+        $owner = '';
+    }
+
+    return bandpromo_demo_release_container_is_visible($root, $owner, $galleryId);
 }
 
 function bandpromo_gallery_admin_registry_entries(string $root): array
@@ -466,168 +474,18 @@ function bandpromo_gallery_demo_template_path(string $root): string
  * Seed or heal the demo gallery from the tracked template when empty or missing
  * the rollercoaster video entry. Resolves asset_ids from the registry when known.
  */
+/**
+ * @deprecated Demo gallery content comes from PRP import — no parallel heal/seed path.
+ */
 function bandpromo_gallery_heal_demo_entries(string $root): void
 {
-    require_once __DIR__ . '/asset-registry.php';
-
-    $templatePath = bandpromo_gallery_demo_template_path($root);
-    if (!is_file($templatePath)) {
-        return;
-    }
-
-    $template = bandpromo_json_read_array_file($templatePath);
-    if (!is_array($template) || !is_array($template['entries'] ?? null) || $template['entries'] === []) {
-        return;
-    }
-
-    try {
-        $document = bandpromo_gallery_load_document($root, BANDPROMO_GALLERY_DEMO_ID);
-    } catch (Throwable $throwable) {
-        $document = bandpromo_gallery_default_document();
-    }
-
-    $entries = is_array($document['entries'] ?? null) ? $document['entries'] : [];
-    $needsSeed = $entries === [];
-    $hasRollercoaster = false;
-    foreach ($entries as $entry) {
-        if (!is_array($entry)) {
-            continue;
-        }
-        $src = strtolower(str_replace('\\', '/', (string) ($entry['src'] ?? '')));
-        $name = strtolower((string) ($entry['name'] ?? ''));
-        $assetId = trim((string) ($entry['asset_id'] ?? ''));
-        if (
-            strpos($src, 'bandpromo_rollercoaster') !== false
-            || strpos($name, 'rollercoaster') !== false
-        ) {
-            $hasRollercoaster = true;
-            break;
-        }
-        if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
-            $asset = bandpromo_asset_lookup_by_id($root, $assetId);
-            $original = strtolower((string) ($asset['original_filename'] ?? ''));
-            if (strpos($original, 'bandpromo_rollercoaster') !== false) {
-                $hasRollercoaster = true;
-                break;
-            }
-        }
-    }
-
-    $rollerPath = $root . '/media/video/original/bandPromo_rollercoaster.mp4';
-    $needsRollercoaster = is_file($rollerPath) && !$hasRollercoaster;
-
-    if (!$needsSeed && !$needsRollercoaster) {
-        // Still backfill missing asset_ids on existing demo entries.
-        $changed = false;
-        foreach ($entries as $index => $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-            $current = trim((string) ($entry['asset_id'] ?? ''));
-            if ($current !== '' && bandpromo_asset_is_asset_id($current)) {
-                continue;
-            }
-            $basename = basename(str_replace('\\', '/', (string) ($entry['src'] ?? '')));
-            if ($basename === '') {
-                continue;
-            }
-            $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
-            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
-                continue;
-            }
-            $entries[$index]['asset_id'] = (string) ($asset['id'] ?? '');
-            $changed = true;
-        }
-        if ($changed) {
-            $document['entries'] = $entries;
-            bandpromo_gallery_write_document($root, $document);
-        }
-        return;
-    }
-
-    if ($needsSeed) {
-        $seeded = [];
-        foreach ($template['entries'] as $templateEntry) {
-            if (!is_array($templateEntry)) {
-                continue;
-            }
-            $normalized = bandpromo_gallery_normalize_entry($templateEntry);
-            if ($normalized === null) {
-                continue;
-            }
-            $basename = basename(str_replace('\\', '/', (string) ($normalized['src'] ?? '')));
-            if ($basename !== '') {
-                $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
-                if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
-                    $normalized['asset_id'] = (string) ($asset['id'] ?? '');
-                }
-            }
-            // Only keep template rows whose media file exists (or already has asset_id).
-            $srcRel = ltrim(str_replace('\\', '/', (string) ($normalized['src'] ?? '')), '/');
-            if (($normalized['asset_id'] ?? '') === '' && $srcRel !== '' && !is_file($root . '/' . $srcRel)) {
-                continue;
-            }
-            $seeded[] = $normalized;
-        }
-        $document['entries'] = $seeded;
-        bandpromo_gallery_write_document($root, $document);
-        return;
-    }
-
-    // Demo gallery has entries but is missing the rollercoaster video — append it.
-    foreach ($template['entries'] as $templateEntry) {
-        if (!is_array($templateEntry)) {
-            continue;
-        }
-        $src = strtolower((string) ($templateEntry['src'] ?? ''));
-        if (strpos($src, 'bandpromo_rollercoaster') === false) {
-            continue;
-        }
-        $normalized = bandpromo_gallery_normalize_entry($templateEntry);
-        if ($normalized === null) {
-            break;
-        }
-        $asset = bandpromo_asset_lookup_by_original_filename($root, 'bandPromo_rollercoaster.mp4');
-        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
-            $normalized['asset_id'] = (string) ($asset['id'] ?? '');
-        }
-        $entries[] = $normalized;
-        $document['entries'] = $entries;
-        bandpromo_gallery_write_document($root, $document);
-        break;
-    }
+    // Intentionally empty. Kept as a no-op so older call sites do not fatally error.
 }
 
 function bandpromo_gallery_ensure_demo_gallery(string $root): void
 {
-    $registry = bandpromo_gallery_load_registry($root);
-    $hasDemo = false;
-    foreach ($registry['galleries'] as $entry) {
-        if (!is_array($entry)) {
-            continue;
-        }
-        if ((string) ($entry['id'] ?? '') === BANDPROMO_GALLERY_DEMO_ID) {
-            $hasDemo = true;
-            break;
-        }
-    }
-
-    if (!$hasDemo) {
-        $registry['galleries'][] = [
-            'id' => BANDPROMO_GALLERY_DEMO_ID,
-            'title' => 'bandPromo demo',
-            'kind' => 'system',
-            'sort_order' => 10,
-        ];
-        bandpromo_gallery_write_registry($root, $registry);
-    }
-
-    $demoPath = bandpromo_gallery_document_path($root, BANDPROMO_GALLERY_DEMO_ID);
-    if (!is_file($demoPath)) {
-        bandpromo_gallery_write_document($root, bandpromo_gallery_default_document());
-    }
-
-    bandpromo_gallery_heal_demo_entries($root);
+    // Demo gallery arrives via PRP import only — do not seed empty docs here.
+    unset($root);
 }
 
 function bandpromo_gallery_migrate_from_legacy(string $root): void
@@ -717,8 +575,9 @@ function bandpromo_gallery_detach_media(string $root, string $target, string $fi
             $materialized = [
                 'src' => (string) ($entry['src'] ?? ''),
                 'type' => (string) ($entry['type'] ?? 'image'),
+                'asset_id' => trim((string) ($entry['asset_id'] ?? '')),
             ];
-            if (bandpromo_media_reference_gallery_matches_target($target, $filename, $materialized)) {
+            if (bandpromo_media_reference_gallery_matches_target($root, $target, $filename, $materialized)) {
                 $removed++;
                 $changed = true;
                 continue;
@@ -815,7 +674,22 @@ function bandpromo_gallery_set_release_id(string $root, string $galleryId, strin
         throw new InvalidArgumentException('Gallery id is required.');
     }
     if (bandpromo_gallery_is_protected_id($galleryId)) {
-        throw new InvalidArgumentException('The bandPromo demo gallery cannot be reassigned.');
+        require_once __DIR__ . '/release-storage.php';
+        // Protected demo gallery: reassignment only when the platform demo is unlocked
+        // (localhost may unlock for PRP source edits).
+        try {
+            $demoRelease = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+            if (!empty($demoRelease['locked'])) {
+                throw new InvalidArgumentException('The bandPromo demo gallery cannot be reassigned while the demo release is locked.');
+            }
+        } catch (InvalidArgumentException $exception) {
+            throw $exception;
+        } catch (Throwable $throwable) {
+            throw new InvalidArgumentException('The bandPromo demo gallery cannot be reassigned.');
+        }
+        if (!bandpromo_release_may_change_lock(BANDPROMO_RELEASE_DEMO_ID)) {
+            throw new InvalidArgumentException('The bandPromo demo gallery can only be reassigned on localhost.');
+        }
     }
 
     $releaseId = trim($releaseId);

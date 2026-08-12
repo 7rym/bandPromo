@@ -160,6 +160,17 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         return ['ok' => false, 'filename' => $safe, 'error' => 'File not found'];
     }
 
+    require_once __DIR__ . '/demo-catalog-state.php';
+    $demoAssetSet = bandpromo_demo_release_asset_set($root);
+    $lockKey = $target . '|' . $safe;
+    if (bandpromo_asset_is_in_locked_release($root, $lockKey, $demoAssetSet)) {
+        return [
+            'ok' => false,
+            'filename' => $safe,
+            'error' => 'This file belongs to the locked demo release. Unlock the demo release on localhost before deleting campaign demo media.',
+        ];
+    }
+
     $references = bandpromo_collect_media_references($root, $target, $safe);
     $reference_summary = bandpromo_summarize_reference_counts($references);
 
@@ -173,31 +184,9 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         ];
     }
 
-    if (bandpromo_media_is_bundled_placeholder($safe)) {
-        if (!bandpromo_media_set_hidden_for_install($target, $safe, true)) {
-            bandpromo_admin_audit_log('media_hide_failed', [
-                'target_type' => 'media',
-                'target_id' => $target . '/' . $safe,
-                'status' => 'error',
-                'data' => ['error' => 'state write failed'],
-            ]);
-            return ['ok' => false, 'filename' => $safe, 'error' => 'Could not hide bundled demo file for this install'];
-        }
-
-        bandpromo_admin_audit_log('media_hidden', [
-            'target_type' => 'media',
-            'target_id' => $target . '/' . $safe,
-            'status' => 'ok',
-            'data' => ['origin' => 'bundled-placeholder'],
-        ]);
-
-        return [
-            'ok' => true,
-            'filename' => $safe,
-            'action' => 'hidden',
-            'message' => 'Bundled demo file hidden for this install.',
-        ];
-    }
+    // No per-file soft-hide. Demo visibility is release-level only
+    // (demo_release_hidden). Bundled provenance is display-only — delete is a
+    // real unlink subject to locked-demo + reference guards below.
 
     // Multi-ref / in-use guard: never unlink while containers still point at this file
     // unless the operator explicitly requested detach-first.
@@ -414,8 +403,7 @@ if (count($results) === 1) {
 
 $successful = array_values(array_filter($results, static fn($result) => !empty($result['ok'])));
 $failed = array_values(array_filter($results, static fn($result) => empty($result['ok'])));
-$hiddenCount = count(array_filter($successful, static fn($result) => ($result['action'] ?? '') === 'hidden'));
-$deletedCount = count($successful) - $hiddenCount;
+$deletedCount = count($successful);
 $warnings = array_values(array_filter(array_map(static fn($result) => (string) ($result['master_warning'] ?? ''), $successful)));
 $totalReferenceCleanup = [
     'playlist_tracks_removed' => 0,
@@ -443,9 +431,6 @@ if ($successful === []) {
 $messageParts = [];
 if ($deletedCount > 0) {
     $messageParts[] = sprintf('Removed %d file%s', $deletedCount, $deletedCount === 1 ? '' : 's');
-}
-if ($hiddenCount > 0) {
-    $messageParts[] = sprintf('hid %d bundled demo file%s', $hiddenCount, $hiddenCount === 1 ? '' : 's');
 }
 if ($failed !== []) {
     $messageParts[] = sprintf('%d failed', count($failed));

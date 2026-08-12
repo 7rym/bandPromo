@@ -96,6 +96,18 @@ Shares Content/Visual chrome without the pool → preview layout:
 
 Edits stay local until close. Validation or save errors keep the modal open.
 
+## Visual / Brand assets lists (Files → Visual, Brand assets)
+
+Same operator patterns as Audio, plus Grid/List:
+
+| Pattern | Behavior |
+|---------|----------|
+| Toolbar | Shared `.audio-pool-toolbar` density; type chips + catalogue/brand filter + title search + Grid/List |
+| Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers` (not a toolbar checkbox); checkbox click updates selection on Visual, Brand assets, and Sound effects pools |
+| List mode | Title / Catalogue\|Brand / Size columns aligned with Audio rows; ✎ opens shared asset modal (display fields editable for Visual and Brand assets when registered) |
+| Grid mode | Thumbnails + caption under each card; column labels hidden, All/None kept |
+| Search | “Filter by title…” (same haystack: display title, operator title, references) |
+
 ## Markdown help (prose textareas)
 
 Long player-facing prose textareas (track description, lyrics/Notes, release/playlist long description) show **Markdown** plus a **?** control (`.markdown-help-open`) that opens `#markdownHelpModal`. Short descriptions, titles, and page richtext stay plain / toolbar HTML.

@@ -763,7 +763,11 @@ def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None, source_
 
 
 def visual_image_delivery_is_fresh(asset, source_path, required_variants):
-    """True when required delivery variants exist and master XXH3 matches."""
+    """True when required variants exist, master XXH3 matches, and sizes match policy.
+
+    XXH3 alone is not enough: changing delivery-contexts.json max_edge (e.g. thumb
+    100→150) must rebuild even when the master bytes are unchanged.
+    """
     if xxhash is None:
         return False
     if os.environ.get('BANDPROMO_FORCE_VISUAL_DELIVERY', '').strip() == '1':
@@ -779,13 +783,41 @@ def visual_image_delivery_is_fresh(asset, source_path, required_variants):
     delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
     if not delivery_dir.is_dir():
         return False
+
+    try:
+        with Image.open(str(source_path)) as source_img:
+            source_edge = max(source_img.size)
+    except Exception:
+        return False
+
     for variant in required_variants:
-        found = False
+        dest_path = None
         for ext in ('.png', '.jpg', '.jpeg', '.webp'):
-            if (delivery_dir / '{}{}'.format(variant, ext)).is_file():
-                found = True
+            candidate = delivery_dir / '{}{}'.format(variant, ext)
+            if candidate.is_file():
+                dest_path = candidate
                 break
-        if not found:
+        if dest_path is None:
+            return False
+
+        max_edge = variant_max_edge(
+            variant,
+            COVER_OPTIMAL_MAX_EDGE if variant != 'thumb' else COVER_THUMB_MAX_EDGE,
+        )
+        if max_edge <= 0:
+            max_edge = COVER_OPTIMAL_MAX_EDGE
+        expected_edge = min(int(source_edge), int(max_edge))
+
+        try:
+            with Image.open(str(dest_path)) as dest_img:
+                delivery_edge = max(dest_img.size)
+        except Exception:
+            return False
+
+        # Undersized after a max_edge increase (100→150), or oversized after a shrink.
+        if delivery_edge < expected_edge - 1:
+            return False
+        if delivery_edge > int(max_edge) + 1:
             return False
     return True
 

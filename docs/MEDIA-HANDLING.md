@@ -746,43 +746,38 @@ The first practical contract should be:
 - `user-upload`: operator-provided runtime media
 - later, when needed: `generated-master` and `generated-delivery`
 
-The current `bandPromo_*` naming convention may be used as a temporary implementation hint, but filename prefixes alone should not be the long-term product contract.
+The current `bandPromo_*` naming convention may be used as a temporary implementation hint for **seed** files, but filename prefixes alone must not keep an operator re-upload marked as bundled. Files index `origin` is authoritative after upload. Deletion is always a real unlink (subject to locked-demo and reference guards) — there is no delete-as-hide path.
 
 ### Admin visibility rule
 
-Bundled placeholder/demo assets should be hidden by default in normal operator-facing media pickers and file lists.
+**Campaign demo media** (Audio / Visual pools owned by the install’s protected demo release — see `demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide demo catalog**. When the demo release is hidden, those owned campaign files stay out of normal browsing and pickers. Filename prefixes such as `bandPromo_*` are **not** the hide gate.
 
-They may be shown only when one of these is true:
+**Hide blockers:** if a demo-owned campaign asset is still referenced by a non-demo playlist, gallery, page, or release, hide is refused and the operator is shown what/where.
 
-- the install is still in an explicit empty/demo/setup state
-- the operator sets the Files list source filter to **Include demo**
-- a developer/admin troubleshooting view intentionally asks to include them
+**Brand shell media** (Files → Brand assets / Sound effects: logo, poster, still/living backgrounds, welcome/logged-in SFX) stays visible while brands still reference it. Do not auto-hide those files just because the operator uploaded other Brand assets, and do not fold them into “Hide demo catalog.” Per-file soft-hide is retired.
 
-This means an operator who replaces demo assets with real media should not keep seeing the old bundled files return as if they were ordinary active content.
+**Locked demo delete:** deleting campaign media that belongs to the locked demo release is denied until the demo release is unlocked on localhost.
+
+Generated social crops (`*_facebook` / `*_twitter`) remain provenance-marked and are not treated as operator uploads.
 
 ### Deletion rule
 
-Deleting a bundled placeholder from the operator-facing view does not need to mean "remove it from git forever."
+Deleting media from Admin is a real delete (unlink), subject to:
 
-Instead, the product should support a local hidden/disabled state for bundled placeholders so that:
+- locked demo campaign ownership guards
+- in-use / multi-reference detach requirements
 
-- they no longer appear in normal admin media browsing
-- they are not offered in ordinary media pickers
-- a future git pull does not make them feel resurrected inside the UI
-
-In other words, the operator-facing action is closer to `hide bundled demo asset from this install` than to `delete canonical repository file`.
+Demo catalog visibility is **release-level only** (`demo_release_hidden`). Do not soft-hide individual files (including Brand assets / Sound effects or legacy `bandPromo_*` names) as a substitute for that toggle. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
 
 ### Recommended first implementation shape
 
-The first implementation does not need a complex asset database.
+Per-install soft-hide maps for bundled placeholders are retired. Prefer:
 
-A small runtime manifest or flag file is enough if it can record per-asset visibility/origin state such as:
+- release ownership + lock for campaign demo media
+- `demo_release_hidden` for operator hide of that campaign
+- registry `origin` for provenance badges (not hide/delete policy)
 
-- bundled placeholder or not
-- hidden in this install or not
-- active/currently referenced or not
-
-That gives the media browser and media picker enough information to suppress bundled demo files by default without breaking the repository's tracked setup assets.
+That keeps Files pools and media pickers consistent without a second hide system.
 
 ## What bandPromo should improve
 
@@ -916,6 +911,27 @@ Initial target buckets should be explicit:
 - `lightbox`: enlarged artwork for the current largest practical UI view
 - `share`: social sharing derivative sized for the platform target
 
+#### Share / social derivatives (locked 2026-08-08)
+
+Two different products must not be conflated:
+
+| Kind | Consumer | Status | Dimensions |
+|------|----------|--------|------------|
+| **Link preview (OG)** | Site meta tags when a URL is pasted into Facebook, X, Slack, etc. | **Shipped** via `makeSocial.py` | **1200×630** (≈1.91:1) for Facebook and Twitter/X |
+| **Native social posts** | Instagram / TikTok (and similar) posts created through **operator APIs**, not a share button on the public site | **Deferred** to v2+ marketing machine | Register targets now; **do not** generate until a publish job consumes them |
+
+Locked native-post targets (still images / covers when that path ships):
+
+- Instagram feed: **1080×1350** (4:5); square **1080×1080** (1:1) as optional alternate
+- Instagram Stories / Reels and TikTok: **1080×1920** (9:16)
+
+Policy until API publishing exists:
+
+- Do **not** extend `makeSocial.py` / `social-assets` to emit Instagram or TikTok crops.
+- Keep generating only OG Facebook/Twitter derivatives from the brand **poster / share** Visual (master → original → delivery card last resort).
+- Masters must stay large enough for later 1080-class crops; never treat the 720px `card` delivery as the long-term share source.
+- When social publish lands, derivatives are generated **on demand for that job** (and may include vertical **video**, captions, and covers — not poster stills alone).
+
 Guidance:
 
 - do not serve 2048px PNGs when the UI never presents them near that size
@@ -966,7 +982,7 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
 | `lightbox` | Player/page lightbox enlarged view | currently shares 720px optimal | Dedicated larger lightbox variant deferred |
-| `share` | `makeSocial.py` Facebook/Twitter crops | fixed aspect targets (1.91:1 etc.) | Separate from in-player artwork |
+| `share` | `makeSocial.py` OG Facebook/Twitter crops | **1200×630** shipped | Instagram/TikTok native-post sizes registered only — generate with v2+ API publish, not site share |
 
 Deliverable: a checked-in **delivery context registry** (JSON or markdown table) that maps each context → max pixel box → default variant name. All future resizers read from this registry, not ad hoc magic numbers in Python.
 
@@ -1128,7 +1144,7 @@ Current implementation note:
 - Build-required state now also records concrete task units (`playlist-scan`, `audio-delivery`, `image-delivery`, `social-assets`, `manifest`) alongside the legacy `full` / `optimize` action so the operator inbox and save/upload feedback can speak in task terms even before the manual build controls are fully split by task.
 - The Build tab now speaks in task-oriented operator language (`Run Publish Build` and `Refresh Image Files`) instead of the older vague `Full Build` / `Optimize Media` pairing, while still routing those buttons through the same current heavy-runner endpoints.
 - `Refresh Image Files` now truly runs the image-delivery path only: it regenerates track cover JPEGs, photos, and illustration derivatives without re-encoding audio delivery files. The full publish build still runs the optimizer in full mode so audio delivery regeneration remains part of the full publish pipeline.
-- Audio + visual image delivery skip-if-fresh via master **XXH3** (`assets[].delivery.source_xxh3`). Legacy audio `source_mtime` remains as a one-build migration fallback until XXH3 is recorded. Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Requires Python `xxhash` (`pip install -r scripts/requirements.txt`).
+- Audio + visual image delivery skip-if-fresh via master **XXH3** (`assets[].delivery.source_xxh3`). Visual variants also compare longest edge to `delivery-contexts.json` `max_edge` so policy bumps (e.g. thumb 100→150) rebuild without a master change. Legacy audio `source_mtime` remains as a one-build migration fallback until XXH3 is recorded. Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Requires Python `xxhash` (`pip install -r scripts/requirements.txt`).
 - Publish log vocabulary: operator title + product variants (`card` / `thumb` / poster / stream); skip lines say “already up to date (master XXH3 match)”.
 - Share/OG crops become named **delivery variants** of the share Visual asset (not sibling files beside `media/special/`) once Brand-assets fold + M1 land.
 - Theme-cover changes and image-only uploads now auto-run the image-delivery path in the background when that cheap refresh succeeds, so those safe cases no longer have to leave a manual image-refresh task behind just to regenerate derived JPEG assets.
@@ -1140,7 +1156,7 @@ This matrix defines the preferred future behavior.
 
 | Admin action | Task units | Default behavior | Operator message |
 | --- | --- | --- | --- |
-| Upload audio source | `playlist-scan`, `audio-delivery`, sometimes `image-delivery` if cover extraction changes files | Run `playlist-scan` automatically in validation-only mode; run `audio-delivery` automatically for uploaded files | Show pending delivery generation only if derivatives are not ready yet; surface failures in Notifications |
+| Upload audio source | `playlist-scan`, `audio-delivery`; `image-delivery` when embedded covers are extracted | Run `playlist-scan` automatically in validation-only mode; run `audio-delivery` automatically for uploaded files; register extracted covers as Visual track-covers and run `image-delivery` | Show pending delivery generation only if derivatives are not ready yet; surface failures in Notifications |
 | Upload video source | `video-delivery` | Spawn async background delivery for all uploaded videos (MP4 copy, MOV/WEBM transcode, poster generation) | Show running/completed/failed state in Notifications; hide from gallery pool until delivery is ready |
 | Upload photo | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit notification |
 | Upload illustration | `image-delivery` | Run automatically if cheap; otherwise queue quietly and finish in background | Usually no explicit notification |
@@ -1260,7 +1276,7 @@ The runtime manifest in `data/media-library-state.json` records advisory `assets
 
 Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, compact list-header filter dropdowns (`All`, `Track covers`, `Orphans`, `Build-generated`, plus `User files` / `Include demo`), and delete-preview hints for theme references and regenerable build artifacts. Detailed per-row `Used by:` reference text stays out of the normal operator list view; badges and filters are the primary signal. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
 
-Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery, theme, page, release/playlist poster, and track-visual references, an `orphan` flag, and the same list-header filter pattern (`All`, `In use`, `Orphans`, plus demo-source filtering).
+Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery, theme, page, release/playlist poster, and track-visual references, an `orphan` flag, and the same list-header filter pattern (`All`, `In use`, `Orphans`, plus demo-source filtering). Gallery matching resolves both legacy `/media/{photo|img|video}/…` paths and modern `/media/visual/delivery/{asset_id}/…` URLs to the Files original basename via the asset registry (empty gallery `asset_id` fields are recovered from the delivery path).
 
 ## Current FLAC optimization path
 

@@ -306,7 +306,7 @@ if ($supportUrl !== '') {
     $backgroundVideo = $playerShellMedia['background_video'] !== '' ? $playerShellMedia['background_video'] : null;
     $backgroundImage = $playerShellMedia['background_image'] !== '' ? $playerShellMedia['background_image'] : null;
     $playerLogo = $playerShellMedia['logo'] !== '' ? $playerShellMedia['logo'] : $installShellMedia['logo'];
-    $shellBackgroundMode = bandpromo_player_shell_background_mode();
+    $playlistSelectorMode = bandpromo_player_playlist_selector_mode();
     ?>
     <script>
         window.BANDPROMO_INSTALL_SHELL_MEDIA = <?php echo json_encode($installShellMedia, JSON_UNESCAPED_SLASHES); ?>;
@@ -317,8 +317,7 @@ if ($supportUrl !== '') {
             logo: <?php echo json_encode($playerLogo); ?>
         };
         window.appConfig.player = Object.assign({}, window.appConfig.player || {}, {
-            shell_background: <?php echo json_encode($shellBackgroundMode); ?>,
-            playlist_selector: <?php echo json_encode(bandpromo_player_playlist_selector_mode()); ?>
+            playlist_selector: <?php echo json_encode($playlistSelectorMode); ?>
         });
     </script>
     <video id="bg-video" preload="none" muted loop playsinline style="display:none"<?php
@@ -439,8 +438,7 @@ if ($supportUrl !== '') {
         ?>
         <div class="playlist-selector playlist-selector--<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>" id="playlistSelectorWrap" data-mode="<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $isActive === '' ? ' hidden' : ''; ?>>
             <?php if ($playlistSelectorMode === 'buttons'): ?>
-            <span class="playlist-selector-label" id="playlistSelectorLabel"><?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-            <div class="playlist-selector-buttons" role="group" aria-labelledby="playlistSelectorLabel">
+            <div class="playlist-selector-buttons" role="group" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php foreach ($playlistCatalog as $playlistEntry):
                     $entryId = (string) ($playlistEntry['id'] ?? '');
                     $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
@@ -456,7 +454,7 @@ if ($supportUrl !== '') {
                 <?php endforeach; ?>
             </div>
             <?php elseif ($playlistSelectorMode === 'coverflow'): ?>
-            <div class="playlist-coverflow" role="listbox" aria-label="Choose playlist">
+            <div class="playlist-coverflow" role="listbox" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php foreach ($playlistCatalog as $playlistEntry):
                     $entryId = (string) ($playlistEntry['id'] ?? '');
                     $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
@@ -493,8 +491,7 @@ if ($supportUrl !== '') {
                 <?php endforeach; ?>
             </div>
             <?php else: ?>
-            <label for="playlistSelector"><?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?></label>
-            <select id="playlistSelector" aria-label="Choose playlist">
+            <select id="playlistSelector" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php foreach ($playlistCatalog as $playlistEntry): ?>
                 <option value="<?php echo htmlspecialchars((string) ($playlistEntry['id'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"<?php echo (($playlistEntry['id'] ?? '') === $activePlaylistId) ? ' selected' : ''; ?>>
                     <?php echo htmlspecialchars((string) ($playlistEntry['title'] ?? $playlistEntry['id'] ?? 'Playlist'), ENT_QUOTES, 'UTF-8'); ?>

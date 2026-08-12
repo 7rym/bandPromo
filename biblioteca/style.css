@@ -1137,14 +1137,6 @@ button.pulse-guide {
     display: none !important;
 }
 
-.playlist-selector label,
-.playlist-selector-label {
-    font-size: 0.95rem;
-    color: var(--text-color, #ffffff);
-    opacity: 0.85;
-    flex-shrink: 0;
-}
-
 .playlist-selector select {
     flex: 1;
     min-width: 0;
@@ -1175,7 +1167,7 @@ button.pulse-guide {
 .playlist-selector--coverflow {
     flex-wrap: nowrap;
     align-items: center;
-    justify-content: stretch;
+    justify-content: center;
     margin: 0 auto;
 }
 

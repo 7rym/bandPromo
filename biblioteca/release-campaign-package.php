@@ -855,33 +855,23 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
 }
 
 /**
- * Build/apply the tracked Demo Release campaign seed (docs + ownership).
- * Used when the published Demo PRP is unavailable (dev/fallback). Media is expected
- * on the host already (prior PRP import or local media tree) — not from a default-theme ZIP.
+ * @deprecated Demo arrives via published PRP only. Kept so older callers do not fatally error.
  *
  * @return array{ok: bool, release_id: string, message: string, imported_files: int, ownership: array}
  */
 function bandpromo_release_campaign_seed_demo_from_templates(string $root): array
 {
-    $packageDir = $root . DIRECTORY_SEPARATOR . 'biblioteca' . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . 'demo-release-package';
-    if (!is_dir($packageDir) || !is_file($packageDir . DIRECTORY_SEPARATOR . 'release-package-manifest.json')) {
-        bandpromo_release_ownership_migrate($root);
+    bandpromo_release_ownership_migrate($root);
+    bandpromo_release_enforce_platform_demo_lock($root);
 
-        return [
-            'ok' => true,
-            'release_id' => BANDPROMO_RELEASE_DEMO_ID,
-            'message' => 'Demo Release ownership linked from local templates.',
-            'imported_files' => 0,
-            'ownership' => [],
-        ];
-    }
-
-    return bandpromo_release_campaign_import_from_directory($root, $packageDir, [
-        'mode' => 'demo',
-        'allow_demo_overwrite' => true,
-        // Template seed is a setup/fallback path — never steal the operator base brand.
-        'set_active_brand' => false,
-    ]);
+    return [
+        'ok' => is_file($root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases'
+            . DIRECTORY_SEPARATOR . BANDPROMO_RELEASE_DEMO_ID . '.json'),
+        'release_id' => BANDPROMO_RELEASE_DEMO_ID,
+        'message' => 'Template demo seed disabled — use bandPromo-demo.prp via setup.',
+        'imported_files' => 0,
+        'ownership' => [],
+    ];
 }
 
 function bandpromo_release_campaign_demo_marker_path(string $root): string
@@ -1160,6 +1150,12 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 'format' => 'prp',
                 'installed_at' => gmdate('c'),
             ]);
+            bandpromo_release_lock_platform_demo_after_import($root);
+            bandpromo_brand_lock_platform_default_after_import($root);
+            require_once __DIR__ . '/demo-catalog-state.php';
+            $importedReleaseId = bandpromo_release_normalize_id((string) ($import['release_id'] ?? BANDPROMO_RELEASE_DEMO_ID));
+            bandpromo_demo_release_ensure_preferences($root, $importedReleaseId !== '' ? $importedReleaseId : BANDPROMO_RELEASE_DEMO_ID);
+            bandpromo_demo_release_invalidate_asset_set_cache($root);
             if (!bandpromo_release_rrmdir_best_effort($workDir)) {
                 bandpromo_release_log(
                     $logger,
@@ -1176,18 +1172,31 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 'message' => $import['message'],
             ];
         }
-        bandpromo_release_log($logger, '[demo release] Manifest has no Demo PRP entry yet; using local templates.');
+        bandpromo_release_log($logger, '[demo release] Manifest has no Demo PRP entry yet.');
     } catch (Throwable $throwable) {
         bandpromo_release_log($logger, '[demo release] Remote Demo PRP unavailable: ' . $throwable->getMessage());
     }
 
-    $seed = bandpromo_release_campaign_seed_demo_from_templates($root);
-    bandpromo_release_log($logger, '[demo release] ' . $seed['message']);
+    // Demo content must come from the published PRP — no parallel template seed.
+    $demoDoc = $root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases'
+        . DIRECTORY_SEPARATOR . BANDPROMO_RELEASE_DEMO_ID . '.json';
+    if (is_file($demoDoc)) {
+        bandpromo_release_enforce_platform_demo_lock($root);
+        require_once __DIR__ . '/demo-catalog-state.php';
+        bandpromo_demo_release_ensure_preferences($root, BANDPROMO_RELEASE_DEMO_ID);
+
+        return [
+            'installed' => true,
+            'source' => 'already-present',
+            'release_id' => BANDPROMO_RELEASE_DEMO_ID,
+            'message' => 'bandPromo demo release already present on this install.',
+        ];
+    }
 
     return [
-        'installed' => true,
-        'source' => 'local-templates',
-        'release_id' => $seed['release_id'],
-        'message' => $seed['message'],
+        'installed' => false,
+        'source' => 'missing',
+        'release_id' => BANDPROMO_RELEASE_DEMO_ID,
+        'message' => 'bandPromo-demo.prp was not available. Setup cannot seed demo content from templates.',
     ];
 }

@@ -87,4 +87,5 @@ jobs:
           prerelease: ${{ inputs.prerelease == 'true' }}
           files: |
             dist/*.zip
+            dist/*.prp
             dist/release-manifest.json

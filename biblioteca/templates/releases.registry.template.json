@@ -2,17 +2,11 @@
     "version": 1,
     "releases": [
         {
-            "id": "bandpromo-demo",
-            "title": "bandPromo Demo Release",
-            "slug": "bandpromo-demo",
-            "sort_order": 5,
-            "system": true
-        },
-        {
             "id": "primary",
             "title": "Default release",
             "slug": "primary",
-            "sort_order": 10
+            "sort_order": 10,
+            "system": true
         }
     ]
 }

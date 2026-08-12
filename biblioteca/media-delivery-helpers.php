@@ -308,7 +308,7 @@ function bandpromo_visual_variant_relative_url(string $root, string $assetId, st
 }
 
 /**
- * Primary Files / picker label: human display title when set, else role + context.
+ * Primary Files / picker label: human display title when set, else role label.
  */
 function bandpromo_visual_listing_title(string $root, array $asset, array $entry = []): string
 {
@@ -322,7 +322,7 @@ function bandpromo_visual_listing_title(string $root, array $asset, array $entry
 }
 
 /**
- * Operator-facing visual address: role + linked context (Files / pickers).
+ * Operator-facing visual role label (Files / pickers when display.title is empty).
  */
 function bandpromo_visual_operator_title(string $root, array $asset, array $entry = []): string
 {
@@ -342,42 +342,8 @@ function bandpromo_visual_operator_title(string $root, array $asset, array $entr
         'typography-sample' => 'Typography sample',
         'share' => 'Share image',
     ];
-    $label = $roleLabels[$role] ?? ucwords(str_replace('-', ' ', $role));
 
-    $context = trim((string) ($entry['brand_title'] ?? ''));
-    if ($context === '') {
-        $brandId = trim((string) ($asset['brand_id'] ?? $entry['brand_id'] ?? ''));
-        if ($brandId !== '') {
-            require_once __DIR__ . '/theme-storage.php';
-            try {
-                $doc = bandpromo_theme_load_document($root, $brandId);
-                $context = trim((string) ($doc['title'] ?? ''));
-                if ($context === '') {
-                    $context = $brandId;
-                }
-            } catch (Throwable $throwable) {
-                $context = $brandId;
-            }
-        }
-    }
-
-    if ($context === '' && $role === 'track-cover') {
-        $ref = is_array($entry['reference_info'] ?? null) ? $entry['reference_info'] : [];
-        $context = trim((string) ($ref['label'] ?? $ref['title'] ?? $entry['cover_info']['label'] ?? ''));
-    }
-
-    if ($context === '') {
-        $releaseTitle = trim((string) ($entry['release_title'] ?? ''));
-        if ($releaseTitle !== '') {
-            $context = $releaseTitle;
-        }
-    }
-
-    if ($context !== '') {
-        return $label . ' — ' . $context;
-    }
-
-    return $label;
+    return $roleLabels[$role] ?? ucwords(str_replace('-', ' ', $role));
 }
 
 /**

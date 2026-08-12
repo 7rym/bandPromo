@@ -1182,6 +1182,24 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
     }
 
+    // Embedded covers are extracted during scan/delivery but were never registered —
+    // register them as Visual track-covers and build thumb/card so pickers can use them.
+    require_once __DIR__ . '/cover-art-helpers.php';
+    require_once __DIR__ . '/build-required.php';
+    $coverRegister = bandpromo_register_extracted_covers_for_audio_files($root, $deliveryFilenames);
+    if ((int) ($coverRegister['count'] ?? 0) > 0) {
+            $state = bandpromo_mark_build_required('media_cover_upload');
+            $image = bandpromo_maybe_run_auto_image_delivery(['media_cover_upload'], $state);
+        $state = $image['state'] ?? $state;
+        $autoTasks = array_merge($autoTasks, $image['auto_tasks'] ?? []);
+        if (!empty($image['warning'])) {
+            $warnings[] = (string) $image['warning'];
+        }
+        if (!empty($image['task_output'])) {
+            $outputs[] = (string) $image['task_output'];
+        }
+    }
+
     if (!$scan['ok'] && ($delivery['ok'] ?? false)) {
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
     }
@@ -1192,6 +1210,7 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         'warning' => implode(' ', array_filter($warnings)),
         'task_output' => implode("\n", array_filter($outputs)),
         'delivery' => $delivery,
+        'cover_register' => $coverRegister,
     ];
 }
 

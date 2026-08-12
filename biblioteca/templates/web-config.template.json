@@ -79,8 +79,6 @@
   },
   "player": {
     "default_view": "playlist",
-    "shell_background": "living",
-    "playlist_selector": "coverflow",
     "modules": {
       "playlist": { "enabled": true },
       "lyrics": { "enabled": true },

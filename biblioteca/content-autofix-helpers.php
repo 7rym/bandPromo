@@ -343,7 +343,6 @@ function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): ar
         return $step;
     }
 
-    bandpromo_release_sync_demo_audio_assets($root);
     $membershipRepair = bandpromo_release_repair_stale_membership_asset_ids($root);
     require_once __DIR__ . '/playlist-storage.php';
     $playlistRepair = bandpromo_playlist_repair_stale_track_asset_ids($root, $membershipRepair['remaps'] ?? []);

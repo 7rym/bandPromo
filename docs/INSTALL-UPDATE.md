@@ -87,7 +87,7 @@ Setup should then:
 - verify required PHP extensions (including `pdo_sqlite` for activity logging)
 - create the first admin account
 - seed the required runtime files from tracked templates
-- import **`bandPromo-demo.prp`** on the first setup build (`ensure_demo`) when the published Demo PRP is available (local template seed is the fallback)
+- import **`bandPromo-demo.prp`** on the first setup build (`ensure_demo`) when the published Demo PRP is available (fail clearly if missing — no template seed fallback)
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 

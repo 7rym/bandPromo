@@ -45,9 +45,30 @@ Containers reference assets; assets point at files. Operators edit containers an
 | Platform provides | Purpose | Examples |
 |-------------------|---------|----------|
 | **Shell** | Site must never break | Player layout, login, install fallbacks (`bandPromo_logo.png`, etc.) |
-| **Starter examples** | First-run "it works" | `bandpromo-demo` release/playlist/gallery, `bandPromo_*` bundled audio |
+| **Starter campaign** | First-run "it works" | `bandPromo-demo.prp` imported at setup → normal release + owned containers/assets |
 
-Operators inherit starter examples, may hide them ("Hide demo catalog"), and replace them with their own containers. That is different from authoring them.
+Operators inherit the starter campaign, may **hide** it ("Hide demo catalog") or **duplicate** it as a template, and replace it with their own containers. That is different from authoring the platform demo.
+
+### Demo release policy (install preference)
+
+The **first PRP imported at setup** becomes this install’s protected fallback release. Operators may still label it “bandPromo demo”; policy keys off the **internal release id** (PRP keeps `bandpromo-demo`).
+
+| Preference | Storage | Meaning |
+|------------|---------|---------|
+| `demo_release_id` | `data/install-preferences.json` | Protected demo release id (from first PRP import; derived from installed `platform_demo` / `bandpromo-demo` on upgrade if missing) |
+| `demo_release_hidden` | same file | Operator hide toggle (`true` = hidden). Legacy `demo_catalog_visible` is the inverse, kept for API/UI compat |
+
+**Lock:** the demo release stays locked for operators. **Localhost only** may unlock, edit, and re-export the PRP. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
+
+**Hide:** operators may hide **only** that demo release’s **campaign** content (owned playlists / pages / galleries and their associated Audio/Visual pool media). Hide is **blocked** if any demo-owned campaign asset is still referenced by a **non-demo** container/release — the API returns structured `hide_blockers` (what/where). Do not silently keep shared assets while hiding, and do not hide shared assets without that warning.
+
+**Brand shell out of hide scope:** Files → Brand assets and Sound effects stay listable even when the demo campaign is hidden (operators duplicate brand; branding is secondary). There is no per-file soft-hide of demo shell media — hide is release-level only.
+
+**Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses release ownership + the prefs above.
+
+**Upgrade safety:** if prefs are missing, derive `demo_release_id` from the installed platform demo release, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the demo PRP is present.
+
+**Rule — no special demo content handling:** Once the release owns containers and assets, demo media/containers are not a second content system. Do not add heal/force/`bandPromo_*` → demo-release forks, parallel seed packs, or association exceptions “because demo.” Legitimate demo surfaces only: setup PRP import, lock (operators) / localhost unlock + export, hide, duplicate. `/media` is git-ignored; masters travel in PRP / release packages.
 
 ### Inside operator ownership: default slot vs real catalog
 
@@ -55,7 +76,7 @@ Operators inherit starter examples, may hide them ("Hide demo catalog"), and rep
 |------|----------|------------|
 | **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real release. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
 | **Operator catalog** | Any id they create (or import via PRP) | Real releases, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
-| **Platform demo** | `bandpromo-demo` | Locked campaign from **`bandPromo-demo.prp`** at setup; hideable; read-only for operators; base shell brand until overridden |
+| **Platform demo** | `bandpromo-demo` (persisted as `demo_release_id`) | Locked campaign from **`bandPromo-demo.prp`** at setup (normal PRP import, then locked). Operators may hide / duplicate. Hide applies to campaign containers + owned media only; brand shell stays visible. Hide blocked while non-demo containers still reference demo campaign assets. **Localhost** may unlock to edit and re-export the PRP. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
 
 ### Asset provenance (orthogonal to actor)
 
@@ -99,7 +120,7 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 | `bandpromo-demo` | **Platform demo campaign** from `bandPromo-demo.prp` (hideable, read-only) |
 | `.prp` / PRP | **Portable release package** — bandPromo ZIP for one campaign ([PORTABILITY.md](PORTABILITY.md)) |
 | `system` (playlist `kind`) | **Site-level playlist** until user playlists exist |
-| `system: true` (brand) | **Platform-shipped, locked** — duplicate to customize |
+| `system: true` (brand) | **Platform-shipped** — locked on hosted installs; localhost may edit for PRP source; operators duplicate to customize |
 | `user-upload` (origin) | **Operator upload** (not fan upload) |
 | `bundled-placeholder` | **Platform demo file** (legacy wording; demo media travels in the demo PRP) |
 | Theme | Legacy name for **Brand** |
@@ -126,13 +147,13 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.prp`** as install **base shell**; locked; remains login/fallback until the operator selects another base |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.prp`** as install **base shell**; locked after import (localhost may edit for PRP authoring); remains login/fallback until the operator selects another base. Shell media under Files → Brand assets / Sound effects stays listable while brands reference it (not folded into Hide demo catalog). |
 
 Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
 **Publish must not steal Base:** Demo PRP ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player chrome (install-owned):** Vanilla seeds `playlist_selector: coverflow` and `shell_background: living` in `web-config` / setup — **not** inside a PRP.
+**Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives on the **Base brand** document and travels with brands/PRPs. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
 **Player nav — locked target (implement with PRP slice):**
 
@@ -298,7 +319,7 @@ Containers, galleries, pages, brands, track covers, living covers, and social/sh
 
 **Replace upload:** same `original_filename` reuses one `ast_*` and overwrites master bytes (no clone storm).
 
-**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. Role + linked context (`operator_title`) remains a secondary address for assignment chips (e.g. `Track cover — Party with a banana`).
+**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. When `display.title` is empty, Files / pickers fall back to the registry **role label** only (e.g. `Track cover`, `Unassigned`) via `operator_title` — not brand or release suffixes.
 
 **Operator address (Files / pickers):** **title first** when set; else role + linked context; `ast_*` secondary; original upload name tertiary. Shared assets show “used by N”; delete warns when multiple live refs.
 
@@ -626,7 +647,7 @@ Value is the stable on-disk video filename, not a human title. No sidecar files.
 2. **Delivery only** — player uses optimal MP4 after Publish.
 3. **Silent loop** — `muted`, `loop`, `playsinline`.
 4. **Still while idle** — static cover when paused, stopped, or before first play.
-5. **Living while playing** — loop video only while audio is actively playing. Independent of player shell Still/Living background.
+5. **Living while playing** — loop video only while audio is actively playing. Prefer living whenever assigned and delivery-ready (no install or player toggle; independent of shell backdrop).
 6. **Reduced motion** — static cover when `prefers-reduced-motion: reduce`.
 7. **Background tab** — still cover while hidden; living cover resumes when visible and playing.
 
@@ -672,7 +693,7 @@ Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`.
 - Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
 - **Set as base** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).
 - Duplicate still clones shell media so the copy has deletable files. If a source slot file is missing, clone falls back to bundled demo seed files (`bandPromo_cover.png` / `bandPromo_share.png`, etc.) instead of copying a broken path.
-- Publish / brand ensure self-heals missing demo poster/share paths on the locked default and in `web-config.json` (operators cannot edit bandPromo Default). Starter-pack presence checks include `bandPromo_cover.png`.
+- Publish / brand ensure self-heals missing demo poster/share paths on the locked default and in `web-config.json` (hosted operators duplicate bandPromo Default; localhost may edit for PRP source). Starter-pack presence checks include `bandPromo_cover.png`.
 - Player token + visual shell overlay uses the selected playlist’s owning release brand; login shell stays on install Base.
 
 ### Semantic color and layout tokens

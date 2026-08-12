@@ -16,12 +16,17 @@ $root = dirname(__DIR__);
 try {
     bandpromo_release_ensure_seeded($root);
     $releases = bandpromo_release_admin_registry_entries($root);
+    $demoReleaseId = bandpromo_demo_release_id($root);
+    if ($demoReleaseId === '') {
+        $demoReleaseId = BANDPROMO_RELEASE_DEMO_ID;
+    }
 
     echo json_encode([
         'ok' => true,
         'default_release_id' => BANDPROMO_RELEASE_DEFAULT_ID,
-        'demo_release_id' => BANDPROMO_RELEASE_DEMO_ID,
+        'demo_release_id' => $demoReleaseId,
         'demo_catalog_visible' => bandpromo_demo_catalog_is_visible($root),
+        'demo_release_hidden' => bandpromo_demo_release_is_hidden($root),
         'releases' => $releases,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {

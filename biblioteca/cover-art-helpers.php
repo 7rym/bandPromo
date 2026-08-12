@@ -477,3 +477,123 @@ function bandpromo_cover_art_cleanup_stale_configured_release_covers(string $roo
 
     return ['removed' => $removed];
 }
+
+/**
+ * Resolve a pool cover basename for an audio asset (display.cover or stem sidecar).
+ */
+function bandpromo_cover_art_resolve_linked_cover_basename(string $root, array $audioAsset): string
+{
+    $display = is_array($audioAsset['display'] ?? null) ? $audioAsset['display'] : [];
+    $cover = basename(trim((string) ($display['cover'] ?? '')));
+    if ($cover !== '' && bandpromo_cover_art_img_path_basename_exists($root, $cover)) {
+        return $cover;
+    }
+
+    $master = basename(trim((string) ($audioAsset['master_filename'] ?? '')));
+    $original = basename(trim((string) ($audioAsset['original_filename'] ?? '')));
+    foreach ([$master, $original] as $audioName) {
+        if ($audioName === '') {
+            continue;
+        }
+        $stem = (string) pathinfo($audioName, PATHINFO_FILENAME);
+        if ($stem === '') {
+            continue;
+        }
+        foreach (['.jpg', '.jpeg', '.png', '.webp'] as $ext) {
+            $candidate = $stem . $ext;
+            if (bandpromo_cover_art_img_path_basename_exists($root, $candidate)) {
+                return $candidate;
+            }
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Register Visual assets for embedded/sidecar covers linked to audio masters.
+ * Makes extracted track art selectable in Visual pickers without Repair catalog.
+ *
+ * @param list<string> $audioFilenames Master or original audio basenames
+ * @return array{covers: list<string>, asset_ids: list<string>, count: int}
+ */
+function bandpromo_register_extracted_covers_for_audio_files(string $root, array $audioFilenames): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/media-library-state.php';
+
+    $covers = [];
+    $assetIds = [];
+
+    foreach ($audioFilenames as $filename) {
+        $filename = basename(trim((string) $filename));
+        if ($filename === '') {
+            continue;
+        }
+
+        $audio = bandpromo_asset_lookup_by_master_filename($root, $filename)
+            ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+        if (!is_array($audio) || ($audio['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+
+        $cover = bandpromo_cover_art_resolve_linked_cover_basename($root, $audio);
+        if ($cover === '') {
+            continue;
+        }
+
+        // Keep display.cover pointing at the pool original when we discovered a sidecar.
+        $display = is_array($audio['display'] ?? null) ? $audio['display'] : [];
+        if (basename(trim((string) ($display['cover'] ?? ''))) !== $cover) {
+            $display['cover'] = $cover;
+            bandpromo_asset_update_entry($root, (string) ($audio['id'] ?? ''), [
+                'display' => $display,
+            ]);
+        }
+
+        try {
+            $visual = bandpromo_asset_register_visual($root, $cover, 'img', 'image', [
+                'role' => 'track-cover',
+            ]);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        if (!is_array($visual)) {
+            continue;
+        }
+
+        $visualId = trim((string) ($visual['id'] ?? ''));
+        $releaseId = trim((string) ($audio['release_id'] ?? ''));
+        $changes = [];
+        if (($visual['role'] ?? '') === 'unassigned') {
+            $changes['role'] = 'track-cover';
+        }
+        if ($releaseId !== '' && trim((string) ($visual['release_id'] ?? '')) === '') {
+            $changes['release_id'] = $releaseId;
+        }
+        if ($changes !== [] && $visualId !== '') {
+            $updated = bandpromo_asset_update_entry($root, $visualId, $changes);
+            if (is_array($updated)) {
+                $visual = $updated;
+            }
+        }
+
+        bandpromo_media_files_index_sync_file($root, 'illustrations', $cover);
+        $covers[$cover] = true;
+        if ($visualId !== '') {
+            $assetIds[$visualId] = true;
+        }
+    }
+
+    $coverList = array_keys($covers);
+    if ($coverList !== []) {
+        bandpromo_media_files_index_rebuild_target($root, 'illustrations');
+    }
+
+    return [
+        'covers' => $coverList,
+        'asset_ids' => array_keys($assetIds),
+        'count' => count($coverList),
+    ];
+}

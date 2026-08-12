@@ -35,12 +35,18 @@ try {
     }
 
     $existing = bandpromo_theme_load_document($root, $themeId);
-    if (!empty($existing['locked'])) {
-        throw new RuntimeException('This theme is locked. Duplicate it to customize colors.');
+    if (!bandpromo_brand_may_edit_document($existing)) {
+        throw new RuntimeException('This theme is locked. Duplicate it to customize colors, or unlock on localhost for PRP source edits.');
     }
 
     $document = bandpromo_theme_normalize_document(array_merge($existing, $decoded), $themeId);
-    bandpromo_theme_write_document($root, $document);
+    // Preserve lock unless localhost explicitly unlocks the platform default.
+    if (array_key_exists('locked', $decoded) && bandpromo_brand_may_change_lock($themeId)) {
+        $document['locked'] = !empty($decoded['locked']);
+    } else {
+        $document['locked'] = !empty($existing['locked']);
+    }
+    bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
     $document = bandpromo_theme_load_document($root, $themeId);
 
     if (bandpromo_brand_active_id($root) === bandpromo_brand_canonical_id($themeId)) {
@@ -71,7 +77,7 @@ try {
 
     echo json_encode([
         'ok' => true,
-        'document' => $document,
+        'document' => bandpromo_theme_api_document($document),
         'playlist_brand_styles_updated' => $playlistBrandRefresh['updated'],
     ]);
 } catch (Throwable $throwable) {

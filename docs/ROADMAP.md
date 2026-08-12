@@ -816,7 +816,7 @@ Examples:
 - campaign checklists and operator workflow automation
 - AI-assisted **marketing** drafts (multi-post series, channel-specific variants) — distinct from v0.8 **content wizards** that fill missing fields during editing
 - Google Analytics and other analytics integrations
-- social publishing integrations and scheduling/background jobs
+- social publishing integrations and scheduling/background jobs (Instagram / TikTok **API posts**, not public-site share buttons). Locked still targets: IG feed **1080×1350**, Stories/Reels & TikTok **1080×1920** — generate on demand when publish exists; do not pre-emit in v0.8 `makeSocial.py` (OG stays **1200×630** only). See [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
 - approval workflows for generated campaign content
 
 These belong after the core platform is stable and its content model is mature.

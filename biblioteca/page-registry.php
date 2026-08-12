@@ -178,20 +178,51 @@ function bandpromo_page_ensure_system_pages(string $root): void
 {
     $registry = bandpromo_page_load_registry($root);
     $byId = [];
-    foreach ($registry['pages'] as $entry) {
+    foreach ($registry['pages'] as $index => $entry) {
         if (is_array($entry)) {
-            $byId[(string) ($entry['id'] ?? '')] = true;
+            $byId[(string) ($entry['id'] ?? '')] = $index;
         }
     }
 
     $changed = false;
+
+    // Heal truncated "galle" registry rows back to the system Gallery page when present.
+    $galleryPath = bandpromo_page_registry_storage_root($root) . DIRECTORY_SEPARATOR . 'gallery.json';
+    if (isset($byId['galle']) && is_file($galleryPath)) {
+        $galleIndex = (int) $byId['galle'];
+        if (!isset($byId['gallery'])) {
+            $registry['pages'][$galleIndex] = [
+                'id' => 'gallery',
+                'title' => 'Gallery',
+                'label' => 'Gallery',
+                'surface' => 'player',
+                'show_in_player' => true,
+                'required' => false,
+                'system' => true,
+                'sort_order' => (int) ($registry['pages'][$galleIndex]['sort_order'] ?? 15),
+            ];
+            $byId['gallery'] = $galleIndex;
+            unset($byId['galle']);
+            $changed = true;
+        } else {
+            array_splice($registry['pages'], $galleIndex, 1);
+            $byId = [];
+            foreach ($registry['pages'] as $index => $entry) {
+                if (is_array($entry)) {
+                    $byId[(string) ($entry['id'] ?? '')] = $index;
+                }
+            }
+            $changed = true;
+        }
+    }
+
     foreach (bandpromo_page_default_registry()['pages'] as $entry) {
         $id = (string) ($entry['id'] ?? '');
         if ($id === '' || isset($byId[$id])) {
             continue;
         }
         $registry['pages'][] = $entry;
-        $byId[$id] = true;
+        $byId[$id] = count($registry['pages']) - 1;
         $changed = true;
     }
 

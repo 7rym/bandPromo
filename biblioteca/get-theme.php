@@ -21,7 +21,7 @@ try {
         'ok' => true,
         'theme_id' => $themeId,
         'active_theme_id' => bandpromo_theme_active_id($root),
-        'document' => $document,
+        'document' => bandpromo_theme_api_document($document),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);

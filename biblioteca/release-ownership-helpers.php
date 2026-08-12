@@ -65,9 +65,6 @@ function bandpromo_release_ownership_migrate(string $root): array
             }
             $current = trim((string) ($brand['release_id'] ?? ''));
             $desired = $releasesByBrand[$brandId] ?? '';
-            if ($desired === '' && $brandId === BANDPROMO_BRAND_DEFAULT_ID) {
-                $desired = $demoReleaseId;
-            }
             if ($desired === '' || $current === $desired) {
                 continue;
             }
@@ -108,12 +105,8 @@ function bandpromo_release_ownership_migrate(string $root): array
             if (trim((string) ($document['release_id'] ?? '')) !== '') {
                 continue;
             }
-            $desired = '';
-            if ($playlistId === BANDPROMO_PLAYLIST_DEMO_ID) {
-                $desired = $demoReleaseId;
-            } else {
-                $desired = bandpromo_release_ownership_infer_from_playlist_entries($root, $document);
-            }
+            // Infer ownership from homogeneous track release_ids only — never force by playlist id.
+            $desired = bandpromo_release_ownership_infer_from_playlist_entries($root, $document);
             if ($desired === '') {
                 continue;
             }
@@ -125,67 +118,13 @@ function bandpromo_release_ownership_migrate(string $root): array
         // Best-effort.
     }
 
-    // Galleries.
-    try {
-        foreach (bandpromo_gallery_registry_entries($root) as $galleryMeta) {
-            if (!is_array($galleryMeta)) {
-                continue;
-            }
-            $galleryId = bandpromo_gallery_normalize_id((string) ($galleryMeta['id'] ?? ''));
-            if ($galleryId === '') {
-                continue;
-            }
-            try {
-                $document = bandpromo_gallery_load_document($root, $galleryId);
-            } catch (Throwable $throwable) {
-                continue;
-            }
-            if (trim((string) ($document['release_id'] ?? '')) !== '') {
-                continue;
-            }
-            if ($galleryId !== BANDPROMO_GALLERY_DEMO_ID) {
-                continue;
-            }
-            $document['release_id'] = $demoReleaseId;
-            bandpromo_gallery_write_document($root, $document);
-            $result['galleries']++;
-        }
-    } catch (Throwable $throwable) {
-        // Best-effort.
-    }
+    // Galleries / pages: ownership comes from PRP import + release associations.
+    // Do not force demo release_id here — locked demo + localhost unlock is enough.
 
-    // Pages: seed Bio under demo release when missing release_id.
-    try {
-        foreach (['bio', 'faq'] as $pageId) {
-            $path = bandpromo_page_json_path($root, $pageId);
-            if (!is_file($path)) {
-                continue;
-            }
-            $document = bandpromo_page_load_document($root, $pageId);
-            if (trim((string) ($document['release_id'] ?? '')) !== '') {
-                continue;
-            }
-            if ($pageId !== 'bio') {
-                continue;
-            }
-            $document['release_id'] = $demoReleaseId;
-            bandpromo_page_save_document($root, $document);
-            $result['pages']++;
-        }
-    } catch (Throwable $throwable) {
-        // Best-effort.
-    }
-
-    // Ensure demo release title + brand link.
+    // Ensure demo release has a brand link when empty (seed/import gap only).
     try {
         $demo = bandpromo_release_load_document($root, $demoReleaseId);
         $changed = false;
-        if (trim((string) ($demo['title'] ?? '')) === 'bandPromo demo'
-            || trim((string) ($demo['title'] ?? '')) === 'bandpromo demo'
-        ) {
-            $demo['title'] = 'bandPromo Demo Release';
-            $changed = true;
-        }
         if (trim((string) ($demo['brand_id'] ?? '')) === '') {
             $demo['brand_id'] = BANDPROMO_BRAND_DEFAULT_ID;
             $changed = true;
@@ -551,11 +490,22 @@ function bandpromo_release_association_pools(string $root, string $releaseId, st
                 continue;
             }
             $owner = bandpromo_release_normalize_optional_id((string) ($doc['release_id'] ?? ''));
+            // Protected demo gallery stays undeletable; reassign only when unlocked on localhost.
+            $galleryMovable = !bandpromo_gallery_is_protected_id($id);
+            if (!$galleryMovable) {
+                try {
+                    $demoRelease = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+                    $galleryMovable = empty($demoRelease['locked'])
+                        && bandpromo_release_may_change_lock(BANDPROMO_RELEASE_DEMO_ID);
+                } catch (Throwable $throwable) {
+                    $galleryMovable = false;
+                }
+            }
             $item = bandpromo_release_association_item(
                 $id,
                 trim((string) ($doc['title'] ?? $meta['title'] ?? $id)),
                 $owner,
-                !bandpromo_gallery_is_protected_id($id)
+                $galleryMovable
             );
             if ($owner === $releaseId) {
                 $active[] = $item;
@@ -570,12 +520,21 @@ function bandpromo_release_association_pools(string $root, string $releaseId, st
             return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
         });
     } else {
+        require_once __DIR__ . '/page-registry.php';
+        bandpromo_page_ensure_system_pages($root);
         foreach (bandpromo_page_registry_entries($root) as $meta) {
             if (!is_array($meta)) {
                 continue;
             }
             $pageId = trim((string) ($meta['id'] ?? ''));
             if ($pageId === '' || !bandpromo_page_runtime_present($root, $pageId)) {
+                continue;
+            }
+            // FAQ / login-surface pages are install shell, not campaign associations.
+            if ($pageId === BANDPROMO_PAGE_REQUIRED_ID
+                || (string) ($meta['surface'] ?? '') === 'login'
+                || !empty($meta['required'])
+            ) {
                 continue;
             }
             try {
@@ -634,11 +593,13 @@ function bandpromo_release_save_associations(string $root, string $releaseId, st
     if ($releaseMeta === null) {
         throw new InvalidArgumentException('Unknown release.');
     }
-    if (!empty($releaseMeta['locked'])) {
-        throw new InvalidArgumentException('This release is locked. Unlock it before changing associations.');
+    try {
+        $releaseDocument = bandpromo_release_load_document($root, $releaseId);
+    } catch (Throwable $throwable) {
+        throw new InvalidArgumentException('Unknown release.');
     }
-    if ($releaseId === BANDPROMO_RELEASE_DEMO_ID) {
-        throw new InvalidArgumentException('bandPromo demo associations are system-managed.');
+    if (!empty($releaseDocument['locked'])) {
+        throw new InvalidArgumentException('This release is locked. Unlock it before changing associations.');
     }
 
     $desired = [];

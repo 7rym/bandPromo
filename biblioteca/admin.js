@@ -734,6 +734,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return `/biblioteca/audio.php?${params.toString()}`;
             }
 
+            function sfxAdminListenUrl(file, options = {}) {
+                const forceOriginal = String(options.variant || '').trim().toLowerCase() === 'original';
+                const playUrl = String(file?.play_url || '').trim();
+                if (!forceOriginal && playUrl !== '') {
+                    return playUrl;
+                }
+                const assetId = String(file?.asset_id || '').trim();
+                if (!forceOriginal && file?.pool_ready === true && assetId !== '') {
+                    return `/media/sfx/optimal/${encodeURIComponent(assetId)}.mp3`;
+                }
+                const name = String(file?.name || '').trim();
+                if (name === '') {
+                    return '';
+                }
+                return buildMediaUrl('sfx', name);
+            }
+
             function pauseAdminAudioPreviews(except = null) {
                 document.querySelectorAll('audio.audio-admin-preview-player, audio.audio-master-listen-player').forEach((el) => {
                     if (except && el === except) {
@@ -823,6 +840,74 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (player) {
                     player.play().catch(() => {
                         showAdminToast('Could not start audio preview.', 'warning');
+                    });
+                }
+            };
+
+            window.toggleSfxFileListen = function(selectionKey) {
+                const key = String(selectionKey || '').trim();
+                if (!key) {
+                    return;
+                }
+                const file = findPoolAssetByKey('sfx', key);
+                if (!file) {
+                    showAdminToast('Could not find that sound effect.', 'error');
+                    return;
+                }
+                const url = sfxAdminListenUrl(file);
+                if (!url) {
+                    showAdminToast('No playable sound effect is available for this file yet.', 'warning');
+                    return;
+                }
+                const dock = getOrCreateAdminAudioDock();
+                const player = dock.querySelector('#adminAudioListenDockPlayer');
+                const titleEl = dock.querySelector('#adminAudioListenDockTitle');
+                if (titleEl) {
+                    titleEl.textContent = poolAssetHeadline('sfx', file) || String(file.name || 'Sound effect');
+                }
+                dock.hidden = false;
+                if (player) {
+                    const fallback = sfxAdminListenUrl(file, { variant: 'original' });
+                    player.dataset.listenPrimary = url;
+                    player.dataset.listenFallback = (fallback && fallback !== url) ? fallback : '';
+                    player.dataset.listenTriedFallback = '0';
+                    if (player.dataset.src !== url) {
+                        player.dataset.src = url;
+                        player.src = url;
+                    }
+                }
+                pauseAdminAudioPreviews(player);
+                if (player) {
+                    player.play().catch(() => {
+                        showAdminToast('Could not start sound-effect preview.', 'warning');
+                    });
+                }
+            };
+
+            window.toggleShellMediaListen = function(path) {
+                const url = String(path || '').trim();
+                if (!url) {
+                    return;
+                }
+                const dock = getOrCreateAdminAudioDock();
+                const player = dock.querySelector('#adminAudioListenDockPlayer');
+                const titleEl = dock.querySelector('#adminAudioListenDockTitle');
+                if (titleEl) {
+                    titleEl.textContent = url.split('/').pop() || 'Sound effect';
+                }
+                dock.hidden = false;
+                if (player) {
+                    player.dataset.listenTriedFallback = '0';
+                    player.dataset.listenFallback = '';
+                    if (player.dataset.src !== url) {
+                        player.dataset.src = url;
+                        player.src = url;
+                    }
+                }
+                pauseAdminAudioPreviews(player);
+                if (player) {
+                    player.play().catch(() => {
+                        showAdminToast('Could not start sound-effect preview.', 'warning');
                     });
                 }
             };
@@ -1802,10 +1887,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     parts.push(file?.display_artist);
                     parts.push(file?.display_version);
                     parts.push(file?.release_title);
+                    parts.push(file?.name);
                     return parts.filter(Boolean).join(' ').toLowerCase();
                 }
 
                 parts.push(poolAssetHeadline(type, file));
+                parts.push(file?.name);
                 parts.push(file?.display_title);
                 parts.push(file?.operator_title);
                 parts.push(file?.display_description);
@@ -2009,12 +2096,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return bandpromoAdminEscapeHtml(formatAudioListRowBody(mediaFile));
             }
 
-            function formatBrandContextMarkup(file) {
+            function formatBrandContextPlain(file) {
                 if (file?.brand_orphan === true || String(file?.brand_id || '').trim() === '') {
-                    return '<span class="media-file-release-content">Orphan</span>';
+                    return 'Orphan';
                 }
+                return String(file?.brand_title || '').trim();
+            }
 
-                const brandTitle = String(file?.brand_title || '').trim();
+            function poolAssetContextPlain(panelType, file) {
+                if (panelType === 'special' || panelType === 'sfx') {
+                    return formatBrandContextPlain(file);
+                }
+                if (file?.release_orphan === true) {
+                    return 'Orphan';
+                }
+                return String(file?.release_title || '').trim();
+            }
+
+            function formatBrandContextMarkup(file) {
+                const brandTitle = formatBrandContextPlain(file);
                 if (brandTitle === '') {
                     return '';
                 }
@@ -2178,6 +2278,192 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 syncAudioListSortHeaders();
                 if (activeMediaPanel === 'audio') {
                     void loadMediaList('audio', { fromState: true });
+                }
+            }
+
+            const poolListSortState = {
+                visual: { key: 'title', dir: 'asc' },
+                special: { key: 'title', dir: 'asc' },
+                sfx: { key: 'title', dir: 'asc' },
+            };
+
+            function syncPoolListSortHeaders(panelType = null) {
+                const panels = panelType ? [panelType] : ['visual', 'special', 'sfx'];
+                panels.forEach((panel) => {
+                    const sortState = poolListSortState[panel] || { key: 'title', dir: 'asc' };
+                    document.querySelectorAll(`[data-pool-sort][data-pool-panel="${panel}"]`).forEach((button) => {
+                        const key = String(button.getAttribute('data-pool-sort') || '').trim();
+                        const active = key === sortState.key;
+                        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                        if (active) {
+                            button.dataset.sortIndicator = sortState.dir === 'asc' ? '↑' : '↓';
+                            button.title = `Sorted ${sortState.dir === 'asc' ? 'ascending' : 'descending'}. Click to reverse.`;
+                        } else {
+                            delete button.dataset.sortIndicator;
+                            button.title = `Sort by ${button.textContent.trim()}`;
+                        }
+                    });
+                });
+            }
+
+            function comparePoolListValues(panelType, left, right, key, dir) {
+                const direction = dir === 'asc' ? 1 : -1;
+                if (key === 'size') {
+                    const leftSize = Number(left?.size) || 0;
+                    const rightSize = Number(right?.size) || 0;
+                    if (leftSize !== rightSize) {
+                        return (leftSize - rightSize) * direction;
+                    }
+                    return 0;
+                }
+
+                let leftValue = '';
+                let rightValue = '';
+                if (key === 'context') {
+                    leftValue = poolAssetContextPlain(panelType, left);
+                    rightValue = poolAssetContextPlain(panelType, right);
+                } else {
+                    leftValue = poolAssetHeadline(panelType, left);
+                    rightValue = poolAssetHeadline(panelType, right);
+                }
+
+                if (leftValue === '' && rightValue === '') {
+                    return 0;
+                }
+                if (leftValue === '') {
+                    return 1;
+                }
+                if (rightValue === '') {
+                    return -1;
+                }
+                return leftValue.localeCompare(rightValue, undefined, {
+                    sensitivity: 'base',
+                    numeric: true,
+                }) * direction;
+            }
+
+            function sortPoolFilesForList(panelType, files) {
+                const sortState = poolListSortState[panelType] || { key: 'title', dir: 'asc' };
+                const rows = Array.isArray(files) ? files.slice() : [];
+                rows.sort((left, right) => {
+                    const primary = comparePoolListValues(panelType, left, right, sortState.key, sortState.dir);
+                    if (primary !== 0) {
+                        return primary;
+                    }
+                    if (sortState.key !== 'title') {
+                        const byTitle = comparePoolListValues(panelType, left, right, 'title', 'asc');
+                        if (byTitle !== 0) {
+                            return byTitle;
+                        }
+                    }
+                    return String(left?.name || '').localeCompare(String(right?.name || ''), undefined, {
+                        sensitivity: 'base',
+                        numeric: true,
+                    });
+                });
+                return rows;
+            }
+
+            function setPoolListSort(panelType, nextKey) {
+                if (!poolPanelTypes.has(panelType)) {
+                    return;
+                }
+                const key = String(nextKey || '').trim();
+                if (!['title', 'context', 'size'].includes(key)) {
+                    return;
+                }
+                const current = poolListSortState[panelType] || { key: 'title', dir: 'asc' };
+                if (current.key === key) {
+                    poolListSortState[panelType] = {
+                        key,
+                        dir: current.dir === 'asc' ? 'desc' : 'asc',
+                    };
+                } else {
+                    poolListSortState[panelType] = {
+                        key,
+                        dir: key === 'size' ? 'desc' : 'asc',
+                    };
+                }
+                syncPoolListSortHeaders(panelType);
+                if (activeMediaPanel === panelType) {
+                    void loadMediaList(panelType, { fromState: true });
+                }
+            }
+
+            function formatMediaDimensionLabel(width, height) {
+                const w = Number(width) || 0;
+                const h = Number(height) || 0;
+                if (w <= 0 || h <= 0) {
+                    return '';
+                }
+                return `${Math.round(w)} × ${Math.round(h)} px`;
+            }
+
+            function poolAssetDimensionsFromDelivery(file) {
+                const variants = file && typeof file.delivery_variants === 'object' && file.delivery_variants
+                    ? file.delivery_variants
+                    : {};
+                const prefer = ['card', 'poster', 'thumb', 'logo', 'standard-stream'];
+                for (let i = 0; i < prefer.length; i += 1) {
+                    const variant = variants[prefer[i]];
+                    if (!variant || typeof variant !== 'object') {
+                        continue;
+                    }
+                    const label = formatMediaDimensionLabel(variant.width, variant.height);
+                    if (label !== '') {
+                        return label;
+                    }
+                }
+                return formatMediaDimensionLabel(file?.width, file?.height);
+            }
+
+            function bindPoolAssetDimensionProbe(previewEl, detailsEl, kind) {
+                if (!(previewEl instanceof HTMLElement) || !(detailsEl instanceof HTMLElement)) {
+                    return;
+                }
+                const apply = (width, height) => {
+                    const label = formatMediaDimensionLabel(width, height);
+                    if (label === '') {
+                        return;
+                    }
+                    const terms = Array.from(detailsEl.querySelectorAll('dt'));
+                    for (let i = 0; i < terms.length; i += 1) {
+                        if (String(terms[i].textContent || '').trim() !== 'Dimensions') {
+                            continue;
+                        }
+                        const valueEl = terms[i].nextElementSibling;
+                        if (valueEl instanceof HTMLElement) {
+                            valueEl.textContent = label;
+                        }
+                        return;
+                    }
+                };
+
+                if (kind === 'image') {
+                    const img = previewEl.querySelector('img');
+                    if (!(img instanceof HTMLImageElement)) {
+                        return;
+                    }
+                    const read = () => apply(img.naturalWidth, img.naturalHeight);
+                    if (img.complete && img.naturalWidth > 0) {
+                        read();
+                    } else {
+                        img.addEventListener('load', read, { once: true });
+                    }
+                    return;
+                }
+
+                if (kind === 'video') {
+                    const video = previewEl.querySelector('video');
+                    if (!(video instanceof HTMLVideoElement)) {
+                        return;
+                    }
+                    const read = () => apply(video.videoWidth, video.videoHeight);
+                    if (video.readyState >= 1 && video.videoWidth > 0) {
+                        read();
+                    } else {
+                        video.addEventListener('loadedmetadata', read, { once: true });
+                    }
                 }
             }
 
@@ -2567,17 +2853,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function inferMediaTargetFromPath(path, allowedTargets) {
                 const targets = Array.isArray(allowedTargets) ? allowedTargets : [];
+                const raw = String(path || '');
+                if (targets.includes('sfx') && raw.startsWith('/media/sfx/')) {
+                    return 'sfx';
+                }
                 if (targets.includes('visual')) {
-                    const raw = String(path || '');
                     if (
                         raw.startsWith('/media/img/')
                         || raw.startsWith('/media/photo/')
                         || raw.startsWith('/media/video/')
+                        || raw.startsWith('/media/visual/')
                     ) {
                         return 'visual';
                     }
                 }
-                const match = targets.find((target) => String(path || '').startsWith(getMediaBasePath(target) + '/'));
+                const match = targets.find((target) => raw.startsWith(getMediaBasePath(target) + '/'));
                 return match || targets[0] || 'special';
             }
 
@@ -3225,23 +3515,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const bulkDeleteBtn = document.querySelector(`[data-bulk-delete-target="${type}"]`);
                 if (bulkDeleteBtn) {
                     const count = state.selected.size;
-                    bulkDeleteBtn.disabled = count <= 1;
+                    bulkDeleteBtn.disabled = count < 1;
+                    bulkDeleteBtn.title = count < 1
+                        ? 'Select one or more files to delete'
+                        : 'Delete selected files';
                 }
 
                 const selectedDetails = getSelectedMediaDetails(type);
                 document.querySelectorAll(`[data-bulk-download-target="${type}"]`).forEach((button) => {
                     const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'original').trim());
                     const count = selectedDetails.length;
-                    const canDownloadOriginal = count > 1;
+                    const canDownloadOriginal = count >= 1;
                     const canDownloadMaster = type === 'audio'
-                        && count > 1
+                        && count >= 1
                         && selectedDetails.every((file) => file && file.audio_master && file.audio_master.exists);
                     const enabled = variant === 'master' ? canDownloadMaster : canDownloadOriginal;
                     button.disabled = !enabled;
                     if (variant === 'master' && !enabled && count > 0) {
                         button.title = 'Every selected audio file must have a prepared copy before this download is available.';
+                    } else if (!enabled) {
+                        button.title = 'Select one or more files to download';
                     } else {
-                        button.removeAttribute('title');
+                        button.title = 'Download selected files';
                     }
                 });
             }
@@ -3319,6 +3614,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const role = String(info.role || '').trim();
 
                 if (panelType === 'sfx') {
+                    const humanTitle = String(file?.display_title || file?.display?.title || '').trim();
+                    if (humanTitle !== '') {
+                        return humanTitle;
+                    }
                     if (kinds.has('welcome-audio')) {
                         return 'Welcome sound';
                     }
@@ -3559,6 +3858,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const mode = panel === 'sfx'
                         ? 'list'
                         : (poolViewModes[panel] === 'list' ? 'list' : 'grid');
+                    const panelEl = document.getElementById('panel-' + panel);
+                    if (panelEl) {
+                        panelEl.dataset.poolLayout = mode;
+                    }
                     const listEl = document.getElementById('filelist-' + panel);
                     if (listEl) {
                         listEl.classList.toggle('visual-pool-list--grid', mode === 'grid');
@@ -3603,10 +3906,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const headline = poolAssetHeadline(panelType, file);
                 const sizeLabel = fmtSize(Number(file.size) || 0);
                 const pills = poolAssetStatusPills(file);
-                const releaseTrail = (panelType === 'special' || panelType === 'sfx')
-                    ? formatBrandContextMarkup(file)
-                    : formatAudioReleaseContextMarkup(file);
-                const titleHtml = `<span class="media-file-name visual-pool-card-meta-title"><strong class="media-file-name-text">${bandpromoAdminEscapeHtml(headline)}</strong>${releaseTrail !== '' ? ` ${releaseTrail}` : ''}</span>`;
+                const contextLabel = poolAssetContextPlain(panelType, file);
+                const contextCell = contextLabel !== ''
+                    ? bandpromoAdminEscapeHtml(contextLabel)
+                    : '—';
+                const titleHtml = `<span class="media-file-name-wrap"><span class="media-file-name visual-pool-card-meta-title"><strong class="media-file-name-text">${bandpromoAdminEscapeHtml(headline)}</strong></span><span class="media-file-meta">${formatMediaReferenceBadges(panelType, file)}</span></span>`;
                 const statusHtml = pills.length
                     ? `<span class="visual-pool-status-stack">${pills.map((pill) =>
                         `<span class="visual-pool-status-pill ${pill.className || ''}">${bandpromoAdminEscapeHtml(pill.text)}</span>`
@@ -3614,25 +3918,33 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : '';
                 const typeLabel = poolAssetKindLabel(kind, panelType);
                 const selectLabel = `Select ${typeLabel.toLowerCase()}`;
+                const openLabel = `Open ${typeLabel.toLowerCase()} details`;
+                const listenBtn = panelType === 'sfx' && sfxAdminListenUrl(file)
+                    ? `<button type="button" class="icon-btn media-action-btn media-action-good" title="Listen" onclick="event.stopPropagation(); toggleSfxFileListen('${safeKey}')">▶</button>`
+                    : '';
                 return `<article class="visual-pool-card${selected ? ' media-file-row-selected visual-pool-card-selected' : ''}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" data-media-type="${kind}">
-                    <label class="media-file-select-wrap visual-pool-card-select" title="${selectLabel}" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(panelType)}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="${selectLabel}">
-                    </label>
-                    <button type="button" class="visual-pool-card-thumb" data-pool-open="${bandpromoAdminEscapeHtml(selectionKey)}" data-pool-panel="${bandpromoAdminEscapeHtml(panelType)}" aria-label="Open ${typeLabel.toLowerCase()} details">
-                        ${poolAssetThumbInnerHtml(panelType, file, pathType)}
-                        ${statusHtml}
-                        <span class="visual-pool-type-badge">${typeLabel}</span>
-                    </button>
-                    <div class="visual-pool-card-meta">
-                        <div class="visual-pool-card-meta-copy">
-                            ${titleHtml}
-                            <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
-                            <span class="media-file-meta">${formatMediaReferenceBadges(panelType, file)}</span>
-                        </div>
-                        <div class="visual-pool-card-actions">
+                    <div class="visual-pool-card-main">
+                        <label class="media-file-select-wrap visual-pool-card-select" title="${selectLabel}" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(panelType)}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="${selectLabel}">
+                        </label>
+                        <button type="button" class="visual-pool-card-thumb" data-pool-open="${bandpromoAdminEscapeHtml(selectionKey)}" data-pool-panel="${bandpromoAdminEscapeHtml(panelType)}" aria-label="${openLabel}">
+                            ${poolAssetThumbInnerHtml(panelType, file, pathType)}
+                            ${statusHtml}
+                            <span class="visual-pool-type-badge">${typeLabel}</span>
+                        </button>
+                        ${titleHtml}
+                        <span class="media-file-col media-file-col-release visual-pool-card-context" title="${bandpromoAdminEscapeHtml(contextLabel || '—')}">${contextCell}</span>
+                        <span class="media-file-col media-file-col-size media-file-size visual-pool-card-size">${bandpromoAdminEscapeHtml(sizeLabel)}</span>
+                        <div class="visual-pool-card-actions media-file-actions">
+                            ${listenBtn}
+                            <button type="button" class="icon-btn media-action-btn media-action-good" title="Open details" onclick="event.stopPropagation(); openPoolAssetModal('${panelType}', '${safeKey}')">✎</button>
                             <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
                             <button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>
                         </div>
+                    </div>
+                    <div class="visual-pool-card-grid-caption">
+                        <span class="visual-pool-card-meta-title"><strong class="media-file-name-text">${bandpromoAdminEscapeHtml(headline)}</strong></span>
+                        <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
                     </div>
                 </article>`;
             }
@@ -3648,7 +3960,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 syncPoolViewUi(panelType);
                 setAdminPreviewItems(files, panelType);
-                listEl.innerHTML = files.map((file) => buildPoolCardMarkup(panelType, file, selection)).join('');
+                const renderFiles = sortPoolFilesForList(panelType, files);
+                listEl.innerHTML = renderFiles.map((file) => buildPoolCardMarkup(panelType, file, selection)).join('');
             }
 
             function renderVisualPoolList(files, selection) {
@@ -3718,7 +4031,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 } else if (kind === 'audio') {
                     previewEl.classList.remove('visual-asset-modal-preview--video');
-                    previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Audio brand asset">♪</div><audio controls src="${buildMediaUrl(pathType, file.name)}" preload="metadata"></audio>`;
+                    const listenUrl = panelType === 'sfx'
+                        ? (sfxAdminListenUrl(file) || buildMediaUrl(pathType, file.name))
+                        : buildMediaUrl(pathType, file.name);
+                    previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Audio brand asset">♪</div><audio controls src="${bandpromoAdminEscapeHtml(listenUrl)}" preload="metadata"></audio>`;
                 } else if (kind === 'image') {
                     previewEl.classList.remove('visual-asset-modal-preview--video');
                     previewEl.innerHTML = `<img src="${buildMediaUrl(pathType, file.name)}" alt="">`;
@@ -3727,7 +4043,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     previewEl.innerHTML = `<span class="text-muted">No preview for this file type.</span>`;
                 }
 
-                const canEditDisplay = panelType === 'visual' && String(file.asset_id || '').trim() !== '';
+                const canEditDisplay = (panelType === 'visual' || panelType === 'special' || panelType === 'sfx')
+                    && String(file.asset_id || '').trim() !== '';
                 if (displayForm) {
                     displayForm.hidden = !canEditDisplay;
                     if (canEditDisplay) {
@@ -3738,6 +4055,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const detailRows = [
                     ['Type', typeLabel],
                     ['Size', fmtSize(Number(file.size) || 0)],
+                ];
+                if (kind === 'image' || kind === 'video') {
+                    detailRows.push(['Dimensions', poolAssetDimensionsFromDelivery(file) || '—']);
+                }
+                if (kind === 'image') {
+                    let alphaLabel = '—';
+                    if (file.has_alpha === true) {
+                        alphaLabel = 'Yes';
+                    } else if (file.has_alpha === false) {
+                        alphaLabel = 'No';
+                    }
+                    detailRows.push(['Alpha', alphaLabel]);
+                }
+                detailRows.push(
                     [(panelType === 'special' || panelType === 'sfx') ? 'Brand' : 'Catalogue',
                         (panelType === 'special' || panelType === 'sfx')
                             ? (file.brand_orphan === true || String(file.brand_id || '').trim() === ''
@@ -3749,7 +4080,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     ['Usage', info.orphan === true
                         ? 'Not referenced'
                         : (Number(info.reference_count || 0) > 0 ? 'In use' : 'Not referenced')],
-                ];
+                );
                 if (String(file.operator_title || '').trim() !== '' && String(file.display_title || '') !== String(file.operator_title || '')) {
                     detailRows.push(['Role address', String(file.operator_title)]);
                 }
@@ -3768,6 +4099,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const isHtml = label === 'References';
                     return `<dt>${bandpromoAdminEscapeHtml(label)}</dt><dd>${isHtml ? value : bandpromoAdminEscapeHtml(String(value))}</dd>`;
                 }).join('');
+                bindPoolAssetDimensionProbe(previewEl, detailsEl, kind);
 
                 if (downloadBtn) {
                     downloadBtn.onclick = () => {
@@ -3823,15 +4155,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 const panelType = activePoolAsset.panel;
                 const selectionKey = activePoolAsset.key;
-                if (panelType !== 'visual' || !selectionKey) {
+                if ((panelType !== 'visual' && panelType !== 'special' && panelType !== 'sfx') || !selectionKey) {
                     return;
                 }
                 const file = findPoolAssetByKey(panelType, selectionKey);
                 const assetId = String(file?.asset_id || '').trim();
+                const statusEl = document.getElementById('poolAssetDisplayStatus');
                 if (!file || !assetId) {
+                    if (statusEl) {
+                        statusEl.hidden = false;
+                        statusEl.classList.remove('is-success');
+                        statusEl.classList.add('is-error');
+                        statusEl.textContent = 'This file is not in the media registry yet, so details cannot be saved.';
+                    }
                     return;
                 }
-                const statusEl = document.getElementById('poolAssetDisplayStatus');
                 const saveBtn = document.getElementById('poolAssetDisplaySaveBtn');
                 const title = String(document.getElementById('poolAssetDisplayTitle')?.value || '').trim();
                 const description = String(document.getElementById('poolAssetDisplayDescription')?.value || '').trim();
@@ -3864,7 +4202,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                     const data = await resp.json().catch(() => ({}));
                     if (!resp.ok || !data || data.ok !== true) {
-                        throw new Error((data && (data.error || data.warning)) || 'Could not save visual details');
+                        throw new Error((data && (data.error || data.warning)) || 'Could not save asset details');
                     }
                     const display = data.display && typeof data.display === 'object' ? data.display : {
                         title,
@@ -3878,25 +4216,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     file.display_description = String(display.description || '');
                     file.display_captured_at = String(display.captured_at || '');
                     file.display_keywords = Array.isArray(display.keywords) ? display.keywords : [];
-                    const listEl = document.getElementById('filelist-visual');
+                    const listEl = document.getElementById('filelist-' + panelType);
                     if (listEl) {
-                        const files = filterReferencedMediaFiles('visual', getMediaFileState('visual'));
-                        renderPoolList('visual', files, getMediaSelectionState('visual'));
+                        const files = filterReferencedMediaFiles(panelType, getMediaFileState(panelType));
+                        renderPoolList(panelType, files, getMediaSelectionState(panelType));
                     }
                     const titleEl = document.getElementById('poolAssetTitle');
                     if (titleEl) {
-                        titleEl.textContent = poolAssetHeadline('visual', file);
+                        titleEl.textContent = poolAssetHeadline(panelType, file);
                     }
                     if (statusEl) {
                         statusEl.classList.add(data.embed_ok === false ? 'is-error' : 'is-success');
-                        statusEl.textContent = data.embed_ok === false
-                            ? (`Saved in registry. Master embed warning: ${String(data.embed_error || data.warning || 'write failed')}`)
-                            : 'Saved (registry + master metadata).';
+                        if (panelType === 'sfx') {
+                            statusEl.textContent = 'Saved.';
+                        } else if (data.embed_ok === false) {
+                            statusEl.textContent = `Saved in registry. Master embed warning: ${String(data.embed_error || data.warning || 'write failed')}`;
+                        } else {
+                            statusEl.textContent = 'Saved (registry + master metadata).';
+                        }
                     }
                 } catch (error) {
                     if (statusEl) {
                         statusEl.classList.add('is-error');
-                        statusEl.textContent = error && error.message ? error.message : 'Could not save visual details';
+                        statusEl.textContent = error && error.message ? error.message : 'Could not save asset details';
                     }
                 } finally {
                     if (saveBtn) {
@@ -4305,6 +4647,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             });
             syncAudioListSortHeaders();
 
+            document.querySelectorAll('[data-pool-sort]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    setPoolListSort(
+                        button.getAttribute('data-pool-panel'),
+                        button.getAttribute('data-pool-sort')
+                    );
+                });
+            });
+            syncPoolListSortHeaders();
+
             syncReleaseFilterUi();
             syncBrandFilterUi();
             syncMediaReferenceFilterUi();
@@ -4432,15 +4784,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (target === 'special' || target === 'sfx') {
                         await ensureBrandFilterCatalog();
                     }
-                    const includeHidden = window.bandpromoDemoCatalogVisible === true;
-                    let files = await fetchMediaFiles(target, { includeHidden });
+                    // Match Files pools: never re-include per-file soft-hidden rows.
+                    // Demo catalog visibility is release-level (list-media ownership filter),
+                    // not a signal to show install-local hidden map entries.
+                    let files = await fetchMediaFiles(target, { includeHidden: false });
                     if (target === 'visual' && Array.isArray(mediaPickerState.visualBuckets) && mediaPickerState.visualBuckets.length) {
                         const allowed = new Set(mediaPickerState.visualBuckets);
                         files = files.filter((file) => allowed.has(resolveFileIntakeBucket(file, 'visual')));
                     }
+                    const acceptKinds = Array.isArray(mediaPickerState.acceptKinds)
+                        ? mediaPickerState.acceptKinds
+                        : [];
+                    if (acceptKinds.length) {
+                        files = files.filter((file) => fileMatchesPickerAccept(file, acceptKinds));
+                    }
                     const pickerSearchEl = document.getElementById('mediaPickerSearch');
                     const pickerNeedle = pickerSearchEl ? String(pickerSearchEl.value || '') : '';
                     files = files.filter((file) => matchesMediaSearch(target, file, pickerNeedle));
+                    files = sortMediaPickerFiles(target, files);
                     setAdminPreviewItems(files, target);
 
                     if (!files.length) {
@@ -4517,7 +4878,65 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
-            window.openMediaPicker = function(fieldId, title, targets) {
+            function normalizePickerAcceptKinds(raw) {
+                const values = Array.isArray(raw)
+                    ? raw
+                    : String(raw || '').split(',');
+                const allowed = new Set(['image', 'video', 'audio']);
+                return values
+                    .map((value) => String(value || '').trim().toLowerCase())
+                    .filter((value) => allowed.has(value));
+            }
+
+            function fileMatchesPickerAccept(file, acceptKinds) {
+                if (!Array.isArray(acceptKinds) || !acceptKinds.length) {
+                    return true;
+                }
+                const name = String(file?.name || '');
+                const mediaType = String(file?.media_type || '').toLowerCase();
+                return acceptKinds.some((kind) => {
+                    if (kind === 'image') {
+                        return mediaType === 'image' || isImage(name);
+                    }
+                    if (kind === 'video') {
+                        return mediaType === 'video' || isVideo(name);
+                    }
+                    if (kind === 'audio') {
+                        return mediaType === 'audio' || isAudio(name);
+                    }
+                    return true;
+                });
+            }
+
+            function mediaPickerFileSortLabel(target, file) {
+                if (target === 'audio') {
+                    return formatAudioListRowBody(audioFileForDisplay(file)) || String(file?.name || '');
+                }
+                if (poolPanelTypes.has(target)) {
+                    return poolAssetHeadline(target, file) || String(file?.name || '');
+                }
+                return String(file?.name || '');
+            }
+
+            function sortMediaPickerFiles(target, files) {
+                return [...(Array.isArray(files) ? files : [])].sort((left, right) => {
+                    const leftLabel = mediaPickerFileSortLabel(target, left);
+                    const rightLabel = mediaPickerFileSortLabel(target, right);
+                    const byLabel = leftLabel.localeCompare(rightLabel, undefined, {
+                        sensitivity: 'base',
+                        numeric: true,
+                    });
+                    if (byLabel !== 0) {
+                        return byLabel;
+                    }
+                    return String(left?.name || '').localeCompare(String(right?.name || ''), undefined, {
+                        sensitivity: 'base',
+                        numeric: true,
+                    });
+                });
+            }
+
+            window.openMediaPicker = function(fieldId, title, targets, options = {}) {
                 const pickerModal = document.getElementById('mediaPickerModal');
                 const input = document.getElementById(fieldId);
                 if (!input || !pickerModal) return;
@@ -4531,12 +4950,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     .map((value) => value.trim())
                     .filter(Boolean);
                 const normalized = normalizeMediaPickerTargets(rawTargets);
+                const opts = (options && typeof options === 'object') ? options : {};
 
                 mediaPickerState = {
                     fieldId,
                     title: title || 'Choose file',
                     targets: normalized.targets,
                     visualBuckets: normalized.visualBuckets,
+                    acceptKinds: normalizePickerAcceptKinds(opts.acceptKinds),
                     activeTarget: inferMediaTargetFromPath(input.value, normalized.targets),
                 };
 
@@ -4595,7 +5016,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (openBtn && openBtn.dataset.field) {
                     event.preventDefault();
                     event.stopPropagation();
-                    window.openMediaPicker(openBtn.dataset.field, openBtn.dataset.title, openBtn.dataset.targets || 'special');
+                    window.openMediaPicker(
+                        openBtn.dataset.field,
+                        openBtn.dataset.title,
+                        openBtn.dataset.targets || 'special',
+                        { acceptKinds: normalizePickerAcceptKinds(openBtn.dataset.accept || '') }
+                    );
                     return;
                 }
 
@@ -6009,12 +6435,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 syncMediaSelectionUi(target);
                 button.addEventListener('click', () => {
                     const files = getSelectedMediaFiles(target);
-                    if (files.length <= 1) return;
+                    if (!files.length) return;
                     submitMediaDownloadRequest(target, resolveBulkDownloadVariant(target, String(button.dataset.downloadVariant || 'original').trim()), files);
                 });
             });
 
-            document.querySelectorAll('.media-file-list, #filelist-visual').forEach((listEl) => {
+            document.querySelectorAll('.media-file-list, .visual-pool-list').forEach((listEl) => {
                 listEl.addEventListener('click', (event) => {
                     const checkbox = event.target.closest('.media-file-select');
                     if (!checkbox) return;
@@ -6397,6 +6823,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let autoDeliveryFailed = false;
                     let uploadWarnings = [];
                     let backgroundVideoStarted = false;
+                    let replacedCount = 0;
                     const masterWarnings = [];
                     for (let fi = 0; fi < modalFiles.length; fi++) {
                         const file = modalFiles[fi];
@@ -6412,6 +6839,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             });
                             if (uploadData && uploadData.build_required_state) {
                                 latestBuildState = uploadData.build_required_state;
+                            }
+                            if (uploadData && uploadData.replaced === true) {
+                                replacedCount += 1;
                             }
                             if (uploadData && uploadData.master_prepared) {
                                 masterPreparedCount += 1;
@@ -6454,6 +6884,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
+                        const replacedNote = replacedCount > 0
+                            ? ` Replaced ${replacedCount} existing file${replacedCount === 1 ? '' : 's'} with the same name (not a second pool entry).`
+                            : '';
                         const deliveryNote = backgroundVideoStarted
                             ? ' Video delivery started in the background.'
                             : (autoDeliveryRan
@@ -6465,10 +6898,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (latestBuildState && latestBuildState.required) {
                             const next = formatBuildNextStep(latestBuildState);
                             const toastKind = autoDeliveryFailed || masterWarnings.length ? 'warning' : 'success';
-                            showAdminToast(`Upload complete.${masterNote}${deliveryNote} ${next}`, toastKind);
+                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${deliveryNote} ${next}`, toastKind);
                         } else {
                             const toastKind = autoDeliveryFailed || masterWarnings.length ? 'warning' : 'success';
-                            showAdminToast(`Upload complete.${masterNote}${deliveryNote}`, toastKind);
+                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${deliveryNote}`, toastKind);
                         }
                         if (masterWarnings.length || uniqueUploadWarnings.length) {
                             const combined = [...masterWarnings, ...uniqueUploadWarnings];
@@ -6672,7 +7105,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return true;
                     }
                     if (statusEl) {
-                        statusEl.textContent = '❌ ' + (data.error || 'Save failed');
+                        let message = data.error || 'Save failed';
+                        const blockers = Array.isArray(data.hide_blockers) ? data.hide_blockers : [];
+                        if (blockers.length > 0) {
+                            const preview = blockers.slice(0, 4).map((item) => {
+                                const file = item.filename || item.asset_id || 'asset';
+                                const where = item.label || item.container_id || item.kind || 'external reference';
+                                return file + ' → ' + where;
+                            }).join('; ');
+                            const more = blockers.length > 4 ? ' (+' + (blockers.length - 4) + ' more)' : '';
+                            message += ' ' + preview + more;
+                        }
+                        statusEl.textContent = '❌ ' + message;
                         statusEl.style.color = '#f55';
                     }
                     return false;
@@ -6750,9 +7194,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const cfgDemoCatalogStatus = document.getElementById('cfgDemoCatalogStatus');
             if (cfgDemoCatalogVisible) {
                 cfgDemoCatalogVisible.addEventListener('change', async () => {
-                    const saved = await saveDemoCatalogVisible(cfgDemoCatalogVisible.checked, cfgDemoCatalogStatus);
+                    const desired = cfgDemoCatalogVisible.checked;
+                    const saved = await saveDemoCatalogVisible(desired, cfgDemoCatalogStatus);
                     if (saved) {
                         window.setTimeout(() => window.location.reload(), 600);
+                    } else {
+                        cfgDemoCatalogVisible.checked = !desired;
                     }
                 });
             }
@@ -6984,7 +7431,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         poolList.innerHTML = '<li class="player-layout-empty">No galleries available yet.</li>';
                         return;
                     }
-                    poolList.innerHTML = galleries.map((entry) => {
+                    const ordered = galleries.slice().sort((left, right) => String(left.title || left.id || '')
+                        .localeCompare(String(right.title || right.id || ''), undefined, { sensitivity: 'base' }));
+                    poolList.innerHTML = ordered.map((entry) => {
                         const id = String(entry.id || '');
                         const selectedClass = id === selectedGalleryId ? ' playlist-editor-row-selected' : '';
                         const title = bandpromoAdminEscapeHtml(entry.title || id);
@@ -7492,9 +7941,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             return true;
                         }
                         return galleryItemHaystack(file).includes(needle);
-                    });
+                    }).sort((left, right) => galleryItemLabel(left).localeCompare(
+                        galleryItemLabel(right),
+                        undefined,
+                        { sensitivity: 'base' }
+                    ));
                     const pendingRows = galleryPendingFiles
                         .filter((file) => needle === '' || galleryItemHaystack(file).includes(needle))
+                        .slice()
+                        .sort((left, right) => galleryItemLabel(left).localeCompare(
+                            galleryItemLabel(right),
+                            undefined,
+                            { sensitivity: 'base' }
+                        ))
                         .map((file) => {
                         const reason = file.pool_ready_reason || 'Delivery variants not ready yet';
                         const label = galleryItemLabel(file);

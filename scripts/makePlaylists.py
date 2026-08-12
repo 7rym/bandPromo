@@ -356,8 +356,7 @@ def resolve_audio_release_id(filename, release_map):
     release_id = str(release_map.get(filename) or '').strip()
     if release_id:
         return release_id
-    if is_bundled_placeholder(filename):
-        return BANDPROMO_RELEASE_DEMO_ID
+    # No filename→demo inference. Unmapped audio falls into the primary orphan bucket.
     return BANDPROMO_RELEASE_DEFAULT_ID
 
 

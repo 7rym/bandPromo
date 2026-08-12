@@ -355,6 +355,26 @@ function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved
 }
 
 /**
+ * Index an operator upload and clear any prior hide-for-install flag.
+ * Always stamps origin as user-upload so bandPromo_* names are not treated as bundled forever.
+ */
+function bandpromo_upload_index_operator_file(
+    string $root_dir,
+    string $target_hint,
+    string $saved_ext,
+    string $saved_path,
+    string $saved_name
+): string {
+    $indexTarget = bandpromo_upload_resolve_files_index_target($target_hint, $saved_ext, $saved_path);
+    bandpromo_media_set_hidden_for_install($indexTarget, $saved_name, false);
+    bandpromo_media_files_index_sync_file($root_dir, $indexTarget, $saved_name, [
+        'origin' => 'user-upload',
+    ]);
+
+    return $indexTarget;
+}
+
+/**
  * Register image/video uploads into the visual asset registry.
  *
  * @return array<string, mixed>|null
@@ -466,6 +486,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         exit;
     }
 
+    $replacedExisting = is_file($dest);
     $out = fopen($dest, 'wb');
     if (!$out) {
         http_response_code(500);
@@ -503,9 +524,11 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
     $videoPoster = bandpromo_is_video_extension($savedExt)
         ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
         : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
-    bandpromo_media_files_index_sync_file(
+    bandpromo_upload_index_operator_file(
         $root_dir,
-        bandpromo_upload_resolve_files_index_target((string) $target_hint, $savedExt, $savedPath),
+        (string) $target_hint,
+        $savedExt,
+        $savedPath,
         $savedName
     );
     $visualAsset = bandpromo_register_visual_upload_if_needed(
@@ -520,6 +543,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         'ok' => true,
         'status' => 'complete',
         'saved_as' => $savedName,
+        'replaced' => $replacedExisting,
     ];
 
     if (is_array($visualAsset) && !empty($visualAsset['id'])) {
@@ -676,6 +700,7 @@ foreach ($files as $file) {
         continue;
     }
 
+    $replacedExisting = is_file($dest);
     if (move_uploaded_file($file['tmp_name'], $dest)) {
         $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safe_name, $dest);
         if (empty($finalized['ok'])) {
@@ -698,9 +723,11 @@ foreach ($files as $file) {
         $videoPoster = bandpromo_is_video_extension($saved_ext)
             ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
             : bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
-        bandpromo_media_files_index_sync_file(
+        bandpromo_upload_index_operator_file(
             $root_dir,
-            bandpromo_upload_resolve_files_index_target((string) $target_hint, $saved_ext, $saved_path),
+            (string) $target_hint,
+            $saved_ext,
+            $saved_path,
             $saved_name
         );
         $visualAsset = bandpromo_register_visual_upload_if_needed(
@@ -711,7 +738,12 @@ foreach ($files as $file) {
             $saved_path
         );
         $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $saved_name);
-        $result = ['name' => $original, 'ok' => true, 'saved_as' => $saved_name];
+        $result = [
+            'name' => $original,
+            'ok' => true,
+            'saved_as' => $saved_name,
+            'replaced' => $replacedExisting,
+        ];
         if (is_array($visualAsset) && !empty($visualAsset['id'])) {
             $result['asset_id'] = $visualAsset['id'];
             $result['visual_role'] = $visualAsset['role'] ?? 'unassigned';

@@ -126,6 +126,23 @@ function bandpromo_media_origin(string $filename): string
     return bandpromo_media_is_bundled_placeholder($filename) ? 'bundled-placeholder' : 'user-upload';
 }
 
+/**
+ * Prefer files-index origin (survives operator re-upload of a bandPromo_* name).
+ */
+function bandpromo_media_resolved_origin(string $target, string $filename): string
+{
+    $filename = basename(trim($filename));
+    $files = bandpromo_media_files_index_load();
+    $key = bandpromo_media_files_index_key($target, $filename);
+    $indexed = is_array($files[$key] ?? null) ? $files[$key] : null;
+    $origin = trim((string) ($indexed['origin'] ?? ''));
+    if ($origin === 'user-upload' || $origin === 'bundled-placeholder') {
+        return $origin;
+    }
+
+    return bandpromo_media_origin($filename);
+}
+
 function bandpromo_media_is_hidden_for_install(string $target, string $filename): bool
 {
     $state = bandpromo_media_library_load_state();
@@ -268,59 +285,27 @@ function bandpromo_media_has_visible_user_uploads(string $target): bool
     return bandpromo_media_target_has_operator_uploads(dirname(__DIR__), $target);
 }
 
-function bandpromo_media_target_has_operator_uploads_of_kind(string $root, string $target, string $kind): bool
-{
-    $kind = trim($kind);
-    if ($kind === '') {
-        return bandpromo_media_target_has_operator_uploads($root, $target);
-    }
-
-    bandpromo_media_files_index_ensure_target($root, $target);
-    foreach (bandpromo_media_files_index_list($root, $target) as $entry) {
-        if (!is_array($entry)) {
-            continue;
-        }
-        $filename = (string) ($entry['name'] ?? '');
-        if ($filename === '' || !bandpromo_media_is_operator_upload_filename($root, $target, $filename)) {
-            continue;
-        }
-        if (bandpromo_media_filename_kind($filename) === $kind) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 function bandpromo_media_is_effectively_hidden_for_install(string $target, string $filename): bool
 {
     if (bandpromo_media_is_hidden_for_install($target, $filename)) {
         return true;
     }
 
-    if (!bandpromo_media_is_bundled_placeholder($filename)) {
+    // Brand shell pools stay listable regardless of demo hide (operators duplicate brand).
+    if ($target === 'special' || $target === 'sfx') {
         return false;
     }
 
     $root = dirname(__DIR__);
     require_once __DIR__ . '/demo-catalog-state.php';
-    // Settings → Show bandPromo demo catalog is the sole gate for campaign demo media.
-    if (!bandpromo_demo_catalog_is_visible($root)) {
-        return true;
+
+    if (bandpromo_demo_catalog_is_visible($root)) {
+        return false;
     }
 
-    // Brand shell assets: only hide a bundled still/living/audio demo once the operator
-    // has uploaded a replacement of the same kind (uploading a logo must not hide
-    // the bundled living background video).
-    if ($target === 'special') {
-        return bandpromo_media_target_has_operator_uploads_of_kind(
-            $root,
-            $target,
-            bandpromo_media_filename_kind($filename)
-        );
-    }
-
-    return false;
+    // Hide only campaign media owned by the install's protected demo release.
+    // Filename prefixes are display provenance only — not a hide policy.
+    return bandpromo_demo_release_owns_media_file($root, $target, $filename);
 }
 
 /**
@@ -361,8 +346,10 @@ function bandpromo_media_files_index_remove(string $target, string $filename): v
 
 /**
  * Probe disk once and store listing metadata for one original file.
+ *
+ * @param array{origin?: string} $options
  */
-function bandpromo_media_files_index_sync_file(string $root, string $target, string $filename): ?array
+function bandpromo_media_files_index_sync_file(string $root, string $target, string $filename, array $options = []): ?array
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/audio-master-helpers.php';
@@ -388,12 +375,25 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
     $modified = (int) filemtime($path);
     $extension = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
 
+    $files = bandpromo_media_files_index_load();
+    $key = bandpromo_media_files_index_key($target, $filename);
+    $existing = is_array($files[$key] ?? null) ? $files[$key] : null;
+    $originOption = trim((string) ($options['origin'] ?? ''));
+    if ($originOption === 'user-upload' || $originOption === 'bundled-placeholder') {
+        $origin = $originOption;
+    } elseif (is_array($existing) && trim((string) ($existing['origin'] ?? '')) === 'user-upload') {
+        // Keep operator-upload provenance across rebuilds even for bandPromo_* names.
+        $origin = 'user-upload';
+    } else {
+        $origin = bandpromo_media_origin($filename);
+    }
+
     $entry = [
         'target' => $target,
         'name' => $filename,
         'size' => $size,
         'modified' => $modified,
-        'origin' => bandpromo_media_origin($filename),
+        'origin' => $origin,
         'original_format' => $extension,
         'pool_ready' => in_array($target, ['audio', 'photos', 'video'], true)
             ? bandpromo_media_pool_ready($root, $target, $filename)
@@ -424,8 +424,7 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
         $entry['delivery_pending'] = !empty($videoMeta['needs_delivery']);
     }
 
-    $files = bandpromo_media_files_index_load();
-    $files[bandpromo_media_files_index_key($target, $filename)] = $entry;
+    $files[$key] = $entry;
     bandpromo_media_files_index_save($files);
 
     return $entry;

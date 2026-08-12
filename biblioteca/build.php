@@ -184,6 +184,12 @@ if ($ensureDemo) {
                 file_put_contents($log_file, $message . "\n", FILE_APPEND);
             }
         );
+        require_once __DIR__ . '/demo-catalog-state.php';
+        $ensuredReleaseId = '';
+        if (is_array($debug['demo_release_package'])) {
+            $ensuredReleaseId = (string) ($debug['demo_release_package']['release_id'] ?? '');
+        }
+        bandpromo_demo_release_ensure_preferences($root_dir, $ensuredReleaseId);
     } catch (Throwable $throwable) {
         file_put_contents($log_file, '[demo release] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
         @unlink($lock_file);
@@ -194,6 +200,8 @@ if ($ensureDemo) {
         exit;
     }
 } else {
+    require_once __DIR__ . '/demo-catalog-state.php';
+    bandpromo_demo_release_ensure_preferences($root_dir);
     file_put_contents(
         $log_file,
         "[setup] Skipping Demo PRP ensure (Publish uses content already on this host).\n",

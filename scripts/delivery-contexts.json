@@ -3,8 +3,8 @@
   "description": "Delivery context registry: max pixel boxes and default variant names for visual assets. Optimizers and PHP resolvers read this instead of ad-hoc magic numbers.",
   "variants": {
     "thumb": {
-      "max_edge": 100,
-      "notes": "Playlist rows, cover-flow, admin thumbs (~70–100 CSS px)"
+      "max_edge": 150,
+      "notes": "Playlist rows, cover-flow, admin thumbs (~150 CSS px)"
     },
     "card": {
       "max_edge": 720,
@@ -72,10 +72,10 @@
       "prefer_alpha": false
     },
     "share": {
-      "where": "makeSocial.py Facebook/Twitter crops",
+      "where": "makeSocial.py OG Facebook/Twitter crops (site link previews)",
       "variant": "card",
       "prefer_alpha": false,
-      "notes": "Fixed aspect targets handled separately in makeSocial"
+      "notes": "Shipped: facebook/twitter 1200x630 from brand poster master. Deferred (do not generate until v2+ API publish): instagram_feed 1080x1350 (4:5), instagram_square 1080x1080 (1:1), instagram_stories_reels / tiktok 1080x1920 (9:16). Native posts are API-created, not site share buttons."
     },
     "video_poster": {
       "where": "Video poster still",

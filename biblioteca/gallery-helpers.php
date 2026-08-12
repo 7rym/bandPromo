@@ -120,6 +120,7 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
 function bandpromo_gallery_normalize_items(string $root_dir, array $items): array {
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/theme-storage.php';
 
     foreach ($items as $index => $item) {
         if (!is_array($item)) {
@@ -130,6 +131,12 @@ function bandpromo_gallery_normalize_items(string $root_dir, array $items): arra
         $assetId = trim((string) ($item['asset_id'] ?? ''));
         if ($assetId !== '' && !bandpromo_asset_is_asset_id($assetId)) {
             $assetId = '';
+        }
+        if ($assetId === '') {
+            $assetId = bandpromo_theme_lookup_asset_id_for_path(
+                $root_dir,
+                (string) ($item['src'] ?? '')
+            );
         }
 
         if ($type === 'video') {
@@ -147,7 +154,7 @@ function bandpromo_gallery_normalize_items(string $root_dir, array $items): arra
             }
 
             $filename = bandpromo_gallery_video_filename_from_src((string) ($item['src'] ?? ''));
-            if ($filename === '') {
+            if ($filename === '' || in_array(strtolower($filename), ['standard-stream.mp4', 'poster.jpg'], true)) {
                 continue;
             }
 

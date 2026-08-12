@@ -267,6 +267,60 @@ function bandpromo_theme_default_document(): array
             'welcome_audio' => '',
             'loggedin_audio' => '',
         ],
+        // Player chrome preferences owned by the brand (Base brand drives /play).
+        'player' => [
+            'playlist_selector' => 'coverflow',
+        ],
+    ];
+}
+
+function bandpromo_theme_normalize_playlist_selector_mode(mixed $value): string
+{
+    $mode = strtolower(trim((string) $value));
+    if ($mode === 'dropdown' || $mode === 'buttons' || $mode === 'coverflow') {
+        return $mode;
+    }
+
+    return 'coverflow';
+}
+
+/**
+ * Resolve playlist selector for a brand document, migrating from legacy web-config when absent.
+ *
+ * @param array<string, mixed> $input
+ */
+function bandpromo_theme_legacy_playlist_selector_fallback(): string
+{
+    try {
+        if (function_exists('get_config')) {
+            $raw = get_config('player.playlist_selector', '');
+            if (is_string($raw) && trim($raw) !== '') {
+                return bandpromo_theme_normalize_playlist_selector_mode($raw);
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Config may be unavailable during early bootstrap.
+    }
+
+    return 'coverflow';
+}
+
+/**
+ * @param array<string, mixed> $input
+ * @return array{playlist_selector: string}
+ */
+function bandpromo_theme_normalize_player(array $input): array
+{
+    $player = is_array($input['player'] ?? null) ? $input['player'] : [];
+    $raw = $player['playlist_selector'] ?? null;
+    if ($raw === null || trim((string) $raw) === '') {
+        $selector = bandpromo_theme_legacy_playlist_selector_fallback();
+    } else {
+        $selector = bandpromo_theme_normalize_playlist_selector_mode($raw);
+    }
+
+    return [
+        'playlist_selector' => $selector,
     ];
 }
 
@@ -531,8 +585,9 @@ function bandpromo_theme_lookup_asset_id_for_path(string $root, string $webPath)
         $webPath = '/' . $webPath;
     }
 
-    if (preg_match('#^/media/visual/delivery/(ast_[0-9a-z]+)/#i', $webPath, $matches) === 1) {
-        $assetId = strtolower($matches[1]);
+    if (preg_match('#^/media/visual/delivery/(ast_[0-9A-HJKMNP-TV-Z]{20})/#i', $webPath, $matches) === 1) {
+        // Asset ids are Crockford Base32; never strtolower the whole id (breaks registry lookup).
+        $assetId = 'ast_' . strtoupper(substr($matches[1], 4));
         if (bandpromo_asset_lookup_by_id($root, $assetId) !== null) {
             return $assetId;
         }
@@ -912,16 +967,15 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
     $locked = !empty($input['locked']);
     $system = !empty($input['system']);
     if ($id === BANDPROMO_BRAND_DEFAULT_ID) {
-        $locked = true;
+        // Platform default stays system-owned; lock is sticky from the document
+        // (forced on remote / after PRP import). Do not re-force locked here —
+        // localhost may unlock for PRP authoring.
         $system = true;
     }
 
     $releaseId = trim((string) ($input['release_id'] ?? ''));
     if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
         $releaseId = '';
-    }
-    if ($releaseId === '' && $id === BANDPROMO_BRAND_DEFAULT_ID) {
-        $releaseId = 'bandpromo-demo';
     }
 
     return [
@@ -942,6 +996,7 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
         'tokens' => bandpromo_theme_normalize_tokens(is_array($input['tokens'] ?? null) ? $input['tokens'] : []),
         'assets' => bandpromo_theme_normalize_assets(is_array($input['assets'] ?? null) ? $input['assets'] : []),
         'asset_ids' => bandpromo_theme_normalize_asset_ids(is_array($input['asset_ids'] ?? null) ? $input['asset_ids'] : []),
+        'player' => bandpromo_theme_normalize_player($input),
     ];
 }
 
@@ -1000,7 +1055,7 @@ function bandpromo_theme_load_registry(string $root): array
 function bandpromo_theme_write_document(string $root, array $document, array $options = []): void
 {
     $document = bandpromo_theme_normalize_document($document, (string) ($document['id'] ?? ''));
-    if (!empty($document['locked']) && empty($options['allow_locked'])) {
+    if (!empty($document['locked']) && empty($options['allow_locked']) && !bandpromo_brand_may_edit_document($document)) {
         throw new RuntimeException('Brand is locked and cannot be edited.');
     }
 
@@ -1011,6 +1066,104 @@ function bandpromo_theme_write_document(string $root, array $document, array $op
     if (!bandpromo_json_write_file(bandpromo_theme_document_path($root, $document['id']), $document)) {
         throw new RuntimeException('Could not write theme document.');
     }
+}
+
+function bandpromo_brand_is_platform_default(string $brandId): bool
+{
+    return bandpromo_brand_canonical_id($brandId) === BANDPROMO_BRAND_DEFAULT_ID;
+}
+
+/**
+ * Locked brands are editable only when unlocked, except platform default on localhost
+ * (PRP source edits for the demo campaign identity).
+ */
+function bandpromo_brand_may_edit_document(array $document): bool
+{
+    if (empty($document['locked'])) {
+        return true;
+    }
+
+    if (!bandpromo_brand_is_platform_default((string) ($document['id'] ?? ''))) {
+        return false;
+    }
+
+    require_once __DIR__ . '/https.php';
+
+    return bandpromo_is_local_dev_host();
+}
+
+function bandpromo_brand_may_change_lock(string $brandId): bool
+{
+    if (!bandpromo_brand_is_platform_default($brandId)) {
+        return true;
+    }
+
+    require_once __DIR__ . '/https.php';
+
+    return bandpromo_is_local_dev_host();
+}
+
+/**
+ * Keep remote installs locked if the platform default brand is already present.
+ */
+function bandpromo_brand_enforce_platform_default_lock(string $root): void
+{
+    $path = bandpromo_theme_document_path($root, BANDPROMO_BRAND_DEFAULT_ID);
+    if (!is_file($path)) {
+        return;
+    }
+
+    require_once __DIR__ . '/https.php';
+    $requestHost = bandpromo_request_host_without_port();
+    if ($requestHost === '' || bandpromo_is_local_dev_host()) {
+        return;
+    }
+
+    try {
+        $document = bandpromo_theme_load_document($root, BANDPROMO_BRAND_DEFAULT_ID);
+    } catch (Throwable $throwable) {
+        return;
+    }
+
+    if (!empty($document['locked'])) {
+        return;
+    }
+
+    $document['locked'] = true;
+    bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+}
+
+function bandpromo_brand_lock_platform_default_after_import(string $root): void
+{
+    $path = bandpromo_theme_document_path($root, BANDPROMO_BRAND_DEFAULT_ID);
+    if (!is_file($path)) {
+        return;
+    }
+
+    try {
+        $document = bandpromo_theme_load_document($root, BANDPROMO_BRAND_DEFAULT_ID);
+    } catch (Throwable $throwable) {
+        return;
+    }
+
+    $document['locked'] = true;
+    bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+}
+
+/**
+ * Enrich a brand document for admin API responses (capabilities, not persisted).
+ *
+ * @return array<string, mixed>
+ */
+function bandpromo_theme_api_document(array $document): array
+{
+    $id = bandpromo_brand_canonical_id((string) ($document['id'] ?? ''));
+    $document['id'] = bandpromo_brand_legacy_theme_id($id);
+    $document['platform_default'] = bandpromo_brand_is_platform_default($id);
+    $document['can_edit'] = bandpromo_brand_may_edit_document($document);
+    $document['can_change_lock'] = bandpromo_brand_may_change_lock($id);
+
+    return $document;
 }
 
 function bandpromo_theme_load_document(string $root, string $themeId): array
@@ -1046,6 +1199,21 @@ function bandpromo_theme_registry_entries(string $root): array
         if ($canonical === BANDPROMO_BRAND_DEFAULT_ID) {
             $entries[$index]['title'] = (string) ($entry['title'] ?? 'bandPromo Default');
         }
+        $locked = !empty($entry['locked']);
+        try {
+            $document = bandpromo_theme_load_document($root, $canonical);
+            $locked = !empty($document['locked']);
+            $entries[$index]['title'] = (string) ($document['title'] ?? $entries[$index]['title']);
+        } catch (Throwable $throwable) {
+            // Keep registry fields when the document is missing.
+        }
+        $entries[$index]['locked'] = $locked;
+        $entries[$index]['platform_default'] = $canonical === BANDPROMO_BRAND_DEFAULT_ID;
+        $entries[$index]['can_edit'] = bandpromo_brand_may_edit_document([
+            'id' => $canonical,
+            'locked' => $locked,
+        ]);
+        $entries[$index]['can_change_lock'] = bandpromo_brand_may_change_lock($canonical);
     }
 
     return $entries;
@@ -1367,6 +1535,7 @@ function bandpromo_theme_ensure_seeded(string $root): void
 
     // Heal once per PHP process — shell path probes are costly on synced folders.
     bandpromo_theme_heal_install_shell_media($root);
+    bandpromo_brand_enforce_platform_default_lock($root);
     $completed[$root] = true;
 }
 
@@ -1463,6 +1632,7 @@ function bandpromo_theme_duplicate(string $root, string $sourceId, string $newId
         'tone_notes' => $source['tone_notes'] ?? '',
         'tokens' => is_array($source['tokens'] ?? null) ? $source['tokens'] : [],
         'assets' => [],
+        'player' => is_array($source['player'] ?? null) ? $source['player'] : [],
     ], $newId);
 
     // Always clone shell media files into Brand assets owned by the new brand
@@ -1503,12 +1673,12 @@ function bandpromo_theme_update_title(string $root, string $themeId, string $tit
     }
 
     $document = bandpromo_theme_load_document($root, $themeId);
-    if (!empty($document['locked'])) {
+    if (!bandpromo_brand_may_edit_document($document)) {
         throw new InvalidArgumentException('This brand is locked.');
     }
 
     $document['title'] = $title;
-    bandpromo_theme_write_document($root, $document);
+    bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
 
     $registry = bandpromo_theme_load_registry($root);
     foreach ($registry['brands'] as $index => $entry) {

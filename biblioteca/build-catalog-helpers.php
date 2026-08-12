@@ -75,13 +75,12 @@ function bandpromo_build_catalog_run(string $root): array
     require_once __DIR__ . '/gallery-storage.php';
     try {
         bandpromo_gallery_ensure_seeded($root);
-        bandpromo_gallery_heal_demo_entries($root);
         $gallerySync = bandpromo_content_autofix_sync_gallery_asset_ids($root, false);
         $steps[] = $gallerySync;
     } catch (Throwable $throwable) {
         $steps[] = [
-            'id' => 'demo_gallery_heal',
-            'label' => 'Heal demo gallery visual refs',
+            'id' => 'gallery_asset_id_sync',
+            'label' => 'Sync gallery visual asset refs',
             'changed' => 0,
             'skipped' => 0,
             'errors' => [$throwable->getMessage()],

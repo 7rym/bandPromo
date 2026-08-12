@@ -439,7 +439,14 @@ function bandpromo_audio_demo_original_fallback_allowed(string $root_dir, string
     }
 
     $filename = basename(trim($filename));
-    if ($filename === '' || !bandpromo_release_is_demo_filename($filename)) {
+    if ($filename === '') {
+        return false;
+    }
+
+    // Prefer release ownership; legacy bandPromo_* names remain a soft hint only.
+    if (!bandpromo_demo_release_owns_media_file($root_dir, 'audio', $filename)
+        && !bandpromo_release_is_demo_filename($filename)
+    ) {
         return false;
     }
 

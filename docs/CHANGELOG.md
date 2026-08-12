@@ -2,6 +2,79 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-12 17:40 - Checkpoint v0.8.15: Demo PRP on GitHub Releases (workflow uploads .prp); gallery In-use via visual delivery refs; playlist empty release_id -> brand inference; brand-owned player chrome; theme live preview polish.
+
+2026-08-12 17:10 - Files → Visual In use: gallery reference matching resolves `/media/visual/delivery/{asset_id}/…` to original filenames via the asset registry; stop lowercasing Crockford asset ids in path lookup (which made demo-gallery visuals look Unused); recover empty gallery `asset_id` from delivery paths when materializing.
+
+2026-08-12 16:20 - Player brand: when a playlist document has empty `release_id` but all track entries share one release, infer that ownership for effective brand (and fill it on normalize) so release `brand_id` reaches `/play` instead of falling back to the install Base brand.
+
+2026-08-12 16:05 - Theme live preview: no shell scrim over player chrome / logo — dim + panel blur apply only to content sections below (playlist selector stays clear).
+
+2026-08-12 15:55 - Playlist selector buttons: center-align in Brand live preview and `/play` container.
+
+2026-08-12 15:50 - Playlist selector: drop visible “Playlists” label in `/play` and Brand live preview (dropdown/buttons); keep aria-label for accessibility.
+
+2026-08-12 15:45 - Theme live preview: show Playlist selector mock (dropdown / buttons / cover flow) above typography, driven by brand `player.playlist_selector`; remove padding on `.theme-preview-shell-header`.
+
+2026-08-12 14:10 - Brand-owned player chrome: drop Content → Player Still|Living and playlist-selector toggles; shell prefers living video when assigned (reduced-motion/slow-connection stay still); playlist selector lives on brand `player.playlist_selector` (Base brand drives `/play`); Brand editor radios + theme preview living backdrop; migrate from legacy web-config keys on brand normalize.
+
+2026-08-12 11:55 - Theme preview architecture cleanup: centralize preview rendering in `theme-preview.js` only; remove duplicate preview markup/style fallback logic from `theme-editor.js`; remove stale preview hint node and canvas wrapper selectors so editor/release preview controllers only pass data/state to the shared renderer.
+2026-08-12 12:00 - Theme preview housekeeping: remove unused `.theme-preview-section-title` and `.theme-preview-section-lead` CSS after the header/lead text removal in preview sections.
+2026-08-12 13:30 - Theme live preview: add mobile-style media player chrome (cover/poster, track info, prev/play/next, scrubber) above the logo to match `/play` stacked layout; drop the old side-by-side player sample; paint shell scrim from backdrop dim.
+
+
+2026-08-12 10:35 - Visual listing fallback: `operator_title` is role label only (e.g. `Track cover`) when `display.title` is empty — no brand/release suffix.
+
+2026-08-11 23:30 - Audio upload: after embedded cover extract, register Visual `ast_*` track-covers and run image-delivery so playlist/release cover pickers can use them (no Repair catalog required). Healed existing extracted covers on this install.
+
+2026-08-11 23:10 - Demo policy hardening: stop per-file soft-hide on delete (release-level hide only); clear install soft-hidden Brand assets; media pickers match Files (no include_hidden via demo toggle); Settings/Welcome copy drops `bandPromo_*` filename hide wording; new Release create no longer falls back to demo listen URL / active brand preview, forces catalogue refresh, and keeps Catalogue tab URL on the new id.
+
+2026-08-11 17:25 - Brand shell media pickers: still/poster/living use Brand assets only (no Visual tab); picker tiles sort A–Z by display title; slot accept filters stills vs living video; hint points at Brand assets + Sound effects.
+
+2026-08-11 17:05 - Sound effects: pool ▶ listen preview (same dock as Audio) via `play_url` / optimal MP3; Files modal can save SFX display fields; Brand shell audio slots keep `asset_id` on pick/save, show Listen ▶, and toast when Save is blocked by lock.
+
+2026-08-11 16:52 - Files asset edit modal: show Alpha (Yes/No) after Dimensions for images.
+
+2026-08-11 16:29 - Files pools: Visual / Brand assets / Sound effects list headers are sortable (Title, Catalogue|Brand, Size) like Audio; asset edit modal shows Dimensions next to Size (from delivery metadata, refined from original/preview media when loaded).
+
+2026-08-11 15:51 - Visual delivery freshness: also compare variant longest-edge to `delivery-contexts.json` max_edge so thumb 100→150 (and similar policy bumps) rebuild without requiring a master change; `BANDPROMO_FORCE_VISUAL_DELIVERY=1` still forces a full rebuild.
+
+2026-08-11 14:17 - Demo policy is release-level: `demo_release_id` / `demo_release_hidden` in `data/install-preferences.json` (legacy `demo_catalog_visible` kept as inverse); hide campaign-owned media only (not Brand assets/SFX); refuse hide with `hide_blockers` when non-demo containers still reference demo assets; deny delete of locked demo campaign media; persist id after ensure-demo / Admin bootstrap. Docs: PLATFORM-MODEL, MEDIA-HANDLING, PORTABILITY, AGENTS.
+
+2026-08-11 11:50 - Thumbnails: increase `thumb` delivery variant from 100px to 150px to remove blur in Files pool/picker thumbnails.
+
+2026-08-11 09:55 - Brand assets upload: operator uploads of `bandPromo_*` names are no longer forever-bundled — clear hide-on-upload, stamp `user-upload` origin, include filename in pool search, and toast when a same-name file is replaced (not a second pool entry).
+
+2026-08-10 23:20 - Brand shell media: stop auto-hiding `bandPromo_*` Files → Brand assets / Sound effects when operator uploads exist or Hide demo catalog is on — shell files stay visible while brands still use them (explicit per-file hide unchanged).
+
+2026-08-10 23:15 - Files pools: wire Brand assets / Sound effects checkbox selection into bulk Download/Delete (listener was Visual-only), and enable those toolbar actions for one or more selected files.
+
+2026-08-10 23:05 - Files → Brand assets: reuse the Visual display editor in the shared pool modal (title/description/keywords/date) instead of opening details read-only.
+
+2026-08-10 22:55 - Brands: bandPromo Default matches demo release lock policy — locked after PRP / on remote hosts; localhost may open Edit and save for PRP source without unlocking; stop force-locking in normalize; API exposes `can_edit` / `platform_default`.
+
+2026-08-10 22:50 - Gallery editor Available pool: sort ready and pending media rows by display name.
+
+2026-08-10 22:40 - Collapse demo special-cases onto PRP + locked: remove demo track/playlist sync and template seed fallback; `system_managed` no longer freezes edits (normal `locked` + localhost-only unlock for platform demo); stop `bandPromo_*`→demo release inference; demo ensure/create is PRP-only with post-import lock.
+
+2026-08-10 19:40 - Demo release lock stickiness: sync no longer force-locks `bandpromo-demo` on CLI/Publish (empty HTTP_HOST) or localhost; only remote HTTP requests re-lock. Localhost unlocks for PRP edits survive builds.
+
+2026-08-08 09:40 - Files → Visual / Brand assets: match Audio toolbar density, All/None select chips, list column headers (Title / Catalogue|Brand / Size), grid captions, and ✎ open action; keep Grid/List toggle. Sound effects list headers aligned to the same pattern.
+
+2026-08-08 09:15 - Lock IG/TikTok native-post dimensions as deferred (API publish, v2+): IG feed 1080×1350, Stories/Reels & TikTok 1080×1920; do not extend makeSocial beyond OG 1200×630. Docs + delivery-contexts.json.
+
+2026-08-08 09:10 - makeSocial: resolve brand poster from visual master/original first (delivery card only as last resort) so OG Facebook/Twitter crops are not upscaled from the 720px card.
+
+2026-08-08 01:00 - Collapse demo special-cases onto release ownership: stop `bandPromo_*`→demo `release_id` inference (registry scan, listing meta, media id helpers); stop normalize/migrate force-ownership for playlist/brand/gallery/Bio; gut demo gallery heal parallel seed; sync demo tracks only from assets already owned by the demo release (no title overwrite). Keep setup PRP import, lock/localhost unlock, hide, duplicate, FAQ shell exclusion.
+
+2026-08-08 00:55 - Policy: no special-case demo content handling after release ownership — demo is setup PRP import + lock / localhost unlock + export, hide, duplicate only. Docs (PLATFORM-MODEL, PORTABILITY, AGENTS, TODO); remove normalize/migrate force-`release_id` for Bio/demo gallery and demo title heal; associations follow normal locked-release rules (FAQ still excluded as install shell).
+
+2026-08-08 00:40 - Release editor Pages: Available pool was wrong — FAQ (login shell) listed as assignable, Gallery registered as truncated `galle`, and Bio `release_id` cleared then forced back on save. Exclude FAQ/login/required pages from associations, heal `galle`→`gallery`, allow empty Bio ownership on localhost, and scope Bio/Gallery pages to the demo campaign like the protected gallery.
+
+2026-08-08 00:35 - Release editor Galleries: keep the protected demo gallery out of Available for other releases (localhost may still reassign it only on the demo campaign); restore drifted demo gallery title to `bandPromo demo`.
+
+2026-08-08 00:30 - Localhost demo PRP edits: clear gallery/page associations on bandPromo demo (runtime), unlock the demo release, and stop migrate/normalize/save from re-locking those associations on local hosts (remote installs stay frozen).
+
 2026-08-08 00:25 - Files → Audio: fix filter toolbar clickability — row `.media-file-actions { width:100% }` no longer covers catalogue/search controls.
 
 2026-08-08 00:20 - Files → Audio quick-edit: Release date chip uses the shared ISO date picker (📅).

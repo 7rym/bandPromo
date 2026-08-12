@@ -3,8 +3,9 @@
  * Expects window.appConfig.media.background_image / background_video
  * and an optional #bg-video element (source may be deferred via data-src).
  *
- * Player may set window.appConfig.player.shell_background to "still" | "living".
- * Login leaves it unset and keeps adaptive auto behavior.
+ * Prefer living when a background_video is assigned; otherwise still.
+ * Reduced-motion and slow-connection fall back to still image.
+ * No operator Still|Living toggle — assignment is the intent.
  *
  * Living video is deferred until after window.load (idle) so still image paints
  * first and multi-MB MP4 ranges do not contend with covers/thumbs.
@@ -30,18 +31,6 @@
         } catch (error) {
             return 0;
         }
-    }
-
-    function shellBackgroundMode() {
-        const mode = String(
-            global.appConfig?.player?.shell_background
-            || global.appConfig?.shell_background
-            || ''
-        ).trim().toLowerCase();
-        if (mode === 'still' || mode === 'living') {
-            return mode;
-        }
-        return 'auto';
     }
 
     function clearBodyBackgroundImage() {
@@ -164,19 +153,12 @@
         livingAttachScheduled = true;
 
         const run = () => {
-            const mode = shellBackgroundMode();
-            const reduceMotion = prefersReducedMotion();
-            if (reduceMotion) {
+            if (prefersReducedMotion()) {
                 return;
             }
-            if (mode === 'still') {
+            const speed = connectionSpeedMbps();
+            if (speed > 0 && speed < 5) {
                 return;
-            }
-            if (mode === 'auto') {
-                const speed = connectionSpeedMbps();
-                if (speed > 0 && speed < 5) {
-                    return;
-                }
             }
             showBgVideo();
         };
@@ -221,52 +203,32 @@
 
         const video = document.getElementById('bg-video');
         if (!video) {
-            // Still allow image-only shells (no #bg-video element).
-            const mode = shellBackgroundMode();
             const hasImageSource = !!(global.appConfig?.media?.background_image);
-            if (hasImageSource || mode === 'still') {
+            if (hasImageSource) {
                 showBgImage();
             }
             return;
         }
 
-        const mode = shellBackgroundMode();
         const hasVideoSource = !!resolveBackgroundVideoUrl(video);
         const hasImageSource = !!(global.appConfig?.media?.background_image);
         const reduceMotion = prefersReducedMotion();
 
         // Always paint still first when available — living MP4 attaches after load.
-        if (mode === 'still' || reduceMotion || !hasVideoSource) {
-            if (hasImageSource || mode === 'still' || reduceMotion || !hasVideoSource) {
+        if (reduceMotion || !hasVideoSource) {
+            if (hasImageSource || reduceMotion || !hasVideoSource) {
                 showBgImage();
             }
             return;
         }
 
-        if (mode === 'living') {
-            showBgImage();
-            scheduleLivingBackgroundAttach();
-            return;
-        }
-
-        // Auto (login / unset): prefer still on slow connection or reduced motion.
+        // Prefer living when assigned (still paints first; video attaches idle).
         const speed = connectionSpeedMbps();
         if (speed > 0 && speed < 5) {
             if (hasImageSource || !hasVideoSource) {
                 showBgImage();
                 return;
             }
-        }
-
-        if (!hasVideoSource) {
-            if (hasImageSource) {
-                showBgImage();
-            } else {
-                video.style.display = 'none';
-                clearBodyBackgroundImage();
-                document.body.classList.remove('shell-bg-video');
-            }
-            return;
         }
 
         showBgImage();
@@ -277,7 +239,6 @@
         showBgImage,
         showBgVideo,
         updateBackground,
-        shellBackgroundMode,
         scheduleLivingBackgroundAttach,
         resetLivingAttach,
     };

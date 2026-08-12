@@ -60,14 +60,36 @@ session_write_close();
 $root = dirname(__DIR__);
 
 $asset = bandpromo_asset_lookup_by_id($root, $assetId);
-if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+$kind = is_array($asset) ? (string) ($asset['kind'] ?? '') : '';
+if (!is_array($asset) || ($kind !== 'visual' && $kind !== 'sfx')) {
     http_response_code(404);
-    echo json_encode(['error' => 'Visual asset not found']);
+    echo json_encode(['error' => 'Media asset not found']);
     exit;
 }
 
 $display['synced_at'] = gmdate('c');
 $updated = bandpromo_asset_update_entry($root, $assetId, ['display' => $display]);
+
+// Sound effects: registry display only (no visual master tag write-through).
+if ($kind === 'sfx') {
+    bandpromo_admin_audit_log('sfx_display_saved', [
+        'target_type' => 'asset',
+        'target_id' => $assetId,
+        'status' => 'ok',
+        'data' => [
+            'title' => $display['title'],
+        ],
+    ]);
+
+    echo json_encode([
+        'ok' => true,
+        'asset_id' => $assetId,
+        'display' => $display,
+        'display_title' => (string) ($display['title'] ?? ''),
+        'asset' => $updated,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 
 // Ensure video masters are MKV before tagging.
 $tiered = bandpromo_visual_ensure_tiers_for_asset($root, $assetId);

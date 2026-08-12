@@ -159,7 +159,7 @@ def main():
             'artist': info.get('artist') or '',
             'album': info.get('album') or '',
             'duration': int(info.get('duration') or 0),
-            'origin': 'bundled-placeholder' if release_id == makePlaylists.BANDPROMO_RELEASE_DEMO_ID else 'user-upload',
+            'origin': 'bundled-placeholder' if makePlaylists.is_bundled_placeholder(filename) else 'user-upload',
             'sourceTier': 'master' if Path(working_path).parent == makePlaylists.AUDIO_MASTER_DIR else 'original',
             'deliveryReady': ready or makePlaylists.is_bundled_placeholder(filename),
             'release_id': release_id,

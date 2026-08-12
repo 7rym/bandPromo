@@ -6,7 +6,6 @@
         const poolList = document.getElementById('themePoolList');
         const formEl = document.getElementById('themeEditorForm');
         const previewEl = document.getElementById('themeEditorPreview');
-        const editorHint = document.getElementById('themeEditorHint');
         const saveBtn = document.getElementById('themeSaveBtn');
         const setActiveBtn = document.getElementById('themeSetActiveBtn');
         const backBtn = document.getElementById('themeEditorBackBtn');
@@ -20,6 +19,26 @@
         const deleteCancelBtn = document.getElementById('themeDeleteCancelBtn');
         if (!root || !poolList || !formEl || !previewEl) {
             return;
+        }
+
+        const isLocalDevHost = window.BANDPROMO_LOCAL_DEV === true;
+
+        function themeIsPlatformDefault(entryOrDoc) {
+            if (entryOrDoc && typeof entryOrDoc.platform_default === 'boolean') {
+                return entryOrDoc.platform_default;
+            }
+            const id = String(entryOrDoc?.id || '');
+            return id === 'bandpromo-default' || id === 'setup-default';
+        }
+
+        function themeMayEdit(entryOrDoc) {
+            if (entryOrDoc && typeof entryOrDoc.can_edit === 'boolean') {
+                return entryOrDoc.can_edit;
+            }
+            if (!entryOrDoc?.locked) {
+                return true;
+            }
+            return themeIsPlatformDefault(entryOrDoc) && isLocalDevHost;
         }
 
         const COLOR_FIELDS = [
@@ -42,19 +61,6 @@
             { id: 'georgia', label: 'Georgia (serif)', value: "Georgia, 'Times New Roman', serif" },
         ];
 
-        const CSS_VAR_MAP = {
-            'color.primary': '--primary-color',
-            'color.secondary': '--secondary-color',
-            'color.background': '--bg-color',
-            'color.text': '--text-color',
-            'color.text_muted': '--color-text-muted',
-            'color.surface_mid': '--color-surface-mid',
-            'color.surface_deep': '--color-surface-deep',
-            'color.link': '--color-link',
-            'color.link_hover': '--color-link-hover',
-            'color.link_visited': '--color-link-visited',
-        };
-
         let themes = [];
         let activeThemeId = '';
         let selectedThemeId = String(root.dataset.initialTheme || 'setup-default');
@@ -64,14 +70,6 @@
         let themeSettingsBaseline = { title: '' };
         let themeSettingsSaving = false;
         let pendingThemeDeleteId = '';
-        let previewStyleEl = document.getElementById('bandpromo-theme-editor-preview-style');
-
-        if (!previewStyleEl) {
-            previewStyleEl = document.createElement('style');
-            previewStyleEl.id = 'bandpromo-theme-editor-preview-style';
-            document.head.appendChild(previewStyleEl);
-        }
-
         const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
             saveLabel: '💾 Save brand',
             readFingerprint() {
@@ -81,6 +79,7 @@
                     keywords: editorDocument?.keywords || [],
                     tone_notes: editorDocument?.tone_notes || '',
                     assets: editorDocument?.assets || previewDocument?.assets || {},
+                    player: editorDocument?.player || previewDocument?.player || {},
                 });
             },
         }) || null;
@@ -346,11 +345,10 @@
 
         function syncThemeSettingsPanel(document) {
             const title = String(document?.title || document?.id || '');
-            const locked = !!document?.locked;
             themeSettingsBaseline = { title };
             if (titleInput instanceof HTMLInputElement) {
                 titleInput.value = title;
-                titleInput.disabled = locked;
+                titleInput.disabled = !themeMayEdit(document);
             }
             renderThemeHeadBadges(document);
             if (settingsStatus) {
@@ -359,7 +357,7 @@
         }
 
         async function saveThemeSettings({ silent = false } = {}) {
-            if (themeSettingsSaving || !editorDocument || editorDocument.locked) {
+            if (themeSettingsSaving || !editorDocument || !themeMayEdit(editorDocument)) {
                 return true;
             }
             if (!(titleInput instanceof HTMLInputElement)) {
@@ -416,7 +414,7 @@
         }
 
         function applyFontPresetSelection(kind, presetKey) {
-            if (!editorDocument || editorDocument.locked) return;
+            if (!editorDocument || !themeMayEdit(editorDocument)) return;
             const customInput = formEl.querySelector(`#theme-font-custom-${kind}`);
             const path = kind === 'heading' ? 'typography.font_family_heading' : 'typography.font_family_base';
 
@@ -443,33 +441,6 @@
             collectFormIntoDocument();
         }
 
-        function applyPreviewStyles(document) {
-            const rules = [];
-            Object.entries(CSS_VAR_MAP).forEach(([tokenPath, cssVar]) => {
-                const value = tokenValue(document, tokenPath);
-                if (value) {
-                    rules.push(`${cssVar}:${value}`);
-                }
-            });
-            const fontBase = tokenValue(document, 'typography.font_family_base');
-            const fontHeading = tokenValue(document, 'typography.font_family_heading');
-            if (fontBase) {
-                rules.push(`--theme-body-font:${fontBase}`);
-            }
-            if (fontHeading) {
-                rules.push(`--theme-heading-font:${fontHeading}`);
-            } else if (fontBase) {
-                rules.push(`--theme-heading-font:${fontBase}`);
-            }
-            const dim = Math.max(0, Math.min(100, parseInt(tokenValue(document, 'effects.backdrop_dim') || '72', 10) || 72));
-            const blur = Math.max(0, Math.min(24, parseInt(tokenValue(document, 'effects.panel_blur') || '5', 10) || 0));
-            rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
-            rules.push(`--panel-blur:${blur}px`);
-            previewStyleEl.textContent = rules.length
-                ? `#themeEditorPreview .theme-preview-canvas{${rules.join(';')};}`
-                : '';
-        }
-
         function assetBasename(path) {
             const raw = String(path || '').trim().replace(/\\/g, '/');
             if (!raw) return '';
@@ -492,27 +463,6 @@
             return 'File';
         }
 
-        function renderShellPreviewChrome(document) {
-            const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
-            const logo = String(assets.logo || '').trim();
-            const bg = String(assets.background_image || '').trim();
-            const bgAttr = bg
-                ? ` style="background-image:url('${escapeHtml(bg)}');"`
-                : '';
-            const logoHtml = logo
-                ? `<img class="theme-preview-shell-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">`
-                : '<span class="theme-preview-muted">No logo assigned</span>';
-
-            return `
-                <section class="theme-preview-section theme-preview-section--shell">
-                    <h3 class="theme-preview-section-title">Shell</h3>
-                    <p class="theme-preview-muted theme-preview-section-lead">Logo and still backdrop as assigned in Shell media.</p>
-                    <div class="theme-preview-shell-chrome"${bgAttr}>
-                        ${logoHtml}
-                    </div>
-                </section>`;
-        }
-
         const SHELL_MEDIA_FIELDS = [
             {
                 key: 'logo',
@@ -530,7 +480,7 @@
                 emptyLabel: 'No poster selected',
                 accept: ['image'],
                 clearable: false,
-                pickerTargets: 'illustrations,photos,special',
+                pickerTargets: 'special',
                 pickerTitle: 'Choose poster / share cover',
                 note: 'Share cards and shell presentation cover.',
             },
@@ -540,7 +490,7 @@
                 emptyLabel: 'No still background',
                 accept: ['image'],
                 clearable: true,
-                pickerTargets: 'illustrations,photos,special',
+                pickerTargets: 'special',
                 pickerTitle: 'Choose still background',
                 note: 'Still backdrop on login and player.',
             },
@@ -550,7 +500,7 @@
                 emptyLabel: 'No living background',
                 accept: ['video'],
                 clearable: true,
-                pickerTargets: 'video',
+                pickerTargets: 'special',
                 pickerTitle: 'Choose living background',
                 note: 'Video backdrop (falls back to still when needed).',
             },
@@ -599,7 +549,8 @@
                 return `<video class="theme-shell-slot-thumb" src="${escapeHtml(path)}" muted loop playsinline preload="metadata"></video>`;
             }
             return `<div class="theme-shell-slot-empty theme-shell-slot-empty--audio" aria-hidden="true">♪</div>
-                <span class="theme-shell-slot-status">Sound effect assigned</span>`;
+                <span class="theme-shell-slot-status">Sound effect assigned</span>
+                <button type="button" class="icon-btn theme-shell-slot-listen" data-shell-listen="${escapeHtml(path)}" title="Listen" aria-label="Listen to assigned sound">▶</button>`;
         }
 
         function renderShellMediaFields(locked) {
@@ -614,6 +565,7 @@
                             data-field="theme_asset_${escapeHtml(field.key)}"
                             data-title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
                             data-targets="${escapeHtml(field.pickerTargets || 'special')}"
+                            data-accept="${escapeHtml(field.accept.join(','))}"
                             title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
                             aria-label="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}">✎</button>`
                     : '';
@@ -642,6 +594,7 @@
                         </div>
                         <input type="hidden" id="theme_asset_${escapeHtml(field.key)}" value="${escapeHtml(value)}"
                                data-asset-key="${escapeHtml(field.key)}"
+                               data-asset-id="${escapeHtml(String(editorDocument?.asset_ids?.[field.key] || ''))}"
                                data-empty-label="${escapeHtml(field.emptyLabel)}">
                         <p class="theme-shell-slot-note">${escapeHtml(field.note)}</p>
                     </div>`;
@@ -649,7 +602,7 @@
 
             const slotHint = locked
                 ? 'bandPromo Default is locked — shell media cannot be changed here.'
-                : 'Click ✎ on a slot to choose media. Upload under Files → Brand assets, Visual, or Sound effects first.';
+                : 'Click ✎ on a slot to choose media. Upload stills and living video under Files → Brand assets; shell audio under Sound effects.';
 
             return `
                 <div class="theme-editor-section theme-editor-section--shell-media">
@@ -661,14 +614,50 @@
                 </div>`;
         }
 
+        function normalizePlaylistSelectorMode(value) {
+            const mode = String(value || '').trim().toLowerCase();
+            if (mode === 'dropdown' || mode === 'buttons' || mode === 'coverflow') {
+                return mode;
+            }
+            return 'coverflow';
+        }
+
+        function renderPlaylistSelectorFields(locked) {
+            const selected = normalizePlaylistSelectorMode(editorDocument?.player?.playlist_selector);
+            const options = [
+                ['dropdown', 'Dropdown'],
+                ['buttons', 'Buttons'],
+                ['coverflow', 'Cover flow'],
+            ];
+            const radios = options.map(([value, label]) => `
+                <label class="theme-player-setting-option">
+                    <input type="radio" name="themePlaylistSelector" value="${escapeHtml(value)}"
+                           data-player-path="playlist_selector"
+                           ${selected === value ? 'checked' : ''}
+                           ${locked ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
+
+            return `
+                <div class="theme-editor-section theme-editor-section--player-chrome">
+                    <h5>Playlist selector</h5>
+                    <p class="theme-field-hint">Shown in the Playlists tab when more than one playlist is available. The Base brand’s choice applies site-wide on /play. Cover flow uses each playlist’s poster.</p>
+                    <div class="theme-player-setting-toggle" role="group" aria-label="Playlist selector style">
+                        ${radios}
+                    </div>
+                </div>`;
+        }
+
         function updateShellSlotDom(key) {
             const field = shellFieldByKey(key);
             const slot = formEl.querySelector(`[data-shell-slot="${key}"]`);
             if (!field || !slot) return;
             const value = String(editorDocument?.assets?.[key] || '').trim();
+            const assetId = String(editorDocument?.asset_ids?.[key] || '').trim();
             const input = slot.querySelector(`[data-asset-key="${key}"]`);
             if (input instanceof HTMLInputElement) {
                 input.value = value;
+                input.dataset.assetId = assetId;
             }
             const media = slot.querySelector('.theme-shell-slot-media');
             if (media) {
@@ -678,7 +667,7 @@
         }
 
         function setShellAssetValue(key, path, { silent = false, assetId = '' } = {}) {
-            if (!editorDocument || editorDocument.locked) return false;
+            if (!editorDocument || !themeMayEdit(editorDocument)) return false;
             const field = shellFieldByKey(key);
             if (!field) return false;
             const next = String(path || '').trim();
@@ -713,7 +702,27 @@
         }
 
         function bindShellMediaUi() {
-            if (!!editorDocument?.locked) {
+            // Listen works even when the brand is locked (preview only).
+            formEl.querySelectorAll('[data-shell-listen]').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const path = String(button.getAttribute('data-shell-listen') || '').trim();
+                    if (!path) {
+                        return;
+                    }
+                    if (typeof window.toggleShellMediaListen === 'function') {
+                        window.toggleShellMediaListen(path);
+                        return;
+                    }
+                    const audio = new Audio(path);
+                    audio.play().catch(() => {
+                        notifyThemeError('Could not play that sound effect.');
+                    });
+                });
+            });
+
+            if (!themeMayEdit(editorDocument)) {
                 return;
             }
 
@@ -731,105 +740,28 @@
             };
         }
 
-        function renderPreviewMarkup(document) {
-            if (!document) {
-                return '<p class="theme-editor-empty">No theme selected.</p>';
-            }
-
-            return `
-                <div class="theme-preview-canvas">
-                    <div class="theme-preview-shell">
-                        ${renderShellPreviewChrome(document)}
-
-                        <section class="theme-preview-section">
-                            <h3 class="theme-preview-section-title">Page text styles</h3>
-                            <p class="theme-preview-muted theme-preview-section-lead">Styles available in the page editor (+ Text block).</p>
-                            <div class="page-richtext theme-preview-richtext">
-                                <h1>Heading 1</h1>
-                                <h2>Heading 2</h2>
-                                <h3>Heading 3</h3>
-                                <p>Paragraph — regular body text for pages, captions, and player content.</p>
-                                <p class="page-text-small">Small — secondary notes and fine print.</p>
-                                <pre class="page-text-code">Code — monospace sample text</pre>
-                            </div>
-                        </section>
-
-                        <section class="theme-preview-section">
-                            <h3 class="theme-preview-section-title">Media player</h3>
-                            <p class="theme-preview-muted theme-preview-section-lead">Player layout and cover art size follow screen breakpoints; this sample shows theme colors on the listening area.</p>
-                            <div class="theme-preview-player">
-                                <div class="theme-preview-cover" aria-hidden="true">
-                                    <span class="theme-preview-cover-label">Cover art</span>
-                                </div>
-                                <div class="theme-preview-track-card">
-                                    <span class="theme-preview-track-title">Track title</span>
-                                    <span class="theme-preview-muted">Artist name</span>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="theme-preview-section">
-                            <h3 class="theme-preview-section-title">Buttons & tabs</h3>
-                            <div class="theme-preview-controls">
-                                <button type="button" class="theme-preview-btn theme-preview-btn--primary">Primary action</button>
-                                <button type="button" class="theme-preview-btn theme-preview-btn--secondary">Secondary</button>
-                                <span class="theme-preview-tab theme-preview-tab--active">Active tab</span>
-                                <span class="theme-preview-tab">Tab</span>
-                            </div>
-                        </section>
-
-                        <section class="theme-preview-section">
-                            <h3 class="theme-preview-section-title">Surfaces</h3>
-                            <div class="theme-preview-surfaces">
-                                <div class="theme-preview-surface theme-preview-surface--mid">
-                                    <strong>Panels</strong>
-                                    <span>Cards, blocks, and elevated UI areas.</span>
-                                </div>
-                                <div class="theme-preview-surface theme-preview-surface--deep">
-                                    <strong>Deep background</strong>
-                                    <span>Backdrop behind the main page content.</span>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="theme-preview-section">
-                            <h3 class="theme-preview-section-title">Links</h3>
-                            <p class="theme-preview-links">
-                                <a href="#" class="theme-preview-link" onclick="return false;">Default link</a>
-                                <a href="#" class="theme-preview-link theme-preview-link--hover" onclick="return false;">Hover state</a>
-                                <a href="#" class="theme-preview-link theme-preview-link--visited" onclick="return false;">Visited state</a>
-                            </p>
-                        </section>
-                    </div>
-                </div>
-            `;
-        }
-
         function renderPreview(document) {
-            if (window.bandpromoThemePreview?.render) {
-                window.bandpromoThemePreview.render(previewEl, document, {
-                    styleId: 'bandpromo-theme-editor-preview-style',
-                    selector: '#themeEditorPreview .theme-preview-canvas',
-                });
-                updateActionButtons(document);
-                return;
-            }
             if (!document) {
                 previewEl.innerHTML = '<p class="theme-editor-empty">No theme selected.</p>';
-                previewStyleEl.textContent = '';
                 updateActionButtons(null);
                 return;
             }
-            applyPreviewStyles(document);
-            previewEl.innerHTML = renderPreviewMarkup(document);
+            if (window.bandpromoThemePreview?.render) {
+                window.bandpromoThemePreview.render(previewEl, document, {
+                    styleId: 'bandpromo-theme-editor-preview-style',
+                    selector: '#themeEditorPreview .theme-preview-shell-chrome',
+                });
+            } else {
+                previewEl.innerHTML = '<p class="theme-editor-empty">Brand preview is unavailable.</p>';
+            }
             updateActionButtons(document);
         }
 
         function updateActionButtons(document) {
-            const locked = !!document?.locked;
+            const mayEdit = themeMayEdit(document);
             const isActive = document && document.id === activeThemeId;
             if (saveBtn) {
-                if (!isEditing || locked) {
+                if (!isEditing || !mayEdit) {
                     saveBtn.hidden = true;
                 } else {
                     saveBtn.hidden = false;
@@ -852,9 +784,6 @@
                 saveBtn.hidden = true;
             }
             saveUi?.reset();
-            if (editorHint) {
-                editorHint.textContent = 'Select a brand, then click edit to change colors, fonts, and shell media.';
-            }
             renderPoolList();
             updateActionButtons(previewDocument);
         }
@@ -865,9 +794,6 @@
             if (poolView) poolView.hidden = true;
             if (editorView) editorView.hidden = false;
             syncThemeUrl(themeId, true);
-            if (editorHint) {
-                editorHint.textContent = 'Changes update the live preview immediately. Save to keep brand and shell media edits.';
-            }
             renderPoolList();
             updateActionButtons(editorDocument);
         }
@@ -877,7 +803,7 @@
         }
 
         function themeCanDelete(entry) {
-            if (!entry || entry.locked) {
+            if (!entry || entry.locked || themeIsPlatformDefault(entry)) {
                 return false;
             }
             return String(entry.id || '') !== activeThemeId;
@@ -971,9 +897,9 @@
                 const deleteBtn = themeCanDelete(entry)
                     ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-theme-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${title}">🗑️</button>`
                     : '';
-                const editBtn = entry.locked
-                    ? ''
-                    : `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-theme-id="${escapeHtml(id)}" title="Edit brand" aria-label="Edit ${title}">✏️</button>`;
+                const editBtn = themeMayEdit(entry)
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-theme-id="${escapeHtml(id)}" title="Edit brand" aria-label="Edit ${title}">✏️</button>`
+                    : '';
                 return `<li class="playlist-editor-row theme-pool-row page-pool-row${selectedClass}${activeClass}" data-theme-id="${escapeHtml(id)}" aria-selected="${id === selectedThemeId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>🎨 ${title}${activeDot}</strong>
@@ -994,30 +920,34 @@
                 return;
             }
 
-            const locked = !!editorDocument.locked;
+            const fieldsLocked = !themeMayEdit(editorDocument);
             const fontBase = tokenValue(editorDocument, 'typography.font_family_base');
             const fontHeading = tokenValue(editorDocument, 'typography.font_family_heading');
 
             formEl.innerHTML = `
-                ${locked ? '<p class="theme-editor-locked-note">bandPromo Default is protected. Duplicate it to customize this brand.</p>' : ''}
+                ${fieldsLocked ? '<p class="theme-editor-locked-note">bandPromo Default is protected. Duplicate it to customize this brand.</p>' : ''}
+                ${!fieldsLocked && editorDocument.locked && themeIsPlatformDefault(editorDocument)
+                    ? '<p class="theme-editor-locked-note">Localhost PRP edit: platform default is editable here. Remote installs stay locked.</p>'
+                    : ''}
                 <div class="theme-editor-section">
                     <h5>Typography</h5>
                     <div class="theme-token-grid theme-token-grid--stacked">
-                        ${renderFontPresetSelect('base', fontBase, locked)}
-                        ${renderFontPresetSelect('heading', fontHeading, locked)}
+                        ${renderFontPresetSelect('base', fontBase, fieldsLocked)}
+                        ${renderFontPresetSelect('heading', fontHeading, fieldsLocked)}
                     </div>
                 </div>
                 <div class="theme-editor-section theme-editor-section--colors">
                     <h5>Colors</h5>
                     <p class="theme-field-hint">Type a hex color (e.g. #FF6F61) or use the color square. Accent transparency (alpha) is derived automatically from Primary/Secondary — not a separate control.</p>
-                    ${renderCompactColors(locked)}
+                    ${renderCompactColors(fieldsLocked)}
                 </div>
                 <div class="theme-editor-section theme-editor-section--effects">
                     <h5>Readability</h5>
                     <p class="theme-field-hint">Dim busy still/living backdrops and soften glass panels so text stays readable.</p>
-                    ${renderEffectsFields(locked)}
+                    ${renderEffectsFields(fieldsLocked)}
                 </div>
-                ${renderShellMediaFields(locked)}
+                ${renderShellMediaFields(fieldsLocked)}
+                ${renderPlaylistSelectorFields(fieldsLocked)}
             `;
 
             syncThemeSettingsPanel(editorDocument);
@@ -1040,7 +970,17 @@
                 if (!key) return;
                 const next = String(input.value || '').trim();
                 const previous = String(editorDocument.assets[key] || '').trim();
+                const inputAssetId = String(input.dataset.assetId || '').trim();
                 editorDocument.assets[key] = next;
+                if (next === '') {
+                    editorDocument.asset_ids[key] = '';
+                    input.dataset.assetId = '';
+                    return;
+                }
+                if (inputAssetId !== '') {
+                    editorDocument.asset_ids[key] = inputAssetId;
+                    return;
+                }
                 // Manual path edits clear the parallel asset_id unless unchanged.
                 if (next !== previous) {
                     editorDocument.asset_ids[key] = '';
@@ -1049,10 +989,17 @@
         }
 
         function collectFormIntoDocument() {
-            if (!editorDocument || editorDocument.locked) {
+            if (!editorDocument || !themeMayEdit(editorDocument)) {
                 return;
             }
             collectAssetsFromForm();
+            if (!editorDocument.player || typeof editorDocument.player !== 'object') {
+                editorDocument.player = {};
+            }
+            const playlistSelector = formEl.querySelector('input[name="themePlaylistSelector"]:checked');
+            if (playlistSelector instanceof HTMLInputElement) {
+                editorDocument.player.playlist_selector = normalizePlaylistSelectorMode(playlistSelector.value);
+            }
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement) || input.hidden) return;
                 const path = input.getAttribute('data-token-path') || '';
@@ -1306,6 +1253,9 @@
             if (target instanceof HTMLSelectElement && target.hasAttribute('data-font-preset-select')) {
                 applyFontPresetSelection(target.getAttribute('data-font-preset-select') || '', target.value);
             }
+            if (target instanceof HTMLInputElement && target.name === 'themePlaylistSelector') {
+                collectFormIntoDocument();
+            }
         });
 
         titleInput?.addEventListener('focusout', () => {
@@ -1320,7 +1270,11 @@
         });
 
         saveBtn?.addEventListener('click', async () => {
-            if (!editorDocument || editorDocument.locked) return;
+            if (!editorDocument) return;
+            if (!themeMayEdit(editorDocument)) {
+                notifyThemeError('This brand is locked. Duplicate it to customize, or unlock on localhost for PRP source edits.');
+                return;
+            }
             collectFormIntoDocument();
             const title = themeTitleValue();
             if (!title) {

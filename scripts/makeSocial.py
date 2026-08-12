@@ -95,18 +95,17 @@ def resolve_visual_delivery_image(asset_id, preferred_variants=('card', 'share',
 
 
 def resolve_asset_id_to_path(asset_id):
-    """Resolve registry asset_id → on-disk image path (delivery preferred)."""
+    """Resolve registry asset_id → on-disk image path (master/original first)."""
     asset_id = str(asset_id or '').strip()
     if not asset_id.startswith('ast_'):
         return None
-    delivery = resolve_visual_delivery_image(asset_id)
-    if delivery is not None:
-        return delivery
 
     assets = load_asset_registry()
     asset = assets.get(asset_id)
     if not isinstance(asset, dict):
-        return None
+        # Delivery-only fallback when registry entry is missing.
+        return resolve_visual_delivery_image(asset_id)
+
     filename = str(asset.get('original_filename') or asset.get('master_filename') or '').strip()
     filename = Path(filename).name
     master_name = str(asset.get('master_filename') or '').strip()
@@ -135,7 +134,9 @@ def resolve_asset_id_to_path(asset_id):
     for candidate in candidates:
         if candidate.is_file():
             return candidate
-    return None
+
+    # Last resort: delivery card/share (may be smaller than OG targets).
+    return resolve_visual_delivery_image(asset_id)
 
 
 def resolve_share_image(config):

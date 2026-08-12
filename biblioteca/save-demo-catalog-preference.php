@@ -25,7 +25,25 @@ if (!is_array($body) || !array_key_exists('visible', $body)) {
 }
 
 $root = dirname(__DIR__);
+bandpromo_demo_release_ensure_preferences($root);
 $visible = (bool) $body['visible'];
+$hiding = !$visible;
+
+if ($hiding) {
+    $blockers = bandpromo_demo_release_hide_blockers($root);
+    if ($blockers !== []) {
+        http_response_code(409);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Cannot hide the demo catalog while demo campaign assets are still used outside the demo release. Remove or replace those references first.',
+            'hide_blockers' => $blockers,
+            'demo_release_id' => bandpromo_demo_release_id($root),
+            'demo_catalog_visible' => true,
+            'demo_release_hidden' => false,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+}
 
 if (!bandpromo_demo_catalog_set_visible($root, $visible)) {
     http_response_code(500);
@@ -35,13 +53,17 @@ if (!bandpromo_demo_catalog_set_visible($root, $visible)) {
 
 bandpromo_admin_audit_log($visible ? 'demo_catalog_shown' : 'demo_catalog_hidden', [
     'target_type' => 'install_preference',
-    'target_id' => 'demo_catalog_visible',
+    'target_id' => 'demo_release_hidden',
     'data' => [
         'visible' => $visible,
+        'demo_release_hidden' => !$visible,
+        'demo_release_id' => bandpromo_demo_release_id($root),
     ],
 ]);
 
 echo json_encode([
     'ok' => true,
     'demo_catalog_visible' => $visible,
+    'demo_release_hidden' => !$visible,
+    'demo_release_id' => bandpromo_demo_release_id($root),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

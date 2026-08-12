@@ -748,6 +748,9 @@ function bandpromo_asset_find_visual_orphan_by_original(string $root, string $or
 function bandpromo_asset_lookup_by_id(string $root, string $assetId): ?array
 {
     $assetId = trim($assetId);
+    if ($assetId !== '' && preg_match('/^ast_([0-9A-HJKMNP-TV-Z]{20})$/i', $assetId, $matches) === 1) {
+        $assetId = 'ast_' . strtoupper($matches[1]);
+    }
     if (!bandpromo_asset_is_asset_id($assetId)) {
         return null;
     }
@@ -1721,14 +1724,13 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
 
             $assetId = bandpromo_generate_asset_id();
             $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, $ext);
-            $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : '';
             $normalized = bandpromo_asset_normalize_entry([
                 'id' => $assetId,
                 'kind' => 'visual',
                 'media_type' => $mediaType,
                 'intake_bucket' => $intakeBucket,
                 'brand_id' => $brandId,
-                'release_id' => $releaseId,
+                'release_id' => '',
                 'role' => 'unassigned',
                 'has_alpha' => false,
                 'original_filename' => $entry,
@@ -1813,14 +1815,13 @@ function bandpromo_asset_registry_ensure_migrated(string $root, bool $heavy = fa
                 }
 
                 $assetId = bandpromo_asset_id_from_master_filename($entry) ?? bandpromo_generate_asset_id();
-                $releaseId = strncmp($entry, 'bandPromo_', 10) === 0 ? 'bandpromo-demo' : '';
                 $normalized = bandpromo_asset_normalize_entry([
                     'id' => $assetId,
                     'kind' => 'audio',
                     'original_filename' => $entry,
                     'master_filename' => $entry,
                     'master_format' => $ext,
-                    'release_id' => $releaseId,
+                    'release_id' => '',
                     'created_at' => gmdate('c'),
                 ]);
                 if ($normalized === null) {

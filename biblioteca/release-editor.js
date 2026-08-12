@@ -63,7 +63,6 @@
         }
 
         const PROTECTED_RELEASE_IDS = new Set(['primary', 'bandpromo-demo']);
-        const SYSTEM_MANAGED_RELEASE_IDS = new Set(['bandpromo-demo']);
         const isLocalDevHost = window.BANDPROMO_LOCAL_DEV === true;
         const ASSOCIATION_KINDS = ['playlists', 'galleries', 'pages'];
         const ASSOCIATION_LABELS = {
@@ -647,7 +646,7 @@
                 if (window.bandpromoThemePreview?.render) {
                     window.bandpromoThemePreview.render(releaseBrandingPreview, data.document || null, {
                         styleId: 'bandpromo-release-brand-preview-style',
-                        selector: '#releaseBrandingPreview .theme-preview-canvas',
+                        selector: '#releaseBrandingPreview .theme-preview-shell-chrome',
                     });
                 } else {
                     releaseBrandingPreview.innerHTML = '<p class="theme-editor-empty">Brand preview is unavailable.</p>';
@@ -910,9 +909,11 @@
 
             releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">Loading brand preview…</p>';
             try {
-                const url = brandId
-                    ? `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`
-                    : '/biblioteca/get-theme.php';
+                if (!brandId) {
+                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this release yet.</p>';
+                    return;
+                }
+                const url = `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`;
                 const data = await fetchJson(url, { cache: 'no-store' });
                 if (token !== releaseBaseBrandPreviewToken) {
                     return;
@@ -977,7 +978,7 @@
             if (entry && releaseSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
                 releaseSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
             }
-            const canEditCover = !!(isEditing && entry && !releaseIsSystemManaged(entry) && !entry.locked);
+            const canEditCover = !!(isEditing && entry && !entry.locked);
             if (releaseCoverOverlayActions instanceof HTMLElement) {
                 releaseCoverOverlayActions.hidden = !isEditing;
             }
@@ -1351,7 +1352,7 @@
         }
 
         function associationEditingEnabled(entry = releaseEntry(selectedReleaseId)) {
-            return !!(isEditing && entry && !releaseIsSystemManaged(entry) && !entry.locked);
+            return !!(isEditing && entry && !entry.locked);
         }
 
         function sortAssociationItems(kind, items) {
@@ -1743,18 +1744,29 @@
             return PROTECTED_RELEASE_IDS.has(releaseId);
         }
 
-        function releaseIsSystemManaged(entryOrId) {
-            if (typeof entryOrId === 'object' && entryOrId && typeof entryOrId.system_managed === 'boolean') {
-                return entryOrId.system_managed;
+        function releaseIsPlatformDemo(entryOrId) {
+            if (typeof entryOrId === 'object' && entryOrId && typeof entryOrId.platform_demo === 'boolean') {
+                return entryOrId.platform_demo;
             }
             const releaseId = typeof entryOrId === 'string'
                 ? entryOrId
                 : String(entryOrId?.id || '');
-            if (!SYSTEM_MANAGED_RELEASE_IDS.has(releaseId)) {
-                return false;
+            return releaseId === 'bandpromo-demo';
+        }
+
+        function releaseMayChangeLock(entryOrId) {
+            if (typeof entryOrId === 'object' && entryOrId && typeof entryOrId.can_change_lock === 'boolean') {
+                return entryOrId.can_change_lock;
             }
-            // Localhost developers may edit the platform demo campaign source.
-            return !isLocalDevHost;
+            if (!releaseIsPlatformDemo(entryOrId)) {
+                return true;
+            }
+            return isLocalDevHost;
+        }
+
+        /** @deprecated Demo is a normal locked release; kept for older call sites. */
+        function releaseIsSystemManaged() {
+            return false;
         }
 
         function releaseCanDelete(entry) {
@@ -1762,11 +1774,11 @@
         }
 
         function releaseCanOpenEditor(entry) {
-            return !!entry && !releaseIsSystemManaged(entry);
+            return !!entry;
         }
 
         function releaseTrackEditingEnabled(entry = releaseEntry(selectedReleaseId)) {
-            return !!(isEditing && entry && !releaseIsSystemManaged(entry) && !entry.locked);
+            return !!(isEditing && entry && !entry.locked);
         }
 
         function formatReleaseDuration(seconds) {
@@ -1876,6 +1888,21 @@
                 url.searchParams.delete('edit');
             }
             window.history.replaceState({}, '', url.toString());
+
+            // Keep Content → Catalogue tab href in sync (baked at page render otherwise
+            // pins the prior release — often bandpromo-demo — after create/switch).
+            document.querySelectorAll('a.tab-link[href*="cntab=release"]').forEach((link) => {
+                try {
+                    const href = new URL(link.getAttribute('href') || '', window.location.origin);
+                    href.searchParams.set('tab', 'content');
+                    href.searchParams.set('cntab', 'release');
+                    href.searchParams.set('release', releaseId);
+                    href.searchParams.delete('edit');
+                    link.setAttribute('href', `${href.pathname}${href.search}`);
+                } catch (_error) {
+                    // ignore malformed hrefs
+                }
+            });
         }
 
         function setAddReleasePanelOpen(open) {
@@ -1919,15 +1946,14 @@
             const title = String(entry?.title || releaseId || '');
             const releaseDate = normalizeReleaseDateForInput(entry?.release_date);
             const locked = !!entry?.locked;
+            const metadataLocked = locked;
             const description = String(entry?.description || '').trim();
             const shortDescription = String(entry?.short_description || '').trim();
             const catalogId = String(entry?.catalog_id || '').trim();
             const posterAssetId = String(entry?.poster_asset_id || '').trim();
             const brandId = String(entry?.brand_id || '').trim();
             const epk = normalizeReleaseEpk(entry?.epk);
-            const systemManaged = releaseIsSystemManaged(entry);
-            const bandpromoListenUrl = streamingUrlForBandpromo(epk.streaming_links)
-                || defaultBandpromoListenUrl();
+            const bandpromoListenUrl = streamingUrlForBandpromo(epk.streaming_links);
 
             releaseSettingsBaseline = {
                 title,
@@ -1948,22 +1974,22 @@
 
             if (releaseSettingsTitle instanceof HTMLInputElement) {
                 releaseSettingsTitle.value = title;
-                releaseSettingsTitle.disabled = systemManaged;
+                releaseSettingsTitle.disabled = metadataLocked;
             }
             if (releaseSettingsDate instanceof HTMLInputElement) {
                 releaseSettingsDate.value = releaseDate;
-                releaseSettingsDate.disabled = systemManaged;
+                releaseSettingsDate.disabled = metadataLocked;
                 if (typeof window.bandpromoSyncIsoDateField === 'function') {
                     window.bandpromoSyncIsoDateField(releaseSettingsDate);
                 }
             }
             if (releaseSettingsCatalogId instanceof HTMLInputElement) {
                 releaseSettingsCatalogId.value = catalogId;
-                releaseSettingsCatalogId.disabled = systemManaged;
+                releaseSettingsCatalogId.disabled = metadataLocked;
             }
             if (releaseSettingsBrandId instanceof HTMLSelectElement) {
                 releaseSettingsBrandId.value = brandId;
-                releaseSettingsBrandId.disabled = systemManaged;
+                releaseSettingsBrandId.disabled = metadataLocked;
             }
             if (releaseSettingsShortDescription instanceof HTMLTextAreaElement) {
                 releaseSettingsShortDescription.value = shortDescription;
@@ -1998,7 +2024,7 @@
             releaseSettingsBaseline = readReleaseSettingsFromForm();
             releaseSettingsBaseline.locked = locked;
 
-            setReleaseMetadataDisabled(systemManaged);
+            setReleaseMetadataDisabled(metadataLocked);
             updateReleaseCoverPanel();
             if (releaseSettingsStatus) {
                 releaseSettingsStatus.textContent = '';
@@ -2014,12 +2040,10 @@
                 editorHint.textContent = 'Select a release from the pool to preview it. Click edit to manage tracks and press kit.';
                 return;
             }
-            if (releaseIsSystemManaged(entry)) {
-                editorHint.textContent = 'bandPromo demo is system-managed and preview only.';
-                return;
-            }
             if (entry?.locked) {
-                editorHint.textContent = 'This release is locked. Membership is preview-only until you unlock it from the release list.';
+                editorHint.textContent = releaseIsPlatformDemo(entry) && !releaseMayChangeLock(entry)
+                    ? 'bandPromo demo is locked. Duplicate it, or unlock on localhost to edit the PRP source.'
+                    : 'This release is locked. Membership is preview-only until you unlock it from the release list.';
                 return;
             }
             editorHint.textContent = 'Use the section tabs to manage tracks and associated playlists, galleries, and pages. Changes save as you edit.';
@@ -2036,7 +2060,7 @@
             }
 
             const entry = releaseEntry(selectedReleaseId);
-            if (!entry || releaseIsSystemManaged(entry)) {
+            if (!entry || entry.locked) {
                 return true;
             }
 
@@ -2214,9 +2238,11 @@
                 const editBtn = releaseCanOpenEditor(entry)
                     ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit release" aria-label="Edit ${title}">✏️</button>`
                     : '';
-                const lockControl = releaseIsSystemManaged(entry)
-                    ? ''
-                    : `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock release (allow track edits)' : 'Lock release (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`;
+                const lockControl = releaseMayChangeLock(entry)
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock release (allow track edits)' : 'Lock release (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
+                    : (entry.locked
+                        ? `<span class="page-pool-lock-badge" title="Locked platform demo">🔒</span>`
+                        : '');
                 return `<li class="playlist-editor-row release-pool-row page-pool-row${selectedClass}" data-release-id="${escapeHtml(id)}" aria-selected="${id === selectedReleaseId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>💿 ${title}</strong>
@@ -2250,7 +2276,7 @@
 
         async function toggleReleaseLock(releaseId, locked) {
             const entry = releaseEntry(releaseId);
-            if (!entry || releaseIsSystemManaged(entry)) {
+            if (!entry || !releaseMayChangeLock(entry)) {
                 return false;
             }
 
@@ -2329,10 +2355,12 @@
 
         async function openReleaseEditor(releaseId) {
             if (!releaseId) {
+                showReleaseToast('Missing release id.', 'error');
                 return;
             }
             const entry = releaseEntry(releaseId);
             if (!entry) {
+                showReleaseToast(`Could not open release “${releaseId}” — it is not in the catalogue yet. Refresh and try again.`, 'error');
                 return;
             }
             if (isEditing && releaseId !== selectedReleaseId) {
@@ -3301,14 +3329,38 @@
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
                     body: JSON.stringify({ title }),
                 });
-                releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : releases);
-                const newId = data.release?.id || '';
+                const created = (data.release && typeof data.release === 'object') ? data.release : null;
+                const newId = String(created?.id || '').trim();
+                if (Array.isArray(data.releases) && data.releases.length) {
+                    releases = sortReleaseEntries(data.releases);
+                } else if (created && newId) {
+                    const without = releases.filter((entry) => String(entry?.id || '') !== newId);
+                    releases = sortReleaseEntries([created, ...without]);
+                }
+                if (typeof window.loadReleasesCatalog === 'function') {
+                    try {
+                        const catalog = await window.loadReleasesCatalog({ force: true });
+                        if (Array.isArray(catalog) && catalog.length) {
+                            releases = sortReleaseEntries(catalog);
+                        }
+                    } catch (_error) {
+                        // Local list from create response is enough to open the editor.
+                    }
+                }
+                if (created && newId && !releaseEntry(newId)) {
+                    releases = sortReleaseEntries([created, ...releases.filter((entry) => String(entry?.id || '') !== newId)]);
+                }
                 addReleaseForm.reset();
                 setAddReleasePanelOpen(false);
-                if (newId) {
-                    await openReleaseEditor(newId);
-                } else {
+                if (!newId || !releaseEntry(newId)) {
+                    showReleaseToast('Release was created but could not be opened. Refresh the catalogue and select it from the pool.', 'error');
                     renderReleasePoolList();
+                    return;
+                }
+                await openReleaseEditor(newId);
+                if (releaseRegistryStatus) {
+                    releaseRegistryStatus.textContent = `Created “${String(created?.title || newId)}”.`;
+                    releaseRegistryStatus.style.color = '';
                 }
             } catch (error) {
                 if (releaseRegistryStatus) {
