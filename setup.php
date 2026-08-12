@@ -701,7 +701,7 @@ $siteContactHtml = htmlspecialchars($siteContact);
   <!-- STEP 3: Build -->
   <div class="panel" id="panel-3">
     <h1>Installing demo content and building site</h1>
-    <p class="subtitle">bandPromo is built around your content, so before running for the first time, we import the Demo PRP (or local demo seed) to make sure everything works as expected. Then we build everything required to run your new bandPromo installation. You can hide the demo content later in the Admin panel after you upload your own.</p>
+    <p class="subtitle">First we download and import the Demo PRP (portable demo campaign). That download can take a minute — progress appears in the log below. Then we build delivery files so the player can run. You can hide the demo content later in Admin after you upload your own.</p>
     <?php if (!class_exists('ZipArchive')): ?>
     <div class="msg" style="display:block;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:#f0b429;">
       ZipArchive is not available on this host. The build can still run, but bootstrap package install/update flows and multi-file downloads will remain unavailable until the PHP ZipArchive extension is enabled.
@@ -1018,8 +1018,9 @@ function appendLog(text) {
   // Colour-code lines
   const span = document.createElement('span');
   if (/error|failed|exception|traceback/i.test(text)) span.className = 'log-error';
-  else if (/done|success|complete|finish/i.test(text)) span.className = 'log-success';
-  else if (/^\[|step|running|starting|building/i.test(text)) span.className = 'log-info';
+  else if (/done|success|complete|finish|imported|✅/i.test(text)) span.className = 'log-success';
+  else if (/download|demo prp|importing|verifying|preparing|\[demo|\[icons|\[setup|building|starting/i.test(text)) span.className = 'log-info';
+  else if (/^\[|step|running/i.test(text)) span.className = 'log-info';
   span.textContent = text + '\n';
   log.appendChild(span);
   log.scrollTop = log.scrollHeight;
@@ -1107,6 +1108,14 @@ document.getElementById('s3-build').addEventListener('click', async () => {
   setDisabled('s3-build', true);
   setSpin('s3-spin', true);
 
+  // Poll immediately so Demo PRP download lines are visible while build.php runs.
+  document.getElementById('build-status').textContent = 'Downloading Demo PRP\u2026';
+  document.getElementById('build-status').style.color = '#60a5fa';
+  appendLog('Starting setup build — Demo PRP download/import runs first.');
+  clearInterval(pollTimer);
+  pollTimer = setInterval(pollLog, 1500);
+  setTimeout(pollLog, 400);
+
   try {
     const res  = await fetch('/biblioteca/build.php', {
       method: 'POST',
@@ -1115,20 +1124,24 @@ document.getElementById('s3-build').addEventListener('click', async () => {
     });
     const data = await res.json();
     if (!data.ok) {
+      clearInterval(pollTimer);
+      pollTimer = null;
       showMsg('s3-error', data.error || 'Could not start build.', 'error');
+      document.getElementById('build-status').textContent = 'Build could not start.';
+      document.getElementById('build-status').style.color = 'var(--error)';
       setDisabled('s3-build', false);
       setSpin('s3-spin', false);
       return;
     }
-    // Start polling
-    clearInterval(pollTimer);
     document.getElementById('build-status').textContent = 'Building\u2026';
     document.getElementById('build-status').style.color = '#60a5fa';
-    pollTimer = setInterval(pollLog, 2000);
-    // First poll after a short delay (let the process start writing to log)
-    setTimeout(pollLog, 1500);
+    setTimeout(pollLog, 500);
   } catch (e) {
+    clearInterval(pollTimer);
+    pollTimer = null;
     showMsg('s3-error', 'Network error starting build.', 'error');
+    document.getElementById('build-status').textContent = 'Network error.';
+    document.getElementById('build-status').style.color = 'var(--error)';
     setDisabled('s3-build', false);
     setSpin('s3-spin', false);
   }

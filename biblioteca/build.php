@@ -177,6 +177,11 @@ file_put_contents($log_file, "[setup] Starting publish build...\n", FILE_APPEND)
 $ensureDemo = !empty($request_data['ensure_demo']) || !empty($_POST['ensure_demo']);
 if ($ensureDemo) {
     try {
+        file_put_contents(
+            $log_file,
+            "[setup] Preparing Demo PRP download/import (progress appears below)...\n",
+            FILE_APPEND
+        );
         $debug['demo_release_package'] = bandpromo_ensure_demo_release_package(
             $root_dir,
             BANDPROMO_RELEASE_MANIFEST_URL,
@@ -190,6 +195,21 @@ if ($ensureDemo) {
             $ensuredReleaseId = (string) ($debug['demo_release_package']['release_id'] ?? '');
         }
         bandpromo_demo_release_ensure_preferences($root_dir, $ensuredReleaseId);
+        try {
+            $debug['install_icons'] = bandpromo_ensure_install_icons(
+                $root_dir,
+                BANDPROMO_RELEASE_MANIFEST_URL,
+                static function (string $message) use ($log_file): void {
+                    file_put_contents($log_file, $message . "\n", FILE_APPEND);
+                }
+            );
+        } catch (Throwable $iconThrowable) {
+            file_put_contents(
+                $log_file,
+                '[icons] Warning: ' . $iconThrowable->getMessage() . "\n",
+                FILE_APPEND
+            );
+        }
     } catch (Throwable $throwable) {
         file_put_contents($log_file, '[demo release] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
         @unlink($lock_file);

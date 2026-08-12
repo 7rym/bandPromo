@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-12 18:15 - Setup first build: show Demo PRP download progress while build.php runs; accept masters-only PRP audio in preflight/playlist/optimize (no media/audio/original required); seed install icons from bP-icons.zip or default-theme; ship icons inside the application package.
+
+2026-08-12 17:55 - Bootstrap/release manifest load: strip UTF-8 BOM before `json_decode` (Windows rewrites can poison published `release-manifest.json`). Re-published v0.8.15-build-375 manifest without BOM after PRP attach.
+
 2026-08-12 17:40 - Checkpoint v0.8.15: Demo PRP on GitHub Releases (workflow uploads .prp); gallery In-use via visual delivery refs; playlist empty release_id -> brand inference; brand-owned player chrome; theme live preview polish.
 
 2026-08-12 17:10 - Files → Visual In use: gallery reference matching resolves `/media/visual/delivery/{asset_id}/…` to original filenames via the asset registry; stop lowercasing Crockford asset ids in path lookup (which made demo-gallery visuals look Unused); recover empty gallery `asset_id` from delivery paths when materializing.

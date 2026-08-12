@@ -1130,12 +1130,14 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
             $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'bandPromo-demo.prp';
             bandpromo_release_rrmdir($workDir);
             bandpromo_release_ensure_dir($workDir);
-            bandpromo_release_log($logger, '[demo release] Downloading Demo PRP...');
+            bandpromo_release_log($logger, '[demo release] Downloading Demo PRP (this can take a minute on first install)...');
             bandpromo_release_download_file((string) $demoPackage['package_url'], $downloadPath);
+            bandpromo_release_log($logger, '[demo release] Verifying Demo PRP checksum...');
             $actual = bandpromo_release_sha256_file($downloadPath);
             if ($actual !== (string) $demoPackage['sha256']) {
                 throw new RuntimeException('Demo PRP checksum did not match the published manifest.');
             }
+            bandpromo_release_log($logger, '[demo release] Importing Demo PRP into this site...');
             $import = bandpromo_release_campaign_import_from_zip($root, $downloadPath, [
                 'mode' => 'demo',
                 'allow_demo_overwrite' => true,

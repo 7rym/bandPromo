@@ -1181,10 +1181,9 @@ def generate_playlist():
     playlist = []
     validation_entries = []
 
-    # Check that the original audio directory exists
-    if not AUDIO_ORIG_DIR.exists():
-        print(f"❌ Original audio directory not found at {AUDIO_ORIG_DIR}")
-        return
+    # Originals are optional after PRP import (masters-only). Keep the folder for uploads.
+    AUDIO_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+    AUDIO_MASTER_DIR.mkdir(parents=True, exist_ok=True)
 
     # Ensure output directories exist
     IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -1260,7 +1259,10 @@ def generate_playlist():
         elif hidden_bundled_files:
             print(f"No playable source audio remains after hiding bundled demo tracks in {AUDIO_ORIG_DIR}")
         else:
-            print(f"No playable playlist tracks found in {AUDIO_ORIG_DIR}")
+            print(
+                "No playable playlist tracks found "
+                "(checked playlist document masters and media/audio/original)."
+            )
         return
 
     print(f"Found {len(work_items)} playlist track(s). Generating playlist...")

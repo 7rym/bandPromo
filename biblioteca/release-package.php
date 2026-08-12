@@ -569,6 +569,10 @@ function bandpromo_release_resolve_manifest_url(string $manifestUrl = BANDPROMO_
 function bandpromo_release_load_manifest(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
     $resolvedUrl = bandpromo_release_resolve_manifest_url($manifestUrl);
     $body = bandpromo_release_fetch_text($resolvedUrl);
+    // Windows tools sometimes rewrite UTF-8 with a BOM; PHP json_decode rejects it.
+    if (str_starts_with($body, "\xEF\xBB\xBF")) {
+        $body = substr($body, 3);
+    }
     $decoded = json_decode($body, true);
     if (!is_array($decoded)) {
         throw new RuntimeException('Release manifest is not valid JSON.');
@@ -585,6 +589,9 @@ function bandpromo_release_load_manifest_file(string $path): array {
     $body = file_get_contents($path);
     if (!is_string($body) || trim($body) === '') {
         throw new RuntimeException('Local release manifest file could not be read: ' . $path);
+    }
+    if (str_starts_with($body, "\xEF\xBB\xBF")) {
+        $body = substr($body, 3);
     }
 
     $decoded = json_decode($body, true);
@@ -862,5 +869,131 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
         'release_tag' => $package['release_tag'],
         'package_file' => $package['package_file'],
         'path_count' => count($package['paths']),
+    ];
+}
+
+/**
+ * Ensure PWA/favicon icons exist under media/icons (from local zip or default-theme package).
+ *
+ * @return array{installed: bool, source: string, message: string}
+ */
+function bandpromo_ensure_install_icons(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL, ?callable $logger = null): array
+{
+    $iconsDir = $root . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'icons';
+    $required = [
+        'apple-touch-icon.png',
+        'favicon-16x16.png',
+        'favicon-32x32.png',
+        'favicon-96x96.png',
+        'favicon.ico',
+        'web-app-manifest-192x192.png',
+        'web-app-manifest-512x512.png',
+    ];
+    $missing = [];
+    foreach ($required as $name) {
+        if (!is_file($iconsDir . DIRECTORY_SEPARATOR . $name)) {
+            $missing[] = $name;
+        }
+    }
+    if ($missing === []) {
+        return [
+            'installed' => false,
+            'source' => 'present',
+            'message' => 'Install icons already present.',
+        ];
+    }
+
+    if (!is_dir($iconsDir) && !mkdir($iconsDir, 0755, true) && !is_dir($iconsDir)) {
+        throw new RuntimeException('Could not create media/icons for install icons.');
+    }
+
+    $localZip = $iconsDir . DIRECTORY_SEPARATOR . 'bP-icons.zip';
+    if (is_file($localZip) && class_exists('ZipArchive')) {
+        bandpromo_release_log($logger, '[icons] Extracting install icons from media/icons/bP-icons.zip...');
+        $zip = new ZipArchive();
+        if ($zip->open($localZip) === true) {
+            $zip->extractTo($iconsDir);
+            $zip->close();
+            $still = [];
+            foreach ($required as $name) {
+                if (!is_file($iconsDir . DIRECTORY_SEPARATOR . $name)) {
+                    $still[] = $name;
+                }
+            }
+            if ($still === []) {
+                return [
+                    'installed' => true,
+                    'source' => 'local-zip',
+                    'message' => 'Install icons extracted from bP-icons.zip.',
+                ];
+            }
+        }
+    }
+
+    bandpromo_release_log($logger, '[icons] Downloading install icons from the published default-theme package...');
+    $manifest = bandpromo_release_load_manifest($manifestUrl);
+    $package = bandpromo_release_default_theme_package($manifest);
+    $workDir = $root . DIRECTORY_SEPARATOR . '.bandpromo-icons-package';
+    $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'default-theme.zip';
+    bandpromo_release_rrmdir($workDir);
+    bandpromo_release_ensure_dir($workDir);
+    bandpromo_release_download_file((string) $package['package_url'], $downloadPath);
+    $actual = bandpromo_release_sha256_file($downloadPath);
+    if ($actual !== (string) $package['sha256']) {
+        throw new RuntimeException('Default-theme package checksum did not match while seeding icons.');
+    }
+
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('ZipArchive is required to extract install icons.');
+    }
+    $zip = new ZipArchive();
+    if ($zip->open($downloadPath) !== true) {
+        throw new RuntimeException('Could not open default-theme package to extract icons.');
+    }
+    $extracted = 0;
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = str_replace('\\', '/', (string) $zip->getNameIndex($i));
+        if ($name === '' || str_ends_with($name, '/')) {
+            continue;
+        }
+        if (!str_starts_with($name, 'media/icons/')) {
+            continue;
+        }
+        $relative = substr($name, strlen('media/icons/'));
+        if ($relative === '' || str_contains($relative, '..')) {
+            continue;
+        }
+        $target = $iconsDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        $targetDir = dirname($target);
+        if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
+            $zip->close();
+            throw new RuntimeException('Could not create icon path: ' . $relative);
+        }
+        $bytes = $zip->getFromIndex($i);
+        if ($bytes === false || file_put_contents($target, $bytes) === false) {
+            $zip->close();
+            throw new RuntimeException('Could not extract icon: ' . $relative);
+        }
+        $extracted++;
+    }
+    $zip->close();
+    bandpromo_release_rrmdir_best_effort($workDir);
+
+    $still = [];
+    foreach ($required as $name) {
+        if (!is_file($iconsDir . DIRECTORY_SEPARATOR . $name)) {
+            $still[] = $name;
+        }
+    }
+    if ($still !== []) {
+        throw new RuntimeException('Install icons still missing after default-theme extract: ' . implode(', ', $still));
+    }
+
+    bandpromo_release_log($logger, '[icons] Seeded ' . $extracted . ' icon file(s) from default-theme package.');
+
+    return [
+        'installed' => true,
+        'source' => 'default-theme',
+        'message' => 'Install icons seeded from default-theme package.',
     ];
 }

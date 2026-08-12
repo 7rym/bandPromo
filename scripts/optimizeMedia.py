@@ -1568,9 +1568,10 @@ def main():
         optimize_shell_brand_media_images()
         return 0
 
-    if include_audio and not AUDIO_ORIG_DIR.exists():
-        print(f"❌ Error: Audio original directory not found at {AUDIO_ORIG_DIR}")
-        sys.exit(1)
+    if include_audio:
+        # PRP imports ship masters only; keep original/ as an empty intake folder.
+        AUDIO_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+        AUDIO_MASTER_DIR.mkdir(parents=True, exist_ok=True)
 
     # Create output directories if they don't exist
     AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)

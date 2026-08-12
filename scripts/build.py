@@ -695,6 +695,59 @@ def run_publish_stage(stage, ffmpeg_path, index, total):
     return ok
 
 
+def has_publishable_audio_sources():
+    """True when originals or PRP/import masters (or registry masters) can feed Publish."""
+    audio_orig = ROOT_DIR / 'media' / 'audio' / 'original'
+    audio_master = ROOT_DIR / 'media' / 'audio' / 'master'
+    supported = []
+    unsupported = []
+
+    if audio_orig.exists():
+        for entry in audio_orig.iterdir():
+            if not entry.is_file():
+                continue
+            suffix = entry.suffix.lower()
+            if suffix in SUPPORTED_AUDIO_EXTENSIONS:
+                supported.append(('original', entry.name))
+            elif suffix in KNOWN_AUDIO_EXTENSIONS:
+                unsupported.append(entry.name)
+
+    if audio_master.exists():
+        for entry in audio_master.iterdir():
+            if not entry.is_file():
+                continue
+            suffix = entry.suffix.lower()
+            if suffix in SUPPORTED_AUDIO_EXTENSIONS:
+                supported.append(('master', entry.name))
+
+    # Registry-backed masters (Demo PRP imports masters + registry, no originals).
+    registry_path = ROOT_DIR / 'data' / 'assets' / 'registry.json'
+    if registry_path.is_file() and audio_master.exists():
+        try:
+            with open(str(registry_path), 'r', encoding='utf-8') as handle:
+                payload = json.load(handle)
+        except Exception:
+            payload = None
+        if isinstance(payload, dict):
+            assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+            for asset in assets.values():
+                if not isinstance(asset, dict):
+                    continue
+                kind = str(asset.get('kind') or '').strip().lower()
+                if kind in ('visual', 'sfx'):
+                    continue
+                if kind not in ('', 'audio'):
+                    continue
+                master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+                if not master_name:
+                    continue
+                master_path = audio_master / master_name
+                if master_path.is_file() and master_path.suffix.lower() in SUPPORTED_AUDIO_EXTENSIONS:
+                    supported.append(('registry-master', master_name))
+
+    return supported, unsupported
+
+
 def run_preflight():
     print("-- Preflight -------------------------------")
     if not ensure_runtime_files_seeded():
@@ -711,27 +764,31 @@ def run_preflight():
     print("-- Checking icons in media/icons --")
     ensure_icons()
 
+    # Ensure original intake dir exists for operator uploads (PRP may only ship masters).
     audio_orig = ROOT_DIR / 'media' / 'audio' / 'original'
-    supported_audio = []
-    unsupported_audio = []
-    if audio_orig.exists():
-        for entry in audio_orig.iterdir():
-            if not entry.is_file():
-                continue
-            suffix = entry.suffix.lower()
-            if suffix in SUPPORTED_AUDIO_EXTENSIONS:
-                supported_audio.append(entry.name)
-            elif suffix in KNOWN_AUDIO_EXTENSIONS:
-                unsupported_audio.append(entry.name)
+    audio_orig.mkdir(parents=True, exist_ok=True)
+    (ROOT_DIR / 'media' / 'audio' / 'master').mkdir(parents=True, exist_ok=True)
+
+    supported_audio, unsupported_audio = has_publishable_audio_sources()
 
     if not supported_audio:
-        print(f"\n❌ No supported source audio found in {audio_orig}")
+        print("\n❌ No publishable audio found (upload originals or import a PRP with audio masters).")
+        print("   Checked: media/audio/original and media/audio/master (+ asset registry).")
         if unsupported_audio:
             print("   Unsupported audio files present: " + ', '.join(sorted(unsupported_audio)))
             print("   Current supported source formats: FLAC, MP3, and WAV")
-        print("   Upload your source files via Admin → Files first.")
+        print("   Upload your source files via Admin → Files, or re-run setup Demo PRP import.")
         sys.stdout.flush()
         return None
+
+    orig_count = sum(1 for tier, _name in supported_audio if tier == 'original')
+    master_count = sum(1 for tier, _name in supported_audio if tier in ('master', 'registry-master'))
+    print(
+        "  ✅ Publishable audio ready ({0} original, {1} master/registry).".format(
+            orig_count,
+            master_count,
+        )
+    )
 
     if unsupported_audio:
         print("⚠️  Unsupported source audio will be skipped: " + ', '.join(sorted(unsupported_audio)))

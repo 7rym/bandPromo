@@ -740,6 +740,10 @@ function bandpromo_bootstrap_resolve_manifest_url(string $manifestUrl): string {
 function bandpromo_bootstrap_load_manifest(string $manifestUrl): array {
   $resolvedUrl = bandpromo_bootstrap_resolve_manifest_url($manifestUrl);
   $body = bandpromo_bootstrap_fetch_text($resolvedUrl);
+  // Windows tools sometimes rewrite UTF-8 with a BOM; PHP json_decode rejects it.
+  if (str_starts_with($body, "\xEF\xBB\xBF")) {
+    $body = substr($body, 3);
+  }
   $decoded = json_decode($body, true);
   if (!is_array($decoded)) {
     throw new RuntimeException('Release manifest is not valid JSON.');

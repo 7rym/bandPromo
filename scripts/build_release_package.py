@@ -311,6 +311,21 @@ def build_zip(output_dir, package_url_base=None, manifest_url=None, release_tag=
         if relative_path not in app_files:
             app_files.append(relative_path)
 
+    # Install icons ship with the application package (Demo PRP is masters-only).
+    for relative_path in (
+        "media/icons/bP-icons.zip",
+        "media/icons/apple-touch-icon.png",
+        "media/icons/favicon-16x16.png",
+        "media/icons/favicon-32x32.png",
+        "media/icons/favicon-96x96.png",
+        "media/icons/favicon.ico",
+        "media/icons/favicon.svg",
+        "media/icons/web-app-manifest-192x192.png",
+        "media/icons/web-app-manifest-512x512.png",
+    ):
+        if (ROOT / relative_path).is_file() and relative_path not in app_files:
+            app_files.append(relative_path)
+
     default_theme_files = collect_media_files()
     require_starter_media(default_theme_files)
 
