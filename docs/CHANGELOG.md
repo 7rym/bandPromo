@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 00:15 - Lean GitHub releases: app packages ship only `bandPromo.zip` + `release-manifest.json`; Demo PRP moves to durable `demo-content` tag (`prepare_demo_content_package.py --publish`); drop operator default-theme ZIP; setup falls back to demo-content manifest; icons seed from app package; release titles stay `bandPromo vX.Y.Z build N`.
+
+2026-08-12 23:40 - Bootstrap GitHub downloads: restore proven classic cURL first (the HTTP/1.1+IPv4-only path could empty-reply on hosts that already downloaded Demo PRP); try alternate profiles + manual redirect hops; remove upload-ZIP workaround; keep multi-URL manifest candidates.
+
+2026-08-12 22:05 - Bootstrap: when GitHub release CDN returns empty reply, allow Install from uploaded application ZIP; show outbound probe notes (Atom vs manifest) for hosting support.
+
+2026-08-12 21:15 - Bootstrap/release downloads: force HTTP/1.1 + IPv4, retry empty GitHub/CDN replies, Atom fallback for newest tag resolve, clearer hosting hint for `release-assets.githubusercontent.com` blocks (“Empty reply from server”).
+
 2026-08-12 18:15 - Setup first build: show Demo PRP download progress while build.php runs; accept masters-only PRP audio in preflight/playlist/optimize (no media/audio/original required); seed install icons from bP-icons.zip or default-theme; ship icons inside the application package.
 
 2026-08-12 17:55 - Bootstrap/release manifest load: strip UTF-8 BOM before `json_decode` (Windows rewrites can poison published `release-manifest.json`). Re-published v0.8.15-build-375 manifest without BOM after PRP attach.

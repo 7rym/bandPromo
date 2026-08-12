@@ -5,6 +5,10 @@ const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releas
 const BANDPROMO_GITHUB_REPOSITORY = '7rym/bandPromo';
 const BANDPROMO_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=100';
 const BANDPROMO_GITHUB_RELEASES_ATOM_URL = 'https://github.com/7rym/bandPromo/releases.atom';
+/** Durable Demo PRP lives on a fixed release tag, not every app build. */
+const BANDPROMO_DEMO_CONTENT_TAG = 'demo-content';
+const BANDPROMO_DEMO_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/download/demo-content/demo-manifest.json';
+const BANDPROMO_DEMO_PRP_URL = 'https://github.com/7rym/bandPromo/releases/download/demo-content/bandPromo-demo.prp';
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
 const BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION = '1.0';
@@ -140,36 +144,56 @@ function bandpromo_release_https_download_setup_hint(): string
     return 'Enable the PHP ' . implode(' and ', $missing) . ' extension' . (count($missing) > 1 ? 's' : '') . ' in php.ini.';
 }
 
+function bandpromo_release_curl_profiles(): array
+{
+    $classic = [
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_TIMEOUT => 120,
+        CURLOPT_USERAGENT => 'bandPromo release helper',
+        CURLOPT_FAILONERROR => false,
+    ];
+
+    $http11 = $classic;
+    $http11[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_1;
+
+    $http11v4 = $http11;
+    if (defined('CURL_IPRESOLVE_V4')) {
+        $http11v4[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+    }
+
+    return [$classic, $http11, $http11v4];
+}
+
 function bandpromo_release_fetch_text(string $url): string {
     if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        if ($ch === false) {
-            throw new RuntimeException('Could not initialize cURL for release manifest fetch.');
+        $lastError = '';
+        $lastStatus = 0;
+        foreach (bandpromo_release_curl_profiles() as $profile) {
+            $ch = curl_init($url);
+            if ($ch === false) {
+                throw new RuntimeException('Could not initialize cURL for release manifest fetch.');
+            }
+
+            $options = $profile;
+            $options[CURLOPT_RETURNTRANSFER] = true;
+            curl_setopt_array($ch, $options);
+
+            $body = curl_exec($ch);
+            $lastStatus = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $lastError = curl_error($ch);
+            curl_close($ch);
+
+            if ($body !== false && is_string($body) && $body !== '' && $lastStatus > 0 && $lastStatus < 400) {
+                return $body;
+            }
         }
 
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_USERAGENT => 'bandPromo release helper',
-            CURLOPT_FAILONERROR => false,
-        ]);
-
-        $body = curl_exec($ch);
-        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($body === false) {
-            throw new RuntimeException('Release manifest fetch failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
-        }
-
-        if ($status >= 400) {
-            throw new RuntimeException('Release manifest fetch failed with HTTP status ' . $status . '.');
-        }
-
-        return (string) $body;
+        throw new RuntimeException(
+            'Release manifest fetch failed: '
+            . ($lastError !== '' ? $lastError : ('HTTP ' . $lastStatus))
+        );
     }
 
     if (!bandpromo_release_https_download_available()) {
@@ -179,7 +203,7 @@ function bandpromo_release_fetch_text(string $url): string {
 
     $context = stream_context_create([
         'http' => [
-            'timeout' => 30,
+            'timeout' => 120,
             'follow_location' => 1,
             'user_agent' => 'bandPromo release helper',
         ],
@@ -190,7 +214,7 @@ function bandpromo_release_fetch_text(string $url): string {
     ]);
 
     $body = @file_get_contents($url, false, $context);
-    if ($body === false) {
+    if ($body === false || $body === '') {
         throw new RuntimeException('Release manifest fetch failed. Check outbound HTTPS support and the manifest URL.');
     }
 
@@ -201,48 +225,46 @@ function bandpromo_release_download_file(string $url, string $destination): void
     bandpromo_release_ensure_dir(dirname($destination));
 
     if (function_exists('curl_init')) {
-        $handle = fopen($destination, 'wb');
-        if ($handle === false) {
-            throw new RuntimeException('Could not create temporary download file.');
-        }
+        $lastError = '';
+        $lastStatus = 0;
+        foreach (bandpromo_release_curl_profiles() as $profile) {
+            $handle = fopen($destination, 'wb');
+            if ($handle === false) {
+                throw new RuntimeException('Could not create temporary download file.');
+            }
 
-        $ch = curl_init($url);
-        if ($ch === false) {
+            $ch = curl_init($url);
+            if ($ch === false) {
+                fclose($handle);
+                throw new RuntimeException('Could not initialize cURL for package download.');
+            }
+
+            $options = $profile;
+            $options[CURLOPT_FILE] = $handle;
+            $options[CURLOPT_TIMEOUT] = 600;
+            curl_setopt_array($ch, $options);
+
+            $ok = curl_exec($ch);
+            $lastStatus = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $lastError = curl_error($ch);
+            curl_close($ch);
             fclose($handle);
-            throw new RuntimeException('Could not initialize cURL for package download.');
-        }
 
-        curl_setopt_array($ch, [
-            CURLOPT_FILE => $handle,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_TIMEOUT => 120,
-            CURLOPT_USERAGENT => 'bandPromo release helper',
-            CURLOPT_FAILONERROR => false,
-        ]);
-
-        $ok = curl_exec($ch);
-        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-        fclose($handle);
-
-        if ($ok === false) {
+            if ($ok !== false && $lastStatus > 0 && $lastStatus < 400 && is_file($destination) && filesize($destination) > 0) {
+                return;
+            }
             @unlink($destination);
-            throw new RuntimeException('Package download failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
         }
 
-        if ($status >= 400) {
-            @unlink($destination);
-            throw new RuntimeException('Package download failed with HTTP status ' . $status . '.');
-        }
-
-        return;
+        throw new RuntimeException(
+            'Package download failed: '
+            . ($lastError !== '' ? $lastError : ('HTTP ' . $lastStatus))
+        );
     }
 
     $context = stream_context_create([
         'http' => [
-            'timeout' => 120,
+            'timeout' => 600,
             'follow_location' => 1,
             'user_agent' => 'bandPromo release helper',
         ],
@@ -873,7 +895,7 @@ function bandpromo_ensure_default_theme_package(string $root, string $manifestUr
 }
 
 /**
- * Ensure PWA/favicon icons exist under media/icons (from local zip or default-theme package).
+ * Ensure PWA/favicon icons exist under media/icons (from local zip or app package).
  *
  * @return array{installed: bool, source: string, message: string}
  */
@@ -930,17 +952,21 @@ function bandpromo_ensure_install_icons(string $root, string $manifestUrl = BAND
         }
     }
 
-    bandpromo_release_log($logger, '[icons] Downloading install icons from the published default-theme package...');
+    bandpromo_release_log($logger, '[icons] Downloading install icons from the published application package...');
     $manifest = bandpromo_release_load_manifest($manifestUrl);
-    $package = bandpromo_release_default_theme_package($manifest);
+    $packageUrl = trim((string) ($manifest['package_url'] ?? ''));
+    $expectedSha = trim((string) ($manifest['sha256'] ?? ''));
+    if ($packageUrl === '' || $expectedSha === '') {
+        throw new RuntimeException('Release manifest is missing package_url/sha256 while seeding icons.');
+    }
     $workDir = $root . DIRECTORY_SEPARATOR . '.bandpromo-icons-package';
-    $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'default-theme.zip';
+    $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'bandPromo.zip';
     bandpromo_release_rrmdir($workDir);
     bandpromo_release_ensure_dir($workDir);
-    bandpromo_release_download_file((string) $package['package_url'], $downloadPath);
+    bandpromo_release_download_file($packageUrl, $downloadPath);
     $actual = bandpromo_release_sha256_file($downloadPath);
-    if ($actual !== (string) $package['sha256']) {
-        throw new RuntimeException('Default-theme package checksum did not match while seeding icons.');
+    if ($actual !== $expectedSha) {
+        throw new RuntimeException('Application package checksum did not match while seeding icons.');
     }
 
     if (!class_exists('ZipArchive')) {
@@ -948,7 +974,7 @@ function bandpromo_ensure_install_icons(string $root, string $manifestUrl = BAND
     }
     $zip = new ZipArchive();
     if ($zip->open($downloadPath) !== true) {
-        throw new RuntimeException('Could not open default-theme package to extract icons.');
+        throw new RuntimeException('Could not open application package to extract icons.');
     }
     $extracted = 0;
     for ($i = 0; $i < $zip->numFiles; $i++) {
@@ -986,14 +1012,14 @@ function bandpromo_ensure_install_icons(string $root, string $manifestUrl = BAND
         }
     }
     if ($still !== []) {
-        throw new RuntimeException('Install icons still missing after default-theme extract: ' . implode(', ', $still));
+        throw new RuntimeException('Install icons still missing after application package extract: ' . implode(', ', $still));
     }
 
-    bandpromo_release_log($logger, '[icons] Seeded ' . $extracted . ' icon file(s) from default-theme package.');
+    bandpromo_release_log($logger, '[icons] Seeded ' . $extracted . ' icon file(s) from application package.');
 
     return [
         'installed' => true,
-        'source' => 'default-theme',
-        'message' => 'Install icons seeded from default-theme package.',
+        'source' => 'app-package',
+        'message' => 'Install icons seeded from application package.',
     ];
 }

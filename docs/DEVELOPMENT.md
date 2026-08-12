@@ -107,22 +107,23 @@ Tag naming: `v0.8.4 build 303` in `VERSION` → release tag `v0.8.4-build-303`.
 
 Available paths:
 
-- Run `python scripts/build_release_package.py --clean` locally for a quick package/manifest sanity check.
+- Run `python scripts/build_release_package.py --clean --skip-demo-manifest` locally for a quick app package/manifest sanity check (use `--require-demo-manifest` when the durable `demo-content` release exists).
 - Trigger **Build release package artifact** for a private/manual artifact build (no public release).
-- Trigger **Publish release package** when a build should become the latest operator-facing immutable GitHub Release package.
+- Trigger **Publish release package** when a build should become the latest operator-facing immutable GitHub Release package (`bandPromo.zip` + `release-manifest.json` only).
+- Update Demo PRP only when campaign content changes: `python scripts/prepare_demo_content_package.py --prp path\to\export.prp --clean --publish`.
 - Or use `scripts/session-end.ps1 -Push -Publish` after a validated checkpoint commit.
 
 Example publish command (GitHub CLI):
 
 ```powershell
 gh workflow run "Publish release package" `
-  -f tag_name=v0.8.4-build-303 `
-  -f release_name="bandPromo v0.8.4 build 303 — short summary" `
-  -f prerelease=true `
+  -f tag_name=v0.8.15-build-377 `
+  -f release_name="bandPromo v0.8.15 build 377" `
+  -f prerelease=false `
   -f draft=false
 ```
 
-Use `prerelease=true` for v0.8 beta builds unless you intentionally publish a stable release.
+Use `prerelease=false` for closed-beta tester packages unless you intentionally keep a build off `/releases/latest`.
 
 The bootstrap installer and admin **Site update** both rely on the published `release-manifest.json` asset and the immutable package URLs declared there. Mutable branch snapshots are acceptable for ad-hoc developer testing, but they are no longer part of the normal operator install path.
 

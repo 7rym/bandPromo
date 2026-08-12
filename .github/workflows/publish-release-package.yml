@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag to publish, for example v0.7-build-246"
+        description: "Release tag to publish, for example v0.8.15-build-377"
         required: true
       release_name:
-        description: "Human-readable release name"
+        description: "Human-readable release name (prefer: bandPromo v0.8.15 build 377)"
         required: true
       prerelease:
         description: "Publish as prerelease"
@@ -33,47 +33,54 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Seed media/ from latest default-theme package
+      - name: Seed media/icons from previous app package
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/bp-theme-seed
-          if ! gh release download --repo "${{ github.repository }}" --pattern 'bandpromo-default-theme-*.zip' --dir /tmp/bp-theme-seed; then
-            echo "ERROR: Could not download bandpromo-default-theme-*.zip from the latest GitHub Release."
-            echo "Publish needs a previous theme package to seed ignored media/ before packaging."
+          mkdir -p /tmp/bp-app-seed
+          downloaded=0
+          if gh release download --repo "${{ github.repository }}" --pattern 'bandPromo.zip' --dir /tmp/bp-app-seed; then
+            downloaded=1
+          elif gh release download --repo "${{ github.repository }}" --pattern 'bandpromo-*.zip' --dir /tmp/bp-app-seed; then
+            downloaded=1
+          fi
+          if [[ "$downloaded" -ne 1 ]]; then
+            echo "ERROR: Could not download bandPromo.zip / bandpromo-*.zip from the latest GitHub Release."
+            echo "Publish needs a previous app package to seed ignored media/icons/ before packaging."
             exit 1
           fi
-          theme_zip="$(ls /tmp/bp-theme-seed/bandpromo-default-theme-*.zip | head -n 1)"
-          echo "Seeding media/ from ${theme_zip}"
           python - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
-          import sys
 
-          seed_dir = Path("/tmp/bp-theme-seed")
-          zips = sorted(seed_dir.glob("bandpromo-default-theme-*.zip"))
-          if not zips:
-              raise SystemExit("No default-theme ZIP found after download.")
-          theme_zip = zips[-1]
+          seed_dir = Path("/tmp/bp-app-seed")
+          zips = sorted(seed_dir.glob("bandPromo.zip")) + sorted(seed_dir.glob("bandpromo-*.zip"))
+          # Prefer stable alias when present.
+          alias = seed_dir / "bandPromo.zip"
+          app_zip = alias if alias.is_file() else zips[-1]
           root = Path.cwd()
-          with ZipFile(theme_zip) as archive:
-              members = [name for name in archive.namelist() if name.replace("\\", "/").startswith("media/")]
-              if not members:
-                  raise SystemExit(f"{theme_zip.name} contains no media/ paths.")
-              for name in members:
+          extracted = 0
+          with ZipFile(app_zip) as archive:
+              for name in archive.namelist():
                   normalized = name.replace("\\", "/")
+                  if not normalized.startswith("media/icons/"):
+                      continue
                   if normalized.endswith("/"):
                       continue
                   target = root / normalized
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(archive.read(name))
-          print(f"Extracted {len(members)} media paths from {theme_zip.name}")
+                  extracted += 1
+          if extracted == 0:
+              raise SystemExit(f"{app_zip.name} contains no media/icons/ paths.")
+          print(f"Extracted {extracted} icon paths from {app_zip.name}")
           PY
 
       - name: Build distributable package with release URLs
         run: >-
           python scripts/build_release_package.py --clean
+          --require-demo-manifest
           --release-tag "${{ inputs.tag_name }}"
           --package-url-base "https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}"
           --manifest-url "https://github.com/${{ github.repository }}/releases/latest/download/release-manifest.json"
@@ -86,6 +93,5 @@ jobs:
           draft: ${{ inputs.draft == 'true' }}
           prerelease: ${{ inputs.prerelease == 'true' }}
           files: |
-            dist/*.zip
-            dist/*.prp
+            dist/bandPromo.zip
             dist/release-manifest.json

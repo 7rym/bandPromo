@@ -87,11 +87,11 @@ Setup should then:
 - verify required PHP extensions (including `pdo_sqlite` for activity logging)
 - create the first admin account
 - seed the required runtime files from tracked templates
-- import **`bandPromo-demo.prp`** on the first setup build (`ensure_demo`) when the published Demo PRP is available (fail clearly if missing — no template seed fallback)
+- import **`bandPromo-demo.prp`** on the first setup build (`ensure_demo`) from the durable GitHub **`demo-content`** release (fail clearly if missing — no template seed fallback)
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 
-The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Demo audio/media travel in the Demo PRP — never as git-tracked binaries, because `/media` is fully ignored. Later Admin **Publish** builds do **not** re-download the Demo PRP; they use content already on the host.
+The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Bootstrap downloads **`bandPromo.zip`** (application only). Demo audio/media travel in the separate Demo PRP — never as git-tracked binaries, because `/media` is fully ignored. Later Admin **Publish** builds do **not** re-download the Demo PRP; they use content already on the host.
 
 ## If the bootstrap stops
 

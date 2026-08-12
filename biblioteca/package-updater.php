@@ -507,20 +507,13 @@ function bandpromo_package_apply_release(string $root, array $manifest): array {
 function bandpromo_package_run_post_update_tasks(string $root, array $applyResult): array {
     require_once __DIR__ . '/build-required.php';
 
-    $defaultTheme = null;
-    $defaultThemeError = null;
-
-    try {
-        $defaultTheme = bandpromo_ensure_default_theme_package($root);
-    } catch (Throwable $throwable) {
-        $defaultThemeError = $throwable->getMessage();
-    }
-
+    // App updates no longer pull the legacy default-theme media ZIP. Icons ship
+    // in bandPromo.zip; campaign media arrives via PRP at setup (or operator import).
     $buildRequired = bandpromo_mark_build_required('package_update');
 
     return [
-        'default_theme' => $defaultTheme,
-        'default_theme_error' => $defaultThemeError,
+        'default_theme' => null,
+        'default_theme_error' => null,
         'build_required' => $buildRequired,
         // Always open Deliverables after a package update. Rebuild all deliverables
         // is the normal next step so listener-ready files match the new app code,

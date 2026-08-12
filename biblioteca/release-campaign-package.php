@@ -1105,8 +1105,37 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
     require_once __DIR__ . '/release-package.php';
 
     try {
-        $manifest = bandpromo_release_load_manifest($manifestUrl);
-        $demoPackage = $manifest['demo_release_package'] ?? null;
+        $demoPackage = null;
+        try {
+            $manifest = bandpromo_release_load_manifest($manifestUrl);
+            $fromApp = $manifest['demo_release_package'] ?? null;
+            if (is_array($fromApp)
+                && trim((string) ($fromApp['package_url'] ?? '')) !== ''
+                && trim((string) ($fromApp['sha256'] ?? '')) !== ''
+            ) {
+                $demoPackage = $fromApp;
+            }
+        } catch (Throwable $appManifestError) {
+            bandpromo_release_log(
+                $logger,
+                '[demo release] App release manifest unavailable: ' . $appManifestError->getMessage()
+            );
+        }
+
+        // Durable demo-content release is the source of truth when the app
+        // manifest omits demo_release_package (or points at a missing asset).
+        if (!is_array($demoPackage)) {
+            bandpromo_release_log($logger, '[demo release] Loading durable demo-content manifest...');
+            $demoManifest = bandpromo_release_load_manifest(BANDPROMO_DEMO_MANIFEST_URL);
+            if (trim((string) ($demoManifest['package_url'] ?? '')) === '') {
+                $demoManifest['package_url'] = BANDPROMO_DEMO_PRP_URL;
+            }
+            if (trim((string) ($demoManifest['package_file'] ?? '')) === '') {
+                $demoManifest['package_file'] = 'bandPromo-demo.prp';
+            }
+            $demoPackage = $demoManifest;
+        }
+
         if (is_array($demoPackage)
             && trim((string) ($demoPackage['package_url'] ?? '')) !== ''
             && trim((string) ($demoPackage['sha256'] ?? '')) !== ''

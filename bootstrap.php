@@ -7,7 +7,161 @@ const BANDPROMO_BOOTSTRAP_WORKDIR = '.bandpromo-bootstrap';
 const BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/latest/download/release-manifest.json';
 const BANDPROMO_BOOTSTRAP_GITHUB_REPOSITORY = '7rym/bandPromo';
 const BANDPROMO_BOOTSTRAP_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=100';
+const BANDPROMO_BOOTSTRAP_GITHUB_RELEASES_ATOM_URL = 'https://github.com/7rym/bandPromo/releases.atom';
 
+/**
+ * cURL option profiles for GitHub release downloads.
+ * First profile matches the proven setup/PRP downloader (defaults only).
+ * Later profiles only run if earlier attempts return empty replies.
+ *
+ * @return list<array<int, mixed>>
+ */
+function bandpromo_bootstrap_curl_profiles(): array
+{
+    $classic = [
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_TIMEOUT => 120,
+        CURLOPT_USERAGENT => 'bandPromo bootstrap installer',
+        CURLOPT_FAILONERROR => false,
+    ];
+
+    $http11 = $classic;
+    $http11[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_1;
+
+    $http11v4 = $http11;
+    if (defined('CURL_IPRESOLVE_V4')) {
+        $http11v4[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+    }
+
+    $tls12 = $classic;
+    if (defined('CURL_SSLVERSION_TLSv1_2')) {
+        $tls12[CURLOPT_SSLVERSION] = CURL_SSLVERSION_TLSv1_2;
+    }
+    $tls12[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_1;
+
+    return [$classic, $http11, $http11v4, $tls12];
+}
+
+/**
+ * Fetch a URL body with cURL, trying several transport profiles.
+ *
+ * @return array{ok:bool, body:string, error:string, status:int, profile:int}
+ */
+function bandpromo_bootstrap_curl_fetch(string $url, int $timeoutSeconds = 120, int $redirectDepth = 0): array
+{
+    $last = [
+        'ok' => false,
+        'body' => '',
+        'error' => 'cURL unavailable',
+        'status' => 0,
+        'profile' => -1,
+    ];
+
+    if (!extension_loaded('curl')) {
+        return $last;
+    }
+
+    foreach (bandpromo_bootstrap_curl_profiles() as $profileIndex => $profile) {
+        $handle = curl_init($url);
+        if ($handle === false) {
+            $last['error'] = 'Could not initialize cURL';
+            continue;
+        }
+
+        $options = $profile;
+        $options[CURLOPT_RETURNTRANSFER] = true;
+        $options[CURLOPT_TIMEOUT] = $timeoutSeconds;
+        curl_setopt_array($handle, $options);
+
+        $body = curl_exec($handle);
+        $error = curl_error($handle);
+        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        curl_close($handle);
+
+        $last = [
+            'ok' => false,
+            'body' => is_string($body) ? $body : '',
+            'error' => $error,
+            'status' => $status,
+            'profile' => $profileIndex,
+        ];
+
+        if ($body !== false && is_string($body) && $body !== '' && $status > 0 && $status < 400) {
+            $last['ok'] = true;
+
+            return $last;
+        }
+    }
+
+    if ($redirectDepth >= 5) {
+        return $last;
+    }
+
+    // Manual redirect hop (some hosts fail automatic cross-host FOLLOWLOCATION).
+    $handle = curl_init($url);
+    if ($handle === false) {
+        return $last;
+    }
+
+    curl_setopt_array($handle, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_HEADER => true,
+        CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_TIMEOUT => $timeoutSeconds,
+        CURLOPT_USERAGENT => 'bandPromo bootstrap installer',
+        CURLOPT_FAILONERROR => false,
+    ]);
+    $raw = curl_exec($handle);
+    $error = curl_error($handle);
+    $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+    $headerSize = (int) curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+    curl_close($handle);
+
+    if ($raw !== false && is_string($raw) && in_array($status, [301, 302, 303, 307, 308], true)) {
+        $headers = substr($raw, 0, $headerSize);
+        $location = '';
+        foreach (preg_split('/\r\n|\n|\r/', $headers) ?: [] as $line) {
+            if (stripos($line, 'Location:') === 0) {
+                $location = trim(substr($line, 9));
+                break;
+            }
+        }
+        if ($location !== '') {
+            if (str_starts_with($location, '/')) {
+                $parts = parse_url($url);
+                $scheme = $parts['scheme'] ?? 'https';
+                $host = $parts['host'] ?? 'github.com';
+                $location = $scheme . '://' . $host . $location;
+            }
+
+            return bandpromo_bootstrap_curl_fetch($location, $timeoutSeconds, $redirectDepth + 1);
+        }
+    }
+
+    if ($raw !== false && is_string($raw) && $status > 0 && $status < 400) {
+        $body = substr($raw, $headerSize);
+        if ($body !== '') {
+            return [
+                'ok' => true,
+                'body' => $body,
+                'error' => '',
+                'status' => $status,
+                'profile' => 99,
+            ];
+        }
+    }
+
+    return [
+        'ok' => false,
+        'body' => '',
+        'error' => $error !== '' ? $error : ('HTTP ' . $status),
+        'status' => $status,
+        'profile' => 99,
+    ];
+}
 function bandpromo_bootstrap_h(string $value): string {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
@@ -419,48 +573,56 @@ function bandpromo_bootstrap_ensure_dir(string $path): void {
 
 function bandpromo_bootstrap_download_file(string $url, string $target): void {
     if (extension_loaded('curl')) {
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new RuntimeException('Could not initialize download client.');
-        }
+        $lastError = '';
+        $lastStatus = 0;
+        foreach (bandpromo_bootstrap_curl_profiles() as $profile) {
+            $handle = curl_init($url);
+            if ($handle === false) {
+                throw new RuntimeException('Could not initialize download client.');
+            }
 
-        $stream = fopen($target, 'wb');
-        if ($stream === false) {
+            $stream = fopen($target, 'wb');
+            if ($stream === false) {
+                curl_close($handle);
+                throw new RuntimeException('Could not open temporary file for download.');
+            }
+
+            $options = $profile;
+            $options[CURLOPT_FILE] = $stream;
+            $options[CURLOPT_TIMEOUT] = 600;
+            curl_setopt_array($handle, $options);
+
+            $ok = curl_exec($handle);
+            $lastError = curl_error($handle);
+            $lastStatus = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
             curl_close($handle);
-            throw new RuntimeException('Could not open temporary file for download.');
-        }
+            fclose($stream);
 
-        curl_setopt_array($handle, [
-            CURLOPT_FILE => $stream,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_FAILONERROR => true,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_TIMEOUT => 180,
-            CURLOPT_USERAGENT => 'bandPromo bootstrap installer',
-        ]);
-
-        $ok = curl_exec($handle);
-        $error = curl_error($handle);
-        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        curl_close($handle);
-        fclose($stream);
-
-        if ($ok === false) {
+            if ($ok !== false && $lastStatus > 0 && $lastStatus < 400 && is_file($target) && filesize($target) > 0) {
+                return;
+            }
             @unlink($target);
-            throw new RuntimeException('Download failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
         }
 
-        if ($status >= 400) {
-            @unlink($target);
-            throw new RuntimeException('Download failed with HTTP status ' . $status . '.');
+        // Fall back to in-memory fetch + write (uses manual-redirect path too).
+        $fetched = bandpromo_bootstrap_curl_fetch($url, 600);
+        if ($fetched['ok'] && $fetched['body'] !== '') {
+            if (file_put_contents($target, $fetched['body']) === false) {
+                throw new RuntimeException('Could not write downloaded package to temporary storage.');
+            }
+
+            return;
         }
 
-        return;
+        throw new RuntimeException(
+            'Download failed: '
+            . ($fetched['error'] !== '' ? $fetched['error'] : ($lastError !== '' ? $lastError : ('HTTP ' . $lastStatus)))
+        );
     }
 
     $context = stream_context_create([
         'http' => [
-            'timeout' => 180,
+            'timeout' => 600,
             'follow_location' => 1,
             'user_agent' => 'bandPromo bootstrap installer',
         ],
@@ -482,39 +644,20 @@ function bandpromo_bootstrap_download_file(string $url, string $target): void {
 
 function bandpromo_bootstrap_fetch_text(string $url): string {
   if (extension_loaded('curl')) {
-    $handle = curl_init($url);
-    if ($handle === false) {
-      throw new RuntimeException('Could not initialize manifest download client.');
+    $fetched = bandpromo_bootstrap_curl_fetch($url, 120);
+    if ($fetched['ok']) {
+      return $fetched['body'];
     }
 
-    curl_setopt_array($handle, [
-      CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_FOLLOWLOCATION => true,
-      CURLOPT_FAILONERROR => true,
-      CURLOPT_CONNECTTIMEOUT => 10,
-      CURLOPT_TIMEOUT => 30,
-      CURLOPT_USERAGENT => 'bandPromo bootstrap installer',
-    ]);
-
-    $body = curl_exec($handle);
-    $error = curl_error($handle);
-    $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-    curl_close($handle);
-
-    if ($body === false) {
-      throw new RuntimeException('Manifest fetch failed: ' . ($error !== '' ? $error : 'Unknown cURL error'));
-    }
-
-    if ($status >= 400) {
-      throw new RuntimeException('Manifest fetch failed with HTTP status ' . $status . '.');
-    }
-
-    return (string) $body;
+    throw new RuntimeException(
+      'Manifest fetch failed: '
+      . ($fetched['error'] !== '' ? $fetched['error'] : ('HTTP ' . $fetched['status']))
+    );
   }
 
   $context = stream_context_create([
     'http' => [
-      'timeout' => 30,
+      'timeout' => 120,
       'follow_location' => 1,
       'user_agent' => 'bandPromo bootstrap installer',
     ],
@@ -525,7 +668,7 @@ function bandpromo_bootstrap_fetch_text(string $url): string {
   ]);
 
   $body = @file_get_contents($url, false, $context);
-  if ($body === false) {
+  if ($body === false || $body === '') {
     throw new RuntimeException('Manifest fetch failed. Check outbound HTTPS support and the manifest URL.');
   }
 
@@ -624,8 +767,8 @@ function bandpromo_bootstrap_fetch_github_releases_page(string $apiUrl): array {
     curl_setopt_array($handle, [
       CURLOPT_RETURNTRANSFER => true,
       CURLOPT_FOLLOWLOCATION => true,
-      CURLOPT_CONNECTTIMEOUT => 15,
-      CURLOPT_TIMEOUT => 30,
+      CURLOPT_CONNECTTIMEOUT => 20,
+      CURLOPT_TIMEOUT => 60,
       CURLOPT_USERAGENT => 'bandPromo bootstrap installer',
       CURLOPT_HTTPHEADER => ['Accept: application/vnd.github+json'],
       CURLOPT_HEADER => true,
@@ -719,47 +862,110 @@ function bandpromo_bootstrap_pick_newest_release_tag(array $releases): ?string {
   return $bestTag;
 }
 
+function bandpromo_bootstrap_fetch_github_releases_atom(string $atomUrl = BANDPROMO_BOOTSTRAP_GITHUB_RELEASES_ATOM_URL): array
+{
+  $body = bandpromo_bootstrap_fetch_text($atomUrl);
+  if ($body === '') {
+    throw new RuntimeException('GitHub releases Atom feed was empty.');
+  }
+
+  $tags = [];
+  if (preg_match_all('#/releases/tag/([^<"\s]+)#i', $body, $matches) !== false) {
+    foreach ($matches[1] as $rawTag) {
+      $tag = rawurldecode(trim((string) $rawTag));
+      if ($tag === '' || bandpromo_bootstrap_version_text_from_tag($tag) === null) {
+        continue;
+      }
+      $tags[$tag] = ['tag_name' => $tag];
+    }
+  }
+
+  if ($tags === []) {
+    throw new RuntimeException('GitHub releases Atom feed had no recognizable release tags.');
+  }
+
+  return array_values($tags);
+}
+
+function bandpromo_bootstrap_resolve_newest_release_tag(): ?string
+{
+  try {
+    $tag = bandpromo_bootstrap_pick_newest_release_tag(bandpromo_bootstrap_fetch_github_releases());
+    if ($tag !== null) {
+      return $tag;
+    }
+  } catch (Throwable $throwable) {
+    // Shared hosts often cannot call api.github.com.
+  }
+
+  try {
+    return bandpromo_bootstrap_pick_newest_release_tag(bandpromo_bootstrap_fetch_github_releases_atom());
+  } catch (Throwable $throwable) {
+    return null;
+  }
+}
+
 function bandpromo_bootstrap_resolve_manifest_url(string $manifestUrl): string {
   if (!bandpromo_bootstrap_is_latest_manifest_url($manifestUrl)) {
     return $manifestUrl;
   }
 
-  try {
-    $releases = bandpromo_bootstrap_fetch_github_releases();
-    $tag = bandpromo_bootstrap_pick_newest_release_tag($releases);
-    if ($tag !== null) {
-      return bandpromo_bootstrap_manifest_url_for_tag(BANDPROMO_BOOTSTRAP_GITHUB_REPOSITORY, $tag);
-    }
-  } catch (Throwable $throwable) {
-    // Fall back to GitHub's latest stable release URL when the API is unavailable.
+  $tag = bandpromo_bootstrap_resolve_newest_release_tag();
+  if ($tag !== null) {
+    return bandpromo_bootstrap_manifest_url_for_tag(BANDPROMO_BOOTSTRAP_GITHUB_REPOSITORY, $tag);
   }
 
   return $manifestUrl;
 }
 
 function bandpromo_bootstrap_load_manifest(string $manifestUrl): array {
+  $candidates = [];
   $resolvedUrl = bandpromo_bootstrap_resolve_manifest_url($manifestUrl);
-  $body = bandpromo_bootstrap_fetch_text($resolvedUrl);
-  // Windows tools sometimes rewrite UTF-8 with a BOM; PHP json_decode rejects it.
-  if (str_starts_with($body, "\xEF\xBB\xBF")) {
-    $body = substr($body, 3);
+  $candidates[] = $resolvedUrl;
+  if ($resolvedUrl !== $manifestUrl) {
+    $candidates[] = $manifestUrl;
   }
-  $decoded = json_decode($body, true);
-  if (!is_array($decoded)) {
-    throw new RuntimeException('Release manifest is not valid JSON.');
-  }
-
-  if (empty($decoded['package_url']) || !is_string($decoded['package_url'])) {
-    throw new RuntimeException('Release manifest is missing package_url.');
+  // Always try the stable latest URL as a final candidate.
+  if (!in_array(BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL, $candidates, true)) {
+    $candidates[] = BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL;
   }
 
-  if (empty($decoded['version']) || !is_string($decoded['version'])) {
-    throw new RuntimeException('Release manifest is missing version.');
+  $errors = [];
+  foreach ($candidates as $candidateUrl) {
+    try {
+      $body = bandpromo_bootstrap_fetch_text($candidateUrl);
+      // Windows tools sometimes rewrite UTF-8 with a BOM; PHP json_decode rejects it.
+      if (str_starts_with($body, "\xEF\xBB\xBF")) {
+        $body = substr($body, 3);
+      }
+      $decoded = json_decode($body, true);
+      if (!is_array($decoded)) {
+        $errors[] = $candidateUrl . ' → not valid JSON';
+        continue;
+      }
+
+      if (empty($decoded['package_url']) || !is_string($decoded['package_url'])) {
+        $errors[] = $candidateUrl . ' → missing package_url';
+        continue;
+      }
+
+      if (empty($decoded['version']) || !is_string($decoded['version'])) {
+        $errors[] = $candidateUrl . ' → missing version';
+        continue;
+      }
+
+      $decoded['resolved_manifest_url'] = $candidateUrl;
+
+      return $decoded;
+    } catch (Throwable $throwable) {
+      $errors[] = $candidateUrl . ' → ' . $throwable->getMessage();
+    }
   }
 
-  $decoded['resolved_manifest_url'] = $resolvedUrl;
-
-  return $decoded;
+  throw new RuntimeException(
+    'Manifest fetch failed after trying GitHub release URLs. '
+    . implode(' | ', $errors)
+  );
 }
 
 function bandpromo_bootstrap_sha256_file(string $path): string {
@@ -876,28 +1082,32 @@ function bandpromo_bootstrap_read_version(string $root): string {
     return $version !== '' ? $version : 'unknown';
 }
 
-function bandpromo_bootstrap_install_package(string $root, string $packageUrl, ?string $expectedSha256 = null): array {
-    $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_BOOTSTRAP_WORKDIR;
-    $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'package.zip';
-    $extractDir = $workDir . DIRECTORY_SEPARATOR . 'extract';
-
-    bandpromo_bootstrap_rrmdir($workDir);
-    bandpromo_bootstrap_ensure_dir($workDir);
-    bandpromo_bootstrap_ensure_dir($extractDir);
-
-    bandpromo_bootstrap_download_file($packageUrl, $downloadPath);
+function bandpromo_bootstrap_install_package_from_zip(string $root, string $downloadPath, ?string $expectedSha256 = null): array {
+    if (!is_file($downloadPath)) {
+        throw new RuntimeException('Install package ZIP was not found.');
+    }
 
     if ($expectedSha256 !== null && $expectedSha256 !== '') {
-      $actualSha256 = bandpromo_bootstrap_sha256_file($downloadPath);
-      if ($actualSha256 !== strtolower($expectedSha256)) {
-        throw new RuntimeException('Downloaded package checksum did not match the published release manifest.');
-      }
+        $actualSha256 = bandpromo_bootstrap_sha256_file($downloadPath);
+        if ($actualSha256 !== strtolower($expectedSha256)) {
+            throw new RuntimeException('Uploaded package checksum did not match the expected SHA-256.');
+        }
     }
+
+    $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_BOOTSTRAP_WORKDIR;
+    $extractDir = $workDir . DIRECTORY_SEPARATOR . 'extract';
+
+    // Keep the uploaded/downloaded ZIP outside extract/; wipe previous extract only.
+    if (is_dir($extractDir)) {
+        bandpromo_bootstrap_rrmdir($extractDir);
+    }
+    bandpromo_bootstrap_ensure_dir($workDir);
+    bandpromo_bootstrap_ensure_dir($extractDir);
 
     $zip = new ZipArchive();
     $result = $zip->open($downloadPath);
     if ($result !== true) {
-        throw new RuntimeException('Could not open downloaded ZIP package.');
+        throw new RuntimeException('Could not open the install package ZIP.');
     }
 
     if (!$zip->extractTo($extractDir)) {
@@ -919,6 +1129,42 @@ function bandpromo_bootstrap_install_package(string $root, string $packageUrl, ?
     ];
 }
 
+function bandpromo_bootstrap_install_package(string $root, string $packageUrl, ?string $expectedSha256 = null): array {
+    $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_BOOTSTRAP_WORKDIR;
+    $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'package.zip';
+
+    bandpromo_bootstrap_rrmdir($workDir);
+    bandpromo_bootstrap_ensure_dir($workDir);
+    bandpromo_bootstrap_download_file($packageUrl, $downloadPath);
+
+    return bandpromo_bootstrap_install_package_from_zip($root, $downloadPath, $expectedSha256);
+}
+
+/**
+ * Lightweight outbound probe (one attempt) for support notes.
+ *
+ * @return list<string>
+ */
+function bandpromo_bootstrap_outbound_probe_notes(): array
+{
+    $notes = [];
+    $targets = [
+        'github.com /releases.atom' => BANDPROMO_BOOTSTRAP_GITHUB_RELEASES_ATOM_URL,
+        'github.com latest release-manifest.json' => BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL,
+    ];
+    foreach ($targets as $label => $url) {
+        $fetched = bandpromo_bootstrap_curl_fetch($url, 20);
+        if ($fetched['ok']) {
+            $notes[] = $label . ': OK (' . strlen($fetched['body']) . ' bytes, profile ' . $fetched['profile'] . ')';
+        } else {
+            $notes[] = $label . ': FAIL — '
+                . ($fetched['error'] !== '' ? $fetched['error'] : ('HTTP ' . $fetched['status']));
+        }
+    }
+
+    return $notes;
+}
+
 $root = __DIR__;
 $checks = bandpromo_bootstrap_collect_environment_checks($root);
 $errors = [];
@@ -926,11 +1172,13 @@ $successMessage = null;
 $installedVersion = null;
 $releaseManifest = null;
 $releaseManifestError = null;
+$outboundProbeNotes = [];
 
 try {
   $releaseManifest = bandpromo_bootstrap_load_manifest(BANDPROMO_BOOTSTRAP_DEFAULT_MANIFEST_URL);
 } catch (Throwable $throwable) {
   $releaseManifestError = $throwable->getMessage();
+  $outboundProbeNotes = bandpromo_bootstrap_outbound_probe_notes();
 }
 
 $packageUrl = $releaseManifest !== null ? trim((string) $releaseManifest['package_url']) : '';
@@ -945,25 +1193,25 @@ $hostingProviderRequests = bandpromo_bootstrap_hosting_provider_requests($checks
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'install') {
   if ($hasBlockingFailures) {
     $errors[] = 'bandPromo stopped before making changes because this hosting setup is not ready yet.';
-    }
+  }
 
-    if ($releaseManifest === null) {
+  if ($releaseManifest === null) {
     $errors[] = 'The published bandPromo install package could not be reached right now. Please try again in a moment or ask the person managing releases to publish a package first.';
-    }
+  }
 
-    if ($packageUrl === '') {
+  if ($packageUrl === '') {
     $errors[] = 'The published install package information is incomplete right now, so the installer cannot continue yet.';
-    }
+  }
 
-    if ($errors === []) {
-        try {
-        $result = bandpromo_bootstrap_install_package($root, $packageUrl, $expectedSha256);
-            $installedVersion = $result['version'];
-            $successMessage = 'bandPromo was installed successfully.';
-        } catch (Throwable $throwable) {
-            $errors[] = $throwable->getMessage();
-        }
+  if ($errors === []) {
+    try {
+      $result = bandpromo_bootstrap_install_package($root, $packageUrl, $expectedSha256);
+      $installedVersion = $result['version'];
+      $successMessage = 'bandPromo was installed successfully.';
+    } catch (Throwable $throwable) {
+      $errors[] = $throwable->getMessage();
     }
+  }
 }
 
 $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
@@ -1090,7 +1338,9 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
       margin-top: 18px;
     }
 
-    input[type="url"] {
+    input[type="url"],
+    input[type="text"],
+    input[type="file"] {
       width: 100%;
       border-radius: 12px;
       border: 1px solid var(--border);
@@ -1098,6 +1348,18 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
       color: var(--text);
       padding: 14px 16px;
       font-size: 15px;
+    }
+
+    .upload-form {
+      margin-top: 12px;
+    }
+
+    .provider-help a {
+      color: var(--success-strong);
+    }
+
+    .help-note code {
+      color: var(--text);
     }
 
     .actions {
@@ -1286,38 +1548,45 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
       <div class="eyebrow">bandPromo Installer</div>
       <h1>You are only a few clicks away from running your own bandPromo site.</h1>
       <p>This page does the heavy lifting for you. If the checks below are ready, you can install bandPromo here and move straight into setup.</p>
-      <?php if ($canInstall): ?>
+      <?php if ($canInstall && $successMessage === null): ?>
         <div class="status-banner">
           <strong>Great news: this hosting looks ready.</strong>
           <div class="mini-steps">
-            <div class="mini-step <?= $successMessage !== null ? 'success' : 'active' ?>">
+            <div class="mini-step active">
               <strong>1. Install bandPromo</strong>
-              <?php if ($successMessage !== null): ?>
-                bandPromo is installed and ready for setup.
-                <div class="step-action">
-                  <span>Installed version: <code><?= bandpromo_bootstrap_h($installedVersion ?? 'unknown') ?></code></span>
-                </div>
-              <?php else: ?>
-                The installer downloads the latest published version and places it into this site for you.
-                <div class="step-action">
-                  <button type="submit" form="install-form">Install bandPromo now</button>
-                </div>
-              <?php endif; ?>
+              The installer downloads the latest published version and places it into this site for you.
+              <div class="step-action">
+                <button type="submit" form="install-form">Install bandPromo now</button>
+              </div>
             </div>
-            <div class="mini-step <?= $successMessage !== null ? 'active' : '' ?>">
+            <div class="mini-step">
               <strong>2. Open setup</strong>
-              <?php if ($successMessage !== null): ?>
-                Continue straight into setup to create your first admin account and confirm the site details.
-                <div class="step-action">
-                  <a class="button-link primary" href="setup.php">Open setup</a>
-                </div>
-              <?php else: ?>
-                Setup unlocks as soon as bandPromo has been installed successfully.
-              <?php endif; ?>
+              Setup unlocks as soon as bandPromo has been installed successfully.
             </div>
             <div class="mini-step">
               <strong>3. Make it yours</strong>
               bandPromo prepares the starter material so you can finish setup and begin customizing your own installation.
+            </div>
+          </div>
+        </div>
+      <?php elseif ($successMessage !== null): ?>
+        <div class="status-banner">
+          <strong>bandPromo is installed.</strong>
+          <div class="mini-steps">
+            <div class="mini-step success">
+              <strong>1. Install bandPromo</strong>
+              Installed version: <code><?= bandpromo_bootstrap_h($installedVersion ?? 'unknown') ?></code>
+            </div>
+            <div class="mini-step active">
+              <strong>2. Open setup</strong>
+              Continue straight into setup to create your first admin account and confirm the site details.
+              <div class="step-action">
+                <a class="button-link primary" href="setup.php">Open setup</a>
+              </div>
+            </div>
+            <div class="mini-step">
+              <strong>3. Make it yours</strong>
+              Finish setup and begin customizing your installation.
             </div>
           </div>
         </div>
@@ -1368,6 +1637,13 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
               <details class="support-note">
                 <summary>Technical detail for support</summary>
                 <p class="help-note"><?= bandpromo_bootstrap_h($releaseManifestError) ?></p>
+                <?php if ($outboundProbeNotes !== []): ?>
+                  <ul class="help-note">
+                    <?php foreach ($outboundProbeNotes as $note): ?>
+                      <li><?= bandpromo_bootstrap_h($note) ?></li>
+                    <?php endforeach; ?>
+                  </ul>
+                <?php endif; ?>
               </details>
             <?php endif; ?>
           <?php endif; ?>

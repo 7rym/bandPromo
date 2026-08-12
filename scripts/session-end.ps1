@@ -244,5 +244,5 @@ Write-Output ''
 Write-Output 'Session end complete'
 Write-Output ('  VERSION: {0}' -f $newVersion)
 if (-not $SkipPackage) {
-    Write-Output ('  Package: dist/bandpromo-{0}.zip' -f ((python (Join-Path $repoRoot 'scripts\version_format.py') tag) -replace '^v', ''))
+    Write-Output ('  Package: dist/bandPromo.zip')
 }

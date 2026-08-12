@@ -48,22 +48,30 @@ Hosted operators and closed-beta testers use **Dashboard → Site update**, whic
 
 After pushing a checkpoint meant for testers, also publish the release package:
 
-1. Read `VERSION` (for example `v0.8.4 build 303`) and derive the release tag: `v0.8.4-build-303` (lowercase, spaces → hyphens).
+1. Read `VERSION` (for example `v0.8.15 build 377`) and derive the release tag: `v0.8.15-build-377` (lowercase, spaces → hyphens).
 2. Trigger the GitHub Actions workflow **Publish release package** (`.github/workflows/publish-release-package.yml`).
-3. Confirm the new tag appears on GitHub Releases with `bandpromo-*.zip`, `bandpromo-default-theme-*.zip`, and `release-manifest.json`.
+3. Confirm the new tag appears on GitHub Releases with **`bandPromo.zip`** and **`release-manifest.json` only** (clean title like `bandPromo v0.8.15 build 377`).
 4. Sanity-check that **Site update** on a test install offers the new build.
+
+**Demo content is separate:** durable GitHub release tag `demo-content` holds `bandPromo-demo.prp` + `demo-manifest.json`. Update it only when demo campaign content changes:
+
+```powershell
+python scripts/prepare_demo_content_package.py --prp path\to\export.prp --clean --publish
+```
+
+App release manifests embed a pointer to that durable Demo PRP; they do not re-upload the ~145MB PRP on every app build.
 
 Example (GitHub CLI):
 
 ```powershell
 gh workflow run "Publish release package" `
-  -f tag_name=v0.8.4-build-303 `
-  -f release_name="bandPromo v0.8.4 build 303 — short summary" `
+  -f tag_name=v0.8.15-build-377 `
+  -f release_name="bandPromo v0.8.15 build 377" `
   -f prerelease=false `
   -f draft=false
 ```
 
-Use `prerelease=false` for closed-beta tester packages so hosts that cannot call `api.github.com` still resolve the build via GitHub `/releases/latest`. Site update also falls back to the public Releases Atom feed (includes prereleases) when the API is blocked. Reserve `prerelease=true` for internal experiments that should stay off `/releases/latest`. Local-only validation can use `python scripts/build_release_package.py --clean`, but testers still need the published GitHub Release.
+Use `prerelease=false` for closed-beta tester packages so hosts that cannot call `api.github.com` still resolve the build via GitHub `/releases/latest`. Site update also falls back to the public Releases Atom feed (includes prereleases) when the API is blocked. Reserve `prerelease=true` for internal experiments that should stay off `/releases/latest`. Local-only validation can use `python scripts/build_release_package.py --clean --skip-demo-manifest`, but testers still need the published GitHub Release.
 
 ## Build/Test Commands
 
@@ -107,7 +115,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
 - **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
 - **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
-- **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Release packaging reads on-disk `media/` (CI seeds it from the previous default-theme ZIP) and emits protection stubs from `biblioteca/templates/runtime/`; never re-add demo binaries or host Apache stubs to git.
+- **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Release packaging reads on-disk `media/icons/` into `bandPromo.zip` (CI seeds icons from the previous app ZIP) and emits protection stubs from `biblioteca/templates/runtime/`; never re-add demo binaries or host Apache stubs to git.
 
 ## When in Doubt
 
@@ -116,7 +124,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Ask for confirmation before destructive or wide-reaching repository operations.
 
 
-_Last updated: 2026-08-07_
+_Last updated: 2026-08-13_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
 - **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PRP / `.prp` contract is source of truth for demo and operator campaign handoff.

@@ -11,56 +11,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
-      - name: Seed media/ from latest default-theme package
+      - name: Seed media/icons from previous app package
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/bp-theme-seed
-          if ! gh release download --repo "${{ github.repository }}" --pattern 'bandpromo-default-theme-*.zip' --dir /tmp/bp-theme-seed; then
-            echo "ERROR: Could not download bandpromo-default-theme-*.zip from the latest GitHub Release."
-            echo "Package builds need a previous theme package to seed ignored media/."
+          mkdir -p /tmp/bp-app-seed
+          downloaded=0
+          if gh release download --repo "${{ github.repository }}" --pattern 'bandPromo.zip' --dir /tmp/bp-app-seed; then
+            downloaded=1
+          elif gh release download --repo "${{ github.repository }}" --pattern 'bandpromo-*.zip' --dir /tmp/bp-app-seed; then
+            downloaded=1
+          fi
+          if [[ "$downloaded" -ne 1 ]]; then
+            echo "ERROR: Could not download bandPromo.zip / bandpromo-*.zip from the latest GitHub Release."
+            echo "Package builds need a previous app package to seed ignored media/icons/."
             exit 1
           fi
           python - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
 
-          seed_dir = Path("/tmp/bp-theme-seed")
-          zips = sorted(seed_dir.glob("bandpromo-default-theme-*.zip"))
-          if not zips:
-              raise SystemExit("No default-theme ZIP found after download.")
-          theme_zip = zips[-1]
+          seed_dir = Path("/tmp/bp-app-seed")
+          alias = seed_dir / "bandPromo.zip"
+          zips = sorted(seed_dir.glob("bandPromo.zip")) + sorted(seed_dir.glob("bandpromo-*.zip"))
+          app_zip = alias if alias.is_file() else zips[-1]
           root = Path.cwd()
-          with ZipFile(theme_zip) as archive:
-              members = [name for name in archive.namelist() if name.replace("\\", "/").startswith("media/")]
-              if not members:
-                  raise SystemExit(f"{theme_zip.name} contains no media/ paths.")
-              for name in members:
+          extracted = 0
+          with ZipFile(app_zip) as archive:
+              for name in archive.namelist():
                   normalized = name.replace("\\", "/")
+                  if not normalized.startswith("media/icons/"):
+                      continue
                   if normalized.endswith("/"):
                       continue
                   target = root / normalized
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(archive.read(name))
-          print(f"Extracted {len(members)} media paths from {theme_zip.name}")
+                  extracted += 1
+          if extracted == 0:
+              raise SystemExit(f"{app_zip.name} contains no media/icons/ paths.")
+          print(f"Extracted {extracted} icon paths from {app_zip.name}")
           PY
 
       - name: Build distributable package
-        run: python scripts/build_release_package.py --clean
+        run: python scripts/build_release_package.py --clean --require-demo-manifest
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
           name: bandpromo-release-package
           path: |
-            dist/*.zip
+            dist/bandPromo.zip
             dist/release-manifest.json
           if-no-files-found: error
