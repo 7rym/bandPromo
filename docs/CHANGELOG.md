@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 2026-08-13 00:15 - Lean GitHub releases: app packages ship only `bandPromo.zip` + `release-manifest.json`; Demo PRP moves to durable `demo-content` tag (`prepare_demo_content_package.py --publish`); drop operator default-theme ZIP; setup falls back to demo-content manifest; icons seed from app package; release titles stay `bandPromo vX.Y.Z build N`.
 
+2026-08-13 00:20 - Publish CI: expand `bP-icons.zip` after seeding icons from the previous app package so required favicons exist before packaging.
 2026-08-12 23:40 - Bootstrap GitHub downloads: restore proven classic cURL first (the HTTP/1.1+IPv4-only path could empty-reply on hosts that already downloaded Demo PRP); try alternate profiles + manual redirect hops; remove upload-ZIP workaround; keep multi-URL manifest candidates.
 
 2026-08-12 22:05 - Bootstrap: when GitHub release CDN returns empty reply, allow Install from uploaded application ZIP; show outbound probe notes (Atom vs manifest) for hosting support.
