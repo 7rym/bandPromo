@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 22:30 - Checkpoint master-tier T6 on `main` as **v0.8.19 build 386** and trigger GitHub Release `v0.8.19-build-386` for Site update. Handoff resume point is now T7.
+
 2026-08-13 22:35 - Master-tier T6: fail loud and delete shims. Dropped stem `video/photo/optimal` dual-read helpers; pool-ready and video needs-delivery use Visual delivery only. Welcome/demo presence is Demo PRP marker / demo release only (no `bandPromo_*.flac` original probes). `initialSiteSeed` gallery seed uses Visual registry + delivery/`asset_id`. Removed dead original-path shims. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
 
 2026-08-13 22:25 - Checkpoint master-tier T5 on `main` as **v0.8.18 build 385** and trigger GitHub Release `v0.8.18-build-385` for Site update. Handoff resume point is now T6.

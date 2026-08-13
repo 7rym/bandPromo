@@ -8,9 +8,9 @@ _Paused: 2026-08-13 (after T6). Next session: read this file first, then [MASTER
 
 | Item | Value |
 |------|--------|
-| Git | `main` — T6 implemented locally; **checkpoint/publish when asked** |
-| VERSION | **v0.8.19 build 385** (session bumped; build unchanged until checkpoint) |
-| Tester package | Last shipped: `v0.8.18-build-385`. Publish a new package only after checkpoint. |
+| Git | `main` @ `def958d`, in sync with `origin/main` |
+| VERSION | **v0.8.19 build 386** |
+| Tester package | **Shipped.** Tag `v0.8.19-build-386`. Site update should offer **build 386** once the release finishes. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
 ## T6 — done (do not reopen unless a regression)
