@@ -8,9 +8,9 @@ _Paused: 2026-08-13 (after publish-log + build-script cleanup checkpoint). Next 
 
 | Item | Value |
 |------|--------|
-| Git | `main` (this checkpoint) |
-| VERSION | **v0.8.23 build 388** (session-end bumps build) |
-| Tester package | Publish with this checkpoint |
+| Git | `main` @ `d06b0b4` |
+| VERSION | **v0.8.23 build 388** |
+| Tester package | **Shipped.** Tag `v0.8.23-build-388`. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
 ## Done since T7 ship
