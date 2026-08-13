@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 10:30 - Setup layout seed: after Demo PRP import, do not fail when `media/audio/original` is empty — treat already-populated playlist/gallery containers as success, and fall back to playlist masters / `media/audio/master` when seeding from disk.
+
 2026-08-13 00:15 - Lean GitHub releases: app packages ship only `bandPromo.zip` + `release-manifest.json`; Demo PRP moves to durable `demo-content` tag (`prepare_demo_content_package.py --publish`); drop operator default-theme ZIP; setup falls back to demo-content manifest; icons seed from app package; release titles stay `bandPromo vX.Y.Z build N`.
 
 2026-08-13 00:20 - Publish CI: expand `bP-icons.zip` after seeding icons from the previous app package so required favicons exist before packaging.

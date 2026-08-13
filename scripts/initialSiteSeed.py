@@ -10,6 +10,9 @@ Creates when container documents are still empty:
 - player tab order with bio page + gallery enabled
 
 Does not write play/playlist.json, data/playlist-order.json, or data/gallery.json.
+
+After Demo PRP import, playlist/gallery docs are usually already populated.
+In that case this script only finishes player layout + records the seed marker.
 """
 
 import json
@@ -39,16 +42,16 @@ GALLERY_REGISTRY_FILE = GALLERIES_DIR / 'registry.json'
 GALLERY_DEFAULT_ID = 'bandpromo-demo'
 
 
-def prettify_name(stem: str) -> str:
+def prettify_name(stem):
     cleaned = re.sub(r'[_\-]+', ' ', stem).strip()
     return cleaned or stem
 
 
-def force_mode() -> bool:
+def force_mode():
     return os.environ.get('BANDPROMO_LAYOUT_SEED_FORCE', '').strip().lower() in {'1', 'true', 'yes'}
 
 
-def marker_exists() -> bool:
+def marker_exists():
     return MARKER_FILE.is_file() or LEGACY_MARKER_FILE.is_file()
 
 
@@ -63,7 +66,7 @@ def write_marker():
         handle.write('\n')
 
 
-def load_json_file(path: Path):
+def load_json_file(path):
     if not path.is_file():
         return None
     try:
@@ -73,7 +76,7 @@ def load_json_file(path: Path):
         return None
 
 
-def write_json_file(path: Path, payload):
+def write_json_file(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(str(path), 'w', encoding='utf-8') as handle:
         json.dump(payload, handle, indent=4, ensure_ascii=False)
@@ -82,6 +85,29 @@ def write_json_file(path: Path, payload):
 
 def collect_audio_filenames():
     files, unsupported_files, hidden_bundled_files = makePlaylists.collect_audio_source_files()
+    if not files:
+        # Masters-only installs (Demo PRP): fall back to playlist document masters,
+        # then to files present under media/audio/master.
+        document_order = makePlaylists.load_playlist_document_master_order()
+        recovered = []
+        for name in document_order or []:
+            path = makePlaylists.resolve_audio_working_path(name)
+            if path.is_file():
+                recovered.append(path)
+        if not recovered and makePlaylists.AUDIO_MASTER_DIR.is_dir():
+            for entry in sorted(
+                makePlaylists.AUDIO_MASTER_DIR.iterdir(),
+                key=lambda item: item.name.lower(),
+            ):
+                if not entry.is_file():
+                    continue
+                if entry.name.lower() == 'desktop.ini':
+                    continue
+                if entry.suffix.lower() not in makePlaylists.SUPPORTED_EXTENSIONS:
+                    continue
+                recovered.append(entry)
+        files = recovered
+
     files.sort(key=lambda item: (makePlaylists.get_track_number(str(item)), item.name.lower()))
     return [item.name for item in files], unsupported_files, hidden_bundled_files
 
@@ -110,7 +136,7 @@ def ensure_playlist_registry():
     })
 
 
-def playlist_registry_title(playlist_id: str) -> str:
+def playlist_registry_title(playlist_id):
     registry = load_json_file(PLAYLIST_REGISTRY_FILE)
     if not isinstance(registry, dict):
         return playlist_id
@@ -126,7 +152,7 @@ def playlist_registry_title(playlist_id: str) -> str:
     return playlist_id
 
 
-def playlist_document_is_empty(playlist_id: str) -> bool:
+def playlist_document_is_empty(playlist_id):
     doc_path = makePlaylists.playlist_document_path(playlist_id)
     if doc_path is None or not doc_path.is_file():
         return True
@@ -178,7 +204,7 @@ def seed_playlist_if_empty(filenames):
         return False
 
     if not playlist_document_is_empty(playlist_id):
-        print(f'ℹ️  Playlist {playlist_id} already has entries; skipping playlist seed.')
+        print('ℹ️  Playlist {0} already has entries; skipping playlist seed.'.format(playlist_id))
         return False
 
     entries = build_playlist_entries(filenames)
@@ -199,7 +225,7 @@ def seed_playlist_if_empty(filenames):
         return False
 
     write_json_file(doc_path, document)
-    print(f'Seeded playlist {playlist_id} with {len(entries)} track(s).')
+    print('Seeded playlist {0} with {1} track(s).'.format(playlist_id, len(entries)))
     return True
 
 
@@ -221,8 +247,8 @@ def ensure_gallery_registry():
     })
 
 
-def gallery_document_is_empty(gallery_id: str) -> bool:
-    doc_path = GALLERIES_DIR / f'{gallery_id}.json'
+def gallery_document_is_empty(gallery_id):
+    doc_path = GALLERIES_DIR / '{0}.json'.format(gallery_id)
     if not doc_path.is_file():
         return True
 
@@ -241,6 +267,14 @@ def gallery_document_is_empty(gallery_id: str) -> bool:
     return True
 
 
+def containers_already_seeded():
+    """True when Demo PRP / prior import already filled playlist + gallery docs."""
+    playlist_id = makePlaylists.resolve_build_playlist_id()
+    playlist_ready = bool(playlist_id) and (not playlist_document_is_empty(playlist_id))
+    gallery_ready = not gallery_document_is_empty(GALLERY_DEFAULT_ID)
+    return playlist_ready, gallery_ready
+
+
 def build_gallery_items():
     items = []
     photo_exts = {'.png', '.jpg', '.jpeg', '.webp'}
@@ -254,7 +288,7 @@ def build_gallery_items():
                 continue
             items.append({
                 'name': prettify_name(path.stem),
-                'src': f'/media/photo/original/{path.name}',
+                'src': '/media/photo/original/{0}'.format(path.name),
                 'alt': prettify_name(path.stem),
                 'type': 'image',
             })
@@ -267,7 +301,7 @@ def build_gallery_items():
                 continue
             items.append({
                 'name': prettify_name(path.stem),
-                'src': f'/media/video/original/{path.name}',
+                'src': '/media/video/original/{0}'.format(path.name),
                 'alt': prettify_name(path.stem),
                 'type': 'video',
             })
@@ -277,10 +311,10 @@ def build_gallery_items():
 
 def seed_gallery_if_empty(items):
     ensure_gallery_registry()
-    doc_path = GALLERIES_DIR / f'{GALLERY_DEFAULT_ID}.json'
+    doc_path = GALLERIES_DIR / '{0}.json'.format(GALLERY_DEFAULT_ID)
 
     if not gallery_document_is_empty(GALLERY_DEFAULT_ID):
-        print(f'ℹ️  Gallery {GALLERY_DEFAULT_ID} already has entries; skipping gallery seed.')
+        print('ℹ️  Gallery {0} already has entries; skipping gallery seed.'.format(GALLERY_DEFAULT_ID))
         return False
 
     entries = []
@@ -304,19 +338,19 @@ def seed_gallery_if_empty(items):
         'entries': entries,
     }
     write_json_file(doc_path, document)
-    print(f'Seeded gallery {GALLERY_DEFAULT_ID} with {len(entries)} item(s).')
+    print('Seeded gallery {0} with {1} item(s).'.format(GALLERY_DEFAULT_ID, len(entries)))
     return True
 
 
 def ensure_player_layout():
     if not CONFIG_FILE.exists():
-        print(f'⚠️  Missing {CONFIG_FILE}; skipping player layout seed.')
+        print('⚠️  Missing {0}; skipping player layout seed.'.format(CONFIG_FILE))
         return
 
     with open(str(CONFIG_FILE), 'r', encoding='utf-8') as handle:
         config = json.load(handle)
     if not isinstance(config, dict):
-        print(f'⚠️  Invalid {CONFIG_FILE}; skipping player layout seed.')
+        print('⚠️  Invalid {0}; skipping player layout seed.'.format(CONFIG_FILE))
         return
 
     player = config.setdefault('player', {})
@@ -345,9 +379,9 @@ def ensure_player_layout():
                 for page in visible_pages:
                     page_id = str(page.get('id') or '').strip()
                     if page_id:
-                        tab_order.append(f'page:{page_id}')
+                        tab_order.append('page:{0}'.format(page_id))
         except Exception as exc:
-            print(f'⚠️  Could not read page registry for player layout: {exc}')
+            print('⚠️  Could not read page registry for player layout: {0}'.format(exc))
 
     if 'module:gallery' not in tab_order:
         tab_order.append('module:gallery')
@@ -361,33 +395,43 @@ def ensure_player_layout():
 
 def main():
     print('\n🌱 Initial site seed')
-    print(f'Root: {ROOT_DIR}')
+    print('Root: {0}'.format(ROOT_DIR))
 
     if marker_exists() and not force_mode():
         print('ℹ️  Initial site seed already recorded. Skipping.')
         return 0
 
+    playlist_ready, gallery_ready = containers_already_seeded()
     filenames, unsupported_files, hidden_bundled_files = collect_audio_filenames()
-    if not filenames:
+
+    if not filenames and not playlist_ready:
         print('❌ No supported source audio found for initial playlist seed.')
+        print('   Checked media/audio/original, playlist document masters, and media/audio/master.')
         if unsupported_files:
             print('   Unsupported audio files present: ' + ', '.join(file.name for file in unsupported_files))
         return 1
 
-    print(f'Found {len(filenames)} track(s) for initial playlist seed.')
-    if hidden_bundled_files:
-        print('ℹ️  Hidden bundled demo tracks skipped: ' + ', '.join(file.name for file in hidden_bundled_files))
-
-    seed_playlist_if_empty(filenames)
+    if filenames:
+        print('Found {0} track(s) for initial playlist seed.'.format(len(filenames)))
+        if hidden_bundled_files:
+            print('ℹ️  Hidden bundled demo tracks skipped: ' + ', '.join(file.name for file in hidden_bundled_files))
+        seed_playlist_if_empty(filenames)
+    elif playlist_ready:
+        print('ℹ️  Playlist containers already populated (Demo PRP / prior import); skipping playlist seed.')
 
     gallery_items = build_gallery_items()
-    seed_gallery_if_empty(gallery_items)
+    if gallery_items:
+        seed_gallery_if_empty(gallery_items)
+    elif gallery_ready:
+        print('ℹ️  Gallery already populated; skipping gallery seed.')
+    else:
+        seed_gallery_if_empty([])
 
     ensure_player_layout()
     print('Updated player layout modules and tab order.')
 
     write_marker()
-    print(f'✅ Initial site seed complete ({MARKER_FILE.name}).')
+    print('✅ Initial site seed complete ({0}).'.format(MARKER_FILE.name))
     return 0
 
 
