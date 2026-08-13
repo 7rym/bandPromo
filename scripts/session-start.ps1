@@ -234,6 +234,8 @@ if (-not $SkipDevServer) {
     Write-Output ''
 }
 
+$sessionHandoffPath = Join-Path $repoRoot 'docs\SESSION-HANDOFF.md'
+
 $gitStatus = git -C $repoRoot status --short --branch 2>$null
 if (-not $gitStatus) {
     $gitStatus = @('git status unavailable')
@@ -287,8 +289,19 @@ else {
 }
 Write-Output ''
 
+if (Test-Path -LiteralPath $sessionHandoffPath) {
+    Write-Output 'Session handoff (resume here — read this before older TODO items)'
+    Get-Content -LiteralPath $sessionHandoffPath -Encoding UTF8 | ForEach-Object {
+        Write-Output $_
+    }
+    Write-Output ''
+}
+
 Write-Output 'Recommended focus'
-if ($todoSummary.FirstOpen) {
+if (Test-Path -LiteralPath $sessionHandoffPath) {
+    Write-Output '  Follow docs/SESSION-HANDOFF.md above. Do not skip to an older open TODO item.'
+}
+elseif ($todoSummary.FirstOpen) {
     $focusScope = @($todoSummary.FirstOpen.Section, $todoSummary.FirstOpen.Subsection) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     if ($focusScope.Count -gt 0) {
         Write-Output ('  {0}: {1}' -f ($focusScope -join ' > '), $todoSummary.FirstOpen.Text)

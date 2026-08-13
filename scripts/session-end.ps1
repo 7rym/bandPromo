@@ -64,6 +64,7 @@ function Test-AllowedRepositoryPath {
         'docs/',
         'biblioteca/',
         '.github/',
+        '.cursor/',
         'play/'
     )
 

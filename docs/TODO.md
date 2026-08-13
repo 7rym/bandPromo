@@ -184,6 +184,8 @@ Implementation order:
 
 ### Master-tier completion (original → master → delivery) — policy locked 2026-08-13
 
+**Resume (2026-08-13 pause):** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) — T1 is on `main` as v0.8.15 build 381 (**not** published). Next work is **T2**.
+
 See [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Same rule for audio, Visual, Sound effects, and Brand assets: store originals (write-once), work on `ast_{ULID}` masters, build deliverables from masters. Trigger: fresh Demo PRP install (Files empty, `/play` covers 404 on stem img paths).
 
 Policy — **locked**:

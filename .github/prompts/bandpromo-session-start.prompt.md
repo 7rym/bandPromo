@@ -6,6 +6,8 @@ agent: "agent"
 ---
 Use [session-start.ps1](../../scripts/session-start.ps1) as the default startup path for this repository.
 
+**Resume first:** if [docs/SESSION-HANDOFF.md](../../docs/SESSION-HANDOFF.md) exists, read it before exploring the backlog. It is the exact pause point (currently master-tier **T2**). Do not redo checked-off T1 work or jump to T3–T7 unless the user asks.
+
 Run the session-start script first when tool access allows it. Then respond with a compact startup summary that includes:
 
 - active environment and runtimes

@@ -19,7 +19,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Treat documentation as source-of-truth. If code and docs disagree, update docs in the same change.
 - When updating planning docs or TODO lists, order work from policy/cases/definitions first and implementation second. Keep sections conceptually coherent; do not let headings become mixed bags of unrelated tasks.
 - At the start of every session, check the active environment context first: OS, current shell, workspace root, available tasks, and language runtimes relevant to the task.
-- Default to the fast startup path first: run `scripts/session-start.ps1` to sync the repo, bump the session number, start the dev server, and gather the standard environment/worktree/backlog summary. Use `scripts/session-end.ps1` for publishable checkpoints.
+- Default to the fast startup path first: run `scripts/session-start.ps1` to sync the repo, bump the session number, start the dev server, and gather the standard environment/worktree/backlog summary. If [SESSION-HANDOFF.md](SESSION-HANDOFF.md) exists, that file is the exact resume point — read it before older TODO items. Use `scripts/session-end.ps1` for publishable checkpoints.
 - Choose commands and tooling that match the active session environment. On Windows + PowerShell sessions, prefer PowerShell-native commands and repo tasks/scripts; do not probe Bash/Linux command variants first unless the environment explicitly provides them or the task requires them.
 - Treat an unqualified "checkpoint" request as a publishable checkpoint unless the user explicitly asks for status-only: summarize progress against the current milestone/checkpoint docs, run focused validation for the touched work, bump `VERSION`, commit the checkpoint, push it, **publish the GitHub Release package** (see below), and then verify local/remote sync with the repository's pull-after-push workflow.
 - Do not add runtime fallbacks that silently use example/template files in production paths.
@@ -84,6 +84,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 
 - [README.md](README.md)
 - [docs/TODO.md](TODO.md)
+- [docs/SESSION-HANDOFF.md](SESSION-HANDOFF.md) (when present — live pause/resume pointer)
 - [docs/ROADMAP.md](ROADMAP.md)
 - [docs/USE-CASES.md](USE-CASES.md)
 - [docs/PLATFORM-MODEL.md](PLATFORM-MODEL.md)
