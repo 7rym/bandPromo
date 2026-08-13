@@ -8,9 +8,9 @@ _Paused: 2026-08-13 (after T5). Next session: read this file first, then [MASTER
 
 | Item | Value |
 |------|--------|
-| Git | `main` — T5 implemented locally; **checkpoint/publish when asked** |
-| VERSION | **v0.8.18 build 384** (session bumped; build unchanged until checkpoint) |
-| Tester package | Last shipped: `v0.8.17-build-384`. Publish a new package only after checkpoint. |
+| Git | `main` @ `2ec2167`, in sync with `origin/main` |
+| VERSION | **v0.8.18 build 385** |
+| Tester package | **Shipped.** Tag `v0.8.18-build-385`. Site update should offer **build 385** once the release finishes. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
 ## T5 — done (do not reopen unless a regression)
