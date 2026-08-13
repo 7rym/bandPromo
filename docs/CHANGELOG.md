@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 21:30 - Checkpoint master-tier T2 on `main` as **v0.8.16 build 382** and trigger GitHub Release `v0.8.16-build-382` for Site update. Handoff resume point is now T3.
+
 2026-08-13 20:30 - Master-tier T2: working copy is the master. Files index lists by `master_filename` (original is a label); notifications gate on master existence. Public audio play is delivery-only; admin listen uses `variant=master` (original is download-only). Demo original-FLAC playback fallback removed. Publish/Python resolvers and audio collection are master-or-fail; video delivery queue reads Visual video masters; SFX public URL is optimal MP3 only; Download original 404s when missing; delete removes original+master+delivery by asset. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
 
 2026-08-13 16:10 - Session pause pointer: [SESSION-HANDOFF.md](SESSION-HANDOFF.md) so the next session resumes at master-tier T2 (build 381 on `main`, not shipped). Session start prints the file when present.

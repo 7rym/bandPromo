@@ -8,8 +8,9 @@ _Paused: 2026-08-13 (mid-session update after T2). Next session: read this file 
 
 | Item | Value |
 |------|--------|
-| Git | Local work on `main`; VERSION **v0.8.16 build 381** (session bump only — not checkpointed) |
-| Tester package | Still **build 380** on Site update unless a later checkpoint ships |
+| Git | `main` @ `19b0cbd`, in sync with `origin/main` |
+| VERSION | **v0.8.16 build 382** |
+| Tester package | **Shipped.** Tag `v0.8.16-build-382` (Publish release package workflow triggered). Site update should offer **build 382** once the release finishes. |
 | Policy | Original (write-once) → master `ast_{ULID}` (working copy) → deliverables from masters |
 | Living-cover tag | Visual **asset id** |
 
