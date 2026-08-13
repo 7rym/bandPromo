@@ -309,10 +309,7 @@ function bandpromo_page_normalize_url(string $value): string {
 
 function bandpromo_page_is_allowed_image_src(string $src): bool {
     $allowedPrefixes = [
-        '/media/img/optimal/',
-        '/media/photo/optimal/',
         '/media/visual/delivery/',
-        '/media/special/',
     ];
 
     foreach ($allowedPrefixes as $prefix) {

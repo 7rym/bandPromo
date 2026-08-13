@@ -89,21 +89,13 @@ function bandpromo_video_admin_preview_relative_url(string $root, string $source
     }
 
     $asset = bandpromo_asset_lookup_visual($root, $safe, 'video')
-        ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
+        ?? bandpromo_asset_lookup_by_original_filename($root, $safe)
+        ?? bandpromo_asset_lookup_by_master_filename($root, $safe);
     if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
         $stream = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), 'standard-stream');
         if ($stream !== '') {
             return $stream;
         }
-    }
-
-    if (bandpromo_video_delivery_ready($root, $safe)) {
-        return '/media/video/optimal/' . bandpromo_video_delivery_basename($safe);
-    }
-
-    $extension = strtolower((string) pathinfo($safe, PATHINFO_EXTENSION));
-    if (in_array($extension, ['mp4', 'webm', 'mov'], true)) {
-        return '/media/video/original/' . $safe;
     }
 
     return '';
@@ -121,17 +113,11 @@ function bandpromo_video_admin_file_meta(string $root, string $sourceFilename): 
     if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
         $posterUrl = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), 'poster');
     }
-    if ($posterUrl === '') {
-        $posterUrl = bandpromo_video_poster_ready($root, $safe)
-            ? bandpromo_video_poster_relative_url($safe)
-            : '';
-    }
     $previewUrl = bandpromo_video_admin_preview_relative_url($root, $safe);
 
-    $deliveryReady = bandpromo_video_delivery_ready($root, $safe);
+    $deliveryReady = false;
     if (is_array($asset) && ($asset['kind'] ?? '') === 'visual' && !empty($asset['id'])) {
-        $deliveryReady = bandpromo_visual_delivery_ready($root, (string) $asset['id'], ['poster', 'standard-stream'])
-            || $deliveryReady;
+        $deliveryReady = bandpromo_visual_delivery_ready($root, (string) $asset['id'], ['poster', 'standard-stream']);
     }
 
     return [
@@ -236,29 +222,6 @@ function bandpromo_list_videos_needing_delivery(string $root): array
         }
         $seen[$key] = true;
         $missing[] = $queueName;
-    }
-
-    $dir = $root . '/media/video/original';
-    if (is_dir($dir)) {
-        foreach (scandir($dir) ?: [] as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-            $registered = bandpromo_asset_lookup_visual($root, $entry, 'video')
-                ?? bandpromo_asset_lookup_by_original_filename($root, $entry);
-            if (is_array($registered) && ($registered['kind'] ?? '') === 'visual') {
-                continue;
-            }
-            if (!bandpromo_video_needs_delivery($root, $entry)) {
-                continue;
-            }
-            $key = strtolower($entry);
-            if (isset($seen[$key])) {
-                continue;
-            }
-            $seen[$key] = true;
-            $missing[] = $entry;
-        }
     }
 
     sort($missing, SORT_NATURAL | SORT_FLAG_CASE);
@@ -440,6 +403,7 @@ function bandpromo_visual_resolve_url(
     bool $allowOriginalFallback = true
 ): string {
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
 
     $variant = strtolower(trim($variant));
     if ($variant === 'optimal' || $variant === 'lightbox') {
@@ -456,84 +420,47 @@ function bandpromo_visual_resolve_url(
             ?? bandpromo_asset_lookup_by_original_filename($root, $ref);
     }
 
-    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
-        // Prefer the requested variant, then the other small delivery size.
-        foreach ([$variant, $variant === 'thumb' ? 'card' : 'thumb'] as $tryVariant) {
-            $url = bandpromo_visual_registry_variant_url($asset, $tryVariant);
-            if ($url !== '') {
-                return $url;
-            }
-            $url = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), $tryVariant);
-            if ($url !== '') {
-                return $url;
-            }
-        }
-        if (!$allowOriginalFallback) {
-            return '';
-        }
-        $filename = basename((string) ($asset['original_filename'] ?? ''));
-        $bucket = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? $intakeBucket));
-    } else {
-        if (!$allowOriginalFallback) {
-            return '';
-        }
-        $filename = basename($ref);
-        $bucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
-    }
-
-    if ($filename === '') {
+    if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
         return '';
     }
 
-    // M4: no stem optimal/thumb dual-read. Prefer unified visual original, then master file URL,
-    // then legacy intake originals so admin previews work before delivery is rebuilt.
-    require_once __DIR__ . '/visual-master-helpers.php';
-    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
-        $originalFilename = basename((string) ($asset['original_filename'] ?? $filename));
-        if ($originalFilename !== '') {
-            $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
-            if ($unified !== '' && is_file($unified)) {
-                return '/media/visual/original/' . $originalFilename;
-            }
+    // Public / default: delivery variants only.
+    foreach ([$variant, $variant === 'thumb' ? 'card' : 'thumb'] as $tryVariant) {
+        $url = bandpromo_visual_registry_variant_url($asset, $tryVariant);
+        if ($url !== '') {
+            return $url;
         }
-        $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION))));
-        $assetId = trim((string) ($asset['id'] ?? ''));
-        if ($assetId !== '' && $format !== '') {
-            $masterPath = bandpromo_visual_master_path($root, $assetId, $format);
-            if ($masterPath !== '' && is_file($masterPath)) {
-                return '/media/visual/master/' . basename($masterPath);
-            }
+        $url = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), $tryVariant);
+        if ($url !== '') {
+            return $url;
         }
     }
 
+    // Admin preview may use the master file URL — never original as a page <img src>.
+    // $allowOriginalFallback retained for call-site compatibility; means allowMasterPreview.
+    if (!$allowOriginalFallback) {
+        return '';
+    }
     if ($variant === 'standard-stream' || $variant === 'poster') {
-        // Video delivery variants only — no legacy media/video/optimal dual-read.
         return '';
     }
 
-    $bucket = bandpromo_asset_normalize_intake_bucket(
-        is_array($asset) ? (string) ($asset['intake_bucket'] ?? $intakeBucket) : $intakeBucket
-    );
-    $originalBases = [
-        'photo' => '/media/photo/original',
-        'img' => '/media/img/original',
-        'special' => '/media/special',
-        'video' => '/media/video/original',
-    ];
-    $preferred = $originalBases[$bucket] ?? '';
-    if ($preferred !== '') {
-        $path = $root . str_replace('/', DIRECTORY_SEPARATOR, $preferred . '/' . $filename);
-        if (is_file($path)) {
-            return $preferred . '/' . $filename;
+    $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo(
+        (string) ($asset['original_filename'] ?? ''),
+        PATHINFO_EXTENSION
+    ))));
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId !== '' && $format !== '') {
+        $masterPath = bandpromo_visual_master_path($root, $assetId, $format);
+        if ($masterPath !== '' && is_file($masterPath)) {
+            return '/media/visual/master/' . basename($masterPath);
         }
     }
-    foreach ($originalBases as $base) {
-        if ($base === $preferred) {
-            continue;
-        }
-        $path = $root . str_replace('/', DIRECTORY_SEPARATOR, $base . '/' . $filename);
-        if (is_file($path)) {
-            return $base . '/' . $filename;
+    $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+    if ($masterFilename !== '') {
+        $candidate = bandpromo_visual_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
+        if (is_file($candidate)) {
+            return '/media/visual/master/' . $masterFilename;
         }
     }
 
@@ -561,16 +488,7 @@ function bandpromo_visual_delivery_ready(string $root, string $assetId, array $r
 
     foreach ($requiredVariants as $variant) {
         if (bandpromo_visual_variant_path($root, $assetId, (string) $variant) === '') {
-            // Dual-read fallback via original filename.
-            $url = bandpromo_visual_resolve_url(
-                $root,
-                (string) ($asset['original_filename'] ?? ''),
-                (string) $variant,
-                (string) ($asset['intake_bucket'] ?? '')
-            );
-            if ($url === '') {
-                return false;
-            }
+            return false;
         }
     }
 

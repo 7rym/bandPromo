@@ -124,7 +124,7 @@ function bandpromo_living_cover_admin_preview_url(string $root, string $videoFil
         return $poster;
     }
 
-    return bandpromo_visual_resolve_url($root, $ref, 'card', '', true);
+    return bandpromo_visual_resolve_url($root, $ref, 'card', '', false);
 }
 
 function bandpromo_living_cover_enrich_detail(string $root, array $detail): array

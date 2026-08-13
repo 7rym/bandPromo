@@ -392,58 +392,14 @@ function bandpromo_playlist_prefer_cover_delivery_url(
     $refs = array_values(array_unique(array_filter($refs, static fn($ref): bool => is_string($ref) && $ref !== '')));
     foreach ($refs as $ref) {
         foreach (['thumb', 'card'] as $variant) {
-            $url = bandpromo_visual_resolve_url($root, $ref, $variant);
-            if ($url !== '') {
+            $url = bandpromo_visual_resolve_url($root, $ref, $variant, '', false);
+            if ($url !== '' && str_starts_with($url, '/media/visual/delivery/')) {
                 return $url;
             }
         }
     }
 
-    $stems = [];
-    foreach ($refs as $ref) {
-        if (bandpromo_asset_is_asset_id($ref)) {
-            $asset = bandpromo_asset_lookup_by_id($root, $ref);
-            if (is_array($asset)) {
-                foreach (['master_filename', 'original_filename'] as $key) {
-                    $name = basename(trim((string) ($asset[$key] ?? '')));
-                    $stem = pathinfo($name, PATHINFO_FILENAME);
-                    if (is_string($stem) && $stem !== '') {
-                        $stems[] = $stem;
-                    }
-                }
-            }
-            continue;
-        }
-        $stem = pathinfo(basename($ref), PATHINFO_FILENAME);
-        if (is_string($stem) && $stem !== '') {
-            $stems[] = $stem;
-        }
-    }
-
-    $stems = array_values(array_unique(array_filter($stems, static fn($stem): bool => is_string($stem) && $stem !== '')));
-    foreach ($stems as $stem) {
-        foreach (['/media/img/thumb/', '/media/photo/thumb/'] as $base) {
-            $relative = $base . $stem . '.jpg';
-            $absolute = $root . str_replace('/', DIRECTORY_SEPARATOR, $relative);
-            if (is_file($absolute)) {
-                return $relative;
-            }
-        }
-    }
-    foreach ($stems as $stem) {
-        foreach (['/media/img/optimal/', '/media/photo/optimal/'] as $base) {
-            $relative = $base . $stem . '.jpg';
-            $absolute = $root . str_replace('/', DIRECTORY_SEPARATOR, $relative);
-            if (is_file($absolute)) {
-                return $relative;
-            }
-        }
-    }
-
-    if ($previewUrl !== '' && (preg_match('#^https?://#i', $previewUrl) || str_starts_with($previewUrl, '/media/'))) {
-        if (preg_match('#^https?://#i', $previewUrl)) {
-            return $previewUrl;
-        }
+    if ($previewUrl !== '' && str_starts_with($previewUrl, '/media/visual/delivery/')) {
         $absolute = $root . str_replace('/', DIRECTORY_SEPARATOR, parse_url($previewUrl, PHP_URL_PATH) ?: $previewUrl);
         if (is_file($absolute)) {
             return $previewUrl;
@@ -1942,7 +1898,7 @@ function bandpromo_playlist_enrich_tracks_for_player(
         $coverUrl = '';
         if ($coverRef !== '') {
             require_once __DIR__ . '/media-delivery-helpers.php';
-            $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card');
+            $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
             if ($coverUrl === '') {
                 $coverUrl = bandpromo_playlist_prefer_cover_delivery_url($root, '', $coverRef);
             }

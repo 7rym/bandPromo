@@ -228,100 +228,10 @@ def save_jpg_optimized(img, dest_path, quality):
 
 def optimize_shell_brand_media_images():
     """
-    Resize the base brand's shell logo/background images referenced in web-config.json.
-    Keeps logo as PNG (transparency), background can switch to JPG if alpha-free.
-
-    This reduces the multi-MB 'first paint' contention caused by /media/special/* assets.
+    No-op (master-tier T3): never resize /media/special/* in place.
+    Brand shell delivery belongs on Visual masters → media/visual/delivery/{ast_*}/ (T4 fold).
     """
-    web_cfg_path = ROOT_DIR / 'web-config.json'
-    if not web_cfg_path.exists():
-        print("ℹ️  web-config.json not found — skipping shell media optimization")
-        return
-
-    try:
-        config = json.loads(web_cfg_path.read_text(encoding='utf-8'))
-    except Exception as e:
-        print(f"⚠️  Could not parse web-config.json for shell media optimization: {e}")
-        return
-
-    logo_web = (
-        deep_get(config, 'install.brand.logo')
-        or deep_get(config, 'install.theme.logo')
-        or deep_get(config, 'media.logo')
-        or ''
-    )
-
-    background_web = (
-        deep_get(config, 'release.theme.background_image')
-        or deep_get(config, 'media.background_image')
-        or deep_get(config, 'install.theme.background_image')
-        or ''
-    )
-
-    # Only touch /media/special/* files referenced by config.
-    logo_abs = resolve_web_media_path_to_abs(ROOT_DIR, logo_web)
-    bg_abs = resolve_web_media_path_to_abs(ROOT_DIR, background_web)
-
-    changed_config = False
-
-    if logo_abs and logo_abs.exists() and logo_abs.suffix.lower() == '.png':
-        try:
-            img = Image.open(str(logo_abs))
-            resized_img, did_resize = resize_image_to_max_height(img, SHELL_LOGO_MAX_HEIGHT_PX)
-            # Always re-save to reduce file size a bit (optimize=True), but do not reformat.
-            save_png_optimized(resized_img, logo_abs)
-            print(f"  ✓ Shell logo optimized: {logo_abs.name} (max-height {SHELL_LOGO_MAX_HEIGHT_PX}px, resized={did_resize})")
-        except Exception as e:
-            print(f"  ⚠️  Shell logo optimize failed: {e}")
-
-    if bg_abs and bg_abs.exists() and bg_abs.suffix.lower() in ('.png', '.jpg', '.jpeg'):
-        try:
-            img = Image.open(str(bg_abs))
-            resized_img, did_resize = resize_image_to_max_height(img, SHELL_BACKGROUND_MAX_HEIGHT_PX)
-
-            # If PNG is alpha-free, we can consider switching to JPG.
-            if bg_abs.suffix.lower() in ('.png',):
-                has_alpha = png_has_visible_transparency(img)
-
-                if img.size != resized_img.size or did_resize:
-                    # Keep PNG as a fallback/compat: resize it in place.
-                    save_png_optimized(resized_img, bg_abs)
-                else:
-                    # No resize needed; still optimize to reduce bytes.
-                    save_png_optimized(img, bg_abs)
-
-                if not has_alpha:
-                    jpg_abs = bg_abs.with_name(bg_abs.stem + f"_bg{SHELL_BACKGROUND_MAX_HEIGHT_PX}.jpg")
-                    # Convert to RGB for JPG.
-                    rgb_img = resized_img.convert('RGB')
-                    save_jpg_optimized(rgb_img, jpg_abs, quality=SHELL_BACKGROUND_JPG_QUALITY)
-
-                    png_size = bg_abs.stat().st_size
-                    jpg_size = jpg_abs.stat().st_size
-                    if png_size > 0 and (png_size - jpg_size) / png_size >= SHELL_BACKGROUND_JPG_MIN_IMPROVEMENT_RATIO:
-                        new_web_path = str(jpg_abs).replace(str(ROOT_DIR), '').replace('\\', '/')
-                        if not new_web_path.startswith('/'):
-                            new_web_path = '/' + new_web_path
-                        if background_web and background_web != new_web_path:
-                            config = replace_string_values(config, background_web, new_web_path)
-                            changed_config = True
-                            print(f"  ✓ Shell background switched to JPG: {bg_abs.name} -> {jpg_abs.name} ({png_size/1024:.0f}KB -> {jpg_size/1024:.0f}KB)")
-            else:
-                # Background already JPG; just resize in place if needed.
-                if bg_abs.suffix.lower() in ('.jpg', '.jpeg'):
-                    # Flatten/convert to RGB before saving JPG.
-                    rgb_img = resized_img.convert('RGB')
-                    save_jpg_optimized(rgb_img, bg_abs, quality=SHELL_BACKGROUND_JPG_QUALITY)
-                    print(f"  ✓ Shell background JPG optimized: {bg_abs.name} (max-height {SHELL_BACKGROUND_MAX_HEIGHT_PX}px, resized={did_resize})")
-        except Exception as e:
-            print(f"  ⚠️  Shell background optimize failed: {e}")
-
-    if changed_config:
-        try:
-            web_cfg_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-            print("  ✓ Updated web-config.json with optimized shell background path")
-        except Exception as e:
-            print(f"  ⚠️  Could not persist web-config.json shell background change: {e}")
+    print("ℹ️  Skipping in-place /media/special resize (Visual delivery only)")
 
 
 def load_track_cover_lookup():
@@ -1442,23 +1352,6 @@ def delivery_queue_needs_ffmpeg(queue):
     return False
 
 
-def process_track_cover(cover_filename):
-    if not cover_filename:
-        return
-
-    orig_cover_path = IMG_ORIG_DIR / cover_filename
-    stem = Path(cover_filename).stem
-    optimal_path = IMG_OPT_DIR / (stem + '.jpg')
-    thumb_path = IMG_THUMB_DIR / (stem + '.jpg')
-    print(f"  → Track cover (Files): refreshing player images for {cover_filename}")
-    write_cover_delivery_variants(
-        str(orig_cover_path),
-        str(optimal_path),
-        str(thumb_path),
-        quality=75,
-    )
-
-
 def process_audio_delivery(
     master_filename,
     cover_filename=None,
@@ -1470,6 +1363,9 @@ def process_audio_delivery(
     recorded_source_xxh3=None,
 ):
     """Convert one registry audio asset to a delivery MP3."""
+    # cover_filename kept for call-site compatibility; covers are Visual delivery only.
+    _ = cover_filename
+
     source_path, source_tier = resolve_audio_working_path(master_filename)
     source = Path(source_path)
     if not source.exists() or not source.is_file():
@@ -1535,11 +1431,7 @@ def process_audio_delivery(
 
     print("  → Stripping tags from delivery MP3 (tagless delivery policy)...")
     strip_delivery_audio_tags(str(mp3_path))
-
-    if cover_filename:
-        process_track_cover(cover_filename)
-    else:
-        print("  → Track cover: none assigned in Files (player uses registry/playlist cover URLs)")
+    print("  → Track cover: Visual delivery only (no stem img/optimal|thumb dual-write)")
 
     if asset_id:
         update_audio_asset_delivery(
@@ -1561,7 +1453,7 @@ def main():
     special_only = os.environ.get('BANDPROMO_OPTIMIZE_SPECIAL_ASSETS_ONLY', '').strip() == '1'
 
     if special_only:
-        optimize_shell_brand_media_images()
+        print("ℹ️  BANDPROMO_OPTIMIZE_SPECIAL_ASSETS_ONLY ignored — special in-place resize retired (T3)")
         return 0
 
     if include_audio:
@@ -1571,10 +1463,7 @@ def main():
 
     # Create output directories if they don't exist
     AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    IMG_THUMB_DIR.mkdir(parents=True, exist_ok=True)
-    PHOTO_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    PHOTO_THUMB_DIR.mkdir(parents=True, exist_ok=True)
+    VISUAL_DELIVERY_ROOT.mkdir(parents=True, exist_ok=True)
 
     print(f"🧭 Optimize mode: {OPTIMIZE_MODE}")
     if include_audio:
@@ -1582,24 +1471,13 @@ def main():
         if AUDIO_MASTER_DIR.exists():
             print(f"📁 Audio master: {AUDIO_MASTER_DIR}")
         print(f"📁 Audio (optimized): {AUDIO_OPT_DIR}")
-    print(f"📁 Image original: {IMG_ORIG_DIR}")
-    print(f"📁 Image (optimized): {IMG_OPT_DIR} (max {COVER_OPTIMAL_MAX_EDGE}px)")
-    print(f"📁 Image (thumb): {IMG_THUMB_DIR} (max {COVER_THUMB_MAX_EDGE}px)")
-    print(f"📁 Photo original: {PHOTO_ORIG_DIR}")
-    print(f"📁 Photo (optimized): {PHOTO_OPT_DIR} (max {COVER_OPTIMAL_MAX_EDGE}px)")
-    print(f"📁 Photo (thumb): {PHOTO_THUMB_DIR} (max {COVER_THUMB_MAX_EDGE}px)")
+    print(f"📁 Visual delivery: {VISUAL_DELIVERY_ROOT}")
     if include_audio:
-        print("ℹ️  This full optimize pass refreshes audio delivery files plus track covers, photos, and illustrations.")
-        print("ℹ️  Theme/share assets in media/special are used directly; social share variants are generated by makeSocial.py.")
+        print("ℹ️  This full optimize pass refreshes audio delivery plus Visual registry image delivery.")
     else:
-        print("ℹ️  This image-only pass refreshes track covers, photos, and illustrations.")
-        print("ℹ️  Theme/share assets in media/special are used directly; social share variants are generated by makeSocial.py.")
-
-    # Reduce first-paint contention from large /media/special shell assets.
-    optimize_shell_brand_media_images()
+        print("ℹ️  This image-only pass refreshes Visual registry image delivery.")
 
     audio_queue = []
-    cover_lookup = load_track_cover_lookup()
 
     if include_audio:
         print("\n📖 Loading asset registry for audio delivery...")
@@ -1609,16 +1487,6 @@ def main():
             print("   Run Repair catalog or upload audio via Files first.")
             sys.exit(1)
         print(f"✓ Found {len(audio_queue)} registered audio assets")
-
-        if cover_lookup:
-            print(f"✓ Track cover linkage available for {len(cover_lookup)} assets")
-        else:
-            print("ℹ️  No track cover linkage found (media library state missing or empty)")
-    else:
-        if cover_lookup:
-            print(f"\n📖 Loaded media library state for cover refresh ({len(cover_lookup)} track covers)")
-        else:
-            print("\n📖 No media library cover linkage found; image-only refresh will skip track-cover-specific work and continue with photos/illustrations.")
     print("=" * 70)
 
     if include_audio and delivery_queue_needs_ffmpeg(audio_queue):
@@ -1638,10 +1506,8 @@ def main():
             print("ℹ️  BANDPROMO_FORCE_AUDIO_DELIVERY=1 — rebuilding every delivery MP3")
         for item in audio_queue:
             master_filename = item.get('master_filename')
-            cover_filename = cover_filename_for_audio(master_filename, cover_lookup)
             result = process_audio_delivery(
                 master_filename,
-                cover_filename,
                 display_title=item.get('display_title') or '',
                 display_artist=item.get('display_artist') or '',
                 display=item.get('display') if isinstance(item.get('display'), dict) else {},
@@ -1655,16 +1521,6 @@ def main():
                 converted += 1
             else:
                 failed += 1
-    elif cover_lookup:
-        print("\n🖼️  Processing track cover images...")
-        seen = set()
-        for cover_filename in sorted(set(cover_lookup.values())):
-            if cover_filename and cover_filename not in seen:
-                seen.add(cover_filename)
-                process_track_cover(cover_filename)
-    else:
-        print("\n🖼️  Processing track cover images...")
-        print("  ✓ No track-cover-specific work queued")
 
     # ── Visual registry image delivery (asset-id variants) ─────────────────────────
     print("\n🎨 Processing visual registry image delivery...")
@@ -1728,8 +1584,8 @@ def main():
     else:
         print("  ⚠️  {} unregistered image(s) were not converted (register-or-fail)".format(orphan_count))
 
-    # ── Cleanup old files in optimized dirs ──────────────────────────────────────────
-    print("\n🧹 Cleaning up optimized directories...")
+    # ── Cleanup stale audio delivery files ───────────────────────────────────────────
+    print("\n🧹 Cleaning up audio delivery directory...")
 
     removed = 0
     if include_audio:
@@ -1743,27 +1599,8 @@ def main():
                 except Exception as e:
                     print(f"  ⚠️  Could not remove {item.name}: {e}")
 
-    # Keep all jpg/jpeg in IMG_OPT_DIR / IMG_THUMB_DIR (they're all valid covers)
-
-    # Clean up photos whose originals no longer exist
-    if PHOTO_ORIG_DIR.exists():
-        allowed_photos = {src.stem + '.jpg'
-                          for src in PHOTO_ORIG_DIR.iterdir()
-                          if src.is_file() and src.suffix.lower() in photo_exts}
-        for folder in (PHOTO_OPT_DIR, PHOTO_THUMB_DIR):
-            if not folder.exists():
-                continue
-            for item in folder.iterdir():
-                if item.is_file() and item.name not in allowed_photos:
-                    try:
-                        item.unlink()
-                        print(f"  🗑️  Removed photo: {item.name}")
-                        removed += 1
-                    except Exception as e:
-                        print(f"  ⚠️  Could not remove {item.name}: {e}")
-
     if removed == 0:
-        print("  ✓ Optimized directories are clean")
+        print("  ✓ Audio delivery directory is clean")
 
     # Summary
     print("\n" + "=" * 70)
@@ -1780,8 +1617,6 @@ def main():
     print(f"   Cleaned up files       : {removed}")
     if include_audio:
         print(f"   Audio output     : {AUDIO_OPT_DIR}")
-    print(f"   Image output     : {IMG_OPT_DIR} / {IMG_THUMB_DIR}")
-    print(f"   Photo output     : {PHOTO_OPT_DIR} / {PHOTO_THUMB_DIR}")
     print(f"   Visual delivery  : {VISUAL_DELIVERY_ROOT}")
 
     if (MEDIA_DIR / 'share.jpg').exists():

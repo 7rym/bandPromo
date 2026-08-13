@@ -50,6 +50,11 @@ foreach ($decoded as $index => $item) {
 
     $type = trim((string) ($item['type'] ?? ''));
     if ($type === 'video') {
+        $existingPoster = trim((string) ($item['poster'] ?? ''));
+        if ($existingPoster !== '' && str_starts_with($existingPoster, '/media/visual/delivery/')) {
+            $decoded[$index]['poster'] = $existingPoster;
+            continue;
+        }
         $poster = bandpromo_gallery_video_poster_from_src($root, (string) ($item['src'] ?? ''));
         if ($poster !== null) {
             $decoded[$index]['poster'] = $poster;
@@ -69,14 +74,12 @@ function bandpromo_gallery_video_poster_from_src(string $root, string $src): ?st
         $path = $src;
     }
     $path = str_replace('\\', '/', $path);
-    $filename = basename($path);
-    if ($filename === '' || !preg_match('/\.(mp4|webm|mov)$/i', $filename)) {
-        return null;
+    if (preg_match('#^/media/visual/delivery/(ast_[^/]+)/standard-stream\.(mp4|webm|mov|mkv)$#i', $path, $matches) === 1) {
+        $poster = '/media/visual/delivery/' . $matches[1] . '/poster.jpg';
+        return is_file($root . $poster) ? $poster : null;
     }
 
-    $poster = '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-
-    return is_file($root . $poster) ? $poster : null;
+    return null;
 }
 
 try {

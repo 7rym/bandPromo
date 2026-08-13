@@ -40,57 +40,31 @@ def load_asset_for_ref(ref):
 
 
 def process_filename(filename):
-    """Build delivery from a Visual video master when registered; else legacy original stem."""
+    """Build Visual delivery only — refuse unregistered / stem video/optimal paths."""
     asset = load_asset_for_ref(filename)
-    if isinstance(asset, dict):
-        asset_id = str(asset.get('id') or '').strip()
-        source_path = ov.visual_video_source_path(asset)
-        if source_path is None or not source_path.is_file():
-            return False, 'source_video_master_not_found'
-        result = ov.process_one_video(source_path, asset_id=asset_id, asset=asset)
-        if result.get('failed'):
-            return False, 'delivery_conversion_failed'
-        return True, 'visual_delivery'
-
-    source_path = ov.VIDEO_ORIG_DIR / filename
-    if not source_path.exists() or not source_path.is_file():
-        return False, 'source_video_not_found'
-
-    if source_path.suffix.lower() not in ov.SUPPORTED_VIDEO_EXTENSIONS:
-        return False, 'unsupported_video_extension'
-
-    mode = ov.delivery_mode_for(source_path)
-    target_path = ov.delivery_path_for(source_path)
-    poster_path = ov.poster_path_for(source_path)
-
-    if ov.needs_refresh(source_path, target_path):
-        if mode == 'copy':
-            ok = ov.copy_mp4(source_path, target_path)
-        else:
-            ok = ov.transcode_to_mp4(source_path, target_path)
-        if not ok:
-            return False, 'delivery_conversion_failed'
-    else:
-        ok = True
-
-    if not ov.ensure_video_poster(source_path, poster_path) or not poster_path.is_file():
-        return False, 'poster_generation_failed'
-
-    return ok and target_path.is_file(), mode
+    if not isinstance(asset, dict):
+        return False, 'video_not_registered'
+    asset_id = str(asset.get('id') or '').strip()
+    if not asset_id:
+        return False, 'video_asset_id_missing'
+    source_path = ov.visual_video_source_path(asset)
+    if source_path is None or not source_path.is_file():
+        return False, 'source_video_master_not_found'
+    result = ov.process_one_video(source_path, asset_id=asset_id, asset=asset)
+    if result.get('failed'):
+        return False, 'delivery_conversion_failed'
+    return True, 'visual_delivery'
 
 
 def delivery_ready_for_ref(filename):
     asset = load_asset_for_ref(filename)
-    if isinstance(asset, dict):
-        asset_id = str(asset.get('id') or '').strip()
-        if not asset_id:
-            return False
-        delivery_dir = ov.VISUAL_DELIVERY_ROOT / asset_id
-        return (delivery_dir / 'standard-stream.mp4').is_file() and (delivery_dir / 'poster.jpg').is_file()
-
-    delivery_name = Path(filename).stem + '.mp4'
-    poster_name = Path(filename).stem + '.jpg'
-    return (ov.VIDEO_OPT_DIR / delivery_name).is_file() and (ov.VIDEO_POSTER_DIR / poster_name).is_file()
+    if not isinstance(asset, dict):
+        return False
+    asset_id = str(asset.get('id') or '').strip()
+    if not asset_id:
+        return False
+    delivery_dir = ov.VISUAL_DELIVERY_ROOT / asset_id
+    return (delivery_dir / 'standard-stream.mp4').is_file() and (delivery_dir / 'poster.jpg').is_file()
 
 
 def main():
@@ -118,20 +92,12 @@ def main():
     needs_ffmpeg = False
     for filename in requested:
         asset = load_asset_for_ref(filename)
-        if isinstance(asset, dict):
-            source_path = ov.visual_video_source_path(asset)
-            if source_path is None or not source_path.is_file():
-                continue
-            if ov.delivery_mode_for(source_path, keep_audio=ov.video_keeps_audio(asset)) != 'copy':
-                needs_ffmpeg = True
+        if not isinstance(asset, dict):
             continue
-        source_path = ov.VIDEO_ORIG_DIR / filename
-        if not source_path.exists():
+        source_path = ov.visual_video_source_path(asset)
+        if source_path is None or not source_path.is_file():
             continue
-        if ov.delivery_mode_for(source_path) == 'transcode':
-            needs_ffmpeg = True
-        poster_path = ov.poster_path_for(source_path)
-        if ov.needs_refresh(source_path, poster_path):
+        if ov.delivery_mode_for(source_path, keep_audio=ov.video_keeps_audio(asset)) != 'copy':
             needs_ffmpeg = True
 
     if needs_ffmpeg and not ov.check_ffmpeg():

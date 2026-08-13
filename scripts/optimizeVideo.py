@@ -484,12 +484,10 @@ def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None, audio
         return False
 
 
-def process_one_video(source_path: Path, asset_id: str = '', asset=None):
+def process_one_video(source_path, asset_id='', asset=None):
     keep_audio = video_keeps_audio(asset)
     mode = delivery_mode_for(source_path, keep_audio=keep_audio)
     audio_label = audio_mode_label(keep_audio)
-    legacy_target = delivery_path_for(source_path)
-    legacy_poster = poster_path_for(source_path)
 
     print(f"\n📼 Processing: {source_path.name}")
     if mode == 'copy':
@@ -508,75 +506,49 @@ def process_one_video(source_path: Path, asset_id: str = '', asset=None):
     built = False
     skipped = False
     failed = False
-    # M4: registered assets write only media/visual/delivery/{ast_*}/ (no stem dual-write).
-    write_legacy = asset_id == ''
+    poster_ok = False
 
-    if write_legacy:
-        if needs_refresh(source_path, legacy_target):
-            ok = write_delivery_mp4(source_path, legacy_target, keep_audio=True)
-            if ok:
-                built = True
-                print(f"  ✓ Wrote legacy delivery file: {legacy_target.name}")
-            else:
-                failed = True
-                return {'built': False, 'skipped': False, 'failed': True, 'poster': False}
-        else:
-            skipped = True
-            print(f"  ✓ Legacy delivery file is up to date: {legacy_target.name}")
-
-        poster_ok = ensure_video_poster(source_path, legacy_poster)
-        if poster_ok and legacy_poster.exists():
-            print(f"  ✓ Legacy poster is up to date: {legacy_poster.name}")
-    else:
-        poster_ok = False
-        print("  → Skipping legacy video/optimal dual-write (registered asset)")
+    if not asset_id:
+        print("  ❌ Registered asset id required — refusing stem video/optimal dual-write")
+        return {'built': False, 'skipped': False, 'failed': True, 'poster': False}
 
     variants = {}
-    if asset_id:
-        delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
-        stream_path = delivery_dir / 'standard-stream.mp4'
-        poster_path = delivery_dir / 'poster.jpg'
+    delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
+    stream_path = delivery_dir / 'standard-stream.mp4'
+    poster_path = delivery_dir / 'poster.jpg'
 
-        if stream_needs_refresh(source_path, stream_path, asset, keep_audio):
-            ok = write_delivery_mp4(source_path, stream_path, keep_audio=keep_audio)
-            if not ok and write_legacy and legacy_target.exists():
-                ok = write_delivery_mp4(legacy_target, stream_path, keep_audio=keep_audio)
-            if ok:
-                built = True
-                print(f"  ✓ Wrote asset stream: {stream_path} ({audio_label})")
-            else:
-                failed = True
-        elif stream_path.exists():
-            skipped = True
-            print(f"  ✓ Asset stream up to date: {stream_path.name} ({audio_label})")
+    if stream_needs_refresh(source_path, stream_path, asset, keep_audio):
+        ok = write_delivery_mp4(source_path, stream_path, keep_audio=keep_audio)
+        if ok:
+            built = True
+            print(f"  ✓ Wrote asset stream: {stream_path} ({audio_label})")
+        else:
+            failed = True
+    elif stream_path.exists():
+        skipped = True
+        print(f"  ✓ Asset stream up to date: {stream_path.name} ({audio_label})")
 
-        if stream_path.exists():
-            variants['standard-stream'] = variant_manifest_entry(stream_path, 'mp4')
+    if stream_path.exists():
+        variants['standard-stream'] = variant_manifest_entry(stream_path, 'mp4')
 
-        if ensure_video_poster(source_path, poster_path) and poster_path.exists():
-            variants['poster'] = variant_manifest_entry(poster_path, 'jpg')
-            print(f"  ✓ Wrote asset poster: {poster_path.name}")
-        elif write_legacy and legacy_poster.exists():
-            try:
-                poster_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(legacy_poster), str(poster_path))
-                variants['poster'] = variant_manifest_entry(poster_path, 'jpg')
-            except Exception:
-                pass
+    if ensure_video_poster(source_path, poster_path) and poster_path.exists():
+        variants['poster'] = variant_manifest_entry(poster_path, 'jpg')
+        poster_ok = True
+        print(f"  ✓ Wrote asset poster: {poster_path.name}")
 
-        if variants:
-            update_visual_asset_delivery(
-                asset_id,
-                variants,
-                source_xxh3=file_xxh3_hex(source_path) or None,
-                audio_mode=audio_label,
-            )
+    if variants:
+        update_visual_asset_delivery(
+            asset_id,
+            variants,
+            source_xxh3=file_xxh3_hex(source_path) or None,
+            audio_mode=audio_label,
+        )
 
     return {
         'built': built,
         'skipped': skipped,
         'failed': failed,
-        'poster': bool(poster_ok and write_legacy and legacy_poster.exists()) or bool(variants.get('poster')),
+        'poster': poster_ok or bool(variants.get('poster')),
     }
 
 

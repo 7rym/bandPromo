@@ -569,8 +569,6 @@ if ($supportUrl !== '') {
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo');
         window.MEDIA_AUDIO_BASE = '/media/audio';
-        window.MEDIA_IMG_BASE   = '/media/img';
-        window.MEDIA_VIDEO_BASE = '/media/video';
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
         window.BANDPROMO_IS_OPERATOR = <?php echo json_encode($showOperatorNotice); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;

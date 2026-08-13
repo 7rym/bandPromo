@@ -8,14 +8,16 @@ async function loadVisualsGallery() {
     }
 
     function deriveVideoPoster(item) {
+        if (item && item.poster) {
+            return normalizeMediaPath(item.poster);
+        }
         const src = normalizeMediaPath(item && item.src);
         if (!src) return '';
-        const pathOnly = src.split('?')[0];
-        const fileName = pathOnly.substring(pathOnly.lastIndexOf('/') + 1);
-        if (!/\.(mp4|webm|mov)$/i.test(fileName)) {
-            return '';
+        const match = src.match(/\/media\/visual\/delivery\/(ast_[^/]+)\/standard-stream\.(mp4|webm|mov|mkv)$/i);
+        if (match) {
+            return `/media/visual/delivery/${match[1]}/poster.jpg`;
         }
-        return `/media/video/poster/${fileName.replace(/\.[^.]+$/i, '.jpg')}`;
+        return '';
     }
 
     function normalizeGalleryItem(item) {
@@ -27,17 +29,13 @@ async function loadVisualsGallery() {
             return {
                 ...item,
                 src: normalizeMediaPath(item.src),
-                poster: normalizeMediaPath(item.poster || deriveVideoPoster(item)),
+                poster: deriveVideoPoster(item),
             };
         }
 
-        const normalizedSrc = normalizeMediaPath(item.src)
-            .replace('/original/', '/optimal/')
-            .replace(/\.(png|jpe?g|webp)$/i, '.jpg');
-
         return {
             ...item,
-            src: normalizedSrc,
+            src: normalizeMediaPath(item.src),
         };
     }
 

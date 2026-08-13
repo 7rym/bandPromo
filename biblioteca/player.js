@@ -56,8 +56,7 @@ function setPlayerMarkdownHtml(element, text, mode) {
     element.innerHTML = rendered;
 }
 
-// Path helpers — use window.MEDIA_AUDIO_BASE / window.MEDIA_IMG_BASE when set
-// (new /play/ structure), otherwise fall back to old sibling-folder relative paths.
+// Path helpers — use window.MEDIA_AUDIO_BASE when set (play delivery).
 function resolveAudioDeliveryFilename(filename) {
     if (typeof filename !== 'string' || filename === '') {
         return '';
@@ -124,57 +123,28 @@ function buildCoverUrl(rawCoverPath, variant = IMAGE_PATH_VARIANT) {
 function buildCoverUrlCandidates(rawCoverPath, preferredVariant = IMAGE_PATH_VARIANT) {
     if (!rawCoverPath) return [];
     if (isMediaOrAbsoluteUrl(rawCoverPath)) {
+        // Trust server cover_url / delivery URLs; never invent stem img paths.
         return [rawCoverPath];
     }
     const filename = rawCoverPath.split('\\').pop().split('/').pop();
-    const stem = filename.replace(/\.[^.]+$/, '');
-    const extMatch = filename.match(/\.(png|jpe?g|webp)$/i);
-    const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-    const base = window.MEDIA_IMG_BASE != null ? window.MEDIA_IMG_BASE : '..';
     const preferred = preferredVariant === 'thumb' ? 'thumb' : 'optimal';
     const assetId = coverAssetIdFromFilename(filename);
-    const candidates = [];
-    if (assetId) {
-        const visual = preferred === 'thumb'
-            ? [
-                `/media/visual/delivery/${assetId}/thumb.jpg`,
-                `/media/visual/delivery/${assetId}/thumb.png`,
-                `/media/visual/delivery/${assetId}/card.jpg`,
-                `/media/visual/delivery/${assetId}/card.png`,
-            ]
-            : [
-                `/media/visual/delivery/${assetId}/card.jpg`,
-                `/media/visual/delivery/${assetId}/card.png`,
-                `/media/visual/delivery/${assetId}/thumb.jpg`,
-                `/media/visual/delivery/${assetId}/thumb.png`,
-            ];
-        candidates.push(
-            ...visual,
-            `/media/visual/master/${filename}`,
-            `/media/visual/master/${assetId}.png`,
-            `/media/visual/master/${assetId}.jpg`,
-            `/media/visual/original/${filename}`,
-        );
+    if (!assetId) {
+        return [];
     }
-    if (preferred === 'thumb') {
-        candidates.push(
-            `${base}/thumb/${stem}.jpg`,
-            `${base}/optimal/${stem}.jpg`,
-            `${base}/original/${filename}`,
-            `${base}/original/${stem}.${ext}`,
-            `${base}/original/${stem}.jpg`,
-            `${base}/original/${stem}.png`,
-        );
-    } else {
-        candidates.push(
-            `${base}/optimal/${stem}.jpg`,
-            `${base}/original/${filename}`,
-            `${base}/original/${stem}.${ext}`,
-            `${base}/original/${stem}.jpg`,
-            `${base}/original/${stem}.png`,
-        );
-    }
-    return candidates.filter((url, index, list) => list.indexOf(url) === index);
+    return preferred === 'thumb'
+        ? [
+            `/media/visual/delivery/${assetId}/thumb.jpg`,
+            `/media/visual/delivery/${assetId}/thumb.png`,
+            `/media/visual/delivery/${assetId}/card.jpg`,
+            `/media/visual/delivery/${assetId}/card.png`,
+        ]
+        : [
+            `/media/visual/delivery/${assetId}/card.jpg`,
+            `/media/visual/delivery/${assetId}/card.png`,
+            `/media/visual/delivery/${assetId}/thumb.jpg`,
+            `/media/visual/delivery/${assetId}/thumb.png`,
+        ];
 }
 
 function prefersReducedMotion() {

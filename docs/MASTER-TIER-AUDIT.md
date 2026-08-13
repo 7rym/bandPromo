@@ -183,13 +183,13 @@ Stop teaching the stack that covers and living covers are original basenames.
 
 ### T3 — Deliverables from masters; kill stem dual-write/read
 
-- [ ] Delete `process_track_cover` stem `img/optimal|thumb` dual-write; covers go through Visual `process_visual_image_asset`.
-- [ ] Retire `videoSourceDelivery.py` stem `video/optimal` + `video/poster`; write `media/visual/delivery/{ast_*}/` only.
-- [ ] Stop in-place resize of `/media/special/*`.
-- [ ] `bandpromo_visual_resolve_url` public path: delivery only. Admin preview: master file URL or a dedicated original-download endpoint — not original as a page `<img src>`.
-- [ ] Gallery / page allowlist / `admin.js` `videoPosterPathFromSrc`: Visual delivery variants only.
-- [ ] `play/index.php`: drop `MEDIA_IMG_BASE='/media/img'` stem contract; `player.js` uses server `cover_url` (no `img/original|optimal/{stem}` candidates).
-- [ ] Playlist cover helper: no `/media/img|photo/{thumb|optimal}/{stem}.jpg` fallback.
+- [x] Delete `process_track_cover` stem `img/optimal|thumb` dual-write; covers go through Visual `process_visual_image_asset`.
+- [x] Retire `videoSourceDelivery.py` stem `video/optimal` + `video/poster`; write `media/visual/delivery/{ast_*}/` only.
+- [x] Stop in-place resize of `/media/special/*`.
+- [x] `bandpromo_visual_resolve_url` public path: delivery only. Admin preview: master file URL or a dedicated original-download endpoint — not original as a page `<img src>`.
+- [x] Gallery / page allowlist / `admin.js` `videoPosterPathFromSrc`: Visual delivery variants only.
+- [x] `play/index.php`: drop `MEDIA_IMG_BASE='/media/img'` stem contract; `player.js` uses server `cover_url` (no `img/original|optimal/{stem}` candidates).
+- [x] Playlist cover helper: no `/media/img|photo/{thumb|optimal}/{stem}.jpg` fallback.
 
 ### T4 — Brand assets and leftover folders
 
@@ -254,4 +254,4 @@ These open/partial items are **owned by this plan** (check them off here, not as
 
 The slice is done when a masters-only PRP install and a normal operator upload both obey the three-tier rule **without original/stem dual-read**, and the evidence files in C1–C5 no longer treat originals as working copies.
 
-_Last updated: 2026-08-13 (T2 done: working copy is master; public play = delivery; original is download/delete only. Next: T3 deliverables from masters / kill stem dual-write.)_
+_Last updated: 2026-08-13 (T3 done: deliverables from masters; stem img/video dual-write/read removed. Next: T4 Brand/special fold.)_

@@ -5416,11 +5416,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     ...(activeAudioMasterDetail || {}),
                     living_cover: filename,
                     living_cover_preview_url: previewUrl,
-                    living_cover_delivery_ready: previewUrl.includes('/media/visual/delivery/')
-                        || previewUrl.includes('/media/video/optimal/'),
+                    living_cover_delivery_ready: previewUrl.includes('/media/visual/delivery/'),
                     living_cover_delivery_pending: filename !== ''
-                        && !previewUrl.includes('/media/visual/delivery/')
-                        && !previewUrl.includes('/media/video/optimal/'),
+                        && !previewUrl.includes('/media/visual/delivery/'),
                 };
 
                 if (options.sync !== false) {
@@ -5468,9 +5466,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const previewLooksLikeVideo = /\.(mp4|webm|mov|mkv)(\?|$)/i.test(previewUrl)
                     || previewUrl.includes('/media/visual/delivery/')
-                    || previewUrl.includes('standard-stream')
-                    || previewUrl.includes('/media/video/optimal/')
-                    || previewUrl.includes('/media/video/original/');
+                    || previewUrl.includes('standard-stream');
 
                 if (previewUrl && audioMasterLivingCoverMode !== 'clear') {
                     if (previewLooksLikeVideo) {
@@ -7771,10 +7767,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function videoPosterPathFromSrc(src) {
                     const normalized = String(src || '').replace(/\\/g, '/');
-                    const pathOnly = normalized.split('?')[0];
-                    const fileName = pathOnly.substring(pathOnly.lastIndexOf('/') + 1);
-                    if (!/\.(mp4|webm|mov|mkv)$/i.test(fileName)) return '';
-                    return '/media/video/poster/' + fileName.replace(/\.[^.]+$/i, '.jpg');
+                    // Visual delivery stream → sibling poster.jpg
+                    const match = normalized.match(/\/media\/visual\/delivery\/(ast_[^/]+)\/standard-stream\.(mp4|webm|mov|mkv)$/i);
+                    if (match) {
+                        return `/media/visual/delivery/${match[1]}/poster.jpg`;
+                    }
+                    return '';
                 }
 
                 function resolveVideoPoster(item) {
@@ -8450,7 +8448,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     : (Array.isArray(file.display?.keywords) ? file.display.keywords : []),
                                 type: kind,
                                 poster: kind === 'video'
-                                    ? (file.poster_url || (`/media/video/poster/${String(file.name).replace(/\.[^.]+$/, '.jpg')}`))
+                                    ? (file.poster_url || (file.asset_id
+                                        ? `/media/visual/delivery/${encodeURIComponent(String(file.asset_id))}/poster.jpg`
+                                        : ''))
                                     : '',
                                 pool_ready: file.pool_ready !== false,
                                 pool_ready_reason: String(file.pool_ready_reason || '').trim(),
