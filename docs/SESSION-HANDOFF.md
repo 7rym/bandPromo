@@ -1,36 +1,37 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-13 (after T4). Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
+_Paused: 2026-08-13 (after T5). Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
 
 ## Exact resume point
 
-**Do T5 next. Do not redo T0–T4. Do not start T6–T7** except where a T5 path already forces a one-line format change.
+**Do T6 next. Do not redo T0–T5. Do not start T7** except where a T6 path already forces a one-line verify.
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ `6b71a46`, in sync with `origin/main` |
-| VERSION | **v0.8.17 build 384** |
-| Tester package | **Shipped.** Tag `v0.8.17-build-384`. Site update should offer **build 384** once the release finishes. |
+| Git | `main` — T5 implemented locally; **checkpoint/publish when asked** |
+| VERSION | **v0.8.18 build 384** (session bumped; build unchanged until checkpoint) |
+| Tester package | Last shipped: `v0.8.17-build-384`. Publish a new package only after checkpoint. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
-## T4 — done (do not reopen unless a regression)
+## T5 — done (do not reopen unless a regression)
 
-Brand assets and leftover folders.
+Preferred master formats.
 
-- Brand visuals: Visual original + `ast_*` master + delivery; slots via `asset_ids`; clone creates new masters (not `{brand}_{slot}` in `special/`).
-- Setup dirs: `media/visual/{original,master,delivery}` + `media/sfx/{original,master,optimal}`; no product `img/photo` optimal/thumb or `media/special`.
-- Config / OG / login / player: resolve Base brand `asset_ids` → delivery (no hardcoded `/media/special/bandPromo_*.png`).
-- PRP SFX: master only or refuse the row; never pack `sfx/original`.
-- Files → Brand assets: filter/role on Visual (Brand-tab audio → SFX); uploads to `media/visual/original/`.
+- Video materialize remuxes to `media/visual/master/ast_*.mkv`; Matroska tags via `visualMasterMetadata.py`; delivery stays MP4.
+- Still masters: EXIF → `captured_at`; IPTC Core via XMP; heal empty display on materialize + autofix.
+- Audio + SFX: WAV → FLAC masters; delivery `ast_*.mp3` under audio/sfx optimal.
+- Living-cover ready = Visual `standard-stream` delivery exists.
+- `visualMasterMetadata.py` is Python 3.6.9-safe (T6 item carried when touched).
 
-## T5 — start here
+## T6 — start here
 
-Preferred master formats. Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5:
+Fail loud and delete shims. Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T6:
 
-1. Video materialize: remux to `media/visual/master/ast_*.mkv` + Matroska tags; delivery stays MP4.
-2. Still masters: EXIF read for `captured_at`; IPTC Core via XMP write-through; heal empty `display` from embeds.
-3. Confirm WAV → FLAC audio master and SFX master/delivery naming match the policy table.
-4. Living-cover “ready” = Visual `standard-stream` delivery exists (not `video/optimal/{stem}.mp4`).
+1. Remove dual-read branches listed in C3/C4 once T1–T5 callers are gone.
+2. Welcome starter-pack file list: drop `media/audio/original/bandPromo_*.flac` existence checks (Demo PRP marker / demo release doc only).
+3. ~~`visualMasterMetadata.py` Python 3.6.9~~ (done in T5).
+4. `initialSiteSeed.py` gallery `src`: Visual delivery / asset id, not `/media/photo|video/original/`.
+5. Content autofix: keep one-shot original→master **repair** only; do not add new runtime original scans.
 
 ## Constraints (same as AGENTS.md)
 
@@ -43,4 +44,4 @@ Preferred master formats. Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.
 powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1
 ```
 
-Then implement T5 from the audit checkboxes.
+Then implement T6 from the audit checkboxes.

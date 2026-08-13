@@ -4,8 +4,6 @@
 EXIF is treated as camera-origin: we read DateTimeOriginal for captured_at and do not
 write editorial title/description/keywords into EXIF.
 """
-from __future__ import annotations
-
 import io
 import json
 import os
@@ -275,10 +273,20 @@ def write_webp_xmp(path: Path, display: Dict[str, Any]) -> None:
         '-c', 'copy',
         str(tmp),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        encoding='utf-8',
+        errors='replace',
+    )
     if proc.returncode != 0 or not tmp.is_file():
         if tmp.exists():
-            tmp.unlink(missing_ok=True)
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
         detail = (proc.stderr or proc.stdout or '').strip()
         raise RuntimeError(detail or 'ffmpeg WebP metadata write failed')
     os.replace(tmp, path)
@@ -420,7 +428,14 @@ def write_video_display(path: Path, display: Dict[str, Any]) -> None:
         if captured:
             cmd.extend(['-metadata', f'date={captured}'])
         cmd.append(str(tmp))
-        proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            encoding='utf-8',
+            errors='replace',
+        )
         if proc.returncode != 0 or not tmp.is_file():
             detail = (proc.stderr or proc.stdout or '').strip()
             raise RuntimeError(detail or 'ffmpeg Matroska tag write failed')
@@ -437,7 +452,14 @@ def read_video_display(path: Path) -> Dict[str, Any]:
         ffprobe, '-v', 'quiet', '-print_format', 'json',
         '-show_format', str(path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        encoding='utf-8',
+        errors='replace',
+    )
     if proc.returncode != 0:
         return normalize_display({})
     try:

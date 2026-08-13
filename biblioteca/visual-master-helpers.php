@@ -368,6 +368,7 @@ function bandpromo_visual_remux_video_master_to_mkv(string $root, string $source
 
 /**
  * After visual register/upload: relocate original + materialize master.
+ * Heals empty registry display from master embeds (EXIF/XMP or Matroska tags).
  */
 function bandpromo_visual_ensure_tiers_for_asset(string $root, string $assetId): ?array
 {
@@ -378,11 +379,40 @@ function bandpromo_visual_ensure_tiers_for_asset(string $root, string $assetId):
 
     bandpromo_visual_relocate_original($root, $asset);
     $result = bandpromo_visual_materialize_master($root, $asset);
-    if (!empty($result['ok']) && is_array($result['asset'])) {
-        return $result['asset'];
+    $resolved = !empty($result['ok']) && is_array($result['asset'])
+        ? $result['asset']
+        : bandpromo_asset_lookup_by_id($root, $assetId);
+
+    if (is_array($resolved)) {
+        bandpromo_visual_heal_empty_display_for_asset($root, $assetId);
+        $fresh = bandpromo_asset_lookup_by_id($root, $assetId);
+        if (is_array($fresh)) {
+            return $fresh;
+        }
     }
 
-    return bandpromo_asset_lookup_by_id($root, $assetId);
+    return $resolved;
+}
+
+/**
+ * Best-effort: fill empty display fields from the visual master embeds for one asset.
+ */
+function bandpromo_visual_heal_empty_display_for_asset(string $root, string $assetId): void
+{
+    $assetId = trim($assetId);
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return;
+    }
+
+    try {
+        require_once __DIR__ . '/light-build-tasks.php';
+        bandpromo_run_light_json_task('scripts/visualMasterMetadata.py', [
+            'action' => 'heal_empty',
+            'asset_id' => $assetId,
+        ]);
+    } catch (Throwable $throwable) {
+        // Heal is best-effort; materialize already succeeded.
+    }
 }
 
 /**

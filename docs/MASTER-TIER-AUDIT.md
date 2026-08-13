@@ -206,16 +206,16 @@ Absorbs the old “Phase 3 Brand-assets fold” and PRP SFX original fallback.
 
 Absorbs open Visual naming tasks.
 
-- [ ] Video materialize: remux to `media/visual/master/ast_*.mkv` + Matroska tags; delivery stays MP4.
-- [ ] Still masters: EXIF read for `captured_at`; IPTC Core via XMP write-through; heal empty `display` from embeds.
-- [ ] Confirm WAV → FLAC audio master and SFX master/delivery naming match the table above.
-- [ ] Living-cover “ready” = Visual `standard-stream` delivery exists (not `video/optimal/{stem}.mp4`).
+- [x] Video materialize: remux to `media/visual/master/ast_*.mkv` + Matroska tags; delivery stays MP4.
+- [x] Still masters: EXIF read for `captured_at`; IPTC Core via XMP write-through; heal empty `display` from embeds.
+- [x] Confirm WAV → FLAC audio master and SFX master/delivery naming match the table above.
+- [x] Living-cover “ready” = Visual `standard-stream` delivery exists (not `video/optimal/{stem}.mp4`).
 
 ### T6 — Fail loud and delete shims
 
 - [ ] Remove dual-read branches listed in C3/C4 once T1–T5 callers are gone.
 - [ ] Welcome starter-pack file list: drop `media/audio/original/bandPromo_*.flac` existence checks (Demo PRP marker / demo release doc only).
-- [ ] `scripts/visualMasterMetadata.py`: drop `from __future__ import annotations` / `capture_output` / `text=` (Python 3.6.9) when that file is touched.
+- [x] `scripts/visualMasterMetadata.py`: drop `from __future__ import annotations` / `capture_output` / `text=` (Python 3.6.9) when that file is touched.
 - [ ] `initialSiteSeed.py` gallery `src`: Visual delivery / asset id, not `/media/photo|video/original/`.
 - [ ] Content autofix: keep one-shot original→master **repair** only; do not add new runtime original scans.
 

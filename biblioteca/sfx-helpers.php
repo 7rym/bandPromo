@@ -204,7 +204,8 @@ function bandpromo_sfx_resolve_stored_path(string $root, string $webPath): strin
 }
 
 /**
- * Copy original → media/sfx/master/ast_*.{ext} and update registry master_filename.
+ * Copy/convert original → media/sfx/master/ast_*.{ext} and update registry master_filename.
+ * WAV originals become tagged FLAC masters (same policy as catalog audio).
  *
  * @param array<string, mixed> $asset
  * @return array{ok: bool, asset: array<string, mixed>, path?: string, warning?: string}
@@ -212,6 +213,7 @@ function bandpromo_sfx_resolve_stored_path(string $root, string $webPath): strin
 function bandpromo_sfx_materialize_master(string $root, array $asset): array
 {
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/audio-master-helpers.php';
 
     $assetId = trim((string) ($asset['id'] ?? ''));
     $originalFilename = basename((string) ($asset['original_filename'] ?? ''));
@@ -219,9 +221,14 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Invalid sound-effect asset.'];
     }
 
-    $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION))));
+    $sourceFormat = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
+    $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
     if ($format === '') {
-        $format = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
+        $format = $sourceFormat;
+    }
+    // Preferred master: WAV → FLAC; otherwise keep intake codec.
+    if ($sourceFormat === 'wav' || $format === 'wav') {
+        $format = 'flac';
     }
     if ($format === '') {
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Missing sound-effect format.'];
@@ -235,9 +242,37 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
 
     $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, $format);
     $dest = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
-    if (!is_file($dest) || filesize($dest) !== filesize($source)) {
-        if (!@copy($source, $dest)) {
+
+    if (!is_file($dest)) {
+        if ($sourceFormat === 'wav' && $format === 'flac') {
+            $conversion = bandpromo_convert_wav_to_flac(
+                $root,
+                $source,
+                $dest,
+                'Could not convert sound-effect WAV to FLAC master'
+            );
+            if (empty($conversion['ok'])) {
+                return [
+                    'ok' => false,
+                    'asset' => $asset,
+                    'warning' => (string) ($conversion['warning'] ?? 'WAV-to-FLAC conversion failed.'),
+                ];
+            }
+        } elseif (!@copy($source, $dest)) {
             return ['ok' => false, 'asset' => $asset, 'warning' => 'Could not write sound-effect master.'];
+        }
+    }
+
+    // Drop stale WAV masters when the preferred master is FLAC.
+    if ($format === 'flac') {
+        $staleWav = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR
+            . bandpromo_asset_master_filename_for_ulid($assetId, 'wav');
+        if (is_file($staleWav)) {
+            $staleReal = realpath($staleWav);
+            $destReal = is_file($dest) ? realpath($dest) : false;
+            if ($staleReal !== false && ($destReal === false || $staleReal !== $destReal)) {
+                @unlink($staleWav);
+            }
         }
     }
 
@@ -518,7 +553,8 @@ function bandpromo_asset_register_sfx(
     }
 
     $id = bandpromo_generate_asset_id();
-    $format = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
+    $sourceFormat = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
+    $format = $sourceFormat === 'wav' ? 'flac' : $sourceFormat;
     $masterFilename = bandpromo_asset_master_filename_for_ulid($id, $format);
     $now = gmdate('c');
     $entry = [
