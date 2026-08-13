@@ -27,11 +27,19 @@
         }
     },
     "assets": {
-        "logo": "/media/special/bandPromo_logo.png",
-        "poster": "/media/special/bandPromo_cover.png",
-        "background_image": "/media/special/bandPromo_background.png",
-        "background_video": "/media/special/bandPromo_background.mp4",
-        "welcome_audio": "/media/special/bandPromo_welcome.flac",
-        "loggedin_audio": "/media/special/bandPromo_loggedin.flac"
+        "logo": "",
+        "poster": "",
+        "background_image": "",
+        "background_video": "",
+        "welcome_audio": "",
+        "loggedin_audio": ""
+    },
+    "asset_ids": {
+        "logo": "",
+        "poster": "",
+        "background_image": "",
+        "background_video": "",
+        "welcome_audio": "",
+        "loggedin_audio": ""
     }
 }

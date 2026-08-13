@@ -195,12 +195,12 @@ Stop teaching the stack that covers and living covers are original basenames.
 
 Absorbs the old “Phase 3 Brand-assets fold” and PRP SFX original fallback.
 
-- [ ] Relocate `media/special/` brand visuals into Visual original (write-once) + `ast_*` master + delivery; brand slots are `asset_ids` only.
-- [ ] Brand duplicate clones **new `ast_*` masters**, not `{brand}_{slot}` files in `special/` / `sfx/original/`.
-- [ ] Setup/runtime dirs: `media/visual/{original,master,delivery}` and `media/sfx/{original,master,optimal}`; stop creating `img/photo` optimal/thumb trees as product paths.
-- [ ] Config / OG / login / player shell fallbacks resolve Base brand `asset_ids` → delivery (no hardcoded `/media/special/bandPromo_*.png`).
-- [ ] PRP SFX: export master or refuse the row; never pack `sfx/original`.
-- [ ] Files → Brand assets becomes a **filter/role** on Visual (or SFX), not a parallel intake tree.
+- [x] Relocate `media/special/` brand visuals into Visual original (write-once) + `ast_*` master + delivery; brand slots are `asset_ids` only.
+- [x] Brand duplicate clones **new `ast_*` masters**, not `{brand}_{slot}` files in `special/` / `sfx/original/`.
+- [x] Setup/runtime dirs: `media/visual/{original,master,delivery}` and `media/sfx/{original,master,optimal}`; stop creating `img/photo` optimal/thumb trees as product paths.
+- [x] Config / OG / login / player shell fallbacks resolve Base brand `asset_ids` → delivery (no hardcoded `/media/special/bandPromo_*.png`).
+- [x] PRP SFX: export master or refuse the row; never pack `sfx/original`.
+- [x] Files → Brand assets becomes a **filter/role** on Visual (or SFX), not a parallel intake tree.
 
 ### T5 — Preferred master formats
 

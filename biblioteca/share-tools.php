@@ -24,7 +24,11 @@ if (!function_exists('get_config')) {
  */
 function generate_og_tags($title = '', $description = '', $image = '', $url = '', $type = 'website') {
     $site_name = get_config('release.identity.title', 'My Site');
-    $og_image = $image ?: get_config('release.brand.poster', '/media/special/bandPromo_share.png');
+    $og_image = $image ?: get_config('release.brand.poster', '');
+    if ($og_image === '') {
+        require_once __DIR__ . '/brand-storage.php';
+        $og_image = bandpromo_brand_resolve_active_shell_slot(dirname(__DIR__), 'poster');
+    }
     $og_url = $url ?: get_config('install.site.url', '');
     $og_description = $description !== ''
         ? bandpromo_player_markdown_strip_to_plain_text((string) $description)
@@ -32,7 +36,7 @@ function generate_og_tags($title = '', $description = '', $image = '', $url = ''
     $og_title = $title ?: $site_name;
     
     // Convert relative image URL to absolute
-    if (strpos($og_image, 'http') !== 0) {
+    if ($og_image !== '' && strpos($og_image, 'http') !== 0) {
         $og_image = rtrim($og_url ?: get_config('install.site.url', ''), '/') . '/' . ltrim($og_image, '/');
     }
     
@@ -59,14 +63,18 @@ function generate_og_tags($title = '', $description = '', $image = '', $url = ''
 function generate_twitter_tags($title = '', $description = '', $image = '', $type = 'summary_large_image') {
     $site_name = get_config('release.identity.title', 'My Site');
     $twitter_handle = get_config('install.social.twitter', '');
-    $twitter_image = $image ?: get_config('release.brand.poster', '/media/special/bandPromo_share.png');
+    $twitter_image = $image ?: get_config('release.brand.poster', '');
+    if ($twitter_image === '') {
+        require_once __DIR__ . '/brand-storage.php';
+        $twitter_image = bandpromo_brand_resolve_active_shell_slot(dirname(__DIR__), 'poster');
+    }
     $twitter_description = $description !== ''
         ? bandpromo_player_markdown_strip_to_plain_text((string) $description)
         : bandpromo_player_markdown_strip_to_plain_text((string) get_config('release.identity.description', ''));
     $twitter_title = $title ?: $site_name;
     
     // Convert relative image URL to absolute
-    if (strpos($twitter_image, 'http') !== 0) {
+    if ($twitter_image !== '' && strpos($twitter_image, 'http') !== 0) {
         $twitter_image = rtrim(get_config('install.site.url', ''), '/') . '/' . ltrim($twitter_image, '/');
     }
     

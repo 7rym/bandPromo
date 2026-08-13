@@ -67,7 +67,7 @@ $config['social'] = array_merge(array(
     'instagram' => 'YourInstagram',
     'categories' => array('entertainment'),
     'keywords' => 'website',
-    'share_image' => '/media/special/bandPromo_share.png',
+    'share_image' => '',
     'share_image_width' => 1200,
     'share_image_height' => 630
 ), $config['social']);
@@ -257,7 +257,7 @@ function bandpromo_reload_runtime_config(?string $configPath = null): void {
         'instagram' => 'YourInstagram',
         'categories' => ['entertainment'],
         'keywords' => 'website',
-        'share_image' => '/media/special/bandPromo_share.png',
+        'share_image' => '',
         'share_image_width' => 1200,
         'share_image_height' => 630,
     ], $config['social']);

@@ -17,7 +17,7 @@
     "youtube": "YourYoutube",
     "categories": ["music", "entertainment"],
     "keywords": "music, artist, portfolio",
-    "share_image": "/media/special/bandPromo_share.png",
+    "share_image": "",
     "share_image_width": 1200,
     "share_image_height": 630
   },
@@ -31,12 +31,12 @@
     "button_text_color": "#ffffff"
   },
   "media": {
-    "background_video": "/media/special/bandPromo_background.mp4",
-    "background_image": "/media/special/bandPromo_background.png",
-    "cover": "/media/special/bandPromo_cover.png",
-    "welcome_audio": "/media/special/bandPromo_welcome.flac",
-    "loggedin_audio": "/media/special/bandPromo_loggedin.flac",
-    "logo": "/media/special/bandPromo_logo.png"
+    "background_video": "",
+    "background_image": "",
+    "cover": "",
+    "welcome_audio": "",
+    "loggedin_audio": "",
+    "logo": ""
   },
   "install": {
     "site": {
@@ -53,9 +53,9 @@
       "youtube": "YourYoutube"
     },
     "theme": {
-      "logo": "/media/special/bandPromo_logo.png",
-      "welcome_audio": "/media/special/bandPromo_welcome.flac",
-      "loggedin_audio": "/media/special/bandPromo_loggedin.flac"
+      "logo": "",
+      "welcome_audio": "",
+      "loggedin_audio": ""
     }
   },
   "release": {
@@ -65,16 +65,16 @@
       "description": "Site description for manifest and meta tags"
     },
     "social": {
-      "share_image": "/media/special/bandPromo_share.png",
+      "share_image": "",
       "share_image_width": 1200,
       "share_image_height": 630,
       "keywords": "music, artist, portfolio",
       "categories": ["music", "entertainment"]
     },
     "theme": {
-      "background_video": "/media/special/bandPromo_background.mp4",
-      "background_image": "/media/special/bandPromo_background.png",
-      "cover": "/media/special/bandPromo_cover.png"
+      "background_video": "",
+      "background_image": "",
+      "cover": ""
     }
   },
   "player": {

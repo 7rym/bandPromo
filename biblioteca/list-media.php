@@ -3,6 +3,7 @@
  * List media files for a given target directory.
  * Query param: ?target=audio|illustrations|photos|video|special|sfx|visual
  * visual = merged illustrations + photos + video (operator Visual pool).
+ * special = Brand assets filter on Visual (intake_bucket=special / brand shell roles).
  * sfx = Sound effects pool (brand UI audio).
  * Reads the media files index only — no DirectoryIterator / filesize on GET.
  * Admin-only.

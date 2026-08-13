@@ -170,6 +170,25 @@ function bandpromo_brand_render_css_for_id(string $root, string $brandId): strin
 }
 
 /**
+ * Resolve one shell slot URL from the active brand (asset_ids → delivery).
+ * Empty when unset or unresolvable — callers must not invent /media/special fallbacks.
+ */
+function bandpromo_brand_resolve_active_shell_slot(string $root, string $slotKey): string
+{
+    require_once __DIR__ . '/theme-storage.php';
+
+    try {
+        return trim(bandpromo_theme_resolve_shell_slot_url(
+            $root,
+            bandpromo_brand_load_active_document($root),
+            $slotKey
+        ));
+    } catch (Throwable $throwable) {
+        return '';
+    }
+}
+
+/**
  * Resolve player visual shell URLs for a brand document (logo + still/living backgrounds).
  * Empty string when a slot is unset or unresolvable — caller falls back per-slot.
  *

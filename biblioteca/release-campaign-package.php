@@ -685,16 +685,16 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
                 $addPath('media/visual/master/' . $masterName);
             }
         } elseif ($kind === 'sfx') {
-            // Masters only (delivery rebuilt on import/Publish).
+            // Masters only — never pack sfx/original. Refuse the row when master is missing.
             $master = basename((string) ($asset['master_filename'] ?? ''));
-            if ($master !== '' && bandpromo_asset_is_asset_id((string) pathinfo($master, PATHINFO_FILENAME))) {
+            $masterReady = $master !== ''
+                && bandpromo_asset_is_asset_id((string) pathinfo($master, PATHINFO_FILENAME))
+                && is_file($root . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'sfx'
+                    . DIRECTORY_SEPARATOR . 'master' . DIRECTORY_SEPARATOR . $master);
+            if ($masterReady) {
                 $addPath('media/sfx/master/' . $master);
             } else {
-                // Legacy rows may still only have original bytes until backfill.
-                $original = basename((string) ($asset['original_filename'] ?? ''));
-                if ($original !== '') {
-                    $addPath('media/sfx/original/' . $original);
-                }
+                unset($subsetAssets[$assetId]);
             }
         }
     }

@@ -170,13 +170,16 @@ function bandpromo_media_set_hidden_for_install(string $target, string $filename
 function bandpromo_media_target_dir(string $target): ?string
 {
     $root = dirname(__DIR__);
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/sfx-helpers.php';
     $dirs = [
         'audio' => $root . '/media/audio/original',
         'illustrations' => $root . '/media/img/original',
         'photos' => $root . '/media/photo/original',
         'video' => $root . '/media/video/original',
-        'special' => $root . '/media/special',
-        'sfx' => $root . '/media/sfx/original',
+        // Brand assets = Visual original (filter/role); legacy media/special is not a product path.
+        'special' => bandpromo_visual_unified_original_dir($root),
+        'sfx' => bandpromo_sfx_original_dir($root),
     ];
 
     return $dirs[$target] ?? null;
@@ -431,7 +434,10 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
         $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
         $expected = bandpromo_asset_intake_bucket_for_files_index_target($target);
         if ($expected !== '' && $intake !== '' && $intake !== $expected) {
-            return null;
+            // Brand visuals (intake special) are indexed under illustrations|video after T4.
+            if (!($intake === 'special' && in_array($target, ['illustrations', 'photos', 'video'], true))) {
+                return null;
+            }
         }
         $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
         $working = bandpromo_visual_working_path($root, $asset);
@@ -464,6 +470,69 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
                     'original_filename' => $originalName,
                 ];
             }
+        }
+
+        return null;
+    }
+
+    if ($target === 'special') {
+        require_once __DIR__ . '/asset-registry.php';
+        require_once __DIR__ . '/visual-master-helpers.php';
+        $asset = bandpromo_asset_lookup_from_media_ref($root, $filename);
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            $asset = bandpromo_asset_lookup_by_master_filename($root, $filename)
+                ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+        }
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
+            $working = bandpromo_visual_working_path($root, $asset);
+            if ($working !== '' && is_file($working)) {
+                $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+                if ($listing === '') {
+                    $listing = $filename;
+                }
+
+                return [
+                    'path' => $working,
+                    'name' => $listing,
+                    'original_filename' => $originalName,
+                ];
+            }
+            if ($originalName !== '') {
+                $unified = bandpromo_visual_unified_original_path($root, $originalName);
+                if ($unified !== '' && is_file($unified)) {
+                    return [
+                        'path' => $unified,
+                        'name' => $originalName,
+                        'original_filename' => $originalName,
+                    ];
+                }
+                $legacySpecial = $root . '/media/special/' . $originalName;
+                if (is_file($legacySpecial)) {
+                    return [
+                        'path' => $legacySpecial,
+                        'name' => $originalName,
+                        'original_filename' => $originalName,
+                    ];
+                }
+            }
+        }
+
+        $legacyPath = $root . '/media/special/' . $filename;
+        if (is_file($legacyPath)) {
+            return [
+                'path' => $legacyPath,
+                'name' => $filename,
+                'original_filename' => $filename,
+            ];
+        }
+        $unifiedPath = bandpromo_visual_unified_original_path($root, $filename);
+        if ($unifiedPath !== '' && is_file($unifiedPath)) {
+            return [
+                'path' => $unifiedPath,
+                'name' => $filename,
+                'original_filename' => $filename,
+            ];
         }
 
         return null;
@@ -681,6 +750,34 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             continue;
         }
 
+        if ($target === 'special') {
+            if (($asset['kind'] ?? '') !== 'visual') {
+                continue;
+            }
+            $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
+            $role = bandpromo_asset_normalize_visual_role((string) ($asset['role'] ?? 'unassigned'));
+            $brandRoles = [
+                'brand-logo',
+                'brand-portrait',
+                'shell-background-image',
+                'shell-background-video',
+            ];
+            if ($intake !== 'special' && !in_array($role, $brandRoles, true)) {
+                continue;
+            }
+            $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+            if ($listing === '') {
+                $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+            }
+            if ($listing === '') {
+                continue;
+            }
+            if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
+                $count++;
+            }
+            continue;
+        }
+
         if (!in_array($target, ['illustrations', 'photos', 'video'], true)) {
             continue;
         }
@@ -735,6 +832,32 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
     bandpromo_media_files_index_save($files);
 
     $count = bandpromo_media_files_index_rebuild_registry_rows($root, $target);
+
+    // Brand assets are a filter/role on Visual — never treat unified visual/original as Brand intake.
+    if ($target === 'special') {
+        $legacyDir = $root . '/media/special';
+        if (is_dir($legacyDir)) {
+            foreach (new DirectoryIterator($legacyDir) as $entry) {
+                if ($entry->isDot() || $entry->isDir()) {
+                    continue;
+                }
+                $name = $entry->getFilename();
+                if (strcasecmp($name, 'desktop.ini') === 0) {
+                    continue;
+                }
+                $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
+                    ?? bandpromo_asset_lookup_from_media_ref($root, $name);
+                if (is_array($registered)) {
+                    continue;
+                }
+                if (bandpromo_media_files_index_sync_file($root, $target, $name) !== null) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
 
     if ($dir !== null && is_dir($dir)) {
         foreach (new DirectoryIterator($dir) as $entry) {

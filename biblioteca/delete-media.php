@@ -37,8 +37,8 @@ $dirs = [
     'illustrations' => $root . '/media/img/original',
     'photos'        => $root . '/media/photo/original',
     'video'         => $root . '/media/video/original',
-    'special'       => $root . '/media/special',
-    'sfx'           => $root . '/media/sfx/original',
+    'special'       => bandpromo_media_target_dir('special') ?? ($root . '/media/visual/original'),
+    'sfx'           => bandpromo_media_target_dir('sfx') ?? ($root . '/media/sfx/original'),
 ];
 
 $target = $body['target'] ?? '';

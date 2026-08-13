@@ -94,6 +94,10 @@ function bandpromo_asset_files_index_target_for_intake_bucket(string $intakeBuck
     if ($bucket === 'photo') {
         return 'photos';
     }
+    // Brand intake maps into Visual buckets by media_type in rebuild (return empty here).
+    if ($bucket === 'special') {
+        return '';
+    }
 
     return $bucket;
 }
@@ -116,7 +120,10 @@ function bandpromo_asset_visual_original_dir(string $root, string $intakeBucket)
         return $root . '/media/video/original';
     }
     if ($bucket === 'special') {
-        return $root . '/media/special';
+        // Brand visuals use the unified Visual original tree (not a parallel media/special intake).
+        require_once __DIR__ . '/visual-master-helpers.php';
+
+        return bandpromo_visual_unified_original_dir($root);
     }
 
     return '';

@@ -250,15 +250,16 @@ function bandpromo_theme_default_document(): array
                 'font_family_heading' => '',
             ],
         ],
+        // Paths are delivery URLs only (filled from asset_ids). No /media/special seeds.
         'assets' => [
-            'logo' => '/media/special/bandPromo_logo.png',
-            'poster' => '/media/special/bandPromo_cover.png',
-            'background_image' => '/media/special/bandPromo_background.png',
-            'background_video' => '/media/special/bandPromo_background.mp4',
-            'welcome_audio' => '/media/sfx/original/bandPromo_welcome.flac',
-            'loggedin_audio' => '/media/sfx/original/bandPromo_loggedin.flac',
+            'logo' => '',
+            'poster' => '',
+            'background_image' => '',
+            'background_video' => '',
+            'welcome_audio' => '',
+            'loggedin_audio' => '',
         ],
-        // Parallel map: shell slot → registry asset id (paths in assets[] remain dual-read URLs).
+        // Shell slot → registry asset id (resolve via bandpromo_theme_resolve_shell_slot_url).
         'asset_ids' => [
             'logo' => '',
             'poster' => '',
@@ -486,7 +487,8 @@ function bandpromo_theme_normalize_asset_ids(array $assetIds): array
 }
 
 /**
- * Resolve a public media URL for a brand shell slot (asset_id preferred, path dual-read).
+ * Resolve a public media URL for a brand shell slot.
+ * Prefer asset_ids → Visual/SFX delivery. No media/special dual-read.
  */
 function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, string $slotKey): string
 {
@@ -500,71 +502,238 @@ function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, s
     $assetId = trim((string) ($assetIds[$slotKey] ?? ''));
     $pathFallback = trim((string) ($assets[$slotKey] ?? ''));
 
+    if ($assetId === '' && $pathFallback !== '') {
+        $assetId = bandpromo_theme_lookup_asset_id_for_path($root, $pathFallback);
+    }
+
     if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
         $asset = bandpromo_asset_lookup_by_id($root, $assetId);
         if (is_array($asset)) {
             $kind = (string) ($asset['kind'] ?? '');
             $mediaType = (string) ($asset['media_type'] ?? '');
-            $filename = basename((string) ($asset['original_filename'] ?? $asset['master_filename'] ?? ''));
 
             if ($kind === 'sfx' || ($kind === 'visual' && $mediaType === 'audio')) {
-                require_once __DIR__ . '/sfx-helpers.php';
                 $playUrl = bandpromo_sfx_resolve_play_url($root, $asset);
                 if ($playUrl !== '') {
                     return $playUrl;
                 }
+
+                return '';
             }
 
             if ($kind === 'visual' && $mediaType === 'video') {
-                $stream = bandpromo_visual_resolve_url($root, $assetId, 'standard-stream');
-                if ($stream !== '') {
-                    return $stream;
-                }
-                if ($filename !== '') {
-                    $special = '/media/special/' . $filename;
-                    if (bandpromo_theme_resolve_media_absolute_path($root, $special) !== null) {
-                        return $special;
-                    }
-                    $videoOrig = '/media/video/original/' . $filename;
-                    if (bandpromo_theme_resolve_media_absolute_path($root, $videoOrig) !== null) {
-                        return $videoOrig;
-                    }
-                }
+                return bandpromo_visual_resolve_url($root, $assetId, 'standard-stream', '', false);
             }
 
             if ($kind === 'visual') {
-                // Logo / alpha: prefer original special path when present; else delivery card.
-                if ($slotKey === 'logo' && $filename !== '') {
-                    $special = '/media/special/' . $filename;
-                    if (bandpromo_theme_resolve_media_absolute_path($root, $special) !== null) {
-                        return $special;
-                    }
+                return bandpromo_visual_resolve_url($root, $assetId, 'card', '', false);
+            }
+        }
+    }
+
+    // Path dual-read only when it is already a delivery URL (materialized assets[]).
+    if ($pathFallback !== '' && (
+        str_starts_with($pathFallback, '/media/visual/delivery/')
+        || str_starts_with($pathFallback, '/media/sfx/optimal/')
+        || preg_match('#^https?://#i', $pathFallback) === 1
+    )) {
+        return $pathFallback;
+    }
+
+    return '';
+}
+
+/**
+ * Visual role for a brand shell slot.
+ */
+function bandpromo_theme_shell_slot_visual_role(string $slotKey): string
+{
+    $map = [
+        'logo' => 'brand-logo',
+        'poster' => 'brand-portrait',
+        'background_image' => 'shell-background-image',
+        'background_video' => 'shell-background-video',
+    ];
+
+    return $map[trim($slotKey)] ?? 'unassigned';
+}
+
+/**
+ * Clone one shell media slot into a new Visual/SFX ast_* master owned by $brandId.
+ *
+ * @return array{path:string,asset_id:string}
+ */
+function bandpromo_theme_clone_asset_file(string $root, string $brandId, string $assetKey, string $sourcePath, string $sourceAssetId = ''): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/media-library-state.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/sfx-helpers.php';
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    $assetKey = trim($assetKey);
+    $sourcePath = trim($sourcePath);
+    $sourceAssetId = trim($sourceAssetId);
+    $empty = ['path' => '', 'asset_id' => ''];
+
+    $sourceAsset = null;
+    if ($sourceAssetId !== '' && bandpromo_asset_is_asset_id($sourceAssetId)) {
+        $sourceAsset = bandpromo_asset_lookup_by_id($root, $sourceAssetId);
+    }
+    if (!is_array($sourceAsset) && $sourcePath !== '') {
+        $lookedUp = bandpromo_theme_lookup_asset_id_for_path($root, $sourcePath);
+        if ($lookedUp !== '') {
+            $sourceAsset = bandpromo_asset_lookup_by_id($root, $lookedUp);
+        }
+    }
+
+    $absolute = null;
+    if (is_array($sourceAsset)) {
+        $kind = (string) ($sourceAsset['kind'] ?? '');
+        if ($kind === 'visual') {
+            $absolute = bandpromo_visual_working_path($root, $sourceAsset);
+            if ($absolute === '' || !is_file($absolute)) {
+                $relocated = bandpromo_visual_relocate_original($root, $sourceAsset);
+                $absolute = !empty($relocated['ok']) ? (string) $relocated['path'] : '';
+            }
+        } elseif ($kind === 'sfx') {
+            $masterName = basename((string) ($sourceAsset['master_filename'] ?? ''));
+            if ($masterName !== '') {
+                $candidate = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterName;
+                if (is_file($candidate)) {
+                    $absolute = $candidate;
                 }
-                $variant = $slotKey === 'logo' ? 'card' : 'card';
-                $resolved = bandpromo_visual_resolve_url($root, $assetId, $variant);
-                if ($resolved !== '') {
-                    return $resolved;
-                }
-                if ($filename !== '') {
-                    foreach ([
-                        '/media/special/' . $filename,
-                        '/media/img/original/' . $filename,
-                        '/media/photo/original/' . $filename,
-                    ] as $candidate) {
-                        if (bandpromo_theme_resolve_media_absolute_path($root, $candidate) !== null) {
-                            return $candidate;
-                        }
+            }
+            if ($absolute === null || $absolute === '' || !is_file($absolute)) {
+                $originalName = basename((string) ($sourceAsset['original_filename'] ?? ''));
+                if ($originalName !== '') {
+                    $candidate = bandpromo_sfx_original_dir($root) . DIRECTORY_SEPARATOR . $originalName;
+                    if (is_file($candidate)) {
+                        $absolute = $candidate;
                     }
                 }
             }
         }
     }
-
-    if ($pathFallback !== '' && ($pathFallback[0] === '/' || preg_match('/^https?:\/\//i', $pathFallback) === 1)) {
-        return $pathFallback;
+    if (($absolute === null || $absolute === '' || !is_file((string) $absolute)) && $sourcePath !== '') {
+        $absolute = bandpromo_theme_resolve_media_absolute_path($root, $sourcePath);
+        if ($absolute === null) {
+            $seedFallbacks = bandpromo_theme_shell_seed_fallback_paths()[$assetKey] ?? [];
+            $healed = bandpromo_theme_heal_media_path($root, $sourcePath, $seedFallbacks);
+            if ($healed !== '') {
+                $absolute = bandpromo_theme_resolve_media_absolute_path($root, $healed);
+            }
+        }
+    }
+    if ($absolute === null || $absolute === '' || !is_file((string) $absolute)) {
+        return $empty;
     }
 
-    return '';
+    $ext = strtolower((string) pathinfo((string) $absolute, PATHINFO_EXTENSION));
+    if ($ext === '') {
+        return $empty;
+    }
+
+    $isAudioSlot = in_array($assetKey, ['welcome_audio', 'loggedin_audio'], true)
+        || in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true);
+
+    $safeBrand = preg_replace('/[^a-z0-9_-]+/', '-', strtolower($brandId)) ?: 'brand';
+    $safeKey = preg_replace('/[^a-z0-9_]+/', '_', strtolower($assetKey)) ?: 'asset';
+    $base = $safeBrand . '_' . $safeKey;
+    $destName = $base . '.' . $ext;
+    $suffix = 2;
+
+    if ($isAudioSlot) {
+        bandpromo_sfx_ensure_tier_dirs($root);
+        $destDir = bandpromo_sfx_original_dir($root);
+        while (is_file($destDir . DIRECTORY_SEPARATOR . $destName)) {
+            $destName = $base . '-' . $suffix . '.' . $ext;
+            $suffix++;
+            if ($suffix > 100) {
+                throw new RuntimeException('Could not allocate a unique brand SFX filename.');
+            }
+        }
+        $destAbsolute = $destDir . DIRECTORY_SEPARATOR . $destName;
+        if (!copy((string) $absolute, $destAbsolute)) {
+            throw new RuntimeException('Could not clone brand SFX: ' . $assetKey);
+        }
+        $registered = bandpromo_asset_register_sfx($root, $destName, [
+            'brand_id' => $brandId,
+            'build_delivery' => true,
+        ]);
+        $assetId = trim((string) ($registered['id'] ?? ''));
+        bandpromo_media_files_index_sync_file($root, 'sfx', basename((string) ($registered['master_filename'] ?? $destName)));
+        $playUrl = is_array($registered) ? bandpromo_sfx_resolve_play_url($root, $registered) : '';
+
+        return ['path' => $playUrl, 'asset_id' => $assetId];
+    }
+
+    bandpromo_visual_ensure_tier_dirs($root);
+    $destDir = bandpromo_visual_unified_original_dir($root);
+    while (is_file($destDir . DIRECTORY_SEPARATOR . $destName)) {
+        $destName = $base . '-' . $suffix . '.' . $ext;
+        $suffix++;
+        if ($suffix > 100) {
+            throw new RuntimeException('Could not allocate a unique brand visual filename.');
+        }
+    }
+    $destAbsolute = $destDir . DIRECTORY_SEPARATOR . $destName;
+    if (!copy((string) $absolute, $destAbsolute)) {
+        throw new RuntimeException('Could not clone brand visual: ' . $assetKey);
+    }
+
+    $mediaType = in_array($ext, ['mp4', 'webm', 'mov', 'mkv'], true) ? 'video' : 'image';
+    $role = bandpromo_theme_shell_slot_visual_role($assetKey);
+    $registered = bandpromo_asset_register_visual($root, $destName, 'special', $mediaType, [
+        'brand_id' => $brandId,
+        'role' => $role,
+        'has_alpha' => $ext === 'png',
+    ]);
+    $assetId = trim((string) ($registered['id'] ?? ''));
+    $listing = basename((string) ($registered['master_filename'] ?? $destName));
+    // Brand visuals live in the Visual pool index (illustrations|video); Brand tab filters by role.
+    $indexTarget = $mediaType === 'video' ? 'video' : 'illustrations';
+    bandpromo_media_files_index_sync_file($root, $indexTarget, $listing);
+    bandpromo_media_files_index_sync_file($root, 'special', $listing);
+    $delivery = $assetId !== ''
+        ? bandpromo_visual_resolve_url($root, $assetId, $mediaType === 'video' ? 'standard-stream' : 'card', '', false)
+        : '';
+
+    return ['path' => $delivery, 'asset_id' => $assetId];
+}
+
+/**
+ * Clone shell media into new Visual/SFX masters for a duplicated brand.
+ *
+ * @return array{assets: array<string,string>, asset_ids: array<string,string>}
+ */
+function bandpromo_theme_clone_assets_for_brand(string $root, array $assets, string $brandId, array $sourceAssetIds = []): array
+{
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    if ($brandId === '') {
+        throw new InvalidArgumentException('Brand id is required to clone assets.');
+    }
+
+    $defaults = bandpromo_theme_default_document()['assets'];
+    $clonedAssets = [];
+    $clonedIds = [];
+    foreach ($defaults as $key => $_defaultValue) {
+        $result = bandpromo_theme_clone_asset_file(
+            $root,
+            $brandId,
+            $key,
+            trim((string) ($assets[$key] ?? '')),
+            trim((string) ($sourceAssetIds[$key] ?? ''))
+        );
+        $clonedAssets[$key] = (string) ($result['path'] ?? '');
+        $clonedIds[$key] = (string) ($result['asset_id'] ?? '');
+    }
+
+    return [
+        'assets' => bandpromo_theme_normalize_assets($clonedAssets),
+        'asset_ids' => bandpromo_theme_normalize_asset_ids($clonedIds),
+    ];
 }
 
 /**
@@ -839,114 +1008,6 @@ function bandpromo_theme_heal_install_shell_media(string $root): array
     }
 
     return $notes;
-}
-
-/**
- * Copy one shell media file into the owning brand's library.
- * Visual slots clone into Brand assets (`media/special/`).
- * Audio slots clone into Sound effects (`media/sfx/original/`).
- * Returns the new web path, or the original path when copy is not possible.
- */
-function bandpromo_theme_clone_asset_file(string $root, string $brandId, string $assetKey, string $sourcePath): string
-{
-    $sourcePath = trim($sourcePath);
-    if ($sourcePath === '') {
-        return '';
-    }
-
-    $absolute = bandpromo_theme_resolve_media_absolute_path($root, $sourcePath);
-    if ($absolute === null) {
-        // Duplicates of the locked default must not inherit a broken missing-path string.
-        $seedFallbacks = bandpromo_theme_shell_seed_fallback_paths()[$assetKey] ?? [];
-        $healed = bandpromo_theme_heal_media_path($root, $sourcePath, $seedFallbacks);
-        if ($healed !== '' && $healed !== bandpromo_theme_normalize_media_web_path($sourcePath)) {
-            $sourcePath = $healed;
-            $absolute = bandpromo_theme_resolve_media_absolute_path($root, $sourcePath);
-        }
-    }
-    if ($absolute === null) {
-        return $sourcePath;
-    }
-
-    $ext = strtolower((string) pathinfo($absolute, PATHINFO_EXTENSION));
-    if ($ext === '') {
-        return $sourcePath;
-    }
-
-    $isAudioSlot = in_array($assetKey, ['welcome_audio', 'loggedin_audio'], true)
-        || in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true);
-
-    require_once __DIR__ . '/media-library-state.php';
-
-    if ($isAudioSlot) {
-        require_once __DIR__ . '/sfx-helpers.php';
-        bandpromo_sfx_ensure_dir($root);
-        $destDir = bandpromo_sfx_original_dir($root);
-        $indexTarget = 'sfx';
-        $webPrefix = '/media/sfx/original/';
-    } else {
-        $destDir = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'special';
-        if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
-            throw new RuntimeException('Could not create media/special for brand asset clones.');
-        }
-        $indexTarget = 'special';
-        $webPrefix = '/media/special/';
-    }
-
-    $safeBrand = preg_replace('/[^a-z0-9_-]+/', '-', strtolower($brandId)) ?: 'brand';
-    $safeKey = preg_replace('/[^a-z0-9_]+/', '_', strtolower($assetKey)) ?: 'asset';
-    $base = $safeBrand . '_' . $safeKey;
-    $destName = $base . '.' . $ext;
-    $suffix = 2;
-    while (is_file($destDir . DIRECTORY_SEPARATOR . $destName)) {
-        $destName = $base . '-' . $suffix . '.' . $ext;
-        $suffix++;
-        if ($suffix > 100) {
-            throw new RuntimeException('Could not allocate a unique brand asset filename.');
-        }
-    }
-
-    $destAbsolute = $destDir . DIRECTORY_SEPARATOR . $destName;
-    if (!copy($absolute, $destAbsolute)) {
-        throw new RuntimeException('Could not clone brand asset: ' . $assetKey);
-    }
-
-    bandpromo_media_files_index_sync_file($root, $indexTarget, $destName);
-    if ($indexTarget === 'sfx') {
-        try {
-            require_once __DIR__ . '/asset-registry.php';
-            bandpromo_asset_register_sfx($root, $destName);
-        } catch (Throwable $throwable) {
-            // Registry optional for clone success.
-        }
-    }
-
-    return $webPrefix . $destName;
-}
-
-/**
- * Physically clone shell media into Brand assets for a duplicated brand.
- * Operators can then delete/replace those copies without touching the source brand.
- */
-function bandpromo_theme_clone_assets_for_brand(string $root, array $assets, string $brandId): array
-{
-    $brandId = bandpromo_brand_canonical_id($brandId);
-    if ($brandId === '') {
-        throw new InvalidArgumentException('Brand id is required to clone assets.');
-    }
-
-    $defaults = bandpromo_theme_default_document()['assets'];
-    $cloned = [];
-    foreach ($defaults as $key => $_defaultValue) {
-        $cloned[$key] = bandpromo_theme_clone_asset_file(
-            $root,
-            $brandId,
-            $key,
-            trim((string) ($assets[$key] ?? ''))
-        );
-    }
-
-    return bandpromo_theme_normalize_assets($cloned);
 }
 
 function bandpromo_theme_normalize_document(array $input, ?string $expectedId = null): array
@@ -1237,16 +1298,16 @@ function bandpromo_theme_assets_from_config(array $config): array
         $poster = (string) bandpromo_config_get_nonempty_value($config, 'release.theme.cover', '');
     }
     if ($poster === '') {
-        $poster = (string) bandpromo_config_get_nonempty_value($config, 'media.cover', '/media/special/bandPromo_cover.png');
+        $poster = (string) bandpromo_config_get_nonempty_value($config, 'media.cover', '');
     }
 
     return [
-        'logo' => (string) bandpromo_config_get_nonempty_value($config, 'install.brand.logo', '/media/special/bandPromo_logo.png'),
+        'logo' => (string) bandpromo_config_get_nonempty_value($config, 'install.brand.logo', ''),
         'poster' => $poster,
-        'background_image' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_image', '/media/special/bandPromo_background.png'),
-        'background_video' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_video', '/media/special/bandPromo_background.mp4'),
-        'welcome_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.welcome_audio', '/media/sfx/original/bandPromo_welcome.flac'),
-        'loggedin_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.loggedin_audio', '/media/sfx/original/bandPromo_loggedin.flac'),
+        'background_image' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_image', ''),
+        'background_video' => (string) bandpromo_config_get_nonempty_value($config, 'release.theme.background_video', ''),
+        'welcome_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.welcome_audio', ''),
+        'loggedin_audio' => (string) bandpromo_config_get_nonempty_value($config, 'install.theme.loggedin_audio', ''),
     ];
 }
 
@@ -1629,16 +1690,19 @@ function bandpromo_theme_duplicate(string $root, string $sourceId, string $newId
         'tone_notes' => $source['tone_notes'] ?? '',
         'tokens' => is_array($source['tokens'] ?? null) ? $source['tokens'] : [],
         'assets' => [],
+        'asset_ids' => [],
         'player' => is_array($source['player'] ?? null) ? $source['player'] : [],
     ], $newId);
 
-    // Always clone shell media files into Brand assets owned by the new brand
-    // (setup "Your own brand" and manual duplicate). Operators may delete those copies.
-    $duplicate['assets'] = bandpromo_theme_clone_assets_for_brand(
+    // Clone into new Visual/SFX ast_* masters owned by the new brand (not media/special copies).
+    $cloned = bandpromo_theme_clone_assets_for_brand(
         $root,
         is_array($source['assets'] ?? null) ? $source['assets'] : [],
-        $newId
+        $newId,
+        is_array($source['asset_ids'] ?? null) ? $source['asset_ids'] : []
     );
+    $duplicate['assets'] = is_array($cloned['assets'] ?? null) ? $cloned['assets'] : [];
+    $duplicate['asset_ids'] = is_array($cloned['asset_ids'] ?? null) ? $cloned['asset_ids'] : [];
 
     bandpromo_json_write_file(bandpromo_theme_document_path($root, $newId), $duplicate);
 

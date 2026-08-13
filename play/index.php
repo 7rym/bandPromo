@@ -277,14 +277,25 @@ if ($supportUrl !== '') {
     <?php
     require_once '../biblioteca/config-loader.php';
     require_once '../biblioteca/player-modules.php';
-    $installLogo = (string) get_config('install.brand.logo', '/media/special/bandPromo_logo.png');
+    $installLogo = (string) get_config('install.brand.logo', '');
     $installBackgroundVideo = get_config_nonempty('release.theme.background_video', null);
     $installBackgroundImage = get_config_nonempty('release.theme.background_image', null);
     $installShellMedia = [
-        'logo' => $installLogo !== '' ? $installLogo : '/media/special/bandPromo_logo.png',
+        'logo' => $installLogo,
         'background_image' => is_string($installBackgroundImage) ? $installBackgroundImage : '',
         'background_video' => is_string($installBackgroundVideo) ? $installBackgroundVideo : '',
     ];
+    try {
+        $installBrandDoc = bandpromo_brand_load_document($playerRoot, $installActiveBrandId);
+        $installResolved = bandpromo_brand_player_shell_assets($playerRoot, $installBrandDoc);
+        foreach (['logo', 'background_image', 'background_video'] as $shellSlot) {
+            if ($installShellMedia[$shellSlot] === '' && ($installResolved[$shellSlot] ?? '') !== '') {
+                $installShellMedia[$shellSlot] = $installResolved[$shellSlot];
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Keep config baselines.
+    }
 
     $playerShellMedia = $installShellMedia;
     $playerBrandTitle = 'Band Logo';

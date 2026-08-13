@@ -26,19 +26,23 @@ $requiredDirs = [
     'media',
     'media/audio',
     'media/audio/original',
+    'media/audio/master',
     'media/audio/optimal',
+    // Legacy intake originals only (delivery is media/visual/delivery/{ast_*}/).
     'media/img',
     'media/img/original',
-    'media/img/optimal',
-    'media/img/thumb',
     'media/photo',
     'media/photo/original',
-    'media/photo/optimal',
-    'media/photo/thumb',
     'media/video',
+    'media/video/original',
     'media/visual',
+    'media/visual/original',
+    'media/visual/master',
     'media/visual/delivery',
-    'media/special',
+    'media/sfx',
+    'media/sfx/original',
+    'media/sfx/master',
+    'media/sfx/optimal',
 ];
 $setupErrors = [];
 // Dirs under media/ must be world-readable (0755) so the HTTP server can serve

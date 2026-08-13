@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 22:00 - Master-tier T4: Brand assets fold into Visual/SFX. Brand uploads and clones write Visual original + `ast_*` masters (not `media/special/{brand}_{slot}`); shell slots resolve `asset_ids` → delivery; setup creates `media/visual/{original,master,delivery}` and `media/sfx/{original,master,optimal}` (no product img/photo optimal/thumb). PRP SFX packs masters only (refuse row if missing). Login/OG/player drop hardcoded `/media/special/bandPromo_*` fallbacks. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
+
 2026-08-13 21:50 - Checkpoint master-tier T3 on `main` as **v0.8.16 build 383** and trigger GitHub Release `v0.8.16-build-383` for Site update. Handoff resume point is now T4.
 
 2026-08-13 21:45 - Master-tier T3: deliverables from masters only. Dropped `process_track_cover` stem `img/optimal|thumb` dual-write and in-place `/media/special` resize; video delivery writes `media/visual/delivery/{ast_*}/` only. `bandpromo_visual_resolve_url` is delivery-only (admin may use master preview, never original as `<img src>`). Gallery/page/player/playlist cover paths no longer invent stem `img|photo|video` URLs; `MEDIA_IMG_BASE` removed from `/play`. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).

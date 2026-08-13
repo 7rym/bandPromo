@@ -2472,7 +2472,11 @@ if ($tab === 'analytics') {
             require_once __DIR__ . '/biblioteca/config-loader.php';
             $ogTitle   = get_config('release.identity.title', 'bandPromo');
             $ogDesc    = get_config('release.identity.description', '');
-            $ogImage   = get_config('release.brand.poster', '/media/special/bandPromo_share.png');
+            $ogImage   = get_config('release.brand.poster', '');
+            if ($ogImage === '') {
+                require_once __DIR__ . '/biblioteca/brand-storage.php';
+                $ogImage = bandpromo_brand_resolve_active_shell_slot(__DIR__, 'poster');
+            }
             $ogUrl     = get_config('install.site.url', 'https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
             $twitter   = get_config('install.social.twitter', '');
             $facebook  = get_config('install.social.facebook', '');

@@ -143,7 +143,10 @@ if (!$error && isset($_GET['session_expired']) && $_GET['session_expired'] === '
 
 require_once __DIR__ . '/biblioteca/config-loader.php';
 require_once __DIR__ . '/biblioteca/brand-storage.php';
-$installLogo = get_config('install.brand.logo', '/media/special/bandPromo_logo.png');
+$installLogo = get_config('install.brand.logo', '');
+if ($installLogo === '') {
+    $installLogo = bandpromo_brand_resolve_active_shell_slot(__DIR__, 'logo');
+}
 $siteTitle = trim((string) get_config('release.identity.title', 'bandPromo'));
 if ($siteTitle === '') {
     $siteTitle = 'bandPromo';
@@ -213,10 +216,50 @@ try {
     <!-- Global config for JavaScript -->
     <script>
         <?php
+        $activeBrandShell = [
+            'logo' => $installLogo,
+            'poster' => '',
+            'background_image' => '',
+            'background_video' => '',
+            'welcome_audio' => '',
+            'loggedin_audio' => '',
+        ];
+        try {
+            $loginBrandDoc = bandpromo_brand_load_active_document(__DIR__);
+            foreach (array_keys($activeBrandShell) as $slot) {
+                $resolved = trim(bandpromo_theme_resolve_shell_slot_url(__DIR__, $loginBrandDoc, $slot));
+                if ($resolved !== '') {
+                    $activeBrandShell[$slot] = $resolved;
+                }
+            }
+        } catch (Throwable $throwable) {
+            // Keep config / empty baselines.
+        }
         $backgroundVideo = get_config_nonempty('release.theme.background_video', null);
+        if ($backgroundVideo === null && $activeBrandShell['background_video'] !== '') {
+            $backgroundVideo = $activeBrandShell['background_video'];
+        }
         $backgroundImage = get_config_nonempty('release.theme.background_image', null);
+        if ($backgroundImage === null && $activeBrandShell['background_image'] !== '') {
+            $backgroundImage = $activeBrandShell['background_image'];
+        }
         $welcomeAudio = get_config_nonempty('install.theme.welcome_audio', null);
+        if ($welcomeAudio === null && $activeBrandShell['welcome_audio'] !== '') {
+            $welcomeAudio = $activeBrandShell['welcome_audio'];
+        }
         $loggedinAudio = get_config_nonempty('install.theme.loggedin_audio', null);
+        if ($loggedinAudio === null && $activeBrandShell['loggedin_audio'] !== '') {
+            $loggedinAudio = $activeBrandShell['loggedin_audio'];
+        }
+        $loginLogo = $installLogo !== '' ? $installLogo : $activeBrandShell['logo'];
+        $loginCover = get_config('release.theme.cover', '');
+        if ($loginCover === '') {
+            $loginCover = $activeBrandShell['poster'];
+        }
+        $loginShare = get_config('release.brand.poster', '');
+        if ($loginShare === '') {
+            $loginShare = $activeBrandShell['poster'];
+        }
         ?>
         window.appConfig = {
             name: <?php echo json_encode(get_config('release.identity.title')); ?>,
@@ -224,13 +267,13 @@ try {
             media: <?php echo json_encode([
                 'background_video' => $backgroundVideo,
                 'background_image' => $backgroundImage,
-                'cover'            => get_config('release.theme.cover',            '/media/special/bandPromo_cover.png'),
+                'cover'            => $loginCover,
                 'welcome_audio'    => $welcomeAudio,
                 'loggedin_audio'   => $loggedinAudio,
-                'logo'             => get_config('install.brand.logo',             '/media/special/bandPromo_logo.png'),
+                'logo'             => $loginLogo,
             ]); ?>,
             social: {
-                share_image: <?php echo json_encode(get_config('release.brand.poster', '/media/special/bandPromo_share.png')); ?>
+                share_image: <?php echo json_encode($loginShare); ?>
             }
         };
     </script>
@@ -264,7 +307,7 @@ try {
             <div style="text-align: center; color: white;">
                 <h1 style="font-size: 32px; margin-bottom: 10px;">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
                 <p class="auth-splash-message">Preparing your experience&hellip;</p>
-                <img src="<?php echo htmlspecialchars($installLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" class="auth-splash-logo">
+                <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" class="auth-splash-logo">
             </div>
         </div>
         <script>
@@ -303,7 +346,7 @@ try {
         <div class="login-container">
             <div class="login-side-column">
                 <div class="logo">
-                    <img src="<?php echo htmlspecialchars(get_config('install.brand.logo', '/media/special/bandPromo_logo.png')); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
+                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
                 </div>
                 <p id="aboutThis"><a href="#" onclick="openInfoLightbox(event)">
                     <span class="about-line active">What is this?</span>

@@ -115,7 +115,21 @@ function bandpromo_finalize_uploaded_file(string $root_dir, string $target_hint,
 
 function resolve_upload_destination(string $root_dir, string $target_hint, string $ext, string $safe_name): ?string {
     if ($target_hint === 'special') {
-        return $root_dir . '/media/special/' . $safe_name;
+        // Brand assets write into Visual original (ast_* masters); not media/special/.
+        require_once __DIR__ . '/visual-master-helpers.php';
+        bandpromo_visual_ensure_tier_dirs($root_dir);
+        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm', 'mov', 'mkv', 'flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+            return null;
+        }
+        if (in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+            // Shell audio uploads from Brand tab belong in SFX (legacy accept).
+            require_once __DIR__ . '/sfx-helpers.php';
+            bandpromo_sfx_ensure_tier_dirs($root_dir);
+
+            return bandpromo_sfx_original_dir($root_dir) . DIRECTORY_SEPARATOR . $safe_name;
+        }
+
+        return bandpromo_visual_unified_original_dir($root_dir) . DIRECTORY_SEPARATOR . $safe_name;
     }
 
     if ($target_hint === 'sfx') {
@@ -174,8 +188,9 @@ function bandpromo_upload_resolve_files_index_target(string $target_hint, string
     if (stripos($normalized, '/media/sfx/') !== false) {
         return 'sfx';
     }
-    if (stripos($normalized, '/media/special/') !== false) {
-        return 'special';
+    if (stripos($normalized, '/media/visual/') !== false || stripos($normalized, '/media/special/') !== false) {
+        // Brand uploads land in visual/original; Brand tab still indexes as special for filter UI.
+        return $hint === 'special' ? 'special' : 'illustrations';
     }
     if (stripos($normalized, '/media/img/') !== false) {
         return 'illustrations';
@@ -296,7 +311,10 @@ function bandpromo_register_sfx_upload_if_needed(
     string $target_hint,
     string $saved_name
 ): ?array {
-    if ($target_hint !== 'sfx') {
+    $ext = strtolower((string) pathinfo($saved_name, PATHINFO_EXTENSION));
+    $isAudio = in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true);
+    // Brand tab audio uploads land in SFX (not Visual).
+    if ($target_hint !== 'sfx' && !($target_hint === 'special' && $isAudio)) {
         return null;
     }
     require_once __DIR__ . '/sfx-helpers.php';
@@ -304,6 +322,7 @@ function bandpromo_register_sfx_upload_if_needed(
         $brandId = isset($_POST['brand_id']) ? trim((string) $_POST['brand_id']) : '';
         return bandpromo_asset_register_sfx($root_dir, $saved_name, [
             'brand_id' => $brandId,
+            'build_delivery' => true,
         ]);
     } catch (Throwable $throwable) {
         return null;
@@ -332,10 +351,26 @@ function bandpromo_upload_index_operator_file(
     string $saved_name
 ): string {
     $indexTarget = bandpromo_upload_resolve_files_index_target($target_hint, $saved_ext, $saved_path);
-    bandpromo_media_set_hidden_for_install($indexTarget, $saved_name, false);
-    bandpromo_media_files_index_sync_file($root_dir, $indexTarget, $saved_name, [
+    $listingName = $saved_name;
+    bandpromo_media_set_hidden_for_install($indexTarget, $listingName, false);
+    bandpromo_media_files_index_sync_file($root_dir, $indexTarget, $listingName, [
         'origin' => 'user-upload',
     ]);
+
+    // Brand visuals also appear in the Visual pool (illustrations|video).
+    if ($target_hint === 'special' && !in_array(strtolower($saved_ext), ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+        $visualTarget = bandpromo_is_video_extension($saved_ext) ? 'video' : 'illustrations';
+        bandpromo_media_set_hidden_for_install($visualTarget, $listingName, false);
+        bandpromo_media_files_index_sync_file($root_dir, $visualTarget, $listingName, [
+            'origin' => 'user-upload',
+        ]);
+    }
+    if ($target_hint === 'special' && in_array(strtolower($saved_ext), ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+        bandpromo_media_set_hidden_for_install('sfx', $listingName, false);
+        bandpromo_media_files_index_sync_file($root_dir, 'sfx', $listingName, [
+            'origin' => 'user-upload',
+        ]);
+    }
 
     return $indexTarget;
 }
@@ -356,9 +391,16 @@ function bandpromo_register_visual_upload_if_needed(
     if (!in_array($mediaType, ['image', 'video'], true)) {
         return null;
     }
+    // Brand-tab audio is SFX, not Visual.
+    if ($target_hint === 'special' && in_array(strtolower($saved_ext), ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+        return null;
+    }
 
     $indexTarget = bandpromo_upload_resolve_files_index_target($target_hint, $saved_ext, $saved_path);
     $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($indexTarget);
+    if ($intakeBucket === '' && $target_hint === 'special') {
+        $intakeBucket = 'special';
+    }
     if ($intakeBucket === '') {
         return null;
     }

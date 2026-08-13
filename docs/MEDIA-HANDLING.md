@@ -118,7 +118,7 @@ The intended product concepts are expressed as **explicit role tags** on registr
 
 **Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Audio (catalog music), Files → Visual (image/video), Files → **Sound effects** (brand UI clips under `media/sfx/original/`), and Files → Brand assets (legacy `media/special/` visuals until fold).
+Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Audio (catalog music), Files → Visual (image/video), Files → **Sound effects** (brand UI clips under `media/sfx/`), and Files → Brand assets (filter/role on Visual masters — not a parallel `media/special/` intake).
 
 ### Current exposed model vs prepared internal model
 
@@ -138,7 +138,7 @@ The practical distinction is:
 - prepared / planned: hard content-pool scoping
 - do **not** plan “many releases share one era brand” as peer Releases — use playlists under one Release
 
-Legacy **`media/special/`** and the Files → **Brand assets** tab are **not** a brand role — they are intake workarounds migrating into the Visual pool with explicit role tags and `brand_id`.
+Legacy **`media/special/`** may still exist on disk for migration lookup. Files → **Brand assets** is a **filter/role** on Visual (and Brand-tab audio → Sound effects), not a product intake tree.
 
 ## Inheritance model
 
@@ -950,7 +950,7 @@ What ships today for opaque track/illustration/photo delivery:
   - `media/img|photo/thumb/{stem}.jpg` — max edge **100px** (playlist rows + playlist cover-flow)
 - Conversion still uses `convert_cover_to_jpeg()`, which flattens RGBA/alpha to a **white background** before saving JPEG (alpha-preserving delivery remains later work)
 - Rebuild is incremental: regenerate when the source is newer or the delivery longest edge exceeds the target
-- `media/special/` brand/shell assets remain a **legacy intake path** until Visual registry migration; an interim optimize pass may resize the active logo (max-height 180px PNG, alpha kept) and still background (max-height 1080px, JPG when opaque) in place — this is not the long-term original/master/delivery model
+- Brand shell media uses Visual delivery via `asset_ids` (T4); legacy `media/special/` is migration/heal lookup only — no in-place resize and no new product writes there
 - Player loads **optimal** for the main cover and **thumb** for playlist list/cover-flow (fallback to optimal → original)
 - Product naming: pool is **Visual**; **Still** / **Living** are type filters. Do not introduce a top-level `stills/` folder that would exclude video.
 
@@ -959,11 +959,11 @@ Remaining debt (visual identity completion track, policy locked 2026-08-04):
 - **M1** — shipped: `asset_id` resolution + dual-read consumers
 - **M2** — shipped: on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters first
 - **M3** — shipped: XXH3 skip-if-fresh for audio + visual images (`delivery.source_xxh3`); `content_xxh3` dual-read with legacy `content_sha256`
-- **M4** — shipped core: stop dual-write; register-or-fail; drop stem optimal dual-read; shell `asset_ids` heal (`media/special/` intake still accepted)
+- **M4** — shipped core: stop dual-write; register-or-fail; drop stem optimal dual-read; shell `asset_ids` heal (Brand write path is Visual original + masters)
 - **M5** — shipped: Files Visual `operator_title` = role + context
 - **M6** — shipped: release campaign export ZIP + asset registry subset merge on import
 
-Physical `media/special/` retirement can follow after Brand-assets upload lands in Visual-only intake.
+Physical `media/special/` retirement is complete for new writes (T4); leftover files on disk remain migration/heal lookups only.
 
 ### Visual media rework plan (v0.8.4)
 
@@ -1173,7 +1173,7 @@ This matrix defines the preferred future behavior.
 
 ### Naming guidance for admin UI
 
-Files → **Brand assets** is the legacy intake home for install branding files (`media/special/`). In **Content → Branding**, **Shell media** holds assignment slots only; each slot uses the shared media picker (same pattern as release/playlist covers). Upload still happens under Files. Saving the base brand syncs those paths into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
+Files → **Brand assets** lists Visual masters with brand shell roles / `intake_bucket=special` (uploads write `media/visual/original/` + register). In **Content → Branding**, **Shell media** holds assignment slots only; each slot uses the shared media picker (same pattern as release/playlist covers). Upload still happens under Files. Saving the base brand syncs resolved delivery URLs into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
 
 ### Nondestructive naming policy
 
