@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 23:30 - Session end: handoff points next work at Demo PRP refresh (`demo-content` publish) plus a full fresh-install smoke on build 388+. Master-tier and publish-summary slices stay closed.
+
 2026-08-13 23:25 - Checkpoint publish-log + build-script cleanup on `main` as **v0.8.23 build 388** and trigger GitHub Release `v0.8.23-build-388` for Site update. Docs aligned for master-tier-complete + scoped publish summary.
 
 2026-08-13 23:20 - Build scripts cleanup: remove dead legacy helpers from `optimizeMedia` (special-resize / stem cover dual-write / unused tag readers), `optimizeVideo` (video/optimal dual-write helpers), and `makePlaylists` (unused aliases); drop unused `cover_filename` arg from audio delivery.
