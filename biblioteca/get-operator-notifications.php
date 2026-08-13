@@ -36,8 +36,9 @@ function bandpromo_filter_metadata_validation_for_notifications(string $rootDir,
             continue;
         }
 
-        $originalPath = $rootDir . '/media/audio/original/' . $file;
-        if (!is_file($originalPath)) {
+        require_once __DIR__ . '/audio-master-helpers.php';
+        $master = bandpromo_find_audio_master($rootDir, $file);
+        if (empty($master['exists'])) {
             continue;
         }
 

@@ -762,7 +762,7 @@ function bandpromo_launch_windows_batch_detached(string $batchPath, string $work
 
 function bandpromo_spawn_async_video_delivery(array $filenames): array
 {
-    $requested = bandpromo_filter_uploaded_filenames($filenames, ['mp4', 'mov', 'webm']);
+    $requested = bandpromo_filter_uploaded_filenames($filenames, ['mp4', 'mov', 'webm', 'mkv']);
     if ($requested === []) {
         return [
             'ok' => false,
@@ -894,6 +894,8 @@ function bandpromo_spawn_async_video_delivery(array $filenames): array
 
 function bandpromo_filter_uploaded_filenames(array $filenames, array $extensions): array
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     $allowed = array_fill_keys(array_map('strtolower', $extensions), true);
     $filtered = [];
 
@@ -902,7 +904,9 @@ function bandpromo_filter_uploaded_filenames(array $filenames, array $extensions
             continue;
         }
         $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
-        if (!isset($allowed[$ext])) {
+        $stem = (string) pathinfo($filename, PATHINFO_FILENAME);
+        $isAssetRef = bandpromo_asset_is_asset_id($filename) || bandpromo_asset_is_asset_id($stem);
+        if (!$isAssetRef && !isset($allowed[$ext])) {
             continue;
         }
         if (!in_array($filename, $filtered, true)) {
@@ -1041,7 +1045,7 @@ function bandpromo_ensure_bundled_demo_audio_delivery(string $root): array
 
 function bandpromo_run_video_source_delivery(array $filenames): array
 {
-    $requested = bandpromo_filter_uploaded_filenames($filenames, ['mp4', 'mov', 'webm']);
+    $requested = bandpromo_filter_uploaded_filenames($filenames, ['mp4', 'mov', 'webm', 'mkv']);
     if ($requested === []) {
         return [
             'ok' => true,

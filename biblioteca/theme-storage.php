@@ -513,9 +513,6 @@ function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, s
                 if ($playUrl !== '') {
                     return $playUrl;
                 }
-                if ($filename !== '') {
-                    return bandpromo_sfx_web_path($filename);
-                }
             }
 
             if ($kind === 'visual' && $mediaType === 'video') {

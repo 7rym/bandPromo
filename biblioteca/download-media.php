@@ -97,12 +97,17 @@ function bandpromo_download_content_type(string $filename): string
 
 function bandpromo_resolve_download_item(string $root, string $sourceDir, string $target, string $variant, string $filename): array
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     $safe = basename($filename);
     if ($safe === '' || $safe === '.' || $safe === '..') {
         return ['ok' => false, 'filename' => $filename, 'error' => 'Invalid filename'];
     }
 
     if ($variant === 'master') {
+        if ($target !== 'audio') {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Prepared downloads are only available for audio'];
+        }
         $master = bandpromo_find_audio_master($root, $safe);
         if (empty($master['exists']) || empty($master['filename'])) {
             return ['ok' => false, 'filename' => $safe, 'error' => 'Prepared copy not found'];
@@ -120,29 +125,46 @@ function bandpromo_resolve_download_item(string $root, string $sourceDir, string
         ];
     }
 
+    // variant=original: stream original bytes only — never substitute the master.
     $path = $sourceDir . '/' . $safe;
-    if (!is_file($path) && $target === 'audio') {
-        $master = bandpromo_find_audio_master($root, $safe);
-        if (!empty($master['exists']) && !empty($master['filename'])) {
-            $masterPath = $root . '/media/audio/master/' . basename((string) $master['filename']);
-            if (is_file($masterPath)) {
-                return [
-                    'ok' => true,
-                    'filename' => $safe,
-                    'download_name' => basename((string) $master['filename']),
-                    'path' => $masterPath,
-                ];
+    $downloadName = $safe;
+
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $safe)
+        ?? bandpromo_asset_lookup_by_master_filename($root, $safe)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
+    if (is_array($asset)) {
+        $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
+        if ($originalName !== '') {
+            $downloadName = $originalName;
+            if ($target === 'audio') {
+                $path = $root . '/media/audio/original/' . $originalName;
+            } elseif ($target === 'sfx') {
+                $path = $root . '/media/sfx/original/' . $originalName;
+            } elseif (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+                require_once __DIR__ . '/visual-master-helpers.php';
+                $unified = bandpromo_visual_unified_original_path($root, $originalName);
+                $legacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
+                if ($unified !== '' && is_file($unified)) {
+                    $path = $unified;
+                } elseif ($legacy !== '' && is_file($legacy)) {
+                    $path = $legacy;
+                } else {
+                    $path = $sourceDir . '/' . $originalName;
+                }
+            } else {
+                $path = $sourceDir . '/' . $originalName;
             }
         }
     }
+
     if (!is_file($path)) {
-        return ['ok' => false, 'filename' => $safe, 'error' => 'File not found'];
+        return ['ok' => false, 'filename' => $safe, 'error' => 'Original not found'];
     }
 
     return [
         'ok' => true,
         'filename' => $safe,
-        'download_name' => $safe,
+        'download_name' => $downloadName,
         'path' => $path,
     ];
 }

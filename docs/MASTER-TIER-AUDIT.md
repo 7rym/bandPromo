@@ -173,13 +173,13 @@ Stop teaching the stack that covers and living covers are original basenames.
 
 ### T2 — Working copy is the master
 
-- [ ] Files index rebuild/list/delete/reference **by `master_filename` / asset id**; original is a label. Notifications use master existence (not `media/audio/original/{file}`).
-- [ ] `bandpromo_resolve_source_audio_file` / `audio.php` / playlist playability: delivery for public, master for operator listen; **drop original as a playable variant** (keep Download original).
-- [ ] Drop demo original-FLAC playback fallback.
-- [ ] Publish/Python working paths (`resolve_audio_working_path`, `visual_working_path_for_asset`, `visual_video_source_path`): **master or fail**. Do not scan original dirs to enumerate work.
-- [ ] Video delivery queue from Visual video **masters**, not `media/video/original/` (`videoSourceDelivery.py`, `bandpromo_list_videos_needing_delivery`).
-- [ ] SFX public URL = optimal MP3 only (`bandpromo_sfx_resolve_play_url`); login/player never get `/media/sfx/original/`.
-- [ ] Download `variant=original` 404 if original missing (no silent master substitute). Delete by asset id (original + master + delivery).
+- [x] Files index rebuild/list/delete/reference **by `master_filename` / asset id**; original is a label. Notifications use master existence (not `media/audio/original/{file}`).
+- [x] `bandpromo_resolve_source_audio_file` / `audio.php` / playlist playability: delivery for public, master for operator listen; **drop original as a playable variant** (keep Download original).
+- [x] Drop demo original-FLAC playback fallback.
+- [x] Publish/Python working paths (`resolve_audio_working_path`, `visual_working_path_for_asset`, `visual_video_source_path`): **master or fail**. Do not scan original dirs to enumerate work.
+- [x] Video delivery queue from Visual video **masters**, not `media/video/original/` (`videoSourceDelivery.py`, `bandpromo_list_videos_needing_delivery`).
+- [x] SFX public URL = optimal MP3 only (`bandpromo_sfx_resolve_play_url`); login/player never get `/media/sfx/original/`.
+- [x] Download `variant=original` 404 if original missing (no silent master substitute). Delete by asset id (original + master + delivery).
 
 ### T3 — Deliverables from masters; kill stem dual-write/read
 
@@ -254,4 +254,4 @@ These open/partial items are **owned by this plan** (check them off here, not as
 
 The slice is done when a masters-only PRP install and a normal operator upload both obey the three-tier rule **without original/stem dual-read**, and the evidence files in C1–C5 no longer treat originals as working copies.
 
-_Last updated: 2026-08-13 (T1 identity in progress: covers/living covers persist as `ast_*`; stem extract and configured-cover minting removed. Autofix-then-fail-loud on leftover filenames is still open.)_
+_Last updated: 2026-08-13 (T2 done: working copy is master; public play = delivery; original is download/delete only. Next: T3 deliverables from masters / kill stem dual-write.)_

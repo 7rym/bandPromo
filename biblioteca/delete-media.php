@@ -150,68 +150,114 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
 
 function bandpromo_delete_media_item(string $root, array $dirs, string $target, string $filename, bool $detach_references, string $mode): array
 {
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/sfx-helpers.php';
+
     $safe = basename($filename);
     if ($safe === '' || $safe === '.' || $safe === '..') {
         return ['ok' => false, 'filename' => $filename, 'error' => 'Invalid filename'];
     }
 
-    $path = $dirs[$target] . '/' . $safe;
-    if (!file_exists($path) && $target === 'audio') {
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $safe)
+        ?? bandpromo_asset_lookup_by_master_filename($root, $safe)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
+
+    $listingName = $safe;
+    $originalName = $safe;
+    $masterName = '';
+    $assetId = '';
+    if (is_array($asset)) {
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        $originalName = basename(trim((string) ($asset['original_filename'] ?? $safe)));
+        $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($masterName !== '') {
+            $listingName = $masterName;
+        } elseif ($originalName !== '') {
+            $listingName = $originalName;
+        }
+    } else {
+        $source = bandpromo_media_files_index_resolve_source($root, $target, $safe);
+        if (is_array($source)) {
+            $listingName = basename((string) ($source['name'] ?? $safe));
+            $originalName = basename((string) ($source['original_filename'] ?? $listingName));
+        }
+    }
+
+    $pathExists = false;
+    if ($target === 'audio' && $masterName !== '') {
+        $pathExists = is_file($root . '/media/audio/master/' . $masterName)
+            || ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName));
+    } elseif ($target === 'sfx' && is_array($asset)) {
+        $pathExists = ($masterName !== '' && is_file(bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterName))
+            || ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName));
+    } elseif (in_array($target, ['illustrations', 'photos', 'video'], true) && is_array($asset)) {
+        $working = bandpromo_visual_working_path($root, $asset);
+        $pathExists = ($working !== '' && is_file($working))
+            || ($originalName !== '' && (
+                is_file(bandpromo_visual_unified_original_path($root, $originalName))
+                || is_file($dirs[$target] . '/' . $originalName)
+            ));
+    } else {
+        $pathExists = is_file($dirs[$target] . '/' . $safe)
+            || (is_array($asset) && $masterName !== '');
+    }
+
+    if (!$pathExists && $target === 'audio') {
         $master = bandpromo_find_audio_master($root, $safe);
         if (!empty($master['exists']) && !empty($master['filename'])) {
-            $masterPath = $root . '/media/audio/master/' . basename((string) $master['filename']);
-            if (is_file($masterPath)) {
-                $path = $masterPath;
-                $safe = basename((string) $master['filename']);
-            }
+            $pathExists = true;
+            $listingName = basename((string) $master['filename']);
+            $masterName = $listingName;
+            $originalName = basename((string) ($master['original_filename'] ?? $originalName));
         }
     }
-    if (!file_exists($path) && in_array($target, ['illustrations', 'photos', 'video'], true)) {
-        $source = bandpromo_media_files_index_resolve_source($root, $target, $safe);
-        if (is_array($source) && is_file($source['path'])) {
-            $path = $source['path'];
-            $safe = basename((string) $source['name']);
-        }
-    }
-    if (!file_exists($path)) {
+
+    if (!$pathExists) {
         return ['ok' => false, 'filename' => $safe, 'error' => 'File not found'];
     }
 
     require_once __DIR__ . '/demo-catalog-state.php';
     $demoAssetSet = bandpromo_demo_release_asset_set($root);
-    $lockKey = $target . '|' . $safe;
-    if (bandpromo_asset_is_in_locked_release($root, $lockKey, $demoAssetSet)) {
-        return [
-            'ok' => false,
-            'filename' => $safe,
-            'error' => 'This file belongs to the locked demo release. Unlock the demo release on localhost before deleting campaign demo media.',
-        ];
+    $lockCandidates = array_values(array_unique(array_filter([
+        $target . '|' . $safe,
+        $target . '|' . $listingName,
+        $originalName !== '' ? $target . '|' . $originalName : '',
+        $assetId !== '' ? $target . '|' . $assetId : '',
+    ])));
+    foreach ($lockCandidates as $lockKey) {
+        if (bandpromo_asset_is_in_locked_release($root, $lockKey, $demoAssetSet)) {
+            return [
+                'ok' => false,
+                'filename' => $listingName,
+                'error' => 'This file belongs to the locked demo release. Unlock the demo release on localhost before deleting campaign demo media.',
+            ];
+        }
     }
 
-    $references = bandpromo_collect_media_references($root, $target, $safe);
+    $referenceNames = array_values(array_unique(array_filter([$safe, $listingName, $originalName, $masterName])));
+    $references = [];
+    foreach ($referenceNames as $refName) {
+        $references = array_merge($references, bandpromo_collect_media_references($root, $target, $refName));
+    }
     $reference_summary = bandpromo_summarize_reference_counts($references);
 
     if ($mode === 'preview') {
         return [
             'ok' => true,
-            'filename' => $safe,
+            'filename' => $listingName,
             'action' => 'preview',
             'references' => $references,
             'reference_summary' => $reference_summary,
         ];
     }
 
-    // No per-file soft-hide. Demo visibility is release-level only
-    // (demo_release_hidden). Bundled provenance is display-only — delete is a
-    // real unlink subject to locked-demo + reference guards below.
-
-    // Multi-ref / in-use guard: never unlink while containers still point at this file
-    // unless the operator explicitly requested detach-first.
     if (!$detach_references && $reference_summary['total'] > 0) {
         $multi = $reference_summary['total'] > 1;
         return [
             'ok' => false,
-            'filename' => $safe,
+            'filename' => $listingName,
             'error' => $multi
                 ? 'This media is referenced by multiple containers. Remove or detach those references before deleting the shared file.'
                 : 'This media is still referenced. Detach references first, or remove the reference from the owning container.',
@@ -227,24 +273,25 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         'warnings' => [],
     ];
     if ($detach_references && $reference_summary['total'] > 0) {
-        $reference_cleanup = bandpromo_cleanup_media_references($root, $target, $safe);
+        foreach ($referenceNames as $refName) {
+            $partial = bandpromo_cleanup_media_references($root, $target, $refName);
+            $reference_cleanup['playlist_tracks_removed'] += (int) ($partial['playlist_tracks_removed'] ?? 0);
+            $reference_cleanup['playlist_covers_cleared'] += (int) ($partial['playlist_covers_cleared'] ?? 0);
+            $reference_cleanup['gallery_items_removed'] += (int) ($partial['gallery_items_removed'] ?? 0);
+            if (!empty($partial['warnings'])) {
+                $reference_cleanup['warnings'] = array_merge(
+                    $reference_cleanup['warnings'],
+                    $partial['warnings']
+                );
+            }
+        }
         if (!empty($reference_cleanup['warnings'])) {
             return [
                 'ok' => false,
-                'filename' => $safe,
+                'filename' => $listingName,
                 'error' => implode(' ', $reference_cleanup['warnings']),
             ];
         }
-    }
-
-    if (!unlink($path)) {
-        bandpromo_admin_audit_log('media_deleted', [
-            'target_type' => 'media',
-            'target_id' => $target . '/' . $safe,
-            'status' => 'error',
-            'data' => ['error' => 'unlink failed'],
-        ]);
-        return ['ok' => false, 'filename' => $safe, 'error' => 'Could not delete file — check permissions'];
     }
 
     $master_deleted = false;
@@ -253,94 +300,125 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
     $video_poster_deleted = false;
     $video_delivery_deleted = false;
     $image_delivery_deleted = false;
+    $unlinkedAny = false;
+
     if ($target === 'audio') {
-        foreach (bandpromo_audio_master_paths_for_original($root, $safe) as $master_path) {
+        if ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName) && @unlink($dirs[$target] . '/' . $originalName)) {
+            $unlinkedAny = true;
+        }
+        foreach (bandpromo_audio_master_paths_for_original($root, $listingName) as $master_path) {
             if (@unlink($master_path)) {
                 $master_deleted = true;
+                $unlinkedAny = true;
             } else {
-                $master_warning = 'Audio original was deleted, but one or more matching master files could not be removed';
+                $master_warning = 'Audio tiers partially deleted; one or more master files could not be removed';
             }
         }
-        foreach (bandpromo_audio_delivery_paths_for_original($root, $safe) as $delivery_path) {
+        if ($masterName !== '' && is_file($root . '/media/audio/master/' . $masterName) && @unlink($root . '/media/audio/master/' . $masterName)) {
+            $master_deleted = true;
+            $unlinkedAny = true;
+        }
+        foreach (bandpromo_audio_delivery_paths_for_original($root, $listingName) as $delivery_path) {
             if (@unlink($delivery_path)) {
                 $audio_delivery_deleted = true;
+                $unlinkedAny = true;
             }
         }
-        $audioAsset = bandpromo_asset_lookup_from_media_ref($root, $safe)
-            ?? bandpromo_asset_lookup_by_original_filename($root, $safe)
-            ?? bandpromo_asset_lookup_by_master_filename($root, $safe);
-        if (is_array($audioAsset) && ($audioAsset['kind'] ?? '') === 'audio') {
-            bandpromo_asset_unregister($root, (string) ($audioAsset['id'] ?? ''));
+        if ($assetId !== '') {
+            $deliveryById = $root . '/media/audio/optimal/' . $assetId . '.mp3';
+            if (is_file($deliveryById) && @unlink($deliveryById)) {
+                $audio_delivery_deleted = true;
+                $unlinkedAny = true;
+            }
+            bandpromo_asset_unregister($root, $assetId);
+        } elseif (is_array($asset)) {
+            bandpromo_asset_unregister($root, (string) ($asset['id'] ?? ''));
         } else {
-            bandpromo_asset_unregister_by_original_filename($root, $safe);
-        }
-    } elseif ($target === 'video') {
-        $poster_path = bandpromo_gallery_video_poster_absolute_path($root, $safe);
-        if (is_file($poster_path) && @unlink($poster_path)) {
-            $video_poster_deleted = true;
-        }
-        $delivery_path = bandpromo_video_delivery_path($root, $safe);
-        if (is_file($delivery_path) && @unlink($delivery_path)) {
-            $video_delivery_deleted = true;
-        }
-        $visualAsset = bandpromo_asset_lookup_visual($root, $safe, 'video')
-            ?? bandpromo_asset_lookup_from_media_ref($root, $safe);
-        if ($visualAsset !== null) {
-            require_once __DIR__ . '/media-delivery-helpers.php';
-            require_once __DIR__ . '/visual-master-helpers.php';
-            bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
-            bandpromo_visual_delete_tier_files($root, $visualAsset);
-            bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
-        }
-    } elseif (in_array($target, ['illustrations', 'photos'], true)) {
-        $delivery_path = $target === 'photos'
-            ? bandpromo_photo_delivery_path($root, $safe)
-            : $root . '/media/img/optimal/' . pathinfo($safe, PATHINFO_FILENAME) . '.jpg';
-        if (is_file($delivery_path) && @unlink($delivery_path)) {
-            $image_delivery_deleted = true;
-        }
-        $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($target);
-        $visualAsset = bandpromo_asset_lookup_visual($root, $safe, $intakeBucket)
-            ?? bandpromo_asset_lookup_from_media_ref($root, $safe);
-        if ($visualAsset !== null) {
-            require_once __DIR__ . '/media-delivery-helpers.php';
-            require_once __DIR__ . '/visual-master-helpers.php';
-            bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
-            bandpromo_visual_delete_tier_files($root, $visualAsset);
-            bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
-        }
-    } elseif ($target === 'special') {
-        $mediaType = bandpromo_asset_infer_media_type_from_filename($safe);
-        if (in_array($mediaType, ['image', 'video'], true)) {
-            $visualAsset = bandpromo_asset_lookup_visual($root, $safe, 'special');
-            if ($visualAsset !== null) {
-                require_once __DIR__ . '/media-delivery-helpers.php';
-                require_once __DIR__ . '/visual-master-helpers.php';
-                bandpromo_visual_delivery_delete_for_asset($root, (string) ($visualAsset['id'] ?? ''));
-                bandpromo_visual_delete_tier_files($root, $visualAsset);
-                bandpromo_asset_unregister($root, (string) ($visualAsset['id'] ?? ''));
-            }
+            bandpromo_asset_unregister_by_original_filename($root, $originalName !== '' ? $originalName : $safe);
         }
     } elseif ($target === 'sfx') {
-        require_once __DIR__ . '/sfx-helpers.php';
-        $sfxAsset = bandpromo_asset_lookup_by_original_filename($root, $safe);
-        if (!is_array($sfxAsset) || ($sfxAsset['kind'] ?? '') !== 'sfx') {
-            $sfxAsset = bandpromo_asset_lookup_by_master_filename($root, $safe);
+        if ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName) && @unlink($dirs[$target] . '/' . $originalName)) {
+            $unlinkedAny = true;
         }
-        if (is_array($sfxAsset) && ($sfxAsset['kind'] ?? '') === 'sfx') {
-            bandpromo_sfx_delete_tier_files($root, $sfxAsset);
-            bandpromo_asset_unregister($root, (string) ($sfxAsset['id'] ?? ''));
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'sfx') {
+            bandpromo_sfx_delete_tier_files($root, $asset);
+            $unlinkedAny = true;
+            bandpromo_asset_unregister($root, (string) ($asset['id'] ?? ''));
         } else {
-            bandpromo_asset_unregister_by_original_filename($root, $safe);
+            bandpromo_asset_unregister_by_original_filename($root, $originalName !== '' ? $originalName : $safe);
         }
+    } elseif ($target === 'video') {
+        if ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName) && @unlink($dirs[$target] . '/' . $originalName)) {
+            $unlinkedAny = true;
+        }
+        $poster_path = bandpromo_gallery_video_poster_absolute_path($root, $originalName !== '' ? $originalName : $safe);
+        if (is_file($poster_path) && @unlink($poster_path)) {
+            $video_poster_deleted = true;
+            $unlinkedAny = true;
+        }
+        $delivery_path = bandpromo_video_delivery_path($root, $originalName !== '' ? $originalName : $safe);
+        if (is_file($delivery_path) && @unlink($delivery_path)) {
+            $video_delivery_deleted = true;
+            $unlinkedAny = true;
+        }
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            bandpromo_visual_delivery_delete_for_asset($root, (string) ($asset['id'] ?? ''));
+            bandpromo_visual_delete_tier_files($root, $asset);
+            bandpromo_asset_unregister($root, (string) ($asset['id'] ?? ''));
+            $unlinkedAny = true;
+        }
+    } elseif (in_array($target, ['illustrations', 'photos'], true)) {
+        if ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName) && @unlink($dirs[$target] . '/' . $originalName)) {
+            $unlinkedAny = true;
+        }
+        $delivery_path = $target === 'photos'
+            ? bandpromo_photo_delivery_path($root, $originalName !== '' ? $originalName : $safe)
+            : $root . '/media/img/optimal/' . pathinfo($originalName !== '' ? $originalName : $safe, PATHINFO_FILENAME) . '.jpg';
+        if (is_file($delivery_path) && @unlink($delivery_path)) {
+            $image_delivery_deleted = true;
+            $unlinkedAny = true;
+        }
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            bandpromo_visual_delivery_delete_for_asset($root, (string) ($asset['id'] ?? ''));
+            bandpromo_visual_delete_tier_files($root, $asset);
+            bandpromo_asset_unregister($root, (string) ($asset['id'] ?? ''));
+            $unlinkedAny = true;
+        }
+    } elseif ($target === 'special') {
+        if (is_file($dirs[$target] . '/' . $safe) && @unlink($dirs[$target] . '/' . $safe)) {
+            $unlinkedAny = true;
+        }
+        $mediaType = bandpromo_asset_infer_media_type_from_filename($safe);
+        if (in_array($mediaType, ['image', 'video'], true) && is_array($asset)) {
+            bandpromo_visual_delivery_delete_for_asset($root, (string) ($asset['id'] ?? ''));
+            bandpromo_visual_delete_tier_files($root, $asset);
+            bandpromo_asset_unregister($root, (string) ($asset['id'] ?? ''));
+        }
+    } else {
+        if (!is_file($dirs[$target] . '/' . $safe) || !@unlink($dirs[$target] . '/' . $safe)) {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Could not delete file — check permissions'];
+        }
+        $unlinkedAny = true;
     }
 
-    bandpromo_media_set_hidden_for_install($target, $safe, false);
-    bandpromo_media_files_index_remove($target, $safe);
+    if (!$unlinkedAny) {
+        bandpromo_admin_audit_log('media_deleted', [
+            'target_type' => 'media',
+            'target_id' => $target . '/' . $listingName,
+            'status' => 'error',
+            'data' => ['error' => 'unlink failed'],
+        ]);
+        return ['ok' => false, 'filename' => $listingName, 'error' => 'Could not delete file — check permissions'];
+    }
+
+    foreach ($referenceNames as $refName) {
+        bandpromo_media_set_hidden_for_install($target, $refName, false);
+        bandpromo_media_files_index_remove($target, $refName);
+    }
 
     bandpromo_admin_audit_log('media_deleted', [
         'target_type' => 'media',
-        'target_id' => $target . '/' . $safe,
+        'target_id' => $target . '/' . $listingName,
         'status' => 'ok',
         'data' => [
             'master_deleted' => $master_deleted,
@@ -351,12 +429,13 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             'image_delivery_deleted' => $image_delivery_deleted,
             'reference_summary' => $reference_summary,
             'reference_cleanup' => $reference_cleanup,
+            'asset_id' => $assetId,
         ],
     ]);
 
     return [
         'ok' => true,
-        'filename' => $safe,
+        'filename' => $listingName,
         'action' => 'deleted',
         'master_deleted' => $master_deleted,
         'master_warning' => $master_warning,

@@ -724,31 +724,30 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     || (forceVariant === '' && file?.pool_ready === true);
                 const fileKey = preferOptimal
                     ? (master || listing)
-                    : (listing || master);
+                    : (master || listing);
                 if (!fileKey) {
                     return '';
                 }
                 const params = new URLSearchParams();
                 params.set('file', fileKey);
-                params.set('variant', preferOptimal ? 'optimal' : 'original');
+                // Operator listen: delivery when ready, otherwise master (never original).
+                params.set('variant', preferOptimal ? 'optimal' : 'master');
                 return `/biblioteca/audio.php?${params.toString()}`;
             }
 
             function sfxAdminListenUrl(file, options = {}) {
-                const forceOriginal = String(options.variant || '').trim().toLowerCase() === 'original';
+                const forceMaster = String(options.variant || '').trim().toLowerCase() === 'master'
+                    || String(options.variant || '').trim().toLowerCase() === 'original';
                 const playUrl = String(file?.play_url || '').trim();
-                if (!forceOriginal && playUrl !== '') {
+                if (!forceMaster && playUrl !== '') {
                     return playUrl;
                 }
                 const assetId = String(file?.asset_id || '').trim();
-                if (!forceOriginal && file?.pool_ready === true && assetId !== '') {
+                if (!forceMaster && file?.pool_ready === true && assetId !== '') {
                     return `/media/sfx/optimal/${encodeURIComponent(assetId)}.mp3`;
                 }
-                const name = String(file?.name || '').trim();
-                if (name === '') {
-                    return '';
-                }
-                return buildMediaUrl('sfx', name);
+                // Pending delivery: no original/master public URL for login/player; admin waits.
+                return '';
             }
 
             function pauseAdminAudioPreviews(except = null) {
@@ -867,7 +866,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 dock.hidden = false;
                 if (player) {
-                    const fallback = sfxAdminListenUrl(file, { variant: 'original' });
+                    const fallback = sfxAdminListenUrl(file, { variant: 'master' });
                     player.dataset.listenPrimary = url;
                     player.dataset.listenFallback = (fallback && fallback !== url) ? fallback : '';
                     player.dataset.listenTriedFallback = '0';
@@ -917,7 +916,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 const primaryUrl = audioAdminListenUrl(file);
-                const fallbackUrl = audioAdminListenUrl(file, { variant: 'original' });
+                const fallbackUrl = audioAdminListenUrl(file, { variant: 'master' });
                 audioEl.dataset.listenPrimary = primaryUrl;
                 audioEl.dataset.listenFallback = fallbackUrl && fallbackUrl !== primaryUrl ? fallbackUrl : '';
                 audioEl.dataset.listenTriedFallback = '0';

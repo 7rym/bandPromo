@@ -649,25 +649,19 @@ def visual_original_path_for_asset(asset):
 def visual_working_path_for_asset(asset):
     """
     Resolve visual source bytes for delivery build.
-    Order: media/visual/master/ast_* → media/visual/original/ → legacy intake.
+    Master only — original is not a working copy.
     """
     asset_id = str(asset.get('id') or '').strip()
-    original = os.path.basename(str(asset.get('original_filename') or '').strip())
     master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
     fmt = str(asset.get('master_format') or '').strip().lower()
-    if not fmt and original:
-        fmt = Path(original).suffix.lstrip('.').lower()
+    if not fmt and master_name:
+        fmt = Path(master_name).suffix.lstrip('.').lower()
 
     candidates = []
     if asset_id.startswith('ast_') and fmt:
         candidates.append(VISUAL_MASTER_DIR / '{}.{}'.format(asset_id, fmt))
     if master_name.startswith('ast_'):
         candidates.append(VISUAL_MASTER_DIR / master_name)
-    if original:
-        candidates.append(VISUAL_ORIG_DIR / original)
-    legacy = visual_original_path_for_asset(asset)
-    if legacy is not None:
-        candidates.append(legacy)
 
     for path in candidates:
         if path is not None and path.is_file():
@@ -1170,13 +1164,14 @@ def resolve_audio_working_path(filename):
             path = AUDIO_MASTER_DIR / master_name
             if path.exists() and path.is_file():
                 return path, 'master'
+            return path, 'master'
 
     stem = Path(filename).stem
     source_suffix = Path(filename).suffix.lower()
     preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']
     seen = set()
     for suffix in preferred_suffixes:
-        candidate = AUDIO_MASTER_DIR / f'{stem}{suffix}'
+        candidate = AUDIO_MASTER_DIR / '{0}{1}'.format(stem, suffix)
         key = str(candidate).lower()
         if key in seen:
             continue
@@ -1184,7 +1179,8 @@ def resolve_audio_working_path(filename):
         if candidate.exists() and candidate.is_file():
             return candidate, 'master'
 
-    return AUDIO_ORIG_DIR / filename, 'original'
+    # Master or fail — never fall back to media/audio/original.
+    return AUDIO_MASTER_DIR / os.path.basename(str(filename or '').strip()), 'master'
 
 
 def _id3_text(tags, *keys):

@@ -345,9 +345,10 @@ function bandpromo_media_files_index_remove(string $target, string $filename): v
 }
 
 /**
- * Resolve listing bytes for Files index: original if present, else PRP/master working file.
+ * Resolve listing bytes for Files index: master working copy when present.
+ * Original is provenance only (label); pre-materialize orphans may still list original.
  *
- * @return array{path:string,name:string}|null
+ * @return array{path:string,name:string,original_filename?:string}|null
  */
 function bandpromo_media_files_index_resolve_source(string $root, string $target, string $filename): ?array
 {
@@ -361,26 +362,29 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
         return null;
     }
 
-    $originalPath = $dir . '/' . $filename;
-    if (is_file($originalPath)) {
-        return ['path' => $originalPath, 'name' => $filename];
-    }
-
     if ($target === 'audio') {
         require_once __DIR__ . '/asset-registry.php';
         require_once __DIR__ . '/audio-master-helpers.php';
         $asset = bandpromo_asset_lookup_from_media_ref($root, $filename);
         if (is_array($asset) && ($asset['kind'] ?? '') === 'audio') {
             $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
-            if ($originalName !== '' && is_file($dir . '/' . $originalName)) {
-                return ['path' => $dir . '/' . $originalName, 'name' => $originalName];
-            }
             $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
             if ($masterName !== '') {
                 $masterPath = $root . '/media/audio/master/' . $masterName;
                 if (is_file($masterPath)) {
-                    return ['path' => $masterPath, 'name' => $masterName];
+                    return [
+                        'path' => $masterPath,
+                        'name' => $masterName,
+                        'original_filename' => $originalName,
+                    ];
                 }
+            }
+            if ($originalName !== '' && is_file($dir . '/' . $originalName)) {
+                return [
+                    'path' => $dir . '/' . $originalName,
+                    'name' => $originalName,
+                    'original_filename' => $originalName,
+                ];
             }
         }
 
@@ -388,8 +392,21 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
         if (!empty($master['exists']) && !empty($master['filename'])) {
             $masterPath = $root . '/media/audio/master/' . basename((string) $master['filename']);
             if (is_file($masterPath)) {
-                return ['path' => $masterPath, 'name' => basename((string) $master['filename'])];
+                return [
+                    'path' => $masterPath,
+                    'name' => basename((string) $master['filename']),
+                    'original_filename' => basename((string) ($master['original_filename'] ?? '')),
+                ];
             }
+        }
+
+        $originalPath = $dir . '/' . $filename;
+        if (is_file($originalPath)) {
+            return [
+                'path' => $originalPath,
+                'name' => $filename,
+                'original_filename' => $filename,
+            ];
         }
 
         return null;
@@ -400,6 +417,15 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
         require_once __DIR__ . '/visual-master-helpers.php';
         $asset = bandpromo_asset_lookup_from_media_ref($root, $filename);
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            $originalPath = $dir . '/' . $filename;
+            if (is_file($originalPath)) {
+                return [
+                    'path' => $originalPath,
+                    'name' => $filename,
+                    'original_filename' => $filename,
+                ];
+            }
+
             return null;
         }
         $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
@@ -408,26 +434,92 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
             return null;
         }
         $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
+        $working = bandpromo_visual_working_path($root, $asset);
+        if ($working !== '' && is_file($working)) {
+            $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+            if ($listing === '') {
+                $listing = $filename;
+            }
+
+            return [
+                'path' => $working,
+                'name' => $listing,
+                'original_filename' => $originalName,
+            ];
+        }
         if ($originalName !== '') {
             $legacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
             if ($legacy !== '' && is_file($legacy)) {
-                return ['path' => $legacy, 'name' => $originalName];
+                return [
+                    'path' => $legacy,
+                    'name' => $originalName,
+                    'original_filename' => $originalName,
+                ];
             }
             $unified = bandpromo_visual_unified_original_path($root, $originalName);
             if ($unified !== '' && is_file($unified)) {
-                return ['path' => $unified, 'name' => $originalName];
+                return [
+                    'path' => $unified,
+                    'name' => $originalName,
+                    'original_filename' => $originalName,
+                ];
             }
         }
-        $working = bandpromo_visual_working_path($root, $asset);
-        if ($working === '' || !is_file($working)) {
-            return null;
+
+        return null;
+    }
+
+    if ($target === 'sfx') {
+        require_once __DIR__ . '/asset-registry.php';
+        require_once __DIR__ . '/sfx-helpers.php';
+        $asset = bandpromo_asset_lookup_from_media_ref($root, $filename);
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'sfx') {
+            $asset = bandpromo_asset_lookup_by_master_filename($root, $filename);
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'sfx') {
+                $asset = bandpromo_asset_lookup_by_original_filename($root, $filename);
+            }
         }
-        $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
-        if ($listing === '') {
-            $listing = $originalName !== '' ? $originalName : $filename;
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'sfx') {
+            $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
+            $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
+            if ($masterName !== '') {
+                $masterPath = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterName;
+                if (is_file($masterPath)) {
+                    return [
+                        'path' => $masterPath,
+                        'name' => $masterName,
+                        'original_filename' => $originalName,
+                    ];
+                }
+            }
+            if ($originalName !== '' && is_file($dir . '/' . $originalName)) {
+                return [
+                    'path' => $dir . '/' . $originalName,
+                    'name' => $originalName,
+                    'original_filename' => $originalName,
+                ];
+            }
         }
 
-        return ['path' => $working, 'name' => $listing];
+        $originalPath = $dir . '/' . $filename;
+        if (is_file($originalPath)) {
+            return [
+                'path' => $originalPath,
+                'name' => $filename,
+                'original_filename' => $filename,
+            ];
+        }
+
+        return null;
+    }
+
+    $originalPath = $dir . '/' . $filename;
+    if (is_file($originalPath)) {
+        return [
+            'path' => $originalPath,
+            'name' => $filename,
+            'original_filename' => $filename,
+        ];
     }
 
     return null;
@@ -459,9 +551,13 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
 
     $path = $source['path'];
     $listingName = $source['name'];
+    $originalLabel = basename(trim((string) ($source['original_filename'] ?? '')));
     $size = (int) filesize($path);
     $modified = (int) filemtime($path);
-    $extension = strtolower((string) pathinfo($listingName, PATHINFO_EXTENSION));
+    $extension = strtolower((string) pathinfo(
+        $originalLabel !== '' ? $originalLabel : $listingName,
+        PATHINFO_EXTENSION
+    ));
 
     $files = bandpromo_media_files_index_load();
     $key = bandpromo_media_files_index_key($target, $listingName);
@@ -472,6 +568,12 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
             unset($files[$requestedKey]);
         }
     }
+    if ($originalLabel !== '' && $originalLabel !== $listingName) {
+        $originalKey = bandpromo_media_files_index_key($target, $originalLabel);
+        if ($originalKey !== $key) {
+            unset($files[$originalKey]);
+        }
+    }
     $originOption = trim((string) ($options['origin'] ?? ''));
     if ($originOption === 'user-upload' || $originOption === 'bundled-placeholder') {
         $origin = $originOption;
@@ -479,7 +581,7 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
         // Keep operator-upload provenance across rebuilds even for bandPromo_* names.
         $origin = 'user-upload';
     } else {
-        $origin = bandpromo_media_origin($listingName);
+        $origin = bandpromo_media_origin($originalLabel !== '' ? $originalLabel : $listingName);
     }
 
     $entry = [
@@ -489,7 +591,8 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
         'modified' => $modified,
         'origin' => $origin,
         'original_format' => $extension,
-        'pool_ready' => in_array($target, ['audio', 'photos', 'video'], true)
+        'original_filename' => $originalLabel,
+        'pool_ready' => in_array($target, ['audio', 'photos', 'video', 'sfx'], true)
             ? bandpromo_media_pool_ready($root, $target, $listingName)
             : true,
         'indexed_at' => gmdate('c'),
@@ -508,6 +611,9 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
             'size' => ($masterExists && is_file($masterPath)) ? (int) filesize($masterPath) : 0,
             'modified' => ($masterExists && is_file($masterPath)) ? (int) filemtime($masterPath) : 0,
         ];
+        if ($originalLabel === '' && !empty($master['original_filename'])) {
+            $entry['original_filename'] = basename((string) $master['original_filename']);
+        }
     }
 
     if ($target === 'video') {
@@ -525,7 +631,8 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
 }
 
 /**
- * Index registry assets that have masters on disk but no intake original.
+ * Index registry assets by master_filename (working copy identity).
+ * Originals are labels only — do not skip when an original also exists on disk.
  */
 function bandpromo_media_files_index_rebuild_registry_rows(string $root, string $target): int
 {
@@ -533,7 +640,6 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
 
     $count = 0;
     $registry = bandpromo_asset_load_registry($root);
-    $originalDir = bandpromo_media_target_dir($target);
 
     foreach ($registry['assets'] as $asset) {
         if (!is_array($asset)) {
@@ -544,13 +650,27 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             if (($asset['kind'] ?? '') !== 'audio') {
                 continue;
             }
-            $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
-            if ($originalName !== '' && is_string($originalDir) && is_file($originalDir . '/' . $originalName)) {
+            $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+            if ($listing === '') {
+                $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+            }
+            if ($listing === '') {
+                continue;
+            }
+            if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
+                $count++;
+            }
+            continue;
+        }
+
+        if ($target === 'sfx') {
+            require_once __DIR__ . '/sfx-helpers.php';
+            if (($asset['kind'] ?? '') !== 'sfx') {
                 continue;
             }
             $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
             if ($listing === '') {
-                $listing = $originalName;
+                $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
             }
             if ($listing === '') {
                 continue;
@@ -581,13 +701,9 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             continue;
         }
 
-        $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
-        if ($originalName !== '' && is_string($originalDir) && is_file($originalDir . '/' . $originalName)) {
-            continue;
-        }
         $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
         if ($listing === '') {
-            $listing = $originalName;
+            $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
         }
         if ($listing === '') {
             continue;
@@ -602,9 +718,12 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
 
 /**
  * Full rebuild for one Files target (Publish / migration / PRP import write path).
+ * Registry masters first; original-dir scan only for unregistered orphans.
  */
 function bandpromo_media_files_index_rebuild_target(string $root, string $target): int
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     $dir = bandpromo_media_target_dir($target);
     $files = bandpromo_media_files_index_load();
     $prefix = $target . '/';
@@ -615,7 +734,8 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
     }
     bandpromo_media_files_index_save($files);
 
-    $count = 0;
+    $count = bandpromo_media_files_index_rebuild_registry_rows($root, $target);
+
     if ($dir !== null && is_dir($dir)) {
         foreach (new DirectoryIterator($dir) as $entry) {
             if ($entry->isDot() || $entry->isDir()) {
@@ -625,13 +745,17 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
             if (strcasecmp($name, 'desktop.ini') === 0) {
                 continue;
             }
+            $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
+                ?? bandpromo_asset_lookup_from_media_ref($root, $name);
+            if (is_array($registered)) {
+                // Already indexed via master_filename in the registry pass.
+                continue;
+            }
             if (bandpromo_media_files_index_sync_file($root, $target, $name) !== null) {
                 $count++;
             }
         }
     }
-
-    $count += bandpromo_media_files_index_rebuild_registry_rows($root, $target);
 
     return $count;
 }

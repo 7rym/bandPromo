@@ -23,7 +23,11 @@ while (ob_get_level() > 0) {
 }
 
 $variant = isset($_GET['variant']) ? strtolower(trim((string) $_GET['variant'])) : 'optimal';
-if (!in_array($variant, ['original', 'optimal'], true)) {
+// original is download-only; map legacy listen requests to master.
+if ($variant === 'original') {
+    $variant = 'master';
+}
+if (!in_array($variant, ['master', 'optimal'], true)) {
     http_response_code(400);
     exit('Invalid variant');
 }
@@ -36,18 +40,14 @@ if ($fileName === '' || $fileName === '.' || $fileName === '..') {
 }
 
 $root = dirname(__DIR__);
-$audioDir = $root . '/media/audio/' . $variant;
-$filePath = $audioDir . '/' . $fileName;
-if (!is_file($filePath)) {
-    require_once __DIR__ . '/audio-master-helpers.php';
-    $resolved = bandpromo_resolve_playable_audio_file($root, $fileName, $variant);
-    if ($resolved === null) {
-        http_response_code(404);
-        exit('Not found');
-    }
-    $filePath = $resolved['path'];
-    $fileName = $resolved['filename'];
+require_once __DIR__ . '/audio-master-helpers.php';
+$resolved = bandpromo_resolve_playable_audio_file($root, $fileName, $variant);
+if ($resolved === null) {
+    http_response_code(404);
+    exit('Not found');
 }
+$filePath = $resolved['path'];
+$fileName = $resolved['filename'];
 
 $size = filesize($filePath);
 if ($size === false) {

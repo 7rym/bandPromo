@@ -214,6 +214,25 @@ def load_hidden_media_keys():
 
 
 def has_visible_user_audio_uploads(hidden_keys):
+    # Operator uploads are visible when a non-bundled audio master (or orphan original) exists.
+    if AUDIO_MASTER_DIR.exists():
+        for entry in AUDIO_MASTER_DIR.iterdir():
+            if not entry.is_file():
+                continue
+            if entry.name.lower() == 'desktop.ini':
+                continue
+            asset = load_asset_for_filename(entry.name)
+            label = entry.name
+            if isinstance(asset, dict):
+                original = os.path.basename(str(asset.get('original_filename') or '').strip())
+                if original:
+                    label = original
+            if is_bundled_placeholder(label):
+                continue
+            if 'audio/{0}'.format(entry.name) in hidden_keys or 'audio/{0}'.format(label) in hidden_keys:
+                continue
+            return True
+
     if not AUDIO_ORIG_DIR.exists():
         return False
 
@@ -224,7 +243,7 @@ def has_visible_user_audio_uploads(hidden_keys):
             continue
         if is_bundled_placeholder(entry.name):
             continue
-        if f'audio/{entry.name}' in hidden_keys:
+        if 'audio/{0}'.format(entry.name) in hidden_keys:
             continue
         return True
 
@@ -303,21 +322,20 @@ def load_playlist_document_master_order(playlist_id=None):
 
 
 def resolve_audio_working_path(filename):
+    """Return the audio master path, or a non-existent master path when missing (caller fails)."""
     safe_name = os.path.basename(str(filename or '').strip())
     asset = load_asset_for_filename(safe_name)
     if isinstance(asset, dict):
         master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
         if master_name:
-            path = AUDIO_MASTER_DIR / master_name
-            if path.exists() and path.is_file():
-                return path
+            return AUDIO_MASTER_DIR / master_name
 
     stem = Path(safe_name).stem
     source_suffix = Path(filename).suffix.lower()
     preferred_suffixes = ['.flac', '.mp3', '.wav'] if source_suffix == '.wav' else [source_suffix, '.flac', '.mp3', '.wav']
     seen = set()
     for suffix in preferred_suffixes:
-        candidate = AUDIO_MASTER_DIR / f'{stem}{suffix}'
+        candidate = AUDIO_MASTER_DIR / '{0}{1}'.format(stem, suffix)
         key = str(candidate).lower()
         if key in seen:
             continue
@@ -325,7 +343,8 @@ def resolve_audio_working_path(filename):
         if candidate.exists() and candidate.is_file():
             return candidate
 
-    return AUDIO_ORIG_DIR / safe_name
+    # Master or fail — never fall back to media/audio/original.
+    return AUDIO_MASTER_DIR / safe_name
 
 
 def load_asset_release_map():
@@ -352,6 +371,9 @@ def load_asset_release_map():
         release_id = str(asset.get('release_id') or '').strip()
         if master_filename and release_id:
             release_map[master_filename] = release_id
+        original_filename = os.path.basename(str(asset.get('original_filename') or '').strip())
+        if original_filename and release_id:
+            release_map[original_filename] = release_id
 
     return release_map
 
@@ -365,6 +387,7 @@ def resolve_audio_release_id(filename, release_map):
 
 
 def collect_audio_source_files(release_filter=None):
+    """Enumerate audio work from masters / registry (not media/audio/original)."""
     supported = []
     unsupported = []
     hidden_bundled = []
@@ -374,18 +397,53 @@ def collect_audio_source_files(release_filter=None):
         release_filter = ''
     release_map = load_asset_release_map()
 
-    if not AUDIO_ORIG_DIR.exists():
-        return supported, unsupported, hidden_bundled
+    seen = set()
+    candidates = []
 
-    for entry in sorted(AUDIO_ORIG_DIR.iterdir(), key=lambda item: item.name.lower()):
-        if not entry.is_file():
+    if ASSET_REGISTRY_FILE.exists():
+        try:
+            with open(str(ASSET_REGISTRY_FILE), 'r', encoding='utf-8') as handle:
+                payload = json.load(handle)
+        except Exception:
+            payload = {}
+        assets = payload.get('assets') if isinstance(payload, dict) and isinstance(payload.get('assets'), dict) else {}
+        for asset in assets.values():
+            if not isinstance(asset, dict):
+                continue
+            if str(asset.get('kind') or '').strip() != 'audio':
+                continue
+            master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+            if not master_name:
+                continue
+            path = AUDIO_MASTER_DIR / master_name
+            if path.exists() and path.is_file():
+                candidates.append(path)
+
+    if AUDIO_MASTER_DIR.exists():
+        for entry in AUDIO_MASTER_DIR.iterdir():
+            if entry.is_file() and entry.name.lower() != 'desktop.ini':
+                candidates.append(entry)
+
+    for entry in sorted(candidates, key=lambda item: item.name.lower()):
+        key = str(entry).lower()
+        if key in seen:
             continue
+        seen.add(key)
 
         release_id = resolve_audio_release_id(entry.name, release_map)
         if release_filter and release_id != release_filter:
             continue
 
-        if is_bundled_placeholder(entry.name) and f'audio/{entry.name}' in hidden_keys:
+        label = entry.name
+        asset = load_asset_for_filename(entry.name)
+        if isinstance(asset, dict):
+            original = os.path.basename(str(asset.get('original_filename') or '').strip())
+            if original:
+                label = original
+
+        if is_bundled_placeholder(label) and (
+            'audio/{0}'.format(entry.name) in hidden_keys or 'audio/{0}'.format(label) in hidden_keys
+        ):
             hidden_bundled.append(entry)
             continue
 
@@ -1357,7 +1415,7 @@ def generate_playlist():
         else:
             print(
                 "No playable playlist tracks found "
-                "(checked playlist document masters and media/audio/original)."
+                "(checked playlist document masters and media/audio/master)."
             )
         return
 

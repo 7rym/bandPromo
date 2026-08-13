@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 20:30 - Master-tier T2: working copy is the master. Files index lists by `master_filename` (original is a label); notifications gate on master existence. Public audio play is delivery-only; admin listen uses `variant=master` (original is download-only). Demo original-FLAC playback fallback removed. Publish/Python resolvers and audio collection are master-or-fail; video delivery queue reads Visual video masters; SFX public URL is optimal MP3 only; Download original 404s when missing; delete removes original+master+delivery by asset. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
+
 2026-08-13 16:10 - Session pause pointer: [SESSION-HANDOFF.md](SESSION-HANDOFF.md) so the next session resumes at master-tier T2 (build 381 on `main`, not shipped). Session start prints the file when present.
 
 2026-08-13 16:05 - Checkpoint T1 identity on `main` without a GitHub Release / Site update package: track covers and living covers persist as visual `ast_*` ids (registry, master tags, playlist payload). Publish extract writes `media/visual/original/embedded-{hash}.*` and registers a Visual master instead of `img/original/{audioStem}.*`; configured-cover minting is gone. Admin living-cover picker stores the asset id; player `cover`/`living_cover` are ids with delivery URLs in `cover_url`/`animated_cover`. Policy and plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).

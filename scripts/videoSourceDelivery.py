@@ -13,12 +13,46 @@ def read_payload():
     return payload if isinstance(payload, dict) else {}
 
 
-def source_path_for(filename):
-    return ov.VIDEO_ORIG_DIR / filename
+def load_asset_for_ref(ref):
+    safe = Path(str(ref or '').strip()).name
+    if not safe:
+        return None
+    payload = ov.load_asset_registry()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    if safe in assets and isinstance(assets[safe], dict):
+        item = dict(assets[safe])
+        item['id'] = str(item.get('id') or safe)
+        return item
+    for asset_id, asset in assets.items():
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or '').strip().lower() != 'visual':
+            continue
+        if str(asset.get('media_type') or '').strip().lower() != 'video':
+            continue
+        master_name = Path(str(asset.get('master_filename') or '').strip()).name
+        original_name = Path(str(asset.get('original_filename') or '').strip()).name
+        if safe in {asset_id, master_name, original_name, Path(master_name).stem, Path(original_name).stem}:
+            item = dict(asset)
+            item['id'] = str(asset.get('id') or asset_id)
+            return item
+    return None
 
 
 def process_filename(filename):
-    source_path = source_path_for(filename)
+    """Build delivery from a Visual video master when registered; else legacy original stem."""
+    asset = load_asset_for_ref(filename)
+    if isinstance(asset, dict):
+        asset_id = str(asset.get('id') or '').strip()
+        source_path = ov.visual_video_source_path(asset)
+        if source_path is None or not source_path.is_file():
+            return False, 'source_video_master_not_found'
+        result = ov.process_one_video(source_path, asset_id=asset_id, asset=asset)
+        if result.get('failed'):
+            return False, 'delivery_conversion_failed'
+        return True, 'visual_delivery'
+
+    source_path = ov.VIDEO_ORIG_DIR / filename
     if not source_path.exists() or not source_path.is_file():
         return False, 'source_video_not_found'
 
@@ -45,6 +79,20 @@ def process_filename(filename):
     return ok and target_path.is_file(), mode
 
 
+def delivery_ready_for_ref(filename):
+    asset = load_asset_for_ref(filename)
+    if isinstance(asset, dict):
+        asset_id = str(asset.get('id') or '').strip()
+        if not asset_id:
+            return False
+        delivery_dir = ov.VISUAL_DELIVERY_ROOT / asset_id
+        return (delivery_dir / 'standard-stream.mp4').is_file() and (delivery_dir / 'poster.jpg').is_file()
+
+    delivery_name = Path(filename).stem + '.mp4'
+    poster_name = Path(filename).stem + '.jpg'
+    return (ov.VIDEO_OPT_DIR / delivery_name).is_file() and (ov.VIDEO_POSTER_DIR / poster_name).is_file()
+
+
 def main():
     payload = read_payload()
     filenames = payload.get('filenames')
@@ -67,19 +115,26 @@ def main():
 
     ov.ensure_directories()
 
-    needs_transcode = False
-    needs_poster = False
+    needs_ffmpeg = False
     for filename in requested:
-        source_path = source_path_for(filename)
+        asset = load_asset_for_ref(filename)
+        if isinstance(asset, dict):
+            source_path = ov.visual_video_source_path(asset)
+            if source_path is None or not source_path.is_file():
+                continue
+            if ov.delivery_mode_for(source_path, keep_audio=ov.video_keeps_audio(asset)) != 'copy':
+                needs_ffmpeg = True
+            continue
+        source_path = ov.VIDEO_ORIG_DIR / filename
         if not source_path.exists():
             continue
         if ov.delivery_mode_for(source_path) == 'transcode':
-            needs_transcode = True
+            needs_ffmpeg = True
         poster_path = ov.poster_path_for(source_path)
         if ov.needs_refresh(source_path, poster_path):
-            needs_poster = True
+            needs_ffmpeg = True
 
-    if (needs_transcode or needs_poster) and not ov.check_ffmpeg():
+    if needs_ffmpeg and not ov.check_ffmpeg():
         print(json.dumps({
             'ok': False,
             'error': 'ffmpeg is required to prepare delivery files or posters for one or more videos',
@@ -98,11 +153,7 @@ def main():
 
     still_missing = []
     for name in requested:
-        delivery_name = Path(name).stem + '.mp4'
-        poster_name = Path(name).stem + '.jpg'
-        delivery_ready = (ov.VIDEO_OPT_DIR / delivery_name).is_file()
-        poster_ready = (ov.VIDEO_POSTER_DIR / poster_name).is_file()
-        if not delivery_ready or not poster_ready:
+        if not delivery_ready_for_ref(name):
             still_missing.append(name)
 
     print(json.dumps({

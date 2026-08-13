@@ -273,6 +273,7 @@ function bandpromo_list_media_build_entry(
         'release_id' => bandpromo_release_id_for_media_file($root, $bucket, $filename),
         'hidden'   => bandpromo_media_is_effectively_hidden_for_install($bucket, $filename),
         'original_format' => (string) ($indexed['original_format'] ?? strtolower((string) pathinfo($filename, PATHINFO_EXTENSION))),
+        'original_filename' => (string) ($indexed['original_filename'] ?? ''),
         'intake_bucket' => $bucket,
         'media_type' => $bucket === 'video' ? 'video' : (
             in_array($bucket, ['illustrations', 'photos'], true) ? 'image' : (
@@ -319,6 +320,9 @@ function bandpromo_list_media_build_entry(
             $entry['pool_ready'] = !empty($asset['delivery']['audio_optimal']);
         } else {
             $entry['pool_ready'] = !empty($indexed['pool_ready']);
+        }
+        if ($entry['original_filename'] === '' && is_array($asset)) {
+            $entry['original_filename'] = basename(trim((string) ($asset['original_filename'] ?? '')));
         }
     }
 

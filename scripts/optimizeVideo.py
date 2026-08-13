@@ -392,27 +392,18 @@ def load_registry_visual_video_queue():
 
 
 def visual_video_source_path(asset):
-    """Master-first source path for video delivery (legacy intake fallback)."""
+    """Master-only source path for video delivery."""
     asset_id = str(asset.get('id') or '').strip()
-    filename = os.path.basename(str(asset.get('original_filename') or '').strip())
     master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
     fmt = str(asset.get('master_format') or '').strip().lower()
-    if not fmt and filename:
-        fmt = Path(filename).suffix.lstrip('.').lower()
+    if not fmt and master_name:
+        fmt = Path(master_name).suffix.lstrip('.').lower()
 
     candidates = []
     if asset_id.startswith('ast_') and fmt:
         candidates.append(VISUAL_MASTER_DIR / '{}.{}'.format(asset_id, fmt))
     if master_name.startswith('ast_'):
         candidates.append(VISUAL_MASTER_DIR / master_name)
-    if filename:
-        candidates.append(VISUAL_ORIG_DIR / filename)
-
-    bucket = str(asset.get('intake_bucket') or '').strip().lower()
-    if filename:
-        if bucket == 'special':
-            candidates.append(ROOT_DIR / 'media' / 'special' / filename)
-        candidates.append(VIDEO_ORIG_DIR / filename)
 
     for path in candidates:
         if path.is_file():
@@ -420,7 +411,7 @@ def visual_video_source_path(asset):
     return None
 
 
-def variant_manifest_entry(abs_path: Path, format_hint: str = ''):
+def variant_manifest_entry(abs_path, format_hint=''):
     rel = str(abs_path).replace(str(ROOT_DIR), '').replace('\\', '/')
     if not rel.startswith('/'):
         rel = '/' + rel

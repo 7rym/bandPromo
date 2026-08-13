@@ -1,51 +1,50 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-13. Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
+_Paused: 2026-08-13 (mid-session update after T2). Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
 
 ## Exact resume point
 
-**Do T2 next. Do not redo T0/T1. Do not start T3–T7** except where a T2 path already forces a one-line delivery-only change.
+**Do T3 next. Do not redo T0–T2. Do not start T4–T7** except where a T3 path already forces a one-line Brand/format change.
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ `2da3dea`, in sync with `origin/main` |
-| VERSION | **v0.8.15 build 381** |
-| Tester package | **Not shipped.** No GitHub Release for 381. Site update still offers **build 380**. Do not publish unless the user asks. |
-| Policy | Original (write-once) → master `ast_{ULID}` (working copy) → deliverables from masters. All families: audio, Visual, SFX, Brand assets. |
-| Living-cover tag | Visual **asset id**, not video original filename |
+| Git | Local work on `main`; VERSION **v0.8.16 build 381** (session bump only — not checkpointed) |
+| Tester package | Still **build 380** on Site update unless a later checkpoint ships |
+| Policy | Original (write-once) → master `ast_{ULID}` (working copy) → deliverables from masters |
+| Living-cover tag | Visual **asset id** |
 
-Prior chat: [Master-tier T1 identity](6ba7d8b7-c568-4027-8633-c458b192a1e7).
+Prior chat: this session (Master-tier T2 working copy).
 
-## T1 — done (do not reopen unless a regression)
+## T2 — done (do not reopen unless a regression)
 
-Covers and living covers persist as visual `ast_*` ids (registry `display`, master tags, playlist payload). Publish extract writes `media/visual/original/embedded-{hash}.*` and registers a Visual master; it does **not** mint `img/original/{audioStem}.*` or `configured_release_cover.*`. Admin living-cover picker stores the asset id. Player `cover` / `living_cover` are ids; `cover_url` / `animated_cover` are delivery URLs.
+Working copy is the master; original is download/delete/provenance only.
 
-**Still open (intentionally T6, not T2):** one-shot filename autofix, then fail loud on leftover bare names (audit T1 last checkbox). Autofix already rewrites audio cover/living refs.
+- Files index rebuilds registry-first by `master_filename`; `original_filename` is a label; notifications require master existence.
+- Public play = delivery (`optimal`); operator listen = `master`; `original` is not a playable variant (`audio.php` maps legacy `original` → `master`).
+- Demo original-FLAC playback fallback removed.
+- Python `resolve_audio_working_path` / `visual_working_path_for_asset` / `visual_video_source_path` + `collect_audio_source_files`: master or fail.
+- Video delivery queue from Visual video masters (`bandpromo_list_videos_needing_delivery`, `videoSourceDelivery.py`).
+- SFX public URL = optimal MP3 only; login/player never `/media/sfx/original/`.
+- Download `variant=original` 404 if missing; delete by asset id cleans original + master + delivery.
 
-Key T1 files (already on 381): `living-cover-helpers.php`, `cover-art-helpers.php`, `playlist-storage.php`, `release-storage.php`, `save-audio-master-detail.php`, `audio-master-detail-helpers.php`, `upload-media.php`, `admin.js`, `makePlaylists.py`, `audioMasterMetadata.py`, `scripts/register_visual_original.php`.
+## T3 — start here
 
-## T2 — start here
+Deliverables from masters; kill stem dual-write/read. Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T3:
 
-Working copy is the **master**. Original is download/delete/provenance only.
-
-Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T2:
-
-1. Files index rebuild/list/delete/reference by `master_filename` / asset id; original is a label. Notifications use **master** existence (not `media/audio/original/{file}`).
-2. Public play = delivery; operator listen = master; **drop original as a playable variant** (keep Download original).
-3. Drop demo original-FLAC playback fallback.
-4. Publish/Python working paths: **master or fail**. Do not scan original dirs to enumerate work (`resolve_audio_working_path`, `visual_working_path_for_asset`, `visual_video_source_path`).
-5. Video delivery queue from Visual video **masters**, not `media/video/original/`.
-6. SFX public URL = optimal MP3 only; login/player never `/media/sfx/original/`.
-7. Download `variant=original` **404** if original missing (no silent master substitute). Delete by asset id (original + master + delivery).
-
-Cluster C3 in the audit lists the current breach files.
+1. Delete `process_track_cover` stem `img/optimal|thumb` dual-write; covers go through Visual `process_visual_image_asset`.
+2. Retire `videoSourceDelivery.py` stem `video/optimal` + `video/poster` path for registered assets (already visual delivery for registry); finish stem retirement.
+3. Stop in-place resize of `/media/special/*`.
+4. `bandpromo_visual_resolve_url` public path: delivery only. Admin preview: master file URL or dedicated original-download — not original as page `<img src>`.
+5. Gallery / page allowlist / `admin.js` `videoPosterPathFromSrc`: Visual delivery variants only.
+6. `play/index.php`: drop `MEDIA_IMG_BASE='/media/img'` stem contract; `player.js` uses server `cover_url`.
+7. Playlist cover helper: no `/media/img|photo/{thumb|optimal}/{stem}.jpg` fallback.
 
 ## Constraints (same as AGENTS.md)
 
 - Windows + PowerShell. Python **3.6.9** floor (`scripts/`). Do not mint `ast_*` in Python; PHP registers, Python consumes `master_filename`.
-- Demo campaign is **PRP only** (`bandPromo-demo.prp`). No parallel demo packages. `/media` and `/data` are git-ignored. Never commit `desktop.ini`.
-- `scripts/visualMasterMetadata.py` is not Python 3.6-safe (`from __future__ import annotations`) — fix when that file is touched (T6), not as a drive-by in T2.
-- Unqualified “checkpoint” = bump + commit + push + GitHub Release. This pause was **checkpoint, not ship**.
+- Demo campaign is **PRP only**. Never commit `desktop.ini`.
+- `scripts/visualMasterMetadata.py` Python 3.6 debt remains T6.
+- Unqualified “checkpoint” = bump + commit + push + GitHub Release.
 
 ## First commands next session
 
@@ -53,4 +52,4 @@ Cluster C3 in the audit lists the current breach files.
 powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1
 ```
 
-Then implement T2 from the audit checkboxes. Update this file when you pause again.
+Then implement T3 from the audit checkboxes. Update this file when you pause again.

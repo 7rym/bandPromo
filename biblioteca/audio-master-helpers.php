@@ -367,8 +367,6 @@ function bandpromo_audio_master_paths_for_original(string $root_dir, string $fil
     return array_values(array_unique($paths));
 }
 
-const BANDPROMO_DEMO_ORIGINAL_FALLBACK_MAX_BYTES = 15 * 1024 * 1024;
-
 function bandpromo_resolve_optimal_audio_file(string $root_dir, string $filename): ?array
 {
     $filename = basename(trim($filename));
@@ -385,7 +383,20 @@ function bandpromo_resolve_optimal_audio_file(string $root_dir, string $filename
         $candidates[] = $root_dir . '/media/audio/optimal/' . $stem . '.mp3';
     }
 
+    foreach (bandpromo_audio_master_paths_for_original($root_dir, $filename) as $masterPath) {
+        $masterStem = pathinfo(basename($masterPath), PATHINFO_FILENAME);
+        if ($masterStem !== '') {
+            $candidates[] = $root_dir . '/media/audio/optimal/' . $masterStem . '.mp3';
+        }
+    }
+
+    $seen = [];
     foreach ($candidates as $candidate) {
+        $key = strtolower($candidate);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
         if (is_file($candidate)) {
             return [
                 'path' => $candidate,
@@ -397,6 +408,11 @@ function bandpromo_resolve_optimal_audio_file(string $root_dir, string $filename
     return null;
 }
 
+/**
+ * Resolve the audio working copy (master). Original is never a playable source.
+ *
+ * @return array{path:string,filename:string}|null
+ */
 function bandpromo_resolve_source_audio_file(string $root_dir, string $filename): ?array
 {
     $filename = basename(trim($filename));
@@ -405,11 +421,6 @@ function bandpromo_resolve_source_audio_file(string $root_dir, string $filename)
     }
 
     $candidates = [];
-    $candidates[] = $root_dir . '/media/audio/original/' . $filename;
-    $stem = pathinfo($filename, PATHINFO_FILENAME);
-    foreach (['flac', 'mp3', 'wav'] as $ext) {
-        $candidates[] = $root_dir . '/media/audio/original/' . $stem . '.' . $ext;
-    }
     foreach (bandpromo_audio_master_paths_for_original($root_dir, $filename) as $path) {
         $candidates[] = $path;
     }
@@ -432,54 +443,34 @@ function bandpromo_resolve_source_audio_file(string $root_dir, string $filename)
     return null;
 }
 
+/**
+ * @deprecated Demo original-FLAC playback fallback removed (master-tier T2).
+ */
 function bandpromo_audio_demo_original_fallback_allowed(string $root_dir, string $filename): bool
 {
-    require_once __DIR__ . '/release-storage.php';
-    require_once __DIR__ . '/demo-catalog-state.php';
+    unset($root_dir, $filename);
 
-    if (!bandpromo_demo_catalog_is_visible($root_dir)) {
-        return false;
-    }
-
-    $filename = basename(trim($filename));
-    if ($filename === '') {
-        return false;
-    }
-
-    // Prefer release ownership; legacy bandPromo_* names remain a soft hint only.
-    if (!bandpromo_demo_release_owns_media_file($root_dir, 'audio', $filename)
-        && !bandpromo_release_is_demo_filename($filename)
-    ) {
-        return false;
-    }
-
-    $resolved = bandpromo_resolve_source_audio_file($root_dir, $filename);
-    if ($resolved === null) {
-        return false;
-    }
-
-    $size = filesize($resolved['path']);
-
-    return $size !== false && $size <= BANDPROMO_DEMO_ORIGINAL_FALLBACK_MAX_BYTES;
+    return false;
 }
 
+/**
+ * Playable audio: public delivery (`optimal`) or operator master (`master`).
+ * `original` is not a playable variant (Download original only).
+ *
+ * @return array{path:string,filename:string}|null
+ */
 function bandpromo_resolve_playable_audio_file(string $root_dir, string $filename, string $variant = 'optimal'): ?array
 {
     $variant = strtolower(trim($variant));
     if ($variant === 'original') {
+        // Legacy callers: treat as operator master listen, never stream original.
+        $variant = 'master';
+    }
+    if ($variant === 'master') {
         return bandpromo_resolve_source_audio_file($root_dir, $filename);
     }
 
-    $resolved = bandpromo_resolve_optimal_audio_file($root_dir, $filename);
-    if ($resolved !== null) {
-        return $resolved;
-    }
-
-    if (bandpromo_audio_demo_original_fallback_allowed($root_dir, $filename)) {
-        return bandpromo_resolve_source_audio_file($root_dir, $filename);
-    }
-
-    return null;
+    return bandpromo_resolve_optimal_audio_file($root_dir, $filename);
 }
 
 function bandpromo_audio_delivery_paths_for_original(string $root_dir, string $filename): array

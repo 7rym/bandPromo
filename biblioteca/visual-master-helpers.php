@@ -52,7 +52,8 @@ function bandpromo_visual_master_path(string $root, string $assetId, string $for
 }
 
 /**
- * Resolve on-disk working bytes for a visual asset (master → unified original → legacy intake).
+ * Resolve on-disk working bytes for a visual asset (master only).
+ * Original is download/delete/provenance — not a working copy after materialize.
  */
 function bandpromo_visual_working_path(string $root, array $asset): string
 {
@@ -75,19 +76,6 @@ function bandpromo_visual_working_path(string $root, array $asset): string
         if (is_file($candidate)) {
             return $candidate;
         }
-    }
-
-    $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
-    if ($originalFilename !== '') {
-        $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
-        if (is_file($unified)) {
-            return $unified;
-        }
-    }
-
-    $legacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
-    if ($legacy !== '' && is_file($legacy)) {
-        return $legacy;
     }
 
     return '';

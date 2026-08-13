@@ -112,35 +112,20 @@ function bandpromo_sfx_delivery_absolute(string $root, string $assetId): string
 }
 
 /**
- * Public playback URL: delivery MP3 → master → original.
+ * Public playback URL: optimal MP3 delivery only.
  *
  * @param array<string, mixed> $asset
  */
 function bandpromo_sfx_resolve_play_url(string $root, array $asset): string
 {
     $assetId = trim((string) ($asset['id'] ?? ''));
-    $masterFilename = basename((string) ($asset['master_filename'] ?? ''));
-    $originalFilename = basename((string) ($asset['original_filename'] ?? ''));
-
-    if ($assetId !== '') {
-        $delivery = bandpromo_sfx_delivery_absolute($root, $assetId);
-        if ($delivery !== '' && is_file($delivery)) {
-            return bandpromo_sfx_delivery_web_path($assetId);
-        }
+    if ($assetId === '') {
+        return '';
     }
 
-    if ($masterFilename !== '') {
-        $masterPath = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
-        if (is_file($masterPath)) {
-            return bandpromo_sfx_master_web_path($masterFilename);
-        }
-    }
-
-    if ($originalFilename !== '') {
-        $originalPath = bandpromo_sfx_original_dir($root) . DIRECTORY_SEPARATOR . $originalFilename;
-        if (is_file($originalPath)) {
-            return bandpromo_sfx_web_path($originalFilename);
-        }
+    $delivery = bandpromo_sfx_delivery_absolute($root, $assetId);
+    if ($delivery !== '' && is_file($delivery)) {
+        return bandpromo_sfx_delivery_web_path($assetId);
     }
 
     return '';
@@ -168,7 +153,9 @@ function bandpromo_sfx_rewrite_special_audio_path(string $webPath): string
         return $webPath;
     }
 
-    return bandpromo_sfx_web_path($filename);
+    // Keep a synthetic sfx path so resolve_stored_path can look up the asset;
+    // public playback still resolves to optimal-only via bandpromo_sfx_resolve_play_url.
+    return '/media/sfx/master/' . $filename;
 }
 
 /**
@@ -188,6 +175,7 @@ function bandpromo_sfx_resolve_stored_path(string $root, string $webPath): strin
     }
 
     if (preg_match('#^/media/sfx/(original|master|optimal)/([^/]+)$#i', $webPath, $matches) === 1) {
+        $tier = strtolower((string) ($matches[1] ?? ''));
         $filename = basename((string) ($matches[2] ?? ''));
         $asset = bandpromo_asset_lookup_by_original_filename($root, $filename);
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'sfx') {
@@ -204,6 +192,11 @@ function bandpromo_sfx_resolve_stored_path(string $root, string $webPath): strin
             if ($resolved !== '') {
                 return $resolved;
             }
+            // Delivery pending — do not fall through to original/master public URLs.
+            return '';
+        }
+        if ($tier === 'original' || $tier === 'master') {
+            return '';
         }
     }
 

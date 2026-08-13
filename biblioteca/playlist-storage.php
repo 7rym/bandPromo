@@ -1390,7 +1390,7 @@ function bandpromo_playlist_resolve_source_audio_path(string $root, string $file
         return null;
     }
 
-    $resolved = bandpromo_resolve_playable_audio_file($root, $filename, 'original');
+    $resolved = bandpromo_resolve_playable_audio_file($root, $filename, 'master');
     return $resolved !== null ? $resolved['path'] : null;
 }
 
@@ -1839,12 +1839,13 @@ function bandpromo_playlist_track_stream_state(
         ];
     }
 
-    if ($preferredVariant === 'original') {
+    if ($preferredVariant === 'original' || $preferredVariant === 'master') {
         $sourceReady = bandpromo_playlist_resolve_source_audio_path($root, $masterFile) !== null;
 
+        // Operator/high-quality listen uses master; public preferred variant is always optimal.
         return [
             'delivery_ready' => $sourceReady,
-            'delivery_mode' => $sourceReady ? 'original' : 'source_missing',
+            'delivery_mode' => $sourceReady ? 'master' : 'source_missing',
             'playable' => $sourceReady,
             'lock_reason' => $sourceReady ? '' : 'source_missing',
         ];
@@ -1855,15 +1856,6 @@ function bandpromo_playlist_track_stream_state(
         return [
             'delivery_ready' => true,
             'delivery_mode' => 'optimal',
-            'playable' => true,
-            'lock_reason' => '',
-        ];
-    }
-
-    if (bandpromo_audio_demo_original_fallback_allowed($root, $masterFile)) {
-        return [
-            'delivery_ready' => false,
-            'delivery_mode' => 'demo_original',
             'playable' => true,
             'lock_reason' => '',
         ];
