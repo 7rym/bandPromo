@@ -8,9 +8,9 @@ _Paused: 2026-08-13 (after T3). Next session: read this file first, then [MASTER
 
 | Item | Value |
 |------|--------|
-| Git | Local T3 work on `main` (not checkpointed yet unless session end ran) |
-| VERSION | Session may still be **v0.8.16 build 382** until checkpoint |
-| Tester package | Last shipped: **build 382** |
+| Git | `main` @ `6002a8f`, in sync with `origin/main` |
+| VERSION | **v0.8.16 build 383** |
+| Tester package | **Shipped.** Tag `v0.8.16-build-383`. Site update should offer **build 383** once the release finishes. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
 ## T3 — done (do not reopen unless a regression)
