@@ -73,8 +73,8 @@ $siteName  = get_config('release.identity.title', 'Admin');
 $siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
 $defaultThemeStatus = bandpromo_admin_get_default_theme_status(__DIR__);
 bandpromo_demo_release_ensure_preferences(__DIR__);
-$demoCatalogVisible = bandpromo_demo_catalog_is_visible(__DIR__);
 $demoCatalogShouldSuggestHide = bandpromo_demo_catalog_should_suggest_hide(__DIR__);
+$demoCatalogVisible = bandpromo_demo_catalog_is_visible(__DIR__);
 $demoReleaseId = bandpromo_demo_release_id(__DIR__);
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
@@ -776,7 +776,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo catalog</h2>
                 <p class="card-note">
-                    Your installation already has its own content. You can hide the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally, so you can turn the catalog back on later from Settings.
+                    You have a release with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
@@ -863,7 +863,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo catalog</h2>
                 <p class="card-note">
-                    Your installation already has its own content. You can hide the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally, so you can turn the catalog back on later from Settings.
+                    You have a release with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
@@ -2398,7 +2398,7 @@ if ($tab === 'analytics') {
             <div class="card">
                 <h3>🎭 Demo catalog</h3>
                 <p class="card-note">
-                    When hidden, the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them, so you can show the catalog again later without reinstalling.
+                    Hide is available after you have an operator-created release with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalog, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
                     <input type="checkbox" id="cfgDemoCatalogVisible"<?php echo $demoCatalogVisible ? ' checked' : ''; ?>>

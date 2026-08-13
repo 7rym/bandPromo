@@ -701,71 +701,201 @@ function bandpromo_demo_release_hide_blockers(string $root): array
     return $blockers;
 }
 
-function bandpromo_demo_catalog_install_has_operator_content(string $root): bool
+function bandpromo_demo_catalog_is_operator_release_id(string $root, string $releaseId): bool
 {
-    require_once __DIR__ . '/media-library-state.php';
+    require_once __DIR__ . '/release-storage.php';
 
-    if (bandpromo_media_has_visible_user_uploads('audio')
-        || bandpromo_media_has_visible_user_uploads('illustrations')
-        || bandpromo_media_has_visible_user_uploads('photos')
-        || bandpromo_media_has_visible_user_uploads('special')) {
-        return true;
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+        return false;
     }
 
-    require_once __DIR__ . '/release-storage.php';
     $demoId = bandpromo_demo_release_id($root);
+    if ($demoId !== '' && $releaseId === $demoId) {
+        return false;
+    }
+
+    return !bandpromo_release_is_platform_demo($releaseId);
+}
+
+/**
+ * Operator campaign ids that already have at least one track.
+ *
+ * @return list<string>
+ */
+function bandpromo_demo_catalog_operator_release_ids_with_tracks(string $root): array
+{
+    require_once __DIR__ . '/release-storage.php';
+
+    $ids = [];
     foreach (bandpromo_release_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
         }
         $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
-        if ($releaseId === '' || ($demoId !== '' && $releaseId === $demoId) || bandpromo_demo_catalog_is_demo_entity_id($releaseId)) {
+        if (!bandpromo_demo_catalog_is_operator_release_id($root, $releaseId)) {
             continue;
         }
-        if ($releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+
+        try {
+            $document = bandpromo_release_load_document($root, $releaseId);
+        } catch (Throwable $throwable) {
             continue;
         }
-        if ((int) ($entry['track_count'] ?? 0) > 0) {
+        if (count($document['tracks'] ?? []) <= 0) {
+            continue;
+        }
+        $ids[] = $releaseId;
+    }
+
+    return $ids;
+}
+
+function bandpromo_demo_catalog_playlist_is_demo_owned(string $root, array $entry, string $demoId = ''): bool
+{
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/release-storage.php';
+
+    if ($demoId === '') {
+        $demoId = bandpromo_demo_release_id($root);
+    }
+
+    $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+    if ($playlistId !== '') {
+        if (($demoId !== '' && $playlistId === $demoId) || bandpromo_demo_catalog_is_demo_entity_id($playlistId)) {
             return true;
         }
     }
 
+    $releaseId = bandpromo_release_normalize_id(trim((string) ($entry['release_id'] ?? '')));
+    if ($releaseId === '') {
+        return false;
+    }
+
+    if ($demoId !== '' && $releaseId === $demoId) {
+        return true;
+    }
+
+    return bandpromo_release_is_platform_demo($releaseId);
+}
+
+function bandpromo_demo_catalog_entry_release_id(string $root, array $entry): string
+{
+    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    $releaseId = bandpromo_release_normalize_id(trim((string) ($entry['release_id'] ?? '')));
+    if ($releaseId !== '') {
+        return $releaseId;
+    }
+
+    $assetId = trim((string) ($entry['asset_id'] ?? ''));
+    if ($assetId !== '') {
+        $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+        if (is_array($asset)) {
+            $fromAsset = bandpromo_release_normalize_id(trim((string) ($asset['release_id'] ?? '')));
+            if ($fromAsset !== '') {
+                return $fromAsset;
+            }
+        }
+    }
+
+    $masterFile = basename(trim((string) ($entry['master_file'] ?? '')));
+    if ($masterFile === '') {
+        return '';
+    }
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $masterFile);
+    if (!is_array($asset)) {
+        return '';
+    }
+
+    return bandpromo_release_normalize_id(trim((string) ($asset['release_id'] ?? '')));
+}
+
+/**
+ * True only when an operator-created release has at least one track and a
+ * non-demo playlist exposes a track from that release.
+ */
+function bandpromo_demo_catalog_install_has_operator_content(string $root): bool
+{
     require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/release-storage.php';
+
+    $operatorReleases = bandpromo_demo_catalog_operator_release_ids_with_tracks($root);
+    if ($operatorReleases === []) {
+        return false;
+    }
+
+    $lookup = array_fill_keys($operatorReleases, true);
+    $demoId = bandpromo_demo_release_id($root);
+
     foreach (bandpromo_playlist_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
         }
         $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
-        if ($playlistId === '' || ($demoId !== '' && $playlistId === $demoId) || bandpromo_demo_catalog_is_demo_entity_id($playlistId)) {
+        if ($playlistId === '') {
             continue;
         }
-        if ((int) ($entry['track_count'] ?? 0) > 0) {
-            return true;
-        }
-    }
 
-    require_once __DIR__ . '/gallery-storage.php';
-    foreach (bandpromo_gallery_registry_entries($root) as $entry) {
-        if (!is_array($entry)) {
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
             continue;
         }
-        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
-        if ($galleryId === '' || ($demoId !== '' && $galleryId === $demoId) || bandpromo_demo_catalog_is_demo_entity_id($galleryId)) {
+
+        $owned = array_merge($entry, [
+            'id' => $playlistId,
+            'release_id' => (string) ($document['release_id'] ?? ($entry['release_id'] ?? '')),
+        ]);
+        if (bandpromo_demo_catalog_playlist_is_demo_owned($root, $owned, $demoId)) {
             continue;
         }
-        if (($entry['kind'] ?? 'system') !== 'user') {
+
+        $entries = $document['entries'] ?? [];
+        if (!is_array($entries) || $entries === []) {
             continue;
         }
-        if (!bandpromo_gallery_document_is_empty($root, $galleryId)) {
+
+        $owner = bandpromo_release_normalize_id(trim((string) ($document['release_id'] ?? '')));
+        if ($owner !== '' && isset($lookup[$owner])) {
             return true;
+        }
+
+        foreach ($entries as $trackEntry) {
+            if (!is_array($trackEntry)) {
+                continue;
+            }
+            $releaseId = bandpromo_demo_catalog_entry_release_id($root, $trackEntry);
+            if ($releaseId !== '' && isset($lookup[$releaseId])) {
+                return true;
+            }
         }
     }
 
     return false;
 }
 
+/**
+ * If the operator later deletes their campaign, the demo catalog must return.
+ */
+function bandpromo_demo_catalog_restore_if_operator_campaign_gone(string $root): bool
+{
+    if (bandpromo_demo_catalog_is_visible($root)) {
+        return false;
+    }
+    if (bandpromo_demo_catalog_install_has_operator_content($root)) {
+        return false;
+    }
+
+    return bandpromo_demo_catalog_set_visible($root, true);
+}
+
 function bandpromo_demo_catalog_should_suggest_hide(string $root): bool
 {
+    bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
+
     return bandpromo_demo_catalog_is_visible($root)
         && bandpromo_demo_catalog_install_has_operator_content($root);
 }

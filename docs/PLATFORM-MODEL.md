@@ -60,7 +60,7 @@ The **first PRP imported at setup** becomes this install’s protected fallback 
 
 **Lock:** the demo release stays locked for operators. **Localhost only** may unlock, edit, and re-export the PRP. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
 
-**Hide:** operators may hide **only** that demo release’s **campaign** content (owned playlists / pages / galleries and their associated Audio/Visual pool media). Hide is **blocked** if any demo-owned campaign asset is still referenced by a **non-demo** container/release — the API returns structured `hide_blockers` (what/where). Do not silently keep shared assets while hiding, and do not hide shared assets without that warning.
+**Hide:** operators may hide **only** that demo release’s **campaign** content (owned playlists / pages / galleries and their associated Audio/Visual pool media). Hide is offered only after the install has **operator catalog**: an operator-created release that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **blocked** if any demo-owned campaign asset is still referenced by a **non-demo** container/release — the API returns structured `hide_blockers` (what/where). Do not silently keep shared assets while hiding, and do not hide shared assets without that warning. If the operator later deletes that catalog so the gate no longer passes, **show the demo catalog again** (`demo_release_hidden=false`).
 
 **Brand shell out of hide scope:** Files → Brand assets and Sound effects stay listable even when the demo campaign is hidden (operators duplicate brand; branding is secondary). There is no per-file soft-hide of demo shell media — hide is release-level only.
 

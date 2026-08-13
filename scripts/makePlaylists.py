@@ -26,6 +26,9 @@ AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'
 PHOTO_ORIG_DIR  = ROOT_DIR / 'media' / 'photo' / 'original'
 SPECIAL_DIR     = ROOT_DIR / 'media' / 'special'
+VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
+VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
+VISUAL_DELIVERY_DIR = ROOT_DIR / 'media' / 'visual' / 'delivery'
 VALIDATION_FILE = ROOT_DIR / 'data' / 'validation' / 'playlist-validation.json'
 MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
@@ -692,13 +695,25 @@ def get_metadata(filename):
 
 
 def resolve_pool_cover_filename(cover_name):
-    """Return basename if the cover exists in any visual intake folder."""
+    """Return basename if the cover exists in visual master/original, delivery, or legacy intake."""
     cover_name = os.path.basename(str(cover_name or '').strip())
     if not cover_name:
         return None
-    for folder in (IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
+    for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
         if (folder / cover_name).exists():
             return cover_name
+    stem = os.path.splitext(cover_name)[0]
+    if stem:
+        delivery_dir = VISUAL_DELIVERY_DIR / stem
+        if delivery_dir.is_dir():
+            for name in ('card.jpg', 'card.png', 'thumb.jpg', 'thumb.png'):
+                if (delivery_dir / name).exists():
+                    return cover_name
+        for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR):
+            for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+                candidate = folder / (stem + ext)
+                if candidate.exists():
+                    return candidate.name
     return None
 
 

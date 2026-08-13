@@ -614,7 +614,7 @@ Operator-facing summary:
 - **master/** — internal canonical file (`ast_…`); admin metadata edits target this tier
 - **optimal/** — generated MP3s the player serves by default; not meant for manual browsing
 
-Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s static player payload so `/play` can load without a full site rebuild.
+Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Files that exist only as **masters** (Demo PRP / campaign import, no intake original) are listed in Files from the asset registry and are editable. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s player payload so `/play` can load without a full site rebuild.
 
 Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via setup import of `bandPromo-demo.prp` (or local seed) and are built into the normal three-tier layout on the host. Admin Publish does not re-download demo packages. Sound effects use the same three-tier idea under `media/sfx/{original,master,optimal}` (login plays delivery MP3 when ready).
 
@@ -1232,10 +1232,12 @@ The player description currently reads from:
 
 Build cover lookup (`scripts/makePlaylists.py` `get_cover()`):
 
-1. operator-assigned Visual pool cover from the asset registry (`display.cover`)
+1. operator-assigned Visual pool cover from the asset registry (`display.cover`) — including `ast_{id}.ext` refs whose bytes live in `media/visual/master` or `media/visual/delivery/{id}/`
 2. legacy same-basename image file in `media/img/original/`
-3. extract embedded audio artwork only when no assigned/sidecar cover exists
+3. extract embedded audio artwork only when no assigned/sidecar cover exists (assigned refs with no working bytes fall through to extract)
 4. configured release cover from `web-config.json` (`media.cover`)
+
+`/play` prefers playlist `cover_url` (visual delivery `card`/`thumb`, else master). When the payload still has a filename only, the player tries `/media/visual/delivery/{asset_id}/…` then visual master/original, then legacy `media/img`.
 
 Assigning a pool image to a track embeds it into the master and stores the pool filename as the cover reference. It does not copy the pool file to `{audio_stem}.ext`.
 

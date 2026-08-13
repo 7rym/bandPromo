@@ -2335,6 +2335,8 @@ function bandpromo_release_save_tracks(string $root, string $releaseId, array $m
         bandpromo_asset_write_registry($root, $registry);
     }
 
+    bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
+
     return [
         'tracks' => $tracks,
         'skipped' => $skipped,
@@ -2769,6 +2771,8 @@ function bandpromo_release_delete(string $root, string $releaseId): void
     if ($changed) {
         bandpromo_asset_write_registry($root, $registryAssets);
     }
+
+    bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
 }
 
 function bandpromo_release_repair_catalog_release_ids(string $root): int

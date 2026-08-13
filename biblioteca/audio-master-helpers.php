@@ -173,6 +173,9 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
 function bandpromo_find_audio_master(string $root_dir, string $filename): array {
     $filename = basename(trim($filename));
     $asset = bandpromo_asset_lookup_by_original_filename($root_dir, $filename);
+    if ($asset === null) {
+        $asset = bandpromo_asset_lookup_by_master_filename($root_dir, $filename);
+    }
     if ($asset !== null) {
         $master_filename = (string) ($asset['master_filename'] ?? '');
         $format = strtolower((string) ($asset['master_format'] ?? pathinfo($master_filename, PATHINFO_EXTENSION)));

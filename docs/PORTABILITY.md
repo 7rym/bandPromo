@@ -92,7 +92,7 @@ Prefer **PRP round-trips** for one-campaign moves. Use data export when moving a
 | **Track masters** | `media/audio/master/*` | Canonical tagged masters; originals stay on the source host |
 | **Playlists** | Docs with `release_id` | Listening products |
 | **Galleries / pages** | Docs with `release_id` | Demo PRP: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
-| **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | No upload originals or delivery in the package; SFX delivery rebuilt as `media/sfx/optimal/{ast_*}.mp3` |
+| **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | No upload originals or delivery in the package; SFX delivery rebuilt as `media/sfx/optimal/{ast_*}.mp3`. Track `display.cover` / `living_cover` refs (bare `ast_*` or `ast_*.png`) resolve to visual asset ids so cover masters travel. Import rebuilds the Files index from masters when originals are absent. |
 | **Manifest** | `release-package-manifest.json` | `release_export_version`, title, paths, flags (`platform_demo`, locked), bandPromo `VERSION` |
 
 #### Demo PRP (`bandPromo-demo.prp`)
@@ -101,7 +101,7 @@ Prefer **PRP round-trips** for one-campaign moves. Use data export when moving a
 - Lives on the durable GitHub release tag **`demo-content`** as `bandPromo-demo.prp` + `demo-manifest.json` — **not** re-uploaded with every application build.
 - Application releases (`bandPromo.zip` + `release-manifest.json`) embed a pointer to that durable Demo PRP for checksum/URL; setup also falls back to `demo-content` directly when needed.
 - **Locked** for operators after import: optional **hide** or **duplicate** (new container ids, shared media); cannot delete the platform demo release.
-- Hide is release-level (`demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`): campaign containers + owned Audio/Visual media only; Brand assets / Sound effects stay visible. Hide is refused while non-demo containers still reference demo campaign assets.
+- Hide is release-level (`demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`): campaign containers + owned Audio/Visual media only; Brand assets / Sound effects stay visible. Hide is offered only after an operator-created release with a track is exposed on a playlist. Hide is refused while non-demo containers still reference demo campaign assets. If that operator catalog is later deleted, the demo catalog is shown again.
 - Only a **localhost developer** may unlock/override that lock, edit the campaign like any other release, and **re-export** it as the new `bandPromo-demo.prp` (then `python scripts/prepare_demo_content_package.py --prp … --publish`).
 - **No parallel demo content model:** after the release-ownership model, do **not** add code paths that special-case “demo” for ownership, heals, filename→release inference, or association rules. Demo is a normal campaign that arrives via PRP; lock + hide + duplicate + localhost unlock are the only demo-specific operator surfaces. Media stays out of git (`/media` ignored); PRP / published packages carry masters.
 - System re-import of demo defaults to **overwrite** so delivery can rebuild.

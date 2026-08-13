@@ -121,6 +121,20 @@ function bandpromo_resolve_download_item(string $root, string $sourceDir, string
     }
 
     $path = $sourceDir . '/' . $safe;
+    if (!is_file($path) && $target === 'audio') {
+        $master = bandpromo_find_audio_master($root, $safe);
+        if (!empty($master['exists']) && !empty($master['filename'])) {
+            $masterPath = $root . '/media/audio/master/' . basename((string) $master['filename']);
+            if (is_file($masterPath)) {
+                return [
+                    'ok' => true,
+                    'filename' => $safe,
+                    'download_name' => basename((string) $master['filename']),
+                    'path' => $masterPath,
+                ];
+            }
+        }
+    }
     if (!is_file($path)) {
         return ['ok' => false, 'filename' => $safe, 'error' => 'File not found'];
     }

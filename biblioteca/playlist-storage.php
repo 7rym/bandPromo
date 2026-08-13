@@ -1944,6 +1944,16 @@ function bandpromo_playlist_enrich_tracks_for_player(
             ? bandpromo_living_cover_player_url($root, $livingCover)
             : '';
 
+        $coverRef = trim((string) ($track['cover'] ?? ''));
+        $coverUrl = '';
+        if ($coverRef !== '') {
+            require_once __DIR__ . '/media-delivery-helpers.php';
+            $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card');
+            if ($coverUrl === '') {
+                $coverUrl = bandpromo_playlist_prefer_cover_delivery_url($root, '', $coverRef);
+            }
+        }
+
         $display = bandpromo_asset_read_audio_display($asset);
         $textRole = $display['text_role'];
         $notesLabel = $display['notes_label'];
@@ -1963,6 +1973,7 @@ function bandpromo_playlist_enrich_tracks_for_player(
             'playable' => (bool) ($streamState['playable'] ?? false),
             'lock_reason' => (string) ($streamState['lock_reason'] ?? ''),
             'animated_cover' => $animatedCover,
+            'cover_url' => $coverUrl,
             'text_role' => $textRole,
             'notes_label' => $notesLabel,
         ]);
@@ -3171,4 +3182,6 @@ function bandpromo_playlist_delete(string $root, string $playlistId): void
     if (is_file($path) && !unlink($path)) {
         throw new RuntimeException('Could not delete playlist document.');
     }
+
+    bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
 }

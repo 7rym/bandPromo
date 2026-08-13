@@ -701,7 +701,7 @@ $siteContactHtml = htmlspecialchars($siteContact);
   <!-- STEP 3: Build -->
   <div class="panel" id="panel-3">
     <h1>Installing demo content and building site</h1>
-    <p class="subtitle">First we download and import the Demo PRP (portable demo campaign). That download can take a minute — progress appears in the log below. Then we build delivery files so the player can run. You can hide the demo content later in Admin after you upload your own.</p>
+    <p class="subtitle">First we download and import the demo PRP (Portable Release Package). That download can take a minute — progress appears in the log below. Then we build delivery files so the player can run. You can hide the demo content later in Admin after you upload your own.</p>
     <?php if (!class_exists('ZipArchive')): ?>
     <div class="msg" style="display:block;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:#f0b429;">
       ZipArchive is not available on this host. The build can still run, but bootstrap package install/update flows and multi-file downloads will remain unavailable until the PHP ZipArchive extension is enabled.

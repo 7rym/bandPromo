@@ -716,6 +716,54 @@ function bandpromo_asset_lookup_visual(
 }
 
 /**
+ * Resolve a media ref that may be a bare asset id, an asset-id filename
+ * (`ast_….png`), a master filename, or a human original filename.
+ *
+ * PRP cover fields often store `ast_{id}.png` (stem + extension). Bare-id
+ * lookup fails on that string, and original-filename lookup fails when the
+ * visual was ingested as a human name. This helper tries all three.
+ */
+function bandpromo_asset_lookup_from_media_ref(string $root, string $ref): ?array
+{
+    $ref = trim($ref);
+    if ($ref === '') {
+        return null;
+    }
+
+    $base = basename($ref);
+    if ($base === '' || strcasecmp($base, 'desktop.ini') === 0) {
+        return null;
+    }
+
+    if (bandpromo_asset_is_asset_id($base)) {
+        $asset = bandpromo_asset_lookup_by_id($root, $base);
+        if (is_array($asset)) {
+            return $asset;
+        }
+    }
+
+    $stem = (string) pathinfo($base, PATHINFO_FILENAME);
+    if ($stem !== $base && bandpromo_asset_is_asset_id($stem)) {
+        $asset = bandpromo_asset_lookup_by_id($root, $stem);
+        if (is_array($asset)) {
+            return $asset;
+        }
+    }
+
+    $byMaster = bandpromo_asset_lookup_by_master_filename($root, $base);
+    if (is_array($byMaster)) {
+        return $byMaster;
+    }
+
+    $byOriginal = bandpromo_asset_lookup_by_original_filename($root, $base);
+    if (is_array($byOriginal)) {
+        return $byOriginal;
+    }
+
+    return bandpromo_asset_lookup_visual($root, $base);
+}
+
+/**
  * Find any visual asset row with this original_filename (including orphans
  * not pointed at by by_original_filename).
  */
@@ -1911,6 +1959,10 @@ function bandpromo_audio_catalogued_filenames(string $root): array
         $originalName = basename((string) ($asset['original_filename'] ?? ''));
         if ($originalName !== '') {
             $catalogued[$originalName] = true;
+        }
+        $masterName = basename((string) ($asset['master_filename'] ?? ''));
+        if ($masterName !== '') {
+            $catalogued[$masterName] = true;
         }
     }
 

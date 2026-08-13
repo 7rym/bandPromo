@@ -306,6 +306,9 @@ def build_zip(
             raise RuntimeError(
                 "Required install icon missing after ensure: {0}".format(relative_path)
             )
+    for relative_path in OPTIONAL_ICON_PATHS:
+        if (ROOT / relative_path).is_file() and relative_path not in app_files:
+            app_files.append(relative_path)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     archive_path = output_dir / package_alias_name()

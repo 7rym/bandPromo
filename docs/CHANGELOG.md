@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 13:45 - Smoke-test fixes: Files → Audio lists masters-only PRP tracks (index rebuild from registry + `media/audio/master`); `/play` resolves `ast_*` track covers via visual delivery/master (`cover_url` + player fallback) instead of legacy `/media/img/optimal`. PRP collect resolves `ast_*.ext` cover refs; Publish cover lookup checks visual master/delivery and extracts when assigned art is missing.
+
+2026-08-13 12:55 - Welcome/demo catalog: treat Demo PRP (not legacy `media/audio/original` FLACs) as the installed starter catalog; FAQ stays advice. Operator-content / Hide demo requires an operator-created release with a track plus a playlist that exposes it; if that catalog is later deleted, the demo is shown again.
+
+2026-08-13 11:20 - Setup helper copy: PRP expands to Portable Release Package (not “portable demo campaign”).
+
 2026-08-13 10:30 - Setup layout seed: after Demo PRP import, do not fail when `media/audio/original` is empty — treat already-populated playlist/gallery containers as success, and fall back to playlist masters / `media/audio/master` when seeding from disk.
 
 2026-08-13 00:15 - Lean GitHub releases: app packages ship only `bandPromo.zip` + `release-manifest.json`; Demo PRP moves to durable `demo-content` tag (`prepare_demo_content_package.py --publish`); drop operator default-theme ZIP; setup falls back to demo-content manifest; icons seed from app package; release titles stay `bandPromo vX.Y.Z build N`.

@@ -89,47 +89,91 @@ function buildAudioUrl(filename) {
     return `/biblioteca/audio.php?${params.toString()}`;
 }
 
+function isMediaOrAbsoluteUrl(value) {
+    return /^(https?:)?\/\//i.test(value) || value.indexOf('/media/') === 0;
+}
+
+function songCoverRef(song) {
+    if (!song) {
+        return '';
+    }
+    const coverUrl = typeof song.cover_url === 'string' ? song.cover_url.trim() : '';
+    if (coverUrl !== '') {
+        return coverUrl;
+    }
+    return typeof song.cover === 'string' ? song.cover : '';
+}
+
+function coverAssetIdFromFilename(filename) {
+    const stem = String(filename || '').replace(/\.[^.]+$/, '');
+    if (/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(stem)) {
+        return stem;
+    }
+    return '';
+}
+
 function buildCoverUrl(rawCoverPath, variant = IMAGE_PATH_VARIANT) {
     if (!rawCoverPath) return '';
-    const filename = rawCoverPath.split('\\').pop().split('/').pop();
-    const stem = filename.replace(/\.[^.]+$/, '');
-    const extMatch = filename.match(/\.(png|jpe?g|webp)$/i);
-    const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-    const normalizedVariant = variant === 'thumb' || variant === 'optimal' || variant === 'original'
-        ? variant
-        : 'optimal';
-    const normalizedExt = normalizedVariant === 'original' ? ext : 'jpg';
-    const name = `${stem}.${normalizedExt}`;
-    if (window.MEDIA_IMG_BASE != null) {
-        return `${window.MEDIA_IMG_BASE}/${normalizedVariant}/${name}`;
+    if (isMediaOrAbsoluteUrl(rawCoverPath)) {
+        return rawCoverPath;
     }
-    return `../${normalizedVariant}/${name}`;
+    const candidates = buildCoverUrlCandidates(rawCoverPath, variant);
+    return candidates[0] || '';
 }
 
 function buildCoverUrlCandidates(rawCoverPath, preferredVariant = IMAGE_PATH_VARIANT) {
     if (!rawCoverPath) return [];
+    if (isMediaOrAbsoluteUrl(rawCoverPath)) {
+        return [rawCoverPath];
+    }
     const filename = rawCoverPath.split('\\').pop().split('/').pop();
     const stem = filename.replace(/\.[^.]+$/, '');
     const extMatch = filename.match(/\.(png|jpe?g|webp)$/i);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
     const base = window.MEDIA_IMG_BASE != null ? window.MEDIA_IMG_BASE : '..';
     const preferred = preferredVariant === 'thumb' ? 'thumb' : 'optimal';
-    const candidates = preferred === 'thumb'
-        ? [
+    const assetId = coverAssetIdFromFilename(filename);
+    const candidates = [];
+    if (assetId) {
+        const visual = preferred === 'thumb'
+            ? [
+                `/media/visual/delivery/${assetId}/thumb.jpg`,
+                `/media/visual/delivery/${assetId}/thumb.png`,
+                `/media/visual/delivery/${assetId}/card.jpg`,
+                `/media/visual/delivery/${assetId}/card.png`,
+            ]
+            : [
+                `/media/visual/delivery/${assetId}/card.jpg`,
+                `/media/visual/delivery/${assetId}/card.png`,
+                `/media/visual/delivery/${assetId}/thumb.jpg`,
+                `/media/visual/delivery/${assetId}/thumb.png`,
+            ];
+        candidates.push(
+            ...visual,
+            `/media/visual/master/${filename}`,
+            `/media/visual/master/${assetId}.png`,
+            `/media/visual/master/${assetId}.jpg`,
+            `/media/visual/original/${filename}`,
+        );
+    }
+    if (preferred === 'thumb') {
+        candidates.push(
             `${base}/thumb/${stem}.jpg`,
             `${base}/optimal/${stem}.jpg`,
             `${base}/original/${filename}`,
             `${base}/original/${stem}.${ext}`,
             `${base}/original/${stem}.jpg`,
             `${base}/original/${stem}.png`,
-        ]
-        : [
+        );
+    } else {
+        candidates.push(
             `${base}/optimal/${stem}.jpg`,
             `${base}/original/${filename}`,
             `${base}/original/${stem}.${ext}`,
             `${base}/original/${stem}.jpg`,
             `${base}/original/${stem}.png`,
-        ];
+        );
+    }
     return candidates.filter((url, index, list) => list.indexOf(url) === index);
 }
 
@@ -305,17 +349,17 @@ function setCoverVisual(song) {
     const animatedUrl = typeof song?.animated_cover === 'string' ? song.animated_cover.trim() : '';
     currentLivingCoverUrl = animatedUrl !== '' && !prefersReducedMotion() ? animatedUrl : '';
 
-    setImageWithFallback(reflectionImage, song.cover);
+    setImageWithFallback(reflectionImage, songCoverRef(song));
 
     if (!coverImage) {
         return;
     }
 
-    setImageWithFallback(coverImage, song.cover);
+    setImageWithFallback(coverImage, songCoverRef(song));
 
     if (coverVideo) {
         if (currentLivingCoverUrl) {
-            const posterUrl = buildCoverUrl(song.cover);
+            const posterUrl = buildCoverUrl(songCoverRef(song));
             if (posterUrl) {
                 coverVideo.poster = posterUrl;
             } else {
@@ -484,7 +528,7 @@ function updateMediaSessionMetadata() {
         return;
     }
 
-    const candidates = buildCoverUrlCandidates(song.cover);
+    const candidates = buildCoverUrlCandidates(songCoverRef(song));
     const artwork = candidates.map((src) => ({ src, sizes: '600x600', type: 'image/jpeg' }));
 
     try {
@@ -2162,8 +2206,8 @@ function updateVisuals(index) {
     const prevIndex = (index - 1 + playList.length) % playList.length;
     const nextIndex = (index + 1) % playList.length;
 
-    setImageWithFallback(prevCover, playList[prevIndex].cover);
-    setImageWithFallback(nextCover, playList[nextIndex].cover);
+    setImageWithFallback(prevCover, songCoverRef(playList[prevIndex]));
+    setImageWithFallback(nextCover, songCoverRef(playList[nextIndex]));
 
     // Update playlist view if it's currently visible
     const playlistBox = document.getElementById('playlistBox');
@@ -2385,7 +2429,7 @@ function renderPlaylist() {
     html += '</div>';
     playlistBox.innerHTML = html;
     playlistBox.querySelectorAll('.playlist-track-cover').forEach((img, index) => {
-        setImageWithFallback(img, playList[index]?.cover, 'thumb');
+        setImageWithFallback(img, songCoverRef(playList[index]), 'thumb');
     });
 }
 
@@ -2457,7 +2501,7 @@ window.closeLightbox  = closeLightbox;
 // Wrapper for opening album cover from playlist
 function openAlbumCoverLightbox() {
     if (playList.length === 0) { console.error('❌ Playlist is empty!'); return; }
-    openLightbox(buildCoverUrl(playList[currentIndex].cover), 'Album Cover');
+    openLightbox(buildCoverUrl(songCoverRef(playList[currentIndex])), 'Album Cover');
 }
 
 function bindPageGalleryLightboxes() {

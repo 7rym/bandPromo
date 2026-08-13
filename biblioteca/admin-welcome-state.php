@@ -7,6 +7,8 @@ require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/page-storage.php';
 require_once __DIR__ . '/page-registry.php';
 require_once __DIR__ . '/brand-storage.php';
+require_once __DIR__ . '/demo-catalog-state.php';
+require_once __DIR__ . '/release-storage.php';
 
 function bandpromo_admin_default_theme_display_version(?string $rawVersion): string
 {
@@ -39,6 +41,24 @@ function bandpromo_admin_starter_pack_files_present(string $root): bool
     }
 
     return true;
+}
+
+function bandpromo_admin_demo_content_installed(string $root): bool
+{
+    if (is_file($root . '/data/demo-release-package.json')) {
+        return true;
+    }
+
+    $demoId = bandpromo_demo_release_id($root);
+    if ($demoId === '') {
+        $demoId = BANDPROMO_RELEASE_DEMO_ID;
+    }
+    if ($demoId !== '' && is_file(bandpromo_release_document_path($root, $demoId))) {
+        return true;
+    }
+
+    return bandpromo_admin_get_default_theme_status($root) !== null
+        || bandpromo_admin_starter_pack_files_present($root);
 }
 
 function bandpromo_admin_latest_full_build_success(string $root): bool
@@ -144,12 +164,11 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
 {
     require_once __DIR__ . '/publish-status-helpers.php';
 
-    $defaultThemeStatus = bandpromo_admin_get_default_theme_status($root);
-    $hasOperatorMedia = bandpromo_media_install_has_operator_uploads($root);
-    $starterPackInstalled = $defaultThemeStatus !== null || bandpromo_admin_starter_pack_files_present($root);
+    $hasOperatorCampaign = bandpromo_demo_catalog_install_has_operator_content($root);
+    $starterPackInstalled = bandpromo_admin_demo_content_installed($root);
     $starterPackDetail = $starterPackInstalled
-        ? 'Starter design pack ' . (($defaultThemeStatus['display_version'] ?? '') !== '' ? $defaultThemeStatus['display_version'] : '1.0') . ' is recorded for this installation.'
-        : 'The starter design files are not fully available yet. Run a full build to install them.';
+        ? 'The Demo Portable Release Package is installed on this site.'
+        : 'The demo catalog is not fully available yet. Finish setup or run a full build so bandPromo can install it.';
 
     $pagesPublished =
         bandpromo_page_runtime_present($root, 'faq')
@@ -180,13 +199,13 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'next' => 'Finish setup and make sure the required runtime files are in place before treating the install as live.',
         ],
         [
-            'label' => 'Starter pack installed',
-            'action_label' => 'Install the starter pack',
+            'label' => 'Demo catalog installed',
+            'action_label' => 'Install the demo catalog',
             'severity' => 'blocking',
             'complete' => $starterPackInstalled,
             'detail' => $starterPackDetail,
             'href' => '?tab=system&stab=deliverables',
-            'next' => 'Open System → Deliverables and run a full build so bandPromo can install the starter design files.',
+            'next' => 'Open System → Deliverables and run a full build so bandPromo can install the demo catalog from the Demo Portable Release Package.',
         ],
         [
             'label' => 'The full build process ran successfully',
@@ -211,15 +230,15 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'next' => 'Open System → Deliverables and rebuild all deliverables so listeners stream MP3s instead of large originals.',
         ],
         [
-            'label' => $hasOperatorMedia ? 'Your own media is present' : 'Your own media is not present yet',
-            'action_label' => 'Upload your own media',
+            'label' => $hasOperatorCampaign ? 'Your own catalog is present' : 'Your own catalog is not present yet',
+            'action_label' => 'Add your own catalog',
             'severity' => 'nonblocking',
-            'complete' => $hasOperatorMedia,
-            'detail' => $hasOperatorMedia
-                ? 'Uploaded media is present beyond the starter design pack.'
-                : 'Only starter-pack media is present so far. Upload your own audio and artwork when you are ready.',
-            'href' => '?tab=files&fpanel=audio',
-            'next' => 'Open Files and upload your own audio and artwork so the site reflects your catalog.',
+            'complete' => $hasOperatorCampaign,
+            'detail' => $hasOperatorCampaign
+                ? 'An operator release with a track is exposed on a playlist.'
+                : 'The demo catalog is the only listening campaign so far. Add your own release with a track, then a playlist that plays it.',
+            'href' => '?tab=content&cntab=release',
+            'next' => 'Create a release with at least one track and a playlist that exposes that track.',
         ],
         [
             'label' => 'FAQ is personalized',
@@ -286,12 +305,12 @@ function bandpromo_admin_build_post_setup_suggestions(string $root): array
 {
     $suggestions = [];
 
-    if (!bandpromo_media_install_has_operator_uploads($root)) {
+    if (!bandpromo_demo_catalog_install_has_operator_content($root)) {
         $suggestions[] = [
-            'label' => 'Upload your own audio',
-            'href' => '?tab=files&fpanel=audio',
+            'label' => 'Add your own catalog',
+            'href' => '?tab=content&cntab=release',
             'severity' => 'nonblocking',
-            'description' => 'Add your tracks and artwork when you are ready to move beyond the starter demo catalog.',
+            'description' => 'Create a release with at least one track and a playlist that plays it when you are ready to move beyond the demo catalog.',
         ];
     }
 
@@ -375,6 +394,7 @@ function bandpromo_admin_welcome_setup_is_complete(string $root): bool
 
 function bandpromo_admin_welcome_state(string $root): array
 {
+    bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
     bandpromo_admin_write_inferred_starter_pack_marker($root);
 
     try {

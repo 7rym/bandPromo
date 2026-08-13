@@ -712,7 +712,7 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
 
         $cover = trim((string) ($display['cover'] ?? ''));
         if ($cover !== '' && !bandpromo_asset_is_asset_id($cover)) {
-            $visual = bandpromo_asset_lookup_by_original_filename($root, basename($cover));
+            $visual = bandpromo_asset_lookup_from_media_ref($root, $cover);
             if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
                 $found = (string) ($visual['id'] ?? '');
                 if ($found !== '') {
@@ -725,7 +725,7 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
 
         $living = trim((string) ($display['living_cover'] ?? ''));
         if ($living !== '' && !bandpromo_asset_is_asset_id($living)) {
-            $visual = bandpromo_asset_lookup_by_original_filename($root, basename($living));
+            $visual = bandpromo_asset_lookup_from_media_ref($root, $living);
             if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
                 $found = (string) ($visual['id'] ?? '');
                 if ($found !== '') {

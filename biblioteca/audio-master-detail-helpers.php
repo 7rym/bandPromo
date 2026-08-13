@@ -72,19 +72,22 @@ function bandpromo_audio_master_resolve_current_cover_url(?string $cover): strin
 function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $coverFilename): string
 {
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
 
     $ref = trim($coverFilename);
     if ($ref === '') {
         return '';
     }
 
-    if (bandpromo_asset_is_asset_id($ref)) {
-        $visual = bandpromo_asset_lookup_by_id($root, $ref);
-        if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
-            $path = bandpromo_asset_visual_original_path($root, $visual);
-            if ($path !== '' && is_file($path)) {
-                return $path;
-            }
+    $visual = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+        $working = bandpromo_visual_working_path($root, $visual);
+        if ($working !== '' && is_file($working)) {
+            return $working;
+        }
+        $path = bandpromo_asset_visual_original_path($root, $visual);
+        if ($path !== '' && is_file($path)) {
+            return $path;
         }
     }
 
@@ -93,21 +96,25 @@ function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $co
         return '';
     }
 
-    $visual = bandpromo_asset_lookup_by_original_filename($root, $coverFilename);
-    if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
-        $path = bandpromo_asset_visual_original_path($root, $visual);
-        if ($path !== '' && is_file($path)) {
-            return $path;
-        }
-    }
-
     foreach ([
+        $root . '/media/visual/master/' . $coverFilename,
+        $root . '/media/visual/original/' . $coverFilename,
         $root . '/media/img/original/' . $coverFilename,
         $root . '/media/photo/original/' . $coverFilename,
         $root . '/media/special/' . $coverFilename,
     ] as $candidate) {
         if (is_file($candidate)) {
             return $candidate;
+        }
+    }
+
+    $stem = (string) pathinfo($coverFilename, PATHINFO_FILENAME);
+    if ($stem !== '' && $stem !== $coverFilename) {
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $candidate = $root . '/media/visual/master/' . $stem . '.' . $ext;
+            if (is_file($candidate)) {
+                return $candidate;
+            }
         }
     }
 
@@ -128,12 +135,9 @@ function bandpromo_audio_master_resolve_pool_cover_url(string $root, ?string $co
     }
 
     $visual = null;
-    if (bandpromo_asset_is_asset_id($ref)) {
-        $visual = bandpromo_asset_lookup_by_id($root, $ref);
-    }
-    if ($visual === null) {
-        $coverFilename = basename($ref);
-        $visual = bandpromo_asset_lookup_by_original_filename($root, $coverFilename);
+    $lookedUp = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (is_array($lookedUp) && ($lookedUp['kind'] ?? '') === 'visual') {
+        $visual = $lookedUp;
     }
 
     if (is_array($visual) && ($visual['kind'] ?? '') === 'visual' && !empty($visual['id'])) {

@@ -267,6 +267,13 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         }
     }
 
+    require_once __DIR__ . '/media-library-state.php';
+    try {
+        bandpromo_media_files_index_rebuild_all($root);
+    } catch (Throwable $throwable) {
+        // Listing heals on the next Files GET via ensure_target.
+    }
+
     return [
         'ok' => true,
         'release_id' => $targetReleaseId,
@@ -505,8 +512,8 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
                     $add($ref);
                     continue;
                 }
-                $visual = bandpromo_asset_lookup_visual($root, basename($ref));
-                if (is_array($visual)) {
+                $visual = bandpromo_asset_lookup_from_media_ref($root, $ref);
+                if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
                     $add((string) ($visual['id'] ?? ''));
                 }
             }

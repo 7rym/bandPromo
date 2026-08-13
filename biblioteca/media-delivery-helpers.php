@@ -368,9 +368,10 @@ function bandpromo_visual_resolve_url(
 
     $asset = null;
     $ref = trim($filenameOrAssetId);
-    if (bandpromo_asset_is_asset_id($ref)) {
-        $asset = bandpromo_asset_lookup_by_id($root, $ref);
-    } else {
+    $lookedUp = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (is_array($lookedUp) && ($lookedUp['kind'] ?? '') === 'visual') {
+        $asset = $lookedUp;
+    } elseif (!bandpromo_asset_is_asset_id($ref)) {
         $asset = bandpromo_asset_lookup_visual($root, $ref, $intakeBucket)
             ?? bandpromo_asset_lookup_by_original_filename($root, $ref);
     }

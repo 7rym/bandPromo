@@ -30,6 +30,18 @@ $visible = (bool) $body['visible'];
 $hiding = !$visible;
 
 if ($hiding) {
+    if (!bandpromo_demo_catalog_install_has_operator_content($root)) {
+        http_response_code(409);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Hide the demo catalog after you have a release with a track on a playlist.',
+            'demo_release_id' => bandpromo_demo_release_id($root),
+            'demo_catalog_visible' => true,
+            'demo_release_hidden' => false,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
     $blockers = bandpromo_demo_release_hide_blockers($root);
     if ($blockers !== []) {
         http_response_code(409);
