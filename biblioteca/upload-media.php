@@ -250,54 +250,14 @@ function bandpromo_run_command(array $command, string $cwd): array {
 }
 
 function bandpromo_generate_video_poster(string $root_dir, string $saved_ext, string $saved_name, string $saved_path, string $target_hint = ''): array {
-    if ($target_hint === 'special' || !bandpromo_is_video_extension($saved_ext)) {
-        return [
-            'attempted' => false,
-            'generated' => false,
-            'poster' => '',
-            'warning' => '',
-        ];
-    }
-
-    $poster_relative = bandpromo_gallery_video_poster_relative_path($saved_name);
-    $poster_path = bandpromo_gallery_video_poster_absolute_path($root_dir, $saved_name);
-    $ffmpeg = bandpromo_ffmpeg_command();
-    $result = bandpromo_run_command([
-        $ffmpeg,
-        '-y',
-        '-i',
-        $saved_path,
-        '-frames:v',
-        '1',
-        '-q:v',
-        '2',
-        $poster_path,
-    ], $root_dir);
-
-    if ($result['ok'] && is_file($poster_path)) {
-        return [
-            'attempted' => true,
-            'generated' => true,
-            'poster' => $poster_relative,
-            'warning' => '',
-        ];
-    }
-
-    $output = strtolower((string) ($result['output'] ?? ''));
-    $warning = 'Could not generate a poster image automatically for this video.';
-    if (($result['exit_code'] ?? null) === null || strpos($output, 'not found') !== false || strpos($output, 'not recognized') !== false) {
-        $warning = 'Automatic video poster generation requires ffmpeg on the host.';
-    }
-
-    if (is_file($poster_path)) {
-        @unlink($poster_path);
-    }
+    // Stem media/video/poster dual-write retired (T6). Visual delivery builds poster.
+    unset($root_dir, $saved_ext, $saved_name, $saved_path, $target_hint);
 
     return [
-        'attempted' => true,
+        'attempted' => false,
         'generated' => false,
         'poster' => '',
-        'warning' => $warning,
+        'warning' => '',
     ];
 }
 

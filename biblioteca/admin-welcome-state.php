@@ -24,23 +24,15 @@ function bandpromo_admin_default_theme_display_version(?string $rawVersion): str
     return $version;
 }
 
+/**
+ * Demo / starter content presence is marker- and release-based (masters-only PRP).
+ * Do not probe media/audio/original/bandPromo_*.flac or media/special/* on disk.
+ */
 function bandpromo_admin_starter_pack_files_present(string $root): bool
 {
-    $representativePaths = [
-        $root . '/media/special/bandPromo_cover.png',
-        $root . '/media/special/bandPromo_share.png',
-        $root . '/media/img/original/bandPromo_vocalist.png',
-        $root . '/media/audio/original/bandPromo_the_very_first_song.flac',
-        $root . '/media/audio/original/bandPromo_the_second_song.flac',
-    ];
+    unset($root);
 
-    foreach ($representativePaths as $path) {
-        if (!is_file($path)) {
-            return false;
-        }
-    }
-
-    return true;
+    return false;
 }
 
 function bandpromo_admin_demo_content_installed(string $root): bool
@@ -57,8 +49,7 @@ function bandpromo_admin_demo_content_installed(string $root): bool
         return true;
     }
 
-    return bandpromo_admin_get_default_theme_status($root) !== null
-        || bandpromo_admin_starter_pack_files_present($root);
+    return bandpromo_admin_get_default_theme_status($root) !== null;
 }
 
 function bandpromo_admin_latest_full_build_success(string $root): bool
@@ -94,35 +85,15 @@ function bandpromo_admin_runtime_files_present(string $root): bool
     return bandpromo_page_runtime_present($root, 'faq');
 }
 
+/**
+ * Do not invent default-theme-package.json from legacy on-disk FLAC/special probes.
+ * Demo installs record the marker via Demo PRP import.
+ */
 function bandpromo_admin_write_inferred_starter_pack_marker(string $root): bool
 {
-    $markerPath = $root . '/data/default-theme-package.json';
-    if (is_file($markerPath) || !bandpromo_admin_starter_pack_files_present($root)) {
-        return false;
-    }
+    unset($root);
 
-    $payload = [
-        'version' => 'local-source-tree',
-        'display_version' => '1.0',
-        'sha256' => '',
-        'package_file' => '',
-        'package_url' => '',
-        'release_tag' => 'local-source-tree',
-        'paths' => [
-            'media/special/bandPromo_cover.png',
-            'media/special/bandPromo_share.png',
-            'media/img/original/bandPromo_vocalist.png',
-            'media/audio/original/bandPromo_the_very_first_song.flac',
-            'media/audio/original/bandPromo_the_second_song.flac',
-        ],
-        'installed_at_utc' => gmdate('c'),
-        'source' => 'inferred-from-local-files',
-    ];
-
-    return @file_put_contents(
-        $markerPath,
-        json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
-    ) !== false;
+    return false;
 }
 
 function bandpromo_admin_get_default_theme_status(string $root): ?array

@@ -226,14 +226,6 @@ def save_jpg_optimized(img, dest_path, quality):
                 pass
 
 
-def optimize_shell_brand_media_images():
-    """
-    No-op (master-tier T3): never resize /media/special/* in place.
-    Brand shell delivery belongs on Visual masters → media/visual/delivery/{ast_*}/ (T4 fold).
-    """
-    print("ℹ️  Skipping in-place /media/special resize (Visual delivery only)")
-
-
 def load_track_cover_lookup():
     """Return a mapping of audio master filename -> cover filename.
 

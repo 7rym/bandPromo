@@ -15,19 +15,6 @@ function bandpromo_living_cover_canonical_id(string $root, ?string $value): stri
     return bandpromo_asset_canonical_id_from_media_ref($root, (string) $value);
 }
 
-function bandpromo_living_cover_original_relative_path(string $videoFilename): string
-{
-    $safe = bandpromo_living_cover_normalize_video_filename($videoFilename);
-    if ($safe === '') {
-        return '';
-    }
-    if (bandpromo_asset_is_asset_id($safe)) {
-        return $safe;
-    }
-
-    return 'media/video/original/' . $safe;
-}
-
 function bandpromo_living_cover_validate_video_path(string $root, string $path): array
 {
     $relative = ltrim(str_replace('\\', '/', trim($path)), '/');
@@ -65,8 +52,7 @@ function bandpromo_living_cover_validate_video_path(string $root, string $path):
 
     require_once __DIR__ . '/visual-master-helpers.php';
     $working = bandpromo_visual_working_path($root, $asset);
-    $original = bandpromo_asset_visual_legacy_original_path($root, $asset);
-    if (($working === '' || !is_file($working)) && ($original === '' || !is_file($original))) {
+    if ($working === '' || !is_file($working)) {
         $stream = bandpromo_visual_resolve_url($root, $assetId, 'standard-stream', '', false);
         if ($stream === '') {
             return [

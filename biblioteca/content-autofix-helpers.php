@@ -21,6 +21,10 @@ function bandpromo_content_autofix_step_result(string $id, string $label, array 
     ], $details);
 }
 
+/**
+ * One-shot original→master repair for operator Content autofix / Publish recovery.
+ * Do not wire new runtime original-directory scans into hot paths (list/play/login).
+ */
 function bandpromo_content_autofix_materialize_audio_masters(string $root, bool $dryRun): array
 {
     $step = bandpromo_content_autofix_step_result('materialize_masters', 'Prepare missing audio masters');

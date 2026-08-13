@@ -351,12 +351,13 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         if ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName) && @unlink($dirs[$target] . '/' . $originalName)) {
             $unlinkedAny = true;
         }
-        $poster_path = bandpromo_gallery_video_poster_absolute_path($root, $originalName !== '' ? $originalName : $safe);
+        $poster_path = $root . '/media/video/poster/' . pathinfo($originalName !== '' ? $originalName : $safe, PATHINFO_FILENAME) . '.jpg';
         if (is_file($poster_path) && @unlink($poster_path)) {
             $video_poster_deleted = true;
             $unlinkedAny = true;
         }
-        $delivery_path = bandpromo_video_delivery_path($root, $originalName !== '' ? $originalName : $safe);
+        // Leftover stem dual-write cleanup only (Visual delivery deleted below when registered).
+        $delivery_path = $root . '/media/video/optimal/' . pathinfo($originalName !== '' ? $originalName : $safe, PATHINFO_FILENAME) . '.mp4';
         if (is_file($delivery_path) && @unlink($delivery_path)) {
             $video_delivery_deleted = true;
             $unlinkedAny = true;
@@ -371,9 +372,10 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         if ($originalName !== '' && is_file($dirs[$target] . '/' . $originalName) && @unlink($dirs[$target] . '/' . $originalName)) {
             $unlinkedAny = true;
         }
+        // Leftover stem dual-write cleanup only.
         $delivery_path = $target === 'photos'
-            ? bandpromo_photo_delivery_path($root, $originalName !== '' ? $originalName : $safe)
-            : $root . '/media/img/optimal/' . pathinfo($originalName !== '' ? $originalName : $safe, PATHINFO_FILENAME) . '.jpg';
+            ? ($root . '/media/photo/optimal/' . pathinfo($originalName !== '' ? $originalName : $safe, PATHINFO_FILENAME) . '.jpg')
+            : ($root . '/media/img/optimal/' . pathinfo($originalName !== '' ? $originalName : $safe, PATHINFO_FILENAME) . '.jpg');
         if (is_file($delivery_path) && @unlink($delivery_path)) {
             $image_delivery_deleted = true;
             $unlinkedAny = true;

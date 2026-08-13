@@ -1,37 +1,39 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-13 (after T5). Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
+_Paused: 2026-08-13 (after T6). Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
 
 ## Exact resume point
 
-**Do T6 next. Do not redo T0–T5. Do not start T7** except where a T6 path already forces a one-line verify.
+**Do T7 next** (verify). Do not redo T0–T6 unless a verify failure forces a fix.
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ `2ec2167`, in sync with `origin/main` |
-| VERSION | **v0.8.18 build 385** |
-| Tester package | **Shipped.** Tag `v0.8.18-build-385`. Site update should offer **build 385** once the release finishes. |
+| Git | `main` — T6 implemented locally; **checkpoint/publish when asked** |
+| VERSION | **v0.8.19 build 385** (session bumped; build unchanged until checkpoint) |
+| Tester package | Last shipped: `v0.8.18-build-385`. Publish a new package only after checkpoint. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
-## T5 — done (do not reopen unless a regression)
+## T6 — done (do not reopen unless a regression)
 
-Preferred master formats.
+Fail loud and delete shims.
 
-- Video materialize remuxes to `media/visual/master/ast_*.mkv`; Matroska tags via `visualMasterMetadata.py`; delivery stays MP4.
-- Still masters: EXIF → `captured_at`; IPTC Core via XMP; heal empty display on materialize + autofix.
-- Audio + SFX: WAV → FLAC masters; delivery `ast_*.mp3` under audio/sfx optimal.
-- Living-cover ready = Visual `standard-stream` delivery exists.
-- `visualMasterMetadata.py` is Python 3.6.9-safe (T6 item carried when touched).
+- Removed stem `video/photo/optimal` dual-read helpers; pool-ready / needs-delivery use Visual delivery only.
+- Welcome/demo presence = Demo PRP marker / demo release doc (no `bandPromo_*.flac` original probes).
+- `initialSiteSeed.py` gallery seed uses Visual registry + delivery / `asset_id`.
+- Dead shims removed (`sfx_web_path`, demo FLAC fallback, living-cover original path, stem gallery poster dual-write, in-place special optimize).
+- Content autofix remains one-shot original→master repair only.
 
-## T6 — start here
+## T7 — start here
 
-Fail loud and delete shims. Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T6:
+Fresh **Demo PRP** install (masters-only) plus an operator upload — check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T7:
 
-1. Remove dual-read branches listed in C3/C4 once T1–T5 callers are gone.
-2. Welcome starter-pack file list: drop `media/audio/original/bandPromo_*.flac` existence checks (Demo PRP marker / demo release doc only).
-3. ~~`visualMasterMetadata.py` Python 3.6.9~~ (done in T5).
-4. `initialSiteSeed.py` gallery `src`: Visual delivery / asset id, not `/media/photo|video/original/`.
-5. Content autofix: keep one-shot original→master **repair** only; do not add new runtime original scans.
+1. Files → Audio / Visual / Sound effects list **masters**; titles from registry; original name is secondary.
+2. `/play` covers and living covers load `/media/visual/delivery/{ast_*}/…` only.
+3. Login welcome/logged-in SFX is `media/sfx/optimal/{ast_*}.mp3`.
+4. Publish extract does **not** create `img/original/{stem}.*`; new covers are Visual `ast_*`.
+5. PRP export includes track-cover and living-cover **visual masters** and SFX masters.
+6. Operator Download original works when original exists; 404 on PRP rows. Delete removes original+master+delivery.
+7. Brand logo/poster/backgrounds resolve from `asset_ids` → visual delivery.
 
 ## Constraints (same as AGENTS.md)
 
@@ -44,4 +46,4 @@ Fail loud and delete shims. Check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDI
 powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1
 ```
 
-Then implement T6 from the audit checkboxes.
+Then run T7 verify from the audit checkboxes.

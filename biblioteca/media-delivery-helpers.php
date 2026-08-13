@@ -15,46 +15,35 @@ function bandpromo_audio_delivery_ready(string $root, string $sourceFilename): b
     return is_file(bandpromo_audio_delivery_path($root, $sourceFilename));
 }
 
-function bandpromo_video_delivery_basename(string $sourceFilename): string
-{
-    return pathinfo($sourceFilename, PATHINFO_FILENAME) . '.mp4';
-}
-
-function bandpromo_video_delivery_path(string $root, string $sourceFilename): string
-{
-    return $root . '/media/video/optimal/' . bandpromo_video_delivery_basename($sourceFilename);
-}
-
-function bandpromo_video_delivery_ready(string $root, string $sourceFilename): bool
-{
-    return is_file(bandpromo_video_delivery_path($root, $sourceFilename));
-}
-
-function bandpromo_photo_delivery_basename(string $sourceFilename): string
-{
-    return pathinfo($sourceFilename, PATHINFO_FILENAME) . '.jpg';
-}
-
-function bandpromo_photo_delivery_path(string $root, string $sourceFilename): string
-{
-    return $root . '/media/photo/optimal/' . bandpromo_photo_delivery_basename($sourceFilename);
-}
-
-function bandpromo_photo_delivery_ready(string $root, string $sourceFilename): bool
-{
-    return is_file(bandpromo_photo_delivery_path($root, $sourceFilename));
-}
-
+/**
+ * Pool-ready for Files index: audio optimal, or Visual delivery variants.
+ * Stem photo/video optimal dual-read retired (T6).
+ */
 function bandpromo_media_pool_ready(string $root, string $target, string $filename): bool
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     if ($target === 'audio') {
         return bandpromo_audio_delivery_ready($root, $filename);
     }
-    if ($target === 'video') {
-        return bandpromo_video_delivery_ready($root, $filename);
-    }
-    if ($target === 'photos') {
-        return bandpromo_photo_delivery_ready($root, $filename);
+
+    if (in_array($target, ['video', 'photos', 'illustrations', 'special'], true)) {
+        $asset = bandpromo_asset_lookup_from_media_ref($root, $filename)
+            ?? bandpromo_asset_lookup_by_master_filename($root, $filename)
+            ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            return false;
+        }
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId === '') {
+            return false;
+        }
+        $mediaType = strtolower(trim((string) ($asset['media_type'] ?? '')));
+        $required = $mediaType === 'video'
+            ? ['poster', 'standard-stream']
+            : ['thumb', 'card'];
+
+        return bandpromo_visual_delivery_ready($root, $assetId, $required);
     }
 
     return true;
@@ -62,16 +51,15 @@ function bandpromo_media_pool_ready(string $root, string $target, string $filena
 
 function bandpromo_video_poster_absolute_path(string $root, string $sourceFilename): string
 {
-    require_once __DIR__ . '/gallery-helpers.php';
-
-    return bandpromo_gallery_video_poster_absolute_path($root, $sourceFilename);
+    // Leftover stem poster cleanup only (media/video/poster/{stem}.jpg).
+    return $root . '/media/video/poster/' . pathinfo($sourceFilename, PATHINFO_FILENAME) . '.jpg';
 }
 
 function bandpromo_video_poster_relative_url(string $sourceFilename): string
 {
-    require_once __DIR__ . '/gallery-helpers.php';
+    unset($sourceFilename);
 
-    return bandpromo_gallery_video_poster_relative_path($sourceFilename);
+    return '';
 }
 
 function bandpromo_video_poster_ready(string $root, string $sourceFilename): bool
@@ -132,8 +120,8 @@ function bandpromo_video_admin_file_meta(string $root, string $sourceFilename): 
 }
 
 /**
- * Whether a Visual video asset (or legacy stem) still needs delivery builds.
- * Prefer asset id / master_filename identity; original dirs are not scanned.
+ * Whether a Visual video asset still needs delivery builds.
+ * Unregistered stems fail loud (no video/optimal dual-read).
  */
 function bandpromo_video_needs_delivery(string $root, string $sourceFilename): bool
 {
@@ -150,39 +138,26 @@ function bandpromo_video_needs_delivery(string $root, string $sourceFilename): b
         ?? bandpromo_asset_lookup_by_master_filename($root, $safe)
         ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
 
-    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual'
-        && strtolower((string) ($asset['media_type'] ?? '')) === 'video'
+    if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual'
+        || strtolower((string) ($asset['media_type'] ?? '')) !== 'video'
     ) {
-        $working = bandpromo_visual_working_path($root, $asset);
-        if ($working === '' || !is_file($working)) {
-            return false;
-        }
-        $assetId = trim((string) ($asset['id'] ?? ''));
-        if ($assetId === '') {
-            return false;
-        }
-
-        return !bandpromo_visual_delivery_ready($root, $assetId, ['poster', 'standard-stream']);
-    }
-
-    // Legacy unregistered stem under video/original (pre-registry uploads).
-    $sourcePath = $root . '/media/video/original/' . $safe;
-    if (!is_file($sourcePath)) {
         return false;
     }
 
-    $extension = strtolower((string) pathinfo($safe, PATHINFO_EXTENSION));
-    if (!in_array($extension, ['mp4', 'mov', 'webm', 'mkv'], true)) {
+    $working = bandpromo_visual_working_path($root, $asset);
+    if ($working === '' || !is_file($working)) {
+        return false;
+    }
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '') {
         return false;
     }
 
-    return !bandpromo_video_delivery_ready($root, $safe)
-        || !bandpromo_video_poster_ready($root, $safe);
+    return !bandpromo_visual_delivery_ready($root, $assetId, ['poster', 'standard-stream']);
 }
 
 /**
- * Queue identities for video delivery: Visual video masters (asset id), then
- * any leftover unregistered files under media/video/original.
+ * Queue identities for video delivery: Visual video masters only.
  *
  * @return list<string>
  */

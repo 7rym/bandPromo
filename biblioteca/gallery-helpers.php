@@ -16,22 +16,6 @@ function bandpromo_gallery_video_filename_from_src(string $src): string {
     return basename($path);
 }
 
-function bandpromo_gallery_video_delivery_relative_path(string $filename): string {
-    // Stem dual-write retired (T3). Prefer Visual delivery via asset id / resolve helpers.
-    unset($filename);
-    return '';
-}
-
-function bandpromo_gallery_video_poster_relative_path(string $filename): string {
-    unset($filename);
-    return '';
-}
-
-function bandpromo_gallery_video_poster_absolute_path(string $root_dir, string $filename): string {
-    // Kept for delete cleanup of leftover stem posters only.
-    return $root_dir . '/media/video/poster/' . pathinfo($filename, PATHINFO_FILENAME) . '.jpg';
-}
-
 function bandpromo_gallery_normalize_src_path(string $src): string
 {
     $src = str_replace('\\', '/', trim($src));

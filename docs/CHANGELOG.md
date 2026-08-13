@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 22:35 - Master-tier T6: fail loud and delete shims. Dropped stem `video/photo/optimal` dual-read helpers; pool-ready and video needs-delivery use Visual delivery only. Welcome/demo presence is Demo PRP marker / demo release only (no `bandPromo_*.flac` original probes). `initialSiteSeed` gallery seed uses Visual registry + delivery/`asset_id`. Removed dead original-path shims. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
+
 2026-08-13 22:25 - Checkpoint master-tier T5 on `main` as **v0.8.18 build 385** and trigger GitHub Release `v0.8.18-build-385` for Site update. Handoff resume point is now T6.
 
 2026-08-13 22:25 - Master-tier T5: preferred master formats. SFX WAV originals materialize to FLAC masters (parity with catalog audio); visual ensure-tiers heals empty display from EXIF/XMP or Matroska tags; `visualMasterMetadata.py` is Python 3.6.9-safe. Video MKV remux + living-cover `standard-stream` ready path confirmed. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).

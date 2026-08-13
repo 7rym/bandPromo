@@ -52,17 +52,9 @@ function bandpromo_sfx_is_audio_filename(string $filename): bool
 }
 
 /**
- * Legacy helper: original-tier web path (prefer bandpromo_sfx_resolve_play_url).
+ * Legacy helper removed (T6): original-tier web path is not a public URL.
+ * Prefer bandpromo_sfx_resolve_play_url / bandpromo_sfx_delivery_web_path.
  */
-function bandpromo_sfx_web_path(string $filename): string
-{
-    $filename = basename(trim($filename));
-    if ($filename === '') {
-        return '';
-    }
-
-    return '/media/sfx/original/' . $filename;
-}
 
 function bandpromo_sfx_master_web_path(string $masterFilename): string
 {

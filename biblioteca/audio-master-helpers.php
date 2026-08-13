@@ -444,16 +444,6 @@ function bandpromo_resolve_source_audio_file(string $root_dir, string $filename)
 }
 
 /**
- * @deprecated Demo original-FLAC playback fallback removed (master-tier T2).
- */
-function bandpromo_audio_demo_original_fallback_allowed(string $root_dir, string $filename): bool
-{
-    unset($root_dir, $filename);
-
-    return false;
-}
-
-/**
  * Playable audio: public delivery (`optimal`) or operator master (`master`).
  * `original` is not a playable variant (Download original only).
  *

@@ -6,7 +6,7 @@ first setup build, or explicitly when recovering layout from files on disk.
 
 Creates when container documents are still empty:
 - data/playlists/{id}.json entries for the active publish playlist
-- data/galleries/{default-id}.json entries from visible photo/video originals
+- data/galleries/{default-id}.json entries from Visual registry assets (delivery / asset id)
 - player tab order with bio page + gallery enabled
 
 Does not write play/playlist.json, data/playlist-order.json, or data/gallery.json.
@@ -30,8 +30,8 @@ ROOT_DIR = SCRIPT_DIR.parent
 MARKER_FILE = ROOT_DIR / 'data' / 'initial-site-seed.json'
 LEGACY_MARKER_FILE = ROOT_DIR / 'data' / 'initial-site-compose.json'
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
-PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
-VIDEO_ORIG_DIR = ROOT_DIR / 'media' / 'video' / 'original'
+ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
+VISUAL_DELIVERY_DIR = ROOT_DIR / 'media' / 'visual' / 'delivery'
 PAGE_REGISTRY_FILE = ROOT_DIR / 'data' / 'pages' / 'registry.json'
 PLAYLIST_REGISTRY_FILE = ROOT_DIR / 'data' / 'playlists' / 'registry.json'
 PLAYLIST_REGISTRY_TEMPLATE = ROOT_DIR / 'biblioteca' / 'templates' / 'playlists.registry.template.json'
@@ -40,6 +40,15 @@ GALLERIES_DIR = ROOT_DIR / 'data' / 'galleries'
 GALLERY_REGISTRY_FILE = GALLERIES_DIR / 'registry.json'
 # Keep in sync with BANDPROMO_GALLERY_DEMO_ID in biblioteca/gallery-storage.php
 GALLERY_DEFAULT_ID = 'bandpromo-demo'
+
+# Skip brand/shell and track-cover roles when seeding the demo gallery.
+_GALLERY_SKIP_ROLES = {
+    'brand-logo',
+    'brand-portrait',
+    'shell-background-image',
+    'shell-background-video',
+    'track-cover',
+}
 
 
 def prettify_name(stem):
@@ -275,37 +284,59 @@ def containers_already_seeded():
     return playlist_ready, gallery_ready
 
 
+def _visual_display_title(asset, asset_id):
+    display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+    title = str(display.get('title') or '').strip()
+    if title:
+        return title
+    original = str(asset.get('original_filename') or '').strip()
+    if original:
+        return prettify_name(Path(original).stem)
+    master = str(asset.get('master_filename') or '').strip()
+    if master:
+        return prettify_name(Path(master).stem)
+    return asset_id
+
+
+def _visual_delivery_src(asset_id, media_type):
+    delivery_dir = VISUAL_DELIVERY_DIR / asset_id
+    if media_type == 'video':
+        stream = delivery_dir / 'standard-stream.mp4'
+        if stream.is_file():
+            return '/media/visual/delivery/{0}/standard-stream.mp4'.format(asset_id)
+        return asset_id
+    for name in ('card.jpg', 'card.jpeg', 'card.png', 'card.webp'):
+        candidate = delivery_dir / name
+        if candidate.is_file():
+            return '/media/visual/delivery/{0}/{1}'.format(asset_id, name)
+    return asset_id
+
+
 def build_gallery_items():
+    """Build gallery seed entries from Visual registry assets (not photo/video original dirs)."""
     items = []
-    photo_exts = {'.png', '.jpg', '.jpeg', '.webp'}
-    video_exts = {'.mp4', '.mov', '.webm'}
-
-    if PHOTO_ORIG_DIR.exists():
-        for path in sorted(PHOTO_ORIG_DIR.iterdir()):
-            if not path.is_file() or path.suffix.lower() not in photo_exts:
-                continue
-            if path.name.lower() == 'desktop.ini':
-                continue
-            items.append({
-                'name': prettify_name(path.stem),
-                'src': '/media/photo/original/{0}'.format(path.name),
-                'alt': prettify_name(path.stem),
-                'type': 'image',
-            })
-
-    if VIDEO_ORIG_DIR.exists():
-        for path in sorted(VIDEO_ORIG_DIR.iterdir()):
-            if not path.is_file() or path.suffix.lower() not in video_exts:
-                continue
-            if path.name.lower() == 'desktop.ini':
-                continue
-            items.append({
-                'name': prettify_name(path.stem),
-                'src': '/media/video/original/{0}'.format(path.name),
-                'alt': prettify_name(path.stem),
-                'type': 'video',
-            })
-
+    registry = load_json_file(ASSET_REGISTRY_FILE) or {}
+    assets = registry.get('assets') if isinstance(registry.get('assets'), dict) else {}
+    for asset_id, asset in sorted(assets.items()):
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or '').strip().lower() != 'visual':
+            continue
+        media_type = str(asset.get('media_type') or '').strip().lower()
+        if media_type not in ('image', 'video'):
+            continue
+        role = str(asset.get('role') or '').strip().lower()
+        if role in _GALLERY_SKIP_ROLES:
+            continue
+        title = _visual_display_title(asset, asset_id)
+        src = _visual_delivery_src(asset_id, media_type)
+        items.append({
+            'name': title,
+            'src': src,
+            'asset_id': asset_id,
+            'alt': title,
+            'type': 'video' if media_type == 'video' else 'image',
+        })
     return items
 
 
@@ -320,14 +351,17 @@ def seed_gallery_if_empty(items):
     entries = []
     for item in items:
         src = str(item.get('src') or '').strip()
-        if not src:
+        asset_id = str(item.get('asset_id') or '').strip()
+        if not src and not asset_id:
             continue
         entry = {
-            'src': src,
+            'src': src if src else asset_id,
             'type': str(item.get('type') or 'image'),
             'name': str(item.get('name') or ''),
             'alt': str(item.get('alt') or ''),
         }
+        if asset_id:
+            entry['asset_id'] = asset_id
         entries.append(entry)
 
     document = {
