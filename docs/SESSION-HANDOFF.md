@@ -8,9 +8,9 @@ _Paused: 2026-08-13 (after T4). Next session: read this file first, then [MASTER
 
 | Item | Value |
 |------|--------|
-| Git | `main` — T4 implemented locally; **checkpoint/publish when asked** |
-| VERSION | **v0.8.17 build 383** (session bumped; build unchanged until checkpoint) |
-| Tester package | Last shipped: `v0.8.16-build-383`. Publish a new package only after checkpoint. |
+| Git | `main` @ `6b71a46`, in sync with `origin/main` |
+| VERSION | **v0.8.17 build 384** |
+| Tester package | **Shipped.** Tag `v0.8.17-build-384`. Site update should offer **build 384** once the release finishes. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
 ## T4 — done (do not reopen unless a regression)

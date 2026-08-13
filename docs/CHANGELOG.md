@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 22:15 - Checkpoint master-tier T4 on `main` as **v0.8.17 build 384** and trigger GitHub Release `v0.8.17-build-384` for Site update. Handoff resume point is now T5.
+
 2026-08-13 22:00 - Master-tier T4: Brand assets fold into Visual/SFX. Brand uploads and clones write Visual original + `ast_*` masters (not `media/special/{brand}_{slot}`); shell slots resolve `asset_ids` → delivery; setup creates `media/visual/{original,master,delivery}` and `media/sfx/{original,master,optimal}` (no product img/photo optimal/thumb). PRP SFX packs masters only (refuse row if missing). Login/OG/player drop hardcoded `/media/special/bandPromo_*` fallbacks. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
 
 2026-08-13 21:50 - Checkpoint master-tier T3 on `main` as **v0.8.16 build 383** and trigger GitHub Release `v0.8.16-build-383` for Site update. Handoff resume point is now T4.
