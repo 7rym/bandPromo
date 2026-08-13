@@ -146,7 +146,6 @@ def main():
         master_filename = item['master_filename']
         result = om.process_audio_delivery(
             master_filename,
-            item.get('cover'),
             display_title=item.get('display_title') or '',
             display_artist=item.get('display_artist') or '',
             asset_id=item.get('asset_id') or '',

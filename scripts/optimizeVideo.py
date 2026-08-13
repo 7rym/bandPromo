@@ -1,14 +1,13 @@
 """
 optimizeVideo — Publish-ready Video Delivery Generator
-Builds delivery-safe MP4 files from uploaded source videos.
+Builds delivery-safe MP4 files from uploaded source videos / visual masters.
 
 Input:
-- media/video/original/*.{mp4,mov,webm}
+- media/video/original/*.{mp4,mov,webm,mkv}
 - Registered visual video assets in data/assets/registry.json
+  (prefer media/visual/master/ast_*.mkv)
 
 Output:
-- media/video/optimal/*.mp4 (legacy dual-read)
-- media/video/poster/*.jpg (legacy dual-read)
 - media/visual/delivery/{asset_id}/standard-stream.mp4
 - media/visual/delivery/{asset_id}/poster.jpg
 
@@ -46,14 +45,10 @@ except ImportError:
 
 ROOT_DIR = SCRIPT_DIR.parent
 VIDEO_ORIG_DIR = ROOT_DIR / 'media' / 'video' / 'original'
-VIDEO_OPT_DIR = ROOT_DIR / 'media' / 'video' / 'optimal'
-VIDEO_POSTER_DIR = ROOT_DIR / 'media' / 'video' / 'poster'
 VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
-VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
 VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.mov', '.webm', '.mkv')
-TRANSCODE_EXTENSIONS = ('.mov', '.webm')
 _XXHASH_WARNED = False
 
 
@@ -109,14 +104,6 @@ def check_ffmpeg():
         return False
     except OSError:
         return False
-
-
-def delivery_path_for(source_path: Path) -> Path:
-    return VIDEO_OPT_DIR / (source_path.stem + '.mp4')
-
-
-def poster_path_for(source_path: Path) -> Path:
-    return VIDEO_POSTER_DIR / (source_path.stem + '.jpg')
 
 
 def remux_mp4_keep_audio(source_path: Path, target_path: Path) -> bool:
@@ -198,8 +185,6 @@ def stream_needs_refresh(source_path: Path, target_path: Path, asset, keep_audio
 
 
 def ensure_directories():
-    VIDEO_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    VIDEO_POSTER_DIR.mkdir(parents=True, exist_ok=True)
     VISUAL_DELIVERY_ROOT.mkdir(parents=True, exist_ok=True)
 
 
@@ -613,6 +598,17 @@ def main():
         print(f"Already up to date: {skipped}")
         print(f"Poster files ready: {posters_ready}")
         print(f"Failures: {failed}")
+        try:
+            from bandpromo_build_stats import emit_build_stats
+            emit_build_stats(
+                handled=built + skipped + failed,
+                created=built,
+                fresh=skipped,
+                failed=failed,
+                scope='media',
+            )
+        except Exception:
+            pass
         return 1 if failed else 0
 
     source_files = [
@@ -639,6 +635,17 @@ def main():
     print(f"Poster files ready: {posters_ready}")
     print(f"Failures: {failed}")
     print(f"Visual delivery root: {VISUAL_DELIVERY_ROOT}")
+    try:
+        from bandpromo_build_stats import emit_build_stats
+        emit_build_stats(
+            handled=built + skipped + failed,
+            created=built,
+            fresh=skipped,
+            failed=failed,
+            scope='media',
+        )
+    except Exception:
+        pass
 
     return 1 if failed else 0
 

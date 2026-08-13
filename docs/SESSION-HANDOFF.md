@@ -1,25 +1,26 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-13 (after T7 / master-tier plan complete). Next session: read this file first. Replace or delete when work resumes._
+_Paused: 2026-08-13 (after publish-log + build-script cleanup checkpoint). Next session: read this file first. Replace or delete when work resumes._
 
 ## Exact resume point
 
-**Master-tier plan is complete (T0–T7).** Do not reopen unless a regression appears.
+**Master-tier plan remains complete (T0–T7).** This checkpoint is publish UX + dead-code cleanup only.
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ checkpoint T7 |
-| VERSION | **v0.8.21 build 387** |
-| Tester package | **Shipped.** Tag `v0.8.21-build-387`. |
+| Git | `main` (this checkpoint) |
+| VERSION | **v0.8.23 build 388** (session-end bumps build) |
+| Tester package | Publish with this checkpoint |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
-## Done this session (T7)
+## Done since T7 ship
 
-- Verified Files index lists `ast_*` masters; brand shell/SFX resolve delivery/optimal; player covers are visual delivery only; extract path is `visual/original`; download original 404s when missing.
-- Hardened `bandpromo_playlist_enrich_tracks_for_player` (visual-only covers).
-- Hardened content autofix `audio_visual_refs` (rewrite/clear invalid covers; never call `clear_player_payload_fields` when saving covers).
+- Publish success banner: “YOUR SITE IS READY” with elapsed time; counts split by media / player playlists / share images / site manifest.
+- Unchanged artifact rewrites no longer inflate “new deliverables.”
+- Dead legacy helpers removed from `optimizeMedia.py`, `optimizeVideo.py`, `makePlaylists.py`.
+- Docs aligned: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [FEATURES.md](FEATURES.md), [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md).
 
-## Next work (outside master-tier)
+## Next work
 
 Return to [TODO.md](TODO.md) / [ROADMAP.md](ROADMAP.md) v0.8 active items (config-driven player meta, access-tier enforcement, etc.).
 

@@ -21,16 +21,42 @@ try {
     exit(1);
 }
 
+$publishedCount = 0;
+$unchangedCount = 0;
+$clearedCount = 0;
 foreach ($result['published'] as $entry) {
     $playlistId = (string) ($entry['playlist_id'] ?? '');
     $trackCount = (int) ($entry['track_count'] ?? 0);
     $builtAt = (string) ($entry['player_built_at'] ?? '');
+    $changed = !empty($entry['changed']);
     if ($trackCount > 0) {
-        fwrite(STDOUT, "Published player playlist {$playlistId} ({$trackCount} track(s)) at {$builtAt}" . PHP_EOL);
+        if ($changed) {
+            $publishedCount++;
+            fwrite(STDOUT, "Published player playlist {$playlistId} ({$trackCount} track(s)) at {$builtAt}" . PHP_EOL);
+        } else {
+            $unchangedCount++;
+            fwrite(STDOUT, "Player playlist {$playlistId} already up to date ({$trackCount} track(s))" . PHP_EOL);
+        }
     } else {
-        fwrite(STDOUT, "Cleared player playlist payload for {$playlistId}" . PHP_EOL);
+        if ($changed) {
+            $clearedCount++;
+            fwrite(STDOUT, "Cleared player playlist payload for {$playlistId}" . PHP_EOL);
+        } else {
+            $unchangedCount++;
+            fwrite(STDOUT, "Player playlist {$playlistId} already empty" . PHP_EOL);
+        }
     }
 }
+
+$errorCount = is_array($result['errors'] ?? null) ? count($result['errors']) : 0;
+fwrite(
+    STDOUT,
+    'BUILD_STATS scope=playlist handled=' . ($publishedCount + $unchangedCount + $clearedCount)
+    . ' created=' . ($publishedCount + $clearedCount)
+    . ' fresh=' . $unchangedCount
+    . ' failed=' . $errorCount
+    . PHP_EOL
+);
 
 if ($result['errors'] !== []) {
     foreach ($result['errors'] as $error) {

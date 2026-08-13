@@ -1,6 +1,6 @@
 # Build pipeline audit (v0.8)
 
-Status: **policy draft** — 2026-07-01. Implementation tracked in [TODO.md](TODO.md) after this document is agreed.
+Status: **implemented** — stages/profiles shipped; master-tier media contract complete (see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)). Opening narrative below retains the original problem statement; current stage order is in “Python `build.py` today”.
 
 Companion policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
 
@@ -12,9 +12,7 @@ The admin **Publish** flow mixes three different concerns:
 2. **Silent catalog repair** (`content-autofix` mutating releases/playlists/registry)
 3. **Delivery + player artifacts** (Python pipeline)
 
-The Python pipeline is still **playlist-first**: `makePlaylists.py` runs before `optimizeMedia.py`, and audio deliverables are scoped to the asset registry queue, not the full Files pool. That contradicts the platform model (pool → master → deliverable → containers).
-
-Operators see uploads in **Files** but builds only process **playlist membership** — the system feels broken even when individual scripts work.
+Historically the Python pipeline was **playlist-first** (`makePlaylists.py` before `optimizeMedia.py`), which contradicted the platform model (pool → master → deliverable → containers). That order is fixed: deliverables run before playlist/social/PWA artifacts (see stage table below). Successful rebuilds end with a scoped summary (media / playlists / share images / manifest) plus elapsed time.
 
 ## Terminology (build stages)
 
@@ -172,7 +170,7 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 | Playlist save | master materialization (PHP), not full build |
 | `content-autofix` API (Repair catalog) | explicit catalog repair pipeline |
 
-These **helpers** assume playlist-first truth and fight a corrected build order.
+These **helpers** follow registry/pool delivery prep; they are not a second playlist-first publish path.
 
 ## Gap summary (remaining)
 

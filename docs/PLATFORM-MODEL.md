@@ -635,7 +635,7 @@ Value is the visual registry id, not a human title and not an original filename.
 
 **Do not** bake living-cover references into delivery MP3 tags; delivery audio is tagless. Player materialization reads the **master** tag and/or `display.living_cover`.
 
-**Implementation:** living covers store Visual `ast_*` ids; player URLs resolve Visual `standard-stream` delivery only (see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T1 / T5). Legacy `media/video/optimal/{stem}.mp4` dual-read remains a T6 cleanup item for unregistered stems, not the living-cover ready path.
+**Implementation:** living covers store Visual `ast_*` ids; player URLs resolve Visual `standard-stream` delivery only (see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T1 / T5 / T6). Unregistered stem `media/video/optimal/` dual-read is removed.
 
 ### Player resolution
 

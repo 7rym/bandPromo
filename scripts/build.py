@@ -1,19 +1,12 @@
 """
 Build pipeline for bandPromo
-Runs the full pipeline: preflight checks → source config → optimize media → video delivery → social assets → manifest
+Runs the full pipeline: preflight checks → optimize media → video delivery → social assets → manifest
 
-Designed to be called from the admin panel (Admin > Config > Build),
+Designed to be called from the admin panel (Admin > System > Publish),
 but can also be run directly from the command line.
 
-Output (new structure):
-    media/audio/original/   - source audio files (uploaded by admin)
-    media/audio/optimal/  - publish-ready audio delivery files (generated here)
-    media/img/original/     - source cover/artwork files (uploaded by admin)
-    media/img/optimal/   - publish-ready cover/artwork delivery files (generated here, max 720px)
-    media/img/thumb/     - small list/cover-flow thumbs (generated here, max 100px)
-  (removed) play/playlist.json  - legacy player artifact (replaced by playlist documents)
-    media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
-  media/special/    - platform-specific social share images (generated here)
+Deliverables are written from masters (ast_*). The final log summary
+reports elapsed time plus media handled / deliverables created counts.
 """
 
 import subprocess
@@ -22,6 +15,7 @@ import os
 import io
 import json
 import platform
+import time
 import urllib.request
 import stat
 from datetime import datetime, timezone
@@ -39,6 +33,32 @@ try:
     bandpromo_python_path.ensure_vendor_on_sys_path()
 except Exception:
     pass
+
+try:
+    from bandpromo_build_stats import (
+        empty_build_stats,
+        merge_build_stats,
+        parse_build_stats_line,
+        scope_totals,
+    )
+except Exception:
+    def empty_build_stats():
+        return {
+            'media': {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0},
+            'playlist': {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0},
+            'social': {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0},
+            'manifest': {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0},
+            'catalog': {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0},
+        }
+
+    def merge_build_stats(total, partial):
+        return total if isinstance(total, dict) else empty_build_stats()
+
+    def parse_build_stats_line(line):
+        return None
+
+    def scope_totals(stats, scope):
+        return {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0}
 
 # Debug: capture default encoding BEFORE any reconfiguration
 _default_encoding = sys.stdout.encoding
@@ -523,7 +543,11 @@ def print_stage_banner(script_name, stage_index=None, stage_total=None, stage_la
 
 
 def run_script(script_path, env_extras=None, stage_index=None, stage_total=None, stage_label=''):
-    """Run a build sub-script, streaming its output line by line."""
+    """Run a build sub-script, streaming its output line by line.
+
+    Returns (ok, stats_dict). Machine BUILD_STATS lines are consumed for the
+    final summary and not shown in the operator log.
+    """
     script_path = Path(script_path)
     env = os.environ.copy()
     env['BUILD_ROOT'] = str(ROOT_DIR)
@@ -544,6 +568,7 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
         stage_label=stage_label,
     )
 
+    stage_stats = empty_build_stats()
     try:
         proc = subprocess.Popen(
             [sys.executable, '-u', str(script_path)],
@@ -554,6 +579,10 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
         )
         for raw_line in iter(proc.stdout.readline, b''):
             line = raw_line.decode('utf-8', errors='replace').rstrip('\n')
+            parsed = parse_build_stats_line(line)
+            if parsed is not None:
+                merge_build_stats(stage_stats, parsed)
+                continue
             print(line)
             sys.stdout.flush()
         proc.stdout.close()
@@ -561,12 +590,12 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
         if proc.returncode != 0:
             print('FAILED Script exited with code ' + str(proc.returncode))
             sys.stdout.flush()
-            return False
-        return True
+            return False, stage_stats
+        return True, stage_stats
     except FileNotFoundError:
         print('FAILED Script not found: ' + str(script_path))
         sys.stdout.flush()
-        return False
+        return False, stage_stats
 
 
 def load_build_meta():
@@ -658,7 +687,7 @@ def log_stage_boundary(stage_id, exit_code=None):
     sys.stdout.flush()
 
 
-def run_publish_stage(stage, ffmpeg_path, index, total):
+def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None):
     stage_id = str(stage.get('id', '')).strip()
     label = str(stage.get('label') or stage_id or 'stage').strip()
     script_name = str(stage.get('script', '')).strip()
@@ -681,13 +710,15 @@ def run_publish_stage(stage, ffmpeg_path, index, total):
     if stage.get('requires_ffmpeg'):
         env_extras['FFMPEG_PATH'] = ffmpeg_path
 
-    ok = run_script(
+    ok, stage_stats = run_script(
         SCRIPT_DIR / script_name,
         env_extras,
         stage_index=index,
         stage_total=total,
         stage_label=label,
     )
+    if isinstance(stats_total, dict):
+        merge_build_stats(stats_total, stage_stats)
     log_stage_boundary(stage_id, 0 if ok else 1)
     if not ok:
         print('\n❌ Build failed at stage: ' + stage_id)
@@ -798,8 +829,112 @@ def run_preflight():
     return ffmpeg_path
 
 
+def format_build_duration(seconds):
+    """Human-readable elapsed time for the publish summary."""
+    total = max(0, int(round(float(seconds))))
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours > 0:
+        return '{0}h {1}m {2}s'.format(hours, minutes, secs)
+    if minutes > 0:
+        return '{0}m {1}s'.format(minutes, secs)
+    return '{0}s'.format(secs)
+
+
+def print_build_success_banner(elapsed, profile, stage_count, stats):
+    """Closing banner — reassurance after the long stage log."""
+    width = 70
+    rule = '=' * width
+    media = scope_totals(stats, 'media')
+    catalog = scope_totals(stats, 'catalog')
+    playlist = scope_totals(stats, 'playlist')
+    social = scope_totals(stats, 'social')
+    manifest = scope_totals(stats, 'manifest')
+
+    # Catalog prep is media-adjacent work; fold into media "checked".
+    media_handled = int(media['handled']) + int(catalog['handled'])
+    media_created = int(media['created'])
+    media_fresh = int(media['fresh']) + int(catalog['fresh'])
+    media_failed = int(media['failed']) + int(catalog['failed'])
+
+    failed = (
+        media_failed
+        + int(playlist['failed'])
+        + int(social['failed'])
+        + int(manifest['failed'])
+    )
+    stage_label = '{0} stage{1}'.format(stage_count, '' if stage_count == 1 else 's')
+
+    print('')
+    print(rule)
+    if failed > 0:
+        print('  ⚠  PUBLISH FINISHED WITH WARNINGS')
+    else:
+        print('  ✅  YOUR SITE IS READY')
+    print(rule)
+    print('')
+    if failed > 0:
+        print('  Finished in {0} ({1}, profile: {2}).'.format(elapsed, stage_label, profile))
+        print('  Some items need attention — see the stage log above.')
+    else:
+        print('  Publish finished in {0}.'.format(elapsed))
+        print('  All {0} succeeded (profile: {1}).'.format(stage_label, profile))
+        print('  Your public site now has the latest listener-ready files.')
+    print('')
+
+    def print_section(title, rows):
+        if not any(int(count or 0) for _label, count in rows):
+            return
+        visible = []
+        for label, count in rows:
+            count = int(count or 0)
+            if label == 'Need attention' and count == 0:
+                continue
+            if label == 'Already up to date' and count == 0:
+                continue
+            visible.append((label, count))
+        if not visible:
+            return
+        print('  {0}'.format(title))
+        label_width = max(len(label) for label, _count in visible)
+        for label, count in visible:
+            print('    {0}  {1}'.format(label.ljust(label_width), count))
+        print('')
+
+    print_section('Media files', [
+        ('Checked', media_handled),
+        ('New deliverables', media_created),
+        ('Already up to date', media_fresh),
+        ('Need attention', media_failed),
+    ])
+    print_section('Player playlists', [
+        ('Updated', playlist['created']),
+        ('Already up to date', playlist['fresh']),
+        ('Need attention', playlist['failed']),
+    ])
+    print_section('Share images', [
+        ('Updated', social['created']),
+        ('Already up to date', social['fresh']),
+        ('Need attention', social['failed']),
+    ])
+    print_section('Site manifest', [
+        ('Updated', manifest['created']),
+        ('Already up to date', manifest['fresh']),
+        ('Need attention', manifest['failed']),
+    ])
+
+    if failed == 0:
+        print('  You\'re done — open the site and enjoy the result.')
+    else:
+        print('  Fix the items above, then rebuild when ready.')
+    print(rule)
+    print('')
+    sys.stdout.flush()
+
+
 def main():
     started_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    started_mono = time.monotonic()
     print('LOG_STARTED:' + started_at)
     print('[' + started_at.replace('T', ' ').replace('Z', ' UTC') + '] Python publish pipeline starting')
     print("\n=== bandPromo Build Pipeline ===")
@@ -834,6 +969,7 @@ def main():
 
     stages_by_id = stage_lookup(manifest)
     total = len(stage_ids)
+    stats_total = empty_build_stats()
     for index, stage_id in enumerate(stage_ids, start=1):
         stage = stages_by_id.get(stage_id)
         if not isinstance(stage, dict):
@@ -841,28 +977,11 @@ def main():
             sys.stdout.flush()
             log_stage_boundary(stage_id, 1)
             return 1
-        if not run_publish_stage(stage, ffmpeg_path, index, total):
+        if not run_publish_stage(stage, ffmpeg_path, index, total, stats_total):
             return 1
 
-    print("""
-╔══════════════════════════════════════════════════╗
-║               ✅ Build complete!                ║
-╚══════════════════════════════════════════════════╝
-
-Output:
-    media/audio/optimal/  — publish-ready audio delivery files
-    media/img/original/    — source cover/artwork files
-    media/img/optimal/    — publish-ready cover/artwork delivery files (max 720px)
-    media/img/thumb/      — playlist/cover-flow thumbs (max 100px)
-    media/video/optimal/  — publish-ready video delivery files
-  (removed) play/playlist.json — legacy player playlist artifact
-    media/special/*_facebook.jpg, *_twitter.jpg – social share delivery images
-  site.webmanifest — PWA manifest
-
-Note: Initial layout seed (playlist order, gallery list, player tabs) runs during
-setup via biblioteca/run-layout-seed.php — not during routine publish.
-""")
-    sys.stdout.flush()
+    elapsed = format_build_duration(time.monotonic() - started_mono)
+    print_build_success_banner(elapsed, profile, total, stats_total)
     return 0
 
 

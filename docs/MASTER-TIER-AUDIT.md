@@ -1,6 +1,7 @@
 # Master-tier audit and completion plan
 
-_Date: 2026-08-13 — after a fresh Demo PRP install on a live host (v0.8.15)._
+_Date: 2026-08-13 — after a fresh Demo PRP install on a live host (v0.8.15)._  
+**Status: complete (T0–T7 shipped).** Sections C1–C5 below are the **pre-fix evidence inventory** from that install; do not treat them as current runtime behavior.
 
 Source of truth for **original → master → deliverables** across **audio, Visual, Sound effects, and Brand assets**. Implementation checkboxes live here; [TODO.md](TODO.md) points at this file. Related: [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [PORTABILITY.md](PORTABILITY.md).
 

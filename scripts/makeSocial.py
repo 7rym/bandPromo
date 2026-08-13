@@ -349,10 +349,24 @@ def resize_for_platform(src_path, platform, target_size, quality=85):
         img = Image.open(src_path)
         w, h = img.size
         tw, th = target_size
+        dest = src_path.parent / "{0}_{1}.jpg".format(src_path.stem, platform)
+
+        # Skip rewrite when the platform deliverable is already current.
+        if dest.is_file():
+            try:
+                with Image.open(dest) as existing:
+                    dest_ok = existing.size == (tw, th)
+                src_mtime = src_path.stat().st_mtime
+                dest_mtime = dest.stat().st_mtime
+                if dest_ok and dest_mtime >= src_mtime:
+                    print("  ✓ {0}: already up to date ({1})".format(platform, dest.name))
+                    return 'fresh'
+            except Exception:
+                pass
 
         if (w, h) == (tw, th) and src_path.suffix.lower() in ('.jpg', '.jpeg'):
-            print(f"  ✓ {platform}: already {tw}×{th}, no resize needed")
-            return True
+            print("  ✓ {0}: already {1}×{2}, no resize needed".format(platform, tw, th))
+            return 'fresh'
 
         # Convert to RGB
         if img.mode in ('RGBA', 'LA', 'P'):
@@ -373,15 +387,16 @@ def resize_for_platform(src_path, platform, target_size, quality=85):
         offset = ((tw - img.width) // 2, (th - img.height) // 2)
         canvas.paste(img, offset)
 
-        dest = src_path.parent / f"{src_path.stem}_{platform}.jpg"
         canvas.save(str(dest), 'JPEG', quality=quality, optimize=True)
 
         dest_size = dest.stat().st_size
-        print(f"  ✓ {platform}: {w}×{h} → {tw}×{th}  →  {dest.name}  ({dest_size // 1024} KB)")
-        return True
+        print("  ✓ {0}: {1}×{2} → {3}×{4}  →  {5}  ({6} KB)".format(
+            platform, w, h, tw, th, dest.name, dest_size // 1024
+        ))
+        return 'created'
 
     except Exception as e:
-        print(f"  ❌ {platform}: {e}")
+        print("  ❌ {0}: {1}".format(platform, e))
         return False
 
 
@@ -418,6 +433,9 @@ def main():
     config     = load_config()
     src_image  = resolve_share_image(config)
     all_ok     = True
+    created = 0
+    fresh = 0
+    failed = 0
 
     print(f"\n── Config validation ──────────────────────────────────────────────────")
     validate_social_config(config)
@@ -443,7 +461,13 @@ def main():
         return False
 
     for platform, target_size in PLATFORMS.items():
-        if not resize_for_platform(src_image, platform, target_size):
+        result = resize_for_platform(src_image, platform, target_size)
+        if result == 'created':
+            created += 1
+        elif result == 'fresh':
+            fresh += 1
+        else:
+            failed += 1
             all_ok = False
 
     # Warn if old legacy file still exists
@@ -456,6 +480,18 @@ def main():
         print(f"  ✅ Social assets ready in {SPECIAL_DIR.relative_to(ROOT_DIR)}/")
     else:
         print(f"  ⚠️  Some assets could not be generated — check warnings above")
+
+    try:
+        from bandpromo_build_stats import emit_build_stats
+        emit_build_stats(
+            handled=created + fresh + failed,
+            created=created,
+            fresh=fresh,
+            failed=failed,
+            scope='social',
+        )
+    except Exception:
+        pass
 
     sys.stdout.flush()
     return all_ok

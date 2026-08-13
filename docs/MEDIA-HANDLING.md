@@ -941,27 +941,19 @@ Guidance:
 - choose delivery **dimensions by display context**, not by source upload size: resize and compress to the largest size each UI surface actually needs, plus a sensible retina margin
 - keep the original upload and any corrected master artwork separately from delivery derivatives
 
-### Current implementation (Phase 1 sanity sizes, 2026-07-16)
+### Current implementation (Visual delivery, master-tier complete)
 
-What ships today for opaque track/illustration/photo delivery:
+What ships today for still Visual delivery (from Visual masters):
 
-- `scripts/optimizeMedia.py` writes **two** JPEG derivatives per source image:
-  - `media/img|photo/optimal/{stem}.jpg` — max edge **720px** (player flip cover / lightbox for now)
-  - `media/img|photo/thumb/{stem}.jpg` — max edge **100px** (playlist rows + playlist cover-flow)
-- Conversion still uses `convert_cover_to_jpeg()`, which flattens RGBA/alpha to a **white background** before saving JPEG (alpha-preserving delivery remains later work)
-- Rebuild is incremental: regenerate when the source is newer or the delivery longest edge exceeds the target
-- Brand shell media uses Visual delivery via `asset_ids` (T4); legacy `media/special/` is migration/heal lookup only — no in-place resize and no new product writes there
-- Player loads **optimal** for the main cover and **thumb** for playlist list/cover-flow (fallback to optimal → original)
-- Product naming: pool is **Visual**; **Still** / **Living** are type filters. Do not introduce a top-level `stills/` folder that would exclude video.
+- `scripts/optimizeMedia.py` writes role-based variants under `media/visual/delivery/{ast_*}/` (e.g. `thumb`, `card`, `logo`) from `media/visual/master/`
+- Audio delivery is tagless MP3 under `media/audio/optimal/{ast_*}.mp3`
+- Video delivery is Visual-only: `media/visual/delivery/{ast_*}/standard-stream.mp4` (+ poster); stem `media/video/optimal/` dual-write/read is removed
+- Brand shell media uses Visual delivery via `asset_ids` (T4); leftover `media/special/` on disk is migration/heal lookup only
+- Player covers and living covers resolve Visual delivery URLs only
+- Rebuild is incremental (XXH3 skip-if-fresh where available)
+- Publish success log summarizes media / player playlists / share images / site manifest separately (not a path dump)
 
-Remaining debt (visual identity completion track, policy locked 2026-08-04):
-
-- **M1** — shipped: `asset_id` resolution + dual-read consumers
-- **M2** — shipped: on-disk `media/visual/master/ast_*` + `media/visual/original/`; delivery reads masters first
-- **M3** — shipped: XXH3 skip-if-fresh for audio + visual images (`delivery.source_xxh3`); `content_xxh3` dual-read with legacy `content_sha256`
-- **M4** — shipped core: stop dual-write; register-or-fail; drop stem optimal dual-read; shell `asset_ids` heal (Brand write path is Visual original + masters)
-- **M5** — shipped: Files Visual `operator_title` = role + context
-- **M6** — shipped: release campaign export ZIP + asset registry subset merge on import
+Remaining debt from the older visual-identity track is closed under [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T0–T7.
 
 Physical `media/special/` retirement is complete for new writes (T4); leftover files on disk remain migration/heal lookups only.
 

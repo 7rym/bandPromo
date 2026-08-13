@@ -59,14 +59,43 @@ def generate_manifest():
     }
 
     try:
-        with open(MANIFEST_FILE, 'w', encoding='utf-8') as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
+        payload = json.dumps(manifest, indent=2, ensure_ascii=False)
+        if not payload.endswith('\n'):
+            payload = payload + '\n'
+
+        if MANIFEST_FILE.exists():
+            try:
+                existing = MANIFEST_FILE.read_text(encoding='utf-8')
+            except Exception:
+                existing = ''
+            if existing.replace('\r\n', '\n') == payload.replace('\r\n', '\n'):
+                print("  ✅ site.webmanifest already up to date")
+                sys.stdout.flush()
+                try:
+                    from bandpromo_build_stats import emit_build_stats
+                    emit_build_stats(handled=1, fresh=1, scope='manifest')
+                except Exception:
+                    pass
+                return True
+
+        with open(MANIFEST_FILE, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(payload)
         print("  ✅ site.webmanifest written")
         sys.stdout.flush()
+        try:
+            from bandpromo_build_stats import emit_build_stats
+            emit_build_stats(handled=1, created=1, scope='manifest')
+        except Exception:
+            pass
         return True
     except Exception as e:
         print(f"  ❌ Could not write manifest: {e}")
         sys.stdout.flush()
+        try:
+            from bandpromo_build_stats import emit_build_stats
+            emit_build_stats(handled=1, failed=1, scope='manifest')
+        except Exception:
+            pass
         return False
 
 

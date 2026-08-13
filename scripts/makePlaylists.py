@@ -36,7 +36,6 @@ PLAYLIST_REGISTRY_FILE = ROOT_DIR / 'data' / 'playlists' / 'registry.json'
 PLAYLISTS_DIR = ROOT_DIR / 'data' / 'playlists'
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 CONFIG_COVER_BASENAME = 'configured_release_cover'
-BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo'
 BANDPROMO_RELEASE_DEFAULT_ID = 'primary'
 BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo'
 ASSET_ID_RE = re.compile(r'^ast_[0-9A-HJKMNP-TV-Z]{20}$', re.I)
@@ -211,43 +210,6 @@ def load_hidden_media_keys():
     state = load_media_library_state()
     hidden = state.get('hidden') if isinstance(state.get('hidden'), dict) else {}
     return {str(key) for key, value in hidden.items() if value}
-
-
-def has_visible_user_audio_uploads(hidden_keys):
-    # Operator uploads are visible when a non-bundled audio master (or orphan original) exists.
-    if AUDIO_MASTER_DIR.exists():
-        for entry in AUDIO_MASTER_DIR.iterdir():
-            if not entry.is_file():
-                continue
-            if entry.name.lower() == 'desktop.ini':
-                continue
-            asset = load_asset_for_filename(entry.name)
-            label = entry.name
-            if isinstance(asset, dict):
-                original = os.path.basename(str(asset.get('original_filename') or '').strip())
-                if original:
-                    label = original
-            if is_bundled_placeholder(label):
-                continue
-            if 'audio/{0}'.format(entry.name) in hidden_keys or 'audio/{0}'.format(label) in hidden_keys:
-                continue
-            return True
-
-    if not AUDIO_ORIG_DIR.exists():
-        return False
-
-    for entry in AUDIO_ORIG_DIR.iterdir():
-        if not entry.is_file():
-            continue
-        if entry.name.lower() == 'desktop.ini':
-            continue
-        if is_bundled_placeholder(entry.name):
-            continue
-        if 'audio/{0}'.format(entry.name) in hidden_keys:
-            continue
-        return True
-
-    return False
 
 
 def load_asset_for_filename(filename):
@@ -687,46 +649,6 @@ def get_track_number(filename):
         
     return 999
 
-def get_metadata(filename):
-    """
-    Reads title, artist, album and duration from the file.
-    """
-    try:
-        audio = File(filename)
-        if audio is None:
-            return {"title": filename, "artist": "Unknown", "album": "Unknown", "duration": 0}
-
-        # Default values
-        title = filename
-        artist = "Unknown Artist"
-        album = "Unknown Album"
-        duration = get_duration_accurate(filename)
-
-        # Read tags (handles both ID3 and Vorbis Comments)
-        tags = audio.tags
-        
-        if tags:
-            # FLAC / Vorbis comments
-            if 'TITLE' in tags: title = tags['TITLE'][0]
-            if 'ARTIST' in tags: artist = tags['ARTIST'][0]
-            if 'ALBUM' in tags: album = tags['ALBUM'][0]
-            
-            # MP3 ID3 (TIT2, TPE1, TALB)
-            if 'TIT2' in tags: title = str(tags['TIT2'])
-            if 'TPE1' in tags: artist = str(tags['TPE1'])
-            if 'TALB' in tags: album = str(tags['TALB'])
-
-        return {
-            "title": title,
-            "artist": artist,
-            "album": album,
-            "duration": duration
-        }
-
-    except Exception as e:
-        print(f"Warning: Could not read metadata for {filename}: {e}")
-        return {"title": filename, "artist": "Unknown", "album": "Unknown", "duration": 0}
-
 
 def normalize_asset_id_ref(value):
     name = os.path.basename(str(value or '').strip().replace('\\', '/'))
@@ -856,10 +778,6 @@ def find_visual_asset_id_by_content_sha256(digest):
         if str(asset.get('content_sha256') or '').strip().lower() == digest:
             return asset_id
     return None
-
-
-def find_visual_original_by_content_sha256(digest):
-    return find_visual_asset_id_by_content_sha256(digest)
 
 
 def set_audio_display_cover(audio_filename, cover_ref):
@@ -1046,11 +964,6 @@ def extract_embedded_cover_to_visual(filename, base_filename=None):
         print("✓ Extracted embedded cover to Visual original: %s" % outname_filename)
     cover_ref = _link_or_register_cover_file(filename, outname_filename, digest, 'img')
     return cover_ref
-
-
-def extract_embedded_cover_to_stem(filename, base_filename):
-    """Compatibility alias — extract to Visual originals, never stem sidecars."""
-    return extract_embedded_cover_to_visual(filename, base_filename)
 
 
 def get_cover(filename):
@@ -1594,7 +1507,7 @@ def publish_player_playlist_payloads():
 
 
 def generate_validation_scan():
-    """Refresh playlist validation for all visible source files without mutating playlist.json."""
+    """Refresh playlist validation for all visible source files."""
     if not AUDIO_ORIG_DIR.exists():
         print(f"❌ Original audio directory not found at {AUDIO_ORIG_DIR}")
         return

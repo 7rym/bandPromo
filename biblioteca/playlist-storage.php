@@ -1996,13 +1996,20 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
     $document = bandpromo_playlist_load_document($root, $playlistId);
     $entries = is_array($document['entries'] ?? null) ? $document['entries'] : [];
     if ($entries === []) {
-        $document = bandpromo_playlist_clear_player_payload_fields($document);
-        bandpromo_playlist_write_document($root, $document);
+        $hadPayload = isset($document['tracks'])
+            || isset($document['brand_styles'])
+            || isset($document['delivery_summary'])
+            || isset($document['player_built_at']);
+        if ($hadPayload) {
+            $document = bandpromo_playlist_clear_player_payload_fields($document);
+            bandpromo_playlist_write_document($root, $document);
+        }
 
         return [
             'playlist_id' => $playlistId,
             'track_count' => 0,
             'player_built_at' => '',
+            'changed' => $hadPayload,
         ];
     }
 
@@ -2039,21 +2046,52 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
     }
 
     $brandId = bandpromo_playlist_effective_brand_id($root, $playlistId);
-    $document['tracks'] = $tracks;
-    $document['brand_styles'] = $brandId !== ''
+    $brandStyles = $brandId !== ''
         ? bandpromo_brand_player_styles_for_ids($root, [$brandId])
         : [];
-    $document['delivery_summary'] = bandpromo_playlist_delivery_summary($tracks);
-    $document['player_built_at'] = gmdate('c');
+    $deliverySummary = bandpromo_playlist_delivery_summary($tracks);
 
-    bandpromo_playlist_write_document($root, $document);
+    $beforeFingerprint = bandpromo_playlist_player_payload_fingerprint($document);
+    $document['tracks'] = bandpromo_playlist_normalize_stored_tracks($tracks);
+    $document['brand_styles'] = bandpromo_playlist_normalize_stored_brand_styles(
+        is_array($brandStyles) ? $brandStyles : []
+    );
+    $document['delivery_summary'] = bandpromo_playlist_normalize_stored_delivery_summary(
+        is_array($deliverySummary) ? $deliverySummary : []
+    );
+    $afterFingerprint = bandpromo_playlist_player_payload_fingerprint($document);
+    $changed = ($beforeFingerprint === '' || $beforeFingerprint !== $afterFingerprint);
+
+    if ($changed) {
+        $document['player_built_at'] = gmdate('c');
+        bandpromo_playlist_write_document($root, $document);
+    }
 
     return [
         'playlist_id' => $playlistId,
         'track_count' => count($tracks),
-        'player_built_at' => (string) $document['player_built_at'],
+        'player_built_at' => (string) ($document['player_built_at'] ?? ''),
         'brand_id' => $brandId,
+        'changed' => $changed,
     ];
+}
+
+/**
+ * Fingerprint player payload fields that matter to listeners (ignore build timestamp).
+ */
+function bandpromo_playlist_player_payload_fingerprint(array $document): string
+{
+    $slice = [
+        'tracks' => $document['tracks'] ?? null,
+        'brand_styles' => $document['brand_styles'] ?? null,
+        'delivery_summary' => $document['delivery_summary'] ?? null,
+    ];
+    $encoded = json_encode($slice, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if (!is_string($encoded) || $encoded === '') {
+        return '';
+    }
+
+    return hash('sha256', $encoded);
 }
 
 function bandpromo_playlist_publish_all_player_payloads(string $root): array

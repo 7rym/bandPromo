@@ -63,7 +63,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Upload-time background tasks for audio delivery, image delivery, and video delivery (`biblioteca/auto-build-tasks.php` plus focused Python runners); audio upload also refreshes registry display from master tags
 - Playlist save prepares missing delivery MP3s and republishes that playlist’s player payload (full Deliverables rebuild remains for site-wide/PWA recovery)
 - **Tagless delivery audio** — `media/audio/optimal/*.mp3` ships without ID3/APIC; player, Media Session, and future Cast use registry/playlist metadata (masters stay fully tagged)
-- **Planned (v0.8 management slice remainders):** original → master → delivery completion (Brand-assets fold, living-cover `ast_*`, video MKV, still IPTC/XMP, kill stem dual-read) — see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)
+- **Shipped (master-tier T0–T7):** original → master `ast_*` → delivery for audio, Visual, SFX, and Brand; living-cover `ast_*`; video MKV masters + still IPTC/XMP heal; stem dual-read removed — see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)
 - Validation-only playlist scan after audio upload; setup runs **initial site seed** (`scripts/initialSiteSeed.py`) for empty playlist/gallery containers and player tab order
 - Automatic lightweight playlist/validation refresh after audio metadata edits
 - Original / master / delivery media workflow for safer repair and publish handling

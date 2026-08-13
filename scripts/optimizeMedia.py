@@ -1,15 +1,12 @@
 """
 optimizeMedia — Web-Optimized Media Generator
-Converts source content into bandwidth-efficient web variants:
-- Audio delivery → tagless MP3 files (no ID3/APEv2; identity lives in registry + player payload)
-    - MP3 sources are copied directly into delivery output, then stripped
-    - FLAC/WAV sources are transcoded to MP3 320kbps, then stripped
-- Covers → JPEG (optimized quality) for bandwidth savings
-- Photos → JPEG (optimized quality) for bandwidth savings
 
-Reads registered audio assets from data/assets/registry.json for delivery scope.
-Track cover linkage is derived from data/media-library-state.json (illustrations marked role=track-cover, linked_audio=...).
-Social/OG share image is defined in web-config.json (social.share_image).
+Builds registry-driven delivery variants:
+- Audio → tagless MP3 under media/audio/optimal (identity in registry + player payload)
+- Visual → role-based variants under media/visual/delivery/{asset_id}/
+
+Scope comes from data/assets/registry.json. convert_cover_to_jpeg remains for
+audioSourceDelivery cover helpers.
 """
 
 import os
@@ -28,8 +25,6 @@ try:
 except Exception:
     pass
 
-from mutagen import File
-from mutagen.flac import FLAC
 from mutagen.apev2 import APEv2, APENoHeaderError
 from mutagen.id3 import ID3, ID3NoHeaderError
 
@@ -48,12 +43,8 @@ AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 AUDIO_OPT_DIR  = ROOT_DIR / 'media' / 'audio' / 'optimal'
 IMG_ORIG_DIR   = ROOT_DIR / 'media' / 'img'   / 'original'
 IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
-IMG_THUMB_DIR  = ROOT_DIR / 'media' / 'img'   / 'thumb'
 PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
-PHOTO_OPT_DIR  = ROOT_DIR / 'media' / 'photo' / 'optimal'
-PHOTO_THUMB_DIR = ROOT_DIR / 'media' / 'photo' / 'thumb'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
-MEDIA_LIBRARY_STATE_FILE = ROOT_DIR / 'data' / 'media-library-state.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
 _XXHASH_WARNED = False
@@ -75,14 +66,6 @@ DELIVERY_CONTEXTS_FILE = SCRIPT_DIR / 'delivery-contexts.json'
 VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
 VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
 VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
-
-# Shell media sanity sizes (reduce first-paint bytes).
-# These are directly referenced from /media/special/* and must be kept stable URLs.
-SHELL_LOGO_MAX_HEIGHT_PX = 180
-SHELL_BACKGROUND_MAX_HEIGHT_PX = 1080
-# If background is alpha-free PNG, we may optionally convert it to JPG for extra savings.
-SHELL_BACKGROUND_JPG_QUALITY = 70
-SHELL_BACKGROUND_JPG_MIN_IMPROVEMENT_RATIO = 0.10  # only switch if JPG is at least ~10% smaller
 
 
 def load_delivery_contexts():
@@ -138,39 +121,6 @@ except ImportError:
     sys.exit(1)
 
 
-def deep_get(config, dot_path):
-    if not isinstance(dot_path, str) or dot_path.strip() == '':
-        return None
-    parts = [p for p in dot_path.split('.') if p]
-    cur = config
-    for p in parts:
-        if not isinstance(cur, dict) or p not in cur:
-            return None
-        cur = cur[p]
-    if isinstance(cur, str):
-        return cur.strip()
-    return None
-
-
-def replace_string_values(obj, old_value, new_value):
-    """Recursively replace exact string matches in JSON-like structures."""
-    if isinstance(obj, str):
-        return new_value if obj == old_value else obj
-    if isinstance(obj, list):
-        return [replace_string_values(x, old_value, new_value) for x in obj]
-    if isinstance(obj, dict):
-        return {k: replace_string_values(v, old_value, new_value) for k, v in obj.items()}
-    return obj
-
-
-def resolve_web_media_path_to_abs(root_dir, web_path):
-    web_path = str(web_path or '').strip().replace('\\', '/')
-    if web_path == '' or not web_path.startswith('/media/'):
-        return None
-    abs_path = Path(root_dir) / web_path.lstrip('/')
-    return abs_path
-
-
 def png_has_visible_transparency(img):
     # Detect alpha channel or palette transparency.
     if img.mode in ('RGBA', 'LA'):
@@ -181,105 +131,6 @@ def png_has_visible_transparency(img):
         transparency = img.info.get('transparency')
         return transparency is not None
     return False
-
-
-def resize_image_to_max_height(img, max_height):
-    max_height = max(1, int(max_height))
-    w, h = img.size
-    if int(h) <= max_height:
-        return img, False
-    scale = float(max_height) / float(h)
-    new_w = max(1, int(round(w * scale)))
-    new_h = max_height
-    resample = getattr(getattr(Image, 'Resampling', None), 'LANCZOS', None) or Image.LANCZOS
-    return img.resize((new_w, new_h), resample=resample), True
-
-
-def save_png_optimized(img, dest_path):
-    tmp_path = Path(str(dest_path) + '.tmp')
-    try:
-        # Try best-effort compression knobs; Pillow support varies across builds.
-        try:
-            img.save(str(tmp_path), 'PNG', optimize=True, compress_level=9)
-        except Exception:
-            img.save(str(tmp_path), 'PNG', optimize=True)
-        tmp_path.replace(dest_path)
-    finally:
-        if tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except Exception:
-                pass
-
-
-def save_jpg_optimized(img, dest_path, quality):
-    tmp_path = Path(str(dest_path) + '.tmp')
-    try:
-        # JPG cannot preserve alpha; caller must ensure image is alpha-free or intentionally flattened.
-        img.save(str(tmp_path), 'JPEG', quality=int(quality), optimize=True)
-        tmp_path.replace(dest_path)
-    finally:
-        if tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except Exception:
-                pass
-
-
-def load_track_cover_lookup():
-    """Return a mapping of audio master filename -> cover filename.
-
-    This replaces legacy play/playlist.json linkage by reading the media library state
-    (data/media-library-state.json) which records track-cover assets and their linked audio.
-    """
-    lookup = {}
-    if not MEDIA_LIBRARY_STATE_FILE.exists():
-        return lookup
-    try:
-        with open(str(MEDIA_LIBRARY_STATE_FILE), 'r', encoding='utf-8') as handle:
-            state = json.load(handle)
-    except Exception as e:
-        print(f"⚠️  Could not read media-library-state.json: {e}")
-        return lookup
-    if not isinstance(state, dict):
-        return lookup
-    assets = state.get('assets')
-    if not isinstance(assets, dict):
-        return lookup
-    for key, meta in assets.items():
-        if not isinstance(meta, dict):
-            continue
-        # state key looks like "illustrations/<filename>"
-        if not isinstance(key, str) or not key.startswith('illustrations/'):
-            continue
-        if str(meta.get('role') or '').strip() != 'track-cover':
-            continue
-        linked = str(meta.get('linked_audio') or '').strip()
-        if not linked:
-            continue
-        filename = key.split('/', 1)[1]
-        if filename:
-            lookup[linked] = filename
-    return lookup
-
-
-def cover_filename_for_audio(master_filename, cover_lookup):
-    """Try to resolve a cover file for a given audio master filename."""
-    if not master_filename:
-        return None
-    if master_filename in cover_lookup:
-        return cover_lookup[master_filename]
-    stem = Path(master_filename).stem
-    for ext in ('.jpg', '.jpeg', '.png'):
-        candidate = IMG_ORIG_DIR / (stem + ext)
-        if candidate.exists():
-            return candidate.name
-    return None
-
-
-def optimized_audio_name(source_name):
-    """Map any supported source-audio filename to its optimized MP3 filename."""
-    return Path(source_name).stem + '.mp3'
 
 
 def _copy_cover_fallback(source_path, dest_path, reason):
@@ -371,54 +222,6 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None):
         ))
 
     return os.path.basename(dest_path)
-
-
-def delivery_image_is_fresh(source_path, dest_path, max_edge):
-    """True when dest exists, is newer than source, and longest edge <= max_edge."""
-    try:
-        source = Path(source_path)
-        dest = Path(dest_path)
-        if not source.is_file() or not dest.is_file():
-            return False
-        if dest.stat().st_mtime < source.stat().st_mtime:
-            return False
-        with Image.open(str(dest)) as img:
-            w, h = img.size
-        return max(w, h) <= int(max_edge)
-    except Exception:
-        return False
-
-
-def write_cover_delivery_variants(source_path, optimal_path, thumb_path, quality=75):
-    """Write optimal (720) and thumb (100) JPEG derivatives for one source image."""
-    wrote = []
-    if not delivery_image_is_fresh(source_path, optimal_path, COVER_OPTIMAL_MAX_EDGE):
-        Path(optimal_path).parent.mkdir(parents=True, exist_ok=True)
-        name = convert_cover_to_jpeg(
-            source_path,
-            optimal_path,
-            quality=quality,
-            max_edge=COVER_OPTIMAL_MAX_EDGE,
-        )
-        if name:
-            wrote.append('optimal')
-    else:
-        print("    ✓ Optimal fresh: {}".format(os.path.basename(optimal_path)))
-
-    if not delivery_image_is_fresh(source_path, thumb_path, COVER_THUMB_MAX_EDGE):
-        Path(thumb_path).parent.mkdir(parents=True, exist_ok=True)
-        name = convert_cover_to_jpeg(
-            source_path,
-            thumb_path,
-            quality=max(60, int(quality) - 10),
-            max_edge=COVER_THUMB_MAX_EDGE,
-        )
-        if name:
-            wrote.append('thumb')
-    else:
-        print("    ✓ Thumb fresh: {}".format(os.path.basename(thumb_path)))
-
-    return wrote
 
 
 def image_source_has_alpha(source_path):
@@ -530,24 +333,6 @@ def file_xxh3_hex(path):
         return ''
 
 
-def visual_original_path_for_asset(asset):
-    """Legacy intake path only (img/photo/special/video). Prefer visual_working_path_for_asset()."""
-    bucket = str(asset.get('intake_bucket') or '').strip().lower()
-    filename = os.path.basename(str(asset.get('original_filename') or '').strip())
-    if not filename:
-        return None
-    mapping = {
-        'img': IMG_ORIG_DIR / filename,
-        'photo': PHOTO_ORIG_DIR / filename,
-        'special': ROOT_DIR / 'media' / 'special' / filename,
-        'video': ROOT_DIR / 'media' / 'video' / 'original' / filename,
-    }
-    path = mapping.get(bucket)
-    if path is None or not path.exists():
-        return None
-    return path
-
-
 def visual_working_path_for_asset(asset):
     """
     Resolve visual source bytes for delivery build.
@@ -608,7 +393,6 @@ def variant_manifest_entry(abs_path):
         size = path.stat().st_size
     except Exception:
         size = 0
-    from datetime import datetime, timezone
     return {
         'path': rel,
         'width': int(width),
@@ -719,7 +503,7 @@ def visual_image_delivery_is_fresh(asset, source_path, required_variants):
 
 
 def process_visual_image_asset(asset):
-    """Write media/visual/delivery/{id}/{variant} plus legacy dual-read copies."""
+    """Write media/visual/delivery/{id}/{variant} from the visual master."""
     asset_id = str(asset.get('id') or '').strip()
     source = visual_working_path_for_asset(asset)
     if not asset_id or source is None:
@@ -756,8 +540,6 @@ def process_visual_image_asset(asset):
         if written:
             variants_written[variant] = variant_manifest_entry(written)
             print("    → Built {}: {}".format(variant, Path(written).name))
-
-    # M4: no longer dual-write stem optimal/thumb trees — delivery is asset-id only.
 
     if variants_written:
         source_digest = file_xxh3_hex(source)
@@ -976,11 +758,6 @@ def strip_delivery_audio_tags(mp3_path):
         return False
 
 
-def set_id3_tags(mp3_path, tags=None):
-    """Compatibility alias: delivery MP3s are tagless — strip instead of writing."""
-    return strip_delivery_audio_tags(mp3_path)
-
-
 def audio_delivery_is_fresh(source_path, mp3_path, recorded_source_xxh3=None, recorded_source_mtime=None):
     """True when delivery MP3 exists, is tagless, and master XXH3 matches the last build.
 
@@ -1085,196 +862,6 @@ def resolve_audio_working_path(filename):
     return AUDIO_MASTER_DIR / os.path.basename(str(filename or '').strip()), 'master'
 
 
-def _id3_text(tags, *keys):
-    for key in keys:
-        if key not in tags:
-            continue
-        value = tags[key]
-        if isinstance(value, list):
-            return str(value[0]).strip()
-        text = getattr(value, 'text', None)
-        if isinstance(text, list) and text:
-            return str(text[0]).strip()
-        return str(value).strip()
-    return ''
-
-
-def _id3_comment(tags):
-    for key in tags.keys():
-        if str(key).startswith('COMM'):
-            return str(tags[key]).strip()
-    return ''
-
-
-def _id3_lyrics(tags):
-    for key in tags.keys():
-        if str(key).startswith('USLT'):
-            return str(tags[key]).strip()
-    return ''
-
-
-def _normalize_lyrics_text(lyrics_data):
-    if isinstance(lyrics_data, list):
-        lyrics_text = '\n'.join(str(line) for line in lyrics_data)
-    else:
-        lyrics_text = str(lyrics_data)
-    lines = lyrics_text.split('\n')
-    if lines and '||' in lines[0]:
-        lines[0] = lines[0].split('||', 1)[1]
-    return '\n'.join(lines)
-
-
-def get_audio_tags(source_path):
-    """Extract tags from supported source audio files for MP3 delivery output.
-
-    FLAC uses Vorbis comments. MP3 must use ID3 frames (TIT2/TPE1/…); EasyID3-style
-    keys like audio.get('title') are empty on a raw mutagen.mp3.MP3 object.
-    """
-    tags = {}
-    try:
-        source_path = str(source_path)
-        source_suffix = Path(source_path).suffix.lower()
-
-        if source_suffix == '.flac':
-            audio = FLAC(source_path)
-            if audio.get('title'):
-                tags['title'] = audio['title'][0]
-            if audio.get('artist'):
-                tags['artist'] = audio['artist'][0]
-            if audio.get('album'):
-                tags['album'] = audio['album'][0]
-            if audio.get('date'):
-                tags['date'] = audio['date'][0]
-            if audio.get('year'):
-                tags['year'] = audio['year'][0]
-            if audio.get('tracknumber'):
-                tags['tracknumber'] = audio['tracknumber'][0]
-            if audio.get('genre'):
-                tags['genre'] = audio['genre'][0]
-            if audio.get('albumartist'):
-                tags['albumartist'] = audio['albumartist'][0]
-            if audio.get('comment'):
-                tags['comment'] = audio['comment'][0]
-            elif audio.get('description'):
-                tags['comment'] = audio['description'][0]
-            if audio.get('bpm'):
-                tags['bpm'] = audio['bpm'][0]
-            if audio.get('initialkey'):
-                tags['key'] = audio['initialkey'][0]
-            if audio.get('mixartist'):
-                tags['mixartist'] = audio['mixartist'][0]
-            if audio.get('unsyncedlyrics'):
-                tags['lyrics'] = _normalize_lyrics_text(audio['unsyncedlyrics'])
-            elif audio.get('lyrics'):
-                tags['lyrics'] = _normalize_lyrics_text(audio['lyrics'])
-            if getattr(audio, 'pictures', None):
-                tags['picture'] = audio.pictures[0]
-            return tags
-
-        if source_suffix == '.mp3':
-            try:
-                id3 = ID3(source_path)
-            except Exception:
-                return tags
-
-            title = _id3_text(id3, 'TIT2')
-            artist = _id3_text(id3, 'TPE1')
-            album = _id3_text(id3, 'TALB')
-            date = _id3_text(id3, 'TDRC')
-            tracknumber = _id3_text(id3, 'TRCK')
-            genre = _id3_text(id3, 'TCON')
-            albumartist = _id3_text(id3, 'TPE2')
-            bpm = _id3_text(id3, 'TBPM')
-            key = _id3_text(id3, 'TKEY')
-            mixartist = _id3_text(id3, 'TPE4')
-            comment = _id3_comment(id3)
-            lyrics = _id3_lyrics(id3)
-
-            if title:
-                tags['title'] = title
-            if artist:
-                tags['artist'] = artist
-            if album:
-                tags['album'] = album
-            if date:
-                tags['date'] = date
-            if tracknumber:
-                tags['tracknumber'] = tracknumber
-            if genre:
-                tags['genre'] = genre
-            if albumartist:
-                tags['albumartist'] = albumartist
-            if comment:
-                tags['comment'] = comment
-            if bpm:
-                tags['bpm'] = bpm
-            if key:
-                tags['key'] = key
-            if mixartist:
-                tags['mixartist'] = mixartist
-            if lyrics:
-                tags['lyrics'] = _normalize_lyrics_text(lyrics)
-
-            for key_name in id3.keys():
-                if str(key_name).startswith('APIC'):
-                    tags['picture'] = id3[key_name]
-                    break
-            return tags
-
-        # WAV / other: best-effort Easy-style keys when present.
-        audio = File(source_path)
-        if audio is None:
-            return tags
-        if audio.get('title'):
-            tags['title'] = audio['title'][0]
-        if audio.get('artist'):
-            tags['artist'] = audio['artist'][0]
-        if audio.get('album'):
-            tags['album'] = audio['album'][0]
-        if getattr(audio, 'pictures', None):
-            tags['picture'] = audio.pictures[0]
-    except Exception as e:
-        print(f"  Warning: Could not read source audio tags: {e}")
-
-    return tags
-
-
-def merge_catalog_display_into_tags(tags, display):
-    """Fill missing delivery-tag fields from registry display (operator catalog cache)."""
-    if not isinstance(tags, dict):
-        tags = {}
-    if not isinstance(display, dict):
-        return tags
-
-    mapping = [
-        ('title', 'title'),
-        ('artist', 'artist'),
-        ('album', 'album'),
-        ('date', 'date'),
-        ('tracknumber', 'tracknumber'),
-        ('bpm', 'bpm'),
-        ('genre', 'genre'),
-        ('comment', 'comment'),
-        ('lyrics', 'lyrics'),
-    ]
-    for tag_key, display_key in mapping:
-        current = str(tags.get(tag_key) or '').strip()
-        if current:
-            continue
-        value = display.get(display_key)
-        if value is None:
-            continue
-        text = str(value).strip() if not isinstance(value, list) else '\n'.join(str(v) for v in value).strip()
-        if text:
-            tags[tag_key] = text
-
-    initialkey = str(display.get('initialkey') or '').strip()
-    if initialkey and not str(tags.get('key') or '').strip():
-        tags['key'] = initialkey
-
-    return tags
-
-
 def convert_audio_to_mp3(source_path, mp3_path):
     """Convert a supported source audio file to MP3 using ffmpeg."""
     ffmpeg = get_ffmpeg_path()
@@ -1314,12 +901,6 @@ def audio_delivery_mode(source_path):
     return 'copy' if Path(source_path).suffix.lower() == '.mp3' else 'transcode'
 
 
-def playlist_needs_ffmpeg(orig_config):
-    """Only require ffmpeg when at least one track needs transcoding."""
-    # Legacy playlist.json-based queue removed; keep function for compatibility.
-    return False
-
-
 def delivery_queue_needs_ffmpeg(queue):
     """Only require ffmpeg when at least one registry asset needs transcoding."""
     for item in queue:
@@ -1346,7 +927,6 @@ def delivery_queue_needs_ffmpeg(queue):
 
 def process_audio_delivery(
     master_filename,
-    cover_filename=None,
     display_title='',
     display_artist='',
     display=None,
@@ -1355,9 +935,6 @@ def process_audio_delivery(
     recorded_source_xxh3=None,
 ):
     """Convert one registry audio asset to a delivery MP3."""
-    # cover_filename kept for call-site compatibility; covers are Visual delivery only.
-    _ = cover_filename
-
     source_path, source_tier = resolve_audio_working_path(master_filename)
     source = Path(source_path)
     if not source.exists() or not source.is_file():
@@ -1442,11 +1019,6 @@ def main():
     """Main media optimization function."""
     # Verify source directories exist
     include_audio = OPTIMIZE_MODE == 'full'
-    special_only = os.environ.get('BANDPROMO_OPTIMIZE_SPECIAL_ASSETS_ONLY', '').strip() == '1'
-
-    if special_only:
-        print("ℹ️  BANDPROMO_OPTIMIZE_SPECIAL_ASSETS_ONLY ignored — special in-place resize retired (T3)")
-        return 0
 
     if include_audio:
         # PRP imports ship masters only; keep original/ as an empty intake folder.
@@ -1613,6 +1185,20 @@ def main():
 
     if (MEDIA_DIR / 'share.jpg').exists():
         print(f"\n   ⚠️  Legacy media/share.jpg found — safe to delete (now handled by makeSocial.py)")
+
+    audio_handled = (converted + skipped + failed) if include_audio else 0
+    visual_handled = visual_count + visual_skipped + visual_failed
+    try:
+        from bandpromo_build_stats import emit_build_stats
+        emit_build_stats(
+            handled=audio_handled + visual_handled,
+            created=converted + visual_count,
+            fresh=skipped + visual_skipped,
+            failed=failed + visual_failed,
+            scope='media',
+        )
+    except Exception:
+        pass
 
 
 if __name__ == '__main__':

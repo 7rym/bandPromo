@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 23:25 - Checkpoint publish-log + build-script cleanup on `main` as **v0.8.23 build 388** and trigger GitHub Release `v0.8.23-build-388` for Site update. Docs aligned for master-tier-complete + scoped publish summary.
+
+2026-08-13 23:20 - Build scripts cleanup: remove dead legacy helpers from `optimizeMedia` (special-resize / stem cover dual-write / unused tag readers), `optimizeVideo` (video/optimal dual-write helpers), and `makePlaylists` (unused aliases); drop unused `cover_filename` arg from audio delivery.
+
+2026-08-13 23:15 - Publish success summary splits counts by kind: media files, player playlists, share images, and site manifest (no longer lumped as “media”).
+
+2026-08-13 23:10 - Publish stats: “New deliverables” no longer counts always-rewritten artifacts. Playlist payloads, social share images, and site.webmanifest only count as created when content actually changes.
+
+2026-08-13 23:05 - Publish success banner: end every successful rebuild with a clear “your site is ready” payoff (time, stage result, scoped counts), matching the stage header weight.
+
+2026-08-13 23:00 - Publish log summary: show elapsed time plus handled / created / up-to-date counts (stages emit BUILD_STATS; path dump removed).
+
 2026-08-13 22:50 - Checkpoint master-tier T7 (plan complete) on `main` as **v0.8.21 build 387** and trigger GitHub Release `v0.8.21-build-387` for Site update. Handoff: master-tier idle; resume from TODO/ROADMAP.
 
 2026-08-13 22:45 - Master-tier T7 verify complete. Player enrich accepts Visual covers only (`/media/visual/delivery/…`); content autofix rewrites/clears invalid audio `display.cover` and optional playlist payload covers (does not strip playlist `entries`). Local verify: Files index masters, brand slots → delivery/SFX optimal, cover extract → `visual/original`, PRP masters-only paths confirmed. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) — T0–T7 done.
