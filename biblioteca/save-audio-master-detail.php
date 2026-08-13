@@ -166,7 +166,7 @@ if ($living_cover_mode === 'clear') {
         echo json_encode(['error' => (string) ($living_cover_validation['error'] ?? 'Invalid living cover video')]);
         exit;
     }
-    $new_living_cover = (string) ($living_cover_validation['filename'] ?? '');
+    $new_living_cover = (string) ($living_cover_validation['asset_id'] ?? $living_cover_validation['filename'] ?? '');
 }
 $normalized_fields['living_cover'] = $new_living_cover;
 

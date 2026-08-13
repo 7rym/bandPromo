@@ -378,18 +378,10 @@ function bandpromo_audio_master_enrich_detail(string $root, string $filename, ar
     $playlistEntry = is_array($playlistMap[$masterFilename] ?? null)
         ? $playlistMap[$masterFilename]
         : (is_array($playlistMap[$filename] ?? null) ? $playlistMap[$filename] : []);
-    $sidecarCover = trim((string) ($detail['sidecar_cover'] ?? ''));
-    if ($sidecarCover === '' && $masterFilename !== '') {
-        foreach (bandpromo_audio_master_sidecar_stems($root, $filename) as $stem) {
-            foreach (['jpg', 'jpeg', 'png'] as $extension) {
-                $candidate = $stem . '.' . $extension;
-                if (is_file($root . '/media/img/original/' . $candidate)) {
-                    $sidecarCover = $candidate;
-                    break 2;
-                }
-            }
-        }
-    }
+    $sidecarCover = bandpromo_asset_canonical_id_from_media_ref(
+        $root,
+        (string) ($detail['sidecar_cover'] ?? '')
+    );
     $currentCover = $sidecarCover !== ''
         ? $sidecarCover
         : trim((string) ($playlistEntry['cover'] ?? ''));
@@ -658,18 +650,51 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         ];
     }
 
+    require_once __DIR__ . '/visual-master-helpers.php';
+
     $parts = array_values(array_filter(explode('/', str_replace('\\', '/', $relativePath)), 'strlen'));
-    if (count($parts) < 3 || strtolower($parts[0]) !== 'media') {
+    $firstDir = strtolower($parts[1] ?? '');
+    $secondDir = strtolower($parts[2] ?? '');
+    $coverRef = $relativePath;
+    if ($firstDir === 'visual' && $secondDir === 'delivery' && isset($parts[3])) {
+        $coverRef = $parts[3];
+    } elseif ($firstDir === 'visual') {
+        $coverRef = basename((string) end($parts));
+    }
+
+    $visual = bandpromo_asset_lookup_from_media_ref($root, $coverRef);
+    if (is_array($visual) && ($visual['kind'] ?? '') === 'visual' && ($visual['media_type'] ?? 'image') === 'image') {
+        $coverAssetId = trim((string) ($visual['id'] ?? ''));
+        $sourcePath = bandpromo_visual_working_path($root, $visual);
+        if ($sourcePath === '' || !is_file($sourcePath)) {
+            return [
+                'ok' => false,
+                'error' => 'Selected cover file was not found',
+            ];
+        }
+
+        bandpromo_audio_master_clear_sidecar_cover($root, $masterFilename);
+        $embeddedSync = bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, $sourcePath);
+        if (!($embeddedSync['ok'] ?? false)) {
+            return [
+                'ok' => false,
+                'error' => (string) ($embeddedSync['error'] ?? 'Could not update embedded track cover'),
+            ];
+        }
+        if (($visual['role'] ?? '') === 'unassigned' && $coverAssetId !== '') {
+            bandpromo_asset_update_entry($root, $coverAssetId, ['role' => 'track-cover']);
+        }
+
         return [
-            'ok' => false,
-            'error' => 'Invalid cover path',
+            'ok' => true,
+            'sidecar_cover' => $coverAssetId,
+            'master_filename' => $masterFilename,
+            'cover_asset_id' => $coverAssetId,
         ];
     }
 
     $targetKey = '';
     $filename = '';
-    $firstDir = strtolower($parts[1] ?? '');
-    $secondDir = strtolower($parts[2] ?? '');
 
     if ($firstDir === 'img' && $secondDir === 'original' && count($parts) >= 4) {
         $targetKey = 'illustrations';
@@ -685,7 +710,7 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
     if ($targetKey === '') {
         return [
             'ok' => false,
-            'error' => 'Choose an illustration, photo, or theme image for the track cover',
+            'error' => 'Choose a Visual pool image for the track cover',
         ];
     }
 
@@ -759,7 +784,7 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
 
     return [
         'ok' => true,
-        'sidecar_cover' => $filename,
+        'sidecar_cover' => $coverAssetId !== '' ? $coverAssetId : $filename,
         'master_filename' => $masterFilename,
         'cover_asset_id' => $coverAssetId,
     ];

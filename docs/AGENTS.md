@@ -90,6 +90,8 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - [docs/ACCESS-MODEL.md](ACCESS-MODEL.md)
 - [docs/DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md)
 - [docs/PORTABILITY.md](PORTABILITY.md)
+- [docs/MEDIA-HANDLING.md](MEDIA-HANDLING.md)
+- [docs/MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)
 - [docs/FEATURES.md](FEATURES.md)
 - [docs/ADMIN-UI.md](ADMIN-UI.md)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)

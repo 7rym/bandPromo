@@ -21,7 +21,6 @@ SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
-IMG_ORIG_DIR = ROOT_DIR / 'media' / 'img' / 'original'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 LIVING_COVER_TAG = 'BANDPROMO_LIVING_COVER'
 
@@ -118,12 +117,18 @@ def master_path_for(filename):
 
 
 def get_sidecar_cover(filename):
-    base_name = Path(filename).stem
-    for ext in ('.jpg', '.jpeg', '.png'):
-        candidate = IMG_ORIG_DIR / f'{base_name}{ext}'
-        if candidate.exists() and candidate.is_file():
-            return candidate.name
-    return None
+    """Return registry display.cover (visual asset id). Do not guess {stem}.* sidecars."""
+    asset = load_asset_for_filename(filename)
+    if not isinstance(asset, dict):
+        return None
+    display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+    cover = os.path.basename(str(display.get('cover') or '').strip())
+    if not cover:
+        return None
+    stem = os.path.splitext(cover)[0]
+    if stem != cover and stem.startswith('ast_'):
+        return stem
+    return cover
 
 
 def read_text_tag(tags, *keys):

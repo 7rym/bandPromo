@@ -764,6 +764,55 @@ function bandpromo_asset_lookup_from_media_ref(string $root, string $ref): ?arra
 }
 
 /**
+ * Strip a media ref to a bare asset id when the string is `ast_*` or `ast_*.ext`.
+ * Otherwise return the basename (legacy filename refs).
+ */
+function bandpromo_asset_normalize_media_ref(?string $value): string
+{
+    $trimmed = trim((string) $value);
+    if ($trimmed === '') {
+        return '';
+    }
+
+    $base = basename(str_replace('\\', '/', $trimmed));
+    if ($base === '' || strcasecmp($base, 'desktop.ini') === 0) {
+        return '';
+    }
+
+    if (bandpromo_asset_is_asset_id($base)) {
+        return $base;
+    }
+
+    $stem = (string) pathinfo($base, PATHINFO_FILENAME);
+    if ($stem !== $base && bandpromo_asset_is_asset_id($stem)) {
+        return $stem;
+    }
+
+    return $base;
+}
+
+/**
+ * Resolve a cover/living-cover/media ref to a visual asset id when the registry knows it.
+ */
+function bandpromo_asset_canonical_id_from_media_ref(string $root, string $ref): string
+{
+    $ref = bandpromo_asset_normalize_media_ref($ref);
+    if ($ref === '') {
+        return '';
+    }
+
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+        $id = trim((string) ($asset['id'] ?? ''));
+        if ($id !== '') {
+            return $id;
+        }
+    }
+
+    return $ref;
+}
+
+/**
  * Find any visual asset row with this original_filename (including orphans
  * not pointed at by by_original_filename).
  */

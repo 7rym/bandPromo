@@ -39,6 +39,7 @@ CONFIG_COVER_BASENAME = 'configured_release_cover'
 BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo'
 BANDPROMO_RELEASE_DEFAULT_ID = 'primary'
 BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo'
+ASSET_ID_RE = re.compile(r'^ast_[0-9A-HJKMNP-TV-Z]{20}$', re.I)
 
 
 def normalize_playlist_id(value):
@@ -451,50 +452,25 @@ def load_web_config():
 
 
 def get_configured_cover_filename():
+    """Resolve web-config media.cover to a visual asset id. Never mint stem copies."""
     config = load_web_config()
     raw_cover_path = (((config.get('media') or {}).get('cover')) or '').strip()
     if not raw_cover_path:
         return None
 
     if raw_cover_path.startswith(('http://', 'https://')):
-        print(f"Warning: Configured media.cover must be a local file path, got URL: {raw_cover_path}")
+        print("Warning: Configured media.cover must be a local file path, got URL: %s" % raw_cover_path)
         return None
 
-    relative_cover_path = raw_cover_path.lstrip('/\\')
-    source_path = ROOT_DIR / Path(relative_cover_path)
-    if not source_path.exists() or not source_path.is_file():
-        print(f"Warning: Configured media.cover not found: {source_path}")
-        print("         Fix: Admin → Content → Branding → base brand → Shell media → Poster / share image")
-        print("         (Saving Base syncs media.cover / social.share_image in web-config.json.)")
-        if source_path.name.lower().startswith('bandpromo_'):
-            print("         Note: bandPromo_* is a bundled demo filename — restore seed media or retarget the poster.")
-        return None
+    asset_id = find_visual_asset_id_for_ref(raw_cover_path)
+    if asset_id:
+        return asset_id
 
-    suffix = source_path.suffix.lower()
-    if suffix not in ('.jpg', '.jpeg', '.png', '.webp'):
-        print(f"Warning: Configured media.cover must be an image file, got: {source_path.name}")
-        return None
+    print("Warning: Configured media.cover is not a registered Visual asset: %s" % raw_cover_path)
+    print("         Fix: Admin → Content → Branding → base brand → Shell media → Poster / share image")
+    print("         (Saving Base syncs media.cover / social.share_image in web-config.json.)")
+    return None
 
-    target_name = f"{CONFIG_COVER_BASENAME}{suffix}"
-    target_path = IMG_ORIG_DIR / target_name
-
-    try:
-        IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-        source_bytes = source_path.read_bytes()
-        target_needs_write = (not target_path.exists()) or (target_path.read_bytes() != source_bytes)
-        if target_needs_write:
-            target_path.write_bytes(source_bytes)
-        record_cover_asset(
-            target_name,
-            'release-fallback',
-            'build-configured',
-            linked_config='media.cover',
-        )
-    except Exception as e:
-        print(f"Warning: Could not prepare configured cover fallback: {e}")
-        return None
-
-    return target_name
 
 def get_lyrics(filename):
     """
@@ -586,7 +562,7 @@ LIVING_COVER_TAG = 'BANDPROMO_LIVING_COVER'
 def get_living_cover(filename):
     """
     Reads the BANDPROMO_LIVING_COVER tag from the audio master.
-    Value is the video original filename assigned in the track editor.
+    Value is the visual video asset id assigned in the track editor.
     """
     try:
         path = Path(str(filename))
@@ -694,11 +670,33 @@ def get_metadata(filename):
         return {"title": filename, "artist": "Unknown", "album": "Unknown", "duration": 0}
 
 
+def normalize_asset_id_ref(value):
+    name = os.path.basename(str(value or '').strip().replace('\\', '/'))
+    if not name:
+        return ''
+    stem = os.path.splitext(name)[0]
+    if ASSET_ID_RE.match(name):
+        return name
+    if ASSET_ID_RE.match(stem):
+        return stem
+    return name
+
+
 def resolve_pool_cover_filename(cover_name):
-    """Return basename if the cover exists in visual master/original, delivery, or legacy intake."""
+    """Return a cover ref if bytes exist in visual master/original, delivery, or legacy intake."""
     cover_name = os.path.basename(str(cover_name or '').strip())
     if not cover_name:
         return None
+    asset_id = normalize_asset_id_ref(cover_name)
+    if ASSET_ID_RE.match(asset_id):
+        delivery_dir = VISUAL_DELIVERY_DIR / asset_id
+        if delivery_dir.is_dir():
+            return asset_id
+        for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR):
+            for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+                if (folder / (asset_id + ext)).exists():
+                    return asset_id
+        return asset_id
     for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
         if (folder / cover_name).exists():
             return cover_name
@@ -706,9 +704,7 @@ def resolve_pool_cover_filename(cover_name):
     if stem:
         delivery_dir = VISUAL_DELIVERY_DIR / stem
         if delivery_dir.is_dir():
-            for name in ('card.jpg', 'card.png', 'thumb.jpg', 'thumb.png'):
-                if (delivery_dir / name).exists():
-                    return cover_name
+            return cover_name
         for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR):
             for ext in ('.png', '.jpg', '.jpeg', '.webp'):
                 candidate = folder / (stem + ext)
@@ -718,13 +714,17 @@ def resolve_pool_cover_filename(cover_name):
 
 
 def get_assigned_cover_from_registry(audio_filename):
-    """Operator-assigned pool cover from asset registry display.cover."""
+    """Operator-assigned Visual cover from asset registry display.cover (asset id preferred)."""
     asset = load_asset_for_filename(audio_filename)
     if not isinstance(asset, dict):
         return None
     display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
-    cover = resolve_pool_cover_filename(display.get('cover'))
-    return cover
+    cover = normalize_asset_id_ref(display.get('cover'))
+    if not cover:
+        return None
+    if ASSET_ID_RE.match(cover):
+        return cover
+    return resolve_pool_cover_filename(cover)
 
 
 def load_asset_registry_payload():
@@ -745,28 +745,69 @@ def save_asset_registry_payload(payload):
         handle.write('\n')
 
 
-def find_visual_original_by_content_sha256(digest):
+def find_visual_asset_id_for_ref(ref):
+    """Resolve a path, original filename, or asset id to a visual image asset id."""
+    raw = str(ref or '').strip().replace('\\', '/')
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    parts = [part for part in raw.split('/') if part]
+    for part in reversed(parts):
+        candidate = normalize_asset_id_ref(part)
+        if not ASSET_ID_RE.match(candidate):
+            continue
+        if isinstance(assets.get(candidate), dict) and assets.get(candidate).get('kind') == 'visual':
+            return candidate
+        for asset_id, asset in assets.items():
+            if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+                continue
+            if asset_id.lower() == candidate.lower():
+                return asset_id
+    name = normalize_asset_id_ref(raw)
+    if not name:
+        return None
+    if ASSET_ID_RE.match(name) and isinstance(assets.get(name), dict):
+        asset = assets.get(name)
+        if asset.get('kind') == 'visual':
+            return name
+    for asset_id, asset in assets.items():
+        if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+            continue
+        if str(asset.get('media_type') or '') not in ('image', ''):
+            continue
+        if asset_id == name:
+            return asset_id
+        original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        master_stem = os.path.splitext(master_name)[0]
+        if name in {original_name, master_name, master_stem}:
+            return asset_id
+    return None
+
+
+def find_visual_asset_id_by_content_sha256(digest):
     digest = str(digest or '').strip().lower()
     if not digest:
         return None
     payload = load_asset_registry_payload()
     assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
-    for asset in assets.values():
+    for asset_id, asset in assets.items():
         if not isinstance(asset, dict) or asset.get('kind') != 'visual':
             continue
         if str(asset.get('media_type') or '') != 'image':
             continue
         if str(asset.get('content_sha256') or '').strip().lower() == digest:
-            name = os.path.basename(str(asset.get('original_filename') or '').strip())
-            if name:
-                return name
+            return asset_id
     return None
 
 
-def set_audio_display_cover(audio_filename, cover_filename):
-    """Point audio asset display.cover at an existing pool original (no file copy)."""
+def find_visual_original_by_content_sha256(digest):
+    return find_visual_asset_id_by_content_sha256(digest)
+
+
+def set_audio_display_cover(audio_filename, cover_ref):
+    """Point audio asset display.cover at a visual asset id (or original filename until registered)."""
     audio_name = os.path.basename(str(audio_filename or '').strip())
-    cover_name = os.path.basename(str(cover_filename or '').strip())
+    cover_name = normalize_asset_id_ref(cover_ref)
     if not audio_name or not cover_name:
         return False
 
@@ -790,8 +831,8 @@ def set_audio_display_cover(audio_filename, cover_filename):
 
 
 def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
-    """Store content_sha256 on the visual registry row for this original filename."""
-    safe_name = os.path.basename(str(filename or '').strip())
+    """Store content_sha256 on the visual registry row for this original filename or asset id."""
+    safe_name = normalize_asset_id_ref(filename)
     digest = str(digest or '').strip().lower()
     if not safe_name or not digest:
         return
@@ -801,7 +842,7 @@ def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
         if not isinstance(asset, dict) or asset.get('kind') != 'visual':
             continue
         original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
-        if original_name != safe_name:
+        if asset_id != safe_name and original_name != safe_name:
             continue
         if str(asset.get('content_sha256') or '').strip().lower() == digest:
             return
@@ -812,6 +853,37 @@ def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
         payload['assets'] = assets
         save_asset_registry_payload(payload)
         return
+
+
+def register_visual_original_via_php(filename, role='track-cover'):
+    """Register an on-disk Visual original; PHP mints the ast_* id. Returns id or None."""
+    safe_name = os.path.basename(str(filename or '').strip())
+    if not safe_name:
+        return None
+    try:
+        php = resolve_php_cli()
+        result = subprocess.run(
+            [php, str(SCRIPT_DIR / 'register_visual_original.php'), safe_name, role],
+            cwd=str(ROOT_DIR),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False,
+        )
+    except Exception as exc:
+        print("Warning: Could not register Visual original %s: %s" % (safe_name, exc))
+        return None
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or '').strip().splitlines()
+        print("Warning: Visual register failed for %s: %s" % (
+            safe_name,
+            err[-1] if err else 'unknown error',
+        ))
+        return None
+    asset_id = normalize_asset_id_ref((result.stdout or '').strip())
+    if ASSET_ID_RE.match(asset_id):
+        return asset_id
+    return None
 
 
 def read_embedded_cover_bytes(filename):
@@ -851,11 +923,27 @@ def read_embedded_cover_bytes(filename):
     return None
 
 
-def extract_embedded_cover_to_stem(filename, base_filename):
+def _link_or_register_cover_file(audio_filename, disk_name, digest, intake_bucket='img'):
+    existing_id = find_visual_asset_id_for_ref(disk_name)
+    if existing_id:
+        ensure_visual_content_sha256_on_file(existing_id, digest, intake_bucket)
+        set_audio_display_cover(audio_filename, existing_id)
+        return existing_id
+    ensure_visual_content_sha256_on_file(disk_name, digest, intake_bucket)
+    registered = register_visual_original_via_php(disk_name, 'track-cover')
+    cover_ref = registered or disk_name
+    if registered:
+        ensure_visual_content_sha256_on_file(registered, digest, intake_bucket)
+    set_audio_display_cover(audio_filename, cover_ref)
+    return cover_ref
+
+
+def extract_embedded_cover_to_visual(filename, base_filename=None):
     """
-    Legacy fallback: reuse an existing Visual original with the same content hash,
-    or write embedded art to media/img/original/{stem}.ext once.
-    Returns basename or None.
+    Reuse an existing Visual asset with the same content hash, or write embedded art
+    once to media/visual/original/embedded-{digest[:16]}.{ext} and register it.
+    Never writes media/img/original/{audioStem}.*.
+    Returns visual asset id (or original filename if register failed).
     """
     embedded = read_embedded_cover_bytes(filename)
     if not embedded:
@@ -863,14 +951,18 @@ def extract_embedded_cover_to_stem(filename, base_filename):
 
     data, ext = embedded
     digest = hashlib.sha256(data).hexdigest()
-    existing = find_visual_original_by_content_sha256(digest)
+    existing = find_visual_asset_id_by_content_sha256(digest)
     if existing:
         set_audio_display_cover(filename, existing)
-        print(f"✓ Reused pool cover for embedded art (hash match): {existing}")
+        print("✓ Reused Visual cover for embedded art (hash match): %s" % existing)
         return existing
 
-    # Also match any existing pool original with identical bytes (hash not yet stored).
-    for folder in (IMG_ORIG_DIR, PHOTO_ORIG_DIR):
+    for folder, bucket in (
+        (VISUAL_ORIG_DIR, 'img'),
+        (VISUAL_MASTER_DIR, 'img'),
+        (IMG_ORIG_DIR, 'img'),
+        (PHOTO_ORIG_DIR, 'photo'),
+    ):
         if not folder.exists():
             continue
         for entry in folder.iterdir():
@@ -879,59 +971,50 @@ def extract_embedded_cover_to_stem(filename, base_filename):
             if entry.name.lower() == 'desktop.ini':
                 continue
             try:
-                if hashlib.sha256(entry.read_bytes()).hexdigest() == digest:
-                    ensure_visual_content_sha256_on_file(
-                        entry.name,
-                        digest,
-                        'photo' if folder == PHOTO_ORIG_DIR else 'img',
-                    )
-                    set_audio_display_cover(filename, entry.name)
-                    print(f"✓ Linked embedded art to existing pool file: {entry.name}")
-                    return entry.name
+                if hashlib.sha256(entry.read_bytes()).hexdigest() != digest:
+                    continue
             except Exception:
                 continue
+            cover_ref = _link_or_register_cover_file(filename, entry.name, digest, bucket)
+            print("✓ Linked embedded art to existing pool file: %s" % cover_ref)
+            return cover_ref
 
-    outname_full = IMG_ORIG_DIR / (base_filename + ext)
-    outname_filename = base_filename + ext
+    outname_filename = 'embedded-' + digest[:16] + ext
+    outname_full = VISUAL_ORIG_DIR / outname_filename
+    VISUAL_ORIG_DIR.mkdir(parents=True, exist_ok=True)
     if not outname_full.exists():
-        IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(str(outname_full), 'wb') as imgf:
             imgf.write(data)
-        print(f"✓ Extracted embedded cover (legacy fallback): {outname_filename}")
-    ensure_visual_content_sha256_on_file(outname_filename, digest, 'img')
-    set_audio_display_cover(filename, outname_filename)
-    return outname_filename
+        print("✓ Extracted embedded cover to Visual original: %s" % outname_filename)
+    cover_ref = _link_or_register_cover_file(filename, outname_filename, digest, 'img')
+    return cover_ref
+
+
+def extract_embedded_cover_to_stem(filename, base_filename):
+    """Compatibility alias — extract to Visual originals, never stem sidecars."""
+    return extract_embedded_cover_to_visual(filename, base_filename)
 
 
 def get_cover(filename):
     """
     Priority order:
-    1) Operator-assigned Visual pool cover (asset registry display.cover)
-    2) Legacy stem sidecar in media/img/original/{stem}.ext (no extract)
-    3) Extract embedded art only when no assigned/sidecar cover exists
-       (or link to an existing pool file with identical bytes)
-    4) Configured release cover from web-config.json
-    Returns (filename, source) where source is one of:
-    assigned, sidecar, embedded, configured, missing
+    1) Operator-assigned Visual pool cover (asset registry display.cover as ast_*)
+    2) Extract embedded art to Visual original + master (hash-match existing first)
+    3) Configured release poster Visual asset from web-config.json
+    Returns (cover_ref, source) where source is one of:
+    assigned, embedded, configured, missing
     """
-    base = os.path.splitext(filename)[0]
-    base_filename = os.path.basename(base)
-
     assigned = get_assigned_cover_from_registry(filename)
     if assigned:
         return (assigned, 'assigned')
 
-    for ext in ('.jpg', '.jpeg', '.png', '.webp'):
-        candidate_full = IMG_ORIG_DIR / (base_filename + ext)
-        if candidate_full.exists():
-            return (base_filename + ext, 'sidecar')
-
-    extracted = extract_embedded_cover_to_stem(filename, base_filename)
+    extracted = extract_embedded_cover_to_visual(filename)
     if extracted:
         return (extracted, 'embedded')
 
     configured_cover = get_configured_cover_filename()
     if configured_cover:
+        set_audio_display_cover(filename, configured_cover)
         return (configured_cover, 'configured')
 
     return (None, 'missing')
@@ -1199,9 +1282,7 @@ def generate_playlist():
     # Originals are optional after PRP import (masters-only). Keep the folder for uploads.
     AUDIO_ORIG_DIR.mkdir(parents=True, exist_ok=True)
     AUDIO_MASTER_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Ensure output directories exist
-    IMG_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+    VISUAL_ORIG_DIR.mkdir(parents=True, exist_ok=True)
     VALIDATION_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     # Collect playlist work items from the playlist document when available.
@@ -1383,9 +1464,7 @@ def generate_playlist():
     }
     write_validation_report(validation_report)
 
-    active_configured_cover = get_configured_cover_filename()
-    if active_configured_cover:
-        cleanup_stale_configured_release_covers(active_configured_cover)
+    cleanup_stale_configured_release_covers(None)
 
     # Drop legacy stem-named cover copies when registry already points at a pool file.
     try:

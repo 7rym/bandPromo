@@ -628,18 +628,20 @@ Assign in **Files → Audio → track editor → Living cover**. Pick any video 
 
 | Format | Tag | Value |
 |--------|-----|-------|
-| **MP3** | ID3v2 `TXXX` description `BANDPROMO_LIVING_COVER` | Video **original filename** (basename under `media/video/original/`) |
+| **MP3** | ID3v2 `TXXX` description `BANDPROMO_LIVING_COVER` | Visual video **asset id** (`ast_*`) |
 | **FLAC** | Vorbis comment `BANDPROMO_LIVING_COVER` | Same value |
 
-Value is the stable on-disk video filename, not a human title. No sidecar files. No playlist JSON field.
+Value is the visual registry id, not a human title and not an original filename. No sidecar files. No playlist JSON field for the assignment (player payload may carry a resolved delivery URL).
 
-**Do not** bake living-cover references into delivery MP3 tags; delivery audio is tagless. Player materialization reads the **master** tag via `playlistTrackEntries.py`, and fills an empty tag from the asset-registry display when the track editor has already assigned a living cover.
+**Do not** bake living-cover references into delivery MP3 tags; delivery audio is tagless. Player materialization reads the **master** tag and/or `display.living_cover`.
+
+**Implementation remaining:** code still stores video original basenames and dual-reads `media/video/optimal/{stem}.mp4` — see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T1 / T5.
 
 ### Player resolution
 
 1. Read `living_cover` from master tags when materializing playlist entries; if empty, use registry `display.living_cover`.
-2. Resolve player URL only when `media/video/optimal/{stem}.mp4` delivery exists.
-3. Static cover image remains the video poster, reflection source, and the fallback when living cover is unavailable (or reduced motion).
+2. Resolve player URL only when Visual **`standard-stream`** delivery exists for that asset id.
+3. Static cover image remains the still cover, reflection source, and the fallback when living cover is unavailable (or reduced motion).
 
 ### Playback rules
 
@@ -653,7 +655,6 @@ Value is the stable on-disk video filename, not a human title. No sidecar files.
 
 ### Deferred
 
-- Visual-registry asset IDs instead of video filenames (when Visual pool ships).
 - Per-track picker without opening full track editor (assignment already lives there).
 - Animated lightbox / side-card previews.
 

@@ -27,9 +27,11 @@ That is the practical value proposition behind the media-handling model.
 
 bandPromo should use three explicit media tiers:
 
-- `original`: the exact user upload, preserved untouched
-- `master`: a bandPromo-authored canonical asset with corrected packaging and metadata
-- `delivery`: publish-ready derivatives generated from the master tier for actual playback and display contexts
+- `original`: the exact user upload, preserved untouched (**write-once**; legal I/O after intake is download/delete/provenance only)
+- `master`: a bandPromo-authored canonical asset (`ast_{ULID}`) — **the working copy**
+- `delivery`: publish-ready derivatives generated **from the master** for playback and display
+
+This applies to **audio, Visual, Sound effects, and Brand assets**. Findings and the completion plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
 
 bandPromo should also distinguish media by role and scope, not only by file type or storage folder.
 
@@ -1232,28 +1234,27 @@ The player description currently reads from:
 
 Build cover lookup (`scripts/makePlaylists.py` `get_cover()`):
 
-1. operator-assigned Visual pool cover from the asset registry (`display.cover`) — including `ast_{id}.ext` refs whose bytes live in `media/visual/master` or `media/visual/delivery/{id}/`
-2. legacy same-basename image file in `media/img/original/`
-3. extract embedded audio artwork only when no assigned/sidecar cover exists (assigned refs with no working bytes fall through to extract)
-4. configured release cover from `web-config.json` (`media.cover`)
+1. operator-assigned Visual cover from the asset registry (`display.cover` as `ast_*`)
+2. extract embedded audio artwork to `media/visual/original/embedded-{hash}.*`, register a Visual master, and store the asset id (hash-match an existing Visual first; never write `img/original/{audioStem}.*`)
+3. configured release poster Visual asset from `web-config.json` (`media.cover`) when it already resolves to `ast_*`
 
-`/play` prefers playlist `cover_url` (visual delivery `card`/`thumb`, else master). When the payload still has a filename only, the player tries `/media/visual/delivery/{asset_id}/…` then visual master/original, then legacy `media/img`.
+`/play` prefers playlist `cover_url` (visual delivery `card`/`thumb`). Playlist payload `cover` / `living_cover` are visual asset ids; `animated_cover` is Visual `standard-stream` delivery.
 
-Assigning a pool image to a track embeds it into the master and stores the pool filename as the cover reference. It does not copy the pool file to `{audio_stem}.ext`.
+Assigning a pool image to a track embeds it into the audio master and stores the **visual asset id** as the cover reference. It does not copy the pool file to `{audio_stem}.ext`.
 
 Embedded artwork is currently read from:
 
 - FLAC picture blocks
 - MP3 ID3 `APIC` frames
 
-When the configured release cover is used as fallback, the build copies it into `media/img/original/` as a normal generated cover asset so the rest of the pipeline can treat it like any other track cover.
+When the configured release poster is used as fallback, tracks point at that Visual asset. The build does **not** mint `configured_release_cover.*` into `media/img/original/`.
 
 ### Cover art roles and reference index
 
-Files in `media/img/original/` can serve different product roles:
+Visual stills (and leftover `media/img/original/` files until T4) can serve different product roles:
 
-- `track-cover`: basename sidecar used by one or more playlist tracks
-- `release-fallback`: `configured_release_cover.*` copied from the theme/release cover
+- `track-cover`: assigned to one or more audio assets via `display.cover` = visual `ast_*`
+- `release-fallback`: Base brand poster / `media.cover` Visual asset (no `configured_release_cover.*` mint)
 - `illustration`: general artwork used by gallery items or media pickers
 
 Origins are tracked separately from roles:

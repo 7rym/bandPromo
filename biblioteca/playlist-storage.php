@@ -595,8 +595,8 @@ function bandpromo_playlist_normalize_stored_track(array $track): ?array
         'text_role' => bandpromo_asset_normalize_text_role((string) ($track['text_role'] ?? 'lyrics')),
         'notes_label' => bandpromo_asset_normalize_notes_label((string) ($track['notes_label'] ?? '')),
         'description' => (string) ($track['description'] ?? ''),
-        'cover' => basename(trim((string) ($track['cover'] ?? ''))),
-        'living_cover' => trim((string) ($track['living_cover'] ?? '')),
+        'cover' => bandpromo_asset_normalize_media_ref((string) ($track['cover'] ?? '')),
+        'living_cover' => bandpromo_living_cover_normalize_video_filename((string) ($track['living_cover'] ?? '')),
         'asset_id' => trim((string) ($track['asset_id'] ?? '')),
         'release_id' => trim((string) ($track['release_id'] ?? '')),
         'release_slug' => trim((string) ($track['release_slug'] ?? '')),
@@ -1426,8 +1426,8 @@ function bandpromo_playlist_build_php_track_entry(string $root, string $filename
         'text_role' => bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')),
         'notes_label' => bandpromo_asset_normalize_notes_label((string) ($display['notes_label'] ?? '')),
         'description' => trim((string) ($display['comment'] ?? '')),
-        'cover' => basename(trim((string) ($display['cover'] ?? ''))),
-        'living_cover' => bandpromo_living_cover_normalize_video_filename((string) ($display['living_cover'] ?? '')),
+        'cover' => bandpromo_asset_canonical_id_from_media_ref($root, (string) ($display['cover'] ?? '')),
+        'living_cover' => bandpromo_living_cover_canonical_id($root, (string) ($display['living_cover'] ?? '')),
     ];
 }
 
@@ -1515,15 +1515,17 @@ function bandpromo_playlist_build_track_list(string $root, array $document, arra
         if (isset($builtTracks[$masterFile]) && is_array($builtTracks[$masterFile])) {
             $built = $builtTracks[$masterFile];
             // Tag materialization is preferred when present; fill empty living_cover from registry.
-            $builtLiving = bandpromo_living_cover_normalize_video_filename((string) ($built['living_cover'] ?? ''));
+            $builtLiving = bandpromo_living_cover_canonical_id($root, (string) ($built['living_cover'] ?? ''));
             if ($builtLiving === '') {
                 $phpEntry = bandpromo_playlist_build_php_track_entry($root, $masterFile);
                 $registryLiving = is_array($phpEntry)
-                    ? bandpromo_living_cover_normalize_video_filename((string) ($phpEntry['living_cover'] ?? ''))
+                    ? bandpromo_living_cover_canonical_id($root, (string) ($phpEntry['living_cover'] ?? ''))
                     : '';
                 if ($registryLiving !== '') {
                     $built['living_cover'] = $registryLiving;
                 }
+            } else {
+                $built['living_cover'] = $builtLiving;
             }
             $tracks[] = $built;
             continue;
@@ -1939,12 +1941,12 @@ function bandpromo_playlist_enrich_tracks_for_player(
             $embargoPlayable
         );
 
-        $livingCover = bandpromo_living_cover_normalize_video_filename((string) ($track['living_cover'] ?? ''));
+        $livingCover = bandpromo_living_cover_canonical_id($root, (string) ($track['living_cover'] ?? ''));
         $animatedCover = $livingCover !== ''
             ? bandpromo_living_cover_player_url($root, $livingCover)
             : '';
 
-        $coverRef = trim((string) ($track['cover'] ?? ''));
+        $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, (string) ($track['cover'] ?? ''));
         $coverUrl = '';
         if ($coverRef !== '') {
             require_once __DIR__ . '/media-delivery-helpers.php';
@@ -1972,6 +1974,8 @@ function bandpromo_playlist_enrich_tracks_for_player(
             'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),
             'playable' => (bool) ($streamState['playable'] ?? false),
             'lock_reason' => (string) ($streamState['lock_reason'] ?? ''),
+            'cover' => $coverRef,
+            'living_cover' => $livingCover,
             'animated_cover' => $animatedCover,
             'cover_url' => $coverUrl,
             'text_role' => $textRole,

@@ -1580,7 +1580,7 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
         'text_role' => $preserve['text_role'],
         'notes_label' => $preserve['notes_label'],
         'living_cover' => bandpromo_living_cover_normalize_video_filename((string) ($inspect['living_cover'] ?? '')),
-        'cover' => basename(trim((string) ($inspect['sidecar_cover'] ?? $inspect['cover'] ?? ''))),
+        'cover' => bandpromo_asset_normalize_media_ref((string) ($inspect['sidecar_cover'] ?? $inspect['cover'] ?? '')),
         'synced_at' => gmdate('c'),
      ];
 }
@@ -1631,12 +1631,12 @@ function bandpromo_asset_build_audio_display_from_fields(array $fields, array $i
         'living_cover' => bandpromo_living_cover_normalize_video_filename(
             (string) ($fields['living_cover'] ?? ($inspectData['living_cover'] ?? $preserve['living_cover'] ?? ''))
         ),
-        'cover' => basename(trim((string) (
+        'cover' => bandpromo_asset_normalize_media_ref((string) (
             $inspectData['sidecar_cover']
             ?? $inspectData['cover']
             ?? $preserve['cover']
             ?? ''
-        ))),
+        )),
         'synced_at' => gmdate('c'),
     ];
 }

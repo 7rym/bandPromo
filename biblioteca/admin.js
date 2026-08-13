@@ -5074,7 +5074,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const selectedPath = buildMediaPath(target, filename);
                         const selectedAssetId = String(selectBtn.dataset.assetId || '').trim();
                         if (mediaPickerState.fieldId === 'audioMasterFieldLivingCoverPath') {
-                            applyAudioMasterLivingCoverSelection(selectedPath);
+                            applyAudioMasterLivingCoverSelection(selectedAssetId || selectedPath);
                         } else if (
                             String(mediaPickerState.fieldId || '').startsWith('theme_asset_')
                             && typeof window.bandpromoShellMediaPicked === 'function'
@@ -5279,7 +5279,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return String(detail.sidecar_cover_url);
                 }
                 if (detail && detail.sidecar_cover) {
-                    return `/media/img/original/${encodeURIComponent(detail.sidecar_cover)}`;
+                    const cover = String(detail.sidecar_cover).trim();
+                    const coverStem = cover.replace(/\.[^.]+$/, '');
+                    const assetId = /^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(cover)
+                        ? cover
+                        : (/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(coverStem) ? coverStem : '');
+                    if (assetId) {
+                        return `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`;
+                    }
+                    return `/media/img/original/${encodeURIComponent(cover)}`;
                 }
                 return detail && detail.current_cover_url ? String(detail.current_cover_url) : '';
             }
@@ -5310,8 +5318,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return raw.split('/').pop() || '';
             }
 
+            function audioMasterAssetIdFromRef(value) {
+                const base = audioMasterLivingCoverBasename(value);
+                if (!base) {
+                    return '';
+                }
+                if (/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(base)) {
+                    return base;
+                }
+                const stem = base.replace(/\.[^.]+$/, '');
+                return /^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(stem) ? stem : '';
+            }
+
             function audioMasterLivingCoverStoragePath(filename) {
-                const safe = audioMasterLivingCoverBasename(filename);
+                const raw = String(filename || '').trim().replace(/\\/g, '/');
+                if (!raw) {
+                    return '';
+                }
+                if (raw.startsWith('/media/visual/') || raw.startsWith('media/visual/')) {
+                    return raw.startsWith('/') ? raw : `/${raw}`;
+                }
+                const assetId = audioMasterAssetIdFromRef(raw);
+                if (assetId) {
+                    return assetId;
+                }
+                const safe = audioMasterLivingCoverBasename(raw);
                 return safe ? `/media/video/original/${safe}` : '';
             }
 
@@ -5355,6 +5386,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (selectedName === assignedName && data.living_cover_preview_url) {
                         return String(data.living_cover_preview_url);
                     }
+                    const selectedAssetId = audioMasterAssetIdFromRef(selectedName);
+                    if (selectedAssetId) {
+                        return `/media/visual/delivery/${encodeURIComponent(selectedAssetId)}/standard-stream.mp4`;
+                    }
                     // Prefer absolute original path so the <video> element can load it.
                     return selected.startsWith('/') ? selected : `/${selected.replace(/^\/*/, '')}`;
                 }
@@ -5382,8 +5417,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     ...(activeAudioMasterDetail || {}),
                     living_cover: filename,
                     living_cover_preview_url: previewUrl,
-                    living_cover_delivery_ready: previewUrl.includes('/media/video/optimal/'),
-                    living_cover_delivery_pending: filename !== '' && !previewUrl.includes('/media/video/optimal/'),
+                    living_cover_delivery_ready: previewUrl.includes('/media/visual/delivery/')
+                        || previewUrl.includes('/media/video/optimal/'),
+                    living_cover_delivery_pending: filename !== ''
+                        && !previewUrl.includes('/media/visual/delivery/')
+                        && !previewUrl.includes('/media/video/optimal/'),
                 };
 
                 if (options.sync !== false) {
@@ -5429,7 +5467,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
-                const previewLooksLikeVideo = /\.(mp4|webm|mov)(\?|$)/i.test(previewUrl)
+                const previewLooksLikeVideo = /\.(mp4|webm|mov|mkv)(\?|$)/i.test(previewUrl)
+                    || previewUrl.includes('/media/visual/delivery/')
+                    || previewUrl.includes('standard-stream')
                     || previewUrl.includes('/media/video/optimal/')
                     || previewUrl.includes('/media/video/original/');
 

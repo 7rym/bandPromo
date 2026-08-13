@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 16:05 - Checkpoint T1 identity on `main` without a GitHub Release / Site update package: track covers and living covers persist as visual `ast_*` ids (registry, master tags, playlist payload). Publish extract writes `media/visual/original/embedded-{hash}.*` and registers a Visual master instead of `img/original/{audioStem}.*`; configured-cover minting is gone. Admin living-cover picker stores the asset id; player `cover`/`living_cover` are ids with delivery URLs in `cover_url`/`animated_cover`. Policy and plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
+
+2026-08-13 14:35 - Master-tier audit: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) inventories original/stem/sidecar working copies after the Demo PRP smoke tests and locks a T1–T7 fix plan (identity `ast_*`, masters as working copies, delivery from masters, Brand/special fold, MKV/IPTC). Living-cover tag policy is now visual asset id.
+
 2026-08-13 13:45 - Smoke-test fixes: Files → Audio lists masters-only PRP tracks (index rebuild from registry + `media/audio/master`); `/play` resolves `ast_*` track covers via visual delivery/master (`cover_url` + player fallback) instead of legacy `/media/img/optimal`. PRP collect resolves `ast_*.ext` cover refs; Publish cover lookup checks visual master/delivery and extracts when assigned art is missing.
 
 2026-08-13 12:55 - Welcome/demo catalog: treat Demo PRP (not legacy `media/audio/original` FLACs) as the installed starter catalog; FAQ stays advice. Operator-content / Hide demo requires an operator-created release with a track plus a playlist that exposes it; if that catalog is later deleted, the demo is shown again.

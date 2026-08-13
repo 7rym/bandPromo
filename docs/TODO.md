@@ -17,6 +17,8 @@ Rules for this file:
 
 **v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and **portable release packages (PRP)**. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
+**Active gate (2026-08-13):** finish **original → master → deliverables** for every family (audio, Visual, SFX, Brand assets). Findings and checkboxes: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Absorbs Brand-assets fold, living-cover `ast_*` tags, video MKV remux, still IPTC/XMP, and leftover stem/sidecar dual-read.
+
 **Active gate (2026-08-06):** lock and ship **PRP** (`.prp`) as the only campaign data handoff — setup imports `bandPromo-demo.prp`; Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable release packages.
 
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PRP import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
@@ -35,7 +37,7 @@ Rules for this file:
 | 2 | Block-based page editor + presentation | **Shipped** |
 | 3a | Unified Content editors + upload-time delivery automation | **Shipped** |
 | 3b | Platform model: multi-playlist/gallery, module blocks, delivery architecture | **Active** |
-| 4 | v0.8 management slice: Brand, Visual pool, role tags, content AI wizards | **Active — primary focus** |
+| 4 | v0.8 management slice: Brand, Visual pool, role tags, **master-tier completion**, content AI wizards | **Active — primary focus** |
 | 5 | Analytics storage: ActivityStore, SQLite events, rollups, legacy log migration | **Shipped (2026-07-13)** |
 | 6 | Beta fleet sync + legacy/fallback codebase audit | **Gate — after analytics tail + Visual pool (Phases 0b–3)** |
 
@@ -180,6 +182,27 @@ Implementation order:
 - [x] **Phase 3 remainders (operator wiring, 2026-07-21)** — brand filter chip on Files → Visual + pickers; Content pool variant gating (`pool_ready` / missing variant names); track-cover assign stores pool ref + embed (no stem sidecar copy); build prefers assigned cover.
 - [x] **Sound effects pool (2026-07-21)** — Files → Sound effects (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`); Branding welcome/logged-in slots assign any SFX clip (no per-slot file roles); migrate special shell audio refs. Extra UI SFX slots (click/zoom) deferred until needed.
 
+### Master-tier completion (original → master → delivery) — policy locked 2026-08-13
+
+See [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Same rule for audio, Visual, Sound effects, and Brand assets: store originals (write-once), work on `ast_{ULID}` masters, build deliverables from masters. Trigger: fresh Demo PRP install (Files empty, `/play` covers 404 on stem img paths).
+
+Policy — **locked**:
+
+- [x] Lock **three tiers everywhere** — original (legal I/O only after intake) → master (`ast_*`) → delivery from master.
+- [x] Lock **no stem/sidecar working copies** — no `{audioStem}.jpg` pairing; covers and living covers are visual asset ids.
+- [x] Lock **living-cover tag value** = visual **asset id** (revises 2026-07-15 original-filename lock).
+- [x] Lock **Brand assets** on the same Visual/SFX pipeline (no parallel `media/special/` working copies).
+
+Implementation order (check off in the audit):
+
+- [x] **T1** — Identity: `ast_*` refs; stop stem guessing and cover extract to `img/original/{stem}.*`. *(covers/living covers persist as visual asset ids; Publish extract writes `media/visual/original/embedded-*` and registers `ast_*`. Remaining: one-shot filename autofix + fail loud — see audit T1 last checkbox / T6.)*
+- [ ] **T2** — Working copy is the master (Files index, playback, Publish, SFX play, delete/download).
+- [ ] **T3** — Deliverables from masters; kill stem `optimal`/`thumb`/`video/poster` dual-write/read.
+- [ ] **T4** — Fold Brand `media/special/` and leftover intake folders; PRP SFX masters only.
+- [ ] **T5** — Preferred formats: video MKV remux, still IPTC/XMP, living-cover ready = Visual `standard-stream`.
+- [ ] **T6** — Fail loud; delete dual-read shims.
+- [ ] **T7** — Verify on Demo PRP + operator upload.
+
 ### Visual identity completion (M1–M6) — policy locked 2026-08-04
 
 Replaces the old single “Phase 3 Brand-assets fold” checkbox. Order is dependency-strict: **resolver/`asset_id` first**, then on-disk masters, then XXH3 freshness, then kill legacy dual-write/`special`, then Files titles, then release export. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PORTABILITY.md](PORTABILITY.md).
@@ -217,8 +240,8 @@ Policy — **locked**:
 Implementation order:
 
 - [ ] **Schema + Files UX** — normalize/write visual `display`; Files drilldown + picker labels use title first.
-- [ ] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal.
-- [ ] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display.
+- [ ] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
+- [ ] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
 - [ ] **Gallery multi-select picker** — replace Available DnD primary flow.
 
 ### Delivery smoothness leftovers (deferred 2026-08-04)
@@ -263,7 +286,8 @@ Policy locked 2026-07-15 — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Anim
 Policy — **locked**:
 
 - [x] Lock **operator assignment** — track editor living-cover picker (Files → Visual, video filter).
-- [x] Lock **master tag storage** — `BANDPROMO_LIVING_COVER` in ID3 `TXXX` / FLAC Vorbis; value = video original filename.
+- [x] Lock **master tag storage** — `BANDPROMO_LIVING_COVER` in ID3 `TXXX` / FLAC Vorbis.
+- [x] Lock **living-cover value = visual asset id** (2026-08-13; was video original filename).
 - [x] Lock **no stem guessing** — explicit assignment only; no sidecar filename pairing.
 - [x] Lock **loop on main card only** — silent muted loop; reflection stays static image.
 - [x] Lock **delivery MP4 only** — player uses optimal MP4 after Publish.
@@ -275,7 +299,7 @@ Implementation order:
 - [x] **Resolve helper** — `living-cover-helpers.php`; player payload `animated_cover` from `living_cover` tag.
 - [x] **Track editor UI** — living cover picker + preview + save/clear modes.
 - [x] **Player loop** — existing `<video>` on flip-card cover.
-- [ ] **Visual registry IDs for living cover** — store visual asset id instead of video filename in master tags (registry Phases 0b–2 shipped; this tag rewrite remains).
+- [ ] **Visual registry IDs for living cover** — store visual asset id instead of video filename in master tags. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T1 / T5.**
 
 ### Portable release packages (PRP) — active v0.8 gate
 

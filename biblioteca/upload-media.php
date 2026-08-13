@@ -286,40 +286,6 @@ function bandpromo_generate_video_poster(string $root_dir, string $saved_ext, st
     ];
 }
 
-function image_matches_audio_basename(string $filename): bool {
-    $root_dir = dirname(dirname(__FILE__));
-    $audio_orig_dir = $root_dir . '/media/audio/original';
-    if (!is_dir($audio_orig_dir)) {
-        return false;
-    }
-
-    $image_stem = strtolower(pathinfo($filename, PATHINFO_FILENAME));
-    if ($image_stem === '') {
-        return false;
-    }
-
-    $audio_files = scandir($audio_orig_dir);
-    if (!is_array($audio_files)) {
-        return false;
-    }
-
-    foreach ($audio_files as $entry) {
-        if ($entry === '.' || $entry === '..') {
-            continue;
-        }
-        $audio_ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
-        if (!in_array($audio_ext, ['flac', 'mp3', 'wav'], true)) {
-            continue;
-        }
-        $audio_stem = strtolower(pathinfo($entry, PATHINFO_FILENAME));
-        if ($audio_stem !== '' && $audio_stem === $image_stem) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 /**
  * Register Sound effects uploads into the asset registry (kind=sfx, role=sfx).
  *
@@ -421,11 +387,9 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
 
     if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
         $imagePoolHint = in_array($target_hint, ['illustrations', 'photos', 'visual', ''], true);
-        if (($target_hint === 'illustrations' || $target_hint === 'visual' || $target_hint === '') && image_matches_audio_basename($filename)) {
-            return 'media_cover_upload';
-        }
         if ($imagePoolHint) {
-            return 'media_image_upload';
+            $explicitRole = isset($_POST['role']) ? strtolower(trim((string) $_POST['role'])) : '';
+            return $explicitRole === 'track-cover' ? 'media_cover_upload' : 'media_image_upload';
         }
     }
 
