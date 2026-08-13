@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-13 22:50 - Checkpoint master-tier T7 (plan complete) on `main` as **v0.8.21 build 387** and trigger GitHub Release `v0.8.21-build-387` for Site update. Handoff: master-tier idle; resume from TODO/ROADMAP.
+
+2026-08-13 22:45 - Master-tier T7 verify complete. Player enrich accepts Visual covers only (`/media/visual/delivery/…`); content autofix rewrites/clears invalid audio `display.cover` and optional playlist payload covers (does not strip playlist `entries`). Local verify: Files index masters, brand slots → delivery/SFX optimal, cover extract → `visual/original`, PRP masters-only paths confirmed. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) — T0–T7 done.
+
 2026-08-13 22:30 - Checkpoint master-tier T6 on `main` as **v0.8.19 build 386** and trigger GitHub Release `v0.8.19-build-386` for Site update. Handoff resume point is now T7.
 
 2026-08-13 22:35 - Master-tier T6: fail loud and delete shims. Dropped stem `video/photo/optimal` dual-read helpers; pool-ready and video needs-delivery use Visual delivery only. Welcome/demo presence is Demo PRP marker / demo release only (no `bandPromo_*.flac` original probes). `initialSiteSeed` gallery seed uses Visual registry + delivery/`asset_id`. Removed dead original-path shims. Plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).

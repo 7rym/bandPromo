@@ -700,6 +700,7 @@ function bandpromo_content_autofix_sync_page_asset_ids(string $root, bool $dryRu
 function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dryRun): array
 {
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/playlist-storage.php';
 
     $step = bandpromo_content_autofix_step_result(
         'audio_visual_refs',
@@ -715,29 +716,58 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
         $changes = [];
 
         $cover = trim((string) ($display['cover'] ?? ''));
-        if ($cover !== '' && !bandpromo_asset_is_asset_id($cover)) {
-            $visual = bandpromo_asset_lookup_from_media_ref($root, $cover);
-            if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
-                $found = (string) ($visual['id'] ?? '');
-                if ($found !== '') {
-                    $changes['cover'] = $found;
+        if ($cover !== '') {
+            $visualId = '';
+            $resolved = bandpromo_asset_canonical_id_from_media_ref($root, $cover);
+            $coverAsset = $resolved !== '' ? bandpromo_asset_lookup_by_id($root, $resolved) : null;
+            if (is_array($coverAsset) && ($coverAsset['kind'] ?? '') === 'visual') {
+                $visualId = $resolved;
+            } else {
+                $visual = bandpromo_asset_lookup_from_media_ref($root, $cover);
+                if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+                    $visualId = trim((string) ($visual['id'] ?? ''));
                 }
+            }
+            if ($visualId !== '') {
+                if ($visualId !== $cover) {
+                    $changes['cover'] = $visualId;
+                } else {
+                    $step['skipped']++;
+                }
+            } else {
+                // Non-visual refs (audio id, ast_{audio}.jpg, stem paths) are invalid covers.
+                $changes['cover'] = '';
             }
         } else {
             $step['skipped']++;
         }
 
         $living = trim((string) ($display['living_cover'] ?? ''));
-        if ($living !== '' && !bandpromo_asset_is_asset_id($living)) {
-            $visual = bandpromo_asset_lookup_from_media_ref($root, $living);
-            if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
-                $found = (string) ($visual['id'] ?? '');
-                if ($found !== '') {
-                    $changes['living_cover'] = $found;
+        if ($living !== '') {
+            $livingId = '';
+            $resolvedLiving = bandpromo_asset_canonical_id_from_media_ref($root, $living);
+            $livingAsset = $resolvedLiving !== '' ? bandpromo_asset_lookup_by_id($root, $resolvedLiving) : null;
+            if (is_array($livingAsset) && ($livingAsset['kind'] ?? '') === 'visual'
+                && strtolower((string) ($livingAsset['media_type'] ?? '')) === 'video'
+            ) {
+                $livingId = $resolvedLiving;
+            } else {
+                $visual = bandpromo_asset_lookup_from_media_ref($root, $living);
+                if (is_array($visual) && ($visual['kind'] ?? '') === 'visual'
+                    && strtolower((string) ($visual['media_type'] ?? '')) === 'video'
+                ) {
+                    $livingId = trim((string) ($visual['id'] ?? ''));
                 }
             }
-        } elseif ($living !== '') {
-            $step['skipped']++;
+            if ($livingId !== '') {
+                if ($livingId !== $living) {
+                    $changes['living_cover'] = $livingId;
+                } else {
+                    $step['skipped']++;
+                }
+            } else {
+                $changes['living_cover'] = '';
+            }
         }
 
         if ($changes === []) {
@@ -753,6 +783,77 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
             bandpromo_asset_update_entry($root, (string) $assetId, [
                 'display' => $changes,
             ]);
+        }
+    }
+
+    // Optional player-payload track covers only (entries stay source of truth).
+    // Never call bandpromo_playlist_clear_player_payload_fields here — it strips tracks.
+    bandpromo_playlist_ensure_seeded($root);
+    foreach (bandpromo_playlist_registry_entries($root) as $playlistMeta) {
+        $playlistId = trim((string) ($playlistMeta['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $playlistId . ': ' . $throwable->getMessage();
+            continue;
+        }
+        if (!array_key_exists('tracks', $document) || !is_array($document['tracks'])) {
+            continue;
+        }
+        $tracks = $document['tracks'];
+        $changed = false;
+        foreach ($tracks as $index => $track) {
+            if (!is_array($track)) {
+                continue;
+            }
+            $cover = trim((string) ($track['cover'] ?? ''));
+            if ($cover === '') {
+                continue;
+            }
+            $resolved = bandpromo_asset_canonical_id_from_media_ref($root, $cover);
+            $coverAsset = $resolved !== '' ? bandpromo_asset_lookup_by_id($root, $resolved) : null;
+            $visualId = '';
+            if (is_array($coverAsset) && ($coverAsset['kind'] ?? '') === 'visual') {
+                $visualId = $resolved;
+            } else {
+                $visual = bandpromo_asset_lookup_from_media_ref($root, $cover);
+                if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+                    $visualId = trim((string) ($visual['id'] ?? ''));
+                }
+                if ($visualId === '') {
+                    $file = basename(trim((string) ($track['file'] ?? '')));
+                    $audio = $file !== '' ? bandpromo_asset_lookup_by_master_filename($root, $file) : null;
+                    $displayCover = is_array($audio)
+                        ? trim((string) (($audio['display']['cover'] ?? '')))
+                        : '';
+                    if ($displayCover !== '') {
+                        $fallback = bandpromo_asset_canonical_id_from_media_ref($root, $displayCover);
+                        $fallbackAsset = $fallback !== '' ? bandpromo_asset_lookup_by_id($root, $fallback) : null;
+                        if (is_array($fallbackAsset) && ($fallbackAsset['kind'] ?? '') === 'visual') {
+                            $visualId = $fallback;
+                        }
+                    }
+                }
+            }
+            if ($visualId === $cover) {
+                continue;
+            }
+            $tracks[$index]['cover'] = $visualId;
+            $changed = true;
+            $step['changed']++;
+            $step['items'][] = [
+                'playlist' => $playlistId,
+                'file' => (string) ($track['file'] ?? ''),
+                'cover' => $visualId,
+                'was' => $cover,
+            ];
+        }
+        if ($changed && !$dryRun) {
+            $document['tracks'] = $tracks;
+            bandpromo_playlist_write_document($root, $document);
         }
     }
 

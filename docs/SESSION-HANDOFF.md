@@ -1,39 +1,27 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-13 (after T6). Next session: read this file first, then [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Replace this file at the next session end (or delete it when the slice is idle)._
+_Paused: 2026-08-13 (after T7 / master-tier plan complete). Next session: read this file first. Replace or delete when work resumes._
 
 ## Exact resume point
 
-**Do T7 next** (verify). Do not redo T0–T6 unless a verify failure forces a fix.
+**Master-tier plan is complete (T0–T7).** Do not reopen unless a regression appears.
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ `def958d`, in sync with `origin/main` |
-| VERSION | **v0.8.19 build 386** |
-| Tester package | **Shipped.** Tag `v0.8.19-build-386`. Site update should offer **build 386** once the release finishes. |
+| Git | `main` @ checkpoint T7 |
+| VERSION | **v0.8.21 build 387** |
+| Tester package | **Shipped.** Tag `v0.8.21-build-387`. |
 | Policy | Original → master `ast_*` → deliverables from masters |
 
-## T6 — done (do not reopen unless a regression)
+## Done this session (T7)
 
-Fail loud and delete shims.
+- Verified Files index lists `ast_*` masters; brand shell/SFX resolve delivery/optimal; player covers are visual delivery only; extract path is `visual/original`; download original 404s when missing.
+- Hardened `bandpromo_playlist_enrich_tracks_for_player` (visual-only covers).
+- Hardened content autofix `audio_visual_refs` (rewrite/clear invalid covers; never call `clear_player_payload_fields` when saving covers).
 
-- Removed stem `video/photo/optimal` dual-read helpers; pool-ready / needs-delivery use Visual delivery only.
-- Welcome/demo presence = Demo PRP marker / demo release doc (no `bandPromo_*.flac` original probes).
-- `initialSiteSeed.py` gallery seed uses Visual registry + delivery / `asset_id`.
-- Dead shims removed (`sfx_web_path`, demo FLAC fallback, living-cover original path, stem gallery poster dual-write, in-place special optimize).
-- Content autofix remains one-shot original→master repair only.
+## Next work (outside master-tier)
 
-## T7 — start here
-
-Fresh **Demo PRP** install (masters-only) plus an operator upload — check off in [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T7:
-
-1. Files → Audio / Visual / Sound effects list **masters**; titles from registry; original name is secondary.
-2. `/play` covers and living covers load `/media/visual/delivery/{ast_*}/…` only.
-3. Login welcome/logged-in SFX is `media/sfx/optimal/{ast_*}.mp3`.
-4. Publish extract does **not** create `img/original/{stem}.*`; new covers are Visual `ast_*`.
-5. PRP export includes track-cover and living-cover **visual masters** and SFX masters.
-6. Operator Download original works when original exists; 404 on PRP rows. Delete removes original+master+delivery.
-7. Brand logo/poster/backgrounds resolve from `asset_ids` → visual delivery.
+Return to [TODO.md](TODO.md) / [ROADMAP.md](ROADMAP.md) v0.8 active items (config-driven player meta, access-tier enforcement, etc.).
 
 ## Constraints (same as AGENTS.md)
 
@@ -45,5 +33,3 @@ Fresh **Demo PRP** install (masters-only) plus an operator upload — check off 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1
 ```
-
-Then run T7 verify from the audit checkboxes.

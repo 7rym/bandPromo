@@ -1894,7 +1894,26 @@ function bandpromo_playlist_enrich_tracks_for_player(
             ? bandpromo_living_cover_player_url($root, $livingCover)
             : '';
 
-        $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, (string) ($track['cover'] ?? ''));
+        $display = bandpromo_asset_read_audio_display($asset);
+        $coverCandidate = trim((string) ($track['cover'] ?? ''));
+        if ($coverCandidate === '') {
+            $coverCandidate = trim((string) ($display['cover'] ?? ''));
+        }
+        $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, $coverCandidate);
+        if ($coverRef !== '') {
+            $coverAsset = bandpromo_asset_lookup_by_id($root, $coverRef);
+            if (!is_array($coverAsset) || ($coverAsset['kind'] ?? '') !== 'visual') {
+                // Fail loud on non-visual cover refs (often the audio id by mistake).
+                $fallback = trim((string) ($display['cover'] ?? ''));
+                $coverRef = $fallback !== ''
+                    ? bandpromo_asset_canonical_id_from_media_ref($root, $fallback)
+                    : '';
+                $coverAsset = $coverRef !== '' ? bandpromo_asset_lookup_by_id($root, $coverRef) : null;
+                if (!is_array($coverAsset) || ($coverAsset['kind'] ?? '') !== 'visual') {
+                    $coverRef = '';
+                }
+            }
+        }
         $coverUrl = '';
         if ($coverRef !== '') {
             require_once __DIR__ . '/media-delivery-helpers.php';
@@ -1902,9 +1921,11 @@ function bandpromo_playlist_enrich_tracks_for_player(
             if ($coverUrl === '') {
                 $coverUrl = bandpromo_playlist_prefer_cover_delivery_url($root, '', $coverRef);
             }
+            if ($coverUrl !== '' && !str_starts_with($coverUrl, '/media/visual/delivery/')) {
+                $coverUrl = '';
+            }
         }
 
-        $display = bandpromo_asset_read_audio_display($asset);
         $textRole = $display['text_role'];
         $notesLabel = $display['notes_label'];
         if ($textRole !== 'notes') {

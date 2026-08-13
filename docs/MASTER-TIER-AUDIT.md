@@ -223,13 +223,15 @@ Absorbs open Visual naming tasks.
 
 Fresh **Demo PRP** install (masters-only) plus an operator upload:
 
-- [ ] Files → Audio / Visual / Sound effects list **masters**; titles from registry; original name is secondary.
-- [ ] `/play` covers and living covers load `/media/visual/delivery/{ast_*}/…` only (no `/media/img/` or `/media/video/optimal/` 404s).
-- [ ] Login welcome/logged-in SFX is `media/sfx/optimal/{ast_*}.mp3`.
-- [ ] Publish extract does **not** create `img/original/{stem}.*`; new covers are Visual `ast_*`.
-- [ ] PRP export includes track-cover and living-cover **visual masters** and SFX masters; import does not need originals.
-- [ ] Operator Download original works when original exists; 404 on PRP rows. Delete removes original+master+delivery.
-- [ ] Brand logo/poster/backgrounds resolve from `asset_ids` → visual delivery.
+- [x] Files → Audio / Visual / Sound effects list **masters**; titles from registry; original name is secondary.
+- [x] `/play` covers and living covers load `/media/visual/delivery/{ast_*}/…` only (no `/media/img/` or `/media/video/optimal/` 404s).
+- [x] Login welcome/logged-in SFX is `media/sfx/optimal/{ast_*}.mp3`.
+- [x] Publish extract does **not** create `img/original/{stem}.*`; new covers are Visual `ast_*`.
+- [x] PRP export includes track-cover and living-cover **visual masters** and SFX masters; import does not need originals.
+- [x] Operator Download original works when original exists; 404 on PRP rows. Delete removes original+master+delivery.
+- [x] Brand logo/poster/backgrounds resolve from `asset_ids` → visual delivery.
+
+**T7 notes (2026-08-13):** Player enrich rejects non-visual cover refs; content autofix rewrites/clears invalid audio `display.cover` / playlist payload covers to Visual `ast_*` only (never call `bandpromo_playlist_clear_player_payload_fields` when saving covers — that helper strips player `tracks`).
 
 ---
 
@@ -254,4 +256,4 @@ These open/partial items are **owned by this plan** (check them off here, not as
 
 The slice is done when a masters-only PRP install and a normal operator upload both obey the three-tier rule **without original/stem dual-read**, and the evidence files in C1–C5 no longer treat originals as working copies.
 
-_Last updated: 2026-08-13 (T3 done: deliverables from masters; stem img/video dual-write/read removed. Next: T4 Brand/special fold.)_
+_Last updated: 2026-08-13 (T7 verify done — master-tier plan complete. Player/cover harden + autofix visual-only refs.)_
