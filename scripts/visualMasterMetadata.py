@@ -148,6 +148,61 @@ def resolve_ffprobe() -> str:
     return ''
 
 
+def read_still_pixel_size(path: Path) -> Tuple[int, int]:
+    try:
+        from PIL import Image
+    except ImportError:
+        return 0, 0
+    try:
+        with Image.open(str(path)) as img:
+            width, height = img.size
+        return max(0, int(width)), max(0, int(height))
+    except Exception:
+        return 0, 0
+
+
+def read_video_pixel_size(path: Path) -> Tuple[int, int]:
+    ffprobe = resolve_ffprobe()
+    if not ffprobe:
+        return 0, 0
+    cmd = [
+        ffprobe, '-v', 'quiet', '-print_format', 'json',
+        '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+        str(path),
+    ]
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        encoding='utf-8',
+        errors='replace',
+    )
+    if proc.returncode != 0:
+        return 0, 0
+    try:
+        payload = json.loads(proc.stdout or '{}')
+    except json.JSONDecodeError:
+        return 0, 0
+    streams = payload.get('streams') if isinstance(payload.get('streams'), list) else []
+    for stream in streams:
+        if not isinstance(stream, dict):
+            continue
+        width = int(stream.get('width') or 0)
+        height = int(stream.get('height') or 0)
+        if width > 0 and height > 0:
+            return width, height
+    return 0, 0
+
+
+def read_master_pixel_size(path: Path, media_type: str = '') -> Tuple[int, int]:
+    media_type = str(media_type or '').strip().lower()
+    ext = path.suffix.lower()
+    if media_type == 'video' or ext in VIDEO_EXTS:
+        return read_video_pixel_size(path)
+    return read_still_pixel_size(path)
+
+
 def build_xmp_packet(display: Dict[str, Any]) -> bytes:
     title = escape(display.get('title') or '')
     description = escape(display.get('description') or '')
@@ -523,11 +578,15 @@ def action_read(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Fill empty registry display fields from master embeds. Does not overwrite non-empty fields."""
+    """Fill empty registry display fields from master embeds. Does not overwrite non-empty fields.
+
+    Also stamps master_width / master_height from the on-disk master when missing or stale.
+    """
     registry = load_registry()
     assets = registry.get('assets') if isinstance(registry.get('assets'), dict) else {}
     limit_id = str(payload.get('asset_id') or '').strip()
     healed = []
+    stamped = []
     for asset_id, asset in assets.items():
         if not isinstance(asset, dict) or str(asset.get('kind') or '') != 'visual':
             continue
@@ -539,29 +598,38 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
             continue
         media_type = str(asset.get('media_type') or '').strip().lower()
         ext = path.suffix.lower()
+        dim_w, dim_h = read_master_pixel_size(path, media_type)
+        recorded_w = int(asset.get('master_width') or 0)
+        recorded_h = int(asset.get('master_height') or 0)
+        dims_changed = dim_w > 0 and dim_h > 0 and (recorded_w != dim_w or recorded_h != dim_h)
         try:
             if media_type == 'video' or ext in VIDEO_EXTS:
                 embedded = read_video_display(path)
             elif ext in STILL_EXTS:
                 embedded = read_still_display(path)
             else:
-                continue
+                embedded = normalize_display({})
         except Exception:
-            continue
+            embedded = normalize_display({})
         merged = dict(current)
-        changed = False
+        display_changed = False
         for key in ('title', 'description', 'captured_at'):
             if not merged.get(key) and embedded.get(key):
                 merged[key] = embedded[key]
-                changed = True
+                display_changed = True
         if not merged.get('keywords') and embedded.get('keywords'):
             merged['keywords'] = embedded['keywords']
-            changed = True
-        if not changed:
+            display_changed = True
+        if not display_changed and not dims_changed:
             continue
-        assets[asset_id]['display'] = merged
-        healed.append(asset_id)
-    if healed:
+        if display_changed:
+            assets[asset_id]['display'] = merged
+            healed.append(asset_id)
+        if dims_changed:
+            assets[asset_id]['master_width'] = dim_w
+            assets[asset_id]['master_height'] = dim_h
+            stamped.append(asset_id)
+    if healed or stamped:
         registry['assets'] = assets
         ASSET_REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = ASSET_REGISTRY_FILE.with_suffix('.json.tmp')
@@ -569,7 +637,13 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
             json.dump(registry, handle, ensure_ascii=False, indent=2)
             handle.write('\n')
         os.replace(tmp, ASSET_REGISTRY_FILE)
-    return {'ok': True, 'healed': healed, 'count': len(healed)}
+    return {
+        'ok': True,
+        'healed': healed,
+        'count': len(healed),
+        'stamped_dimensions': stamped,
+        'stamped_count': len(stamped),
+    }
 
 
 def main() -> None:

@@ -121,6 +121,15 @@ function bandpromo_media_filename_kind(string $filename): string
     return 'other';
 }
 
+/**
+ * Files → Audio lists catalog audio only. Covers and other leftovers in
+ * media/audio/original must not become pool rows.
+ */
+function bandpromo_media_is_audio_pool_filename(string $filename): bool
+{
+    return bandpromo_media_filename_kind($filename) === 'audio';
+}
+
 function bandpromo_media_origin(string $filename): string
 {
     return bandpromo_media_is_bundled_placeholder($filename) ? 'bundled-placeholder' : 'user-upload';
@@ -221,7 +230,136 @@ function bandpromo_media_starter_pack_basenames(string $root): array
 
 function bandpromo_media_is_generated_delivery_artifact(string $filename): bool
 {
-    return preg_match('/^bandPromo_.+_(facebook|twitter)\.jpe?g$/i', $filename) === 1;
+    $name = basename(trim($filename));
+    if ($name === '') {
+        return false;
+    }
+
+    // makeSocial.py OG crops (historically written next to originals/masters).
+    if (preg_match('/_(facebook|twitter)\.jpe?g$/i', $name) === 1) {
+        return true;
+    }
+    // Legacy player background 1080p crops — not Visual originals.
+    if (preg_match('/_bg1080\.(jpe?g|png|webp)$/i', $name) === 1) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Unregister leftover OG/1080 crops, delete them from intake/master folders,
+ * and drop them from Brand libraries. Regenerable via makeSocial into media/share/.
+ */
+function bandpromo_media_prune_generated_visual_artifacts(string $root): int
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/theme-storage.php';
+
+    $removed = 0;
+    $pruneIds = [];
+    $registry = bandpromo_asset_load_registry($root);
+    foreach (($registry['assets'] ?? []) as $assetId => $asset) {
+        if (!is_array($asset) || strtolower((string) ($asset['kind'] ?? '')) !== 'visual') {
+            continue;
+        }
+        $original = basename((string) ($asset['original_filename'] ?? ''));
+        $master = basename((string) ($asset['master_filename'] ?? ''));
+        if (bandpromo_media_is_generated_delivery_artifact($original)
+            || bandpromo_media_is_generated_delivery_artifact($master)
+        ) {
+            $pruneIds[] = (string) $assetId;
+        }
+    }
+
+    foreach ($pruneIds as $assetId) {
+        $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+        if (is_array($asset)) {
+            bandpromo_visual_delete_tier_files($root, $asset);
+            $original = basename((string) ($asset['original_filename'] ?? ''));
+            $master = basename((string) ($asset['master_filename'] ?? ''));
+            foreach (['illustrations', 'photos', 'video', 'special'] as $target) {
+                if ($original !== '') {
+                    bandpromo_media_files_index_remove($target, $original);
+                }
+                if ($master !== '') {
+                    bandpromo_media_files_index_remove($target, $master);
+                }
+            }
+        }
+        bandpromo_asset_unregister($root, $assetId);
+        $removed++;
+    }
+
+    if ($pruneIds !== []) {
+        $drop = array_fill_keys($pruneIds, true);
+        try {
+            bandpromo_theme_ensure_seeded($root);
+            foreach (bandpromo_theme_registry_entries($root) as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+                if ($brandId === '') {
+                    continue;
+                }
+                try {
+                    $document = bandpromo_theme_load_document($root, $brandId);
+                } catch (Throwable $throwable) {
+                    continue;
+                }
+                $library = is_array($document['library_asset_ids'] ?? null)
+                    ? $document['library_asset_ids']
+                    : [];
+                $next = [];
+                foreach ($library as $libraryId) {
+                    $libraryId = trim((string) $libraryId);
+                    if ($libraryId === '' || isset($drop[$libraryId])) {
+                        continue;
+                    }
+                    $next[] = $libraryId;
+                }
+                if ($next === $library) {
+                    continue;
+                }
+                $document['library_asset_ids'] = $next;
+                bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+            }
+        } catch (Throwable $throwable) {
+            // Best-effort library cleanup.
+        }
+    }
+
+    $dirs = [
+        $root . '/media/visual/original',
+        $root . '/media/visual/master',
+        $root . '/media/img/original',
+        $root . '/media/photo/original',
+        $root . '/media/special',
+    ];
+    foreach ($dirs as $dir) {
+        if (!is_dir($dir)) {
+            continue;
+        }
+        foreach (scandir($dir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
+                continue;
+            }
+            if (!bandpromo_media_is_generated_delivery_artifact($entry)) {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $entry;
+            if (is_file($path) && @unlink($path)) {
+                $removed++;
+            }
+            foreach (['illustrations', 'photos', 'video', 'special'] as $target) {
+                bandpromo_media_files_index_remove($target, $entry);
+            }
+        }
+    }
+
+    return $removed;
 }
 
 function bandpromo_media_is_operator_upload_filename(string $root, string $target, string $filename): bool
@@ -262,7 +400,7 @@ function bandpromo_media_is_operator_upload_filename(string $root, string $targe
         require_once __DIR__ . '/cover-art-helpers.php';
         $manifest = bandpromo_cover_art_manifest_record($filename);
         $playlistContext = bandpromo_cover_art_load_playlist_context($root);
-        $role = $manifest['role'] !== '' ? $manifest['role'] : bandpromo_cover_art_infer_role($filename, $playlistContext);
+        $role = $manifest['role'] !== '' ? $manifest['role'] : bandpromo_cover_art_infer_role($root, $filename, $playlistContext);
         $origin = bandpromo_cover_art_infer_origin($filename, $manifest, $role);
         if (in_array($origin, ['build-extracted', 'build-configured', 'build-sidecar-copy', 'bundled-placeholder'], true)) {
             return false;
@@ -610,6 +748,17 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
     if ($filename === '' || strcasecmp($filename, 'desktop.ini') === 0) {
         return null;
     }
+    if (bandpromo_media_is_generated_delivery_artifact($filename)) {
+        bandpromo_media_files_index_remove($target, $filename);
+
+        return null;
+    }
+
+    if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($filename)) {
+        bandpromo_media_files_index_remove($target, $filename);
+
+        return null;
+    }
 
     $source = bandpromo_media_files_index_resolve_source($root, $target, $filename);
     if ($source === null) {
@@ -620,6 +769,14 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
 
     $path = $source['path'];
     $listingName = $source['name'];
+    if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($listingName)) {
+        bandpromo_media_files_index_remove($target, $filename);
+        if ($listingName !== $filename) {
+            bandpromo_media_files_index_remove($target, $listingName);
+        }
+
+        return null;
+    }
     $originalLabel = basename(trim((string) ($source['original_filename'] ?? '')));
     $size = (int) filesize($path);
     $modified = (int) filemtime($path);
@@ -772,6 +929,12 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             if ($listing === '') {
                 continue;
             }
+            $original = basename(trim((string) ($asset['original_filename'] ?? '')));
+            if (bandpromo_media_is_generated_delivery_artifact($listing)
+                || bandpromo_media_is_generated_delivery_artifact($original)
+            ) {
+                continue;
+            }
             if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
                 $count++;
             }
@@ -803,6 +966,12 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
         }
         if ($listing === '') {
+            continue;
+        }
+        $original = basename(trim((string) ($asset['original_filename'] ?? '')));
+        if (bandpromo_media_is_generated_delivery_artifact($listing)
+            || bandpromo_media_is_generated_delivery_artifact($original)
+        ) {
             continue;
         }
         if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
@@ -845,6 +1014,9 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
                 if (strcasecmp($name, 'desktop.ini') === 0) {
                     continue;
                 }
+                if (bandpromo_media_is_generated_delivery_artifact($name)) {
+                    continue;
+                }
                 $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
                     ?? bandpromo_asset_lookup_from_media_ref($root, $name);
                 if (is_array($registered)) {
@@ -868,6 +1040,12 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
             if (strcasecmp($name, 'desktop.ini') === 0) {
                 continue;
             }
+            if (bandpromo_media_is_generated_delivery_artifact($name)) {
+                continue;
+            }
+            if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($name)) {
+                continue;
+            }
             $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
                 ?? bandpromo_asset_lookup_from_media_ref($root, $name);
             if (is_array($registered)) {
@@ -885,6 +1063,8 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
 
 function bandpromo_media_files_index_rebuild_all(string $root): array
 {
+    bandpromo_media_prune_generated_visual_artifacts($root);
+
     $counts = [];
     foreach (['audio', 'illustrations', 'photos', 'video', 'special', 'sfx'] as $target) {
         $counts[$target] = bandpromo_media_files_index_rebuild_target($root, $target);
@@ -906,6 +1086,9 @@ function bandpromo_media_files_index_list(string $root, string $target): array
             continue;
         }
         if (!str_starts_with((string) $key, $prefix) && ($entry['target'] ?? '') !== $target) {
+            continue;
+        }
+        if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename((string) ($entry['name'] ?? ''))) {
             continue;
         }
         $rows[] = $entry;

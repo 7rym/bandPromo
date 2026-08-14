@@ -109,32 +109,20 @@
             messageEl.textContent = text;
             toast.appendChild(messageEl);
 
-            const isSticky = kind === 'warning' || kind === 'error';
-            let hideTimer = null;
             const dismissToast = () => {
-                if (hideTimer) {
-                    window.clearTimeout(hideTimer);
-                    hideTimer = null;
-                }
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(-4px)';
                 toast.style.transition = 'opacity 150ms ease, transform 150ms ease';
                 window.setTimeout(() => toast.remove(), 180);
             };
-            if (isSticky) {
-                const dismissBtn = document.createElement('button');
-                dismissBtn.type = 'button';
-                dismissBtn.className = 'admin-toast-dismiss';
-                dismissBtn.setAttribute('aria-label', 'Dismiss notification');
-                dismissBtn.textContent = '×';
-                dismissBtn.addEventListener('click', dismissToast);
-                toast.appendChild(dismissBtn);
-            }
+            const dismissBtn = document.createElement('button');
+            dismissBtn.type = 'button';
+            dismissBtn.className = 'admin-toast-dismiss';
+            dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+            dismissBtn.textContent = '×';
+            dismissBtn.addEventListener('click', dismissToast);
+            toast.appendChild(dismissBtn);
             toastHost.appendChild(toast);
-            hideTimer = window.setTimeout(
-                dismissToast,
-                isSticky ? Math.min(20000, Math.max(10000, 80 * text.length)) : 4500
-            );
         }
 
         async function fetchJson(url, options) {

@@ -39,6 +39,7 @@ $requiredDirs = [
     'media/visual/original',
     'media/visual/master',
     'media/visual/delivery',
+    'media/share',
     'media/sfx',
     'media/sfx/original',
     'media/sfx/master',

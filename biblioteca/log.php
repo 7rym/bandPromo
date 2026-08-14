@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/time-helpers.php';
 require_once __DIR__ . '/activity-store.php';
+require_once __DIR__ . '/auth.php';
 
 class UserActivityLogger {
     private $root;
@@ -108,9 +109,9 @@ function bandpromo_log_rate_limit_allows(int $maxPerMinute = 180): bool
 
 // API endpoint for logging activity from JavaScript
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'log') {
-    session_start();
+    bandpromo_ensure_session_started();
 
-    if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
+    if (!bandpromo_is_authenticated_session()) {
         http_response_code(401);
         echo json_encode(['error' => 'Unauthorized']);
         exit;
@@ -120,6 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['ac
         http_response_code(429);
         echo json_encode(['error' => 'Too many log events. Try again shortly.']);
         exit;
+    }
+
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
     }
 
     $input = json_decode(file_get_contents('php://input'), true);

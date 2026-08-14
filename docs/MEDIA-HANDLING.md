@@ -58,7 +58,7 @@ Assets that belong to the whole install or **base brand**:
 - welcome audio / logged-in audio
 - style reference and portrait assets curated for the brand
 
-These live in the **Visual pool** (images/video) or **Sound effects** pool (brand UI audio), scoped by **`brand_id`**, not in legacy `media/special/` folders long term.
+These live in the global **Visual** (images/video) or **Sound effects** (brand UI audio) warehouses. Each Brand document curates a cross-media `library_asset_ids` list; storage ownership (`brand_id`) is provenance, not library membership.
 
 ### Release scope
 
@@ -118,7 +118,7 @@ The intended product concepts are expressed as **explicit role tags** on registr
 
 **Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic should use **tags + brand_id**, not folder tabs. **Shipped operator surface:** Files → Audio (catalog music), Files → Visual (image/video), Files → **Sound effects** (brand UI clips under `media/sfx/`), and Files → Brand assets (filter/role on Visual masters — not a parallel `media/special/` intake).
+Storage folders do not match these roles. The admin UI, validation rules, and build logic use registry identity and explicit references, not folder tabs. **Shipped operator surface:** Files → Audio (catalog music), Files → Visual (global image/video warehouse), Files → **Sound effects** (global brand UI audio warehouse), and Files → Brand assets (the selected Brand's curated Visual + SFX library).
 
 ### Current exposed model vs prepared internal model
 
@@ -649,7 +649,7 @@ The long-term filesystem/build direction should move from:
 
 to something conceptually closer to:
 
-- `media/audio/original/`, `media/audio/master/`, `media/audio/delivery/<variant>/`
+- `media/audio/original/`, `media/audio/master/`, `media/audio/delivery/<variant>/` — **audio files only** in original/master (flac/mp3/wav). Embedded covers extract to Visual; a leftover image in `media/audio/original` must not appear in Files → Audio.
 - `media/visual/original/`, `media/visual/master/`, `media/visual/delivery/<asset-id>/<variant>/` — **one visual family** for stills and video; filenames are `ast_{ULID}` tiers, not upload stems
 
 Where `<type>` at the top level is **`audio`** and **`visual`** only. Legacy `img` / `photo` / `video` folder names remain as migration sources until autofix/backfill completes.
@@ -663,7 +663,7 @@ The future delivery variants should be named by user context, not by vague quali
 Examples:
 
 - audio delivery variants: `standard-stream`, `mobile-stream`, `lossless-download` when genuinely supported
-- image delivery variants: `thumb`, `card`, `lightbox`, `share`
+- image delivery variants: `thumb`, `card`, `huge`, `lightbox`, `share`
 - video delivery variants: `poster`, `standard-stream`, `mobile-stream`
 - **Video soundtrack policy:** `role=gallery` keeps audio in `standard-stream`; all other video roles (living covers, shell backgrounds, unassigned, …) build **silent** delivery (video track only) to save bytes
 
@@ -685,7 +685,7 @@ Image master:
 - corrected canonical source for future delivery generation
 - may normalize filename, orientation, metadata, or embedded descriptive fields
 - should preserve alpha/transparency and source capabilities when that matters for future outputs
-- **Metadata (locked):** keep camera **EXIF** as read-only provenance (`DateTimeOriginal` / GPS → registry `captured_at`). Write operator **title / description / keywords** as **IPTC Core via XMP** on the master only (not into EXIF editorial fields). Autofix heals empty registry `display` from embedded IPTC/XMP + EXIF dates. Formats in scope: JPG/JPEG, PNG, WebP.
+- **Metadata (locked):** keep camera **EXIF** as read-only provenance (`DateTimeOriginal` / GPS → registry `captured_at`). Write operator **title / description / keywords** as **IPTC Core via XMP** on the master only (not into EXIF editorial fields). Autofix heals empty registry `display` from embedded IPTC/XMP + EXIF dates. Formats in scope: JPG/JPEG, PNG, WebP. Registry `master_width` / `master_height` are the master pixel size (Files list Dimensions); delivery variant sizes stay on `delivery.variants`.
 
 Video master:
 
@@ -910,6 +910,7 @@ Initial target buckets should be explicit:
 
 - `thumb`: small list/grid previews
 - `card`: standard player and content-card artwork
+- `huge`: fullscreen stills contained within **1920×1080px** without cropping, stretching, or upscaling
 - `lightbox`: enlarged artwork for the current largest practical UI view
 - `share`: social sharing derivative sized for the platform target
 
@@ -930,7 +931,7 @@ Locked native-post targets (still images / covers when that path ships):
 Policy until API publishing exists:
 
 - Do **not** extend `makeSocial.py` / `social-assets` to emit Instagram or TikTok crops.
-- Keep generating only OG Facebook/Twitter derivatives from the brand **poster / share** Visual (master → original → delivery card last resort).
+- Keep generating only OG Facebook/Twitter derivatives from the brand **poster / share** Visual (master → original → delivery card last resort). Write those JPEGs to `media/share/`, never next to Visual originals or masters.
 - Masters must stay large enough for later 1080-class crops; never treat the 720px `card` delivery as the long-term share source.
 - When social publish lands, derivatives are generated **on demand for that job** (and may include vertical **video**, captions, and covers — not poster stills alone).
 
@@ -945,7 +946,7 @@ Guidance:
 
 What ships today for still Visual delivery (from Visual masters):
 
-- `scripts/optimizeMedia.py` writes role-based variants under `media/visual/delivery/{ast_*}/` (e.g. `thumb`, `card`, `logo`) from `media/visual/master/`
+- `scripts/optimizeMedia.py` writes role-based variants under `media/visual/delivery/{ast_*}/` (e.g. `thumb`, `card`, `huge`, `logo`) from `media/visual/master/`
 - Audio delivery is tagless MP3 under `media/audio/optimal/{ast_*}.mp3`
 - Video delivery is Visual-only: `media/visual/delivery/{ast_*}/standard-stream.mp4` (+ poster); stem `media/video/optimal/` dual-write/read is removed
 - Brand shell media uses Visual delivery via `asset_ids` (T4); leftover `media/special/` on disk is migration/heal lookup only
@@ -972,7 +973,8 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `logo` | Player header `.content-logo-img` | 320px wide (+ 2× retina → ~640px delivery cap) | Often PNG with alpha; theme asset |
 | `thumb` | Playlist row `.playlist-track-cover`, cover-flow, bio track list | 70–100px (delivery max edge **100px**) | Square-ish; shipped |
 | `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped; lightbox shares optimal for now |
-| `card` | Admin/media file list `.media-file-thumb` | ~48–64px (verify) | Admin-only; low priority |
+| `huge` | Future fullscreen still views | contain inside **1920×1080px** | Shipped for build/registry support; not selected by a frontend yet |
+| `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Brand assets list; Grid view uses larger cards |
 | `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
 | `lightbox` | Player/page lightbox enlarged view | currently shares 720px optimal | Dedicated larger lightbox variant deferred |
@@ -1011,7 +1013,7 @@ Operators may change role and brand after upload in Files → Visual (single or 
 
 **Shipped 2026-07-21 (delivery half):** variants under `media/visual/delivery/{asset_id}/` with registry `delivery.variants` manifest. Legacy `media/*/optimal` and `thumb` trees remain dual-read fallbacks. Originals stay in legacy intake buckets until Phase 3 Brand-assets fold relocates them under `media/visual/original/`.
 
-Image variants for v0.8: `thumb`, `card` (lightbox shares `card`). Video: `poster`, `standard-stream`.
+Image variants for v0.8: `thumb`, `card`, `huge` (lightbox still shares `card`). Video: `poster`, `standard-stream`.
 
 Rules:
 
@@ -1138,9 +1140,9 @@ Current implementation note:
 - Build-required state now also records concrete task units (`playlist-scan`, `audio-delivery`, `image-delivery`, `social-assets`, `manifest`) alongside the legacy `full` / `optimize` action so the operator inbox and save/upload feedback can speak in task terms even before the manual build controls are fully split by task.
 - The Build tab now speaks in task-oriented operator language (`Run Publish Build` and `Refresh Image Files`) instead of the older vague `Full Build` / `Optimize Media` pairing, while still routing those buttons through the same current heavy-runner endpoints.
 - `Refresh Image Files` now truly runs the image-delivery path only: it regenerates track cover JPEGs, photos, and illustration derivatives without re-encoding audio delivery files. The full publish build still runs the optimizer in full mode so audio delivery regeneration remains part of the full publish pipeline.
-- Audio + visual image delivery skip-if-fresh via master **XXH3** (`assets[].delivery.source_xxh3`). Visual variants also compare longest edge to `delivery-contexts.json` `max_edge` so policy bumps (e.g. thumb 100→150) rebuild without a master change. Legacy audio `source_mtime` remains as a one-build migration fallback until XXH3 is recorded. Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Requires Python `xxhash` (`pip install -r scripts/requirements.txt`).
+- Audio + visual image delivery skip-if-fresh via master **XXH3** (`assets[].delivery.source_xxh3`). Visual variants compare their expected contain dimensions against `delivery-contexts.json` (`max_edge` or `max_width` + `max_height`) so policy changes rebuild without a master change. Legacy audio `source_mtime` remains as a one-build migration fallback until XXH3 is recorded. Force with `BANDPROMO_FORCE_AUDIO_DELIVERY=1` / `BANDPROMO_FORCE_VISUAL_DELIVERY=1`. Requires Python `xxhash` (`pip install -r scripts/requirements.txt`).
 - Publish log vocabulary: operator title + product variants (`card` / `thumb` / poster / stream); skip lines say “already up to date (master XXH3 match)”.
-- Share/OG crops become named **delivery variants** of the share Visual asset (not sibling files beside `media/special/`) once Brand-assets fold + M1 land.
+- Share/OG crops write to `media/share/{stem}_{facebook|twitter}.jpg` (not beside Visual originals/masters). They are not Files → Visual rows.
 - Theme-cover changes and image-only uploads now auto-run the image-delivery path in the background when that cheap refresh succeeds, so those safe cases no longer have to leave a manual image-refresh task behind just to regenerate derived JPEG assets.
 - Real metadata changes still rely on the older coarse manual build controls, so task-level follow-up remains only partially complete until those controls are split beyond `full` / `optimize`.
 
@@ -1165,7 +1167,7 @@ This matrix defines the preferred future behavior.
 
 ### Naming guidance for admin UI
 
-Files → **Brand assets** lists Visual masters with brand shell roles / `intake_bucket=special` (uploads write `media/visual/original/` + register). In **Content → Branding**, **Shell media** holds assignment slots only; each slot uses the shared media picker (same pattern as release/playlist covers). Upload still happens under Files. Saving the base brand syncs resolved delivery URLs into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
+Files → **Brand assets** manages the selected Brand document's `library_asset_ids`, spanning registered Visual and SFX assets. Upload adds directly to that library; **Add existing** is a multi-select picker from the global Visual/SFX warehouses and hides members already in that Brand library; removing membership never deletes the global asset. In **Content → Branding**, **Shell media** holds assignment slots only and strict pickers show compatible assets from that Brand library. A pick writes the public Visual `card` / stream or SFX optimal URL into `assets[]` (with `asset_ids[]`); living background picks require the video `standard-stream` URL (still posters are not stored). Loading a brand document resolves those delivery URLs again when ids are set. Saving the base brand syncs resolved delivery URLs into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
 
 ### Nondestructive naming policy
 
@@ -1262,16 +1264,19 @@ The runtime manifest in `data/media-library-state.json` records advisory `assets
 - track covers and living covers (asset registry display)
 - published playlist cover payloads (legacy/supplemental)
 - gallery containers
+- brand shell slots (`asset_ids` on brand documents: logo, poster, still/living backgrounds, welcome/logged-in SFX)
 - install theme / share-image config (`web-config.json`)
-- page editor picture blocks (`data/pages/*.json`)
+- page editor picture blocks (`data/pages/*.json`) — Visual `asset_id` and `/media/visual/delivery/{id}/…` as well as legacy `/media/img|photo/…` paths; page posters too
 - release posters and press photos (`data/releases/*.json`)
 - playlist posters (`data/playlists/*.json`)
 
-`biblioteca/list-media.php` returns this as `cover_info` / `reference_info` for Files → Visual, including role, origin, references, and an `orphan` flag for unreferenced non-demo files.
+Visual usage identity is the registry `ast_*` id. Stored paths, delivery URLs, original names, and master names are resolvers that map onto that id. Titles, operator titles, and filename stems are never compared. Unregistered leftovers with no id do not match a registered asset.
+
+`biblioteca/list-media.php` returns this as `cover_info` / `reference_info` for Files → Visual, including role, origin, references, and an `orphan` flag for unreferenced non-demo files. The **In use / Unused** chip follows that live reference index (track cover, gallery, page picture/poster, release/playlist poster, press photo, or brand shell slot). Brand **library** membership alone does not count as used. Files → Visual **Catalogue** names every campaign that uses the file: owned gallery, track cover / living cover, release or playlist poster, press photo, page picture, **or** the Brand visual shell those campaigns play (logo, poster, still/living). Empty Brand slots inherit the install Base brand (login / player fallback), so a site-wide background lists every release that still inherits it. Shared files list each matching release on its own line. Brand-library members with no campaign use list that Brand rather than Orphan. Catalogue must not infer the campaign from Brand ownership on the asset. Unused-but-filed assets may still show a release from `assets[].release_id`. The invisible `primary` bucket is never catalogue membership.
 
 Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, compact list-header filter dropdowns (`All`, `Track covers`, `Orphans`, `Build-generated`, plus `User files` / `Include demo`), and delete-preview hints for theme references and regenerable build artifacts. Detailed per-row `Used by:` reference text stays out of the normal operator list view; badges and filters are the primary signal. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
 
-Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery, theme, page, release/playlist poster, and track-visual references, an `orphan` flag, and the same list-header filter pattern (`All`, `In use`, `Orphans`, plus demo-source filtering). Gallery matching resolves both legacy `/media/{photo|img|video}/…` paths and modern `/media/visual/delivery/{asset_id}/…` URLs to the Files original basename via the asset registry (empty gallery `asset_id` fields are recovered from the delivery path).
+Files -> Photos and Files -> Video now use the same shared reference index through `biblioteca/media-reference-helpers.php`. Each row exposes `reference_info` with gallery, theme, page, release/playlist poster, and track-visual references, an `orphan` flag, and the same list-header filter pattern (`All`, `In use`, `Orphans`, plus demo-source filtering). Gallery matching resolves stored `asset_id` or `/media/visual/delivery/{asset_id}/…` (and leftover `/media/{photo|img|video}/…` paths) to the same Visual id as the Files row.
 
 ## Current FLAC optimization path
 

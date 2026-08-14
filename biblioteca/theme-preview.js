@@ -38,11 +38,12 @@
         const poster = String(assets.poster || '').trim();
         const background = String(assets.background_image || '').trim();
         const backgroundVideo = String(assets.background_video || '').trim();
+        const posterAttr = background
+            ? ` poster="${escapeHtml(background)}"`
+            : '';
         const backgroundAttribute = background && !backgroundVideo
             ? ` style="background-image:url('${escapeHtml(background)}');"`
-            : (background && backgroundVideo
-                ? ` style="background-image:url('${escapeHtml(background)}');"`
-                : '');
+            : '';
         const logoMarkup = logo
             ? `<img class="theme-preview-shell-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">`
             : '<span class="theme-preview-muted">No logo assigned</span>';
@@ -50,7 +51,7 @@
             ? `<img class="theme-preview-cover-art" src="${escapeHtml(poster)}" alt="" loading="lazy" onerror="this.style.opacity=0.35">`
             : '<span class="theme-preview-cover-label">Cover art</span>';
         const livingVideoMarkup = backgroundVideo
-            ? `<video class="theme-preview-shell-video" src="${escapeHtml(backgroundVideo)}" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video>`
+            ? `<video class="theme-preview-shell-video" src="${escapeHtml(backgroundVideo)}"${posterAttr} muted loop playsinline autoplay preload="auto" aria-hidden="true"></video>`
             : '';
 
         return `
@@ -223,10 +224,42 @@
 
         style.textContent = rules.length ? `${selector}{${rules.join(';')};}` : '';
         container.innerHTML = renderMarkup(document);
+        startPreviewVideos(container);
+    }
+
+    function startPreviewVideos(root) {
+        if (!(root instanceof HTMLElement)) {
+            return;
+        }
+        root.querySelectorAll('video.theme-preview-shell-video, video.theme-shell-slot-thumb').forEach((video) => {
+            video.muted = true;
+            video.loop = true;
+            video.playsInline = true;
+            const play = () => {
+                const attempt = video.play();
+                if (attempt && typeof attempt.catch === 'function') {
+                    attempt.catch(() => {
+                        // Autoplay can still be blocked; poster/still remains visible.
+                    });
+                }
+            };
+            if (video.readyState >= 2) {
+                play();
+                return;
+            }
+            video.addEventListener('canplay', play, { once: true });
+            try {
+                video.load();
+            } catch (error) {
+                // Ignore reload failures.
+            }
+            play();
+        });
     }
 
     window.bandpromoThemePreview = {
         render,
         renderMarkup,
+        startVideos: startPreviewVideos,
     };
 }());

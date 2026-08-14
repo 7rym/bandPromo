@@ -14,6 +14,7 @@ SCRIPT_DIR  = Path(__file__).parent
 ROOT_DIR    = SCRIPT_DIR.parent
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
+SHARE_DIR = ROOT_DIR / 'media' / 'share'
 BRANDS_DIR  = ROOT_DIR / 'data' / 'brands'
 ASSETS_REGISTRY = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
@@ -336,8 +337,8 @@ def resize_for_platform(src_path, platform, target_size, quality=85):
     """
     Resize and optimize a share image for a specific platform.
     Maintains aspect ratio with letterboxing (black bars) if needed.
-    Outputs a JPEG next to the source with a platform suffix.
-    e.g. bandPromo_share.png → bandPromo_share_facebook.jpg
+    Outputs a JPEG under media/share/ (never next to Visual originals/masters).
+    e.g. bandPromo_share.png → media/share/bandPromo_share_facebook.jpg
     """
     try:
         from PIL import Image
@@ -349,7 +350,13 @@ def resize_for_platform(src_path, platform, target_size, quality=85):
         img = Image.open(src_path)
         w, h = img.size
         tw, th = target_size
-        dest = src_path.parent / "{0}_{1}.jpg".format(src_path.stem, platform)
+        dest_dir = SHARE_DIR
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            print("  ❌ {0}: could not create {1}".format(platform, dest_dir))
+            return False
+        dest = dest_dir / "{0}_{1}.jpg".format(src_path.stem, platform)
 
         # Skip rewrite when the platform deliverable is already current.
         if dest.is_file():
@@ -477,7 +484,7 @@ def main():
 
     print(f"\n── Summary ────────────────────────────────────────────────────────────")
     if all_ok:
-        print(f"  ✅ Social assets ready in {SPECIAL_DIR.relative_to(ROOT_DIR)}/")
+        print("  ✅ Social assets ready in {0}/".format(SHARE_DIR.relative_to(ROOT_DIR)))
     else:
         print(f"  ⚠️  Some assets could not be generated — check warnings above")
 

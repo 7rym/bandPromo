@@ -488,6 +488,9 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
             foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
                 $add((string) $slotId);
             }
+            foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
+                $add((string) $libraryId);
+            }
         } catch (Throwable $throwable) {
             // Brand optional.
         }
@@ -945,6 +948,9 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
             'tone_notes' => $sourceBrand['tone_notes'] ?? '',
             'tokens' => is_array($sourceBrand['tokens'] ?? null) ? $sourceBrand['tokens'] : [],
             'asset_ids' => is_array($sourceBrand['asset_ids'] ?? null) ? $sourceBrand['asset_ids'] : [],
+            'library_asset_ids' => is_array($sourceBrand['library_asset_ids'] ?? null)
+                ? $sourceBrand['library_asset_ids']
+                : [],
             'assets' => is_array($sourceBrand['assets'] ?? null) ? $sourceBrand['assets'] : [],
         ], $newBrandId);
         bandpromo_json_write_file(bandpromo_theme_document_path($root, $newBrandId), $dupBrand);

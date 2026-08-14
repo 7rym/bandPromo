@@ -431,7 +431,46 @@ def file_xxh3_hex(path):
         return ''
 
 
-def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None, audio_mode=None):
+def video_master_pixel_size(source_path):
+    ffmpeg = get_ffmpeg_path()
+    ffprobe = str(Path(ffmpeg).with_name('ffprobe.exe' if os.name == 'nt' else 'ffprobe'))
+    if not Path(ffprobe).is_file():
+        found = shutil.which('ffprobe')
+        ffprobe = found or ''
+    if not ffprobe:
+        return 0, 0
+    try:
+        result = subprocess.run(
+            [
+                ffprobe, '-v', 'quiet', '-print_format', 'json',
+                '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+                str(source_path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False,
+        )
+    except (FileNotFoundError, OSError):
+        return 0, 0
+    if result.returncode != 0:
+        return 0, 0
+    try:
+        payload = json.loads(result.stdout or '{}')
+    except Exception:
+        return 0, 0
+    streams = payload.get('streams') if isinstance(payload.get('streams'), list) else []
+    for stream in streams:
+        if not isinstance(stream, dict):
+            continue
+        width = int(stream.get('width') or 0)
+        height = int(stream.get('height') or 0)
+        if width > 0 and height > 0:
+            return width, height
+    return 0, 0
+
+
+def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None, audio_mode=None, master_width=None, master_height=None):
     if not asset_id or not ASSET_REGISTRY_FILE.exists():
         return False
     try:
@@ -456,6 +495,9 @@ def update_visual_asset_delivery(asset_id, variants_map, source_xxh3=None, audio
     if audio_mode:
         delivery['audio_mode'] = str(audio_mode).strip().lower()
     asset['delivery'] = delivery
+    if master_width and master_height:
+        asset['master_width'] = int(master_width)
+        asset['master_height'] = int(master_height)
     assets[asset_id] = asset
     payload['assets'] = assets
     try:
@@ -522,11 +564,14 @@ def process_one_video(source_path, asset_id='', asset=None):
         print(f"  ✓ Wrote asset poster: {poster_path.name}")
 
     if variants:
+        master_width, master_height = video_master_pixel_size(source_path)
         update_visual_asset_delivery(
             asset_id,
             variants,
             source_xxh3=file_xxh3_hex(source_path) or None,
             audio_mode=audio_label,
+            master_width=master_width,
+            master_height=master_height,
         )
 
     return {

@@ -1201,7 +1201,7 @@ if ($tab === 'analytics') {
                     Work with <strong>master</strong> audio files only. Filter by catalogue release or search by registered title. Green / amber / red badges show metadata health — click a row for quick tags, or the pencil for the full editor.
                     <br><strong>After upload:</strong> bandPromo prepares delivery automatically. Tracks appear in Content pools when ready.
                 <?php elseif ($filesPanel === 'visual'): ?>
-                    Still images and video for covers, galleries, and pages. Filter by catalogue release or search by how the asset is referenced. Orphans are not linked to a release.
+                    Still images and video for covers, galleries, pages, and Brand shells (logo / still / living). Catalogue lists every campaign that plays the file — including Base-brand fallback when a Brand left that slot empty. Files in a Brand library that no campaign plays show that Brand, not Orphan. Orphans are not used by any campaign and are not in a Brand library.
                     <br><strong>After upload:</strong> delivery variants prepare automatically — check Notifications if a video stalls.
                 <?php elseif ($filesPanel === 'sfx'): ?>
                     Short brand UI clips (welcome, login, and similar). These belong to brands — assign them under Content → Branding. Not release tracks.
@@ -1255,11 +1255,13 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- Visual pool (images + video) -->
-            <div class="media-panel card" id="panel-visual" data-pool-layout="grid" <?php echo $filesPanel !== 'visual' ? 'style="display:none"' : ''; ?>>
+            <div class="media-panel card" id="panel-visual" data-pool-layout="grid" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'visual' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(false); ?>
+                            Catalogue is the campaign that uses this file (gallery, cover, poster, page, or Brand shell: logo and backgrounds). Empty Brand slots inherit the Base brand. Files in a Brand library that no campaign plays show that Brand, not Orphan. Orphans are not used by any campaign and are not in a Brand library.
+                            <br>
+                            <?php echo bandpromo_admin_files_permanent_warning_line(true); ?>
                         </span>
                     </div>
                 </div>
@@ -1285,6 +1287,11 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="visual" aria-pressed="true" title="Grid view">Grid</button>
                             <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="visual" aria-pressed="false" title="List view">List</button>
                         </div>
+                        <div class="visual-view-toggle visual-thumb-size-toggle" role="group" aria-label="List thumbnail size">
+                            <button type="button" class="visual-view-btn" data-pool-thumb-size="small" aria-pressed="false" title="Small list thumbnails (70×70)">S</button>
+                            <button type="button" class="visual-view-btn is-active" data-pool-thumb-size="medium" aria-pressed="true" title="Medium list thumbnails (100×100)">M</button>
+                            <button type="button" class="visual-view-btn" data-pool-thumb-size="large" aria-pressed="false" title="Large list thumbnails (125×125)">L</button>
+                        </div>
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('visual')" aria-label="Upload visual files" title="Upload images or videos"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
@@ -1299,6 +1306,7 @@ if ($tab === 'analytics') {
                     </div>
                     <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--title" data-pool-sort="title" data-pool-panel="visual" aria-pressed="true">Title</button>
                     <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="visual" aria-pressed="false">Catalogue</button>
+                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--dims" data-pool-sort="dims" data-pool-panel="visual" aria-pressed="false">Dimensions</button>
                     <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="visual" aria-pressed="false">Size</button>
                     <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
@@ -1307,7 +1315,7 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- Sound effects (brand UI audio) -->
-            <div class="media-panel card" id="panel-sfx" data-pool-layout="list" <?php echo $filesPanel !== 'sfx' ? 'style="display:none"' : ''; ?>>
+            <div class="media-panel card" id="panel-sfx" data-pool-layout="list" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'sfx' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
@@ -1350,11 +1358,11 @@ if ($tab === 'analytics') {
             </div>
 
             <!-- Brand assets (legacy special intake) -->
-            <div class="media-panel card" id="panel-special" data-pool-layout="grid" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
+            <div class="media-panel card" id="panel-special" data-pool-layout="grid" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'special' ? 'style="display:none"' : ''; ?>>
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(false); ?>
+                            Removing an asset only removes it from this Brand library. Delete the global file permanently from Visual or Sound effects.
                         </span>
                     </div>
                 </div>
@@ -1364,6 +1372,7 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="special" aria-pressed="true">All</button>
                             <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="special" aria-pressed="false">Still</button>
                             <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="special" aria-pressed="false">Living</button>
+                            <button type="button" class="visual-filter-chip" data-pool-type-filter="audio" data-pool-panel="special" aria-pressed="false">Sound effects</button>
                         </div>
                         <label class="media-filter-label">
                             <span class="visually-hidden">Filter by brand</span>
@@ -1380,11 +1389,17 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="special" aria-pressed="true" title="Grid view">Grid</button>
                             <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="special" aria-pressed="false" title="List view">List</button>
                         </div>
+                        <div class="visual-view-toggle visual-thumb-size-toggle" role="group" aria-label="List thumbnail size">
+                            <button type="button" class="visual-view-btn" data-pool-thumb-size="small" aria-pressed="false" title="Small list thumbnails (70×70)">S</button>
+                            <button type="button" class="visual-view-btn is-active" data-pool-thumb-size="medium" aria-pressed="true" title="Medium list thumbnails (100×100)">M</button>
+                            <button type="button" class="visual-view-btn" data-pool-thumb-size="large" aria-pressed="false" title="Large list thumbnails (125×125)">L</button>
+                        </div>
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('special')" aria-label="Upload brand assets" title="Upload brand assets"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openBrandLibraryPicker()" aria-label="Add existing asset to selected brand" title="Add existing asset to selected brand"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Add existing</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected brand assets" title="Download selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="special" disabled aria-label="Delete selected brand assets" title="Delete selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn" data-bulk-remove-target="special" disabled aria-label="Remove selected assets from this Brand library" title="Remove selected assets from this Brand library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>Remove</span></button>
                     </div>
                 </div>
                 <div class="media-file-col-headers visual-pool-col-headers" data-pool-list-headers="special" role="row">
@@ -1393,10 +1408,12 @@ if ($tab === 'analytics') {
                         <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="special" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
                     </div>
                     <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--title" data-pool-sort="title" data-pool-panel="special" aria-pressed="true">Title</button>
-                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="special" aria-pressed="false">Brand</button>
+                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="special" aria-pressed="false">Warehouse</button>
+                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--dims" data-pool-sort="dims" data-pool-panel="special" aria-pressed="false">Dimensions</button>
                     <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="special" aria-pressed="false">Size</button>
                     <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
+                <input type="hidden" id="brandLibraryPickerField" value="">
                 <div id="filelist-special" class="visual-pool-list visual-pool-list--grid" data-visual-layout="grid"><span class="text-muted">Loading…</span></div>
                 <div class="media-panel-footer"><span id="special-count" class="media-count"></span></div>
             </div>
@@ -3415,6 +3432,7 @@ if ($tab === 'analytics') {
             <div class="modal-actions media-picker-modal-actions">
                 <button type="button" id="mediaPickerUploadBtn" class="icon-btn">Upload new file</button>
                 <span id="mediaPickerStatus" class="status-text"></span>
+                <button type="button" class="btn btn-primary" id="mediaPickerConfirmBtn" hidden disabled>Add selected</button>
             </div>
         </div>
     </div>

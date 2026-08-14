@@ -268,6 +268,8 @@ function bandpromo_theme_default_document(): array
             'welcome_audio' => '',
             'loggedin_audio' => '',
         ],
+        // Curated cross-media Brand library (Visual + SFX), independent of slots.
+        'library_asset_ids' => [],
         // Player chrome preferences owned by the brand (Base brand drives /play).
         'player' => [
             'playlist_selector' => 'coverflow',
@@ -484,6 +486,110 @@ function bandpromo_theme_normalize_asset_ids(array $assetIds): array
     }
 
     return $normalized;
+}
+
+/**
+ * Normalize curated Brand-library membership.
+ *
+ * @param array<mixed> $assetIds
+ * @return list<string>
+ */
+function bandpromo_theme_normalize_library_asset_ids(array $assetIds): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $normalized = [];
+    foreach ($assetIds as $assetId) {
+        $assetId = trim((string) $assetId);
+        if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+        $normalized[$assetId] = true;
+    }
+
+    return array_keys($normalized);
+}
+
+/**
+ * Active shell assignments are always members of the Brand library.
+ *
+ * @param array<string, string> $slotAssetIds
+ * @param list<string> $libraryAssetIds
+ * @return list<string>
+ */
+function bandpromo_theme_merge_library_slot_assets(array $slotAssetIds, array $libraryAssetIds): array
+{
+    foreach ($slotAssetIds as $assetId) {
+        $assetId = trim((string) $assetId);
+        if ($assetId !== '') {
+            $libraryAssetIds[] = $assetId;
+        }
+    }
+
+    return bandpromo_theme_normalize_library_asset_ids($libraryAssetIds);
+}
+
+/**
+ * Maps visual/SFX asset_id to Brand libraries that include it.
+ *
+ * @return array<string, list<array{brand_id: string, brand_title: string}>>
+ */
+function bandpromo_brand_library_membership_index(string $root): array
+{
+    static $cache = [];
+    if (isset($cache[$root]) && is_array($cache[$root])) {
+        return $cache[$root];
+    }
+
+    $index = [];
+    try {
+        bandpromo_theme_ensure_seeded($root);
+        foreach (bandpromo_theme_registry_entries($root) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+            if ($brandId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_theme_load_document($root, $brandId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $title = trim((string) ($document['title'] ?? ''));
+            if ($title === '') {
+                $title = $brandId;
+            }
+            $library = is_array($document['library_asset_ids'] ?? null)
+                ? $document['library_asset_ids']
+                : [];
+            foreach ($library as $assetId) {
+                $assetId = trim((string) $assetId);
+                if ($assetId === '') {
+                    continue;
+                }
+                if (!isset($index[$assetId])) {
+                    $index[$assetId] = [];
+                }
+                foreach ($index[$assetId] as $existing) {
+                    if (($existing['brand_id'] ?? '') === $brandId) {
+                        continue 2;
+                    }
+                }
+                $index[$assetId][] = [
+                    'brand_id' => $brandId,
+                    'brand_title' => $title,
+                ];
+            }
+        }
+    } catch (Throwable $throwable) {
+        $index = [];
+    }
+
+    $cache[$root] = $index;
+
+    return $cache[$root];
 }
 
 /**
@@ -1036,6 +1142,16 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
         $releaseId = '';
     }
 
+    $assetIds = bandpromo_theme_normalize_asset_ids(
+        is_array($input['asset_ids'] ?? null) ? $input['asset_ids'] : []
+    );
+    $libraryAssetIds = bandpromo_theme_merge_library_slot_assets(
+        $assetIds,
+        bandpromo_theme_normalize_library_asset_ids(
+            is_array($input['library_asset_ids'] ?? null) ? $input['library_asset_ids'] : []
+        )
+    );
+
     return [
         'version' => BANDPROMO_THEME_REGISTRY_VERSION,
         'id' => $id,
@@ -1053,7 +1169,8 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
         'tone_notes' => bandpromo_brand_normalize_narrative_field($input['tone_notes'] ?? '', 2000),
         'tokens' => bandpromo_theme_normalize_tokens(is_array($input['tokens'] ?? null) ? $input['tokens'] : []),
         'assets' => bandpromo_theme_normalize_assets(is_array($input['assets'] ?? null) ? $input['assets'] : []),
-        'asset_ids' => bandpromo_theme_normalize_asset_ids(is_array($input['asset_ids'] ?? null) ? $input['asset_ids'] : []),
+        'asset_ids' => $assetIds,
+        'library_asset_ids' => $libraryAssetIds,
         'player' => bandpromo_theme_normalize_player($input),
     ];
 }
@@ -1241,7 +1358,10 @@ function bandpromo_theme_load_document(string $root, string $themeId): array
         throw new RuntimeException('Invalid brand document: data/brands/' . $themeId . '.json');
     }
 
-    return bandpromo_theme_normalize_document($decoded, $themeId);
+    $document = bandpromo_theme_normalize_document($decoded, $themeId);
+    $materialized = bandpromo_theme_materialize_asset_urls($root, $document);
+
+    return $materialized['document'];
 }
 
 function bandpromo_theme_registry_entries(string $root): array
@@ -1574,6 +1694,60 @@ function bandpromo_theme_migrate_from_config(string $root): void
     }
 }
 
+/**
+ * Seed explicit Brand-library membership from legacy asset ownership and slots.
+ * Safe to rerun: existing curated membership is preserved.
+ */
+function bandpromo_theme_migrate_library_asset_ids(string $root): void
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $assetRegistry = bandpromo_asset_load_registry($root);
+    $assets = is_array($assetRegistry['assets'] ?? null) ? $assetRegistry['assets'] : [];
+    foreach (bandpromo_theme_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        $path = bandpromo_theme_document_path($root, $brandId);
+        $raw = bandpromo_json_read_array_file($path);
+        if (!is_array($raw)) {
+            continue;
+        }
+        // This is a one-time legacy seed. Once explicit membership exists,
+        // ownership metadata must never re-add assets an operator removed.
+        if (array_key_exists('library_asset_ids', $raw)) {
+            continue;
+        }
+        $document = bandpromo_theme_normalize_document($raw, $brandId);
+        $library = is_array($document['library_asset_ids'] ?? null)
+            ? $document['library_asset_ids']
+            : [];
+        foreach ($assets as $assetId => $asset) {
+            if (!is_array($asset)) {
+                continue;
+            }
+            $kind = (string) ($asset['kind'] ?? '');
+            if ($kind !== 'visual' && $kind !== 'sfx') {
+                continue;
+            }
+            if (bandpromo_brand_canonical_id((string) ($asset['brand_id'] ?? '')) === $brandId) {
+                $library[] = (string) $assetId;
+            }
+        }
+        $document['library_asset_ids'] = bandpromo_theme_merge_library_slot_assets(
+            is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [],
+            $library
+        );
+        if (($raw['library_asset_ids'] ?? null) !== $document['library_asset_ids']) {
+            bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+        }
+    }
+}
+
 function bandpromo_theme_ensure_seeded(string $root): void
 {
     static $completed = [];
@@ -1593,6 +1767,7 @@ function bandpromo_theme_ensure_seeded(string $root): void
 
     // Heal once per PHP process — shell path probes are costly on synced folders.
     bandpromo_theme_heal_install_shell_media($root);
+    bandpromo_theme_migrate_library_asset_ids($root);
     bandpromo_brand_enforce_platform_default_lock($root);
     $completed[$root] = true;
 }
@@ -1689,20 +1864,19 @@ function bandpromo_theme_duplicate(string $root, string $sourceId, string $newId
         'keywords' => $source['keywords'] ?? [],
         'tone_notes' => $source['tone_notes'] ?? '',
         'tokens' => is_array($source['tokens'] ?? null) ? $source['tokens'] : [],
-        'assets' => [],
-        'asset_ids' => [],
+        'assets' => is_array($source['assets'] ?? null) ? $source['assets'] : [],
+        'asset_ids' => is_array($source['asset_ids'] ?? null) ? $source['asset_ids'] : [],
+        'library_asset_ids' => is_array($source['library_asset_ids'] ?? null)
+            ? $source['library_asset_ids']
+            : [],
         'player' => is_array($source['player'] ?? null) ? $source['player'] : [],
     ], $newId);
 
-    // Clone into new Visual/SFX ast_* masters owned by the new brand (not media/special copies).
-    $cloned = bandpromo_theme_clone_assets_for_brand(
-        $root,
-        is_array($source['assets'] ?? null) ? $source['assets'] : [],
-        $newId,
-        is_array($source['asset_ids'] ?? null) ? $source['asset_ids'] : []
+    // Brand duplication copies containers and shares stable registry media IDs.
+    $duplicate['library_asset_ids'] = bandpromo_theme_merge_library_slot_assets(
+        $duplicate['asset_ids'],
+        is_array($duplicate['library_asset_ids'] ?? null) ? $duplicate['library_asset_ids'] : []
     );
-    $duplicate['assets'] = is_array($cloned['assets'] ?? null) ? $cloned['assets'] : [];
-    $duplicate['asset_ids'] = is_array($cloned['asset_ids'] ?? null) ? $cloned['asset_ids'] : [];
 
     bandpromo_json_write_file(bandpromo_theme_document_path($root, $newId), $duplicate);
 

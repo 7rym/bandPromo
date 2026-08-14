@@ -2,6 +2,73 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-14 20:45 - Checkpoint Files → Visual usage-by-`ast_*`, Brand library, Branding delivery picks, and Files download reliability on `main` as **v0.8.24 build 389**; trigger GitHub Release `v0.8.24-build-389` and refresh durable `demo-content` PRP.
+
+2026-08-14 20:40 - Docs: Visual In use / Catalogue identity is the registry `ast_*` id (ADMIN-UI, FEATURES, MEDIA-HANDLING). Ready to checkpoint and refresh Demo PRP.
+
+2026-08-14 18:50 - Files → Visual usage (In use / Catalogue) matches by Visual `ast_*` id after resolving stored refs. Titles, operator titles, and filename stems are never identity; unregistered leftovers with no id do not match a registered asset.
+
+2026-08-14 18:40 - Files → Visual In use counts Bio/page picture blocks that store Visual `asset_id` and `/media/visual/delivery/…` URLs, not only legacy `/media/img/` paths.
+
+2026-08-14 18:15 - Files → Visual: Brand-library members are not Catalogue orphans (they list the Brand). Generated OG/1080 crops (`*_facebook.jpg`, `*_twitter.jpg`, `*_bg1080.*`) stay out of the Visual pool; makeSocial writes them to `media/share/` instead of beside originals.
+
+2026-08-14 18:05 - Files → Visual Catalogue lists each matching campaign on its own line instead of joining titles with a middle dot.
+
+2026-08-14 17:55 - Files → Visual Catalogue now includes Brand visual shell slots those campaigns play (logo, poster, still/living), including Base-brand fallback for empty slots. Site-wide demo backgrounds and logos list every inheriting release instead of Orphan. Brand library membership and Brand ownership on the asset still do not define Catalogue.
+
+2026-08-14 17:45 - Pressing Play no longer kicks listeners back to login: activity logging (`log.php`) uses the same Windows session store as login/player, and the session watchdog ignores analytics 401s so a log miss cannot expire the player.
+
+2026-08-14 17:30 - Branding live preview plays the living background as soon as it is picked: injected `<video>` elements are started explicitly, the still is used as the video poster instead of covering the stream, and living picks fall back to `/media/visual/delivery/{id}/standard-stream.mp4` when list payloads omit `stream_url`.
+
+2026-08-14 17:20 - Branding living background picks store the Visual delivery stream, not a still poster, so the slot actually assigns. Live preview plays that stream (no reduced-motion hide in the editor) instead of staying on the still fallback.
+
+2026-08-14 14:55 - Files → Visual In use / Unused follows live assignments: track covers match Visual `ast_*` ids (not just filenames), and brand shell slots (poster, still/living backgrounds, logo, SFX) count as used. Catalogue stays campaign-only; Brand library membership alone is not used.
+
+2026-08-14 14:45 - Branding poster/shell picker stores Visual delivery URLs (`card` / stream / SFX optimal), not `/media/special/` or original paths, so slot thumbs and live preview no longer break after a pick. Brand documents resolve those delivery URLs on load when `asset_ids` are set.
+
+2026-08-14 14:40 - Visual replace-upload refreshes the working original/master when the same filename is uploaded again (newer intake overwrites a stale `visual/original`). Files → Visual image uploads land in `media/visual/original/` instead of legacy `media/img/original/`.
+
+2026-08-14 14:25 - Brand assets Add existing hides files already in the selected library instead of dimming them. Picker tiles use Visual `media_type` plus delivery poster/thumb, so MKV video masters show a preview instead of a document icon.
+
+2026-08-14 14:20 - Files list thumbnail size control is S / M / L (70 / 100 / 125 px; default M).
+
+2026-08-14 14:15 - Files → Visual / Brand assets list view: thumbnail size toggle (70 or 100 px, default 100) next to Grid/List. Delivery `thumb` is already 100px max edge; list was previously ~44px.
+
+2026-08-14 13:55 - Files → Visual Catalogue names the campaign that uses the file (gallery, cover, poster, press photo, or page), not the Brand on the asset. Shared files can list more than one release; Brand logos with no campaign use show as Orphan.
+
+2026-08-14 13:40 - Files → Brand assets: Warehouse column shows Visual or Sound effects (library membership is the brand filter, so members are never Orphan). Audio listen control sits in the Dimensions cell instead of overlapping Size.
+
+2026-08-14 13:25 - Files → Brand assets Add existing is multi-select: click tiles to choose several Visual/SFX assets, then Add selected. Members already in the selected Brand library are dimmed and unselectable (delivery-not-ready tiles stay dimmed for that reason).
+
+2026-08-14 13:20 - Files → Visual and Brand assets Dimensions column (and the asset-details Dimensions row) now show the master file pixel size from registry `master_width`/`master_height`, not a delivery variant. Upload heal, image/video delivery builds, and visual metadata heal stamp those fields from the on-disk master.
+
+2026-08-14 13:15 - Files → Visual and Brand assets list mode add a sortable Dimensions column (largest delivery variant, typically `huge` / stream). Sound-effect rows show an em dash; the dedicated Sound effects panel stays Title / Brand / Size.
+
+2026-08-14 13:10 - Files asset details modal now previews Brand library stills, living video, and sound effects from Visual/SFX delivery URLs instead of missing `/media/special/` originals; Brand-asset modal Delete is membership Remove (hidden when the asset is assigned or no Brand is selected).
+
+2026-08-14 11:25 - Visual delivery adds the `huge` class for future fullscreen views: every still Visual build now emits a ratio-preserving derivative contained within 1920×1080px, without cropping, stretching, or upscaling; registry manifests and freshness checks support non-square dimension policies.
+
+2026-08-14 11:12 - Brand library bulk removal now continues past assigned shell assets: removable selections are removed, protected rows remain selected with an Assigned role badge, amber marker, and lock action, and one summary toast reports both outcomes.
+
+2026-08-14 11:05 - Fix Brand library removal persistence: legacy `brand_id` migration now seeds `library_asset_ids` only when the field is absent, so subsequent requests no longer re-add explicitly removed assets.
+
+2026-08-14 10:47 - Brand assets list actions now use membership semantics: row and bulk controls say Remove instead of Delete, permanent deletion stays in global Visual/Sound effects, and the narrower action column fixes cramped list rows.
+
+2026-08-14 10:30 - Brand assets is now an explicit cross-media per-Brand library (`library_asset_ids`) spanning Visual and Sound effects: upload/add/remove management, strict Branding slot pickers, hard deletion guards, shared-ID duplication, and complete PRP portability.
+
+2026-08-14 10:00 - Files download: track one-time stream status server-side and show a persistent “Download completed” toast (including the saved filename) only after all bytes were sent.
+
+2026-08-14 09:55 - Audio master downloads use the current saved metadata for filenames (`Artist - Title [Version].ext`) instead of the original upload filename; streamed bytes remain the master.
+
+2026-08-14 09:50 - Files download: stream large media in 1 MB chunks with the request timeout disabled; restart local PHP with the configured 300-second dev limit so hour-long masters do not fail before the browser starts saving.
+
+2026-08-14 09:45 - Files download: follow one-time `download_url` in a hidden iframe so the admin tab is not replaced by a blank download page.
+2026-08-14 09:40 - Files download: preflight issues a one-time GET token; the browser follows `download_url` via a hidden link so large masters (~140MB) actually save (iframe POST was silently ignored).
+2026-08-14 09:35 - Admin toasts stay until manually dismissed (× on every toast; no auto-hide timer).
+2026-08-14 09:30 - Files download: large audio masters (e.g. hour-long Retroscopy episodes) no longer use fetch+blob; preflight then streams via a hidden iframe so ~140MB files save reliably. Local dev server allows longer PHP execution for big streams.
+2026-08-14 09:25 - Files download: replace post-preflight form submit with fetch+blob save so browsers actually start the download after async auth check; master downloads use the original upload filename when known.
+2026-08-14 09:20 - Fix Files → Audio download: `download-media.php` now uses configured session storage (`bandpromo_ensure_session_started`) so bulk/row downloads authenticate like other admin APIs.
+
 2026-08-13 23:30 - Session end: handoff points next work at Demo PRP refresh (`demo-content` publish) plus a full fresh-install smoke on build 388+. Master-tier and publish-summary slices stay closed.
 
 2026-08-13 23:25 - Checkpoint publish-log + build-script cleanup on `main` as **v0.8.23 build 388** and trigger GitHub Release `v0.8.23-build-388` for Site update. Docs aligned for master-tier-complete + scoped publish summary.

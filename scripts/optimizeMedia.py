@@ -74,13 +74,14 @@ def load_delivery_contexts():
         'variants': {
             'thumb': {'max_edge': COVER_THUMB_MAX_EDGE},
             'card': {'max_edge': COVER_OPTIMAL_MAX_EDGE},
+            'huge': {'max_width': 1920, 'max_height': 1080},
             'logo': {'max_edge': 640},
             'poster': {'max_edge': COVER_OPTIMAL_MAX_EDGE},
         },
         'role_variants': {
-            'default_image': ['thumb', 'card'],
-            'brand-logo': ['logo', 'thumb'],
-            'unassigned': ['thumb', 'card'],
+            'default_image': ['thumb', 'card', 'huge'],
+            'brand-logo': ['logo', 'thumb', 'huge'],
+            'unassigned': ['thumb', 'card', 'huge'],
         },
     }
     if not DELIVERY_CONTEXTS_FILE.exists():
@@ -107,6 +108,22 @@ def variant_max_edge(variant_name, fallback=None):
         return max(0, int(edge))
     except (TypeError, ValueError):
         return int(fallback if fallback is not None else COVER_OPTIMAL_MAX_EDGE)
+
+
+def variant_max_box(variant_name, fallback_edge=None):
+    """Return a (max_width, max_height) contain box for one image variant."""
+    variants = DELIVERY_CONTEXTS.get('variants') if isinstance(DELIVERY_CONTEXTS.get('variants'), dict) else {}
+    entry = variants.get(variant_name) if isinstance(variants.get(variant_name), dict) else {}
+    edge = variant_max_edge(variant_name, fallback_edge)
+    try:
+        max_width = int(entry.get('max_width', edge))
+    except (TypeError, ValueError):
+        max_width = edge
+    try:
+        max_height = int(entry.get('max_height', edge))
+    except (TypeError, ValueError):
+        max_height = edge
+    return max(1, max_width), max(1, max_height)
 
 
 # Prefer registry-driven edges when available.
@@ -232,7 +249,7 @@ def image_source_has_alpha(source_path):
         return False
 
 
-def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75, preserve_alpha=False):
+def convert_image_delivery_variant(source_path, dest_path, max_width, max_height, quality=75, preserve_alpha=False):
     """
     Write one delivery variant. When preserve_alpha is True and the source has
     transparency, emit PNG; otherwise JPEG (flattening onto white only when needed).
@@ -241,7 +258,8 @@ def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75,
         print("    ⚠️  Source image not found: {}".format(source_path))
         return None
 
-    max_edge = max(1, int(max_edge))
+    max_width = max(1, int(max_width))
+    max_height = max(1, int(max_height))
     dest_path = Path(dest_path)
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -255,27 +273,26 @@ def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75,
         worker = (
             "import sys\n"
             "from PIL import Image\n"
-            "src, dest, max_edge = sys.argv[1], sys.argv[2], int(sys.argv[3])\n"
+            "src, dest, max_width, max_height = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])\n"
             "img = Image.open(src)\n"
             "if img.mode == 'P':\n"
             "    img = img.convert('RGBA')\n"
             "elif img.mode not in ('RGBA', 'LA'):\n"
             "    img = img.convert('RGBA') if 'A' in img.getbands() else img.convert('RGB').convert('RGBA')\n"
             "w, h = img.size\n"
-            "longest = max(w, h)\n"
-            "if longest > max_edge:\n"
-            "    scale = float(max_edge) / float(longest)\n"
+            "scale = min(1.0, float(max_width) / float(w), float(max_height) / float(h))\n"
+            "if scale < 1.0:\n"
             "    new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))\n"
             "    resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)\n"
             "    img = img.resize(new_size, resample)\n"
             "img.save(dest, 'PNG', optimize=True)\n"
         )
-        args = [sys.executable, '-c', worker, source_path, str(dest_path), str(max_edge)]
+        args = [sys.executable, '-c', worker, source_path, str(dest_path), str(max_width), str(max_height)]
     else:
         worker = (
             "import sys\n"
             "from PIL import Image\n"
-            "src, dest, quality, max_edge = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])\n"
+            "src, dest, quality, max_width, max_height = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])\n"
             "img = Image.open(src)\n"
             "if img.mode in ('RGBA', 'LA', 'P'):\n"
             "    background = Image.new('RGB', img.size, (255, 255, 255))\n"
@@ -286,15 +303,17 @@ def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75,
             "elif img.mode != 'RGB':\n"
             "    img = img.convert('RGB')\n"
             "w, h = img.size\n"
-            "longest = max(w, h)\n"
-            "if longest > max_edge:\n"
-            "    scale = float(max_edge) / float(longest)\n"
+            "scale = min(1.0, float(max_width) / float(w), float(max_height) / float(h))\n"
+            "if scale < 1.0:\n"
             "    new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))\n"
             "    resample = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)\n"
             "    img = img.resize(new_size, resample)\n"
             "img.save(dest, 'JPEG', quality=quality, optimize=True)\n"
         )
-        args = [sys.executable, '-c', worker, source_path, str(dest_path), str(quality), str(max_edge)]
+        args = [
+            sys.executable, '-c', worker, source_path, str(dest_path),
+            str(quality), str(max_width), str(max_height),
+        ]
 
     try:
         result = subprocess.run(
@@ -310,8 +329,8 @@ def convert_image_delivery_variant(source_path, dest_path, max_edge, quality=75,
     if result.returncode != 0 or not dest_path.exists():
         return _copy_cover_fallback(source_path, str(dest_path), 'converter failed')
 
-    print("    ✓ Variant {}: {} (max {}px, {})".format(
-        dest_path.stem, dest_path.name, max_edge, 'PNG alpha' if use_png else 'JPEG'
+    print("    ✓ Variant {}: {} (max {}x{}px, {})".format(
+        dest_path.stem, dest_path.name, max_width, max_height, 'PNG alpha' if use_png else 'JPEG'
     ))
     return str(dest_path)
 
@@ -374,6 +393,8 @@ def role_image_variants(role):
         out.insert(0, 'thumb')
     if 'card' not in out:
         out.append('card')
+    if 'huge' not in out:
+        out.append('huge')
     return out
 
 
@@ -403,7 +424,7 @@ def variant_manifest_entry(abs_path):
     }
 
 
-def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None, source_xxh3=None):
+def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None, source_xxh3=None, master_width=None, master_height=None):
     """Patch registry.json delivery.variants for one visual asset."""
     if not asset_id or not ASSET_REGISTRY_FILE.exists():
         return False
@@ -429,6 +450,9 @@ def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None, source_
     asset['delivery'] = delivery
     if has_alpha is not None:
         asset['has_alpha'] = bool(has_alpha)
+    if master_width and master_height:
+        asset['master_width'] = int(master_width)
+        asset['master_height'] = int(master_height)
     assets[asset_id] = asset
     payload['assets'] = assets
     try:
@@ -440,6 +464,47 @@ def update_visual_asset_delivery(asset_id, variants_map, has_alpha=None, source_
     except Exception as exc:
         print("    ⚠️  Could not update registry for {}: {}".format(asset_id, exc))
         return False
+
+
+def stamp_visual_master_dimensions(asset_id, width, height):
+    """Record master pixel size without rewriting delivery variants."""
+    width = int(width or 0)
+    height = int(height or 0)
+    if not asset_id or width <= 0 or height <= 0 or not ASSET_REGISTRY_FILE.exists():
+        return False
+    try:
+        payload = json.loads(ASSET_REGISTRY_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = assets.get(asset_id)
+    if not isinstance(asset, dict):
+        return False
+    if int(asset.get('master_width') or 0) == width and int(asset.get('master_height') or 0) == height:
+        return False
+    asset['master_width'] = width
+    asset['master_height'] = height
+    assets[asset_id] = asset
+    payload['assets'] = assets
+    try:
+        ASSET_REGISTRY_FILE.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + '\n',
+            encoding='utf-8',
+        )
+        return True
+    except Exception:
+        return False
+
+
+def image_master_pixel_size(source_path):
+    try:
+        with Image.open(str(source_path)) as img:
+            width, height = img.size
+        return int(width), int(height)
+    except Exception:
+        return 0, 0
 
 
 def visual_image_delivery_is_fresh(asset, source_path, required_variants):
@@ -466,7 +531,7 @@ def visual_image_delivery_is_fresh(asset, source_path, required_variants):
 
     try:
         with Image.open(str(source_path)) as source_img:
-            source_edge = max(source_img.size)
+            source_width, source_height = source_img.size
     except Exception:
         return False
 
@@ -480,24 +545,30 @@ def visual_image_delivery_is_fresh(asset, source_path, required_variants):
         if dest_path is None:
             return False
 
-        max_edge = variant_max_edge(
+        max_width, max_height = variant_max_box(
             variant,
             COVER_OPTIMAL_MAX_EDGE if variant != 'thumb' else COVER_THUMB_MAX_EDGE,
         )
-        if max_edge <= 0:
-            max_edge = COVER_OPTIMAL_MAX_EDGE
-        expected_edge = min(int(source_edge), int(max_edge))
+        expected_scale = min(
+            1.0,
+            float(max_width) / float(source_width),
+            float(max_height) / float(source_height),
+        )
+        expected_width = max(1, int(round(source_width * expected_scale)))
+        expected_height = max(1, int(round(source_height * expected_scale)))
 
         try:
             with Image.open(str(dest_path)) as dest_img:
-                delivery_edge = max(dest_img.size)
+                delivery_width, delivery_height = dest_img.size
         except Exception:
             return False
 
-        # Undersized after a max_edge increase (100→150), or oversized after a shrink.
-        if delivery_edge < expected_edge - 1:
+        # Rebuild after policy changes, including non-square contain boxes.
+        if abs(int(delivery_width) - expected_width) > 1:
             return False
-        if delivery_edge > int(max_edge) + 1:
+        if abs(int(delivery_height) - expected_height) > 1:
+            return False
+        if delivery_width > int(max_width) + 1 or delivery_height > int(max_height) + 1:
             return False
     return True
 
@@ -511,7 +582,9 @@ def process_visual_image_asset(asset):
 
     role = str(asset.get('role') or 'unassigned')
     required = role_image_variants(role)
+    source_width, source_height = image_master_pixel_size(source)
     if visual_image_delivery_is_fresh(asset, source, required):
+        stamp_visual_master_dimensions(asset_id, source_width, source_height)
         print("    → Delivery: already up to date (master XXH3 match) — skipped")
         return 'skipped'
 
@@ -525,15 +598,17 @@ def process_visual_image_asset(asset):
     variants_written = {}
 
     for variant in required:
-        max_edge = variant_max_edge(variant, COVER_OPTIMAL_MAX_EDGE if variant != 'thumb' else COVER_THUMB_MAX_EDGE)
-        if max_edge <= 0:
-            max_edge = COVER_OPTIMAL_MAX_EDGE
+        max_width, max_height = variant_max_box(
+            variant,
+            COVER_OPTIMAL_MAX_EDGE if variant != 'thumb' else COVER_THUMB_MAX_EDGE,
+        )
         dest = delivery_dir / ('{}.png'.format(variant) if preserve_alpha else '{}.jpg'.format(variant))
-        quality = 75 if variant != 'thumb' else 65
+        quality = 82 if variant == 'huge' else (75 if variant != 'thumb' else 65)
         written = convert_image_delivery_variant(
             str(source),
             str(dest),
-            max_edge=max_edge,
+            max_width=max_width,
+            max_height=max_height,
             quality=quality,
             preserve_alpha=preserve_alpha,
         )
@@ -548,6 +623,8 @@ def process_visual_image_asset(asset):
             variants_written,
             has_alpha=has_alpha,
             source_xxh3=source_digest or None,
+            master_width=source_width,
+            master_height=source_height,
         )
         if not source_digest and xxhash is None:
             warn_xxhash_missing_once()

@@ -10,6 +10,11 @@
       "max_edge": 720,
       "notes": "Player flip cover / optimal; lightbox shares card in v0.8"
     },
+    "huge": {
+      "max_width": 1920,
+      "max_height": 1080,
+      "notes": "Fullscreen HDTV bounding box; contain without cropping, stretching, or upscaling"
+    },
     "logo": {
       "max_edge": 640,
       "notes": "Player header logo (~320px CSS + 2x retina); prefer alpha-preserving PNG/WebP"
@@ -51,6 +56,11 @@
       "variant": "card",
       "prefer_alpha": false
     },
+    "huge": {
+      "where": "Future fullscreen visual views",
+      "variant": "huge",
+      "prefer_alpha": false
+    },
     "admin_thumb": {
       "where": "Admin media file list .media-file-thumb",
       "variant": "thumb",
@@ -89,15 +99,15 @@
     }
   },
   "role_variants": {
-    "track-cover": ["thumb", "card"],
-    "release-cover": ["thumb", "card"],
-    "gallery": ["thumb", "card"],
-    "page-illustration": ["thumb", "card", "picture"],
-    "brand-logo": ["logo", "thumb"],
-    "shell-background-image": ["card"],
+    "track-cover": ["thumb", "card", "huge"],
+    "release-cover": ["thumb", "card", "huge"],
+    "gallery": ["thumb", "card", "huge"],
+    "page-illustration": ["thumb", "card", "picture", "huge"],
+    "brand-logo": ["logo", "thumb", "huge"],
+    "shell-background-image": ["card", "huge"],
     "shell-background-video": ["poster", "standard-stream"],
-    "unassigned": ["thumb", "card"],
-    "default_image": ["thumb", "card"],
+    "unassigned": ["thumb", "card", "huge"],
+    "default_image": ["thumb", "card", "huge"],
     "default_video": ["poster", "standard-stream"]
   }
 }

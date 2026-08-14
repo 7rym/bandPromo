@@ -139,7 +139,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 **Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that release only. Release editor Available pools list **unowned** containers; saves refuse stealing from another release.
 
-**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
+**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Files → Visual **Catalogue** follows that usage (plus posters, press photos, page pictures, track covers, and Brand visual shell slots those campaigns play, including Base-brand fallback for empty slots). Brand-library membership is not a campaign, but those files are not Orphan either. Catalogue must not infer the campaign from Brand ownership on the asset. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
 
 **Base brand vs release brand:**
 
@@ -693,7 +693,7 @@ Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`.
 
 - Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
 - **Set as base** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).
-- Duplicate still clones shell media so the copy has deletable files. If a source slot file is missing, clone falls back to bundled demo seed files (`bandPromo_cover.png` / `bandPromo_share.png`, etc.) instead of copying a broken path.
+- Duplicate copies the Brand container and shares its stable Visual/SFX `asset_id` references. A global asset cannot be deleted while any Brand library still contains it.
 - Publish / brand ensure self-heals missing demo poster/share paths on the locked default and in `web-config.json` (hosted operators duplicate bandPromo Default; localhost may edit for PRP source). Starter-pack presence checks include `bandPromo_cover.png`.
 - Player token + visual shell overlay uses the selected playlist’s owning release brand; login shell stays on install Base.
 

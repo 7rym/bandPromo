@@ -98,7 +98,16 @@ function bandpromo_summarize_reference_counts(array $references): array {
             $summary['playlist_covers']++;
         } elseif ($kind === 'gallery-item') {
             $summary['gallery_items']++;
-        } elseif (in_array($kind, ['theme-cover', 'theme-background', 'theme-background-video', 'share-image'], true)) {
+        } elseif (in_array($kind, [
+            'theme-cover',
+            'theme-background',
+            'theme-background-video',
+            'share-image',
+            'brand-logo',
+            'welcome-audio',
+            'loggedin-audio',
+            'brand-library',
+        ], true)) {
             $summary['theme_assets']++;
         } elseif ($kind === 'release-fallback') {
             $summary['release_fallbacks']++;
@@ -241,6 +250,12 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
     foreach ($referenceNames as $refName) {
         $references = array_merge($references, bandpromo_collect_media_references($root, $target, $refName));
     }
+    if ($assetId !== '') {
+        $references = array_merge(
+            $references,
+            bandpromo_media_reference_collect_brand_library_references($root, $assetId)
+        );
+    }
     $reference_summary = bandpromo_summarize_reference_counts($references);
 
     if ($mode === 'preview') {
@@ -248,6 +263,20 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
             'ok' => true,
             'filename' => $listingName,
             'action' => 'preview',
+            'references' => $references,
+            'reference_summary' => $reference_summary,
+        ];
+    }
+
+    $brandLibraryReferences = array_values(array_filter(
+        $references,
+        static fn(array $reference): bool => (string) ($reference['kind'] ?? '') === 'brand-library'
+    ));
+    if ($brandLibraryReferences !== []) {
+        return [
+            'ok' => false,
+            'filename' => $listingName,
+            'error' => 'Remove this asset from every Brand library before deleting the global media.',
             'references' => $references,
             'reference_summary' => $reference_summary,
         ];

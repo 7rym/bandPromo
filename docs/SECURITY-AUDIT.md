@@ -10,7 +10,7 @@ bandPromo is a closed, session-authenticated PHP application with file/JSON stor
 
 Remaining release risks are mostly **session abuse hardening** (CSRF, login rate limits, password hashing, explicit server-side session lifetime policy) rather than missing authorization on admin endpoints.
 
-**2026-06-13 UX note:** Admin and player now include a lightweight client-side session watchdog (`biblioteca/session-auth.js` + `biblioteca/session-check.php`) that redirects expired sessions to login. This improves operator clarity but is not a substitute for explicit server-side timeout configuration.
+**2026-06-13 UX note:** Admin and player now include a lightweight client-side session watchdog (`biblioteca/session-auth.js` + `biblioteca/session-check.php`) that redirects expired sessions to login. Listener activity POSTs to `log.php` are not treated as session expiry. This improves operator clarity but is not a substitute for explicit server-side timeout configuration.
 
 **2026-07-12 storage note:** Analytics and audit events now use PDO SQLite through `biblioteca/activity-store.php`. This is a local append-only store, not a shared multi-tenant database. Queries use prepared statements; there is no operator-facing SQL surface.
 

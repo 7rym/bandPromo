@@ -384,7 +384,7 @@ function bandpromo_demo_release_asset_set(string $root): array
         return $empty;
     }
 
-    $brandShellIds = [];
+    $brandLibraryIds = [];
     try {
         $release = bandpromo_release_load_document($root, $demoId);
         $brandId = trim((string) ($release['brand_id'] ?? ''));
@@ -393,7 +393,13 @@ function bandpromo_demo_release_asset_set(string $root): array
             foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
                 $slotId = trim((string) $slotId);
                 if ($slotId !== '') {
-                    $brandShellIds[$slotId] = true;
+                    $brandLibraryIds[$slotId] = true;
+                }
+            }
+            foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
+                $libraryId = trim((string) $libraryId);
+                if ($libraryId !== '') {
+                    $brandLibraryIds[$libraryId] = true;
                 }
             }
         }
@@ -407,7 +413,7 @@ function bandpromo_demo_release_asset_set(string $root): array
 
     foreach (bandpromo_release_campaign_collect_asset_ids($root, $demoId) as $assetId) {
         $assetId = trim((string) $assetId);
-        if ($assetId === '' || isset($brandShellIds[$assetId])) {
+        if ($assetId === '' || isset($brandLibraryIds[$assetId])) {
             continue;
         }
 

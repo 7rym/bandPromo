@@ -102,9 +102,9 @@ Same operator patterns as Audio, plus Grid/List:
 
 | Pattern | Behavior |
 |---------|----------|
-| Toolbar | Shared `.audio-pool-toolbar` density; type chips + catalogue/brand filter + title search + Grid/List |
+| Toolbar | Shared `.audio-pool-toolbar` density; type chips + catalogue/brand filter + title search + Grid/List. List view adds an **S / M / L** thumbnail-size toggle (70 / 100 / 125 px; default M). Preference is stored in `localStorage` (`bandpromo_pool_thumb_size`). |
 | Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers` (not a toolbar checkbox); checkbox click updates selection on Visual, Brand assets, and Sound effects pools |
-| List mode | Title / Catalogue\|Brand / Size columns aligned with Audio rows; ✎ opens shared asset modal (display fields editable for Visual and Brand assets when registered) |
+| List mode | Title / Catalogue\|Brand\|Warehouse / Dimensions / Size. Visual Catalogue is every campaign that uses the file (owned gallery, track cover/living cover, release/playlist poster, press photo, page picture, or Brand visual shell those campaigns play). Empty Brand slots inherit the Base brand, so site-wide logos/backgrounds list every inheriting release rather than Orphan. Brand-library members with no campaign use list that Brand, not Orphan. Shared files list every matching release, each on its own line. Catalogue is not Brand ownership on the asset and not library membership. The In use / Unused pill is live assignment (track cover, gallery, page, poster, or brand shell slot), not Catalogue. Usage identity is the Visual `ast_*` id after resolving stored refs; titles and filename stems never match. Brand assets Warehouse is Visual or Sound effects (the global pool the file lives in), not Brand membership — library members are never listed as Orphan. Dimensions are the master pixel size; audio Brand-asset rows put Listen in that column. Preview pane uses Visual `card`/`thumb` (or video poster/stream / SFX play URL). Brand-asset modal footer is Download + Remove (membership), not permanent Delete. |
 | Grid mode | Thumbnails + caption under each card; column labels hidden, All/None kept |
 | Search | “Filter by title…” (same haystack: display title, operator title, references) |
 

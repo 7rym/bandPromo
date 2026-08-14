@@ -807,12 +807,6 @@
     pointer-events: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .theme-preview-shell-video {
-        display: none;
-    }
-}
-
 .theme-preview-shell-chrome::before {
     content: none;
 }

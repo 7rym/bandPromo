@@ -24,6 +24,8 @@ if (-not (Test-Path -LiteralPath $logDir)) {
 $php = (Get-Command php -ErrorAction Stop).Source
 $argumentList = @(
     "-d", "date.timezone=$Timezone",
+    "-d", "max_execution_time=300",
+    "-d", "memory_limit=256M",
     "-S", "${BindHost}:$Port"
 )
 

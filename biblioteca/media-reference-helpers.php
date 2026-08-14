@@ -73,12 +73,137 @@ function bandpromo_media_reference_path_matches_prefix(?string $raw, string $pre
 
 function bandpromo_media_reference_file_exists(string $root, string $target, string $basename): bool
 {
-    $prefix = bandpromo_media_reference_original_prefix($target);
-    if ($prefix === null || $basename === '') {
+    $basename = basename(trim($basename));
+    if ($basename === '' || $basename === '.' || $basename === '..') {
         return false;
     }
 
-    return is_file($root . '/' . $prefix . '/' . $basename);
+    $prefix = bandpromo_media_reference_original_prefix($target);
+    if ($prefix !== null && is_file($root . '/' . $prefix . '/' . $basename)) {
+        return true;
+    }
+
+    require_once __DIR__ . '/asset-registry.php';
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $basename);
+    if (!is_array($asset)) {
+        return false;
+    }
+
+    $kind = strtolower(trim((string) ($asset['kind'] ?? '')));
+    if ($kind === 'visual') {
+        require_once __DIR__ . '/visual-master-helpers.php';
+        $working = bandpromo_visual_working_path($root, $asset);
+
+        return $working !== '' && is_file($working);
+    }
+
+    if ($kind === 'sfx') {
+        $master = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($master !== '' && is_file($root . '/media/sfx/master/' . $master)) {
+            return true;
+        }
+        $original = basename(trim((string) ($asset['original_filename'] ?? '')));
+
+        return $original !== '' && is_file($root . '/media/sfx/original/' . $original);
+    }
+
+    return false;
+}
+
+/**
+ * Lookup keys for a Visual ref: asset id, original filename, master filename.
+ *
+ * @return list<string>
+ */
+function bandpromo_media_reference_visual_alias_keys(string $root, string $ref): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $keys = [];
+    $add = static function (string $name) use (&$keys): void {
+        $name = basename(trim($name));
+        if ($name === '' || $name === '.' || $name === '..') {
+            return;
+        }
+        $keys[$name] = true;
+    };
+
+    $add($ref);
+    $normalized = bandpromo_asset_normalize_media_ref($ref);
+    if ($normalized !== '') {
+        $add($normalized);
+    }
+
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (is_array($asset) && strtolower((string) ($asset['kind'] ?? '')) === 'visual') {
+        $add((string) ($asset['id'] ?? ''));
+        $add((string) ($asset['original_filename'] ?? ''));
+        $add((string) ($asset['master_filename'] ?? ''));
+    }
+
+    return array_keys($keys);
+}
+
+/**
+ * Registry Visual id for a Files listing name, stored ref, or delivery path.
+ * Empty when the row is not a registered Visual (titles are never used).
+ */
+function bandpromo_media_reference_listing_asset_id(string $root, string $ref): string
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/theme-storage.php';
+
+    $ref = trim($ref);
+    if ($ref === '') {
+        return '';
+    }
+
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (is_array($asset) && strtolower((string) ($asset['kind'] ?? '')) === 'visual') {
+        return trim((string) ($asset['id'] ?? ''));
+    }
+
+    if (strpos(str_replace('\\', '/', $ref), '/media/') !== false) {
+        $fromPath = bandpromo_theme_lookup_asset_id_for_path($root, $ref);
+        if ($fromPath !== '') {
+            return $fromPath;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * True when both refs resolve to the same Visual asset id.
+ * Unregistered leftovers with no id do not match by title or stem.
+ */
+function bandpromo_media_reference_same_visual_asset(string $root, string $left, string $right): bool
+{
+    $leftId = bandpromo_media_reference_listing_asset_id($root, $left);
+    $rightId = bandpromo_media_reference_listing_asset_id($root, $right);
+
+    return $leftId !== '' && $leftId === $rightId;
+}
+
+/**
+ * Keys used to look up Visual usage. Registered assets match by id only.
+ * Unregistered leftovers fall back to the listing basename — never titles.
+ *
+ * @return list<string>
+ */
+function bandpromo_media_reference_usage_lookup_keys(string $root, string $ref): array
+{
+    $assetId = bandpromo_media_reference_listing_asset_id($root, $ref);
+    if ($assetId !== '') {
+        return [$assetId];
+    }
+
+    $safe = basename(trim($ref));
+    if ($safe === '' || $safe === '.' || $safe === '..') {
+        return [];
+    }
+
+    return [$safe];
 }
 
 /**
@@ -196,21 +321,48 @@ function bandpromo_media_reference_gallery_matches_target(
         return false;
     }
 
-    foreach (bandpromo_media_reference_gallery_item_candidate_filenames($root, $item) as $candidate) {
-        if (bandpromo_media_reference_names_match($candidate, $safe)) {
-            return true;
-        }
+    $itemId = bandpromo_media_reference_gallery_item_asset_id($root, $item);
+    $listingId = bandpromo_media_reference_listing_asset_id($root, $safe);
+    if ($itemId !== '' && $listingId !== '') {
+        return $itemId === $listingId;
     }
 
     return false;
 }
 
-function bandpromo_media_reference_collect_gallery_references(string $root, string $target, string $filename): array
-{
-    $index = bandpromo_media_reference_build_gallery_index($root, $target);
-    $safe = basename($filename);
+function bandpromo_media_reference_collect_gallery_references(
+    string $root,
+    string $target,
+    string $filename,
+    ?array $precomputedIndex = null
+): array {
+    $index = is_array($precomputedIndex)
+        ? $precomputedIndex
+        : bandpromo_media_reference_build_gallery_index($root, $target);
+    $references = [];
+    $seen = [];
+    $keys = bandpromo_media_reference_usage_lookup_keys($root, $filename);
+    foreach ($keys as $key) {
+        $hits = $index[$key] ?? [];
+        if (!is_array($hits)) {
+            continue;
+        }
+        foreach ($hits as $reference) {
+            if (!is_array($reference)) {
+                continue;
+            }
+            $dedupe = (string) ($reference['kind'] ?? '')
+                . '|' . (string) ($reference['gallery_id'] ?? '')
+                . '|' . (string) ($reference['label'] ?? '');
+            if (isset($seen[$dedupe])) {
+                continue;
+            }
+            $seen[$dedupe] = true;
+            $references[] = $reference;
+        }
+    }
 
-    return $index[$safe] ?? [];
+    return $references;
 }
 
 function bandpromo_media_reference_build_gallery_index(string $root, string $target): array
@@ -248,22 +400,30 @@ function bandpromo_media_reference_build_gallery_index(string $root, string $tar
                 continue;
             }
 
-            $candidates = bandpromo_media_reference_gallery_item_candidate_filenames($root, $item);
-            if ($candidates === []) {
+            $assetId = bandpromo_media_reference_gallery_item_asset_id($root, $item);
+            $keys = $assetId !== ''
+                ? [$assetId]
+                : bandpromo_media_reference_gallery_item_candidate_filenames($root, $item);
+            if ($keys === []) {
                 continue;
             }
 
             $labelSource = trim((string) ($item['name'] ?? $item['alt'] ?? ''));
-            foreach ($candidates as $basename) {
+            $ref = [
+                'scope' => 'gallery',
+                'kind' => 'gallery-item',
+                'label' => $labelSource !== '' ? $labelSource : ($assetId !== '' ? $assetId : $galleryId),
+                'gallery_id' => $galleryId,
+            ];
+            foreach ($keys as $basename) {
+                $basename = basename(trim((string) $basename));
+                if ($basename === '' || $basename === '.' || $basename === '..') {
+                    continue;
+                }
                 if (!isset($index[$basename])) {
                     $index[$basename] = [];
                 }
-                $index[$basename][] = [
-                    'scope' => 'gallery',
-                    'kind' => 'gallery-item',
-                    'label' => $labelSource !== '' ? $labelSource : $basename,
-                    'gallery_id' => $galleryId,
-                ];
+                $index[$basename][] = $ref;
             }
         }
     }
@@ -322,6 +482,11 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
         return $references;
     }
 
+    $fileId = bandpromo_media_reference_listing_asset_id($root, $filename);
+    if ($fileId === '') {
+        return $references;
+    }
+
     foreach (bandpromo_media_reference_config_entries($target) as $entry) {
         $raw = bandpromo_config_get_nonempty_value($config, $entry['path']);
         if (!is_string($raw) || trim($raw) === '') {
@@ -336,16 +501,7 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
         if (!is_string($raw) || trim($raw) === '') {
             continue;
         }
-        if (!bandpromo_media_reference_path_matches_prefix($raw, $entry['prefix'])) {
-            continue;
-        }
-
-        $basename = bandpromo_media_reference_normalize_basename($raw, $entry['prefix']);
-        if ($basename === '' || !bandpromo_media_reference_names_match($basename, $filename)) {
-            continue;
-        }
-
-        if (!bandpromo_media_reference_file_exists($root, $target, $filename)) {
+        if (!bandpromo_media_reference_same_visual_asset($root, $fileId, $raw)) {
             continue;
         }
 
@@ -360,24 +516,21 @@ function bandpromo_media_reference_collect_config_references(string $root, strin
 }
 
 /**
- * Scan brand/theme documents for shell media asset paths.
+ * Brand shell slot assignments keyed by asset id and listing filenames.
  *
- * @param string $pathPrefix e.g. media/special or media/sfx/original
- * @param string $filesTarget files-index target used for existence checks
- * @return list<array{scope:string,kind:string,label:string,brand_id?:string}>
+ * Library membership is not included — curated is not the same as used.
+ *
+ * @return array{by_asset_id: array<string, list<array>>, by_filename: array<string, list<array>>}
  */
-function bandpromo_media_reference_collect_brand_document_references(
-    string $root,
-    string $filename,
-    string $pathPrefix = 'media/special',
-    string $filesTarget = 'special'
-): array {
-    $safe = basename(trim($filename));
-    if ($safe === '') {
-        return [];
+function bandpromo_media_reference_build_brand_slot_index(string $root): array
+{
+    static $cache = [];
+    if (isset($cache[$root])) {
+        return $cache[$root];
     }
 
     require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
 
     $kindMap = [
         'logo' => ['kind' => 'brand-logo', 'label' => 'Logo'],
@@ -387,9 +540,33 @@ function bandpromo_media_reference_collect_brand_document_references(
         'welcome_audio' => ['kind' => 'welcome-audio', 'label' => 'Welcome audio'],
         'loggedin_audio' => ['kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
     ];
+    $deliveryBasenames = [
+        'thumb.jpg' => true,
+        'card.jpg' => true,
+        'huge.jpg' => true,
+        'thumb.png' => true,
+        'card.png' => true,
+        'huge.png' => true,
+        'poster.jpg' => true,
+        'standard-stream.mp4' => true,
+    ];
 
-    $references = [];
-    $seen = [];
+    $byAssetId = [];
+    $byFilename = [];
+
+    $indexRef = static function (array $ref, string $assetId, array $names) use (&$byAssetId, &$byFilename): void {
+        if ($assetId !== '') {
+            $byAssetId[$assetId][] = $ref;
+            return;
+        }
+        foreach ($names as $name) {
+            $name = basename(trim((string) $name));
+            if ($name === '' || $name === '.' || $name === '..') {
+                continue;
+            }
+            $byFilename[$name][] = $ref;
+        }
+    };
 
     try {
         bandpromo_theme_ensure_seeded($root);
@@ -397,7 +574,7 @@ function bandpromo_media_reference_collect_brand_document_references(
             if (!is_array($registryEntry)) {
                 continue;
             }
-            $brandId = trim((string) ($registryEntry['id'] ?? ''));
+            $brandId = bandpromo_brand_canonical_id((string) ($registryEntry['id'] ?? ''));
             if ($brandId === '') {
                 continue;
             }
@@ -407,34 +584,162 @@ function bandpromo_media_reference_collect_brand_document_references(
                 continue;
             }
             $brandTitle = trim((string) ($document['title'] ?? $brandId));
+            $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
             $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
-            foreach ($kindMap as $assetKey => $meta) {
-                $raw = trim((string) ($assets[$assetKey] ?? ''));
-                if ($raw === '' || !bandpromo_media_reference_path_matches_prefix($raw, $pathPrefix)) {
+            foreach ($kindMap as $slotKey => $meta) {
+                $slotAssetId = trim((string) ($assetIds[$slotKey] ?? ''));
+                $path = trim((string) ($assets[$slotKey] ?? ''));
+                if ($slotAssetId === '' && $path !== '') {
+                    $slotAssetId = bandpromo_theme_lookup_asset_id_for_path($root, $path);
+                }
+                if ($slotAssetId === '' && $path === '') {
                     continue;
                 }
-                $basename = bandpromo_media_reference_normalize_basename($raw, $pathPrefix);
-                if ($basename === '' || !bandpromo_media_reference_names_match($basename, $safe)) {
-                    continue;
-                }
-                if (!bandpromo_media_reference_file_exists($root, $filesTarget, $safe)) {
-                    continue;
-                }
-                $key = $brandId . '|' . $meta['kind'];
-                if (isset($seen[$key])) {
-                    continue;
-                }
-                $seen[$key] = true;
-                $references[] = [
+                $ref = [
                     'scope' => 'brand',
                     'kind' => $meta['kind'],
                     'label' => ($brandTitle !== '' ? $brandTitle : $brandId) . ' — ' . $meta['label'],
                     'brand_id' => $brandId,
                 ];
+                $names = [];
+                if ($slotAssetId !== '' && bandpromo_asset_is_asset_id($slotAssetId)) {
+                    $asset = bandpromo_asset_lookup_by_id($root, $slotAssetId);
+                    if (is_array($asset)) {
+                        $names[] = (string) ($asset['id'] ?? '');
+                        $names[] = (string) ($asset['original_filename'] ?? '');
+                        $names[] = (string) ($asset['master_filename'] ?? '');
+                    }
+                    $indexRef($ref, $slotAssetId, $names);
+                    continue;
+                }
+                $basename = $path !== '' ? basename($path) : '';
+                if ($basename !== '' && !isset($deliveryBasenames[strtolower($basename)])) {
+                    $indexRef($ref, '', [$basename]);
+                }
             }
         }
     } catch (Throwable $throwable) {
         // Theme registry may be missing during early setup.
+    }
+
+    return $cache[$root] = [
+        'by_asset_id' => $byAssetId,
+        'by_filename' => $byFilename,
+    ];
+}
+
+/**
+ * Shell-slot usage for a Files row (track covers / galleries stay on other collectors).
+ *
+ * @return list<array{scope:string,kind:string,label:string,brand_id:string}>
+ */
+function bandpromo_media_reference_collect_brand_slot_references(
+    string $root,
+    string $filename,
+    string $assetId = ''
+): array {
+    $safe = basename(trim($filename));
+    $assetId = trim($assetId);
+    if ($safe === '' && $assetId === '') {
+        return [];
+    }
+
+    require_once __DIR__ . '/asset-registry.php';
+
+    if ($assetId === '' && $safe !== '') {
+        $asset = bandpromo_asset_lookup_from_media_ref($root, $safe);
+        if (is_array($asset)) {
+            $assetId = trim((string) ($asset['id'] ?? ''));
+        }
+    }
+
+    $index = bandpromo_media_reference_build_brand_slot_index($root);
+    $references = [];
+    $seen = [];
+    $append = static function (array $incoming) use (&$references, &$seen): void {
+        foreach ($incoming as $reference) {
+            if (!is_array($reference)) {
+                continue;
+            }
+            $key = (string) ($reference['brand_id'] ?? '') . '|' . (string) ($reference['kind'] ?? '');
+            if ($key === '|' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $references[] = $reference;
+        }
+    };
+
+    if ($assetId !== '') {
+        $append($index['by_asset_id'][$assetId] ?? []);
+
+        return $references;
+    }
+    if ($safe !== '') {
+        $append($index['by_filename'][$safe] ?? []);
+    }
+
+    return $references;
+}
+
+/**
+ * Scan brand/theme documents for shell media asset paths.
+ *
+ * @param string $pathPrefix unused; kept for callers
+ * @param string $filesTarget unused; kept for callers
+ * @return list<array{scope:string,kind:string,label:string,brand_id?:string}>
+ */
+function bandpromo_media_reference_collect_brand_document_references(
+    string $root,
+    string $filename,
+    string $pathPrefix = 'media/special',
+    string $filesTarget = 'special'
+): array {
+    unset($pathPrefix, $filesTarget);
+
+    return bandpromo_media_reference_collect_brand_slot_references($root, $filename);
+}
+
+/**
+ * Treat curated Brand-library membership as a first-class media reference.
+ *
+ * @return list<array{scope:string,kind:string,label:string,brand_id:string}>
+ */
+function bandpromo_media_reference_collect_brand_library_references(string $root, string $assetId): array
+{
+    $assetId = trim($assetId);
+    if ($assetId === '') {
+        return [];
+    }
+
+    require_once __DIR__ . '/theme-storage.php';
+    $references = [];
+    try {
+        bandpromo_theme_ensure_seeded($root);
+        foreach (bandpromo_theme_registry_entries($root) as $registryEntry) {
+            if (!is_array($registryEntry)) {
+                continue;
+            }
+            $brandId = bandpromo_brand_canonical_id((string) ($registryEntry['id'] ?? ''));
+            if ($brandId === '') {
+                continue;
+            }
+            $document = bandpromo_theme_load_document($root, $brandId);
+            $library = is_array($document['library_asset_ids'] ?? null)
+                ? $document['library_asset_ids']
+                : [];
+            if (!in_array($assetId, $library, true)) {
+                continue;
+            }
+            $references[] = [
+                'scope' => 'brand',
+                'kind' => 'brand-library',
+                'label' => trim((string) ($document['title'] ?? $brandId)) . ' — Brand library',
+                'brand_id' => $brandId,
+            ];
+        }
+    } catch (Throwable $throwable) {
+        // Brand storage may be unavailable during early setup.
     }
 
     return $references;
@@ -454,7 +759,6 @@ function bandpromo_media_reference_build_track_visual_index(string $root): array
     }
 
     require_once __DIR__ . '/asset-registry.php';
-    require_once __DIR__ . '/living-cover-helpers.php';
 
     $covers = [];
     $livingCovers = [];
@@ -471,32 +775,32 @@ function bandpromo_media_reference_build_track_visual_index(string $root): array
             $label = $masterFile !== '' ? $masterFile : (string) ($asset['id'] ?? 'track');
         }
 
-        $cover = basename(trim((string) ($display['cover'] ?? '')));
+        $cover = trim((string) ($display['cover'] ?? ''));
         if ($cover !== '') {
-            if (!isset($covers[$cover])) {
-                $covers[$cover] = [];
-            }
-            $covers[$cover][] = [
+            $coverRef = [
                 'scope' => 'track',
                 'kind' => 'track-cover',
                 'label' => $label,
                 'audio_file' => $masterFile,
                 'asset_id' => (string) ($asset['id'] ?? ''),
             ];
+            foreach (bandpromo_media_reference_usage_lookup_keys($root, $cover) as $key) {
+                $covers[$key][] = $coverRef;
+            }
         }
 
-        $living = bandpromo_living_cover_normalize_video_filename((string) ($display['living_cover'] ?? ''));
+        $living = trim((string) ($display['living_cover'] ?? ''));
         if ($living !== '') {
-            if (!isset($livingCovers[$living])) {
-                $livingCovers[$living] = [];
-            }
-            $livingCovers[$living][] = [
+            $livingRef = [
                 'scope' => 'track',
                 'kind' => 'track-living-cover',
                 'label' => $label,
                 'audio_file' => $masterFile,
                 'asset_id' => (string) ($asset['id'] ?? ''),
             ];
+            foreach (bandpromo_media_reference_usage_lookup_keys($root, $living) as $key) {
+                $livingCovers[$key][] = $livingRef;
+            }
         }
     }
 
@@ -521,37 +825,40 @@ function bandpromo_media_reference_collect_track_visual_references(
         ? $trackVisualIndex
         : bandpromo_media_reference_build_track_visual_index($root);
 
+    $bucket = '';
     if ($target === 'illustrations' || $target === 'photos') {
-        return is_array($index['covers'][$safe] ?? null) ? $index['covers'][$safe] : [];
+        $bucket = 'covers';
+    } elseif ($target === 'video') {
+        $bucket = 'living_covers';
+    }
+    if ($bucket === '') {
+        return [];
     }
 
-    if ($target === 'video') {
-        return is_array($index['living_covers'][$safe] ?? null) ? $index['living_covers'][$safe] : [];
+    $references = [];
+    $seen = [];
+    foreach (bandpromo_media_reference_usage_lookup_keys($root, $safe) as $key) {
+        $hits = $index[$bucket][$key] ?? [];
+        if (!is_array($hits)) {
+            continue;
+        }
+        foreach ($hits as $reference) {
+            if (!is_array($reference)) {
+                continue;
+            }
+            $dedupe = (string) ($reference['kind'] ?? '')
+                . '|' . (string) ($reference['audio_file'] ?? '')
+                . '|' . (string) ($reference['asset_id'] ?? '')
+                . '|' . (string) ($reference['label'] ?? '');
+            if (isset($seen[$dedupe])) {
+                continue;
+            }
+            $seen[$dedupe] = true;
+            $references[] = $reference;
+        }
     }
 
-    return [];
-}
-
-function bandpromo_media_reference_basename_stem(string $filename): string
-{
-    return strtolower(pathinfo(basename(trim($filename)), PATHINFO_FILENAME));
-}
-
-function bandpromo_media_reference_names_match(string $candidate, string $filename): bool
-{
-    $candidate = basename(trim($candidate));
-    $filename = basename(trim($filename));
-    if ($candidate === '' || $filename === '') {
-        return false;
-    }
-    if (strcasecmp($candidate, $filename) === 0) {
-        return true;
-    }
-
-    $candidateStem = bandpromo_media_reference_basename_stem($candidate);
-    $filenameStem = bandpromo_media_reference_basename_stem($filename);
-
-    return $candidateStem !== '' && $candidateStem === $filenameStem;
+    return $references;
 }
 
 function bandpromo_media_reference_target_for_media_path(string $src): string
@@ -569,21 +876,28 @@ function bandpromo_media_reference_target_for_media_path(string $src): string
     if (stripos($src, '/media/img/') !== false) {
         return 'illustrations';
     }
+    if (stripos($src, '/media/visual/') !== false) {
+        if (preg_match('/\.(mp4|webm|mov|mkv)$/i', $src) === 1) {
+            return 'video';
+        }
+
+        return 'illustrations';
+    }
 
     return '';
 }
 
 /**
- * Page editor picture blocks reference /media/{img|photo}/optimal/… basenames.
+ * Page editor picture blocks and page posters. Index by Visual asset id /
+ * original / master — never by delivery basenames such as card.jpg.
  *
  * @return array<string, list<array>>
  */
-function bandpromo_media_reference_build_page_index(string $root, string $target): array
+function bandpromo_media_reference_build_page_index(string $root, string $target = ''): array
 {
     static $cache = [];
-    $cacheKey = $root . '|' . $target;
-    if (isset($cache[$cacheKey])) {
-        return $cache[$cacheKey];
+    if (isset($cache[$root]) && is_array($cache[$root])) {
+        return $cache[$root];
     }
 
     require_once __DIR__ . '/page-storage.php';
@@ -594,8 +908,21 @@ function bandpromo_media_reference_build_page_index(string $root, string $target
         bandpromo_page_seed_all_if_missing($root);
         $pageIds = bandpromo_page_registry_ids($root);
     } catch (Throwable $throwable) {
-        return $cache[$cacheKey] = $index;
+        return $cache[$root] = $index;
     }
+
+    $add = static function (array $keys, array $ref) use (&$index): void {
+        foreach ($keys as $key) {
+            $key = basename(trim((string) $key));
+            if ($key === '' || $key === '.' || $key === '..') {
+                continue;
+            }
+            if (!isset($index[$key])) {
+                $index[$key] = [];
+            }
+            $index[$key][] = $ref;
+        }
+    };
 
     foreach ($pageIds as $pageId) {
         $pageId = trim((string) $pageId);
@@ -610,6 +937,20 @@ function bandpromo_media_reference_build_page_index(string $root, string $target
         }
 
         $pageTitle = trim((string) ($document['title'] ?? $pageId));
+        $label = $pageTitle !== '' ? $pageTitle : $pageId;
+        $posterId = trim((string) ($document['poster_asset_id'] ?? ''));
+        if ($posterId !== '') {
+            $add(
+                [$posterId],
+                [
+                    'scope' => 'page',
+                    'kind' => 'page-poster',
+                    'label' => $label,
+                    'page_id' => $pageId,
+                ]
+            );
+        }
+
         $blocks = is_array($document['blocks'] ?? null) ? $document['blocks'] : [];
         foreach ($blocks as $block) {
             if (!is_array($block)) {
@@ -619,30 +960,23 @@ function bandpromo_media_reference_build_page_index(string $root, string $target
             if (!in_array($type, ['picture', 'picture_richtext', 'image'], true)) {
                 continue;
             }
-            $src = trim((string) ($block['src'] ?? ''));
-            if ($src === '') {
+            $assetId = bandpromo_media_reference_gallery_item_asset_id($root, $block);
+            $keys = $assetId !== ''
+                ? [$assetId]
+                : bandpromo_media_reference_gallery_item_candidate_filenames($root, $block);
+            if ($keys === []) {
                 continue;
             }
-            if (bandpromo_media_reference_target_for_media_path($src) !== $target) {
-                continue;
-            }
-            $basename = basename($src);
-            if ($basename === '') {
-                continue;
-            }
-            if (!isset($index[$basename])) {
-                $index[$basename] = [];
-            }
-            $index[$basename][] = [
+            $add($keys, [
                 'scope' => 'page',
                 'kind' => 'page-image',
-                'label' => $pageTitle !== '' ? $pageTitle : $pageId,
+                'label' => $label,
                 'page_id' => $pageId,
-            ];
+            ]);
         }
     }
 
-    return $cache[$cacheKey] = $index;
+    return $cache[$root] = $index;
 }
 
 function bandpromo_media_reference_collect_page_references(string $root, string $target, string $filename): array
@@ -655,23 +989,20 @@ function bandpromo_media_reference_collect_page_references(string $root, string 
     $index = bandpromo_media_reference_build_page_index($root, $target);
     $references = [];
     $seen = [];
-    $stem = bandpromo_media_reference_basename_stem($safe);
-
-    foreach ($index as $indexedName => $entries) {
-        if (!bandpromo_media_reference_names_match((string) $indexedName, $safe)
-            && !($stem !== '' && bandpromo_media_reference_basename_stem((string) $indexedName) === $stem)
-        ) {
+    foreach (bandpromo_media_reference_usage_lookup_keys($root, $safe) as $key) {
+        $entries = $index[$key] ?? [];
+        if (!is_array($entries)) {
             continue;
         }
         foreach ($entries as $entry) {
             if (!is_array($entry)) {
                 continue;
             }
-            $key = ($entry['page_id'] ?? '') . '|' . ($entry['kind'] ?? '');
-            if (isset($seen[$key])) {
+            $dedupe = (string) ($entry['page_id'] ?? '') . '|' . (string) ($entry['kind'] ?? '');
+            if (isset($seen[$dedupe])) {
                 continue;
             }
-            $seen[$key] = true;
+            $seen[$dedupe] = true;
             $references[] = $entry;
         }
     }
@@ -724,18 +1055,13 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
     $references = [];
     $seen = [];
 
-    $appendMatch = static function (array $entry, array $candidates) use (&$references, &$seen, $safe, $root, $target): void {
-        if (!bandpromo_media_reference_file_exists($root, $target, $safe)) {
-            return;
-        }
-        $matched = false;
-        foreach ($candidates as $candidate) {
-            if (bandpromo_media_reference_names_match((string) $candidate, $safe)) {
-                $matched = true;
-                break;
-            }
-        }
-        if (!$matched) {
+    $fileId = bandpromo_media_reference_listing_asset_id($root, $safe);
+    if ($fileId === '') {
+        return [];
+    }
+
+    $appendMatch = static function (array $entry, string $ref) use (&$references, &$seen, $root, $fileId): void {
+        if (!bandpromo_media_reference_same_visual_asset($root, $fileId, $ref)) {
             return;
         }
         $key = ($entry['kind'] ?? '') . '|' . ($entry['container_id'] ?? '') . '|' . ($entry['label'] ?? '');
@@ -769,7 +1095,7 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
                     'kind' => 'release-poster',
                     'label' => $title !== '' ? $title : $releaseId,
                     'container_id' => $releaseId,
-                ], bandpromo_media_reference_poster_candidate_filenames($root, $posterId));
+                ], $posterId);
             }
             $pressIds = is_array($document['epk']['press_photo_asset_ids'] ?? null)
                 ? $document['epk']['press_photo_asset_ids']
@@ -784,7 +1110,7 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
                     'kind' => 'release-press-photo',
                     'label' => ($title !== '' ? $title : $releaseId) . ' (press)',
                     'container_id' => $releaseId,
-                ], bandpromo_media_reference_poster_candidate_filenames($root, $pressId));
+                ], $pressId);
             }
         }
     } catch (Throwable $throwable) {
@@ -816,7 +1142,7 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
                 'kind' => 'playlist-poster',
                 'label' => $title !== '' ? $title : $playlistId,
                 'container_id' => $playlistId,
-            ], bandpromo_media_reference_poster_candidate_filenames($root, $posterId));
+            ], $posterId);
         }
     } catch (Throwable $throwable) {
         // Playlist registry may be missing during early setup.
@@ -860,11 +1186,12 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
 
     if ($target === 'illustrations') {
         $safe = basename($filename);
-        if (is_array($galleryReferenceIndex)) {
-            $references = $galleryReferenceIndex[$safe] ?? [];
-        } else {
-            $references = bandpromo_media_reference_collect_gallery_references($root, $target, $safe);
-        }
+        $references = bandpromo_media_reference_collect_gallery_references(
+            $root,
+            $target,
+            $safe,
+            is_array($galleryReferenceIndex) ? $galleryReferenceIndex : null
+        );
         foreach (bandpromo_cover_art_collect_references($root, $filename, $trackVisualIndex) as $reference) {
             $references[] = $reference;
         }
@@ -872,6 +1199,9 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
             $references[] = $reference;
         }
         foreach (bandpromo_media_reference_collect_poster_references($root, $target, $filename) as $reference) {
+            $references[] = $reference;
+        }
+        foreach (bandpromo_media_reference_collect_brand_slot_references($root, $safe) as $reference) {
             $references[] = $reference;
         }
 
@@ -883,11 +1213,12 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
         return [];
     }
 
-    if (is_array($galleryReferenceIndex)) {
-        $references = $galleryReferenceIndex[$safe] ?? [];
-    } else {
-        $references = bandpromo_media_reference_collect_gallery_references($root, $target, $safe);
-    }
+    $references = bandpromo_media_reference_collect_gallery_references(
+        $root,
+        $target,
+        $safe,
+        is_array($galleryReferenceIndex) ? $galleryReferenceIndex : null
+    );
     foreach (bandpromo_media_reference_collect_config_references($root, $target, $safe) as $reference) {
         $references[] = $reference;
     }
@@ -898,6 +1229,9 @@ function bandpromo_media_reference_collect_references(string $root, string $targ
         $references[] = $reference;
     }
     foreach (bandpromo_media_reference_collect_poster_references($root, $target, $safe) as $reference) {
+        $references[] = $reference;
+    }
+    foreach (bandpromo_media_reference_collect_brand_slot_references($root, $safe) as $reference) {
         $references[] = $reference;
     }
 

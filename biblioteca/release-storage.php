@@ -564,6 +564,7 @@ function &bandpromo_release_runtime_cache(string $root): array
             'registry' => null,
             'documents' => [],
             'membership_index' => null,
+            'visual_membership_index' => null,
         ];
     }
 
@@ -575,6 +576,7 @@ function bandpromo_release_invalidate_runtime_cache(string $root, ?string $relea
     $cache = &bandpromo_release_runtime_cache($root);
     $cache['registry'] = null;
     $cache['membership_index'] = null;
+    $cache['visual_membership_index'] = null;
     if ($releaseId === null) {
         $cache['documents'] = [];
 
@@ -901,6 +903,421 @@ function bandpromo_release_id_for_brand_owned_asset(string $root, string $brandI
     }
 
     return '';
+}
+
+/**
+ * Resolve a cover/poster/page ref to a Visual asset id.
+ */
+function bandpromo_release_visual_asset_id_from_ref(string $root, string $ref): string
+{
+    $ref = trim($ref);
+    if ($ref === '') {
+        return '';
+    }
+
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (!is_array($asset) || strtolower((string) ($asset['kind'] ?? '')) !== 'visual') {
+        return '';
+    }
+
+    return trim((string) ($asset['id'] ?? ''));
+}
+
+/**
+ * Visual Brand shell slots (logo, poster, still/living) → asset ids.
+ * Library membership and SFX slots are not included.
+ *
+ * @return array<string, string> slot => asset_id
+ */
+function bandpromo_release_visual_shell_slot_asset_ids(string $root, array $document): array
+{
+    require_once __DIR__ . '/theme-storage.php';
+
+    $slots = ['logo', 'poster', 'background_image', 'background_video'];
+    $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
+    $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+    $out = [];
+    foreach ($slots as $slotKey) {
+        $slotAssetId = trim((string) ($assetIds[$slotKey] ?? ''));
+        $path = trim((string) ($assets[$slotKey] ?? ''));
+        if ($slotAssetId === '' && $path !== '') {
+            $slotAssetId = bandpromo_theme_lookup_asset_id_for_path($root, $path);
+        }
+        if ($slotAssetId === '') {
+            continue;
+        }
+        $asset = bandpromo_asset_lookup_by_id($root, $slotAssetId);
+        if (!is_array($asset) || strtolower((string) ($asset['kind'] ?? '')) !== 'visual') {
+            continue;
+        }
+        $id = trim((string) ($asset['id'] ?? ''));
+        if ($id !== '') {
+            $out[$slotKey] = $id;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * Maps visual asset_id to campaign memberships from release-owned usage
+ * (galleries, posters, press photos, playlist posters, page pictures,
+ * track covers / living covers) plus Brand visual shell slots those
+ * campaigns actually play. Empty Brand slots inherit the install Base
+ * brand (login / player fallback). Brand library membership is not
+ * catalogue — owning Brand on the asset is not either.
+ *
+ * @return array<string, list<array{release_id: string, release_title: string, release_date: string}>>
+ */
+function bandpromo_release_visual_membership_index(string $root): array
+{
+    $cache = &bandpromo_release_runtime_cache($root);
+    if (is_array($cache['visual_membership_index'] ?? null)) {
+        return $cache['visual_membership_index'];
+    }
+
+    require_once __DIR__ . '/gallery-storage.php';
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/page-storage.php';
+    require_once __DIR__ . '/media-reference-helpers.php';
+    require_once __DIR__ . '/living-cover-helpers.php';
+
+    $index = [];
+    $add = static function (string $assetId, string $releaseId, string $title, string $date) use (&$index): void {
+        $assetId = trim($assetId);
+        $releaseId = bandpromo_release_normalize_id($releaseId);
+        if ($assetId === '' || $releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+            return;
+        }
+        if (!isset($index[$assetId])) {
+            $index[$assetId] = [];
+        }
+        foreach ($index[$assetId] as $existing) {
+            if (($existing['release_id'] ?? '') === $releaseId) {
+                return;
+            }
+        }
+        $index[$assetId][] = [
+            'release_id' => $releaseId,
+            'release_title' => $title,
+            'release_date' => $date,
+        ];
+    };
+    $addRef = static function (string $ref, string $releaseId, string $title, string $date) use ($root, $add): void {
+        $assetId = bandpromo_release_visual_asset_id_from_ref($root, $ref);
+        if ($assetId !== '') {
+            $add($assetId, $releaseId, $title, $date);
+        }
+    };
+
+    $releaseMeta = [];
+    foreach (bandpromo_release_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+            continue;
+        }
+        try {
+            $document = bandpromo_release_load_document($root, $releaseId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $title = trim((string) ($document['title'] ?? ''));
+        $date = trim((string) ($document['release_date'] ?? ''));
+        $releaseMeta[$releaseId] = [
+            'title' => $title,
+            'date' => $date,
+            'brand_id' => bandpromo_brand_canonical_id((string) ($document['brand_id'] ?? '')),
+        ];
+        $addRef((string) ($document['poster_asset_id'] ?? ''), $releaseId, $title, $date);
+        $pressIds = is_array($document['epk']['press_photo_asset_ids'] ?? null)
+            ? $document['epk']['press_photo_asset_ids']
+            : [];
+        foreach ($pressIds as $pressId) {
+            $addRef((string) $pressId, $releaseId, $title, $date);
+        }
+    }
+
+    try {
+        foreach (bandpromo_gallery_registry_entries($root) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+            if ($galleryId === '') {
+                continue;
+            }
+            try {
+                $doc = bandpromo_gallery_load_document($root, $galleryId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $releaseId = bandpromo_release_normalize_id((string) ($doc['release_id'] ?? ''));
+            if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
+                continue;
+            }
+            $title = $releaseMeta[$releaseId]['title'];
+            $date = $releaseMeta[$releaseId]['date'];
+            foreach (is_array($doc['entries'] ?? null) ? $doc['entries'] : [] as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $assetId = bandpromo_media_reference_gallery_item_asset_id($root, $row);
+                if ($assetId !== '') {
+                    $add($assetId, $releaseId, $title, $date);
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Gallery registry may be missing during early setup.
+    }
+
+    try {
+        foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+            if ($playlistId === '') {
+                continue;
+            }
+            try {
+                $doc = bandpromo_playlist_load_document($root, $playlistId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $releaseId = bandpromo_release_normalize_id((string) ($doc['release_id'] ?? ''));
+            if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
+                continue;
+            }
+            $addRef(
+                (string) ($doc['poster_asset_id'] ?? ''),
+                $releaseId,
+                $releaseMeta[$releaseId]['title'],
+                $releaseMeta[$releaseId]['date']
+            );
+        }
+    } catch (Throwable $throwable) {
+        // Playlist registry may be missing during early setup.
+    }
+
+    try {
+        foreach (bandpromo_page_registry_ids($root) as $pageId) {
+            try {
+                $doc = bandpromo_page_load_document($root, $pageId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $releaseId = bandpromo_release_normalize_id((string) ($doc['release_id'] ?? ''));
+            if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
+                continue;
+            }
+            $title = $releaseMeta[$releaseId]['title'];
+            $date = $releaseMeta[$releaseId]['date'];
+            $addRef((string) ($doc['poster_asset_id'] ?? ''), $releaseId, $title, $date);
+            foreach (is_array($doc['blocks'] ?? null) ? $doc['blocks'] : [] as $block) {
+                if (is_array($block)) {
+                    $addRef((string) ($block['asset_id'] ?? ''), $releaseId, $title, $date);
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Page registry may be missing during early setup.
+    }
+
+    $audioMembership = bandpromo_release_asset_membership_index($root);
+    foreach ($audioMembership as $audioAssetId => $memberships) {
+        $audio = bandpromo_asset_lookup_by_id($root, (string) $audioAssetId);
+        if (!is_array($audio) || strtolower((string) ($audio['kind'] ?? '')) !== 'audio') {
+            continue;
+        }
+        $display = bandpromo_asset_read_audio_display($audio);
+        $coverRef = trim((string) ($display['cover'] ?? ''));
+        $livingRef = bandpromo_living_cover_normalize_video_filename((string) ($display['living_cover'] ?? ''));
+        foreach ($memberships as $membership) {
+            if (!is_array($membership)) {
+                continue;
+            }
+            $releaseId = bandpromo_release_normalize_id((string) ($membership['release_id'] ?? ''));
+            if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
+                continue;
+            }
+            $title = $releaseMeta[$releaseId]['title'];
+            $date = $releaseMeta[$releaseId]['date'];
+            if ($coverRef !== '') {
+                $addRef($coverRef, $releaseId, $title, $date);
+            }
+            if ($livingRef !== '') {
+                $addRef($livingRef, $releaseId, $title, $date);
+            }
+        }
+    }
+
+    require_once __DIR__ . '/theme-storage.php';
+    $brandSlotAssets = [];
+    try {
+        bandpromo_theme_ensure_seeded($root);
+        foreach (bandpromo_theme_registry_entries($root) as $registryEntry) {
+            if (!is_array($registryEntry)) {
+                continue;
+            }
+            $brandId = bandpromo_brand_canonical_id((string) ($registryEntry['id'] ?? ''));
+            if ($brandId === '') {
+                continue;
+            }
+            try {
+                $brandDocument = bandpromo_theme_load_document($root, $brandId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $brandSlotAssets[$brandId] = bandpromo_release_visual_shell_slot_asset_ids($root, $brandDocument);
+        }
+    } catch (Throwable $throwable) {
+        $brandSlotAssets = [];
+    }
+
+    $baseBrandId = bandpromo_brand_canonical_id(bandpromo_brand_active_id($root));
+    if ($baseBrandId === '') {
+        $baseBrandId = BANDPROMO_BRAND_DEFAULT_ID;
+    }
+    $baseSlots = $brandSlotAssets[$baseBrandId] ?? [];
+    $visualShellSlots = ['logo', 'poster', 'background_image', 'background_video'];
+    foreach ($releaseMeta as $releaseId => $meta) {
+        if (!is_array($meta)) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($meta['brand_id'] ?? ''));
+        if ($brandId === '' || !isset($brandSlotAssets[$brandId])) {
+            $brandId = $baseBrandId;
+        }
+        $brandSlots = $brandSlotAssets[$brandId] ?? [];
+        foreach ($visualShellSlots as $slotKey) {
+            $slotAssetId = trim((string) ($brandSlots[$slotKey] ?? ''));
+            if ($slotAssetId === '') {
+                $slotAssetId = trim((string) ($baseSlots[$slotKey] ?? ''));
+            }
+            if ($slotAssetId !== '') {
+                $add(
+                    $slotAssetId,
+                    (string) $releaseId,
+                    (string) ($meta['title'] ?? ''),
+                    (string) ($meta['date'] ?? '')
+                );
+            }
+        }
+    }
+
+    $cache['visual_membership_index'] = $index;
+
+    return $cache['visual_membership_index'];
+}
+
+/**
+ * Catalogue labels for a Visual pool row. Campaign usage wins (gallery,
+ * cover, poster, page, plus Brand visual shell those campaigns play,
+ * including Base-brand fallback for empty slots). Brand library membership
+ * is not a campaign, but it is not Orphan either — unused library files
+ * list the Brand title(s). Stored asset.release_id is only a fallback when
+ * nothing uses the file. The invisible `primary` bucket is never catalogue.
+ *
+ * @return array{release_id: string, release_ids: list<string>, release_title: string, release_date: string, release_orphan: bool}
+ */
+function bandpromo_release_visual_listing_meta(string $root, string $assetId, string $storedReleaseId = ''): array
+{
+    $empty = [
+        'release_id' => '',
+        'release_ids' => [],
+        'release_title' => '',
+        'release_date' => '',
+        'release_orphan' => true,
+    ];
+
+    $assetId = trim($assetId);
+    $storedReleaseId = bandpromo_release_normalize_id($storedReleaseId);
+    if ($storedReleaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+        $storedReleaseId = '';
+    }
+
+    $memberships = $assetId !== ''
+        ? (bandpromo_release_visual_membership_index($root)[$assetId] ?? [])
+        : [];
+
+    if ($memberships === [] && $storedReleaseId !== '') {
+        try {
+            $document = bandpromo_release_load_document($root, $storedReleaseId);
+            $memberships = [[
+                'release_id' => $storedReleaseId,
+                'release_title' => trim((string) ($document['title'] ?? '')),
+                'release_date' => trim((string) ($document['release_date'] ?? '')),
+            ]];
+        } catch (Throwable $throwable) {
+            $memberships = [];
+        }
+    }
+
+    if ($memberships === []) {
+        $library = $assetId !== ''
+            ? (bandpromo_brand_library_membership_index($root)[$assetId] ?? [])
+            : [];
+        $brandTitles = [];
+        foreach ($library as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $title = trim((string) ($row['brand_title'] ?? ''));
+            if ($title === '') {
+                $title = trim((string) ($row['brand_id'] ?? ''));
+            }
+            if ($title !== '' && !in_array($title, $brandTitles, true)) {
+                $brandTitles[] = $title;
+            }
+        }
+        if ($brandTitles !== []) {
+            return [
+                'release_id' => '',
+                'release_ids' => [],
+                'release_title' => implode("\n", $brandTitles),
+                'release_date' => '',
+                'release_orphan' => false,
+            ];
+        }
+
+        return $empty;
+    }
+
+    $ids = [];
+    $titles = [];
+    $firstDate = '';
+    foreach ($memberships as $membership) {
+        if (!is_array($membership)) {
+            continue;
+        }
+        $releaseId = bandpromo_release_normalize_id((string) ($membership['release_id'] ?? ''));
+        if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID || isset($ids[$releaseId])) {
+            continue;
+        }
+        $ids[$releaseId] = true;
+        $title = trim((string) ($membership['release_title'] ?? ''));
+        $titles[] = $title !== '' ? $title : $releaseId;
+        if ($firstDate === '') {
+            $firstDate = trim((string) ($membership['release_date'] ?? ''));
+        }
+    }
+
+    $idList = array_keys($ids);
+    if ($idList === []) {
+        return $empty;
+    }
+
+    return [
+        'release_id' => $idList[0],
+        'release_ids' => $idList,
+        'release_title' => implode("\n", $titles),
+        'release_date' => $firstDate,
+        'release_orphan' => false,
+    ];
 }
 
 function bandpromo_release_normalize_pool_filter(string $value): string

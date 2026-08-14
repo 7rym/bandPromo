@@ -71,6 +71,7 @@ Admin analytics **must** read rollups for dashboard cards and charts. Raw `event
 
 - **Client batching** (v0.8): flush buffered events every few seconds and on `session_end`, not one HTTP POST per micro-event.
 - **Event tiers:** hot (play/session boundaries) vs warm (pause, environment) — warm events batch first.
+- **Same session store as login/player** — `log.php` uses `bandpromo_ensure_session_started()` (Windows: `%LOCALAPPDATA%/bandPromo/php-sessions`). A 401 from logging must not expire the player UI.
 - **Rate limiting** on the log ingest endpoint.
 - **Burst-safe writes:** SQLite transactions with multi-row INSERT preferred over thousands of single-row file locks.
 

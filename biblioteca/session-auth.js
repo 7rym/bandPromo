@@ -30,6 +30,10 @@
                 return false;
             }
 
+            if (parsed.pathname === '/biblioteca/log.php') {
+                return false;
+            }
+
             return parsed.pathname.startsWith('/biblioteca/')
                 || parsed.pathname.startsWith('/play/');
         } catch (_error) {

@@ -443,6 +443,8 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
             'original_filename' => $originalFilename,
             'master_filename' => $masterFilename,
             'master_format' => strtolower(trim((string) ($entry['master_format'] ?? pathinfo($originalFilename, PATHINFO_EXTENSION)))),
+            'master_width' => max(0, (int) ($entry['master_width'] ?? 0)),
+            'master_height' => max(0, (int) ($entry['master_height'] ?? 0)),
             'release_id' => trim((string) ($entry['release_id'] ?? '')),
             'slug' => trim((string) ($entry['slug'] ?? '')),
             'display' => bandpromo_asset_normalize_visual_display(
@@ -887,6 +889,11 @@ function bandpromo_asset_register_visual(
         throw new InvalidArgumentException('Visual registration requires filename and intake bucket.');
     }
 
+    require_once __DIR__ . '/media-library-state.php';
+    if (bandpromo_media_is_generated_delivery_artifact($originalFilename)) {
+        throw new InvalidArgumentException('Generated share and delivery crops are not Visual originals.');
+    }
+
     if ($mediaType === '') {
         $mediaType = bandpromo_asset_infer_media_type_from_filename($originalFilename);
     }
@@ -1050,6 +1057,11 @@ function bandpromo_asset_update_entry(string $root, string $assetId, array $chan
     foreach (['release_id', 'slug', 'original_filename', 'brand_id', 'media_type', 'intake_bucket', 'master_filename', 'master_format'] as $key) {
         if (array_key_exists($key, $changes)) {
             $entry[$key] = trim((string) $changes[$key]);
+        }
+    }
+    foreach (['master_width', 'master_height'] as $key) {
+        if (array_key_exists($key, $changes)) {
+            $entry[$key] = max(0, (int) $changes[$key]);
         }
     }
     if (array_key_exists('role', $changes)) {
@@ -1753,6 +1765,8 @@ function bandpromo_asset_reconcile_audio_originals(string $root): void
  */
 function bandpromo_asset_registry_backfill_visuals(string $root, array &$registry): bool
 {
+    require_once __DIR__ . '/media-library-state.php';
+
     $imageExts = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
     $videoExts = ['mp4', 'webm', 'mov'];
     $changed = false;
@@ -1782,6 +1796,9 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
 
             $ext = strtolower((string) pathinfo($entry, PATHINFO_EXTENSION));
             if (!in_array($ext, $allowedExts, true)) {
+                continue;
+            }
+            if (bandpromo_media_is_generated_delivery_artifact($entry)) {
                 continue;
             }
 

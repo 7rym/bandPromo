@@ -117,32 +117,20 @@
             messageEl.textContent = text;
             toast.appendChild(messageEl);
 
-            const isSticky = kind === 'warning' || kind === 'error';
-            let hideTimer = null;
             const dismissToast = () => {
-                if (hideTimer) {
-                    window.clearTimeout(hideTimer);
-                    hideTimer = null;
-                }
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(-4px)';
                 toast.style.transition = 'opacity 150ms ease, transform 150ms ease';
                 window.setTimeout(() => toast.remove(), 180);
             };
-            if (isSticky) {
-                const dismissBtn = document.createElement('button');
-                dismissBtn.type = 'button';
-                dismissBtn.className = 'admin-toast-dismiss';
-                dismissBtn.setAttribute('aria-label', 'Dismiss notification');
-                dismissBtn.textContent = '×';
-                dismissBtn.addEventListener('click', dismissToast);
-                toast.appendChild(dismissBtn);
-            }
+            const dismissBtn = document.createElement('button');
+            dismissBtn.type = 'button';
+            dismissBtn.className = 'admin-toast-dismiss';
+            dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+            dismissBtn.textContent = '×';
+            dismissBtn.addEventListener('click', dismissToast);
+            toast.appendChild(dismissBtn);
             toastHost.appendChild(toast);
-            hideTimer = window.setTimeout(
-                dismissToast,
-                isSticky ? Math.min(20000, Math.max(10000, 80 * text.length)) : 4500
-            );
         }
 
         function notifyThemeError(message) {
@@ -449,10 +437,15 @@
         }
 
         function mediaKindFromPath(path) {
+            const raw = String(path || '').trim().replace(/\\/g, '/').toLowerCase();
             const name = assetBasename(path).toLowerCase();
+            if (/\/media\/visual\/delivery\/.+\/standard-stream/.test(raw) || /\.(mp4|webm|mov|m4v|ogv|mkv)$/i.test(name)) {
+                return 'video';
+            }
             if (/\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(name)) return 'image';
-            if (/\.(mp4|webm|mov|m4v|ogv)$/i.test(name)) return 'video';
             if (/\.(mp3|flac|wav|ogg|m4a|aac|aiff?)$/i.test(name)) return 'audio';
+            if (raw.includes('/media/sfx/optimal/')) return 'audio';
+            if (raw.includes('/media/visual/delivery/')) return 'image';
             return 'other';
         }
 
@@ -546,7 +539,7 @@
                 return `<img class="theme-shell-slot-thumb" src="${escapeHtml(path)}" alt="" loading="lazy">`;
             }
             if (kind === 'video') {
-                return `<video class="theme-shell-slot-thumb" src="${escapeHtml(path)}" muted loop playsinline preload="metadata"></video>`;
+                return `<video class="theme-shell-slot-thumb" src="${escapeHtml(path)}" muted loop playsinline autoplay preload="auto"></video>`;
             }
             return `<div class="theme-shell-slot-empty theme-shell-slot-empty--audio" aria-hidden="true">♪</div>
                 <span class="theme-shell-slot-status">Sound effect assigned</span>
@@ -566,6 +559,7 @@
                             data-title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
                             data-targets="${escapeHtml(field.pickerTargets || 'special')}"
                             data-accept="${escapeHtml(field.accept.join(','))}"
+                            data-brand="${escapeHtml(String(editorDocument?.id || ''))}"
                             title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
                             aria-label="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}">✎</button>`
                     : '';
@@ -602,7 +596,7 @@
 
             const slotHint = locked
                 ? 'bandPromo Default is locked — shell media cannot be changed here.'
-                : 'Click ✎ on a slot to choose media. Upload stills and living video under Files → Brand assets; shell audio under Sound effects.';
+                : 'Click ✎ on a slot to choose compatible media already curated under Files → Brand assets.';
 
             return `
                 <div class="theme-editor-section theme-editor-section--shell-media">
@@ -662,19 +656,22 @@
             const media = slot.querySelector('.theme-shell-slot-media');
             if (media) {
                 media.innerHTML = renderShellSlotPreviewHtml(field, value);
+                if (window.bandpromoThemePreview?.startVideos) {
+                    window.bandpromoThemePreview.startVideos(media);
+                }
             }
             slot.classList.toggle('is-filled', !!value);
         }
 
-        function setShellAssetValue(key, path, { silent = false, assetId = '' } = {}) {
+        function setShellAssetValue(key, path, { silent = false, assetId = '', kind = '' } = {}) {
             if (!editorDocument || !themeMayEdit(editorDocument)) return false;
             const field = shellFieldByKey(key);
             if (!field) return false;
             const next = String(path || '').trim();
             const nextAssetId = String(assetId || '').trim();
             if (next) {
-                const kind = mediaKindFromPath(next);
-                if (!shellSlotAcceptsKind(field, kind)) {
+                const resolvedKind = String(kind || '').trim() || mediaKindFromPath(next);
+                if (!shellSlotAcceptsKind(field, resolvedKind)) {
                     if (!silent) {
                         notifyThemeError(`${field.label} accepts ${field.accept.map(kindLabel).join(' / ')} only.`);
                     }
@@ -702,6 +699,9 @@
         }
 
         function bindShellMediaUi() {
+            if (window.bandpromoThemePreview?.startVideos) {
+                window.bandpromoThemePreview.startVideos(formEl);
+            }
             // Listen works even when the brand is locked (preview only).
             formEl.querySelectorAll('[data-shell-listen]').forEach((button) => {
                 button.addEventListener('click', (event) => {
@@ -735,8 +735,11 @@
                 });
             });
 
-            window.bandpromoShellMediaPicked = function bandpromoShellMediaPicked(key, path, assetId) {
-                setShellAssetValue(String(key || ''), path, { assetId: String(assetId || '') });
+            window.bandpromoShellMediaPicked = function bandpromoShellMediaPicked(key, path, assetId, kind) {
+                setShellAssetValue(String(key || ''), path, {
+                    assetId: String(assetId || ''),
+                    kind: String(kind || ''),
+                });
             };
         }
 

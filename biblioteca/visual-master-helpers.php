@@ -128,16 +128,26 @@ function bandpromo_visual_relocate_original(string $root, array $asset): array
 
     bandpromo_visual_ensure_tier_dirs($root);
     $dest = bandpromo_visual_unified_original_path($root, $originalFilename);
+    $source = bandpromo_asset_visual_legacy_original_path($root, $asset);
+
+    if (is_file($source)) {
+        if (!is_file($dest)) {
+            return bandpromo_visual_copy_file_idempotent($source, $dest);
+        }
+        $sourceMtime = @filemtime($source);
+        $destMtime = @filemtime($dest);
+        if ($sourceMtime !== false && $destMtime !== false && (int) $sourceMtime > (int) $destMtime) {
+            return bandpromo_visual_copy_file_idempotent($source, $dest);
+        }
+
+        return ['ok' => true, 'path' => $dest, 'copied' => false];
+    }
+
     if (is_file($dest)) {
         return ['ok' => true, 'path' => $dest, 'copied' => false];
     }
 
-    $source = bandpromo_asset_visual_legacy_original_path($root, $asset);
-    if ($source === '' || !is_file($source)) {
-        return ['ok' => false, 'path' => $dest, 'copied' => false, 'error' => 'Legacy original missing'];
-    }
-
-    return bandpromo_visual_copy_file_idempotent($source, $dest);
+    return ['ok' => false, 'path' => $dest, 'copied' => false, 'error' => 'Legacy original missing'];
 }
 
 /**
@@ -231,7 +241,17 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
             }
         }
     } else {
-        $copy = bandpromo_visual_copy_file_idempotent($working, $masterPath);
+        $sourceForMaster = ($unified !== '' && is_file($unified)) ? $unified : $working;
+        if ($sourceForMaster === '') {
+            return [
+                'ok' => false,
+                'asset' => null,
+                'copied' => false,
+                'changed_registry' => false,
+                'error' => 'No source bytes',
+            ];
+        }
+        $copy = bandpromo_visual_copy_file_idempotent($sourceForMaster, $masterPath);
         if (empty($copy['ok'])) {
             return [
                 'ok' => false,

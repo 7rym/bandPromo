@@ -147,13 +147,14 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
         return $root_dir . '/media/video/original/' . $safe_name;
     }
 
-    if ($target_hint === 'photos') {
-        return $root_dir . '/media/photo/original/' . $safe_name;
-    }
-
     if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
-        // visual (and bare image uploads) land in the legacy illustrations intake bucket
-        return $root_dir . '/media/img/original/' . $safe_name;
+        if ($target_hint === 'photos') {
+            return $root_dir . '/media/photo/original/' . $safe_name;
+        }
+        require_once __DIR__ . '/visual-master-helpers.php';
+        bandpromo_visual_ensure_tier_dirs($root_dir);
+
+        return bandpromo_visual_unified_original_dir($root_dir) . DIRECTORY_SEPARATOR . $safe_name;
     }
 
     return null;
