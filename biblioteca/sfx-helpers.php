@@ -209,7 +209,23 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
 
     $assetId = trim((string) ($asset['id'] ?? ''));
     $originalFilename = basename((string) ($asset['original_filename'] ?? ''));
-    if ($assetId === '' || $originalFilename === '' || !bandpromo_asset_is_asset_id($assetId)) {
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return ['ok' => false, 'asset' => $asset, 'warning' => 'Invalid sound-effect asset.'];
+    }
+
+    bandpromo_sfx_ensure_tier_dirs($root);
+    $existingMaster = basename((string) ($asset['master_filename'] ?? ''));
+    $existingMasterPath = $existingMaster !== ''
+        ? bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $existingMaster
+        : '';
+    $source = $originalFilename !== ''
+        ? bandpromo_sfx_original_dir($root) . DIRECTORY_SEPARATOR . $originalFilename
+        : '';
+    // PRP / masters-only installs have no original; encode delivery from the master.
+    if (($source === '' || !is_file($source)) && $existingMasterPath !== '' && is_file($existingMasterPath)) {
+        return ['ok' => true, 'asset' => $asset, 'path' => $existingMasterPath];
+    }
+    if ($originalFilename === '') {
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Invalid sound-effect asset.'];
     }
 
@@ -226,8 +242,6 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Missing sound-effect format.'];
     }
 
-    bandpromo_sfx_ensure_tier_dirs($root);
-    $source = bandpromo_sfx_original_dir($root) . DIRECTORY_SEPARATOR . $originalFilename;
     if (!is_file($source)) {
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Sound-effect original missing: ' . $originalFilename];
     }

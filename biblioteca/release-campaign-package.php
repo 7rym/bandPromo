@@ -274,6 +274,13 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         // Listing heals on the next Files GET via ensure_target.
     }
 
+    require_once __DIR__ . '/sfx-helpers.php';
+    try {
+        bandpromo_sfx_backfill_tiers($root);
+    } catch (Throwable $throwable) {
+        // SFX delivery can heal on Files list / upload; masters are already imported.
+    }
+
     return [
         'ok' => true,
         'release_id' => $targetReleaseId,

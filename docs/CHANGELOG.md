@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-14 20:52 - Ship SFX masters-only delivery on `main` as **v0.8.24 build 390** so Demo PRP fresh installs get login `media/sfx/optimal/{ast_*}.mp3`.
+
+2026-08-14 20:50 - Fresh-install: SFX delivery encodes from the imported master when `media/sfx/original/` is absent (PRP is masters-only); PRP import backfills `media/sfx/optimal/{ast_*}.mp3`.
+
 2026-08-14 20:45 - Checkpoint Files → Visual usage-by-`ast_*`, Brand library, Branding delivery picks, and Files download reliability on `main` as **v0.8.24 build 389**; trigger GitHub Release `v0.8.24-build-389` and refresh durable `demo-content` PRP.
 
 2026-08-14 20:40 - Docs: Visual In use / Catalogue identity is the registry `ast_*` id (ADMIN-UI, FEATURES, MEDIA-HANDLING). Ready to checkpoint and refresh Demo PRP.
