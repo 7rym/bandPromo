@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-15 22:05 - Setup/Publish social-assets: empty `social.share_image` no longer resolves to the site root (IsADirectoryError crash); missing poster/share source warns and continues so first-run setup can Finish, then operators fix Branding → Shell media and rebuild. 
+
+2026-08-15 09:55 - Fix Spandexual/PRP track covers: playlist build no longer treats audio `ast_*` (or missing) refs in `display.cover` as assigned Visual covers, so embedded FLAC art can extract and link; resolve `ast_*.ext` cover refs to real Visual ids; persist/re-resolve `cover_url` for the player. Admin Open site ignores `install.site.url` when it is still `example.com` and prefers `site.url` / localhost.
+
+2026-08-15 09:45 - Track platform favicon seed at `biblioteca/templates/icons/bP-icons.zip` (not under `/media`). Build, setup, and release packaging expand it into gitignored `media/icons/`; CI no longer seeds icons from the previous app ZIP.
+
+2026-08-14 21:20 - Local PRP import hang: PHP built-in server used 2M/8M upload caps (Spandexual `.prp` ~378MB → “Failed to fetch”); raise dev-server + runtime `user.ini` ceilings, always dispatch backup/PRP jobs without requiring `fastcgi_finish_request`, surface size-limit errors, and register imported playlist/brand/gallery files so Catalogue can see them.
+
+2026-08-14 21:08 - Hard rule: never wipe this working copy’s `data/` / `media/` / `log/` (analytics/audit test data) / `backups/` unless the operator names those paths in the same message (same bar as entering a password). Fresh installs always run on **bandpromo.site**; the other remote tests are Twisted Chronicles and HITZ. Docs / “fresh install” are not permission to wipe localhost.
+
 2026-08-14 20:52 - Ship SFX masters-only delivery on `main` as **v0.8.24 build 390** so Demo PRP fresh installs get login `media/sfx/optimal/{ast_*}.mp3`.
 
 2026-08-14 20:50 - Fresh-install: SFX delivery encodes from the imported master when `media/sfx/original/` is absent (PRP is masters-only); PRP import backfills `media/sfx/optimal/{ast_*}.mp3`.

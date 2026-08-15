@@ -58,6 +58,8 @@ def config_get(config, dotted, default=None):
 
 def normalize_media_path(value):
     text = str(value or '').strip().replace('\\', '/')
+    if text == '':
+        return ''
     if text.startswith(('http://', 'https://')):
         return text
     return '/' + text.lstrip('/')
@@ -166,9 +168,15 @@ def resolve_share_image(config):
     # Bare asset ids occasionally land in config during migration.
     if str(path_str).startswith('ast_') or str(path_str).lstrip('/').startswith('ast_'):
         resolved = resolve_asset_id_to_path(str(path_str).lstrip('/'))
-        if resolved is not None:
+        if resolved is not None and resolved.is_file():
             return resolved
-    return ROOT_DIR / str(path_str).lstrip('/\\')
+    # Empty / "/" would resolve to ROOT_DIR and crash Image.open with IsADirectoryError.
+    if path_str in ('', '/'):
+        return SHARE_DIR / 'missing-share-source.png'
+    candidate = ROOT_DIR / str(path_str).lstrip('/\\')
+    if candidate == ROOT_DIR or candidate.is_dir():
+        return SHARE_DIR / 'missing-share-source.png'
+    return candidate
 
 
 def active_brand_id(config):
@@ -453,9 +461,22 @@ def main():
     except ValueError:
         print(f"  Source: {src_image}")
 
-    if not src_image.exists():
+    if not src_image.is_file():
         print_missing_share_image_help(config, src_image)
-        return False
+        print('  ⚠️  Continuing without social crops — fix Branding → Shell media poster, then Rebuild deliverables.')
+        try:
+            from bandpromo_build_stats import emit_build_stats
+            emit_build_stats(
+                handled=1,
+                created=0,
+                fresh=0,
+                failed=1,
+                scope='social',
+            )
+        except Exception:
+            pass
+        # Do not fail the whole publish/setup pipeline for a missing OG source.
+        return True
 
     src_w, src_h = 0, 0
     try:
@@ -466,6 +487,11 @@ def main():
     except ImportError:
         print("  ❌ Pillow is required: pip install Pillow")
         return False
+    except (OSError, ValueError) as exc:
+        print(f"  ❌ Could not read share image: {exc}")
+        print_missing_share_image_help(config, src_image)
+        print('  ⚠️  Continuing without social crops — fix Branding → Shell media poster, then Rebuild deliverables.')
+        return True
 
     for platform, target_size in PLATFORMS.items():
         result = resize_for_platform(src_image, platform, target_size)

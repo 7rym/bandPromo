@@ -4,6 +4,8 @@ Use this checklist for the first real hosted test of the operator bootstrap inst
 
 This checklist is intentionally narrow. It is for proving that the first install flow works on a real host, not for full beta coverage.
 
+Full Vanilla setup→player smoke (with host credentials) is operator-private and must not live in this repository.
+
 ## Goal
 
 Confirm that a non-technical operator can upload `bootstrap.php`, open it in the browser, install the latest published release package, finish setup, and land in admin without using Git, SSH, shell access, or hosting-panel repository tools.
@@ -81,7 +83,4 @@ Record the exact failing stage if the test stops:
 
 ## Current known blockers before the first real test
 
-At the time this checklist was added, the first full hosted bootstrap test was still blocked by deployment/publishing prerequisites:
-
-- the published `release-manifest.json` URL was not yet reachable
-- the live `bootstrap.php` URL on `bandpromo.site` was not yet deployed/reachable
+Historical note: early checklist blocked on missing published manifest / live `bootstrap.php`. Full Vanilla smoke lives outside the repo (operator-private).
