@@ -28,13 +28,6 @@ $requiredDirs = [
     'media/audio/original',
     'media/audio/master',
     'media/audio/optimal',
-    // Legacy intake originals only (delivery is media/visual/delivery/{ast_*}/).
-    'media/img',
-    'media/img/original',
-    'media/photo',
-    'media/photo/original',
-    'media/video',
-    'media/video/original',
     'media/visual',
     'media/visual/original',
     'media/visual/master',

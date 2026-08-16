@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-16 (after Publish SFX delivery + track-cover/Visual-delete polish checkpoint)._
+_Paused: 2026-08-16 (after Site-update Demo PRP refresh + Visual intake retirement checkpoint)._
 
 ## Exact resume point
 
@@ -10,23 +10,23 @@ Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The othe
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ **v0.8.25 build 392** (after this checkpoint) |
-| App tester package | Tag `v0.8.25-build-392` (`bandPromo.zip` + `release-manifest.json`) |
-| Demo package | Durable tag **`demo-content`** (unchanged this checkpoint — no Demo PRP content change) |
+| Git | `main` @ **v0.8.25 build 393** (after this checkpoint) |
+| App tester package | Tag `v0.8.25-build-393` (`bandPromo.zip` + `release-manifest.json`) |
+| Demo package | Durable tag **`demo-content`** (unchanged this checkpoint) |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Optional: Site update on **bandpromo.site** to build 392 and spot-check login SFX + Rebuild includes `sfx-delivery`.
-2. Continue product work from [TODO.md](TODO.md) / operator priority — do not reopen checked-off cover/Visual/SFX pipeline items unless regressions appear.
+1. Optional: Site update on **bandpromo.site** to build 393 — confirm Demo PRP refresh path (if published SHA moved) and legacy Visual intake relocate when old folders exist.
+2. Continue from [TODO.md](TODO.md) / operator priority.
 
 ## Already done this stretch (do not redo)
 
-- Track cover titles (`Track cover: {title}`), extract-only keywords + Captured seed.
-- Safer Visual delete (default keep embedded art; optional strip checkbox).
-- Blank cover after delete+rebuild: playlist inline delivery + `visual-delivery-catchup` stage.
-- Publish **`sfx-delivery`** stage (skip-if-fresh `media/sfx/optimal/{ast_*}.mp3`).
-- Operator-private Vanilla smoke suite lives outside the repo (`C:\Users\Trym\.bandpromo\SETUP-SMOKE-SUITE.md`).
+- Site update refreshes locked Demo PRP when published SHA is newer (skip unlocked localhost).
+- Living-cover player gap heal (Rock Out) + publish sync of registry living_cover.
+- Retire `media/img|photo|video` intake writes; unified `media/visual/original/` only.
+- Publish + Site update gated one-shot legacy Visual relocate when those folders still exist.
+- Earlier: track-cover titles/keywords, safer Visual delete, visual-delivery catch-up, Publish SFX stage (build 392).
 
 ## Constraints
 

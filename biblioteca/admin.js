@@ -551,15 +551,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             };
             const mediaPathMap = {
                 audio: '/media/audio/original',
-                video: '/media/video/original',
-                illustrations: '/media/img/original',
-                photos: '/media/photo/original',
-                special: '/media/special',
+                video: '/media/visual/original',
+                illustrations: '/media/visual/original',
+                photos: '/media/visual/original',
+                special: '/media/visual/original',
                 sfx: '/media/sfx/original',
                 // Registry intake aliases (visual pool / asset.intake_bucket).
-                img: '/media/img/original',
-                photo: '/media/photo/original',
-                images: '/media/img/original',
+                img: '/media/visual/original',
+                photo: '/media/visual/original',
+                images: '/media/visual/original',
+                visual: '/media/visual/original',
             };
 
             function normalizeMediaPathType(type) {
@@ -583,7 +584,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const safeName = String(filename || '').replace(/^\/+/, '');
                 if (!base) {
                     // Never emit "/filename" — that breaks cover preview + poster save.
-                    return safeName ? `/media/img/original/${safeName}` : '';
+                    return safeName ? `/media/visual/original/${safeName}` : '';
                 }
                 return `${base}/${safeName}`;
             }
@@ -592,7 +593,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const base = getMediaBasePath(type);
                 const safeName = encodeURIComponent(String(filename || ''));
                 if (!base) {
-                    return safeName ? `/media/img/original/${safeName}` : '';
+                    return safeName ? `/media/visual/original/${safeName}` : '';
                 }
                 return `${base}/${safeName}`;
             }
@@ -5829,7 +5830,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (assetId) {
                         return `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`;
                     }
-                    return `/media/img/original/${encodeURIComponent(cover)}`;
+                    return `/media/visual/original/${encodeURIComponent(cover)}`;
                 }
                 return detail && detail.current_cover_url ? String(detail.current_cover_url) : '';
             }
@@ -5885,7 +5886,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return assetId;
                 }
                 const safe = audioMasterLivingCoverBasename(raw);
-                return safe ? `/media/video/original/${safe}` : '';
+                return safe ? `/media/visual/original/${safe}` : '';
             }
 
             function audioMasterLivingCoverPreviewFromPicker(filename) {
@@ -9031,11 +9032,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const deliverySrc = kind === 'video'
                                 ? String(file.stream_url || file.preview_url || '').trim()
                                 : String(file.card_url || file.thumb_url || '').trim();
-                            const legacySrc = kind === 'video'
-                                ? `/media/video/original/${file.name}`
-                                : (bucket === 'photos'
-                                    ? `/media/photo/original/${file.name}`
-                                    : `/media/img/original/${file.name}`);
+                            const legacySrc = `/media/visual/original/${file.name}`;
                             const entry = {
                                 src: deliverySrc || legacySrc,
                                 name: String(file.display_title || '').trim() || prettifyName(file.name),

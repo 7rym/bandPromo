@@ -240,6 +240,30 @@ try {
     file_put_contents($log_file, '[shell media] Heal skipped: ' . $throwable->getMessage() . "\n", FILE_APPEND);
 }
 
+try {
+    require_once __DIR__ . '/visual-master-helpers.php';
+    $legacyRelocate = bandpromo_visual_relocate_all_legacy_originals($root_dir);
+    if (!empty($legacyRelocate['ran'])) {
+        file_put_contents(
+            $log_file,
+            '[visual intake] ' . (string) ($legacyRelocate['message'] ?? 'Legacy Visual intake check finished.') . "\n",
+            FILE_APPEND
+        );
+        foreach (($legacyRelocate['warnings'] ?? []) as $warning) {
+            if (!is_string($warning) || trim($warning) === '') {
+                continue;
+            }
+            file_put_contents($log_file, '[visual intake] Warning: ' . $warning . "\n", FILE_APPEND);
+        }
+    }
+} catch (Throwable $throwable) {
+    file_put_contents(
+        $log_file,
+        '[visual intake] Legacy relocate skipped: ' . $throwable->getMessage() . "\n",
+        FILE_APPEND
+    );
+}
+
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG PHP CLI: " . bandpromo_resolve_php_cli() . "\n", FILE_APPEND);

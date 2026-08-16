@@ -642,19 +642,16 @@ The long-term filesystem/build direction should move from:
 
 - `media/audio/…` (catalog music — unchanged family)
 - `media/sfx/original/` — Sound effects (brand UI clips; not release tracks)
-- `media/visual/delivery/{asset_id}/…` — visual delivery variants
-- legacy intake until Brand-assets fold: `media/img/`, `media/photo/`, `media/video/`, `media/special/` (visuals only going forward)
-- legacy visual split: `media/img/`, `media/photo/`, `media/video/`, `media/special/`
+- legacy visual split leftovers: `media/img/`, `media/photo/`, `media/video/`, `media/special/` (dual-read only)
 - flat `media/*/optimal/` delivery buckets
 
-to something conceptually closer to:
+to:
 
-- `media/audio/original/`, `media/audio/master/`, `media/audio/delivery/<variant>/` — **audio files only** in original/master (flac/mp3/wav). Embedded covers extract to Visual; a leftover image in `media/audio/original` must not appear in Files → Audio.
-- `media/visual/original/`, `media/visual/master/`, `media/visual/delivery/<asset-id>/<variant>/` — **one visual family** for stills and video; filenames are `ast_{ULID}` tiers, not upload stems
+- `media/audio/original/`, `media/audio/master/`, `media/audio/optimal/` — **audio files only**
+- `media/visual/original/`, `media/visual/master/`, `media/visual/delivery/<asset-id>/<variant>/` — **one visual family** for stills and video
+- `media/sfx/{original,master,optimal}/` — Sound effects
 
-Where `<type>` at the top level is **`audio`** and **`visual`** only. Legacy `img` / `photo` / `video` folder names remain as migration sources until autofix/backfill completes.
-
-The important rule is not the exact folder spelling yet. The important rule is that `master` and `delivery` must become separate product concepts in both code and storage, and that **visual identity is registry + tags**, not three parallel upload trees.
+**Shipped:** new Visual uploads (stills + video, including Brand) write only to `media/visual/original/`. Relocate moves leftover `img`/`photo`/`video`/`special` originals into that tree and deletes the legacy copy. **Publish** and **Site update** cheaply test for those legacy folders and, when present, run a one-shot relocate of every registered Visual original (then remove empty legacy dirs). Setup no longer creates `media/img|photo|video` trees. Dual-read remains only for unregistered leftovers until gone.
 
 ### Delivery naming guidance by media type
 

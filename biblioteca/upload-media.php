@@ -55,18 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $root_dir      = dirname(dirname(__FILE__));
 $audio_orig_dir = $root_dir . '/media/audio/original';
 $audio_master_dir = $root_dir . '/media/audio/master';
-$img_orig_dir   = $root_dir . '/media/img/original';
-$photo_dir    = $root_dir . '/media/photo/original';
-$video_dir    = $root_dir . '/media/video/original';
-$video_poster_dir = $root_dir . '/media/video/poster';
-$special_dir  = $root_dir . '/media/special';
 $sfx_dir      = $root_dir . '/media/sfx/original';
 $tmp_dir      = $root_dir . '/data/upload_tmp';
 
 // Optional target hint from Media sub-panel (audio | illustrations | photos | video | special | sfx | visual)
 $target_hint  = $_POST['target'] ?? '';
 
-foreach ([$audio_orig_dir, $img_orig_dir, $photo_dir, $video_dir, $video_poster_dir, $special_dir, $sfx_dir] as $dir) {
+require_once __DIR__ . '/visual-master-helpers.php';
+require_once __DIR__ . '/sfx-helpers.php';
+bandpromo_visual_ensure_tier_dirs($root_dir);
+bandpromo_sfx_ensure_tier_dirs($root_dir);
+
+foreach ([$audio_orig_dir, $sfx_dir] as $dir) {
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 }
 if (!is_dir($audio_master_dir)) mkdir($audio_master_dir, 0755, true);
@@ -143,14 +143,8 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
         return $root_dir . '/media/audio/original/' . $safe_name;
     }
 
-    if (in_array($ext, ['mp4', 'webm', 'mov'], true)) {
-        return $root_dir . '/media/video/original/' . $safe_name;
-    }
-
-    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
-        if ($target_hint === 'photos') {
-            return $root_dir . '/media/photo/original/' . $safe_name;
-        }
+    // All Visual stills/videos land in media/visual/original (img/photo/video intake retired).
+    if (in_array($ext, ['mp4', 'webm', 'mov', 'mkv', 'png', 'jpg', 'jpeg', 'webp'], true)) {
         require_once __DIR__ . '/visual-master-helpers.php';
         bandpromo_visual_ensure_tier_dirs($root_dir);
 
@@ -293,7 +287,10 @@ function bandpromo_register_sfx_upload_if_needed(
 function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved_path, string $saved_name): void
 {
     $normalized = str_replace('\\', '/', $saved_path);
-    if (strpos($normalized, '/media/img/original/') === false) {
+    // Track-cover uploads land in unified Visual original (legacy img/original retired).
+    if (stripos($normalized, '/media/visual/original/') === false
+        && stripos($normalized, '/media/img/original/') === false
+    ) {
         return;
     }
 

@@ -54,7 +54,7 @@ After pushing a checkpoint meant for testers, also publish the release package:
 3. Confirm the new tag appears on GitHub Releases with **`bandPromo.zip`** and **`release-manifest.json` only** (clean title like `bandPromo v0.8.15 build 377`).
 4. Sanity-check that **Site update** on a test install offers the new build.
 
-**Demo content is separate:** durable GitHub release tag `demo-content` holds `bandPromo-demo.prp` + `demo-manifest.json`. Update it only when demo campaign content changes:
+**Demo content is separate:** durable GitHub release tag `demo-content` holds `bandPromo-demo.prp` + `demo-manifest.json`. Update it only when demo campaign content changes. Setup imports it once; **Site update** re-imports when the published SHA differs from the install marker (locked demo; skip unlocked localhost). Admin Publish does not re-download Demo PRP.
 
 ```powershell
 python scripts/prepare_demo_content_package.py --prp path\to\export.prp --clean --publish

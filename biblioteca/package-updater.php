@@ -509,15 +509,136 @@ function bandpromo_package_run_post_update_tasks(string $root, array $applyResul
 
     // App updates no longer pull the legacy default-theme media ZIP. Icons ship
     // in bandPromo.zip; campaign media arrives via PRP at setup (or operator import).
+    // When the durable demo-content package moved since this install's marker,
+    // refresh the locked platform demo so older hosts pick up new standards.
     $buildRequired = bandpromo_mark_build_required('package_update');
+    $demoRefresh = bandpromo_package_refresh_demo_prp_if_needed($root);
+    $legacyRelocate = bandpromo_package_relocate_legacy_visual_intake($root);
 
     return [
         'default_theme' => null,
         'default_theme_error' => null,
+        'demo_release_package' => $demoRefresh,
+        'visual_legacy_relocate' => $legacyRelocate,
         'build_required' => $buildRequired,
         // Always open Deliverables after a package update. Rebuild all deliverables
         // is the normal next step so listener-ready files match the new app code,
         // even when delivery status already looked clear.
         'follow_up' => 'open_build_tab',
     ];
+}
+
+/**
+ * Soft-fail Site update helper: relocate Visual originals out of legacy intake folders.
+ *
+ * @return array{ran: bool, relocated: int, folders_removed: int, message: string, ok: bool}
+ */
+function bandpromo_package_relocate_legacy_visual_intake(string $root): array
+{
+    try {
+        require_once __DIR__ . '/visual-master-helpers.php';
+        $result = bandpromo_visual_relocate_all_legacy_originals($root);
+
+        return [
+            'ok' => true,
+            'ran' => !empty($result['ran']),
+            'relocated' => (int) ($result['relocated'] ?? 0),
+            'folders_removed' => (int) ($result['folders_removed'] ?? 0),
+            'message' => (string) ($result['message'] ?? ''),
+        ];
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'ran' => false,
+            'relocated' => 0,
+            'folders_removed' => 0,
+            'message' => 'Legacy Visual intake relocate failed: ' . $throwable->getMessage(),
+        ];
+    }
+}
+
+/**
+ * After Site update: import the published Demo PRP when its SHA differs from the install marker.
+ * Soft-fails (never undoes the app package apply). Skips localhost authoring when demo is unlocked.
+ *
+ * @return array{
+ *   ok: bool,
+ *   refreshed: bool,
+ *   skipped: bool,
+ *   skip_reason?: string,
+ *   source?: string,
+ *   version?: string,
+ *   message: string
+ * }
+ */
+function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
+{
+    require_once __DIR__ . '/release-campaign-package.php';
+    require_once __DIR__ . '/release-storage.php';
+
+    try {
+        if (bandpromo_is_local_dev_host()) {
+            $docPath = bandpromo_release_document_path($root, BANDPROMO_RELEASE_DEMO_ID);
+            if (is_file($docPath)) {
+                try {
+                    $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+                    if (empty($document['locked'])) {
+                        return [
+                            'ok' => true,
+                            'refreshed' => false,
+                            'skipped' => true,
+                            'skip_reason' => 'unlocked_localhost',
+                            'message' => 'Skipped Demo PRP refresh: platform demo is unlocked on localhost.',
+                        ];
+                    }
+                } catch (Throwable $ignored) {
+                    // Fall through to ensure — missing/corrupt doc can still be healed.
+                }
+            }
+        }
+
+        $result = bandpromo_ensure_demo_release_package($root, BANDPROMO_RELEASE_MANIFEST_URL);
+        $source = (string) ($result['source'] ?? '');
+        $version = (string) ($result['version'] ?? '');
+        $refreshed = !empty($result['installed']) && $source === 'remote-demo-prp';
+
+        if ($source === 'missing') {
+            return [
+                'ok' => false,
+                'refreshed' => false,
+                'skipped' => false,
+                'source' => $source,
+                'version' => $version,
+                'message' => (string) ($result['message'] ?? 'Published Demo PRP was not available.'),
+            ];
+        }
+
+        if ($refreshed) {
+            return [
+                'ok' => true,
+                'refreshed' => true,
+                'skipped' => false,
+                'source' => $source,
+                'version' => $version,
+                'message' => 'Demo PRP refreshed to the latest published package.',
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'refreshed' => false,
+            'skipped' => true,
+            'skip_reason' => 'already_current',
+            'source' => $source,
+            'version' => $version,
+            'message' => (string) ($result['message'] ?? 'Demo PRP already current.'),
+        ];
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'refreshed' => false,
+            'skipped' => false,
+            'message' => 'Demo PRP refresh failed after app update: ' . $throwable->getMessage(),
+        ];
+    }
 }

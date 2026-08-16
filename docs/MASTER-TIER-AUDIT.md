@@ -199,6 +199,8 @@ Absorbs the old “Phase 3 Brand-assets fold” and PRP SFX original fallback.
 - [x] Relocate `media/special/` brand visuals into Visual original (write-once) + `ast_*` master + delivery; brand slots are `asset_ids` only.
 - [x] Brand duplicate clones **new `ast_*` masters**, not `{brand}_{slot}` files in `special/` / `sfx/original/`.
 - [x] Setup/runtime dirs: `media/visual/{original,master,delivery}` and `media/sfx/{original,master,optimal}`; stop creating `img/photo` optimal/thumb trees as product paths.
+- [x] **Upload intake:** stop writing new stills/videos to `media/img|photo|video/original` — unified `media/visual/original` only; relocate deletes leftover legacy copies.
+- [x] **Publish / Site update:** if any legacy Visual intake folder still exists, one-shot relocate all registered Visual originals into `media/visual/original/` and remove empty legacy dirs.
 - [x] Config / OG / login / player shell fallbacks resolve Base brand `asset_ids` → delivery (no hardcoded `/media/special/bandPromo_*.png`).
 - [x] PRP SFX: export master or refuse the row; never pack `sfx/original`.
 - [x] Files → Brand assets becomes a **filter/role** on Visual (or SFX), not a parallel intake tree.

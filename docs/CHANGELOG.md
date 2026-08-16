@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 14:15 - Checkpoint Site-update Demo PRP refresh, living-cover publish heal, and Visual intake retirement (unified `media/visual/original/` + gated Publish/Site-update relocate) on `main` as **v0.8.25 build 393**; trigger GitHub Release `v0.8.25-build-393` for Site update.
+
+2026-08-16 14:10 - Publish and Site update run a gated one-shot Visual intake relocate when any legacy `media/img|photo|video|special` folder still exists: move registered originals into `media/visual/original/`, delete leftover copies, and remove empty legacy folders.
+
+2026-08-16 13:55 - Retire legacy Visual intake writes: image/video uploads (including photos) go only to `media/visual/original/`; relocate moves leftover `img`/`photo`/`video`/`special` copies into that tree and deletes them; setup stops creating those folders; Files/admin paths and deletes use the unified tree (dual-read leftovers only).
+
+2026-08-16 13:40 - Living cover player gap: Rock Out had a legacy filename in the master tag and an empty registry link, so the published playlist shipped no `animated_cover` URL even after the Visual stream existed; republish resolves filename→`ast_*`+stream and syncs registry when they diverge.
+
+2026-08-16 13:05 - Site update post-tasks refresh the platform Demo PRP when the published `demo-content` SHA differs from `data/demo-release-package.json` (overwrite locked demo; skip unlocked localhost authoring; soft-fail so app apply still succeeds).
+
 2026-08-16 12:55 - Checkpoint track-cover naming, safer Visual delete, visual-delivery catch-up, and Publish sfx-delivery on `main` as **v0.8.25 build 392**; trigger GitHub Release `v0.8.25-build-392` for Site update.
 
 2026-08-16 12:50 - Publish Rebuild now includes an SFX delivery stage (`buildSfxDelivery.py` / `bandpromo_sfx_backfill_tiers`) after audio optimize: heals missing `media/sfx/optimal/{ast_*}.mp3`, skips fresh deliveries, and counts toward the media summary.

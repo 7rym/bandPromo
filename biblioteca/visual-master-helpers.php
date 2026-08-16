@@ -115,12 +115,66 @@ function bandpromo_visual_copy_file_idempotent(string $source, string $dest): ar
 }
 
 /**
+ * @return list<string>
+ */
+function bandpromo_visual_legacy_intake_dirs(string $root): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $dirs = [];
+    foreach (['img', 'photo', 'video', 'special'] as $bucket) {
+        $dir = bandpromo_asset_visual_legacy_intake_dir($root, $bucket);
+        if ($dir !== '') {
+            $dirs[] = $dir;
+        }
+    }
+
+    return $dirs;
+}
+
+/**
+ * Cheap gate: any legacy Visual intake folder still exists on disk.
+ */
+function bandpromo_visual_legacy_intake_present(string $root): bool
+{
+    foreach (bandpromo_visual_legacy_intake_dirs($root) as $dir) {
+        if (is_dir($dir)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Find a legacy intake original for this basename (any retired bucket).
+ */
+function bandpromo_visual_find_legacy_original_file(string $root, string $originalFilename): string
+{
+    $originalFilename = basename(trim($originalFilename));
+    if ($originalFilename === '') {
+        return '';
+    }
+
+    foreach (bandpromo_visual_legacy_intake_dirs($root) as $dir) {
+        $candidate = $dir . DIRECTORY_SEPARATOR . $originalFilename;
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return '';
+}
+
+/**
  * Ensure media/visual/original/{original_filename} exists (copy from legacy when needed).
  *
  * @return array{ok: bool, path: string, copied: bool, error?: string}
  */
 function bandpromo_visual_relocate_original(string $root, array $asset): array
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
     if ($originalFilename === '') {
         return ['ok' => false, 'path' => '', 'copied' => false, 'error' => 'Missing original_filename'];
@@ -129,18 +183,50 @@ function bandpromo_visual_relocate_original(string $root, array $asset): array
     bandpromo_visual_ensure_tier_dirs($root);
     $dest = bandpromo_visual_unified_original_path($root, $originalFilename);
     $source = bandpromo_asset_visual_legacy_original_path($root, $asset);
+    if ($source === '' || !is_file($source)) {
+        $source = bandpromo_visual_find_legacy_original_file($root, $originalFilename);
+    }
 
-    if (is_file($source)) {
-        if (!is_file($dest)) {
-            return bandpromo_visual_copy_file_idempotent($source, $dest);
-        }
-        $sourceMtime = @filemtime($source);
-        $destMtime = @filemtime($dest);
-        if ($sourceMtime !== false && $destMtime !== false && (int) $sourceMtime > (int) $destMtime) {
-            return bandpromo_visual_copy_file_idempotent($source, $dest);
+    $copied = false;
+    if ($source !== '' && is_file($source)) {
+        $sourceReal = realpath($source) ?: $source;
+        $destReal = is_file($dest) ? (realpath($dest) ?: $dest) : '';
+        if ($destReal === '' || $sourceReal !== $destReal) {
+            if (!is_file($dest)) {
+                $result = bandpromo_visual_copy_file_idempotent($source, $dest);
+                if (empty($result['ok'])) {
+                    return $result;
+                }
+                $copied = !empty($result['copied']);
+            } else {
+                $sourceMtime = @filemtime($source);
+                $destMtime = @filemtime($dest);
+                if ($sourceMtime !== false && $destMtime !== false && (int) $sourceMtime > (int) $destMtime) {
+                    $result = bandpromo_visual_copy_file_idempotent($source, $dest);
+                    if (empty($result['ok'])) {
+                        return $result;
+                    }
+                    $copied = !empty($result['copied']);
+                }
+            }
         }
 
-        return ['ok' => true, 'path' => $dest, 'copied' => false];
+        // Drop every leftover legacy intake copy for this basename.
+        if (is_file($dest)) {
+            $destReal = realpath($dest) ?: $dest;
+            foreach (bandpromo_visual_legacy_intake_dirs($root) as $dir) {
+                $candidate = $dir . DIRECTORY_SEPARATOR . $originalFilename;
+                if (!is_file($candidate)) {
+                    continue;
+                }
+                $candidateReal = realpath($candidate) ?: $candidate;
+                if ($candidateReal !== $destReal) {
+                    @unlink($candidate);
+                }
+            }
+        }
+
+        return ['ok' => true, 'path' => $dest, 'copied' => $copied];
     }
 
     if (is_file($dest)) {
@@ -148,6 +234,109 @@ function bandpromo_visual_relocate_original(string $root, array $asset): array
     }
 
     return ['ok' => false, 'path' => $dest, 'copied' => false, 'error' => 'Legacy original missing'];
+}
+
+/**
+ * One-shot: when any legacy Visual intake folder exists, relocate registered originals
+ * into media/visual/original/ and remove leftover copies. Used by Publish + Site update.
+ *
+ * @return array{
+ *   ran: bool,
+ *   checked: int,
+ *   relocated: int,
+ *   folders_removed: int,
+ *   warnings: list<string>,
+ *   message: string
+ * }
+ */
+function bandpromo_visual_relocate_all_legacy_originals(string $root): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    if (!bandpromo_visual_legacy_intake_present($root)) {
+        return [
+            'ran' => false,
+            'checked' => 0,
+            'relocated' => 0,
+            'folders_removed' => 0,
+            'warnings' => [],
+            'message' => 'No legacy Visual intake folders present.',
+        ];
+    }
+
+    $checked = 0;
+    $relocated = 0;
+    $warnings = [];
+    $registry = bandpromo_asset_load_registry($root);
+    foreach (($registry['assets'] ?? []) as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
+        if ($originalFilename === '') {
+            continue;
+        }
+        $checked++;
+        $hadLegacy = bandpromo_visual_find_legacy_original_file($root, $originalFilename) !== '';
+        if (!$hadLegacy) {
+            continue;
+        }
+        $result = bandpromo_visual_relocate_original($root, $asset);
+        if (empty($result['ok'])) {
+            $warnings[] = $originalFilename . ': ' . (string) ($result['error'] ?? 'relocate failed');
+            continue;
+        }
+        if (bandpromo_visual_find_legacy_original_file($root, $originalFilename) === '') {
+            $relocated++;
+        }
+    }
+
+    $foldersRemoved = 0;
+    foreach (bandpromo_visual_legacy_intake_dirs($root) as $dir) {
+        if (!is_dir($dir)) {
+            continue;
+        }
+        $empty = true;
+        foreach (scandir($dir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
+                continue;
+            }
+            $empty = false;
+            break;
+        }
+        if (!$empty) {
+            continue;
+        }
+        if (@rmdir($dir)) {
+            $foldersRemoved++;
+            $parent = dirname($dir);
+            $parentBase = strtolower(basename($parent));
+            if (in_array($parentBase, ['img', 'photo', 'video', 'special'], true) && is_dir($parent)) {
+                $parentEmpty = true;
+                foreach (scandir($parent) ?: [] as $entry) {
+                    if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
+                        continue;
+                    }
+                    $parentEmpty = false;
+                    break;
+                }
+                if ($parentEmpty) {
+                    @rmdir($parent);
+                }
+            }
+        }
+    }
+
+    return [
+        'ran' => true,
+        'checked' => $checked,
+        'relocated' => $relocated,
+        'folders_removed' => $foldersRemoved,
+        'warnings' => $warnings,
+        'message' => $relocated > 0
+            ? ('Relocated ' . $relocated . ' Visual original(s) out of legacy intake.')
+            : 'Legacy Visual intake folders checked; nothing left to relocate.',
+    ];
 }
 
 /**
@@ -440,11 +629,33 @@ function bandpromo_visual_heal_empty_display_for_asset(string $root, string $ass
  */
 function bandpromo_visual_delete_tier_files(string $root, array $asset): void
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
     if ($originalFilename !== '') {
         $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
-        if ($unified !== '' && is_file($unified)) {
-            @unlink($unified);
+        $paths = [];
+        if ($unified !== '') {
+            $paths[] = $unified;
+        }
+        $legacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
+        if ($legacy !== '') {
+            $paths[] = $legacy;
+        }
+        foreach (['img', 'photo', 'video', 'special'] as $bucket) {
+            $dir = bandpromo_asset_visual_legacy_intake_dir($root, $bucket);
+            if ($dir !== '') {
+                $paths[] = $dir . DIRECTORY_SEPARATOR . $originalFilename;
+            }
+        }
+        $seen = [];
+        foreach ($paths as $path) {
+            $real = is_file($path) ? (realpath($path) ?: $path) : '';
+            if ($real === '' || isset($seen[$real])) {
+                continue;
+            }
+            $seen[$real] = true;
+            @unlink($path);
         }
     }
 

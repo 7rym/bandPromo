@@ -38,7 +38,7 @@ if (!validate_csrf_token($csrfToken)) {
     exit;
 }
 
-@set_time_limit(300);
+@set_time_limit(900);
 
 $root = dirname(__DIR__);
 $stage = 'precheck';
@@ -88,13 +88,25 @@ try {
     ];
     bandpromo_package_append_update_log($root, $logRecord);
 
+    $demoRefresh = is_array($postUpdate['demo_release_package'] ?? null)
+        ? $postUpdate['demo_release_package']
+        : null;
     bandpromo_admin_audit_log('package_update_applied', [
         'previous_version' => $applyResult['previous_version'],
         'installed_version' => $applyResult['installed_version'],
         'package_file' => $applyResult['package_file'],
+        'demo_prp_refreshed' => !empty($demoRefresh['refreshed']),
+        'demo_prp_ok' => !isset($demoRefresh['ok']) || !empty($demoRefresh['ok']),
     ]);
 
     $message = 'bandPromo was updated to ' . $applyResult['installed_version'] . '.';
+    if (is_array($demoRefresh) && !empty($demoRefresh['refreshed'])) {
+        $message .= ' Demo catalog was refreshed to the latest published package.';
+    } elseif (is_array($demoRefresh) && ($demoRefresh['skip_reason'] ?? '') === 'unlocked_localhost') {
+        $message .= ' Demo catalog left unchanged (unlocked on localhost).';
+    } elseif (is_array($demoRefresh) && empty($demoRefresh['ok'])) {
+        $message .= ' Demo catalog could not be refreshed automatically; rebuild may still use the previous demo files.';
+    }
     $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
 
     // Re-check and rewrite cache so Notifications immediately show up to date.

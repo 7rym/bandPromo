@@ -1890,12 +1890,34 @@ function bandpromo_playlist_enrich_tracks_for_player(
             $embargoPlayable
         );
 
+        $display = bandpromo_asset_read_audio_display($asset);
+
         $livingCover = bandpromo_living_cover_canonical_id($root, (string) ($track['living_cover'] ?? ''));
+        $registryLiving = bandpromo_living_cover_canonical_id(
+            $root,
+            (string) ($display['living_cover'] ?? '')
+        );
+        if ($livingCover === '' && $registryLiving !== '') {
+            $livingCover = $registryLiving;
+        }
         $animatedCover = $livingCover !== ''
             ? bandpromo_living_cover_player_url($root, $livingCover)
             : '';
+        if (
+            $livingCover !== ''
+            && is_array($asset)
+            && trim((string) ($asset['id'] ?? '')) !== ''
+            && $registryLiving !== $livingCover
+        ) {
+            try {
+                bandpromo_asset_update_entry($root, (string) $asset['id'], [
+                    'display' => ['living_cover' => $livingCover],
+                ]);
+            } catch (Throwable $ignored) {
+                // Player payload can still ship the resolved id/URL.
+            }
+        }
 
-        $display = bandpromo_asset_read_audio_display($asset);
         $coverCandidate = trim((string) ($track['cover'] ?? ''));
         if ($coverCandidate === '') {
             $coverCandidate = trim((string) ($display['cover'] ?? ''));

@@ -32,12 +32,14 @@ if (!is_array($body)) {
 
 $root = dirname(__DIR__);
 bandpromo_asset_registry_ensure_migrated($root);
+require_once __DIR__ . '/visual-master-helpers.php';
+$visualOriginal = bandpromo_visual_unified_original_dir($root);
 $dirs = [
     'audio'         => $root . '/media/audio/original',
-    'illustrations' => $root . '/media/img/original',
-    'photos'        => $root . '/media/photo/original',
-    'video'         => $root . '/media/video/original',
-    'special'       => bandpromo_media_target_dir('special') ?? ($root . '/media/visual/original'),
+    'illustrations' => $visualOriginal,
+    'photos'        => $visualOriginal,
+    'video'         => $visualOriginal,
+    'special'       => bandpromo_media_target_dir('special') ?? $visualOriginal,
     'sfx'           => bandpromo_media_target_dir('sfx') ?? ($root . '/media/sfx/original'),
 ];
 

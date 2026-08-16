@@ -110,6 +110,23 @@ function bandpromo_asset_intake_bucket_for_files_index_target(string $target): s
 function bandpromo_asset_visual_original_dir(string $root, string $intakeBucket): string
 {
     $bucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
+    if ($bucket === '') {
+        return '';
+    }
+
+    // Product intake is unified Visual original for every visual bucket.
+    // Legacy img/photo/video paths remain dual-read only (see legacy_intake_dir).
+    // Inline path (do not require visual-master-helpers — that file requires this one).
+    return rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'media' . DIRECTORY_SEPARATOR . 'visual'
+        . DIRECTORY_SEPARATOR . 'original';
+}
+
+/**
+ * Pre-unification intake folders (dual-read leftovers only — never write new uploads here).
+ */
+function bandpromo_asset_visual_legacy_intake_dir(string $root, string $intakeBucket): string
+{
+    $bucket = bandpromo_asset_normalize_intake_bucket($intakeBucket);
     if ($bucket === 'img') {
         return $root . '/media/img/original';
     }
@@ -120,17 +137,14 @@ function bandpromo_asset_visual_original_dir(string $root, string $intakeBucket)
         return $root . '/media/video/original';
     }
     if ($bucket === 'special') {
-        // Brand visuals use the unified Visual original tree (not a parallel media/special intake).
-        require_once __DIR__ . '/visual-master-helpers.php';
-
-        return bandpromo_visual_unified_original_dir($root);
+        return $root . '/media/special';
     }
 
     return '';
 }
 
 /**
- * Legacy intake path for a visual asset (pre-M2 buckets). Prefer bandpromo_visual_working_path().
+ * Legacy intake path for a visual asset (pre-unified buckets). Prefer bandpromo_visual_working_path().
  */
 function bandpromo_asset_visual_legacy_original_path(string $root, array $asset): string
 {
@@ -140,7 +154,7 @@ function bandpromo_asset_visual_legacy_original_path(string $root, array $asset)
         return '';
     }
 
-    $dir = bandpromo_asset_visual_original_dir($root, $bucket);
+    $dir = bandpromo_asset_visual_legacy_intake_dir($root, $bucket);
 
     return $dir === '' ? '' : ($dir . '/' . $filename);
 }

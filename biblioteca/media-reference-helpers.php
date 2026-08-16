@@ -34,14 +34,35 @@ function bandpromo_media_reference_normalize_basename(?string $path, string $exp
 function bandpromo_media_reference_original_prefix(string $target): ?string
 {
     $map = [
-        'illustrations' => 'media/img/original',
-        'photos' => 'media/photo/original',
-        'video' => 'media/video/original',
-        'special' => 'media/special',
+        'illustrations' => 'media/visual/original',
+        'photos' => 'media/visual/original',
+        'video' => 'media/visual/original',
+        'special' => 'media/visual/original',
         'sfx' => 'media/sfx/original',
     ];
 
     return $map[$target] ?? null;
+}
+
+/**
+ * @return list<string>
+ */
+function bandpromo_media_reference_legacy_original_prefixes(string $target): array
+{
+    if ($target === 'illustrations') {
+        return ['media/img/original'];
+    }
+    if ($target === 'photos') {
+        return ['media/photo/original'];
+    }
+    if ($target === 'video') {
+        return ['media/video/original'];
+    }
+    if ($target === 'special') {
+        return ['media/special'];
+    }
+
+    return [];
 }
 
 /**
@@ -67,8 +88,18 @@ function bandpromo_media_reference_path_matches_prefix(?string $raw, string $pre
     }
 
     $expected = trim($prefix, '/');
+    if ($expected !== '' && stripos($value, $expected . '/') === 0) {
+        return true;
+    }
 
-    return $expected !== '' && stripos($value, $expected . '/') === 0;
+    // Accept legacy intake paths while leftovers remain on disk.
+    foreach (['media/img/original', 'media/photo/original', 'media/video/original', 'media/special'] as $legacy) {
+        if (stripos($value, $legacy . '/') === 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function bandpromo_media_reference_file_exists(string $root, string $target, string $basename): bool
@@ -81,6 +112,11 @@ function bandpromo_media_reference_file_exists(string $root, string $target, str
     $prefix = bandpromo_media_reference_original_prefix($target);
     if ($prefix !== null && is_file($root . '/' . $prefix . '/' . $basename)) {
         return true;
+    }
+    foreach (bandpromo_media_reference_legacy_original_prefixes($target) as $legacyPrefix) {
+        if (is_file($root . '/' . $legacyPrefix . '/' . $basename)) {
+            return true;
+        }
     }
 
     require_once __DIR__ . '/asset-registry.php';

@@ -63,7 +63,7 @@ function bandpromo_audio_master_resolve_current_cover_url(?string $cover): strin
         return '';
     }
 
-    return '/media/img/original/' . rawurlencode($filename);
+    return '/media/visual/original/' . rawurlencode($filename);
 }
 
 /**

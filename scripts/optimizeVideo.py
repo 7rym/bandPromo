@@ -3,9 +3,9 @@ optimizeVideo — Publish-ready Video Delivery Generator
 Builds delivery-safe MP4 files from uploaded source videos / visual masters.
 
 Input:
-- media/video/original/*.{mp4,mov,webm,mkv}
 - Registered visual video assets in data/assets/registry.json
-  (prefer media/visual/master/ast_*.mkv)
+  (prefer media/visual/master/ast_*.mkv; originals under media/visual/original/)
+- Dual-read leftovers in media/video/original/ during migration only
 
 Output:
 - media/visual/delivery/{asset_id}/standard-stream.mp4

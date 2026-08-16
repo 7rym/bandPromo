@@ -66,7 +66,7 @@ The **first PRP imported at setup** becomes this install’s protected fallback 
 
 **Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses release ownership + the prefs above.
 
-**Upgrade safety:** if prefs are missing, derive `demo_release_id` from the installed platform demo release, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the demo PRP is present.
+**Upgrade safety:** if prefs are missing, derive `demo_release_id` from the installed platform demo release, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the demo PRP is present. After **Site update**, when the published Demo PRP SHA differs from the install marker, the locked platform demo is refreshed (overwrite); hide preference is preserved; unlocked localhost authoring skips the refresh.
 
 **Rule — no special demo content handling:** Once the release owns containers and assets, demo media/containers are not a second content system. Do not add heal/force/`bandPromo_*` → demo-release forks, parallel seed packs, or association exceptions “because demo.” Legitimate demo surfaces only: setup PRP import, lock (operators) / localhost unlock + export, hide, duplicate. `/media` is git-ignored; masters travel in PRP / release packages.
 

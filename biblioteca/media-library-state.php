@@ -181,17 +181,55 @@ function bandpromo_media_target_dir(string $target): ?string
     $root = dirname(__DIR__);
     require_once __DIR__ . '/visual-master-helpers.php';
     require_once __DIR__ . '/sfx-helpers.php';
+    $visualOriginal = bandpromo_visual_unified_original_dir($root);
     $dirs = [
         'audio' => $root . '/media/audio/original',
-        'illustrations' => $root . '/media/img/original',
-        'photos' => $root . '/media/photo/original',
-        'video' => $root . '/media/video/original',
+        // Visual pool filters share one on-disk original tree.
+        'illustrations' => $visualOriginal,
+        'photos' => $visualOriginal,
+        'video' => $visualOriginal,
         // Brand assets = Visual original (filter/role); legacy media/special is not a product path.
-        'special' => bandpromo_visual_unified_original_dir($root),
+        'special' => $visualOriginal,
         'sfx' => bandpromo_sfx_original_dir($root),
     ];
 
     return $dirs[$target] ?? null;
+}
+
+/**
+ * Legacy intake dirs still scanned for unregistered orphans (dual-read only).
+ *
+ * @return list<string>
+ */
+function bandpromo_media_legacy_orphan_dirs_for_target(string $root, string $target): array
+{
+    if ($target === 'illustrations') {
+        return [$root . '/media/img/original'];
+    }
+    if ($target === 'photos') {
+        return [$root . '/media/photo/original'];
+    }
+    if ($target === 'video') {
+        return [$root . '/media/video/original'];
+    }
+    if ($target === 'special') {
+        return [$root . '/media/special'];
+    }
+
+    return [];
+}
+
+function bandpromo_media_orphan_matches_target(string $target, string $filename): bool
+{
+    $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+    if ($target === 'video') {
+        return in_array($ext, ['mp4', 'webm', 'mov', 'mkv', 'm4v'], true);
+    }
+    if (in_array($target, ['illustrations', 'photos'], true)) {
+        return in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'], true);
+    }
+
+    return true;
 }
 
 function bandpromo_media_starter_pack_basenames(string $root): array
@@ -1031,8 +1069,28 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
         return $count;
     }
 
-    if ($dir !== null && is_dir($dir)) {
-        foreach (new DirectoryIterator($dir) as $entry) {
+    $orphanDirs = [];
+    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+        // Unified tree orphans: map by media type once (images → illustrations, video → video).
+        // Photos keeps legacy photo/ scan only so the same file is not double-indexed.
+        if ($target === 'illustrations' || $target === 'video') {
+            if ($dir !== null) {
+                $orphanDirs[] = $dir;
+            }
+        }
+        foreach (bandpromo_media_legacy_orphan_dirs_for_target($root, $target) as $legacyDir) {
+            $orphanDirs[] = $legacyDir;
+        }
+    } elseif ($dir !== null) {
+        $orphanDirs[] = $dir;
+    }
+
+    $seenOrphans = [];
+    foreach ($orphanDirs as $orphanDir) {
+        if ($orphanDir === '' || !is_dir($orphanDir)) {
+            continue;
+        }
+        foreach (new DirectoryIterator($orphanDir) as $entry) {
             if ($entry->isDot() || $entry->isDir()) {
                 continue;
             }
@@ -1046,6 +1104,17 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
             if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($name)) {
                 continue;
             }
+            if (in_array($target, ['illustrations', 'photos', 'video'], true)
+                && !bandpromo_media_orphan_matches_target($target, $name)
+            ) {
+                continue;
+            }
+            $real = $entry->getPathname();
+            $realKey = is_file($real) ? (realpath($real) ?: $real) : $name;
+            if (isset($seenOrphans[$realKey])) {
+                continue;
+            }
+            $seenOrphans[$realKey] = true;
             $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
                 ?? bandpromo_asset_lookup_from_media_ref($root, $name);
             if (is_array($registered)) {
