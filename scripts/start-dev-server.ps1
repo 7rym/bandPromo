@@ -22,10 +22,15 @@ if (-not (Test-Path -LiteralPath $logDir)) {
 }
 
 $php = (Get-Command php -ErrorAction Stop).Source
+# Large PRP imports (e.g. Spandexual ~380MB) need upload/post ceilings above the
+# PHP defaults (2M/8M). Hosted installs use biblioteca/templates/runtime/user.ini.
 $argumentList = @(
     "-d", "date.timezone=$Timezone",
-    "-d", "max_execution_time=300",
-    "-d", "memory_limit=256M",
+    "-d", "max_execution_time=0",
+    "-d", "max_input_time=0",
+    "-d", "memory_limit=1024M",
+    "-d", "upload_max_filesize=512M",
+    "-d", "post_max_size=520M",
     "-S", "${BindHost}:$Port"
 )
 

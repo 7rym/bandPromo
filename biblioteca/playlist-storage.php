@@ -563,6 +563,7 @@ function bandpromo_playlist_normalize_stored_track(array $track): ?array
         'playable' => !empty($track['playable']),
         'lock_reason' => trim((string) ($track['lock_reason'] ?? '')),
         'animated_cover' => trim((string) ($track['animated_cover'] ?? '')),
+        'cover_url' => trim((string) ($track['cover_url'] ?? '')),
     ];
 
     if (($track['embargoed'] ?? false) === true) {
@@ -2158,6 +2159,8 @@ function bandpromo_playlist_load_player_response(
 
     $tracks = bandpromo_playlist_normalize_stored_tracks($tracks);
     // Live text-panel role/label from registry (same content field; presentation only).
+    // Re-resolve cover_url so Visual rebuilds show without requiring a playlist rewrite.
+    require_once __DIR__ . '/media-delivery-helpers.php';
     foreach ($tracks as $index => $track) {
         if (!is_array($track)) {
             continue;
@@ -2167,6 +2170,30 @@ function bandpromo_playlist_load_player_response(
         $display = bandpromo_asset_read_audio_display($asset);
         $tracks[$index]['text_role'] = $display['text_role'];
         $tracks[$index]['notes_label'] = $display['text_role'] === 'notes' ? $display['notes_label'] : '';
+
+        $coverCandidate = trim((string) ($track['cover'] ?? ''));
+        if ($coverCandidate === '') {
+            $coverCandidate = trim((string) ($display['cover'] ?? ''));
+        }
+        $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, $coverCandidate);
+        if ($coverRef !== '') {
+            $coverAsset = bandpromo_asset_lookup_by_id($root, $coverRef);
+            if (!is_array($coverAsset) || ($coverAsset['kind'] ?? '') !== 'visual') {
+                $coverRef = '';
+            }
+        }
+        $coverUrl = '';
+        if ($coverRef !== '') {
+            $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
+            if ($coverUrl === '') {
+                $coverUrl = bandpromo_playlist_prefer_cover_delivery_url($root, '', $coverRef);
+            }
+            if ($coverUrl !== '' && !str_starts_with($coverUrl, '/media/visual/delivery/')) {
+                $coverUrl = '';
+            }
+        }
+        $tracks[$index]['cover'] = $coverRef;
+        $tracks[$index]['cover_url'] = $coverUrl;
     }
 
     if (bandpromo_playlist_normalize_play_order((string) ($document['play_order'] ?? 'stored')) === 'reverse') {

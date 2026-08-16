@@ -326,7 +326,52 @@ function bandpromo_visual_variant_relative_url(string $root, string $assetId, st
 }
 
 /**
- * Primary Files / picker label: human display title when set, else role label.
+ * Format "[Role]: [Title]" for build-extracted / linked visual labels.
+ * Empty track title returns the role label alone.
+ */
+function bandpromo_visual_role_colon_title(string $roleLabel, string $trackTitle): string
+{
+    $roleLabel = trim($roleLabel);
+    if ($roleLabel === '') {
+        $roleLabel = 'Track cover';
+    }
+    $trackTitle = preg_replace('/\s+/u', ' ', str_replace(["\r", "\n"], ' ', trim($trackTitle))) ?? '';
+    $trackTitle = trim((string) $trackTitle);
+    if ($trackTitle === '') {
+        return $roleLabel;
+    }
+
+    return $roleLabel . ': ' . $trackTitle;
+}
+
+/**
+ * First linked track title from Files reference_info (track-cover refs).
+ */
+function bandpromo_visual_linked_track_title_from_entry(array $entry): string
+{
+    $info = is_array($entry['reference_info'] ?? null) ? $entry['reference_info'] : [];
+    $references = is_array($info['references'] ?? null) ? $info['references'] : [];
+    foreach ($references as $reference) {
+        if (!is_array($reference)) {
+            continue;
+        }
+        $kind = strtolower(trim((string) ($reference['kind'] ?? '')));
+        if ($kind !== 'track-cover' && $kind !== 'playlist-cover') {
+            continue;
+        }
+        $label = preg_replace('/\s+/u', ' ', str_replace(["\r", "\n"], ' ', trim((string) ($reference['label'] ?? '')))) ?? '';
+        $label = trim((string) $label);
+        if ($label !== '') {
+            return $label;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Primary Files / picker label: human display title when set, else role label
+ * (for track covers, "Track cover: {linked track title}" when a track is linked).
  */
 function bandpromo_visual_listing_title(string $root, array $asset, array $entry = []): string
 {
@@ -336,11 +381,20 @@ function bandpromo_visual_listing_title(string $root, array $asset, array $entry
         return $display['title'];
     }
 
-    return bandpromo_visual_operator_title($root, $asset, $entry);
+    $roleLabel = bandpromo_visual_operator_title($root, $asset, $entry);
+    $role = bandpromo_asset_normalize_visual_role((string) ($asset['role'] ?? $entry['role'] ?? 'unassigned'));
+    if ($role === 'track-cover') {
+        $trackTitle = bandpromo_visual_linked_track_title_from_entry($entry);
+        if ($trackTitle !== '') {
+            return bandpromo_visual_role_colon_title($roleLabel, $trackTitle);
+        }
+    }
+
+    return $roleLabel;
 }
 
 /**
- * Operator-facing visual role label (Files / pickers when display.title is empty).
+ * Operator-facing visual role label (Files / pickers Role address; listing fallback).
  */
 function bandpromo_visual_operator_title(string $root, array $asset, array $entry = []): string
 {

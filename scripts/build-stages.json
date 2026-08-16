@@ -4,18 +4,22 @@
     "full": [
       "catalog",
       "deliverables-media",
+      "sfx-delivery",
       "video-delivery",
       "playlist-artifacts",
+      "visual-delivery-catchup",
       "social-assets",
       "pwa-manifest"
     ],
     "deliverables-only": [
       "catalog",
       "deliverables-media",
+      "sfx-delivery",
       "video-delivery"
     ],
     "artifacts-only": [
       "playlist-artifacts",
+      "visual-delivery-catchup",
       "social-assets",
       "pwa-manifest"
     ]
@@ -40,6 +44,14 @@
       "skippable": true
     },
     {
+      "id": "sfx-delivery",
+      "label": "Build sound-effect delivery MP3s",
+      "group": "deliverables",
+      "script": "buildSfxDelivery.py",
+      "requires_ffmpeg": true,
+      "skippable": true
+    },
+    {
       "id": "video-delivery",
       "label": "Build video delivery assets",
       "group": "deliverables",
@@ -52,6 +64,16 @@
       "label": "Export playlist validation report and publish player payloads",
       "group": "artifacts",
       "script": "makePlaylists.py",
+      "skippable": true
+    },
+    {
+      "id": "visual-delivery-catchup",
+      "label": "Build Visual delivery for covers extracted during playlist stage",
+      "group": "artifacts",
+      "script": "optimizeMedia.py",
+      "env": {
+        "BANDPROMO_OPTIMIZE_MODE": "image-only"
+      },
       "skippable": true
     },
     {

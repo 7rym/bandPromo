@@ -4817,12 +4817,18 @@ canvas { max-width: 100%; height: auto; }
 
 .modal-file-row { padding: 2px 0; }
 
-.delete-confirm-name {
-    font-size: 14px;
-    font-family: monospace;
+.media-delete-embedded-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 13px;
     color: var(--text);
-    word-break: break-all;
-    margin: 4px 0 10px;
+    line-height: 1.35;
+}
+
+.media-delete-embedded-option input {
+    margin-top: 2px;
 }
 
 /* ===== Social form grid ===== */

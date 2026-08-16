@@ -618,7 +618,7 @@ Operator-facing summary:
 
 Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Files that exist only as **masters** (Demo PRP / campaign import, no intake original) are listed in Files from the asset registry and are editable. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s player payload so `/play` can load without a full site rebuild.
 
-Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via setup import of `bandPromo-demo.prp` (or local seed) and are built into the normal three-tier layout on the host. Admin Publish does not re-download demo packages. Sound effects use the same three-tier idea under `media/sfx/{original,master,optimal}` (login plays delivery MP3 when ready).
+Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via setup import of `bandPromo-demo.prp` (or local seed) and are built into the normal three-tier layout on the host. Admin Publish does not re-download demo packages. Sound effects use the same three-tier idea under `media/sfx/{original,master,optimal}` (login plays delivery MP3 when ready). **Rebuild all deliverables** runs an `sfx-delivery` stage that materializes masters and builds tagless optimal MP3s when missing or stale (same helper as upload/import backfill); already-fresh deliveries are skipped.
 
 It is not:
 
@@ -1037,11 +1037,13 @@ Transition: keep reading legacy `optimal/*.jpg` during migration; Publish regene
 
 1. Operator-assigned Visual pool file (`display.cover` / registry) — preferred
 2. Legacy same-basename sidecar in `media/img/original/` (if still present)
-3. Embedded art: if bytes match an existing Visual original (`content_sha256` / exact SHA-256 of intake or embedded blob), **link only** — do not extract a new `{stem}.ext`
-4. Extract embedded art only when no assigned/sidecar/hash match exists
+3. Embedded art: if bytes match an existing Visual original (`content_sha256` / exact SHA-256 of intake or embedded blob), **link only** — do not extract a new `{stem}.ext`, and do not re-seed keywords/captured from the linking track.
+4. Extract embedded art only when no assigned/sidecar/hash match exists. On that extract/register, one-time fill empty Visual `display.title` as `Track cover: {track title}`, empty `keywords` with role + artist, and empty `captured_at` from the audio date when available. Later builds never overwrite operator (or previously seeded) values.
 5. Configured release cover fallback
 
-Assigned pool files are not duplicated as stem-named sidecars. Many tracks may share one Visual `asset_id`. A migrate step collapses identical intake originals by content hash, re-points audio `display.cover`, and removes redundant files + delivery dirs.
+Assigned pool files are not duplicated as stem-named sidecars. Many tracks may share one Visual `asset_id`. A migrate step collapses identical intake originals by content hash, re-points audio `display.cover`, and removes redundant files + delivery dirs. Files listing falls back to `Track cover: {linked track title}` when `display.title` is empty.
+
+**Delete Visual (safety):** deleting a Visual detaches site/registry cover and living-cover links by default and **does not** strip embedded art from audio masters. Operators may opt in (delete modal checkbox) to also clear embedded still covers from linked masters. A later Publish/rebuild may re-extract embedded art into a new Visual; delivery thumb/card are built in the playlist stage (and a catch-up optimizeMedia pass) so Files does not show a blank tile.
 
 #### Non-goals for v0.8.4
 

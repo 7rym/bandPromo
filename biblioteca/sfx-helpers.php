@@ -483,18 +483,63 @@ function bandpromo_sfx_delete_tier_files(string $root, ?array $asset): void
 }
 
 /**
- * Backfill master + delivery for all registered sound effects.
+ * True when optimal delivery exists, is marked ready, and is not older than the master.
  *
- * @return array{masters: int, deliveries: int, warnings: list<string>}
+ * @param array<string, mixed> $asset
+ */
+function bandpromo_sfx_delivery_is_fresh(string $root, array $asset): bool
+{
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '') {
+        return false;
+    }
+
+    $dest = bandpromo_sfx_delivery_absolute($root, $assetId);
+    if ($dest === '' || !is_file($dest) || filesize($dest) <= 0) {
+        return false;
+    }
+    if (empty($asset['delivery']['ready']) || empty($asset['delivery']['audio_optimal'])) {
+        return false;
+    }
+
+    $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
+    if ($format === '') {
+        $format = strtolower((string) pathinfo((string) ($asset['master_filename'] ?? ''), PATHINFO_EXTENSION));
+    }
+    $master = $format !== ''
+        ? bandpromo_sfx_master_absolute($root, $assetId, $format)
+        : '';
+    if ($master === '' || !is_file($master)) {
+        $masterFilename = basename((string) ($asset['master_filename'] ?? ''));
+        if ($masterFilename !== '') {
+            $master = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
+        }
+    }
+    if ($master === '' || !is_file($master)) {
+        return false;
+    }
+
+    return filemtime($master) <= filemtime($dest);
+}
+
+/**
+ * Backfill master + delivery for all registered sound effects.
+ * Skips assets whose optimal delivery is already fresh (master not newer).
+ *
+ * @return array{masters: int, deliveries: int, skipped: int, warnings: list<string>}
  */
 function bandpromo_sfx_backfill_tiers(string $root): array
 {
     require_once __DIR__ . '/asset-registry.php';
 
-    $result = ['masters' => 0, 'deliveries' => 0, 'warnings' => []];
+    $result = ['masters' => 0, 'deliveries' => 0, 'skipped' => 0, 'warnings' => []];
     $registry = bandpromo_asset_load_registry($root);
     foreach ($registry['assets'] as $asset) {
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'sfx') {
+            continue;
+        }
+        if (bandpromo_sfx_delivery_is_fresh($root, $asset)) {
+            $result['skipped']++;
             continue;
         }
         $built = bandpromo_sfx_build_delivery($root, $asset);

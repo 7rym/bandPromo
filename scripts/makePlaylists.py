@@ -676,7 +676,7 @@ def resolve_pool_cover_filename(cover_name):
             for ext in ('.png', '.jpg', '.jpeg', '.webp'):
                 if (folder / (asset_id + ext)).exists():
                     return asset_id
-        return asset_id
+        return None
     for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
         if (folder / cover_name).exists():
             return cover_name
@@ -694,7 +694,7 @@ def resolve_pool_cover_filename(cover_name):
 
 
 def get_assigned_cover_from_registry(audio_filename):
-    """Operator-assigned Visual cover from asset registry display.cover (asset id preferred)."""
+    """Operator-assigned Visual pool cover from asset registry display.cover (asset id preferred)."""
     asset = load_asset_for_filename(audio_filename)
     if not isinstance(asset, dict):
         return None
@@ -702,9 +702,14 @@ def get_assigned_cover_from_registry(audio_filename):
     cover = normalize_asset_id_ref(display.get('cover'))
     if not cover:
         return None
-    if ASSET_ID_RE.match(cover):
-        return cover
-    return resolve_pool_cover_filename(cover)
+    # Prefer a real Visual registry id (never treat an audio id as cover).
+    visual_id = find_visual_asset_id_for_ref(cover)
+    if visual_id:
+        return visual_id
+    resolved = resolve_pool_cover_filename(cover)
+    if resolved:
+        return resolved
+    return None
 
 
 def load_asset_registry_payload():
@@ -759,7 +764,8 @@ def find_visual_asset_id_for_ref(ref):
         original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
         master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
         master_stem = os.path.splitext(master_name)[0]
-        if name in {original_name, master_name, master_stem}:
+        original_stem = os.path.splitext(original_name)[0]
+        if name in {original_name, master_name, master_stem, original_stem}:
             return asset_id
     return None
 
@@ -806,6 +812,252 @@ def set_audio_display_cover(audio_filename, cover_ref):
     return False
 
 
+def read_audio_tag_field(filename, vorbis_keys, id3_keys):
+    """Return first matching tag value as a single line, or empty string."""
+    try:
+        audio = File(filename)
+    except Exception:
+        return ''
+    if audio is None:
+        return ''
+    tags = audio.tags
+    if not tags:
+        return ''
+    value = ''
+    try:
+        for key in vorbis_keys:
+            if key in tags and tags[key]:
+                value = tags[key][0]
+                break
+        if not value:
+            for key in id3_keys:
+                if key in tags:
+                    value = str(tags[key])
+                    break
+    except Exception:
+        value = ''
+    return ' '.join(str(value or '').replace('\r', ' ').replace('\n', ' ').split())
+
+
+def read_audio_tag_title(filename):
+    """Return a single-line TITLE/TIT2 from the audio file, or empty string."""
+    return read_audio_tag_field(filename, ('TITLE',), ('TIT2',))
+
+
+def read_audio_tag_artist(filename):
+    """Return a single-line ARTIST/TPE1 from the audio file, or empty string."""
+    return read_audio_tag_field(filename, ('ARTIST', 'ALBUMARTIST'), ('TPE1', 'TPE2'))
+
+
+def read_audio_tag_date(filename):
+    """Return a date-ish tag (DATE / TDRC / TYER), or empty string."""
+    return read_audio_tag_field(filename, ('DATE', 'YEAR'), ('TDRC', 'TDAT', 'TYER'))
+
+
+def normalize_captured_at_value(raw):
+    """Normalize audio/release dates to YYYY, YYYY-MM, or YYYY-MM-DD."""
+    text = ' '.join(str(raw or '').replace('\r', ' ').replace('\n', ' ').split())
+    if not text:
+        return ''
+    # EXIF-style "YYYY:MM:DD ..."
+    m = re.match(r'^(\d{4}):(\d{2}):(\d{2})', text)
+    if m:
+        return '%s-%s-%s' % (m.group(1), m.group(2), m.group(3))
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})', text)
+    if m:
+        return m.group(0)
+    m = re.match(r'^(\d{4})-(\d{2})\b', text)
+    if m:
+        return m.group(0)
+    m = re.match(r'^(\d{4})\b', text)
+    if m:
+        return m.group(1)
+    return ''
+
+
+def read_audio_catalog_meta(audio_filename):
+    """
+    Prefer registry audio display fields; fall back to embedded tags.
+    Returns dict with title, artist, date (raw), captured_at (normalized).
+    """
+    meta = {'title': '', 'artist': '', 'date': '', 'captured_at': ''}
+    audio_name = os.path.basename(str(audio_filename or '').strip())
+    if audio_name:
+        payload = load_asset_registry_payload()
+        assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+        for asset in assets.values():
+            if not isinstance(asset, dict) or asset.get('kind') != 'audio':
+                continue
+            original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+            master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+            if audio_name not in {original_name, master_name}:
+                continue
+            display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+            title = ' '.join(str(display.get('title') or '').replace('\r', ' ').replace('\n', ' ').split())
+            version = ' '.join(str(display.get('version') or '').replace('\r', ' ').replace('\n', ' ').split())
+            if title and version and version.lower() not in title.lower():
+                title = '%s [%s]' % (title, version)
+            artist = ' '.join(str(display.get('artist') or '').replace('\r', ' ').replace('\n', ' ').split())
+            date_raw = ' '.join(str(display.get('date') or '').replace('\r', ' ').replace('\n', ' ').split())
+            meta['title'] = title
+            meta['artist'] = artist
+            meta['date'] = date_raw
+            break
+    if not meta['title']:
+        meta['title'] = read_audio_tag_title(audio_filename)
+    if not meta['artist']:
+        meta['artist'] = read_audio_tag_artist(audio_filename)
+    if not meta['date']:
+        meta['date'] = read_audio_tag_date(audio_filename)
+    meta['captured_at'] = normalize_captured_at_value(meta['date'])
+    return meta
+
+
+def read_audio_catalog_title(audio_filename):
+    """Prefer registry audio display.title; fall back to embedded tags."""
+    return read_audio_catalog_meta(audio_filename).get('title') or ''
+
+
+def format_track_cover_display_title(track_title, role_label='Track cover'):
+    """Build '[Role]: [Title]' for Visual display.title; empty title => ''."""
+    role = ' '.join(str(role_label or 'Track cover').split()) or 'Track cover'
+    title = ' '.join(str(track_title or '').replace('\r', ' ').replace('\n', ' ').split())
+    if not title:
+        return ''
+    return '%s: %s' % (role, title)
+
+
+def format_track_cover_keywords(role_label, artist):
+    """One-time extract keywords: role label + artist (deduped, order preserved)."""
+    out = []
+    seen = set()
+    for part in (role_label, artist):
+        value = ' '.join(str(part or '').replace('\r', ' ').replace('\n', ' ').split())
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+    return out
+
+
+def seed_visual_display_from_audio_extract(cover_ref, audio_filename, role_label='Track cover'):
+    """
+    One-time seed after extracting embedded art from a master.
+    Fills only empty display.title / keywords / captured_at. Never overwrites.
+    """
+    cover_name = normalize_asset_id_ref(cover_ref)
+    if not cover_name:
+        return False
+    meta = read_audio_catalog_meta(audio_filename)
+    role = ' '.join(str(role_label or 'Track cover').split()) or 'Track cover'
+    wanted_title = format_track_cover_display_title(meta.get('title') or '', role)
+    wanted_keywords = format_track_cover_keywords(role, meta.get('artist') or '')
+    wanted_captured = normalize_captured_at_value(meta.get('captured_at') or meta.get('date') or '')
+
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset_id = None
+    asset = None
+    if cover_name in assets and isinstance(assets.get(cover_name), dict):
+        asset_id = cover_name
+        asset = assets[cover_name]
+    else:
+        for candidate_id, candidate in assets.items():
+            if not isinstance(candidate, dict) or candidate.get('kind') != 'visual':
+                continue
+            original_name = os.path.basename(str(candidate.get('original_filename') or '').strip())
+            master_name = os.path.basename(str(candidate.get('master_filename') or '').strip())
+            if cover_name in {original_name, master_name, candidate_id}:
+                asset_id = candidate_id
+                asset = candidate
+                break
+    if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+        return False
+
+    display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+    changed = False
+    existing_title = ' '.join(str(display.get('title') or '').split())
+    if not existing_title and wanted_title:
+        display['title'] = wanted_title
+        changed = True
+
+    existing_keywords = display.get('keywords') if isinstance(display.get('keywords'), list) else []
+    existing_keywords = [
+        ' '.join(str(item or '').replace('\r', ' ').replace('\n', ' ').split())
+        for item in existing_keywords
+    ]
+    existing_keywords = [item for item in existing_keywords if item]
+    if not existing_keywords and wanted_keywords:
+        display['keywords'] = wanted_keywords
+        changed = True
+
+    existing_captured = ' '.join(str(display.get('captured_at') or '').split())
+    if not existing_captured and wanted_captured:
+        display['captured_at'] = wanted_captured
+        changed = True
+
+    if not changed:
+        return False
+    asset['display'] = display
+    assets[asset_id] = asset
+    payload['assets'] = assets
+    save_asset_registry_payload(payload)
+    return True
+
+
+def ensure_visual_image_delivery_for_cover(cover_ref):
+    """
+    Build thumb/card (etc.) when playlist extract registers a Visual after the
+    main optimizeMedia stage has already finished.
+    """
+    cover_name = normalize_asset_id_ref(cover_ref)
+    if not cover_name:
+        return False
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = None
+    if cover_name in assets and isinstance(assets.get(cover_name), dict):
+        asset = assets[cover_name]
+    else:
+        for candidate in assets.values():
+            if not isinstance(candidate, dict) or candidate.get('kind') != 'visual':
+                continue
+            original_name = os.path.basename(str(candidate.get('original_filename') or '').strip())
+            master_name = os.path.basename(str(candidate.get('master_filename') or '').strip())
+            if cover_name in {original_name, master_name, str(candidate.get('id') or '')}:
+                asset = candidate
+                break
+    if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+        return False
+    if str(asset.get('media_type') or 'image') not in ('image', ''):
+        return False
+    delivery = asset.get('delivery') if isinstance(asset.get('delivery'), dict) else {}
+    variants = delivery.get('variants') if isinstance(delivery.get('variants'), dict) else {}
+    role = str(asset.get('role') or 'track-cover')
+    required = ('thumb', 'card')
+    if role in ('brand-logo', 'style-ref'):
+        required = ('thumb', 'card')
+    if all(isinstance(variants.get(name), dict) for name in required):
+        return False
+    try:
+        import optimizeMedia as optimize_media
+    except Exception as exc:
+        print("Warning: Could not import optimizeMedia for cover delivery: %s" % exc)
+        return False
+    try:
+        result = optimize_media.process_visual_image_asset(asset)
+    except Exception as exc:
+        print("Warning: Cover delivery failed for %s: %s" % (cover_name, exc))
+        return False
+    if result:
+        print("✓ Built Visual delivery for track cover: %s" % (asset.get('id') or cover_name))
+        return True
+    return False
+
+
 def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
     """Store content_sha256 on the visual registry row for this original filename or asset id."""
     safe_name = normalize_asset_id_ref(filename)
@@ -831,15 +1083,19 @@ def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
         return
 
 
-def register_visual_original_via_php(filename, role='track-cover'):
+def register_visual_original_via_php(filename, role='track-cover', display_title=''):
     """Register an on-disk Visual original; PHP mints the ast_* id. Returns id or None."""
     safe_name = os.path.basename(str(filename or '').strip())
     if not safe_name:
         return None
+    role_name = str(role or 'track-cover').strip() or 'track-cover'
+    title = ' '.join(str(display_title or '').replace('\r', ' ').replace('\n', ' ').split())
+    cmd = [resolve_php_cli(), str(SCRIPT_DIR / 'register_visual_original.php'), safe_name, role_name]
+    if title:
+        cmd.append(title)
     try:
-        php = resolve_php_cli()
         result = subprocess.run(
-            [php, str(SCRIPT_DIR / 'register_visual_original.php'), safe_name, role],
+            cmd,
             cwd=str(ROOT_DIR),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -899,18 +1155,24 @@ def read_embedded_cover_bytes(filename):
     return None
 
 
-def _link_or_register_cover_file(audio_filename, disk_name, digest, intake_bucket='img'):
+def _link_or_register_cover_file(audio_filename, disk_name, digest, intake_bucket='img', seed_extract=False):
+    display_title = format_track_cover_display_title(read_audio_catalog_title(audio_filename))
     existing_id = find_visual_asset_id_for_ref(disk_name)
     if existing_id:
         ensure_visual_content_sha256_on_file(existing_id, digest, intake_bucket)
         set_audio_display_cover(audio_filename, existing_id)
+        if seed_extract:
+            seed_visual_display_from_audio_extract(existing_id, audio_filename)
         return existing_id
     ensure_visual_content_sha256_on_file(disk_name, digest, intake_bucket)
-    registered = register_visual_original_via_php(disk_name, 'track-cover')
+    registered = register_visual_original_via_php(disk_name, 'track-cover', display_title)
     cover_ref = registered or disk_name
     if registered:
         ensure_visual_content_sha256_on_file(registered, digest, intake_bucket)
     set_audio_display_cover(audio_filename, cover_ref)
+    if seed_extract:
+        seed_visual_display_from_audio_extract(cover_ref, audio_filename)
+        ensure_visual_image_delivery_for_cover(cover_ref)
     return cover_ref
 
 
@@ -929,6 +1191,7 @@ def extract_embedded_cover_to_visual(filename, base_filename=None):
     digest = hashlib.sha256(data).hexdigest()
     existing = find_visual_asset_id_by_content_sha256(digest)
     if existing:
+        # Shared/existing art: link only. Do not re-seed keywords/captured on every build.
         set_audio_display_cover(filename, existing)
         print("✓ Reused Visual cover for embedded art (hash match): %s" % existing)
         return existing
@@ -951,18 +1214,31 @@ def extract_embedded_cover_to_visual(filename, base_filename=None):
                     continue
             except Exception:
                 continue
-            cover_ref = _link_or_register_cover_file(filename, entry.name, digest, bucket)
+            # Existing pool bytes: link only (no extract seed).
+            cover_ref = _link_or_register_cover_file(filename, entry.name, digest, bucket, seed_extract=False)
             print("✓ Linked embedded art to existing pool file: %s" % cover_ref)
             return cover_ref
 
     outname_filename = 'embedded-' + digest[:16] + ext
     outname_full = VISUAL_ORIG_DIR / outname_filename
     VISUAL_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+    wrote_new = False
     if not outname_full.exists():
         with open(str(outname_full), 'wb') as imgf:
             imgf.write(data)
+        wrote_new = True
         print("✓ Extracted embedded cover to Visual original: %s" % outname_filename)
-    cover_ref = _link_or_register_cover_file(filename, outname_filename, digest, 'img')
+    # Seed display only when this path is the extract/register for these bytes.
+    # Empty-field seed is idempotent; never overwrites operator edits on later builds.
+    cover_ref = _link_or_register_cover_file(
+        filename,
+        outname_filename,
+        digest,
+        'img',
+        seed_extract=True,
+    )
+    if wrote_new and cover_ref:
+        print("✓ Seeded track-cover display from audio for %s" % cover_ref)
     return cover_ref
 
 
@@ -1462,6 +1738,17 @@ def generate_playlist():
         print(f"   Validation report saved to {VALIDATION_FILE}")
     if unsupported_files:
         print(f"⚠️  Unsupported source files were skipped. Current supported source formats: {', '.join(ext.upper().lstrip('.') for ext in SUPPORTED_EXTENSIONS)}")
+
+    # Catch covers extracted after the earlier optimizeMedia stage (or missing variants).
+    cover_refs = []
+    for track in playlist:
+        if not isinstance(track, dict):
+            continue
+        cover = normalize_asset_id_ref(track.get('cover'))
+        if cover:
+            cover_refs.append(cover)
+    for cover in sorted(set(cover_refs)):
+        ensure_visual_image_delivery_for_cover(cover)
 
     publish_player_playlist_payloads()
 

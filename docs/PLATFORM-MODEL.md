@@ -319,7 +319,7 @@ Containers, galleries, pages, brands, track covers, living covers, and social/sh
 
 **Replace upload:** same `original_filename` reuses one `ast_*` and overwrites master bytes (no clone storm).
 
-**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. When `display.title` is empty, Files / pickers fall back to the registry **role label** only (e.g. `Track cover`, `Unassigned`) via `operator_title` — not brand or release suffixes.
+**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. When `display.title` is empty, Files / pickers fall back to the registry **role label** only (e.g. `Track cover`, `Unassigned`) via `operator_title` — not brand or release suffixes. When build **extracts** embedded art from a master into a new Visual original, it one-time seeds empty fields only: `display.title` as **`Track cover: {track title}`**, `keywords` as **`[role, artist]`** (e.g. `Track cover`, artist name), and `captured_at` from the audio catalog/tag date when available. Later builds, hash-match reuse, and assigned covers never overwrite those fields. Listing still synthesizes `Track cover: {linked track title}` when `display.title` is empty.
 
 **Operator address (Files / pickers):** **title first** when set; else role + linked context; `ast_*` secondary; original upload name tertiary. Shared assets show “used by N”; delete warns when multiple live refs.
 

@@ -25,6 +25,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Do not add runtime fallbacks that silently use example/template files in production paths.
 - Runtime files are required and should fail loudly with actionable messages when missing.
 - Keep local-only files out of git (for example web-config.json, data files, .env, icons, manifests).
+- **Never destroy this working copy’s runtime.** `data/` (including `data/analytics/`), `media/`, `log/` (analytics and admin-audit test data), `backups/`, `web-config.json`, and `data/terces` are operator data. “Try a fresh install”, SESSION-HANDOFF, or “clean host” do **not** authorize deleting them here. Remote test fleet: **bandpromo.site** (Vanilla — always the fresh-install host), **Twisted Chronicles**, **HITZ**. The user must name those exact paths in the same message before any rmtree/delete. Same bar as secrets: stop and ask. See `.cursor/rules/never-wipe-runtime.mdc`.
 - **desktop.ini files:** Windows + Google Drive creates these metadata files in every folder locally. They are **not** tracked by git (see `.gitignore`) and will be recreated on every local sync. Never try to add them to git; they cause corruption in `.git/refs/` and should always be ignored. If you accidentally commit one, remove it immediately.
 - This repository lives inside Google Drive, so `.gitignore` alone is not enough. Run `powershell -ExecutionPolicy Bypass -File scripts/protect-google-drive-git.ps1` once per clone to move `.git` outside the synced folder. That is the durable fix; `.gitignore` only protects the working tree.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
@@ -110,6 +111,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 
 ## Common Pitfalls
 
+- **Wiping local `data/`, `media/`, or `log/`:** this Google Drive tree is the live operator catalog (`log/` includes analytics test history). Fresh-install smokes always run on **bandpromo.site**; the other remote tests are Twisted Chronicles and HITZ. Do not rmtree runtime roots unless the operator named those paths in the same message.
 - Accidentally tracking local files from `data/`, `log/`, `backups/`, `media/`, root config, generated assets, `.vscode/`, or `.editorconfig`.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to bump `VERSION` before pushing changes to `main`.
@@ -119,16 +121,16 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
 - **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
 - **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
-- **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Release packaging reads on-disk `media/icons/` into `bandPromo.zip` (CI seeds icons from the previous app ZIP) and emits protection stubs from `biblioteca/templates/runtime/`; never re-add demo binaries or host Apache stubs to git.
+- **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Platform favicon seed is tracked at `biblioteca/templates/icons/bP-icons.zip`; packaging/setup extract it into gitignored `media/icons/` for the app ZIP and installs. Never re-add demo binaries or host Apache stubs to git.
 
 ## When in Doubt
 
 - Choose safer behavior: explicit validation, explicit errors, no silent fallback.
 - Keep changes minimal and scoped.
-- Ask for confirmation before destructive or wide-reaching repository operations.
+- Ask for confirmation before destructive or wide-reaching repository operations. Deleting gitignored runtime trees (`data/`, `media/`, `log/`, `backups/`) is the same class of action as entering a password: **forbidden** unless the operator named those exact paths in the same message. Docs and “fresh install” are not permission.
 
 
-_Last updated: 2026-08-13_
+_Last updated: 2026-08-14_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
 - **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PRP / `.prp` contract is source of truth for demo and operator campaign handoff.

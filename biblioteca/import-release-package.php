@@ -18,6 +18,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+if ($contentLength > 0 && empty($_POST) && empty($_FILES)) {
+    $postMax = (string) ini_get('post_max_size');
+    $uploadMax = (string) ini_get('upload_max_filesize');
+    http_response_code(413);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'Package is larger than this host allows (post_max_size='
+            . $postMax . ', upload_max_filesize=' . $uploadMax
+            . '). Raise those limits or import from disk on the server.',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 $csrfToken = trim((string) ($_POST['csrf_token'] ?? ''));
 if (!validate_csrf_token($csrfToken)) {
     http_response_code(403);
@@ -30,9 +44,28 @@ if (!validate_csrf_token($csrfToken)) {
 
 $root = dirname(__DIR__);
 $file = $_FILES['package'] ?? null;
-if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+if (!is_array($file)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'Upload a portable release package (.prp or .zip).']);
+    exit;
+}
+
+$uploadError = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+if ($uploadError !== UPLOAD_ERR_OK) {
+    $postMax = (string) ini_get('post_max_size');
+    $uploadMax = (string) ini_get('upload_max_filesize');
+    $error = match ($uploadError) {
+        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Package exceeds PHP upload limits (upload_max_filesize='
+            . $uploadMax . ', post_max_size=' . $postMax . ').',
+        UPLOAD_ERR_PARTIAL => 'Upload was interrupted before the package finished transferring.',
+        UPLOAD_ERR_NO_FILE => 'Upload a portable release package (.prp or .zip).',
+        UPLOAD_ERR_NO_TMP_DIR => 'Server temporary upload directory is missing.',
+        UPLOAD_ERR_CANT_WRITE => 'Server could not write the uploaded package.',
+        UPLOAD_ERR_EXTENSION => 'A PHP extension blocked the upload.',
+        default => 'Upload failed (error code ' . $uploadError . ').',
+    };
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => $error], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -58,6 +91,8 @@ if ($collision === 'skip-existing') {
 if (!in_array($collision, ['refuse', 'overwrite', 'skip', 'allocate'], true)) {
     $collision = 'refuse';
 }
+
+@set_time_limit(0);
 
 try {
     $result = bandpromo_release_campaign_import_from_zip($root, $tmpName, [

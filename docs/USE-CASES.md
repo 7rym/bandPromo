@@ -4,17 +4,19 @@ Real-life personas for closed-beta feedback during development. Not marketing co
 
 Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FEATURES.md](FEATURES.md), [ROADMAP.md](ROADMAP.md) → Beta tester expectations.
 
-Closed-beta fleet today: **three** remote installs — one per persona below. See [TODO.md](TODO.md) → Beta fleet sync.
+Closed-beta fleet today: **three** remote installs — one per persona below. See [TODO.md](TODO.md) → Beta fleet sync. This Google Drive working copy is **never** a wipeable test install. Fresh installs always use **https://bandpromo.site**.
 
 | Persona | Operator type | Stresses |
 |---------|---------------|----------|
-| **Vanilla** | Fresh demo-content install | Setup, demo catalog, Site update, baseline UX |
+| **Vanilla** | Fresh demo-content install on **https://bandpromo.site** | Setup, demo catalog, Site update, baseline UX |
 | **Twisted Chronicles** | Band / traditional campaign | Album + singles under one Release; per-release Bio/EPK; staggered playlist street dates |
 | **HITZ** | Record label | Artist releases **and** long-form show episodes; Lyrics vs Tracklist on one install |
 
 ---
 
 ## Vanilla
+
+**Host:** always **https://bandpromo.site**. Never this Google Drive working copy.
 
 **Goal:** Prove a clean install feels finished without custom campaign content.
 

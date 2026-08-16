@@ -1,0 +1,7 @@
+# Private Vanilla smoke suite
+
+When the operator asks to run the **Vanilla / bandpromo.site setup smoke** (bootstrap → setup → rebuild → player):
+
+1. Read **`%USERPROFILE%\.bandpromo\SETUP-SMOKE-SUITE.md`** (outside this repo). Follow that file exactly.
+2. **Never** recreate that suite under `docs/`, commit credentials, or paste host passwords into tracked files, CHANGELOG, SESSION-HANDOFF, or PR text.
+3. Repo bootstrap-only checklist without credentials: `docs/FIRST-BOOTSTRAP-TEST-CHECKLIST.md`.

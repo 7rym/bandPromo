@@ -5740,6 +5740,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const deleteNameEl     = document.getElementById('mediaDeleteName');
             const deleteListEl     = document.getElementById('mediaDeleteList');
             const deleteHintEl     = document.getElementById('mediaDeleteHint');
+            const deleteClearEmbeddedWrap = document.getElementById('mediaDeleteClearEmbeddedWrap');
+            const deleteClearEmbeddedEl = document.getElementById('mediaDeleteClearEmbedded');
             const deleteConfirmBtn = document.getElementById('mediaDeleteConfirmBtn');
             const deleteStatusEl   = document.getElementById('mediaDeleteStatus');
             const audioMasterModal = document.getElementById('audioMasterModal');
@@ -7130,6 +7132,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             async function requestDeleteMediaOperation(panelType, selectionKeys, options = {}) {
                 const mode = options.mode === 'preview' ? 'preview' : 'delete';
                 const detachReferences = options.detach_references === true;
+                const clearEmbeddedCovers = options.clear_embedded_covers === true;
                 const keys = (Array.isArray(selectionKeys) ? selectionKeys : []).filter(Boolean);
                 if (!panelType || !keys.length) {
                     throw new Error('No files selected');
@@ -7156,16 +7159,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             filenames: names,
                             mode: mode === 'preview' ? 'preview' : undefined,
                             detach_references: detachReferences,
+                            clear_embedded_covers: clearEmbeddedCovers,
                         }
                         : {
                             target: bucket,
                             filename: names[0],
                             mode: mode === 'preview' ? 'preview' : undefined,
                             detach_references: detachReferences,
+                            clear_embedded_covers: clearEmbeddedCovers,
                         };
                     if (mode !== 'preview') {
                         delete payload.mode;
                         payload.detach_references = true;
+                        payload.clear_embedded_covers = clearEmbeddedCovers;
                     }
 
                     const resp = await fetch('/biblioteca/delete-media.php', {
@@ -7203,6 +7209,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : (merged.failed_count ? 'Some files could not be deleted.' : 'File removed.');
                 }
                 return merged;
+            }
+
+            function deletePreviewHasTrackCoverRefs(data) {
+                const refs = Array.isArray(data?.references) ? data.references : [];
+                return refs.some((reference) => {
+                    const kind = String(reference?.kind || '').trim();
+                    return kind === 'track-cover'
+                        || kind === 'playlist-cover'
+                        || kind === 'track-living-cover';
+                });
+            }
+
+            function resetDeleteClearEmbeddedOption(visible = false) {
+                if (deleteClearEmbeddedWrap) {
+                    deleteClearEmbeddedWrap.style.display = visible ? 'flex' : 'none';
+                }
+                if (deleteClearEmbeddedEl) {
+                    deleteClearEmbeddedEl.checked = false;
+                }
             }
 
             window.openDeleteModal = function(type, filename) {
@@ -7265,6 +7290,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : 'Checking whether this file is still used in the playlist or gallery…');
                 }
                 if (deleteStatusEl) deleteStatusEl.textContent = '';
+                resetDeleteClearEmbeddedOption(false);
                 if (deleteConfirmBtn) deleteConfirmBtn.disabled = true;
                 if (deleteModal) deleteModal.style.display = 'flex';
 
@@ -7274,6 +7300,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         deleteReferencePreview = data;
                         const summary = data.reference_summary || {};
                         const total = Number(summary.total || 0);
+                        const showEmbeddedOption = deleteTarget === 'visual' && (
+                            deletePreviewHasTrackCoverRefs(data)
+                            || deleteFiles.some((key) => {
+                                const file = findPoolAssetByKey('visual', key);
+                                const role = String(file?.role || file?.reference_info?.role || '').trim();
+                                return role === 'track-cover';
+                            })
+                        );
+                        resetDeleteClearEmbeddedOption(showEmbeddedOption);
                         if (deleteHintEl) {
                             const extras = buildMediaReferenceDeleteExtraHint(data, deleteFiles, deleteTarget);
                             if (!total) {
@@ -7293,6 +7328,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 if ((data.references || []).length > 6) {
                                     lines.push('…');
                                 }
+                                if (showEmbeddedOption) {
+                                    lines.push('Linked audio masters keep their embedded cover art unless you opt in below.');
+                                }
                                 if (extras.length) {
                                     lines.push(...extras.map((line) => bandpromoAdminEscapeHtml(line)));
                                 }
@@ -7300,8 +7338,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                         }
                     } catch (error) {
+                        resetDeleteClearEmbeddedOption(deleteTarget === 'visual');
                         if (deleteHintEl) {
-                            deleteHintEl.textContent = 'Could not inspect playlist/gallery references first. Deleting will still try to remove related references automatically.';
+                            deleteHintEl.textContent = 'Could not inspect playlist/gallery references first. Deleting will still try to remove related references automatically. Audio masters keep embedded covers unless you opt in below.';
                         }
                     } finally {
                         if (deleteConfirmBtn) deleteConfirmBtn.disabled = false;
@@ -7314,6 +7353,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 deleteTarget = null;
                 deleteFiles  = [];
                 deleteReferencePreview = null;
+                resetDeleteClearEmbeddedOption(false);
             };
 
             if (deleteConfirmBtn) {
@@ -7324,6 +7364,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     try {
                         const data = await requestDeleteMediaOperation(deleteTarget, deleteFiles, {
                             detach_references: true,
+                            clear_embedded_covers: !!(deleteClearEmbeddedEl && deleteClearEmbeddedEl.checked),
                         });
                         clearMediaSelection(deleteTarget);
                         closeDeleteModal();
@@ -12758,7 +12799,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     } catch (error) {
                         if (releasePackageImportStatus) {
-                            releasePackageImportStatus.textContent = error.message || 'Import failed';
+                            let message = error && error.message ? String(error.message) : 'Import failed';
+                            if (/failed to fetch|networkerror|load failed/i.test(message)) {
+                                message = 'Upload failed before the server could answer. Large .prp files need PHP upload_max_filesize / post_max_size above the package size (this host defaults are often 2M/8M). Restart the local dev server after the limit bump, or import the file from disk.';
+                            }
+                            releasePackageImportStatus.textContent = message;
                             releasePackageImportStatus.classList.add('is-error');
                         }
                     } finally {

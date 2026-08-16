@@ -153,11 +153,13 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 |-------|--------|-------|-------|
 | Preflight | inline | preflight | tools + runtime templates |
 | 1 | `buildCatalog.py` | catalog | register + masters |
-| 2 | `optimizeMedia.py` full | deliverables | registry-scoped audio delivery |
-| 3 | `optimizeVideo.py` | deliverables | video delivery |
-| 4 | `makePlaylists.py` | artifacts | playlist export + validation |
-| 5 | `makeSocial.py` | artifacts | share crops after deliverables |
-| 6 | `makePWA.py` | artifacts | manifest |
+| 2 | `optimizeMedia.py` full | deliverables | registry-scoped audio + image delivery |
+| 3 | `buildSfxDelivery.py` | deliverables | SFX master + `media/sfx/optimal/{ast_*}.mp3` |
+| 4 | `optimizeVideo.py` | deliverables | video delivery |
+| 5 | `makePlaylists.py` | artifacts | playlist export + validation (+ cover extract) |
+| 6 | `optimizeMedia.py` image-only | artifacts | visual-delivery catch-up for late covers |
+| 7 | `makeSocial.py` | artifacts | share crops after deliverables |
+| 8 | `makePWA.py` | artifacts | manifest |
 | *(setup only)* | `initialSiteSeed.py` via `run-layout-seed.php` | initial site seed | not in publish chain |
 
 ### Side channels (not the main publish button)

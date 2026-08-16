@@ -813,6 +813,137 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
         ];
     }
     bandpromo_release_write_registry($root, $registry);
+
+    // Import copies container JSON files; they stay invisible until registry entries exist.
+    $playlistRegistry = bandpromo_playlist_load_registry($root);
+    $knownPlaylists = [];
+    $maxPlaylistOrder = 0;
+    foreach ($playlistRegistry['playlists'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $pid = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($pid !== '') {
+            $knownPlaylists[$pid] = true;
+        }
+        $maxPlaylistOrder = max($maxPlaylistOrder, (int) ($entry['sort_order'] ?? 0));
+    }
+    $playlistDir = bandpromo_playlist_storage_root($root);
+    if (is_dir($playlistDir)) {
+        foreach (glob($playlistDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $playlistPath) {
+            if (basename($playlistPath) === 'registry.json') {
+                continue;
+            }
+            $decoded = bandpromo_json_read_array_file($playlistPath);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            if (trim((string) ($decoded['release_id'] ?? '')) !== $releaseId) {
+                continue;
+            }
+            $playlistId = bandpromo_playlist_normalize_id((string) ($decoded['id'] ?? pathinfo($playlistPath, PATHINFO_FILENAME)));
+            if ($playlistId === '' || isset($knownPlaylists[$playlistId])) {
+                continue;
+            }
+            $kind = strtolower(trim((string) ($decoded['kind'] ?? 'user')));
+            if (!in_array($kind, ['system', 'user'], true)) {
+                $kind = 'user';
+            }
+            if ($playlistId !== BANDPROMO_PLAYLIST_DEMO_ID && $kind === 'system') {
+                $kind = 'user';
+            }
+            $maxPlaylistOrder += 10;
+            $playlistRegistry['playlists'][] = [
+                'id' => $playlistId,
+                'title' => (string) ($decoded['title'] ?? $playlistId),
+                'kind' => $kind,
+                'publish_date' => (string) ($decoded['publish_date'] ?? ''),
+                'sort_order' => $maxPlaylistOrder,
+            ];
+            $knownPlaylists[$playlistId] = true;
+        }
+        bandpromo_playlist_write_registry($root, $playlistRegistry);
+    }
+
+    $rawRelease = bandpromo_json_read_array_file(bandpromo_release_document_path($root, $releaseId));
+    $brandId = bandpromo_brand_canonical_id((string) ((is_array($rawRelease) ? $rawRelease['brand_id'] : null) ?? ''));
+    if ($brandId !== '' && is_file(bandpromo_theme_document_path($root, $brandId))) {
+        $brandRegistry = bandpromo_theme_load_registry($root);
+        $listKey = bandpromo_theme_registry_list_key($brandRegistry);
+        $knownBrands = [];
+        $maxBrandOrder = 0;
+        foreach ($brandRegistry[$listKey] as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $bid = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+            if ($bid !== '') {
+                $knownBrands[$bid] = true;
+            }
+            $maxBrandOrder = max($maxBrandOrder, (int) ($entry['sort_order'] ?? 0));
+        }
+        if (!isset($knownBrands[$brandId])) {
+            try {
+                $brandDoc = bandpromo_theme_load_document($root, $brandId);
+            } catch (Throwable $throwable) {
+                $brandDoc = ['title' => $brandId, 'system' => false, 'locked' => false];
+            }
+            $brandRegistry[$listKey][] = [
+                'id' => $brandId,
+                'title' => (string) ($brandDoc['title'] ?? $brandId),
+                'system' => !empty($brandDoc['system']),
+                'locked' => !empty($brandDoc['locked']),
+                'sort_order' => $maxBrandOrder + 10,
+            ];
+            bandpromo_theme_write_registry($root, $brandRegistry);
+        }
+    }
+
+    $galleryRegistry = bandpromo_gallery_load_registry($root);
+    $knownGalleries = [];
+    $maxGalleryOrder = 0;
+    foreach ($galleryRegistry['galleries'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $gid = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($gid !== '') {
+            $knownGalleries[$gid] = true;
+        }
+        $maxGalleryOrder = max($maxGalleryOrder, (int) ($entry['sort_order'] ?? 0));
+    }
+    $galleryDir = bandpromo_gallery_storage_root($root);
+    if (is_dir($galleryDir)) {
+        foreach (glob($galleryDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $galleryPath) {
+            if (basename($galleryPath) === 'registry.json') {
+                continue;
+            }
+            $decoded = bandpromo_json_read_array_file($galleryPath);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            if (trim((string) ($decoded['release_id'] ?? '')) !== $releaseId) {
+                continue;
+            }
+            $galleryId = bandpromo_gallery_normalize_id((string) ($decoded['id'] ?? pathinfo($galleryPath, PATHINFO_FILENAME)));
+            if ($galleryId === '' || isset($knownGalleries[$galleryId])) {
+                continue;
+            }
+            $kind = strtolower(trim((string) ($decoded['kind'] ?? 'user')));
+            if (!in_array($kind, ['system', 'user'], true)) {
+                $kind = 'user';
+            }
+            $maxGalleryOrder += 10;
+            $galleryRegistry['galleries'][] = [
+                'id' => $galleryId,
+                'title' => (string) ($decoded['title'] ?? $galleryId),
+                'kind' => $kind,
+                'sort_order' => $maxGalleryOrder,
+            ];
+            $knownGalleries[$galleryId] = true;
+        }
+        bandpromo_gallery_write_registry($root, $galleryRegistry);
+    }
 }
 
 /**

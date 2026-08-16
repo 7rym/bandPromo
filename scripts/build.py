@@ -17,6 +17,7 @@ import json
 import platform
 import time
 import urllib.request
+import shutil
 import stat
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,7 @@ import zipfile
 
 SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR   = SCRIPT_DIR.parent
+TEMPLATE_ICONS_ZIP = ROOT_DIR / 'biblioteca' / 'templates' / 'icons' / 'bP-icons.zip'
 
 # Site-local vendor path before any third-party imports in child stages.
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -487,10 +489,9 @@ def ensure_ffmpeg():
 
 # ── Icon extraction helper ─────────────────────────────────────────────────────
 def ensure_icons():
-    """Ensure all default icons exist in media/icons, extracting from bP-icons.zip if needed."""
+    """Ensure default icons exist under media/icons/, seeding from the tracked template zip."""
     icons_dir = ROOT_DIR / 'media' / 'icons'
-    zip_path = icons_dir / 'bP-icons.zip'
-    # List of required default icons (update as needed)
+    runtime_zip = icons_dir / 'bP-icons.zip'
     required_icons = [
         'apple-touch-icon.png',
         'favicon-16x16.png',
@@ -504,21 +505,35 @@ def ensure_icons():
     if not missing:
         print('  ✅ All required icons present.')
         return
-    if not zip_path.exists():
-        print(f'  ❌ Missing icons and bP-icons.zip not found at {zip_path}')
+
+    source_zip = None
+    if TEMPLATE_ICONS_ZIP.is_file():
+        source_zip = TEMPLATE_ICONS_ZIP
+    elif runtime_zip.is_file():
+        source_zip = runtime_zip
+    else:
+        print(
+            '  ❌ Missing icons and seed zip not found at {0} (or {1})'.format(
+                TEMPLATE_ICONS_ZIP,
+                runtime_zip,
+            )
+        )
         return
-    print(f'  ⬇️  Extracting default icons from {zip_path}...')
+
+    print('  ⬇️  Extracting default icons from {0}...'.format(source_zip))
     try:
-        with zipfile.ZipFile(zip_path, 'r') as z:
+        icons_dir.mkdir(parents=True, exist_ok=True)
+        if str(source_zip) != str(runtime_zip):
+            shutil.copy2(str(source_zip), str(runtime_zip))
+        with zipfile.ZipFile(str(runtime_zip), 'r') as z:
             z.extractall(str(icons_dir))
-        # Verify again
         still_missing = [f for f in required_icons if not (icons_dir / f).exists()]
         if still_missing:
-            print(f'  ❌ Still missing icons after extraction: {still_missing}')
+            print('  ❌ Still missing icons after extraction: {0}'.format(still_missing))
         else:
             print('  ✅ Default icons extracted.')
     except Exception as e:
-        print(f'  ❌ Failed to extract icons: {e}')
+        print('  ❌ Failed to extract icons: {0}'.format(e))
 
 
 # ── Sub-script runner ─────────────────────────────────────────────────────────

@@ -86,6 +86,7 @@ media/
 
 # Build artifacts
 *.zip
+!biblioteca/templates/icons/bP-icons.zip
 *.tar.gz
 dist/
 build/

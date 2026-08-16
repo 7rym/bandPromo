@@ -771,10 +771,31 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
             ]);
             if (is_array($visual)) {
                 $coverAssetId = (string) ($visual['id'] ?? '');
+                $changes = [];
                 if (($visual['role'] ?? '') === 'unassigned') {
-                    bandpromo_asset_update_entry($root, $coverAssetId, [
-                        'role' => 'track-cover',
-                    ]);
+                    $changes['role'] = 'track-cover';
+                }
+                $visualDisplay = bandpromo_asset_read_visual_display($visual);
+                if ($visualDisplay['title'] === '') {
+                    $audioAsset = bandpromo_asset_lookup_by_master_filename($root, $masterFilename)
+                        ?? bandpromo_asset_lookup_by_original_filename($root, $masterFilename);
+                    if (is_array($audioAsset)) {
+                        require_once __DIR__ . '/media-delivery-helpers.php';
+                        $audioDisplay = bandpromo_asset_read_audio_display($audioAsset);
+                        $trackTitle = trim((string) ($audioDisplay['title'] ?? ''));
+                        $version = trim((string) ($audioDisplay['version'] ?? ''));
+                        if ($trackTitle !== '' && $version !== '' && stripos($trackTitle, $version) === false) {
+                            $trackTitle = $trackTitle . ' [' . $version . ']';
+                        }
+                        if ($trackTitle !== '') {
+                            $changes['display'] = [
+                                'title' => bandpromo_visual_role_colon_title('Track cover', $trackTitle),
+                            ];
+                        }
+                    }
+                }
+                if ($changes !== [] && $coverAssetId !== '') {
+                    bandpromo_asset_update_entry($root, $coverAssetId, $changes);
                 }
             }
         } catch (Throwable $throwable) {
@@ -822,28 +843,136 @@ function bandpromo_audio_master_sync_embedded_cover(string $root, string $master
     return ['ok' => true];
 }
 
-function bandpromo_audio_master_clear_cover_reference(string $root, string $coverBasename): array
+/**
+ * True when a stored audio cover/living_cover ref matches any of the deleted visual keys.
+ *
+ * @param list<string> $candidateKeys
+ */
+function bandpromo_audio_master_cover_ref_matches(string $root, string $storedRef, array $candidateKeys): bool
 {
-    $coverBasename = basename(trim($coverBasename));
-    $summary = ['covers_cleared' => 0];
+    $stored = trim($storedRef);
+    if ($stored === '') {
+        return false;
+    }
 
+    $keys = [];
+    foreach ($candidateKeys as $candidate) {
+        $candidate = trim((string) $candidate);
+        if ($candidate === '') {
+            continue;
+        }
+        $base = strtolower(basename(str_replace('\\', '/', $candidate)));
+        if ($base !== '') {
+            $keys[$base] = true;
+        }
+        $canon = strtolower(bandpromo_asset_canonical_id_from_media_ref($root, $candidate));
+        if ($canon !== '') {
+            $keys[$canon] = true;
+        }
+    }
+
+    if ($keys === []) {
+        return false;
+    }
+
+    $storedBase = strtolower(basename(str_replace('\\', '/', $stored)));
+    if ($storedBase !== '' && isset($keys[$storedBase])) {
+        return true;
+    }
+
+    $storedCanon = strtolower(bandpromo_asset_canonical_id_from_media_ref($root, $stored));
+
+    return $storedCanon !== '' && isset($keys[$storedCanon]);
+}
+
+/**
+ * Detach track still/living cover refs that point at a deleted Visual.
+ *
+ * Default: clear registry links only — leave embedded art inside audio masters untouched.
+ * Optional: also strip embedded still covers from linked masters.
+ *
+ * @return array{covers_cleared:int,living_covers_cleared:int,embedded_cleared:int}
+ */
+function bandpromo_audio_master_clear_cover_reference(
+    string $root,
+    string $coverBasename,
+    bool $clearEmbeddedFromMasters = false
+): array {
+    require_once __DIR__ . '/asset-registry.php';
+
+    $summary = [
+        'covers_cleared' => 0,
+        'living_covers_cleared' => 0,
+        'embedded_cleared' => 0,
+    ];
+
+    $coverBasename = basename(trim($coverBasename));
     if ($coverBasename === '') {
         return $summary;
     }
 
-    foreach (bandpromo_playlist_merged_built_track_map($root) as $audioFile => $track) {
-        if (!is_array($track)) {
+    $candidateKeys = [$coverBasename];
+    $visual = bandpromo_asset_lookup_from_media_ref($root, $coverBasename)
+        ?? bandpromo_asset_lookup_by_master_filename($root, $coverBasename)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $coverBasename);
+    if (is_array($visual) && ($visual['kind'] ?? '') === 'visual') {
+        foreach ([
+            (string) ($visual['id'] ?? ''),
+            basename(trim((string) ($visual['original_filename'] ?? ''))),
+            basename(trim((string) ($visual['master_filename'] ?? ''))),
+        ] as $extra) {
+            if ($extra !== '') {
+                $candidateKeys[] = $extra;
+            }
+        }
+    }
+    $candidateKeys = array_values(array_unique($candidateKeys));
+
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
             continue;
         }
 
-        $trackCover = basename(trim((string) ($track['cover'] ?? '')));
-        if ($trackCover === '' || $trackCover !== $coverBasename) {
-            continue;
-        }
+        $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
+        $cover = trim((string) ($display['cover'] ?? ''));
+        $living = trim((string) ($display['living_cover'] ?? ''));
+        $changes = [];
 
-        $result = bandpromo_audio_master_apply_cover_selection($root, $audioFile, '');
-        if (!empty($result['ok'])) {
+        if ($cover !== '' && bandpromo_audio_master_cover_ref_matches($root, $cover, $candidateKeys)) {
+            $changes['cover'] = '';
             $summary['covers_cleared']++;
+
+            if ($clearEmbeddedFromMasters) {
+                $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+                if ($masterFilename === '') {
+                    $masterFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
+                }
+                if ($masterFilename !== '') {
+                    bandpromo_audio_master_clear_sidecar_cover($root, $masterFilename);
+                    $embedded = bandpromo_audio_master_sync_embedded_cover($root, $masterFilename, '');
+                    if (!empty($embedded['ok'])) {
+                        $summary['embedded_cleared']++;
+                    }
+                }
+            }
+        }
+
+        if ($living !== '' && bandpromo_audio_master_cover_ref_matches($root, $living, $candidateKeys)) {
+            $changes['living_cover'] = '';
+            $summary['living_covers_cleared']++;
+        }
+
+        if ($changes === []) {
+            continue;
+        }
+
+        try {
+            bandpromo_asset_update_entry($root, (string) $assetId, [
+                'display' => $changes,
+            ]);
+        } catch (Throwable $throwable) {
+            // Continue clearing other linked tracks.
         }
     }
 

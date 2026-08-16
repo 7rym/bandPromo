@@ -18,52 +18,30 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Seed media/icons from previous app package
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify tracked install-icon seed
         run: |
           set -euo pipefail
-          mkdir -p /tmp/bp-app-seed
-          downloaded=0
-          if gh release download --repo "${{ github.repository }}" --pattern 'bandPromo.zip' --dir /tmp/bp-app-seed; then
-            downloaded=1
-          elif gh release download --repo "${{ github.repository }}" --pattern 'bandpromo-*.zip' --dir /tmp/bp-app-seed; then
-            downloaded=1
-          fi
-          if [[ "$downloaded" -ne 1 ]]; then
-            echo "ERROR: Could not download bandPromo.zip / bandpromo-*.zip from the latest GitHub Release."
-            echo "Package builds need a previous app package to seed ignored media/icons/."
-            exit 1
-          fi
+          test -f biblioteca/templates/icons/bP-icons.zip
           python - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
 
-          seed_dir = Path("/tmp/bp-app-seed")
-          alias = seed_dir / "bandPromo.zip"
-          zips = sorted(seed_dir.glob("bandPromo.zip")) + sorted(seed_dir.glob("bandpromo-*.zip"))
-          app_zip = alias if alias.is_file() else zips[-1]
-          root = Path.cwd()
-          extracted = 0
-          with ZipFile(app_zip) as archive:
-              for name in archive.namelist():
-                  normalized = name.replace("\\", "/")
-                  if not normalized.startswith("media/icons/"):
-                      continue
-                  if normalized.endswith("/"):
-                      continue
-                  target = root / normalized
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  target.write_bytes(archive.read(name))
-                  extracted += 1
-          if extracted == 0:
-              raise SystemExit(f"{app_zip.name} contains no media/icons/ paths.")
-          print(f"Extracted {extracted} icon paths from {app_zip.name}")
-          zip_path = root / "media" / "icons" / "bP-icons.zip"
-          if zip_path.is_file():
-              with ZipFile(zip_path) as icons_zip:
-                  icons_zip.extractall(root / "media" / "icons")
-              print(f"Expanded {zip_path.name} into media/icons/")
+          seed = Path("biblioteca/templates/icons/bP-icons.zip")
+          required = {
+              "apple-touch-icon.png",
+              "favicon-16x16.png",
+              "favicon-32x32.png",
+              "favicon-96x96.png",
+              "favicon.ico",
+              "web-app-manifest-192x192.png",
+              "web-app-manifest-512x512.png",
+          }
+          with ZipFile(seed) as archive:
+              names = {name.replace("\\", "/").lstrip("./") for name in archive.namelist() if not name.endswith("/")}
+          missing = sorted(required - names)
+          if missing:
+              raise SystemExit("bP-icons.zip missing required members: " + ", ".join(missing))
+          print(f"Tracked icon seed OK ({seed}; {len(names)} members)")
           PY
 
       - name: Build distributable package

@@ -929,7 +929,35 @@ function bandpromo_ensure_install_icons(string $root, string $manifestUrl = BAND
         throw new RuntimeException('Could not create media/icons for install icons.');
     }
 
+    $templateZip = $root . DIRECTORY_SEPARATOR . 'biblioteca' . DIRECTORY_SEPARATOR . 'templates'
+        . DIRECTORY_SEPARATOR . 'icons' . DIRECTORY_SEPARATOR . 'bP-icons.zip';
     $localZip = $iconsDir . DIRECTORY_SEPARATOR . 'bP-icons.zip';
+
+    if (is_file($templateZip) && class_exists('ZipArchive')) {
+        if (!@copy($templateZip, $localZip)) {
+            throw new RuntimeException('Could not copy tracked icon seed into media/icons/bP-icons.zip.');
+        }
+        bandpromo_release_log($logger, '[icons] Extracting install icons from biblioteca/templates/icons/bP-icons.zip...');
+        $zip = new ZipArchive();
+        if ($zip->open($localZip) === true) {
+            $zip->extractTo($iconsDir);
+            $zip->close();
+            $still = [];
+            foreach ($required as $name) {
+                if (!is_file($iconsDir . DIRECTORY_SEPARATOR . $name)) {
+                    $still[] = $name;
+                }
+            }
+            if ($still === []) {
+                return [
+                    'installed' => true,
+                    'source' => 'template-zip',
+                    'message' => 'Install icons extracted from biblioteca/templates/icons/bP-icons.zip.',
+                ];
+            }
+        }
+    }
+
     if (is_file($localZip) && class_exists('ZipArchive')) {
         bandpromo_release_log($logger, '[icons] Extracting install icons from media/icons/bP-icons.zip...');
         $zip = new ZipArchive();

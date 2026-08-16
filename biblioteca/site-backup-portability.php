@@ -1054,6 +1054,32 @@ function bandpromo_site_backup_dispatch_job(string $root, string $jobId): void
     }
 }
 
+/**
+ * Close the HTTP response when possible, then run the queued job.
+ * Required on PHP built-in / non-FPM hosts where fastcgi_finish_request() is missing —
+ * otherwise jobs stay forever on "Importing…" / "Building…".
+ */
+function bandpromo_site_backup_finish_response_and_dispatch(string $root, string $jobId): void
+{
+    ignore_user_abort(true);
+    @set_time_limit(0);
+
+    if (function_exists('session_write_close')) {
+        @session_write_close();
+    }
+
+    if (function_exists('fastcgi_finish_request')) {
+        @fastcgi_finish_request();
+    } else {
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        @flush();
+    }
+
+    bandpromo_site_backup_dispatch_job($root, $jobId);
+}
+
 function bandpromo_site_backup_job_direction(array $job): string
 {
     $direction = strtolower(trim((string) ($job['direction'] ?? BANDPROMO_SITE_BACKUP_DIRECTION_EXPORT)));

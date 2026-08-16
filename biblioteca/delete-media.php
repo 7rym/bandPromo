@@ -44,6 +44,8 @@ $dirs = [
 $target = $body['target'] ?? '';
 $mode = isset($body['mode']) ? strtolower(trim((string) $body['mode'])) : 'delete';
 $detach_references = !array_key_exists('detach_references', $body) || !empty($body['detach_references']);
+// Visual delete default: detach site/registry cover links, but keep embedded art in audio masters.
+$clear_embedded_covers = !empty($body['clear_embedded_covers']);
 
 if (!isset($dirs[$target])) {
     echo json_encode(['error' => 'Unknown target']);
@@ -126,11 +128,17 @@ function bandpromo_summarize_reference_counts(array $references): array {
     return $summary;
 }
 
-function bandpromo_cleanup_media_references(string $root, string $target, string $filename): array {
+function bandpromo_cleanup_media_references(
+    string $root,
+    string $target,
+    string $filename,
+    bool $clearEmbeddedCovers = false
+): array {
     $cleanup = [
         'playlist_tracks_removed' => 0,
         'playlist_covers_cleared' => 0,
         'gallery_items_removed' => 0,
+        'embedded_covers_cleared' => 0,
         'warnings' => [],
     ];
 
@@ -139,9 +147,11 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
         $cleanup['playlist_tracks_removed'] += (int) ($containerCleanup['entries_removed'] ?? 0);
     }
 
-    if ($target === 'illustrations') {
-        $coverCleanup = bandpromo_audio_master_clear_cover_reference($root, $filename);
-        $cleanup['playlist_covers_cleared'] += (int) ($coverCleanup['covers_cleared'] ?? 0);
+    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+        $coverCleanup = bandpromo_audio_master_clear_cover_reference($root, $filename, $clearEmbeddedCovers);
+        $cleanup['playlist_covers_cleared'] += (int) ($coverCleanup['covers_cleared'] ?? 0)
+            + (int) ($coverCleanup['living_covers_cleared'] ?? 0);
+        $cleanup['embedded_covers_cleared'] += (int) ($coverCleanup['embedded_cleared'] ?? 0);
     }
 
     if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
@@ -157,7 +167,15 @@ function bandpromo_cleanup_media_references(string $root, string $target, string
     return $cleanup;
 }
 
-function bandpromo_delete_media_item(string $root, array $dirs, string $target, string $filename, bool $detach_references, string $mode): array
+function bandpromo_delete_media_item(
+    string $root,
+    array $dirs,
+    string $target,
+    string $filename,
+    bool $detach_references,
+    string $mode,
+    bool $clear_embedded_covers = false
+): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
@@ -299,27 +317,40 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
         'playlist_tracks_removed' => 0,
         'playlist_covers_cleared' => 0,
         'gallery_items_removed' => 0,
+        'embedded_covers_cleared' => 0,
         'warnings' => [],
     ];
-    if ($detach_references && $reference_summary['total'] > 0) {
-        foreach ($referenceNames as $refName) {
-            $partial = bandpromo_cleanup_media_references($root, $target, $refName);
-            $reference_cleanup['playlist_tracks_removed'] += (int) ($partial['playlist_tracks_removed'] ?? 0);
-            $reference_cleanup['playlist_covers_cleared'] += (int) ($partial['playlist_covers_cleared'] ?? 0);
-            $reference_cleanup['gallery_items_removed'] += (int) ($partial['gallery_items_removed'] ?? 0);
-            if (!empty($partial['warnings'])) {
-                $reference_cleanup['warnings'] = array_merge(
-                    $reference_cleanup['warnings'],
-                    $partial['warnings']
-                );
+    if ($detach_references && $mode !== 'preview') {
+        if ($reference_summary['total'] > 0) {
+            foreach ($referenceNames as $refName) {
+                $partial = bandpromo_cleanup_media_references($root, $target, $refName, $clear_embedded_covers);
+                $reference_cleanup['playlist_tracks_removed'] += (int) ($partial['playlist_tracks_removed'] ?? 0);
+                $reference_cleanup['playlist_covers_cleared'] += (int) ($partial['playlist_covers_cleared'] ?? 0);
+                $reference_cleanup['gallery_items_removed'] += (int) ($partial['gallery_items_removed'] ?? 0);
+                $reference_cleanup['embedded_covers_cleared'] = (int) ($reference_cleanup['embedded_covers_cleared'] ?? 0)
+                    + (int) ($partial['embedded_covers_cleared'] ?? 0);
+                if (!empty($partial['warnings'])) {
+                    $reference_cleanup['warnings'] = array_merge(
+                        $reference_cleanup['warnings'],
+                        $partial['warnings']
+                    );
+                }
             }
-        }
-        if (!empty($reference_cleanup['warnings'])) {
-            return [
-                'ok' => false,
-                'filename' => $listingName,
-                'error' => implode(' ', $reference_cleanup['warnings']),
-            ];
+            if (!empty($reference_cleanup['warnings'])) {
+                return [
+                    'ok' => false,
+                    'filename' => $listingName,
+                    'error' => implode(' ', $reference_cleanup['warnings']),
+                ];
+            }
+        } elseif (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+            // Still detach registry cover links even when preview found no container refs.
+            foreach ($referenceNames as $refName) {
+                $coverCleanup = bandpromo_audio_master_clear_cover_reference($root, $refName, $clear_embedded_covers);
+                $reference_cleanup['playlist_covers_cleared'] += (int) ($coverCleanup['covers_cleared'] ?? 0)
+                    + (int) ($coverCleanup['living_covers_cleared'] ?? 0);
+                $reference_cleanup['embedded_covers_cleared'] += (int) ($coverCleanup['embedded_cleared'] ?? 0);
+            }
         }
     }
 
@@ -483,7 +514,15 @@ function bandpromo_delete_media_item(string $root, array $dirs, string $target, 
 $requestedFiles = array_values(array_unique(array_map(static fn($value) => (string) $value, $requestedFiles)));
 $results = [];
 foreach ($requestedFiles as $filename) {
-    $results[] = bandpromo_delete_media_item($root, $dirs, $target, $filename, $detach_references, $mode);
+    $results[] = bandpromo_delete_media_item(
+        $root,
+        $dirs,
+        $target,
+        $filename,
+        $detach_references,
+        $mode,
+        $clear_embedded_covers
+    );
 }
 
 if ($mode === 'preview') {
@@ -545,12 +584,14 @@ $totalReferenceCleanup = [
     'playlist_tracks_removed' => 0,
     'playlist_covers_cleared' => 0,
     'gallery_items_removed' => 0,
+    'embedded_covers_cleared' => 0,
 ];
 foreach ($successful as $result) {
     $cleanup = is_array($result['reference_cleanup'] ?? null) ? $result['reference_cleanup'] : [];
     $totalReferenceCleanup['playlist_tracks_removed'] += (int) ($cleanup['playlist_tracks_removed'] ?? 0);
     $totalReferenceCleanup['playlist_covers_cleared'] += (int) ($cleanup['playlist_covers_cleared'] ?? 0);
     $totalReferenceCleanup['gallery_items_removed'] += (int) ($cleanup['gallery_items_removed'] ?? 0);
+    $totalReferenceCleanup['embedded_covers_cleared'] += (int) ($cleanup['embedded_covers_cleared'] ?? 0);
 }
 
 if ($successful === []) {
@@ -575,7 +616,10 @@ if ($totalReferenceCleanup['playlist_tracks_removed'] > 0) {
     $messageParts[] = sprintf('removed %d playlist entr%s', $totalReferenceCleanup['playlist_tracks_removed'], $totalReferenceCleanup['playlist_tracks_removed'] === 1 ? 'y' : 'ies');
 }
 if ($totalReferenceCleanup['playlist_covers_cleared'] > 0) {
-    $messageParts[] = sprintf('cleared %d playlist cover reference%s', $totalReferenceCleanup['playlist_covers_cleared'], $totalReferenceCleanup['playlist_covers_cleared'] === 1 ? '' : 's');
+    $messageParts[] = sprintf('cleared %d cover reference%s', $totalReferenceCleanup['playlist_covers_cleared'], $totalReferenceCleanup['playlist_covers_cleared'] === 1 ? '' : 's');
+}
+if ($totalReferenceCleanup['embedded_covers_cleared'] > 0) {
+    $messageParts[] = sprintf('removed embedded art from %d audio master%s', $totalReferenceCleanup['embedded_covers_cleared'], $totalReferenceCleanup['embedded_covers_cleared'] === 1 ? '' : 's');
 }
 if ($totalReferenceCleanup['gallery_items_removed'] > 0) {
     $messageParts[] = sprintf('removed %d gallery item%s', $totalReferenceCleanup['gallery_items_removed'], $totalReferenceCleanup['gallery_items_removed'] === 1 ? '' : 's');

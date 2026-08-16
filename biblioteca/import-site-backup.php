@@ -77,10 +77,7 @@ try {
         'job' => $job,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-    if (function_exists('fastcgi_finish_request')) {
-        fastcgi_finish_request();
-        bandpromo_site_backup_dispatch_job($root, (string) $job['id']);
-    }
+    bandpromo_site_backup_finish_response_and_dispatch($root, (string) $job['id']);
 } catch (InvalidArgumentException $e) {
     http_response_code(400);
     echo json_encode([

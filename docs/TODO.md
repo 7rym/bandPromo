@@ -353,7 +353,7 @@ Legacy checklist (superseded wording kept for history):
 
 **Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual identity completion M1–M4** (at minimum resolver + masters + freshness + legacy dual-write exit) are shipped. Also complete **Favicon + PWA icons from Branding** (Brand section above) before calling v0.8 closed — operators must not depend on manual icon generators. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
 
-Closed-beta fleet today: **3 remote test sites** — **Vanilla** (demo-content install), **Twisted Chronicles** (band campaign), **HITZ** (label + long-form shows). Personas and feedback focus: [USE-CASES.md](USE-CASES.md).
+Closed-beta fleet today: **3 remote test sites** — **Vanilla** (**https://bandpromo.site**, always the fresh-install host), **Twisted Chronicles** (band campaign), **HITZ** (label + long-form shows). Personas and feedback focus: [USE-CASES.md](USE-CASES.md). This Google Drive working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
 
 Policy — **lock before implementation**:
 

@@ -29,6 +29,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = ROOT / "dist"
 RUNTIME_TEMPLATES = ROOT / "biblioteca" / "templates" / "runtime"
+TEMPLATE_ICONS_ZIP = ROOT / "biblioteca" / "templates" / "icons" / "bP-icons.zip"
 
 APP_PACKAGE_ALIAS = "bandPromo.zip"
 DEMO_CONTENT_TAG = "demo-content"
@@ -184,9 +185,22 @@ def ensure_runtime_protection_files():
 
 def ensure_install_icons_on_disk():
     # type: () -> None
-    """Ensure expanded install icons exist (extract bP-icons.zip when needed)."""
+    """Materialize install icons under media/icons/ from the tracked template zip."""
     icons_dir = ROOT / "media" / "icons"
-    zip_path = icons_dir / "bP-icons.zip"
+    runtime_zip = icons_dir / "bP-icons.zip"
+    template_zip = TEMPLATE_ICONS_ZIP
+
+    icons_dir.mkdir(parents=True, exist_ok=True)
+    if template_zip.is_file():
+        shutil.copy2(str(template_zip), str(runtime_zip))
+    elif not runtime_zip.is_file():
+        raise RuntimeError(
+            "Missing tracked icon seed at {0}. "
+            "Place bP-icons.zip there (not under media/).".format(
+                template_zip.relative_to(ROOT).as_posix()
+            )
+        )
+
     missing = [
         name
         for name in REQUIRED_ICON_BASENAMES
@@ -194,14 +208,8 @@ def ensure_install_icons_on_disk():
     ]
     if not missing:
         return
-    if not zip_path.is_file():
-        raise RuntimeError(
-            "Required install icons missing from on-disk media/icons/ and "
-            "bP-icons.zip is absent. Seed media/icons/ from the previous "
-            "bandPromo.zip before packaging. Missing: {0}".format(", ".join(missing))
-        )
-    icons_dir.mkdir(parents=True, exist_ok=True)
-    with ZipFile(str(zip_path), "r") as archive:
+
+    with ZipFile(str(runtime_zip), "r") as archive:
         archive.extractall(str(icons_dir))
     still_missing = [
         name

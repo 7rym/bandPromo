@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-08-15 22:05 - Setup/Publish social-assets: empty `social.share_image` no longer resolves to the site root (IsADirectoryError crash); missing poster/share source warns and continues so first-run setup can Finish, then operators fix Branding → Shell media and rebuild. 
+2026-08-16 12:55 - Checkpoint track-cover naming, safer Visual delete, visual-delivery catch-up, and Publish sfx-delivery on `main` as **v0.8.25 build 392**; trigger GitHub Release `v0.8.25-build-392` for Site update.
+
+2026-08-16 12:50 - Publish Rebuild now includes an SFX delivery stage (`buildSfxDelivery.py` / `bandpromo_sfx_backfill_tiers`) after audio optimize: heals missing `media/sfx/optimal/{ast_*}.mp3`, skips fresh deliveries, and counts toward the media summary.
+
+2026-08-16 12:40 - Fix blank track covers after delete+rebuild: playlist extract builds Visual delivery immediately, and full Publish adds a visual-delivery catch-up stage after playlists (optimizeMedia ran before extract, so new embedded covers had masters but no thumb/card).
+
+2026-08-16 12:25 - Visual delete no longer strips embedded cover art from audio masters by default: site/registry cover links still detach, and a delete-modal checkbox opts into clearing embedded art from linked masters.
+
+2026-08-16 12:05 - Embedded track-cover extract one-time seeds empty Visual keywords (`Track cover`, artist) and `captured_at` from the audio date, alongside `Track cover: {title}`. Hash-match reuse and later builds never overwrite those fields.
+
+2026-08-16 11:55 - Track covers extracted/linked from audio no longer all list as bare "Track cover": build fills empty Visual `display.title` as `Track cover: {track title}` (catalog/tags); Files listing synthesizes the same form from the linked track when title is still empty. Operator-edited titles are never overwritten.
+
+2026-08-16 11:45 - Purge `docs/SETUP-SMOKE-SUITE.md` from `main` history and republish `v0.8.25-build-391` without it. Operator-private Vanilla smoke stays outside the repo.
+
+2026-08-15 22:05 - Setup/Publish social-assets: empty `social.share_image` no longer resolves to the site root (IsADirectoryError crash); missing poster/share source warns and continues so first-run setup can Finish, then operators fix Branding → Shell media and rebuild.
 
 2026-08-15 09:55 - Fix Spandexual/PRP track covers: playlist build no longer treats audio `ast_*` (or missing) refs in `display.cover` as assigned Visual covers, so embedded FLAC art can extract and link; resolve `ast_*.ext` cover refs to real Visual ids; persist/re-resolve `cover_url` for the player. Admin Open site ignores `install.site.url` when it is still `example.com` and prefers `site.url` / localhost.
 

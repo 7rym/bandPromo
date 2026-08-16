@@ -12,3 +12,5 @@ At the **start of every conversation**, before exploring or implementing:
 3. Then run `scripts/session-start.ps1` (Windows PowerShell) per `docs/AGENTS.md`.
 
 When the handoff file is missing, fall back to `docs/TODO.md` and `docs/MASTER-TIER-AUDIT.md`.
+
+Never wipe `data/`, `media/`, `log/` (analytics/audit test data), or `backups/` as part of resume, checkpoint, or “fresh install.” Fresh installs run on **bandpromo.site** only. See `.cursor/rules/never-wipe-runtime.mdc`.

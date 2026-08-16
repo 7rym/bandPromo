@@ -70,7 +70,13 @@ require_once 'biblioteca/analytics.php';
 $appVersion = trim(@file_get_contents(__DIR__ . '/VERSION') ?: 'dev');
 $adminCsrfToken = get_csrf_token();
 $siteName  = get_config('release.identity.title', 'Admin');
-$siteUrl   = rtrim((string) get_config('install.site.url', ''), '/');
+$siteUrl   = rtrim((string) get_config_nonempty('install.site.url', get_config('site.url', '')), '/');
+$configuredHost = strtolower((string) (parse_url($siteUrl, PHP_URL_HOST) ?: ''));
+// Template / dual-write leftovers must not win over the live site URL.
+if ($siteUrl === '' || $configuredHost === 'example.com') {
+    $siteUrl = rtrim((string) get_config('site.url', ''), '/');
+    $configuredHost = strtolower((string) (parse_url($siteUrl, PHP_URL_HOST) ?: ''));
+}
 $defaultThemeStatus = bandpromo_admin_get_default_theme_status(__DIR__);
 bandpromo_demo_release_ensure_preferences(__DIR__);
 $demoCatalogShouldSuggestHide = bandpromo_demo_catalog_should_suggest_hide(__DIR__);
@@ -79,8 +85,7 @@ $demoReleaseId = bandpromo_demo_release_id(__DIR__);
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
 if ($requestHostNoPort === 'localhost') {
-    $configuredHost = strtolower((string) parse_url($siteUrl, PHP_URL_HOST));
-    if ($configuredHost === '' || $configuredHost === '127.0.0.1' || $configuredHost === 'localhost') {
+    if ($configuredHost === '' || $configuredHost === '127.0.0.1' || $configuredHost === 'localhost' || $configuredHost === 'example.com') {
         $siteUrl = 'http://' . $requestHost;
     }
 }
@@ -1443,6 +1448,10 @@ if ($tab === 'analytics') {
                     <p id="mediaDeleteName" class="delete-confirm-name"></p>
                     <div id="mediaDeleteList" class="modal-file-list" style="display:none"></div>
                     <p id="mediaDeleteHint" class="text-muted">This cannot be undone.</p>
+                    <label id="mediaDeleteClearEmbeddedWrap" class="media-delete-embedded-option" style="display:none">
+                        <input type="checkbox" id="mediaDeleteClearEmbedded" value="1">
+                        <span>Also remove embedded cover art from linked audio masters</span>
+                    </label>
                     <div class="modal-actions">
                         <button id="mediaDeleteConfirmBtn" class="btn btn-danger">Delete</button>
                         <button class="btn" onclick="closeDeleteModal()">Cancel</button>

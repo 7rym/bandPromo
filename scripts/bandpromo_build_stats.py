@@ -6,7 +6,7 @@ Stages emit one line (hidden from the operator log by build.py):
     BUILD_STATS scope=media handled=12 created=3 fresh=9 failed=0
 
 Scopes:
-- media     audio / visual delivery
+- media     audio / visual / SFX delivery
 - playlist  player playlist payloads
 - social    share images
 - manifest  site.webmanifest

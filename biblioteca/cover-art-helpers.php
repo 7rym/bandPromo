@@ -525,6 +525,17 @@ function bandpromo_register_extracted_covers_for_audio_files(string $root, array
             continue;
         }
 
+        require_once __DIR__ . '/media-delivery-helpers.php';
+        $audioDisplay = bandpromo_asset_read_audio_display($audio);
+        $trackTitle = trim((string) ($audioDisplay['title'] ?? ''));
+        $version = trim((string) ($audioDisplay['version'] ?? ''));
+        if ($trackTitle !== '' && $version !== '' && stripos($trackTitle, $version) === false) {
+            $trackTitle = $trackTitle . ' [' . $version . ']';
+        }
+        $coverDisplayTitle = $trackTitle !== ''
+            ? bandpromo_visual_role_colon_title('Track cover', $trackTitle)
+            : '';
+
         try {
             $intake = 'img';
             $coverAsset = bandpromo_asset_lookup_from_media_ref($root, $cover);
@@ -533,11 +544,13 @@ function bandpromo_register_extracted_covers_for_audio_files(string $root, array
                 $coverName = basename(trim((string) ($coverAsset['original_filename'] ?? $cover)));
                 $intake = bandpromo_asset_normalize_intake_bucket((string) ($coverAsset['intake_bucket'] ?? 'img')) ?: 'img';
             }
+            $registerOptions = ['role' => 'track-cover'];
+            if ($coverDisplayTitle !== '') {
+                $registerOptions['display'] = ['title' => $coverDisplayTitle];
+            }
             $visual = is_array($coverAsset) && ($coverAsset['kind'] ?? '') === 'visual'
                 ? $coverAsset
-                : bandpromo_asset_register_visual($root, $coverName, $intake, 'image', [
-                    'role' => 'track-cover',
-                ]);
+                : bandpromo_asset_register_visual($root, $coverName, $intake, 'image', $registerOptions);
         } catch (Throwable $throwable) {
             continue;
         }
@@ -554,6 +567,10 @@ function bandpromo_register_extracted_covers_for_audio_files(string $root, array
         }
         if ($releaseId !== '' && trim((string) ($visual['release_id'] ?? '')) === '') {
             $changes['release_id'] = $releaseId;
+        }
+        $visualDisplay = bandpromo_asset_read_visual_display($visual);
+        if ($visualDisplay['title'] === '' && $coverDisplayTitle !== '') {
+            $changes['display'] = ['title' => $coverDisplayTitle];
         }
         if ($changes !== [] && $visualId !== '') {
             $updated = bandpromo_asset_update_entry($root, $visualId, $changes);

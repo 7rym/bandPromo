@@ -805,12 +805,21 @@ function bandpromo_asset_normalize_media_ref(?string $value): string
  */
 function bandpromo_asset_canonical_id_from_media_ref(string $root, string $ref): string
 {
-    $ref = bandpromo_asset_normalize_media_ref($ref);
-    if ($ref === '') {
+    $raw = trim($ref);
+    if ($raw === '') {
         return '';
     }
 
-    $asset = bandpromo_asset_lookup_from_media_ref($root, $ref);
+    // Look up with the raw basename first so refs like `ast_….png` can match
+    // visual original_filename when the stem is not itself a live asset id.
+    $asset = bandpromo_asset_lookup_from_media_ref($root, $raw);
+    if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+        $normalized = bandpromo_asset_normalize_media_ref($raw);
+        if ($normalized !== '' && $normalized !== basename(str_replace('\\', '/', $raw))) {
+            $asset = bandpromo_asset_lookup_from_media_ref($root, $normalized);
+        }
+    }
+
     if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
         $id = trim((string) ($asset['id'] ?? ''));
         if ($id !== '') {
@@ -818,7 +827,18 @@ function bandpromo_asset_canonical_id_from_media_ref(string $root, string $ref):
         }
     }
 
-    return $ref;
+    $normalized = bandpromo_asset_normalize_media_ref($raw);
+    if ($normalized !== '' && bandpromo_asset_is_asset_id($normalized)) {
+        $probe = bandpromo_asset_lookup_by_id($root, $normalized);
+        if (is_array($probe) && ($probe['kind'] ?? '') === 'visual') {
+            return $normalized;
+        }
+
+        // Never keep a dead ast_* stem (often an audio id mistaken for cover).
+        return '';
+    }
+
+    return $normalized;
 }
 
 /**
@@ -921,6 +941,14 @@ function bandpromo_asset_register_visual(
         if (isset($options['content_sha256'])) {
             $changes['content_sha256'] = (string) $options['content_sha256'];
         }
+        if (isset($options['display']) && is_array($options['display'])) {
+            $existingDisplay = bandpromo_asset_read_visual_display($existing);
+            $wantedDisplay = bandpromo_asset_normalize_visual_display($options['display']);
+            // Fill empty human title only — never overwrite operator edits.
+            if ($existingDisplay['title'] === '' && $wantedDisplay['title'] !== '') {
+                $changes['display'] = ['title' => $wantedDisplay['title']];
+            }
+        }
         if ($changes !== []) {
             $updated = bandpromo_asset_update_entry($root, (string) $existing['id'], $changes);
             if (trim((string) ($updated['content_sha256'] ?? '')) === '') {
@@ -957,6 +985,11 @@ function bandpromo_asset_register_visual(
     $masterFilename = isset($options['master_filename'])
         ? basename(trim((string) $options['master_filename']))
         : bandpromo_asset_master_filename_for_ulid($assetId, $masterFormat !== '' ? $masterFormat : 'bin');
+    $initialDisplay = [];
+    if (isset($options['display']) && is_array($options['display'])) {
+        $initialDisplay = bandpromo_asset_normalize_visual_display($options['display']);
+    }
+
     $entry = [
         'id' => $assetId,
         'kind' => 'visual',
@@ -970,7 +1003,7 @@ function bandpromo_asset_register_visual(
         'master_format' => $masterFormat,
         'release_id' => '',
         'slug' => '',
-        'display' => [],
+        'display' => $initialDisplay,
         'tags' => [$role],
         'delivery' => [],
         'content_sha256' => $contentSha,
