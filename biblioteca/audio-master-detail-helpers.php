@@ -58,11 +58,27 @@ function bandpromo_audio_master_playlist_map(string $root): array
 
 function bandpromo_audio_master_resolve_current_cover_url(?string $cover): string
 {
-    $filename = basename(trim((string) $cover));
-    if ($filename === '') {
+    $ref = trim((string) $cover);
+    if ($ref === '') {
         return '';
     }
+    if (str_contains($ref, '/media/visual/delivery/')) {
+        return str_starts_with($ref, '/') ? $ref : '/' . ltrim($ref, '/');
+    }
 
+    $filename = basename($ref);
+    $stem = (string) pathinfo($filename, PATHINFO_FILENAME);
+    $assetId = '';
+    if (preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $filename) === 1) {
+        $assetId = $filename;
+    } elseif (preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $stem) === 1) {
+        $assetId = $stem;
+    }
+    if ($assetId !== '') {
+        return '/media/visual/delivery/' . rawurlencode($assetId) . '/card.jpg';
+    }
+
+    // Human original filenames may still live under original/; never invent original/ast_*.ext.
     return '/media/visual/original/' . rawurlencode($filename);
 }
 

@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 21:40 - Checkpoint player chrome dim/blur + Cover reflection, shell huge backgrounds, gallery centering, and admin Visual delivery previews on `main` as **v0.8.27 build 399**; trigger GitHub Release `v0.8.27-build-399` for Site update.
+
+2026-08-16 20:45 - Residual Visual still-preview paths hardened: shared `visualStillUrlFromRef` / asset-id delivery helpers; gallery pool no longer falls back to `/media/visual/original/${file.name}`; picker select + audio cover/living-cover previews prefer delivery `card`/stream over invented original/master URLs.
+
+2026-08-16 20:15 - Admin Visual lightbox preview prefers delivery `huge`/`card` (and tile `data-public-url`) over stale `/media/visual/original/…` master paths; caller src wins when opening a matched preview item; lightbox falls back huge→card→thumb and original/master `ast_*` → card.
+
+2026-08-16 19:50 - Branding Player chrome adds **Cover reflection** toggle (`player.cover_reflection`, default on) for the mirrored cover under the main artwork; Beggars banquet stays as its own support-CTA control; live preview shows the mirror when enabled.
+
+2026-08-16 19:45 - Content dim/blur hugs readable measures (playlist tracks, lyrics markdown, page prose/gallery panels) instead of filling the whole content column; page gallery grids use centered flex wrap so incomplete rows sit horizontally centered.
+
+2026-08-16 19:35 - Player transport panel wraps track info / controls / scrubber with brand dim+blur; Branding adds a Beggars banquet toggle (`player.beggars_banquet`) and live preview matches the updated chrome (transport panel + optional support CTA).
+
+2026-08-16 19:25 - Login `.login-container` uses brand Backdrop dim fill + Panel blur (inputs keep a light accent wash so they do not double-scrim).
+
+2026-08-16 19:15 - Shell still backgrounds prefer Visual `huge` delivery (1920×1080 contain) with card fallback — login/player no longer use the 720px `card` for full-bleed backdrops.
+
+2026-08-16 19:05 - Content panels (lyrics, playlists, pages, gallery, login inputs/lightbox) apply brand Backdrop dim fill together with Panel blur, matching Branding live preview; nested playlist rows stay lightly tinted so they do not double-scrim.
+
+2026-08-16 18:35 - SFX uploads auto-join the active brand library (so Files → Sound effects lists them under All files / that brand); untitled SFX show a cleaned original filename instead of only "Unused sound effect".
+
 2026-08-16 18:20 - Checkpoint PRP post-import deliverables + gallery heal, page-editor UX, gallery grid centering, and player huge lightbox on `main` as **v0.8.27 build 398**; trigger GitHub Release `v0.8.27-build-398` for Site update.
 
 2026-08-16 18:05 - Player lightbox uses more viewport (≈96vw / 94vh) and prefers Visual `huge` delivery (falls back to card) for gallery, page, and cover views.

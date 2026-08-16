@@ -13,7 +13,7 @@
     "huge": {
       "max_width": 1920,
       "max_height": 1080,
-      "notes": "Fullscreen HDTV bounding box; player lightbox; contain without cropping, stretching, or upscaling"
+      "notes": "Fullscreen HDTV bounding box; player lightbox and shell still backgrounds; contain without cropping, stretching, or upscaling"
     },
     "logo": {
       "max_edge": 640,

@@ -342,6 +342,43 @@
     z-index: 1;
 }
 
+.theme-preview-player-transport {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+    width: min(100%, 280px);
+    padding: 0.65rem 0.7rem 0.75rem;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    backdrop-filter: blur(var(--panel-blur, 5px));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+}
+
+.theme-preview-beggars-banquet {
+    display: flex;
+    justify-content: center;
+    width: min(100%, 280px);
+    padding: 0.15rem 0 0.2rem;
+}
+
+.theme-preview-support-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #fff;
+    background: color-mix(in srgb, var(--primary-color) 72%, #323842);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
 .theme-preview-scene {
     width: min(56vw, 180px);
     max-width: 100%;
@@ -350,6 +387,31 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    position: relative;
+    margin-bottom: 0.85rem;
+}
+
+.theme-preview-cover-reflection {
+    position: absolute;
+    top: 105%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleY(-1);
+    opacity: 0.45;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 12px;
+    -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.75) 100%);
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.theme-preview-cover-reflection .theme-preview-cover-art,
+.theme-preview-cover-reflection .theme-preview-cover-label {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .theme-preview-cover--player {
@@ -829,17 +891,25 @@
     object-fit: contain;
 }
 
-/* Dim + blur only on content samples below player chrome / logo — not the player itself. */
+/* Dim + blur hug content samples (and player transport); cover / logo stay sharp. */
 .theme-preview-shell-chrome > .theme-preview-section {
     position: relative;
     z-index: 1;
-    padding: 0;
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    box-sizing: border-box;
     background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
     backdrop-filter: blur(var(--panel-blur, 5px));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .theme-preview-shell-chrome > .theme-preview-section--playlist-selector {
+    width: 100%;
+    margin-inline: 0;
+    padding: 0;
     background: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -866,6 +936,30 @@
     position: absolute;
     opacity: 0;
     pointer-events: none;
+}
+
+.theme-player-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.85rem 0 0.25rem;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-color, #fff);
+}
+
+.theme-player-checkbox input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary-color, #00d2ff);
+}
+
+.theme-editor-subheading {
+    margin: 0.85rem 0 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 650;
+    color: var(--color-text-muted, #bbb);
 }
 
 .theme-player-setting-option span {

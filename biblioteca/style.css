@@ -501,6 +501,10 @@ body.debug-modal-open {
     .reflection {
         display: block;
     }
+
+    body.cover-reflection-off .reflection {
+        display: none;
+    }
 }
 
 .reflection img {
@@ -544,12 +548,32 @@ body.debug-modal-open {
 }
 
 /* UI Elements */
-.track-info {
-    text-align: center;
-    margin-bottom: 10px;
+.player-transport {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: min(100%, calc(var(--card-size) + 48px));
+    max-width: 520px;
+    margin: 0 auto 6px;
+    padding: 12px 14px 14px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    /* Brand Backdrop dim + Panel blur (cover art stays outside / sharp). */
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
     z-index: 20;
     position: relative;
-    width: 96%;
+    flex-shrink: 0;
+}
+
+.track-info {
+    text-align: center;
+    margin-bottom: 0;
+    z-index: 20;
+    position: relative;
+    width: 100%;
     max-width: 500px;
     height: 64px;
     display: flex;
@@ -808,12 +832,21 @@ button.pulse-guide {
     font-style: italic;
     line-height: 1.6;
     color: #ddd;
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    background: transparent;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
     transition: opacity 0.3s;
     display: none;
+}
+
+/* Dim + blur hug the lyrics/notes measure — not the full content column. */
+.lyrics-box .player-markdown {
+    padding: 14px 18px;
+    border-radius: 10px;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .player-markdown {
@@ -1062,13 +1095,14 @@ button.pulse-guide {
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
     display: none;
+    background: transparent;
 }
 
 .playlist-box.active {
     display: block;
 }
 
-/* Playlist Tracks Container */
+/* Playlist Tracks Container — dim hugs the list measure. */
 .playlist-tracks {
     display: flex;
     flex-direction: column;
@@ -1076,11 +1110,18 @@ button.pulse-guide {
     width: 100%;
     max-width: var(--list-measure);
     margin-inline: auto;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 /* Playlist Items (Album Tracks Style) */
 .playlist-item {
     padding: 8px;
+    /* Nested rows sit on the dimmed tracks panel; light accent wash only. */
     background: var(--primary-a05);
     border: 1px solid var(--primary-a20);
     border-radius: 6px;
@@ -1089,8 +1130,6 @@ button.pulse-guide {
     align-items: flex-start;
     cursor: pointer;
     transition: all 0.2s ease;
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 @media (hover: hover) {
@@ -1409,11 +1448,11 @@ audio {
     display: flex;
     align-items: center;
     gap: 8px;
-    width: min(100%, calc(var(--card-size) + 24px));
+    width: 100%;
     max-width: 500px;
     height: 28px;
-    margin: 4px auto 0;
-    padding: 0 8px;
+    margin: 0;
+    padding: 0 4px;
     box-sizing: border-box;
     z-index: 20;
 }
@@ -1618,8 +1657,7 @@ audio {
     line-height: 1.6;
     color: var(--color-text-muted);
     text-align: center;
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    background: transparent;
 }
 
 .page-box a {
@@ -1698,12 +1736,23 @@ audio {
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
     display: none;
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    background: transparent;
 }
 
 .gallery-box.active {
     display: block;
+}
+
+.gallery-box .visuals-gallery {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    padding: 10px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 /* Album Tracks */
@@ -1715,14 +1764,13 @@ audio {
 
 .album-track {
     padding: 12px;
+    /* Nested rows sit on the dimmed content panel; keep a light accent wash only. */
     background: var(--primary-a05);
     border: 1px solid var(--primary-a20);
     border-radius: 6px;
     display: flex;
     gap: 12px;
     align-items: flex-start;
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .track-cover {
@@ -1841,9 +1889,16 @@ audio {
 
 /* Shared stacked/mobile portrait density under the split threshold. */
 @media (max-width: 767px) {
+    .player-transport {
+        gap: 6px;
+        margin-bottom: 4px;
+        padding: 10px 10px 12px;
+        width: min(100%, calc(var(--card-size) + 32px));
+    }
+
     .track-info {
         height: 48px;
-        margin-bottom: 4px;
+        margin-bottom: 0;
     }
 
     h2 {
@@ -2019,9 +2074,15 @@ audio {
         display: none;
     }
 
+    .player-transport {
+        gap: 6px;
+        padding: 8px 10px 10px;
+        margin-bottom: 2px;
+    }
+
     .track-info {
         height: 44px;
-        margin-bottom: 4px;
+        margin-bottom: 0;
         width: 100%;
     }
 

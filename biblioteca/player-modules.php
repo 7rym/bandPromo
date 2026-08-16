@@ -199,6 +199,56 @@ function bandpromo_player_playlist_selector_mode(?array $config = null): string
     return bandpromo_player_normalize_playlist_selector_mode($raw);
 }
 
+/**
+ * Whether the in-flow support CTA (#beggars-banquet) may render.
+ * Base brand owns the toggle; Settings → Support still supplies URL/label/colors.
+ */
+function bandpromo_player_beggars_banquet_enabled(): bool
+{
+    try {
+        $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
+        if (function_exists('bandpromo_theme_load_active_document')) {
+            require_once __DIR__ . '/theme-storage.php';
+            $document = bandpromo_theme_load_active_document($root);
+            if (is_array($document)) {
+                $player = is_array($document['player'] ?? null) ? $document['player'] : [];
+                if (array_key_exists('beggars_banquet', $player)) {
+                    return (bool) filter_var($player['beggars_banquet'], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Brand storage may be unavailable during early bootstrap.
+    }
+
+    return true;
+}
+
+/**
+ * Whether the mirrored cover reflection under the main flip-card is shown.
+ * Base brand owns the toggle (desktop split layout only; small screens already hide it).
+ */
+function bandpromo_player_cover_reflection_enabled(): bool
+{
+    try {
+        $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
+        if (function_exists('bandpromo_theme_load_active_document')) {
+            require_once __DIR__ . '/theme-storage.php';
+            $document = bandpromo_theme_load_active_document($root);
+            if (is_array($document)) {
+                $player = is_array($document['player'] ?? null) ? $document['player'] : [];
+                if (array_key_exists('cover_reflection', $player)) {
+                    return (bool) filter_var($player['cover_reflection'], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Brand storage may be unavailable during early bootstrap.
+    }
+
+    return true;
+}
+
 function bandpromo_player_normalize_playlist_selector_mode(mixed $value): string
 {
     if (function_exists('bandpromo_theme_normalize_playlist_selector_mode')) {

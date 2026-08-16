@@ -153,7 +153,7 @@ Selecting a playlist applies that release’s **CSS tokens and visual shell** (l
 
 **Publish must not steal Base:** Demo PRP ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives on the **Base brand** document and travels with brands/PRPs. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
+**Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`), cover reflection (`player.cover_reflection`, default `true`), and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live on the **Base brand** document and travel with brands/PRPs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colors. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
 **Player nav — locked target (implement with PRP slice):**
 
@@ -722,8 +722,8 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
-| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living shell backgrounds (0–100 in editor; default 72) |
-| `effects.panel_blur` | `--panel-blur` | Glass blur on playlist rows, lyrics, pages, gallery, and login lightbox (0–24px; default 5) |
+| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living shell backgrounds **and** fill content panels (lyrics, playlists, pages, gallery, login inputs/lightbox) with the same black scrim strength (0–100 in editor; default 72) |
+| `effects.panel_blur` | `--panel-blur` | Glass blur on those same content panels (player chrome stays sharp; 0–24px; default 5) |
 
 Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens.
 
@@ -757,8 +757,8 @@ Renderer injects tokens as `:root` overrides when a brand is active.
 ### Public support call-to-action
 
 - Support remains an external, operator-owned destination; bandPromo does not become the payment flow.
-- The public player uses one provider-neutral in-flow link below the audio controls. Floating third-party widgets are not part of the responsive contract because the platform cannot guarantee that they will avoid content.
-- Operators control enabled state, short label, destination, and validated colors. bandPromo controls placement, maximum dimensions, contrast floor, and the brief intermittent attention halo.
+- The public player uses one provider-neutral in-flow link below the audio controls (**Beggars banquet**). Floating third-party widgets are not part of the responsive contract because the platform cannot guarantee that they will avoid content.
+- Operators enable destination, short label, and validated colors in Settings → Support. The **Base brand** toggles whether Beggars banquet appears (`player.beggars_banquet`). bandPromo controls placement, maximum dimensions, contrast floor, and the brief intermittent attention halo.
 - Motion pauses during interaction and is disabled by `prefers-reduced-motion`.
 
 ### Brand document sketch

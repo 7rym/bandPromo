@@ -39,6 +39,11 @@ textarea {
     width: 100%;
     max-width: 400px;
     text-align: center;
+    border-radius: 10px;
+    /* Brand Backdrop dim + Panel blur (same contract as player content panels). */
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .login-side-column,
@@ -89,7 +94,8 @@ input[type="password"] {
     padding: 12px;
     border: 1px solid var(--primary-a30);
     border-radius: 5px;
-    background: rgba(255, 255, 255, 0.1);
+    /* Nested fields sit on the dimmed login panel; light accent wash only. */
+    background: var(--primary-a05);
     color: var(--text-color, #fff);
     font-size: 14px;
     transition: all 0.3s ease;
@@ -99,7 +105,7 @@ input[type="password"] {
 input[type="text"]:focus,
 input[type="password"]:focus {
     outline: none;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--primary-a15);
     border-color: var(--primary-color);
     box-shadow: 0 0 8px var(--primary-a30);
 }
@@ -254,7 +260,7 @@ body.video-loaded::before {
     .login-container {
         padding: 25px 15px;
         margin: 10px;
-        border-radius: 5px;
+        border-radius: 8px;
         box-shadow: none;
         max-width: 100%;
     }
@@ -309,8 +315,9 @@ body.video-loaded::before {
         column-gap: 18px;
         width: min(940px, calc(100vw - 8px));
         min-height: calc(100dvh - 8px);
-        padding: 0;
+        padding: 16px 18px;
         margin: 0 auto;
+        box-sizing: border-box;
     }
 
     .login-side-column {
@@ -398,7 +405,8 @@ body.video-loaded::before {
         column-gap: 14px;
         width: min(900px, calc(100vw - 6px));
         min-height: calc(100dvh - 6px);
-        padding: 0;
+        padding: 12px 14px;
+        box-sizing: border-box;
     }
 
     .login-side-column {
@@ -471,7 +479,7 @@ body.video-loaded::before {
 
 .info-lightbox-content {
     position: relative;
-    background: color-mix(in srgb, var(--bg-color, #141414) 92%, transparent);
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
     border: 2px solid var(--primary-a50);
     border-radius: 10px;
     padding: 40px 30px;
@@ -479,6 +487,7 @@ body.video-loaded::before {
     width: 90%;
     box-shadow: 0 0 40px var(--primary-a30);
     animation: slideIn 0.3s ease;
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
 }
 

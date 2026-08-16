@@ -55,13 +55,28 @@ class Lightbox {
             if (!isVid) {
                 this.img.onerror = () => {
                     const current = String(this.img.src || '');
-                    const fallback = current.replace(
+                    let fallback = current.replace(
                         /\/media\/visual\/delivery\/(ast_[0-9A-HJKMNP-TV-Z]{20})\/huge\.(jpe?g|png|webp)(\?[^#]*)?(#.*)?$/i,
                         '/media/visual/delivery/$1/card.$2$3$4'
                     );
+                    if (!fallback || fallback === current) {
+                        fallback = current.replace(
+                            /\/media\/visual\/delivery\/(ast_[0-9A-HJKMNP-TV-Z]{20})\/card\.(jpe?g|png|webp)(\?[^#]*)?(#.*)?$/i,
+                            '/media/visual/delivery/$1/thumb.$2$3$4'
+                        );
+                    }
+                    if (!fallback || fallback === current) {
+                        const masterMatch = current.match(
+                            /\/media\/visual\/(?:original|master)\/(ast_[0-9A-HJKMNP-TV-Z]{20})\.[a-z0-9]+(\?[^#]*)?(#.*)?$/i
+                        );
+                        if (masterMatch) {
+                            fallback = `/media/visual/delivery/${masterMatch[1]}/card.jpg${masterMatch[2] || ''}${masterMatch[3] || ''}`;
+                        }
+                    }
                     if (fallback && fallback !== current) {
-                        this.img.onerror = null;
                         this.img.src = fallback;
+                    } else {
+                        this.img.onerror = null;
                     }
                 };
                 this.img.src = src;

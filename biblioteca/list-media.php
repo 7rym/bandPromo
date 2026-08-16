@@ -357,6 +357,9 @@ function bandpromo_list_media_build_entry(
             $entry['asset_id'] = (string) ($sfxAsset['id'] ?? '');
             $entry['brand_id'] = (string) ($sfxAsset['brand_id'] ?? '');
             $entry['role'] = 'sfx';
+            if (trim((string) ($entry['original_filename'] ?? '')) === '') {
+                $entry['original_filename'] = basename(trim((string) ($sfxAsset['original_filename'] ?? '')));
+            }
             $delivery = is_array($sfxAsset['delivery'] ?? null) ? $sfxAsset['delivery'] : [];
             $entry['pool_ready'] = !empty($delivery['ready']) || !empty($delivery['audio_optimal']);
             $playUrl = bandpromo_sfx_resolve_play_url($root, $sfxAsset);

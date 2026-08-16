@@ -84,9 +84,34 @@
         return true;
     }
 
+    /**
+     * Prefer the HDTV huge delivery for full-bleed shell stills.
+     * Falls back to the given URL when it is not a smaller visual delivery variant.
+     */
+    function preferHugeShellStillUrl(src) {
+        const raw = String(src || '').trim();
+        if (raw === '') {
+            return '';
+        }
+        return raw.replace(
+            /\/media\/visual\/delivery\/(ast_[0-9A-HJKMNP-TV-Z]{20})\/(thumb|card|optimal|picture|logo)\.(jpe?g|png|webp)(\?[^#]*)?(#.*)?$/i,
+            '/media/visual/delivery/$1/huge.$3$4$5'
+        );
+    }
+
+    function applyBodyBackgroundImage(url) {
+        const bgImage = String(url || '').trim();
+        if (!bgImage) {
+            clearBodyBackgroundImage();
+            return;
+        }
+        document.body.classList.add('shell-bg-image');
+        document.body.style.backgroundImage = `url('${bgImage}')`;
+    }
+
     function showBgImage() {
         const video = document.getElementById('bg-video');
-        const bgImage = global.appConfig?.media?.background_image || '';
+        const bgImage = String(global.appConfig?.media?.background_image || '').trim();
         if (video) {
             try {
                 video.pause();
@@ -97,12 +122,26 @@
             video.removeAttribute('autoplay');
         }
         document.body.classList.remove('shell-bg-video');
-        if (bgImage) {
-            document.body.classList.add('shell-bg-image');
-            document.body.style.backgroundImage = `url('${bgImage}')`;
-        } else {
+        if (!bgImage) {
             clearBodyBackgroundImage();
+            return;
         }
+
+        const preferred = preferHugeShellStillUrl(bgImage);
+        if (!preferred || preferred === bgImage) {
+            applyBodyBackgroundImage(bgImage);
+            return;
+        }
+
+        // Probe huge first so missing builds fall back to the stored card/thumb URL.
+        const probe = new Image();
+        probe.onload = () => {
+            applyBodyBackgroundImage(preferred);
+        };
+        probe.onerror = () => {
+            applyBodyBackgroundImage(bgImage);
+        };
+        probe.src = preferred;
     }
 
     function showBgVideo() {

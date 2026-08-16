@@ -54,6 +54,17 @@
             ? `<video class="theme-preview-shell-video" src="${escapeHtml(backgroundVideo)}"${posterAttr} muted loop playsinline autoplay preload="auto" aria-hidden="true"></video>`
             : '';
 
+        const beggarsBanquet = document?.player?.beggars_banquet !== false;
+        const coverReflection = document?.player?.cover_reflection !== false;
+        const beggarsMarkup = beggarsBanquet
+            ? `<div class="theme-preview-beggars-banquet" aria-hidden="true">
+                    <span class="theme-preview-support-link">Support</span>
+               </div>`
+            : '';
+        const reflectionMarkup = coverReflection
+            ? `<div class="theme-preview-cover-reflection" aria-hidden="true">${coverMarkup}</div>`
+            : '';
+
         return `
             <div class="theme-preview-shell-chrome${backgroundVideo ? ' theme-preview-shell-chrome--living' : ''}"${backgroundAttribute}>
                 ${livingVideoMarkup}
@@ -62,24 +73,28 @@
                         <div class="theme-preview-cover theme-preview-cover--player">
                             ${coverMarkup}
                         </div>
+                        ${reflectionMarkup}
                     </div>
-                    <div class="theme-preview-track-info">
-                        <span class="theme-preview-artist">Artist name</span>
-                        <span class="theme-preview-track-title">Track title</span>
+                    <div class="theme-preview-player-transport">
+                        <div class="theme-preview-track-info">
+                            <span class="theme-preview-artist">Artist name</span>
+                            <span class="theme-preview-track-title">Track title</span>
+                        </div>
+                        <div class="theme-preview-player-controls">
+                            <button type="button" class="theme-preview-player-btn" tabindex="-1">&#9664; Previous</button>
+                            <button type="button" class="theme-preview-player-btn theme-preview-player-btn--play" tabindex="-1">Play</button>
+                            <button type="button" class="theme-preview-player-btn" tabindex="-1">Next &#9654;</button>
+                        </div>
+                        <div class="theme-preview-scrubber">
+                            <span class="theme-preview-scrubber-time">0:42</span>
+                            <span class="theme-preview-scrubber-track" aria-hidden="true">
+                                <span class="theme-preview-scrubber-fill"></span>
+                                <span class="theme-preview-scrubber-thumb"></span>
+                            </span>
+                            <span class="theme-preview-scrubber-time">3:24</span>
+                        </div>
                     </div>
-                    <div class="theme-preview-player-controls">
-                        <button type="button" class="theme-preview-player-btn" tabindex="-1">&#9664; Previous</button>
-                        <button type="button" class="theme-preview-player-btn theme-preview-player-btn--play" tabindex="-1">Play</button>
-                        <button type="button" class="theme-preview-player-btn" tabindex="-1">Next &#9654;</button>
-                    </div>
-                    <div class="theme-preview-scrubber">
-                        <span class="theme-preview-scrubber-time">0:42</span>
-                        <span class="theme-preview-scrubber-track" aria-hidden="true">
-                            <span class="theme-preview-scrubber-fill"></span>
-                            <span class="theme-preview-scrubber-thumb"></span>
-                        </span>
-                        <span class="theme-preview-scrubber-time">3:24</span>
-                    </div>
+                    ${beggarsMarkup}
                 </div>
                 <div class="theme-preview-shell-header">
                     ${logoMarkup}

@@ -294,12 +294,12 @@
                     <label class="theme-effect-field">
                         <span class="theme-effect-label">Backdrop dim <strong data-effect-value="backdrop_dim">${escapeHtml(dim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(dim)}" data-token-path="effects.backdrop_dim" data-effect-range="backdrop_dim" ${locked ? 'disabled' : ''}>
-                        <span class="theme-field-hint">Darkens the still/living shell background behind the player and login.</span>
+                        <span class="theme-field-hint">Darkens the still/living shell background and fills lyrics, playlists, pages, gallery, and login panels.</span>
                     </label>
                     <label class="theme-effect-field">
                         <span class="theme-effect-label">Panel blur <strong data-effect-value="panel_blur">${escapeHtml(blur)}</strong>px</span>
                         <input type="range" min="0" max="24" step="1" value="${escapeHtml(blur)}" data-token-path="effects.panel_blur" data-effect-range="panel_blur" ${locked ? 'disabled' : ''}>
-                        <span class="theme-field-hint">Softens playlist rows, lyrics, pages, and gallery panels over the backdrop.</span>
+                        <span class="theme-field-hint">Glass blur on those same content panels (player chrome stays sharp).</span>
                     </label>
                 </div>
             `;
@@ -618,6 +618,8 @@
 
         function renderPlaylistSelectorFields(locked) {
             const selected = normalizePlaylistSelectorMode(editorDocument?.player?.playlist_selector);
+            const beggarsOn = editorDocument?.player?.beggars_banquet !== false;
+            const reflectionOn = editorDocument?.player?.cover_reflection !== false;
             const options = [
                 ['dropdown', 'Dropdown'],
                 ['buttons', 'Buttons'],
@@ -634,11 +636,25 @@
 
             return `
                 <div class="theme-editor-section theme-editor-section--player-chrome">
-                    <h5>Playlist selector</h5>
-                    <p class="theme-field-hint">Shown in the Playlists tab when more than one playlist is available. The Base brand’s choice applies site-wide on /play. Cover flow uses each playlist’s poster.</p>
+                    <h5>Player chrome</h5>
+                    <p class="theme-field-hint">Playlist selector, cover mirror, and Beggars banquet. The Base brand’s choices apply site-wide on /play.</p>
+                    <h6 class="theme-editor-subheading">Playlist selector</h6>
+                    <p class="theme-field-hint">Shown in the Playlists tab when more than one playlist is available. Cover flow uses each playlist’s poster.</p>
                     <div class="theme-player-setting-toggle" role="group" aria-label="Playlist selector style">
                         ${radios}
                     </div>
+                    <label class="theme-player-checkbox">
+                        <input type="checkbox" name="themeCoverReflection" data-player-path="cover_reflection"
+                               ${reflectionOn ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+                        <span>Cover reflection</span>
+                    </label>
+                    <p class="theme-field-hint">Mirrored cover under the main artwork on large split layouts (already hidden on small screens).</p>
+                    <label class="theme-player-checkbox">
+                        <input type="checkbox" name="themeBeggarsBanquet" data-player-path="beggars_banquet"
+                               ${beggarsOn ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+                        <span>Beggars banquet</span>
+                    </label>
+                    <p class="theme-field-hint">In-flow support link under the player transport. Destination, label, and colors still come from Settings → Support.</p>
                 </div>`;
         }
 
@@ -1003,6 +1019,14 @@
             if (playlistSelector instanceof HTMLInputElement) {
                 editorDocument.player.playlist_selector = normalizePlaylistSelectorMode(playlistSelector.value);
             }
+            const beggarsToggle = formEl.querySelector('input[name="themeBeggarsBanquet"]');
+            if (beggarsToggle instanceof HTMLInputElement) {
+                editorDocument.player.beggars_banquet = !!beggarsToggle.checked;
+            }
+            const reflectionToggle = formEl.querySelector('input[name="themeCoverReflection"]');
+            if (reflectionToggle instanceof HTMLInputElement) {
+                editorDocument.player.cover_reflection = !!reflectionToggle.checked;
+            }
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement) || input.hidden) return;
                 const path = input.getAttribute('data-token-path') || '';
@@ -1256,7 +1280,11 @@
             if (target instanceof HTMLSelectElement && target.hasAttribute('data-font-preset-select')) {
                 applyFontPresetSelection(target.getAttribute('data-font-preset-select') || '', target.value);
             }
-            if (target instanceof HTMLInputElement && target.name === 'themePlaylistSelector') {
+            if (target instanceof HTMLInputElement && (
+                target.name === 'themePlaylistSelector'
+                || target.name === 'themeBeggarsBanquet'
+                || target.name === 'themeCoverReflection'
+            )) {
                 collectFormIntoDocument();
             }
         });

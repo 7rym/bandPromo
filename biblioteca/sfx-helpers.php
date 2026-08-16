@@ -591,7 +591,16 @@ function bandpromo_asset_register_sfx(
         if ($buildDelivery) {
             $built = bandpromo_sfx_build_delivery($root, $asset);
             if (!empty($built['ok']) && is_array($built['asset'] ?? null)) {
-                return $built['asset'];
+                $asset = $built['asset'];
+            }
+        }
+        $assetBrandId = trim((string) ($asset['brand_id'] ?? ''));
+        if ($assetBrandId !== '') {
+            try {
+                require_once __DIR__ . '/theme-storage.php';
+                bandpromo_theme_add_assets_to_library($root, $assetBrandId, [(string) ($asset['id'] ?? '')]);
+            } catch (Throwable $throwable) {
+                // Non-fatal; asset remains registered.
             }
         }
 
@@ -645,13 +654,24 @@ function bandpromo_asset_register_sfx(
     if ($buildDelivery) {
         $built = bandpromo_sfx_build_delivery($root, $normalized);
         if (!empty($built['ok']) && is_array($built['asset'] ?? null)) {
-            return $built['asset'];
+            $normalized = $built['asset'];
         }
     } else {
         bandpromo_sfx_materialize_master($root, $normalized);
     }
 
-    return bandpromo_asset_lookup_by_id($root, $id) ?? $normalized;
+    $asset = bandpromo_asset_lookup_by_id($root, $id) ?? $normalized;
+    $assetBrandId = trim((string) ($asset['brand_id'] ?? $brandId));
+    if ($assetBrandId !== '') {
+        try {
+            require_once __DIR__ . '/theme-storage.php';
+            bandpromo_theme_add_assets_to_library($root, $assetBrandId, [(string) ($asset['id'] ?? $id)]);
+        } catch (Throwable $throwable) {
+            // Listing still works once the operator adds the asset to a Brand library.
+        }
+    }
+
+    return $asset;
 }
 
 /**

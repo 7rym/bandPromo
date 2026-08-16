@@ -3112,8 +3112,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? poolAssetHeadline(type, file)
                                 : 'Preview');
                         if (!isVisualMediaRow(type, file)) {
+                            const stillSrc = poolAssetStillPreviewUrl(file, 'huge')
+                                || poolAssetStillPreviewUrl(file, 'card')
+                                || buildMediaPath(pathType, file.name);
                             return {
-                                src: buildMediaPath(pathType, file.name),
+                                src: stillSrc,
                                 name: caption,
                                 fileKey: file.name,
                                 type: 'image',
@@ -3739,6 +3742,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (kinds.has('loggedin-audio')) {
                         return 'Logged-in sound';
                     }
+                    const originalName = String(file?.original_filename || file?.name || '').trim();
+                    if (originalName !== '') {
+                        return originalName
+                            .replace(/\.[^.]+$/, '')
+                            .replace(/__+/g, ' ')
+                            .replace(/[_-]+/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim() || originalName;
+                    }
                     if (!mediaFileIsInUse(file)) {
                         return 'Unused sound effect';
                     }
@@ -3885,13 +3897,66 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
+            function visualAssetIdFromRef(value) {
+                const raw = String(value || '').trim().replace(/\\/g, '/');
+                if (!raw) {
+                    return '';
+                }
+                const deliveryMatch = raw.match(/\/media\/visual\/delivery\/(ast_[0-9A-HJKMNP-TV-Z]{20})\b/i);
+                if (deliveryMatch) {
+                    return deliveryMatch[1];
+                }
+                const base = raw.split('/').pop() || '';
+                if (/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(base)) {
+                    return base;
+                }
+                const stem = base.replace(/\.[^.]+$/, '');
+                return /^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(stem) ? stem : '';
+            }
+
+            function visualDeliveryStillUrl(assetId, prefer = 'card', extHint = '') {
+                const id = String(assetId || '').trim();
+                if (!id) {
+                    return '';
+                }
+                const variant = prefer === 'huge' ? 'huge' : (prefer === 'thumb' ? 'thumb' : 'card');
+                const extRaw = String(extHint || 'jpg').toLowerCase().replace(/^\./, '');
+                const ext = ['jpg', 'jpeg', 'png', 'webp'].includes(extRaw) ? extRaw : 'jpg';
+                return `/media/visual/delivery/${encodeURIComponent(id)}/${variant}.${ext}`;
+            }
+
+            function visualStillUrlFromRef(ref, prefer = 'card') {
+                const raw = String(ref || '').trim();
+                if (!raw) {
+                    return '';
+                }
+                if (raw.includes('/media/visual/delivery/')) {
+                    return raw.startsWith('/') ? raw : `/${raw.replace(/^\/*/, '')}`;
+                }
+                const assetId = visualAssetIdFromRef(raw);
+                if (assetId) {
+                    return visualDeliveryStillUrl(assetId, prefer);
+                }
+                return '';
+            }
+
             function poolAssetStillPreviewUrl(file, prefer = 'card') {
                 const card = String(file?.card_url || '').trim();
                 const thumb = String(file?.thumb_url || '').trim();
-                if (prefer === 'thumb') {
-                    return thumb || card;
+                const assetId = String(file?.asset_id || '').trim() || visualAssetIdFromRef(file?.name || '');
+                const source = card || thumb;
+                const extMatch = source.match(/\.([a-z0-9]+)(?:\?|#|$)/i);
+                const extHint = extMatch ? String(extMatch[1] || '') : 'jpg';
+                if (prefer === 'huge') {
+                    if (assetId) {
+                        return visualDeliveryStillUrl(assetId, 'huge', extHint);
+                    }
+                    return card || thumb;
                 }
-                return card || thumb;
+                if (prefer === 'thumb') {
+                    return thumb || card || visualDeliveryStillUrl(assetId, 'thumb', extHint);
+                }
+                return card || thumb || visualDeliveryStillUrl(assetId, 'card', extHint);
             }
 
             function poolAssetThumbInnerHtml(panelType, file, pathType) {
@@ -4720,7 +4785,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const selectionKey = mediaFileSelectionKey(type, f);
                         const safeName = f.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                         const safeKey = selectionKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                        const url = buildMediaUrl(pathType, f.name);
+                        const url = poolAssetStillPreviewUrl(f, 'card') || buildMediaUrl(pathType, f.name);
                         const displaySource = type === 'audio' ? audioFileForDisplay(f) : f;
                         const display = getDisplayedMediaInfo(type, displaySource);
                         const selected = selection.selected.has(selectionKey);
@@ -4730,7 +4795,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const rowIsVideo = isVisualMediaRow(type, f);
                         let thumb;
                         if (isImage(f.name)) {
-                            thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${basePath}/${safeName}', '${safeName}')">`;
+                            const stillPreview = poolAssetStillPreviewUrl(f, 'huge')
+                                || poolAssetStillPreviewUrl(f, 'card')
+                                || `${basePath}/${safeName}`;
+                            thumb = `<img class="media-file-thumb" src="${url}" alt="" loading="lazy" onclick="event.stopPropagation(); openAdminPreview('${stillPreview}', '${safeName}')">`;
                         } else if (isVideo(f.name)) {
                             thumb = buildVideoThumbMarkup(type, f, safeName, basePath);
                         } else {
@@ -4742,7 +4810,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : '';
                         const previewSrc = rowIsVideo
                             ? (videoPreviewUrl(f) || videoPosterUrl(f))
-                            : `${basePath}/${safeName}`;
+                            : (poolAssetStillPreviewUrl(f, 'huge')
+                                || poolAssetStillPreviewUrl(f, 'card')
+                                || `${basePath}/${safeName}`);
                         const preview = type !== 'audio' && isPreviewable(f.name, f, type)
                             ? `<button class="icon-btn media-action-btn media-action-amber" title="Preview" onclick="event.stopPropagation(); openAdminPreview('${previewSrc}', '${safeName}')">👁️</button>`
                             : (rowIsVideo && (f.delivery_pending || f.delivery_running)
@@ -5572,9 +5642,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (previewTrigger) {
                         event.preventDefault();
                         event.stopPropagation();
-                        const target = previewTrigger.dataset.pickerTarget;
                         const filename = decodeURIComponent(previewTrigger.dataset.filename || '');
-                        openAdminPreview(buildMediaPath(target, filename), filename);
+                        const tile = previewTrigger.closest('.media-picker-tile');
+                        const target = previewTrigger.dataset.pickerTarget
+                            || (tile && tile.dataset.pickerTarget)
+                            || '';
+                        const fromItems = (window._adminPreviewItems || []).find((entry) =>
+                            entry.fileKey === filename
+                            || entry.name === filename
+                        );
+                        const itemSrc = String(fromItems?.src || '').trim();
+                        const deliveryUrl = String(tile?.dataset?.publicUrl || '').trim();
+                        // Prefer delivery (huge/card) over stale original/master paths in preview items.
+                        const previewSrc = (itemSrc.includes('/media/visual/delivery/') ? itemSrc : '')
+                            || deliveryUrl
+                            || itemSrc
+                            || buildMediaPath(target, filename);
+                        openAdminPreview(previewSrc, filename);
                         return;
                     }
 
@@ -5587,8 +5671,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const filename = decodeURIComponent(selectBtn.dataset.filename || '');
                         const publicUrl = String(selectBtn.dataset.publicUrl || '').trim();
                         const selectedKind = String(selectBtn.dataset.mediaKind || '').trim();
-                        const selectedPath = publicUrl || buildMediaPath(target, filename);
                         const selectedAssetId = String(selectBtn.dataset.assetId || '').trim();
+                        const selectedPath = publicUrl
+                            || (selectedAssetId ? visualDeliveryStillUrl(selectedAssetId, 'card') : '')
+                            || visualStillUrlFromRef(filename, 'card')
+                            || buildMediaPath(target, filename);
                         if (mediaPickerState.multiSelect === true) {
                             toggleMediaPickerTileSelection(selectBtn);
                             return;
@@ -5816,21 +5903,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function audioMasterCoverPreviewUrl(detail) {
                 const selected = audioMasterCoverPath ? String(audioMasterCoverPath.value || '').trim() : '';
                 if (selected) {
-                    return selected;
+                    return visualStillUrlFromRef(selected, 'card') || selected;
                 }
                 if (detail && detail.sidecar_cover_url) {
                     return String(detail.sidecar_cover_url);
                 }
                 if (detail && detail.sidecar_cover) {
                     const cover = String(detail.sidecar_cover).trim();
-                    const coverStem = cover.replace(/\.[^.]+$/, '');
-                    const assetId = /^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(cover)
-                        ? cover
-                        : (/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(coverStem) ? coverStem : '');
-                    if (assetId) {
-                        return `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`;
-                    }
-                    return `/media/visual/original/${encodeURIComponent(cover)}`;
+                    return visualStillUrlFromRef(cover, 'card');
                 }
                 return detail && detail.current_cover_url ? String(detail.current_cover_url) : '';
             }
@@ -5862,15 +5942,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function audioMasterAssetIdFromRef(value) {
-                const base = audioMasterLivingCoverBasename(value);
-                if (!base) {
-                    return '';
-                }
-                if (/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(base)) {
-                    return base;
-                }
-                const stem = base.replace(/\.[^.]+$/, '');
-                return /^ast_[0-9A-HJKMNP-TV-Z]{20}$/i.test(stem) ? stem : '';
+                return visualAssetIdFromRef(value);
             }
 
             function audioMasterLivingCoverStoragePath(filename) {
@@ -5878,14 +5950,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!raw) {
                     return '';
                 }
-                if (raw.startsWith('/media/visual/') || raw.startsWith('media/visual/')) {
-                    return raw.startsWith('/') ? raw : `/${raw}`;
-                }
                 const assetId = audioMasterAssetIdFromRef(raw);
                 if (assetId) {
                     return assetId;
                 }
+                if (raw.startsWith('/media/visual/') || raw.startsWith('media/visual/')) {
+                    return raw.startsWith('/') ? raw : `/${raw}`;
+                }
                 const safe = audioMasterLivingCoverBasename(raw);
+                // Human original filenames only — never invent original/ast_*.ext master paths.
                 return safe ? `/media/visual/original/${safe}` : '';
             }
 
@@ -5946,8 +6019,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function applyAudioMasterLivingCoverSelection(path, options = {}) {
                 const storagePath = audioMasterLivingCoverStoragePath(path);
                 const filename = audioMasterLivingCoverBasename(storagePath);
+                const livingAssetId = audioMasterAssetIdFromRef(storagePath);
                 const previewUrl = audioMasterLivingCoverPreviewFromPicker(filename)
-                    || (storagePath ? storagePath : '');
+                    || (livingAssetId
+                        ? `/media/visual/delivery/${encodeURIComponent(livingAssetId)}/standard-stream.mp4`
+                        : '')
+                    || (String(storagePath).includes('/media/visual/delivery/') ? storagePath : '');
 
                 setAudioMasterLivingCoverMode(filename ? 'set' : 'preserve');
                 if (audioMasterLivingCoverPath) {
@@ -6980,6 +7057,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     || item.name === name
                 );
                 if (idx >= 0) {
+                    // Caller-provided src wins so a good delivery URL is not replaced by a
+                    // stale original/master path still sitting on the preview item.
+                    if (normalizedSrc && items[idx].src !== normalizedSrc) {
+                        items[idx].src = normalizedSrc;
+                    }
                     lightbox.openAt(idx);
                 } else {
                     const isVideoSrc = /\.(mp4|webm)(\?.*)?$/i.test(normalizedSrc);
@@ -9030,11 +9112,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const kind = String(file.media_type || '').trim() === 'video' ? 'video' : 'image';
                             const bucket = resolveFileIntakeBucket(file, 'visual') || (kind === 'video' ? 'video' : 'photos');
                             const deliverySrc = kind === 'video'
-                                ? String(file.stream_url || file.preview_url || '').trim()
-                                : String(file.card_url || file.thumb_url || '').trim();
-                            const legacySrc = `/media/visual/original/${file.name}`;
+                                ? (String(file.stream_url || file.preview_url || '').trim()
+                                    || (file.asset_id
+                                        ? `/media/visual/delivery/${encodeURIComponent(String(file.asset_id))}/standard-stream.mp4`
+                                        : ''))
+                                : (poolAssetStillPreviewUrl(file, 'card')
+                                    || poolAssetStillPreviewUrl(file, 'thumb'));
                             const entry = {
-                                src: deliverySrc || legacySrc,
+                                src: deliverySrc,
                                 name: String(file.display_title || '').trim() || prettifyName(file.name),
                                 display_title: String(file.display_title || '').trim(),
                                 operator_title: String(file.operator_title || '').trim(),

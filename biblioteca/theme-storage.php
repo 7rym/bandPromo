@@ -273,6 +273,10 @@ function bandpromo_theme_default_document(): array
         // Player chrome preferences owned by the brand (Base brand drives /play).
         'player' => [
             'playlist_selector' => 'coverflow',
+            // In-flow support CTA (#beggars-banquet). Destination/label still from Settings → Support.
+            'beggars_banquet' => true,
+            // Mirror under the main cover art (desktop split layout).
+            'cover_reflection' => true,
         ],
     ];
 }
@@ -310,7 +314,7 @@ function bandpromo_theme_legacy_playlist_selector_fallback(): string
 
 /**
  * @param array<string, mixed> $input
- * @return array{playlist_selector: string}
+ * @return array{playlist_selector: string, beggars_banquet: bool, cover_reflection: bool}
  */
 function bandpromo_theme_normalize_player(array $input): array
 {
@@ -322,8 +326,23 @@ function bandpromo_theme_normalize_player(array $input): array
         $selector = bandpromo_theme_normalize_playlist_selector_mode($raw);
     }
 
+    // Missing key defaults to on so existing brands keep showing Support when configured.
+    if (!array_key_exists('beggars_banquet', $player)) {
+        $beggarsBanquet = true;
+    } else {
+        $beggarsBanquet = filter_var($player['beggars_banquet'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    if (!array_key_exists('cover_reflection', $player)) {
+        $coverReflection = true;
+    } else {
+        $coverReflection = filter_var($player['cover_reflection'], FILTER_VALIDATE_BOOLEAN);
+    }
+
     return [
         'playlist_selector' => $selector,
+        'beggars_banquet' => $beggarsBanquet,
+        'cover_reflection' => $coverReflection,
     ];
 }
 
@@ -530,6 +549,35 @@ function bandpromo_theme_merge_library_slot_assets(array $slotAssetIds, array $l
 }
 
 /**
+ * Add Visual/SFX asset ids to a Brand library (idempotent).
+ *
+ * @param list<string> $assetIds
+ * @return list<string> Updated library_asset_ids
+ */
+function bandpromo_theme_add_assets_to_library(string $root, string $brandId, array $assetIds): array
+{
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    if ($brandId === '') {
+        return [];
+    }
+
+    $document = bandpromo_theme_load_document($root, $brandId);
+    $library = is_array($document['library_asset_ids'] ?? null)
+        ? $document['library_asset_ids']
+        : [];
+    $before = bandpromo_theme_normalize_library_asset_ids($library);
+    $merged = bandpromo_theme_normalize_library_asset_ids(array_merge($before, $assetIds));
+    if ($merged === $before) {
+        return $before;
+    }
+
+    $document['library_asset_ids'] = $merged;
+    bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+
+    return $merged;
+}
+
+/**
  * Maps visual/SFX asset_id to Brand libraries that include it.
  *
  * @return array<string, list<array{brand_id: string, brand_title: string}>>
@@ -632,7 +680,10 @@ function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, s
             }
 
             if ($kind === 'visual') {
-                return bandpromo_visual_resolve_url($root, $assetId, 'card', '', false);
+                // Full-bleed shell stills use HDTV huge; logos/posters stay on card.
+                $variant = $slotKey === 'background_image' ? 'huge' : 'card';
+
+                return bandpromo_visual_resolve_url($root, $assetId, $variant, '', false);
             }
         }
     }
@@ -643,6 +694,19 @@ function bandpromo_theme_resolve_shell_slot_url(string $root, array $document, s
         || str_starts_with($pathFallback, '/media/sfx/optimal/')
         || preg_match('#^https?://#i', $pathFallback) === 1
     )) {
+        if ($slotKey === 'background_image'
+            && preg_match(
+                '#^/media/visual/delivery/(ast_[0-9A-HJKMNP-TV-Z]{20})/(?:thumb|card|optimal|picture|logo)\.(jpe?g|png|webp)$#i',
+                $pathFallback,
+                $matches
+            ) === 1
+        ) {
+            $hugeUrl = bandpromo_visual_resolve_url($root, (string) $matches[1], 'huge', '', false);
+            if ($hugeUrl !== '') {
+                return $hugeUrl;
+            }
+        }
+
         return $pathFallback;
     }
 
@@ -802,8 +866,15 @@ function bandpromo_theme_clone_asset_file(string $root, string $brandId, string 
     $indexTarget = $mediaType === 'video' ? 'video' : 'illustrations';
     bandpromo_media_files_index_sync_file($root, $indexTarget, $listing);
     bandpromo_media_files_index_sync_file($root, 'special', $listing);
+    $stillVariant = $assetKey === 'background_image' ? 'huge' : 'card';
     $delivery = $assetId !== ''
-        ? bandpromo_visual_resolve_url($root, $assetId, $mediaType === 'video' ? 'standard-stream' : 'card', '', false)
+        ? bandpromo_visual_resolve_url(
+            $root,
+            $assetId,
+            $mediaType === 'video' ? 'standard-stream' : $stillVariant,
+            '',
+            false
+        )
         : '';
 
     return ['path' => $delivery, 'asset_id' => $assetId];

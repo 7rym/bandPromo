@@ -907,7 +907,7 @@ Initial target buckets should be explicit:
 
 - `thumb`: small list/grid previews
 - `card`: standard player and content-card artwork
-- `huge`: fullscreen stills contained within **1920×1080px** without cropping, stretching, or upscaling
+- `huge`: fullscreen stills and shell still backgrounds contained within **1920×1080px** without cropping, stretching, or upscaling
 - `lightbox`: enlarged artwork for the current largest practical UI view
 - `share`: social sharing derivative sized for the platform target
 
@@ -970,7 +970,7 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `logo` | Player header `.content-logo-img` | 320px wide (+ 2× retina → ~640px delivery cap) | Often PNG with alpha; theme asset |
 | `thumb` | Playlist row `.playlist-track-cover`, cover-flow, bio track list | 70–100px (delivery max edge **100px**) | Square-ish; shipped |
 | `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped |
-| `huge` | Player lightbox fullscreen stills | contain inside **1920×1080px** | Shipped; selected by player lightbox |
+| `huge` | Player lightbox fullscreen stills; login/player shell still backgrounds | contain inside **1920×1080px** | Shipped; lightbox + shell still prefer `huge`, fall back to `card` |
 | `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Brand assets list; Grid view uses larger cards |
 | `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
@@ -1010,7 +1010,7 @@ Operators may change role and brand after upload in Files → Visual (single or 
 
 **Shipped 2026-07-21 (delivery half):** variants under `media/visual/delivery/{asset_id}/` with registry `delivery.variants` manifest. Legacy `media/*/optimal` and `thumb` trees remain dual-read fallbacks. Originals stay in legacy intake buckets until Phase 3 Brand-assets fold relocates them under `media/visual/original/`.
 
-Image variants for v0.8: `thumb`, `card`, `huge` (player lightbox prefers `huge`, falls back to `card`). Video: `poster`, `standard-stream`.
+Image variants for v0.8: `thumb`, `card`, `huge` (player lightbox and shell still backgrounds prefer `huge`, fall back to `card`). Video: `poster`, `standard-stream`.
 
 Rules:
 

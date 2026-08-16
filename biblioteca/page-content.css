@@ -29,20 +29,57 @@
 .page-content > .page-callout,
 .page-content > .page-heading,
 .page-content > .page-paragraph {
+    /* Full row so prose cannot sit beside the gallery; measure is centered inside. */
+    flex: 0 0 100%;
     max-width: none;
+    width: 100%;
     margin-left: 0;
     margin-right: 0;
-    padding: 2px var(--page-measure-inset);
+    margin-bottom: 14px;
+    padding: 0;
+    box-sizing: border-box;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-radius: 0;
 }
 
-.page-content > .page-list {
-    padding-left: calc(var(--page-measure-inset) + 1.2rem);
+/* Dim hugs the readable measure, not the full content column. */
+.page-box .page-content > .page-richtext,
+.page-box .page-content > .page-heading,
+.page-box .page-content > .page-paragraph,
+.page-box .page-content > .page-list,
+.page-box .page-content > .page-quote,
+.page-box .page-content > .page-callout,
+.info-lightbox-text .page-content > .page-richtext,
+.info-lightbox-text .page-content > .page-heading,
+.info-lightbox-text .page-content > .page-paragraph,
+.info-lightbox-text .page-content > .page-list,
+.info-lightbox-text .page-content > .page-quote,
+.info-lightbox-text .page-content > .page-callout {
+    max-width: var(--prose-measure, min(70ch, 52rem));
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
+    box-sizing: border-box;
 }
 
-.page-content > .page-quote,
-.page-content > .page-callout {
-    padding-left: calc(var(--page-measure-inset) + 14px);
-    padding-right: calc(var(--page-measure-inset) + 14px);
+.page-box .page-content > .page-list,
+.info-lightbox-text .page-content > .page-list {
+    padding-left: calc(16px + 1.2rem);
+}
+
+.page-box .page-content > .page-quote,
+.page-box .page-content > .page-callout,
+.info-lightbox-text .page-content > .page-quote,
+.info-lightbox-text .page-content > .page-callout {
+    padding-left: 18px;
+    padding-right: 16px;
 }
 
 .page-content::after {
@@ -611,23 +648,39 @@
     width: 100%;
     box-sizing: border-box;
     margin: 0 0 18px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
+    backdrop-filter: blur(var(--panel-blur, 5px));
 }
 
 .page-gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 180px));
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
+    width: 100%;
 }
 
 .page-gallery--list .page-gallery-grid {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: 10px;
+}
+
+.page-gallery--list .page-gallery-item {
+    flex: 0 0 auto;
+    width: 100%;
 }
 
 .page-gallery-item {
     margin: 0;
+    flex: 0 0 180px;
+    width: 180px;
+    max-width: 100%;
+    /* Cards already sit on a dimmed gallery panel; light accent wash only. */
     background: var(--primary-a05);
     border: 1px solid var(--primary-a20);
     border-radius: 8px;
