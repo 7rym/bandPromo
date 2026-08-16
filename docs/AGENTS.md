@@ -12,7 +12,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - The entire `/media`, `/data`, `/log`, and `/backups` trees are git-ignored. Demo masters travel in the demo PRP / published artifacts, not as tracked git binaries.
 - Apache/PHP protection stubs (root `.htaccess`, `.user.ini`, `play/.htaccess`, deny-all stubs under data/log/backups/media) are generated from `biblioteca/templates/runtime/` by setup when missing — not tracked at install paths.
 - Operators can verify and repair those managed stubs from **System → Security** (`security-sanity-check.php` / `security-sanity-repair.php`). Repair overwrites drifted managed stubs only; it never rewrites `web-config.json`.
-- IDE preferences (`.vscode/`, `.editorconfig`) are local-only and not tracked.
+- IDE preferences (`.vscode/`, `.cursor/`, `.editorconfig`) are local-only and not tracked.
 
 ## Key Conventions
 
@@ -25,7 +25,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Do not add runtime fallbacks that silently use example/template files in production paths.
 - Runtime files are required and should fail loudly with actionable messages when missing.
 - Keep local-only files out of git (for example web-config.json, data files, .env, icons, manifests).
-- **Never destroy this working copy’s runtime.** `data/` (including `data/analytics/`), `media/`, `log/` (analytics and admin-audit test data), `backups/`, `web-config.json`, and `data/terces` are operator data. “Try a fresh install”, SESSION-HANDOFF, or “clean host” do **not** authorize deleting them here. Remote test fleet: **bandpromo.site** (Vanilla — always the fresh-install host), **Twisted Chronicles**, **HITZ**. The user must name those exact paths in the same message before any rmtree/delete. Same bar as secrets: stop and ask. See `.cursor/rules/never-wipe-runtime.mdc`.
+- **Never destroy this working copy’s runtime.** `data/` (including `data/analytics/`), `media/`, `log/` (analytics and admin-audit test data), `backups/`, `web-config.json`, and `data/terces` are operator data. “Try a fresh install”, SESSION-HANDOFF, or “clean host” do **not** authorize deleting them here. Remote test fleet: **bandpromo.site** (Vanilla — always the fresh-install host), **Twisted Chronicles**, **HITZ**. The user must name those exact paths in the same message before any rmtree/delete. Same bar as secrets: stop and ask.
 - **desktop.ini files:** Windows + Google Drive creates these metadata files in every folder locally. They are **not** tracked by git (see `.gitignore`) and will be recreated on every local sync. Never try to add them to git; they cause corruption in `.git/refs/` and should always be ignored. If you accidentally commit one, remove it immediately.
 - This repository lives inside Google Drive, so `.gitignore` alone is not enough. Run `powershell -ExecutionPolicy Bypass -File scripts/protect-google-drive-git.ps1` once per clone to move `.git` outside the synced folder. That is the durable fix; `.gitignore` only protects the working tree.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
@@ -112,7 +112,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 ## Common Pitfalls
 
 - **Wiping local `data/`, `media/`, or `log/`:** this Google Drive tree is the live operator catalog (`log/` includes analytics test history). Fresh-install smokes always run on **bandpromo.site**; the other remote tests are Twisted Chronicles and HITZ. Do not rmtree runtime roots unless the operator named those paths in the same message.
-- Accidentally tracking local files from `data/`, `log/`, `backups/`, `media/`, root config, generated assets, `.vscode/`, or `.editorconfig`.
+- Accidentally tracking local files from `data/`, `log/`, `backups/`, `media/`, root config, generated assets, `.vscode/`, `.cursor/`, or `.editorconfig`.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to bump `VERSION` before pushing changes to `main`.
 - Reaching for Bash/Linux commands in a Windows PowerShell session before checking the active environment and available repo tasks.

@@ -28,6 +28,7 @@ Desktop.ini
 
 # IDE / local editor preferences (not product)
 .vscode/
+.cursor/
 .idea/
 .editorconfig
 *.swp

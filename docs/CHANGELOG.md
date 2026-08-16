@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 21:55 - Stop tracking `.cursor/` (local Cursor IDE rules); ignore it like `.vscode/` / `.editorconfig`. Policy stays in `docs/AGENTS.md`.
+
 2026-08-16 21:40 - Checkpoint player chrome dim/blur + Cover reflection, shell huge backgrounds, gallery centering, and admin Visual delivery previews on `main` as **v0.8.27 build 399**; trigger GitHub Release `v0.8.27-build-399` for Site update.
 
 2026-08-16 20:45 - Residual Visual still-preview paths hardened: shared `visualStillUrlFromRef` / asset-id delivery helpers; gallery pool no longer falls back to `/media/visual/original/${file.name}`; picker select + audio cover/living-cover previews prefer delivery `card`/stream over invented original/master URLs.
