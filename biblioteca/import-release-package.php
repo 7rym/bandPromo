@@ -74,7 +74,17 @@ function bandpromo_release_import_normalize_collision(string $collision): string
 }
 
 /**
- * @return array{ok: true, release_id: string, message: string, imported_files: int, collision: string, releases: list}
+ * @return array{
+ *   ok: true,
+ *   release_id: string,
+ *   message: string,
+ *   imported_files: int,
+ *   collision: string,
+ *   releases: list,
+ *   build_required?: bool,
+ *   queue_deliverables?: bool,
+ *   build_required_state?: mixed
+ * }
  */
 function bandpromo_release_import_run(string $root, string $zipPath, string $originalName, string $collision): array
 {
@@ -94,10 +104,11 @@ function bandpromo_release_import_run(string $root, string $zipPath, string $ori
             'filename' => $originalName,
             'collision' => (string) ($result['collision'] ?? $collision),
             'mode' => isset($_POST['chunk_index']) ? 'chunked' : 'single',
+            'queue_deliverables' => !empty($result['queue_deliverables']),
         ],
     ]);
 
-    return [
+    $payload = [
         'ok' => true,
         'release_id' => (string) ($result['release_id'] ?? ''),
         'message' => (string) ($result['message'] ?? 'Release package imported.'),
@@ -105,6 +116,17 @@ function bandpromo_release_import_run(string $root, string $zipPath, string $ori
         'collision' => (string) ($result['collision'] ?? $collision),
         'releases' => bandpromo_release_admin_registry_entries($root),
     ];
+    if (!empty($result['build_required'])) {
+        $payload['build_required'] = true;
+    }
+    if (!empty($result['queue_deliverables'])) {
+        $payload['queue_deliverables'] = true;
+    }
+    if (array_key_exists('build_required_state', $result)) {
+        $payload['build_required_state'] = $result['build_required_state'];
+    }
+
+    return $payload;
 }
 
 function bandpromo_release_import_cleanup_parts(string $tmpDir, string $uploadId, int $totalChunks): void

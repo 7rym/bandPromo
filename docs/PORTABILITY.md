@@ -139,6 +139,8 @@ When imported ids already exist, the operator chooses (refuse / overwrite / skip
 
 Large campaign PRPs (hundreds of MB of masters) must extract **to disk without loading each entry into PHP memory**. Admin Import uploads in **2 MB chunks** (same pattern as Files media uploads) so nginx/`post_max_size` body limits do not need to match the full package size—only a single chunk.
 
+Gallery rows that only store delivery URLs must resolve `asset_id` (from `src`) so linked Visual masters travel in the PRP. Import registers campaign **pages** (not only playlists/galleries/brands) and marks deliverables rebuild; admin queues **deliverables-only** Publish after a successful import.
+
 #### Ambassador and services model
 
 bandPromo does not operate a marketplace or take a cut. Ambassadors and release preparers hand off real PRPs; commercial terms stay between people.

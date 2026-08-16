@@ -62,6 +62,7 @@ function bandpromo_reason_tasks(string $reason): array {
         'media_image_upload' => ['image-delivery'],
         'playlist_order_changed' => ['audio-delivery'],
         'release_tags_sync' => ['playlist-scan'],
+        'release_package_imported' => ['playlist-scan', 'audio-delivery', 'image-delivery', 'video-delivery'],
         'package_update' => ['manifest'],
     ];
 

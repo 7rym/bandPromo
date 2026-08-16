@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-16 (after chunked PRP import checkpoint)._
+_Paused: 2026-08-16 (after PRP gallery/page/deliverables checkpoint)._
 
 ## Exact resume point
 
@@ -10,21 +10,21 @@ Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The othe
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ **v0.8.26 build 395** (after this checkpoint) |
-| App tester package | Tag `v0.8.26-build-395` (`bandPromo.zip` + `release-manifest.json`) |
+| Git | `main` @ **v0.8.26 build 396** (after this checkpoint) |
+| App tester package | Tag `v0.8.26-build-396` (`bandPromo.zip` + `release-manifest.json`) |
 | Demo package | Durable tag **`demo-content`** (unchanged this checkpoint) |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Manual: Site update on the test host → re-import Spandexual `.prp` (Overwrite). Expect 2 MB chunk progress, then import success (or a concrete error).
-2. Optional: Site update on **bandpromo.site** — Demo PRP refresh + legacy Visual relocate when old folders exist.
+1. Manual: Site update on the test host → **re-export** Spandexual `.prp` locally first (old package missing gallery masters) → import → confirm brand/gallery/page + deliverables rebuild.
+2. Optional: Site update on **bandpromo.site**.
 3. Continue from [TODO.md](TODO.md) / operator priority.
 
 ## Already done this stretch (do not redo)
 
-- Admin PRP import: 2 MB chunked upload + assemble + stream-extract (fixes nginx 413 / OOM).
-- Site update Demo PRP refresh, Visual intake retirement, living-cover heal, Publish SFX (earlier builds).
+- PRP: gallery `src`→`asset_id` heal for export; page registry on import; auto deliverables-only after import.
+- Chunked PRP import, stream-extract, Visual intake retirement, Demo PRP Site-update refresh.
 
 ## Constraints
 

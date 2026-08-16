@@ -255,6 +255,31 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
     bandpromo_release_campaign_ensure_registry_entries($root, $targetReleaseId);
     $ownership = bandpromo_release_ownership_migrate($root);
 
+    // Heal gallery asset_ids from delivery src paths (older PRPs shipped empty asset_id).
+    $galleryDir = bandpromo_gallery_storage_root($root);
+    if (is_dir($galleryDir)) {
+        foreach (glob($galleryDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $galleryPath) {
+            if (basename($galleryPath) === 'registry.json') {
+                continue;
+            }
+            $decoded = bandpromo_json_read_array_file($galleryPath);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            if (trim((string) ($decoded['release_id'] ?? '')) !== $targetReleaseId) {
+                continue;
+            }
+            $healed = bandpromo_release_campaign_heal_gallery_entries($decoded);
+            if ($healed !== $decoded) {
+                try {
+                    bandpromo_gallery_write_document($root, $healed);
+                } catch (Throwable $throwable) {
+                    // Non-fatal; delivery rebuild still uses registry masters when present.
+                }
+            }
+        }
+    }
+
     if ($setActiveBrand) {
         try {
             $releaseDoc = bandpromo_release_load_document($root, $targetReleaseId);
@@ -281,15 +306,33 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         // SFX delivery can heal on Files list / upload; masters are already imported.
     }
 
+    // Masters-only PRP: thumbs / optimal / streams need a deliverables rebuild on the target.
+    require_once __DIR__ . '/build-required.php';
+    $buildState = null;
+    try {
+        $buildState = bandpromo_mark_build_required('release_package_imported');
+        $buildState = bandpromo_mark_build_required('media_image_upload');
+        $buildState = bandpromo_mark_build_required('media_audio_upload');
+        $buildState = bandpromo_mark_build_required('media_video_upload');
+    } catch (Throwable $throwable) {
+        $buildState = null;
+    }
+
+    $message = $remapRelease
+        ? 'Imported release package as ' . $targetReleaseId . '.'
+        : 'Imported release package ' . $targetReleaseId . '.';
+    $message .= ' Rebuild deliverables to refresh thumbs, streams, and playlist files.';
+
     return [
         'ok' => true,
         'release_id' => $targetReleaseId,
-        'message' => $remapRelease
-            ? 'Imported release package as ' . $targetReleaseId . '.'
-            : 'Imported release package ' . $targetReleaseId . '.',
+        'message' => $message,
         'imported_files' => $imported,
         'ownership' => $ownership,
         'collision' => $collision,
+        'build_required' => true,
+        'build_required_state' => $buildState,
+        'queue_deliverables' => true,
     ];
 }
 
@@ -326,6 +369,61 @@ function bandpromo_release_campaign_page_is_portable(string $pageId): bool
     }
 
     return true;
+}
+
+/**
+ * Resolve an asset id from a media path or bare ast_* / filename reference.
+ */
+function bandpromo_release_campaign_asset_id_from_media_ref(string $ref): string
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $ref = str_replace('\\', '/', trim($ref));
+    if ($ref === '') {
+        return '';
+    }
+    if (bandpromo_asset_is_asset_id($ref)) {
+        return $ref;
+    }
+    if (preg_match('#/(ast_[0-9A-HJKMNP-TV-Z]{20})(?:/|\.|$)#', $ref, $matches) === 1) {
+        $candidate = (string) ($matches[1] ?? '');
+        return bandpromo_asset_is_asset_id($candidate) ? $candidate : '';
+    }
+    $base = pathinfo(basename($ref), PATHINFO_FILENAME);
+    if (bandpromo_asset_is_asset_id($base)) {
+        return $base;
+    }
+
+    return '';
+}
+
+/**
+ * Gallery rows often store delivery URLs with empty asset_id — fill ids so PRP export packs masters.
+ *
+ * @param array<string, mixed> $document
+ * @return array<string, mixed>
+ */
+function bandpromo_release_campaign_heal_gallery_entries(array $document): array
+{
+    if (!isset($document['entries']) || !is_array($document['entries'])) {
+        return $document;
+    }
+
+    foreach ($document['entries'] as $index => $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $assetId = trim((string) ($entry['asset_id'] ?? ''));
+        if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+        $fromSrc = bandpromo_release_campaign_asset_id_from_media_ref((string) ($entry['src'] ?? ''));
+        if ($fromSrc !== '') {
+            $document['entries'][$index]['asset_id'] = $fromSrc;
+        }
+    }
+
+    return $document;
 }
 
 function bandpromo_release_campaign_bandpromo_version(string $root): string
@@ -565,9 +663,14 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
             continue;
         }
         foreach (is_array($doc['entries'] ?? null) ? $doc['entries'] : [] as $row) {
-            if (is_array($row)) {
-                $add((string) ($row['asset_id'] ?? ''));
+            if (!is_array($row)) {
+                continue;
             }
+            $assetId = trim((string) ($row['asset_id'] ?? ''));
+            if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+                $assetId = bandpromo_release_campaign_asset_id_from_media_ref((string) ($row['src'] ?? ''));
+            }
+            $add($assetId);
         }
     }
 
@@ -610,6 +713,31 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
 
     $releaseId = bandpromo_release_normalize_id($releaseId);
     $release = bandpromo_release_load_document($root, $releaseId);
+
+    // Persist gallery asset_ids from delivery src paths before collecting masters.
+    foreach (bandpromo_gallery_registry_entries($root) as $entry) {
+        $galleryId = bandpromo_gallery_normalize_id((string) ($entry['id'] ?? ''));
+        if ($galleryId === '') {
+            continue;
+        }
+        try {
+            $doc = bandpromo_gallery_load_document($root, $galleryId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+            continue;
+        }
+        $healed = bandpromo_release_campaign_heal_gallery_entries($doc);
+        if ($healed !== $doc) {
+            try {
+                bandpromo_gallery_write_document($root, $healed);
+            } catch (Throwable $throwable) {
+                // Collect still parses src paths below.
+            }
+        }
+    }
+
     $assetIds = bandpromo_release_campaign_collect_asset_ids($root, $releaseId);
     $paths = [];
     $addPath = static function (string $relative) use (&$paths, $root): void {
@@ -943,6 +1071,66 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
             $knownGalleries[$galleryId] = true;
         }
         bandpromo_gallery_write_registry($root, $galleryRegistry);
+    }
+
+    // Campaign pages are copied as JSON but stay invisible until registry entries exist.
+    require_once __DIR__ . '/page-registry.php';
+    require_once __DIR__ . '/page-storage.php';
+    $pageRegistry = bandpromo_page_load_registry($root);
+    $knownPages = [];
+    $maxPageOrder = 0;
+    foreach ($pageRegistry['pages'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $pid = bandpromo_page_normalize_id((string) ($entry['id'] ?? ''));
+        if ($pid !== '') {
+            $knownPages[$pid] = true;
+        }
+        $maxPageOrder = max($maxPageOrder, (int) ($entry['sort_order'] ?? 0));
+    }
+    $pageDir = bandpromo_page_registry_storage_root($root);
+    if (is_dir($pageDir)) {
+        foreach (glob($pageDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $pagePath) {
+            if (basename($pagePath) === 'registry.json') {
+                continue;
+            }
+            $decoded = bandpromo_json_read_array_file($pagePath);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            if (trim((string) ($decoded['release_id'] ?? '')) !== $releaseId) {
+                continue;
+            }
+            $pageId = bandpromo_page_normalize_id((string) ($decoded['id'] ?? pathinfo($pagePath, PATHINFO_FILENAME)));
+            if ($pageId === ''
+                || !bandpromo_release_campaign_page_is_portable($pageId)
+                || isset($knownPages[$pageId])
+            ) {
+                continue;
+            }
+            $title = trim((string) ($decoded['title'] ?? $pageId));
+            if ($title === '') {
+                $title = $pageId;
+            }
+            $maxPageOrder += 10;
+            $normalized = bandpromo_page_normalize_registry_entry([
+                'id' => $pageId,
+                'title' => $title,
+                'label' => $title,
+                'surface' => 'player',
+                'show_in_player' => true,
+                'required' => false,
+                'system' => false,
+                'sort_order' => $maxPageOrder,
+            ], $maxPageOrder);
+            if ($normalized === null) {
+                continue;
+            }
+            $pageRegistry['pages'][] = $normalized;
+            $knownPages[$pageId] = true;
+        }
+        bandpromo_page_write_registry($root, $pageRegistry);
     }
 }
 

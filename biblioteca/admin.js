@@ -12847,7 +12847,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             releasePackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
                         });
                         const releaseId = String(data.release_id || '').trim();
-                        const message = data.message || 'Release package imported.';
+                        let message = data.message || 'Release package imported.';
+                        if (data.queue_deliverables) {
+                            try {
+                                if (releasePackageImportStatus) {
+                                    releasePackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
+                                }
+                                const buildResp = await fetch('/biblioteca/build.php', {
+                                    method: 'POST',
+                                    credentials: 'same-origin',
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ mode: 'full', profile: 'deliverables-only' }),
+                                });
+                                const buildData = await buildResp.json().catch(() => ({}));
+                                if (buildResp.ok && buildData && buildData.ok !== false) {
+                                    message = `${message} Deliverables rebuild started — watch System → Deliverables.`;
+                                } else {
+                                    message = `${message} Open System → Deliverables and rebuild when ready.`;
+                                }
+                            } catch (_buildError) {
+                                message = `${message} Open System → Deliverables and rebuild when ready.`;
+                            }
+                        }
                         if (releasePackageImportStatus) {
                             releasePackageImportStatus.textContent = message;
                         }

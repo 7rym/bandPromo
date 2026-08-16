@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 16:20 - Checkpoint PRP gallery asset packing, page registry on import, and post-import deliverables rebuild on `main` as **v0.8.26 build 396**; trigger GitHub Release `v0.8.26-build-396` for Site update.
+
+2026-08-16 15:30 - PRP export/import: resolve gallery `asset_id` from delivery `src` so band-member masters pack; register campaign pages on import; mark + auto-queue deliverables-only rebuild after import (thumbs/streams were masters-only by design).
+
 2026-08-16 15:15 - Checkpoint chunked PRP import (2 MB parts, same as Files) on `main` as **v0.8.26 build 395**; trigger GitHub Release `v0.8.26-build-395` for Site update.
 
 2026-08-16 15:10 - Admin PRP import uses 2 MB chunked upload (same as Files): assemble in `data/upload_tmp`, then stream-extract — avoids nginx HTTP 413 on large Spandexual-sized packages.
