@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 15:05 - Checkpoint PRP import stream-extract + clearer Import errors on `main` as **v0.8.26 build 394**; trigger GitHub Release `v0.8.26-build-394` for Site update.
+
+2026-08-16 14:50 - PRP import no longer loads each ZIP entry into PHP memory (`extractTo` instead of `getFromIndex`); admin Import shows HTTP status / body snippet when the host returns a non-JSON failure; fatal OOM during import returns JSON instead of a bare "Import failed".
+
 2026-08-16 14:15 - Checkpoint Site-update Demo PRP refresh, living-cover publish heal, and Visual intake retirement (unified `media/visual/original/` + gated Publish/Site-update relocate) on `main` as **v0.8.25 build 393**; trigger GitHub Release `v0.8.25-build-393` for Site update.
 
 2026-08-16 14:10 - Publish and Site update run a gated one-shot Visual intake relocate when any legacy `media/img|photo|video|special` folder still exists: move registered originals into `media/visual/original/`, delete leftover copies, and remove empty legacy folders.

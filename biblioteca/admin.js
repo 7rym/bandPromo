@@ -12782,9 +12782,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             credentials: 'same-origin',
                             body: formData,
                         });
-                        const data = await response.json().catch(() => ({}));
+                        const rawText = await response.text();
+                        let data = {};
+                        try {
+                            data = rawText ? JSON.parse(rawText) : {};
+                        } catch (_parseError) {
+                            data = {};
+                        }
                         if (!response.ok || data.ok === false) {
-                            throw new Error(data.error || 'Import failed');
+                            let detail = typeof data.error === 'string' ? data.error.trim() : '';
+                            if (!detail) {
+                                if (response.status === 413) {
+                                    detail = 'Server rejected the upload as too large (HTTP 413). Raise nginx/proxy client_max_body_size and PHP post_max_size / upload_max_filesize above the .prp size.';
+                                } else if (response.status === 502 || response.status === 504) {
+                                    detail = `Import timed out or the proxy closed the connection (HTTP ${response.status}). Raise host timeouts or retry.`;
+                                } else {
+                                    const snippet = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+                                    detail = snippet
+                                        ? `Import failed (HTTP ${response.status}): ${snippet}`
+                                        : `Import failed (HTTP ${response.status || 'unknown'}).`;
+                                }
+                            }
+                            throw new Error(detail);
                         }
                         const releaseId = String(data.release_id || '').trim();
                         const message = data.message || 'Release package imported.';

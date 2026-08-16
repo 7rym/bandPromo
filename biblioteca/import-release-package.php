@@ -12,6 +12,33 @@ require_once __DIR__ . '/release-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+$importCompleted = false;
+register_shutdown_function(static function () use (&$importCompleted): void {
+    if ($importCompleted) {
+        return;
+    }
+    $err = error_get_last();
+    if (!is_array($err)) {
+        return;
+    }
+    $type = (int) ($err['type'] ?? 0);
+    if (!in_array($type, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+    }
+    $message = trim((string) ($err['message'] ?? 'Import aborted.'));
+    if ($message === '') {
+        $message = 'Import aborted.';
+    }
+    echo json_encode([
+        'ok' => false,
+        'error' => 'Import aborted: ' . $message,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+});
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['ok' => false, 'error' => 'POST required.']);
@@ -121,10 +148,12 @@ try {
         'collision' => $result['collision'] ?? $collision,
         'releases' => bandpromo_release_admin_registry_entries($root),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $importCompleted = true;
 } catch (Throwable $throwable) {
     http_response_code(400);
     echo json_encode([
         'ok' => false,
         'error' => $throwable->getMessage(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $importCompleted = true;
 }

@@ -968,26 +968,35 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
     }
 
     try {
+        // Stream allowed entries to disk. getFromIndex() loads each master into PHP memory and
+        // OOMs large campaign PRPs on shared hosts (bare "Import failed" with no JSON body).
+        $allowedNames = [];
         for ($index = 0; $index < $zip->numFiles; $index++) {
             $stat = $zip->statIndex($index);
             if (!is_array($stat) || !isset($stat['name'])) {
                 continue;
             }
-            $name = str_replace('\\', '/', (string) $stat['name']);
-            $name = ltrim($name, '/');
+            $rawName = (string) $stat['name'];
+            $name = str_replace('\\', '/', ltrim($rawName, '/'));
             if ($name === '' || str_ends_with($name, '/')) {
                 continue;
             }
             if (str_contains($name, '..') || !bandpromo_release_campaign_is_allowed_entry($name)) {
                 continue;
             }
+            $allowedNames[] = $rawName;
+        }
+
+        if ($allowedNames === []) {
+            throw new RuntimeException('Release package ZIP has no importable entries.');
+        }
+        if ($zip->extractTo($workDir, $allowedNames) !== true) {
+            throw new RuntimeException('Could not extract release package contents.');
+        }
+        foreach ($allowedNames as $rawName) {
+            $name = str_replace('\\', '/', ltrim((string) $rawName, '/'));
             $target = $workDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $name);
-            $targetDir = dirname($target);
-            if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
-                throw new RuntimeException('Could not prepare extract path for: ' . $name);
-            }
-            $contents = $zip->getFromIndex($index);
-            if ($contents === false || file_put_contents($target, $contents) === false) {
+            if (!is_file($target)) {
                 throw new RuntimeException('Could not extract: ' . $name);
             }
         }

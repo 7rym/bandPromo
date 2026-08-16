@@ -137,6 +137,8 @@ When imported ids already exist, the operator chooses (refuse / overwrite / skip
 5. Build deliverables (Publish / post-import delivery).
 6. Smoke-check playback, shell, Bio/Gallery contextual tabs.
 
+Large campaign PRPs (hundreds of MB of masters) must extract **to disk without loading each entry into PHP memory**. Hosts also need `upload_max_filesize` / `post_max_size` (and any nginx `client_max_body_size`) above the package size; Admin surfaces HTTP 413 / proxy timeouts when those fail before PHP can answer.
+
 #### Ambassador and services model
 
 bandPromo does not operate a marketplace or take a cut. Ambassadors and release preparers hand off real PRPs; commercial terms stay between people.
