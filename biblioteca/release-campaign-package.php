@@ -318,10 +318,72 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         $buildState = null;
     }
 
+    $imageDeliveryOk = false;
+    $deliverablesStarted = false;
+    $deliverablesWarning = '';
+    try {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        if (function_exists('ignore_user_abort')) {
+            @ignore_user_abort(true);
+        }
+
+        // Gallery / cover cards first so Bio and admin thumbs work before the full pipeline.
+        require_once __DIR__ . '/light-build-tasks.php';
+        $imageTask = bandpromo_run_light_task('scripts/optimizeMedia.py', [
+            'BANDPROMO_OPTIMIZE_MODE' => 'image-only',
+        ]);
+        $imageDeliveryOk = !empty($imageTask['ok']);
+        if ($imageDeliveryOk) {
+            try {
+                require_once __DIR__ . '/media-library-state.php';
+                bandpromo_media_files_index_rebuild_target($root, 'illustrations');
+                bandpromo_media_files_index_rebuild_target($root, 'photos');
+            } catch (Throwable $throwable) {
+                // Listing heals on the next Files GET.
+            }
+            try {
+                $buildState = bandpromo_clear_build_required_tasks(['image-delivery']);
+            } catch (Throwable $throwable) {
+                // Non-fatal.
+            }
+        } else {
+            $deliverablesWarning = 'Image delivery refresh did not finish after import.';
+        }
+
+        require_once __DIR__ . '/build-queue-helpers.php';
+        $queued = bandpromo_build_try_start($root, [
+            'mode' => 'full',
+            'profile' => 'deliverables-only',
+            'actor' => 'release_package_import',
+            'skip_preflight' => true,
+        ]);
+        $deliverablesStarted = !empty($queued['started']);
+        if (!$deliverablesStarted && $deliverablesWarning === '') {
+            $deliverablesWarning = trim((string) ($queued['error'] ?? 'Deliverables rebuild did not start automatically.'));
+        }
+    } catch (Throwable $throwable) {
+        if ($deliverablesWarning === '') {
+            $deliverablesWarning = 'Post-import deliverables could not be started automatically.';
+        }
+    }
+
     $message = $remapRelease
         ? 'Imported release package as ' . $targetReleaseId . '.'
         : 'Imported release package ' . $targetReleaseId . '.';
-    $message .= ' Rebuild deliverables to refresh thumbs, streams, and playlist files.';
+    if ($imageDeliveryOk && $deliverablesStarted) {
+        $message .= ' Gallery images refreshed; deliverables rebuild started — watch System → Deliverables.';
+    } elseif ($imageDeliveryOk) {
+        $message .= ' Gallery images refreshed. Open System → Deliverables to rebuild audio/streams when ready.';
+    } elseif ($deliverablesStarted) {
+        $message .= ' Deliverables rebuild started — watch System → Deliverables.';
+    } else {
+        $message .= ' Rebuild deliverables to refresh thumbs, streams, and playlist files.';
+        if ($deliverablesWarning !== '') {
+            $message .= ' (' . $deliverablesWarning . ')';
+        }
+    }
 
     return [
         'ok' => true,
@@ -330,9 +392,12 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         'imported_files' => $imported,
         'ownership' => $ownership,
         'collision' => $collision,
-        'build_required' => true,
+        'build_required' => !$deliverablesStarted || !$imageDeliveryOk,
         'build_required_state' => $buildState,
-        'queue_deliverables' => true,
+        'queue_deliverables' => !$deliverablesStarted,
+        'image_delivery_ok' => $imageDeliveryOk,
+        'deliverables_started' => $deliverablesStarted,
+        'deliverables_warning' => $deliverablesWarning,
     ];
 }
 

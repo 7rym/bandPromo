@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 18:20 - Checkpoint PRP post-import deliverables + gallery heal, page-editor UX, gallery grid centering, and player huge lightbox on `main` as **v0.8.27 build 398**; trigger GitHub Release `v0.8.27-build-398` for Site update.
+
+2026-08-16 18:05 - Player lightbox uses more viewport (≈96vw / 94vh) and prefers Visual `huge` delivery (falls back to card) for gallery, page, and cover views.
+
+2026-08-16 17:55 - Page editor meta fields stack in a single column (no two-up wrap) and no longer stretch to fill blank vertical space.
+
+2026-08-16 17:50 - Page gallery grid preset centers items horizontally (incomplete rows no longer stretch edge-to-edge).
+
+2026-08-16 17:40 - Page editor: rich text and description fields grow with content (no nested height clamp); Picture blocks reuse the shared Files media picker (same modal as Share image / covers) instead of a separate content-image grid.
+
+2026-08-16 17:05 - After PRP import: sync image-only delivery, server-queue deliverables-only rebuild, expand that profile with playlist + visual catchup; gallery resolve uses delivery-path `asset_id` and master fallback so Bio/admin thumbs work before cards exist; admin treats build start as success only when `ok === true`.
+
 2026-08-16 16:50 - Checkpoint release purge-delete and remote-safe PRP chunked import on `main` as **v0.8.26 build 397**; trigger GitHub Release `v0.8.26-build-397` for Site update.
 
 2026-08-16 16:45 - PRP chunked import (remote-safe): prefer install `data/upload_tmp`, assemble only on the final chunk, require matching `file_size`, and reject non-ZIP headers before ZipArchive open — corrupt assembly was producing bare "Could not open release package ZIP" on hosted imports.

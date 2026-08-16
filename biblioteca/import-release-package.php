@@ -122,6 +122,15 @@ function bandpromo_release_import_run(string $root, string $zipPath, string $ori
     if (!empty($result['queue_deliverables'])) {
         $payload['queue_deliverables'] = true;
     }
+    if (!empty($result['image_delivery_ok'])) {
+        $payload['image_delivery_ok'] = true;
+    }
+    if (!empty($result['deliverables_started'])) {
+        $payload['deliverables_started'] = true;
+    }
+    if (!empty($result['deliverables_warning'])) {
+        $payload['deliverables_warning'] = (string) $result['deliverables_warning'];
+    }
     if (array_key_exists('build_required_state', $result)) {
         $payload['build_required_state'] = $result['build_required_state'];
     }

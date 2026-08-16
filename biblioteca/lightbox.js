@@ -52,8 +52,24 @@ class Lightbox {
 
         if (this.img) {
             this.img.style.display = isVid ? 'none' : '';
-            this.img.src = isVid ? '' : src;
-            if (!isVid) this.img.alt = altText || '';
+            if (!isVid) {
+                this.img.onerror = () => {
+                    const current = String(this.img.src || '');
+                    const fallback = current.replace(
+                        /\/media\/visual\/delivery\/(ast_[0-9A-HJKMNP-TV-Z]{20})\/huge\.(jpe?g|png|webp)(\?[^#]*)?(#.*)?$/i,
+                        '/media/visual/delivery/$1/card.$2$3$4'
+                    );
+                    if (fallback && fallback !== current) {
+                        this.img.onerror = null;
+                        this.img.src = fallback;
+                    }
+                };
+                this.img.src = src;
+                this.img.alt = altText || '';
+            } else {
+                this.img.onerror = null;
+                this.img.src = '';
+            }
         }
         if (this.vid) {
             this.vid.style.display = isVid ? '' : 'none';

@@ -526,7 +526,7 @@ if ($supportUrl !== '') {
         <div class="lightbox-content">
             <button class="lightbox-nav lightbox-prev" id="lightboxPrev" onclick="prevLightbox(event)">&#8249;</button>
             <img src="" alt="Album Cover Fullscreen" class="lightbox-image" id="lightboxImage">
-            <video class="lightbox-video" id="lightboxVideo" controls preload="none" style="display:none;max-width:100%;max-height:80vh;"></video>
+            <video class="lightbox-video" id="lightboxVideo" controls preload="none" style="display:none;max-width:min(96vw,1920px);max-height:94vh;"></video>
             <button class="lightbox-nav lightbox-next" id="lightboxNext" onclick="nextLightbox(event)">&#8250;</button>
             <div class="lightbox-close" onclick="closeLightbox()">&times;</div>
         </div>

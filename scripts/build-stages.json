@@ -15,7 +15,9 @@
       "catalog",
       "deliverables-media",
       "sfx-delivery",
-      "video-delivery"
+      "video-delivery",
+      "playlist-artifacts",
+      "visual-delivery-catchup"
     ],
     "artifacts-only": [
       "playlist-artifacts",

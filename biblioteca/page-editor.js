@@ -242,10 +242,7 @@
         const blocksEl = document.getElementById('pageEditorBlocks');
         const previewEl = document.getElementById('pageEditorPreview');
         const saveBtn = document.getElementById('pageSaveBtn');
-        const imagePickerModal = document.getElementById('pageImagePickerModal');
-        const imagePickerGrid = document.getElementById('pageImagePickerGrid');
-        const imagePickerApplyBtn = document.getElementById('pageImagePickerApplyBtn');
-        const imagePickerCancelBtn = document.getElementById('pageImagePickerCancelBtn');
+        const pagePicturePickerField = document.getElementById('pagePicturePickerField');
 
         const PICTURE_STYLE_DEFAULTS = {
             width_num: 1,
@@ -327,9 +324,7 @@
             `;
         }
 
-        let flatImages = [];
         let imagePickerTargetIndex = null;
-        let imagePickerSelected = null;
         let previewTimer = null;
         let previewRequestId = 0;
         let isDirtyState = false;
@@ -503,7 +498,7 @@
 
         function isInternalAdminNavigationLink(link) {
             if (!(link instanceof HTMLAnchorElement)) return false;
-            if (link.closest('#pageUnsavedModal, #pageImagePickerModal')) return false;
+            if (link.closest('#pageUnsavedModal, #mediaPickerModal')) return false;
             if (link.target && link.target !== '_self') return false;
             if (link.hasAttribute('download')) return false;
 
@@ -1678,70 +1673,78 @@
             markDirty();
         }
 
-        function openImagePicker(index) {
-            imagePickerTargetIndex = index;
-            imagePickerSelected = documentState?.blocks?.[index]?.src || (flatImages[0]?.value ?? null);
-            renderImagePickerGrid();
-            if (imagePickerModal) imagePickerModal.classList.add('active');
-        }
+        function applyPictureSelection(index, selection) {
+            const block = documentState?.blocks?.[index];
+            if (!block || !isPictureFamilyBlock(block)) return;
 
-        function closeImagePicker() {
-            imagePickerTargetIndex = null;
-            imagePickerSelected = null;
-            if (imagePickerModal) imagePickerModal.classList.remove('active');
-        }
-
-        function renderImagePickerGrid() {
-            if (!imagePickerGrid) return;
-            if (!flatImages.length) {
-                imagePickerGrid.innerHTML = '<p class="hint">Upload pictures in Files and run a build first.</p>';
+            const assetId = String(selection?.assetId || '').trim();
+            const path = String(selection?.path || '').trim();
+            const filename = String(selection?.filename || '').trim();
+            const src = path
+                || (assetId ? `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg` : '');
+            if (!src && !assetId) {
                 return;
             }
 
-            imagePickerGrid.innerHTML = flatImages.map((item) => `
-                <button type="button" class="page-image-picker-item${item.value === imagePickerSelected ? ' is-selected' : ''}" data-image-value="${escapeHtml(item.value)}">
-                    <img src="${escapeHtml(item.thumb_url || item.value)}" alt="">
-                    <span>${escapeHtml(item.title || item.value)}</span>
-                </button>
-            `).join('');
-        }
-
-        function applySelectedImage() {
-            if (imagePickerTargetIndex === null || !imagePickerSelected) return;
-            const block = documentState?.blocks?.[imagePickerTargetIndex];
-            if (!block || !isPictureFamilyBlock(block)) return;
-            const selected = flatImages.find((item) => item.value === imagePickerSelected);
-            block.src = imagePickerSelected;
-            block.alt = selected?.title || 'Picture';
-            const assetId = String(selected?.asset_id || '').trim();
+            block.src = src;
+            block.alt = filename || block.alt || 'Picture';
             if (assetId) {
                 block.asset_id = assetId;
             } else {
                 delete block.asset_id;
             }
 
-            const card = blocksEl?.querySelector(`.page-block-card[data-block-index="${imagePickerTargetIndex}"]`);
+            const card = blocksEl?.querySelector(`.page-block-card[data-block-index="${index}"]`);
             if (card) {
                 const visual = card.querySelector('.page-picture-visual');
                 if (visual) {
-                    visual.innerHTML = `<img src="${escapeHtml(block.src)}" alt="" class="page-picture-thumb">`;
+                    visual.innerHTML = block.src
+                        ? `<img src="${escapeHtml(block.src)}" alt="" class="page-picture-thumb">`
+                        : '<div class="page-picture-empty">No picture</div>';
                 }
                 const pickBtn = card.querySelector('[data-action="pick-image"]');
-                if (pickBtn) pickBtn.textContent = 'Change picture';
+                if (pickBtn) pickBtn.textContent = block.src ? 'Change picture' : 'Choose picture';
             } else {
                 renderBlocks();
             }
-            closeImagePicker();
             queuePreview();
+            markDirty();
         }
 
-        async function loadImages() {
-            const resp = await fetch('/biblioteca/list-page-images.php', { credentials: 'same-origin' });
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) {
-                throw new Error(data.error || 'Could not load pictures');
+        function openImagePicker(index) {
+            if (typeof window.openMediaPicker !== 'function' || !(pagePicturePickerField instanceof HTMLInputElement)) {
+                window.alert('Media picker is not available. Reload the admin panel and try again.');
+                return;
             }
-            flatImages = Array.isArray(data.flat_images) ? data.flat_images : [];
+            imagePickerTargetIndex = index;
+            const current = documentState?.blocks?.[index];
+            pagePicturePickerField.value = String(current?.src || current?.asset_id || '').trim();
+            window.openMediaPicker(
+                'pagePicturePickerField',
+                current?.src ? 'Change picture' : 'Choose picture',
+                'illustrations,photos,special',
+                {
+                    acceptKinds: ['image'],
+                    onSelect(selection) {
+                        const targetIndex = imagePickerTargetIndex;
+                        imagePickerTargetIndex = null;
+                        if (targetIndex === null || targetIndex === undefined) {
+                            return;
+                        }
+                        applyPictureSelection(targetIndex, selection || {});
+                    },
+                }
+            );
+        }
+
+        function autofitPageMetaTextareas() {
+            [pageSettingsShortDescription, pageSettingsDescription].forEach((field) => {
+                if (!(field instanceof HTMLTextAreaElement)) {
+                    return;
+                }
+                field.style.height = 'auto';
+                field.style.height = `${Math.max(field.scrollHeight, field === pageSettingsDescription ? 104 : 72)}px`;
+            });
         }
 
         async function loadDocument() {
@@ -1756,6 +1759,7 @@
             allowUnloadWithoutSave = false;
             documentState = data.document;
             syncPageDocumentMetaToForm();
+            autofitPageMetaTextareas();
             if (data.picture_styles && typeof data.picture_styles === 'object') {
                 pictureStyleMeta = {
                     width_min: Number(data.picture_styles.width_min) || 1,
@@ -1943,20 +1947,6 @@
             }
         });
 
-        if (imagePickerGrid) {
-            imagePickerGrid.addEventListener('click', (event) => {
-                const button = event.target instanceof HTMLElement ? event.target.closest('[data-image-value]') : null;
-                if (!button) return;
-                imagePickerSelected = button.getAttribute('data-image-value');
-                renderImagePickerGrid();
-            });
-        }
-
-        imagePickerApplyBtn?.addEventListener('click', applySelectedImage);
-        imagePickerCancelBtn?.addEventListener('click', closeImagePicker);
-        imagePickerModal?.addEventListener('click', (event) => {
-            if (event.target === imagePickerModal) closeImagePicker();
-        });
         saveBtn?.addEventListener('click', () => {
             saveDocument().catch((error) => setStatus('❌ ' + error.message, 'error'));
         });
@@ -1977,11 +1967,13 @@
             if (pageSettingsShortDescriptionCount && pageSettingsShortDescription instanceof HTMLTextAreaElement) {
                 pageSettingsShortDescriptionCount.textContent = String(pageSettingsShortDescription.value.length);
             }
+            autofitPageMetaTextareas();
             if (event.isTrusted) {
                 markDirty();
             }
         });
         pageSettingsDescription?.addEventListener('input', (event) => {
+            autofitPageMetaTextareas();
             if (event.isTrusted) {
                 markDirty();
             }
@@ -2167,8 +2159,8 @@
 
         const shouldOpenEditor = new URLSearchParams(window.location.search).get('edit') === '1';
         const bootstrap = shouldOpenEditor
-            ? Promise.all([loadImages(), openPageEditor(selectedPageId)])
-            : Promise.all([loadImages(), loadPreviewOnly(selectedPageId)]);
+            ? openPageEditor(selectedPageId)
+            : loadPreviewOnly(selectedPageId);
         if (!shouldOpenEditor) {
             showPoolView();
         }

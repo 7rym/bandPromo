@@ -12849,7 +12849,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const releaseId = String(data.release_id || '').trim();
                         let message = data.message || 'Release package imported.';
-                        if (data.queue_deliverables) {
+                        if (data.deliverables_started) {
+                            // Server already queued the background rebuild during import.
+                        } else if (data.queue_deliverables) {
                             try {
                                 if (releasePackageImportStatus) {
                                     releasePackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
@@ -12864,10 +12866,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     body: JSON.stringify({ mode: 'full', profile: 'deliverables-only' }),
                                 });
                                 const buildData = await buildResp.json().catch(() => ({}));
-                                if (buildResp.ok && buildData && buildData.ok !== false) {
+                                if (buildResp.ok && buildData && buildData.ok === true) {
                                     message = `${message} Deliverables rebuild started — watch System → Deliverables.`;
                                 } else {
-                                    message = `${message} Open System → Deliverables and rebuild when ready.`;
+                                    const buildError = String(buildData.error || '').trim();
+                                    message = buildError
+                                        ? `${message} Deliverables did not start (${buildError}). Open System → Deliverables and rebuild when ready.`
+                                        : `${message} Open System → Deliverables and rebuild when ready.`;
                                 }
                             } catch (_buildError) {
                                 message = `${message} Open System → Deliverables and rebuild when ready.`;

@@ -239,8 +239,11 @@ function bandpromo_visual_variant_path(string $root, string $assetId, string $va
 
     $assetId = trim($assetId);
     $variant = strtolower(trim($variant));
-    if ($variant === 'optimal' || $variant === 'lightbox') {
+    if ($variant === 'optimal') {
         $variant = 'card';
+    }
+    if ($variant === 'lightbox') {
+        $variant = 'huge';
     }
     if ($assetId === '' || $variant === '') {
         return '';
@@ -291,8 +294,11 @@ function bandpromo_visual_variant_path(string $root, string $assetId, string $va
 function bandpromo_visual_registry_variant_url(array $asset, string $variant): string
 {
     $variant = strtolower(trim($variant));
-    if ($variant === 'optimal' || $variant === 'lightbox') {
+    if ($variant === 'optimal') {
         $variant = 'card';
+    }
+    if ($variant === 'lightbox') {
+        $variant = 'huge';
     }
     $delivery = is_array($asset['delivery'] ?? null) ? $asset['delivery'] : [];
     $variants = is_array($delivery['variants'] ?? null) ? $delivery['variants'] : [];
@@ -435,8 +441,11 @@ function bandpromo_visual_resolve_url(
     require_once __DIR__ . '/visual-master-helpers.php';
 
     $variant = strtolower(trim($variant));
-    if ($variant === 'optimal' || $variant === 'lightbox') {
+    if ($variant === 'optimal') {
         $variant = 'card';
+    }
+    if ($variant === 'lightbox') {
+        $variant = 'huge';
     }
 
     $asset = null;
@@ -454,7 +463,15 @@ function bandpromo_visual_resolve_url(
     }
 
     // Public / default: delivery variants only.
-    foreach ([$variant, $variant === 'thumb' ? 'card' : 'thumb'] as $tryVariant) {
+    $tryVariants = [$variant];
+    if ($variant === 'huge') {
+        $tryVariants = ['huge', 'card', 'thumb'];
+    } elseif ($variant === 'thumb') {
+        $tryVariants = ['thumb', 'card'];
+    } elseif ($variant === 'card') {
+        $tryVariants = ['card', 'thumb'];
+    }
+    foreach ($tryVariants as $tryVariant) {
         $url = bandpromo_visual_registry_variant_url($asset, $tryVariant);
         if ($url !== '') {
             return $url;

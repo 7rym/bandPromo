@@ -2122,17 +2122,7 @@ if ($tab === 'analytics') {
                     </div>
                 </div>
 
-                <div class="page-image-picker-modal" id="pageImagePickerModal" aria-hidden="true">
-                    <div class="page-image-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="pageImagePickerTitle">
-                        <h4 id="pageImagePickerTitle">Choose content image</h4>
-                        <p class="hint">Pick from optimized illustrations and photos already prepared for page content.</p>
-                        <div class="page-image-picker-grid" id="pageImagePickerGrid"></div>
-                        <div class="page-image-picker-actions">
-                            <button type="button" class="btn" id="pageImagePickerCancelBtn">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="pageImagePickerApplyBtn">Use image</button>
-                        </div>
-                    </div>
-                </div>
+                <input type="hidden" id="pagePicturePickerField" value="">
 
             </div>
 

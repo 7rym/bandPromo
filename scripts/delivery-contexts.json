@@ -8,12 +8,12 @@
     },
     "card": {
       "max_edge": 720,
-      "notes": "Player flip cover / optimal; lightbox shares card in v0.8"
+      "notes": "Player flip cover / optimal; gallery grid and page thumbs"
     },
     "huge": {
       "max_width": 1920,
       "max_height": 1080,
-      "notes": "Fullscreen HDTV bounding box; contain without cropping, stretching, or upscaling"
+      "notes": "Fullscreen HDTV bounding box; player lightbox; contain without cropping, stretching, or upscaling"
     },
     "logo": {
       "max_edge": 640,
@@ -28,8 +28,8 @@
       "notes": "Page picture blocks; content-column fraction"
     },
     "lightbox": {
-      "max_edge": 720,
-      "notes": "Deferred dedicated variant; currently aliases card"
+      "max_edge": 1920,
+      "notes": "Aliases huge for player/page enlarged view"
     },
     "poster": {
       "max_edge": 720,
@@ -57,7 +57,7 @@
       "prefer_alpha": false
     },
     "huge": {
-      "where": "Future fullscreen visual views",
+      "where": "Player lightbox fullscreen visual views",
       "variant": "huge",
       "prefer_alpha": false
     },
@@ -78,7 +78,7 @@
     },
     "lightbox": {
       "where": "Player/page lightbox enlarged view",
-      "variant": "card",
+      "variant": "huge",
       "prefer_alpha": false
     },
     "share": {

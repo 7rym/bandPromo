@@ -43,6 +43,7 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/theme-storage.php';
 
     $src = bandpromo_gallery_normalize_src_path($src);
     $ref = trim($src);
@@ -51,10 +52,40 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
         $assetId = $ref;
     } elseif (bandpromo_asset_is_asset_id(basename($ref))) {
         $assetId = basename($ref);
+    } elseif ($src !== '') {
+        // Delivery URLs end in card.jpg — recover ast_* from the path segment.
+        $assetId = bandpromo_theme_lookup_asset_id_for_path($root_dir, $src);
     }
 
     if ($assetId !== '') {
-        $resolved = bandpromo_visual_resolve_url($root_dir, $assetId, 'card', '', false);
+        // Prefer card delivery; allow master preview until post-import deliverables exist.
+        $resolved = bandpromo_visual_resolve_url($root_dir, $assetId, 'card', '', true);
+        if ($resolved !== '' && str_starts_with($resolved, '/media/visual/delivery/') && !is_file($root_dir . $resolved)) {
+            // Stale registry delivery after a masters-only PRP import.
+            $resolved = '';
+            require_once __DIR__ . '/visual-master-helpers.php';
+            $asset = bandpromo_asset_lookup_by_id($root_dir, $assetId);
+            if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+                $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo(
+                    (string) ($asset['original_filename'] ?? ''),
+                    PATHINFO_EXTENSION
+                ))));
+                if ($format !== '') {
+                    $masterPath = bandpromo_visual_master_path($root_dir, $assetId, $format);
+                    if ($masterPath !== '' && is_file($masterPath)) {
+                        $resolved = '/media/visual/master/' . basename($masterPath);
+                    }
+                }
+                if ($resolved === '') {
+                    $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+                    if ($masterFilename !== ''
+                        && is_file(bandpromo_visual_master_dir($root_dir) . DIRECTORY_SEPARATOR . $masterFilename)
+                    ) {
+                        $resolved = '/media/visual/master/' . $masterFilename;
+                    }
+                }
+            }
+        }
         if ($resolved !== '') {
             return $resolved;
         }
@@ -66,14 +97,14 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
 
     // Prefer registry delivery when src is a legacy stem path or basename.
     $filename = basename($src);
-    if ($filename !== '') {
-        $resolved = bandpromo_visual_resolve_url($root_dir, $filename, 'card', '', false);
-        if ($resolved !== '' && str_starts_with($resolved, '/media/visual/delivery/')) {
+    if ($filename !== '' && !in_array(strtolower($filename), ['card.jpg', 'thumb.jpg', 'huge.jpg', 'poster.jpg'], true)) {
+        $resolved = bandpromo_visual_resolve_url($root_dir, $filename, 'card', '', true);
+        if ($resolved !== '') {
             return $resolved;
         }
     }
 
-    // Already a Visual delivery URL.
+    // Already a Visual delivery URL on disk.
     if (str_starts_with($src, '/media/visual/delivery/') && is_file($root_dir . $src)) {
         return $src;
     }

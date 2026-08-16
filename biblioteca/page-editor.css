@@ -6,9 +6,15 @@
     min-height: 380px;
 }
 
+/* While editing a page, let blocks grow with content (window scrolls).
+   A nested max-height + overflow made rich text feel like a tiny fixed box. */
 .page-editor-left-panel:has(#pageEditorView:not([hidden])) {
-    max-height: calc(100vh - 132px);
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
+}
+
+#pageEditorLayout .page-editor-left-panel:has(#pageEditorView:not([hidden])) {
+    overflow: visible;
 }
 
 #pagePoolView {
@@ -100,7 +106,7 @@
     gap: 8px;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .page-editor-meta,
@@ -723,7 +729,10 @@
 .page-toolbar-glyph-align--right span:nth-child(3) { width: 12px; }
 
 .page-rich-editor {
-    min-height: 100px;
+    min-height: 12rem;
+    max-height: none;
+    height: auto;
+    overflow: visible;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: #101010;
@@ -735,7 +744,7 @@
 }
 
 .page-rich-editor--compact {
-    min-height: 90px;
+    min-height: 8rem;
 }
 
 .page-rich-editor:focus {
@@ -1012,10 +1021,9 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
     padding-right: 2px;
 }
 
@@ -1089,8 +1097,23 @@
 }
 
 .page-block-field textarea {
-    min-height: 72px;
-    resize: vertical;
+    min-height: 4.5rem;
+    max-height: none;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+}
+
+.page-editor-meta textarea {
+    min-height: 4.5rem;
+    max-height: none;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+}
+
+#pageSettingsDescription {
+    min-height: 6.5rem;
 }
 
 .page-editor-preview-frame {
@@ -1101,8 +1124,8 @@
     color: #ffffff;
     flex: 1 1 auto;
     min-height: 220px;
-    max-height: calc(100vh - 96px);
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
     padding: 10px 8px;
 }
 
@@ -1110,81 +1133,6 @@
     font-size: 15px;
     line-height: 1.6;
     color: #ddd;
-}
-
-.page-image-picker-modal {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    background: rgba(0, 0, 0, 0.78);
-    z-index: 1400;
-}
-
-.page-image-picker-modal.active {
-    display: flex;
-}
-
-.page-image-picker-dialog {
-    width: min(92vw, 760px);
-    max-height: min(88vh, 720px);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--card);
-    padding: 16px;
-}
-
-.page-image-picker-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    overflow: auto;
-    padding-right: 4px;
-}
-
-.page-image-picker-item {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: #101010;
-    padding: 8px;
-    cursor: pointer;
-    text-align: left;
-    color: var(--text);
-}
-
-.page-image-picker-item:hover,
-.page-image-picker-item.is-selected {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.35);
-}
-
-.page-image-picker-item img {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border-radius: 8px;
-    display: block;
-    margin-bottom: 6px;
-    background: #000;
-}
-
-.page-image-picker-item span {
-    display: block;
-    font-size: 11px;
-    color: var(--muted);
-    word-break: break-word;
-}
-
-.page-image-picker-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
 }
 
 .page-registry-form-grid {
@@ -1238,18 +1186,26 @@
 
 .page-editor-meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    flex: 1 1 auto;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 10px;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 36rem;
 }
 
 .page-meta-field {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1 1 200px;
+    flex: 0 0 auto;
+    width: 100%;
     font-size: 12px;
     color: var(--muted);
+}
+
+.page-meta-field--wide {
+    width: 100%;
 }
 
 .page-meta-field input {
@@ -1580,7 +1536,7 @@
     }
 
     .page-editor-preview-frame {
-        max-height: 50vh;
+        max-height: none;
     }
 
     .page-picture-top {

@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-16 (after purge-delete + PRP chunk-import checkpoint)._
+_Paused: 2026-08-16 (after checkpoint v0.8.27 build 398)._
 
 ## Exact resume point
 
@@ -10,21 +10,22 @@ Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The othe
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ **v0.8.26 build 397** (after this checkpoint) |
-| App tester package | Tag `v0.8.26-build-397` (`bandPromo.zip` + `release-manifest.json`) |
+| Git | `main` @ **v0.8.27 build 398** (after this checkpoint) |
+| App tester package | Tag `v0.8.27-build-398` (`bandPromo.zip` + `release-manifest.json`) |
 | Demo package | Durable tag **`demo-content`** (unchanged this checkpoint) |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Manual remote: Site update → re-import Spandexual `.prp` (Overwrite). Expect chunk progress + successful import (or size/header error). Then optional Entire-campaign delete test.
-2. Continue from [TODO.md](TODO.md) / operator priority.
+1. Remote: Site update → re-import Spandexual `.prp` (Overwrite). Expect gallery thumbs/Bio gallery, deliverables rebuild starting (or clear System → Deliverables prompt).
+2. Optional Entire-campaign delete test after import looks good.
+3. Continue from [TODO.md](TODO.md) / operator priority.
 
 ## Already done this stretch (do not redo)
 
 - Catalogue delete: Entire campaign vs Release only.
-- PRP chunked import: final-chunk assemble, `file_size` verify, ZIP header check, `data/upload_tmp` staging.
-- Earlier: gallery asset packing, page registry on import, post-import deliverables, stream-extract.
+- PRP chunked import hardening (397).
+- Post-import image-only sync + server deliverables queue; gallery master fallback; page editor picker/layout; gallery grid center; player lightbox uses `huge`.
 
 ## Constraints
 

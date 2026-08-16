@@ -969,12 +969,12 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 |---------|--------|--------------------------|-------|
 | `logo` | Player header `.content-logo-img` | 320px wide (+ 2× retina → ~640px delivery cap) | Often PNG with alpha; theme asset |
 | `thumb` | Playlist row `.playlist-track-cover`, cover-flow, bio track list | 70–100px (delivery max edge **100px**) | Square-ish; shipped |
-| `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped; lightbox shares optimal for now |
-| `huge` | Future fullscreen still views | contain inside **1920×1080px** | Shipped for build/registry support; not selected by a frontend yet |
+| `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped |
+| `huge` | Player lightbox fullscreen stills | contain inside **1920×1080px** | Shipped; selected by player lightbox |
 | `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Brand assets list; Grid view uses larger cards |
 | `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
-| `lightbox` | Player/page lightbox enlarged view | currently shares 720px optimal | Dedicated larger lightbox variant deferred |
+| `lightbox` | Player/page lightbox enlarged view | aliases **`huge`** (≈96vw / 94vh frame) | Falls back to `card` when huge is missing |
 | `share` | `makeSocial.py` OG Facebook/Twitter crops | **1200×630** shipped | Instagram/TikTok native-post sizes registered only — generate with v2+ API publish, not site share |
 
 Deliverable: a checked-in **delivery context registry** (JSON or markdown table) that maps each context → max pixel box → default variant name. All future resizers read from this registry, not ad hoc magic numbers in Python.
@@ -1010,7 +1010,7 @@ Operators may change role and brand after upload in Files → Visual (single or 
 
 **Shipped 2026-07-21 (delivery half):** variants under `media/visual/delivery/{asset_id}/` with registry `delivery.variants` manifest. Legacy `media/*/optimal` and `thumb` trees remain dual-read fallbacks. Originals stay in legacy intake buckets until Phase 3 Brand-assets fold relocates them under `media/visual/original/`.
 
-Image variants for v0.8: `thumb`, `card`, `huge` (lightbox still shares `card`). Video: `poster`, `standard-stream`.
+Image variants for v0.8: `thumb`, `card`, `huge` (player lightbox prefers `huge`, falls back to `card`). Video: `poster`, `standard-stream`.
 
 Rules:
 

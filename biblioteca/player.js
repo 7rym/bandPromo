@@ -120,6 +120,21 @@ function buildCoverUrl(rawCoverPath, variant = IMAGE_PATH_VARIANT) {
     return candidates[0] || '';
 }
 
+/**
+ * Prefer the HDTV "huge" delivery file for player lightbox viewing.
+ * Falls back to the given URL when it is not a visual delivery variant path.
+ */
+function preferHugeDeliveryUrl(src) {
+    const raw = String(src || '').trim();
+    if (raw === '') {
+        return '';
+    }
+    return raw.replace(
+        /\/media\/visual\/delivery\/(ast_[0-9A-HJKMNP-TV-Z]{20})\/(thumb|card|optimal|picture|logo)\.(jpe?g|png|webp)(\?[^#]*)?(#.*)?$/i,
+        '/media/visual/delivery/$1/huge.$3$4$5'
+    );
+}
+
 function buildCoverUrlCandidates(rawCoverPath, preferredVariant = IMAGE_PATH_VARIANT) {
     if (!rawCoverPath) return [];
     if (isMediaOrAbsoluteUrl(rawCoverPath)) {
@@ -2471,7 +2486,10 @@ window.closeLightbox  = closeLightbox;
 // Wrapper for opening album cover from playlist
 function openAlbumCoverLightbox() {
     if (playList.length === 0) { console.error('❌ Playlist is empty!'); return; }
-    openLightbox(buildCoverUrl(songCoverRef(playList[currentIndex])), 'Album Cover');
+    openLightbox(
+        preferHugeDeliveryUrl(buildCoverUrl(songCoverRef(playList[currentIndex]))),
+        'Album Cover'
+    );
 }
 
 function bindPageGalleryLightboxes() {
@@ -2511,7 +2529,7 @@ function bindPageGalleryLightboxes() {
                     return;
                 }
                 items.push({
-                    src,
+                    src: preferHugeDeliveryUrl(src),
                     type: 'image',
                     name: label || img.getAttribute('alt') || 'Gallery image',
                     alt: img.getAttribute('alt') || label || 'Gallery image',
@@ -2572,7 +2590,7 @@ function bindPageLightboxes() {
                 return;
             }
 
-            openLightbox(src, target.getAttribute('alt') || 'Page image');
+            openLightbox(preferHugeDeliveryUrl(src), target.getAttribute('alt') || 'Page image');
         });
 
         pageBox.querySelectorAll('img').forEach((img) => {

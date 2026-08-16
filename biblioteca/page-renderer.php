@@ -96,9 +96,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
             return '';
         }
 
-        $presetClass = bandpromo_page_escape($preset);
-        $html = '<section class="page-gallery page-gallery--' . $presetClass . '" data-gallery-id="' . bandpromo_page_escape($galleryId) . '">';
-        $html .= '<div class="page-gallery-grid">';
+        $figures = '';
         foreach ($items as $item) {
             if (!is_array($item)) {
                 continue;
@@ -112,23 +110,35 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
                     continue;
                 }
                 $posterAttr = $poster !== '' ? ' poster="' . $poster . '"' : '';
-                $html .= '<figure class="page-gallery-item page-gallery-item--video" role="button" tabindex="0">';
+                $figures .= '<figure class="page-gallery-item page-gallery-item--video" role="button" tabindex="0">';
                 // Keep src off the wire until lightbox play — preload=metadata still
                 // pulls large byte ranges on PHP's single-threaded built-in server.
-                $html .= '<video data-src="' . $src . '"' . $posterAttr . ' preload="none" muted playsinline style="pointer-events:none;"></video>';
-                $html .= '<div class="page-gallery-video-play" aria-hidden="true">&#9654;</div>';
-                $html .= '<figcaption>' . $alt . '</figcaption></figure>';
+                $figures .= '<video data-src="' . $src . '"' . $posterAttr . ' preload="none" muted playsinline style="pointer-events:none;"></video>';
+                $figures .= '<div class="page-gallery-video-play" aria-hidden="true">&#9654;</div>';
+                $figures .= '<figcaption>' . $alt . '</figcaption></figure>';
                 continue;
             }
 
-            $src = bandpromo_page_escape(bandpromo_gallery_resolve_image_src($root, (string) ($item['src'] ?? '')));
+            $srcRef = trim((string) ($item['asset_id'] ?? ''));
+            if ($srcRef === '') {
+                $srcRef = (string) ($item['src'] ?? '');
+            }
+            $src = bandpromo_page_escape(bandpromo_gallery_resolve_image_src($root, $srcRef));
             if ($src === '') {
                 continue;
             }
-            $html .= '<figure class="page-gallery-item page-gallery-item--image" role="button" tabindex="0">';
-            $html .= '<img src="' . $src . '" alt="' . $alt . '" loading="lazy" decoding="async">';
-            $html .= '<figcaption>' . $alt . '</figcaption></figure>';
+            $figures .= '<figure class="page-gallery-item page-gallery-item--image" role="button" tabindex="0">';
+            $figures .= '<img src="' . $src . '" alt="' . $alt . '" loading="lazy" decoding="async">';
+            $figures .= '<figcaption>' . $alt . '</figcaption></figure>';
         }
+        if ($figures === '') {
+            return '';
+        }
+
+        $presetClass = bandpromo_page_escape($preset);
+        $html = '<section class="page-gallery page-gallery--' . $presetClass . '" data-gallery-id="' . bandpromo_page_escape($galleryId) . '">';
+        $html .= '<div class="page-gallery-grid">';
+        $html .= $figures;
         $html .= '</div></section>';
 
         return $html;
