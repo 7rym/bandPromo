@@ -12790,6 +12790,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         formData.append('chunk_index', String(i));
                         formData.append('total_chunks', String(totalChunks));
                         formData.append('upload_id', uploadId);
+                        formData.append('file_size', String(file.size));
                         formData.append('collision', collision);
                         if (csrfToken) {
                             formData.append('csrf_token', csrfToken);

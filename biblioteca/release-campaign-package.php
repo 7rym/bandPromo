@@ -1151,8 +1151,14 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
     bandpromo_release_ensure_dir($workDir);
 
     $zip = new ZipArchive();
-    if ($zip->open($zipPath) !== true) {
-        throw new RuntimeException('Could not open release package ZIP.');
+    $openStatus = $zip->open($zipPath);
+    if ($openStatus !== true) {
+        $size = is_file($zipPath) ? (int) filesize($zipPath) : 0;
+        $code = is_int($openStatus) ? (string) $openStatus : 'unknown';
+        throw new RuntimeException(
+            'Could not open release package ZIP (ZipArchive status ' . $code
+            . ', size ' . $size . ' bytes).'
+        );
     }
 
     try {

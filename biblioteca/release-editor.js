@@ -16,6 +16,8 @@
         const releaseDeleteModal = document.getElementById('releaseDeleteModal');
         const releaseDeleteModalName = document.getElementById('releaseDeleteModalName');
         const releaseDeleteConfirmBtn = document.getElementById('releaseDeleteConfirmBtn');
+        const releaseDeleteModePurge = document.getElementById('releaseDeleteModePurge');
+        const releaseDeleteModeContainer = document.getElementById('releaseDeleteModeContainer');
         const releaseDeleteCancelBtn = document.getElementById('releaseDeleteCancelBtn');
         const releaseSettingsTitle = document.getElementById('releaseSettingsTitle');
         const releaseSettingsDate = document.getElementById('releaseSettingsDate');
@@ -2139,6 +2141,22 @@
             }
         }
 
+        function selectedReleaseDeleteMode() {
+            if (releaseDeleteModeContainer && releaseDeleteModeContainer.checked) {
+                return 'container';
+            }
+            return 'purge';
+        }
+
+        function syncReleaseDeleteConfirmLabel() {
+            if (!(releaseDeleteConfirmBtn instanceof HTMLButtonElement)) {
+                return;
+            }
+            releaseDeleteConfirmBtn.textContent = selectedReleaseDeleteMode() === 'container'
+                ? 'Delete release only'
+                : 'Delete entire campaign';
+        }
+
         function openReleaseDeleteModal(releaseId) {
             const entry = releaseEntry(releaseId);
             if (!entry || !releaseCanDelete(entry)) {
@@ -2146,16 +2164,23 @@
             }
             const title = String(entry.title || releaseId);
             if (!releaseDeleteModal) {
-                if (!window.confirm(`Delete release "${title}"? Its tracks will leave this release and stay in your audio library. This cannot be undone.`)) {
+                if (!window.confirm(`Delete entire campaign "${title}"?\n\nRemoves owned brand, playlists, galleries, pages, and unused media. Shared media stays. This cannot be undone.`)) {
                     return;
                 }
-                deleteRelease(releaseId).catch((error) => showReleaseToast(error.message || 'Could not delete release'));
+                deleteRelease(releaseId, 'purge').catch((error) => showReleaseToast(error.message || 'Could not delete release'));
                 return;
             }
             pendingReleaseDeleteId = releaseId;
             if (releaseDeleteModalName) {
                 releaseDeleteModalName.textContent = title;
             }
+            if (releaseDeleteModePurge) {
+                releaseDeleteModePurge.checked = true;
+            }
+            if (releaseDeleteModeContainer) {
+                releaseDeleteModeContainer.checked = false;
+            }
+            syncReleaseDeleteConfirmLabel();
             releaseDeleteModal.style.display = 'flex';
             releaseDeleteModal.setAttribute('aria-hidden', 'false');
             releaseDeleteConfirmBtn?.focus();
@@ -2435,15 +2460,30 @@
             }
         }
 
-        async function deleteRelease(releaseId) {
+        async function deleteRelease(releaseId, mode = 'purge') {
             const entry = releaseEntry(releaseId);
             if (!entry || !releaseCanDelete(entry)) {
                 return;
             }
-            const data = await fetchJson(`/biblioteca/manage-release.php?release=${encodeURIComponent(releaseId)}`, {
-                method: 'DELETE',
-            });
+            const deleteMode = mode === 'container' ? 'container' : 'purge';
+            const data = await fetchJson(
+                `/biblioteca/manage-release.php?release=${encodeURIComponent(releaseId)}&mode=${encodeURIComponent(deleteMode)}`,
+                { method: 'DELETE' }
+            );
             releases = Array.isArray(data.releases) ? data.releases : [];
+            const purge = data.purge && typeof data.purge === 'object' ? data.purge : null;
+            if (deleteMode === 'purge' && purge) {
+                const assetCount = Array.isArray(purge.deleted_assets) ? purge.deleted_assets.length : 0;
+                const kept = Array.isArray(purge.retained_shared_assets) ? purge.retained_shared_assets.length : 0;
+                let detail = `Campaign deleted (${assetCount} media removed`;
+                if (kept > 0) {
+                    detail += `, ${kept} shared kept`;
+                }
+                detail += ').';
+                showReleaseToast(detail);
+            } else {
+                showReleaseToast('Release removed. Media stayed in Files.');
+            }
             if (selectedReleaseId === releaseId) {
                 selectedReleaseId = releases[0]?.id || 'primary';
                 showPoolView();
@@ -3112,6 +3152,8 @@
         }
 
         releaseDeleteCancelBtn?.addEventListener('click', closeReleaseDeleteModal);
+        releaseDeleteModePurge?.addEventListener('change', syncReleaseDeleteConfirmLabel);
+        releaseDeleteModeContainer?.addEventListener('change', syncReleaseDeleteConfirmLabel);
         releaseDeleteModal?.addEventListener('click', (event) => {
             if (event.target === releaseDeleteModal) {
                 closeReleaseDeleteModal();
@@ -3122,10 +3164,11 @@
             if (!releaseId) {
                 return;
             }
+            const mode = selectedReleaseDeleteMode();
             closeReleaseDeleteModal();
             try {
                 releaseDeleteConfirmBtn.disabled = true;
-                await deleteRelease(releaseId);
+                await deleteRelease(releaseId, mode);
             } catch (error) {
                 showReleaseToast(error.message || 'Could not delete release');
             } finally {

@@ -168,6 +168,8 @@ Associating a page to a release enables contextual tabs when that release’s tr
 
 **Duplicate campaign (same install):** New container/brand/release ids; **shared** media `ast_*`; cannot delete an asset while multiple containers reference it. **Import** between installs **keeps** ids. See [PORTABILITY.md](PORTABILITY.md).
 
+**Delete release:** operators choose **Entire campaign** (default) or **Release only**. Entire campaign removes owned brand, playlists, galleries, pages, and media that nothing else still references; shared media from a prior duplicate is retained. Release only removes the catalogue container and clears asset `release_id` pointers — Files media stays. Platform demo / protected ids cannot be deleted.
+
 **Lyrics vs Notes (shipped):** One shell panel and one master Lyrics field (tag + `display.lyrics`). Per-track `display.text_role` is `lyrics` (default) or `notes`; when Notes, optional `notes_label` (default player nav **Tracklist**, e.g. Show notes / Transcript). Site-wide `player.modules.lyrics.label` remains the Lyrics-mode fallback. Dual fields / timed cues deferred.
 
 **Content admin strip:** Catalogue plus dedicated Playlist / Gallery / Pages / Branding / Player editors remain peers. Release editor handles base info, track membership, and associations — not full child editing.

@@ -2267,9 +2267,20 @@ if ($tab === 'analytics') {
             <div class="modal-overlay" id="releaseDeleteModal" style="display:none;" aria-hidden="true">
                 <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="releaseDeleteModalTitle">
                     <h3 id="releaseDeleteModalTitle">Delete release?</h3>
-                    <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. Its tracks will leave this release and stay in your audio library. This cannot be undone.</p>
+                    <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. This cannot be undone.</p>
+                    <fieldset class="release-delete-mode-fieldset" style="border:0;padding:0;margin:0.75rem 0 1rem;">
+                        <legend class="sr-only">Delete mode</legend>
+                        <label class="release-delete-mode-option" style="display:block;margin:0.5rem 0;">
+                            <input type="radio" name="releaseDeleteMode" id="releaseDeleteModePurge" value="purge" checked>
+                            <strong>Entire campaign</strong> — remove owned brand, playlists, galleries, pages, and media that nothing else uses.
+                        </label>
+                        <label class="release-delete-mode-option" style="display:block;margin:0.5rem 0;">
+                            <input type="radio" name="releaseDeleteMode" id="releaseDeleteModeContainer" value="container">
+                            <strong>Release only</strong> — keep tracks and media in Files; only remove this catalogue entry.
+                        </label>
+                    </fieldset>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-danger" id="releaseDeleteConfirmBtn">Delete release</button>
+                        <button type="button" class="btn btn-danger" id="releaseDeleteConfirmBtn">Delete entire campaign</button>
                         <button type="button" class="btn" id="releaseDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>

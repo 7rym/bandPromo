@@ -132,11 +132,68 @@ function bandpromo_release_import_run(string $root, string $zipPath, string $ori
 function bandpromo_release_import_cleanup_parts(string $tmpDir, string $uploadId, int $totalChunks): void
 {
     for ($i = 0; $i < $totalChunks; $i++) {
-        $partPath = $tmpDir . '/' . $uploadId . '.part' . $i;
+        $partPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $i;
         if (is_file($partPath)) {
             @unlink($partPath);
         }
     }
+}
+
+/**
+ * Stage PRP chunks under the install's data/upload_tmp (durable, inside open_basedir).
+ * Fall back to sys temp only when the install path is not writable.
+ */
+function bandpromo_release_import_chunk_staging_dir(string $root): string
+{
+    $preferred = rtrim($root, "\\/") . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'upload_tmp';
+    if (!is_dir($preferred) && !mkdir($preferred, 0750, true) && !is_dir($preferred)) {
+        $preferred = '';
+    }
+    if ($preferred !== '' && is_writable($preferred)) {
+        return $preferred;
+    }
+
+    $base = rtrim((string) sys_get_temp_dir(), "\\/");
+    $dir = $base . DIRECTORY_SEPARATOR . 'bandpromo-prp-upload';
+    if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) {
+        throw new RuntimeException('Could not create PRP upload staging directory.');
+    }
+
+    return $dir;
+}
+
+function bandpromo_release_import_zip_open_error(string $zipPath): string
+{
+    $size = is_file($zipPath) ? (int) filesize($zipPath) : 0;
+    $header = '';
+    if (is_file($zipPath) && $size >= 4) {
+        $handle = fopen($zipPath, 'rb');
+        if ($handle !== false) {
+            $header = (string) fread($handle, 4);
+            fclose($handle);
+        }
+    }
+    if ($header !== '' && $header !== "PK\x03\x04" && $header !== "PK\x05\x06" && $header !== "PK\x07\x08") {
+        $hex = strtoupper(bin2hex($header));
+
+        return 'Assembled upload is not a ZIP (header ' . $hex . ', size ' . $size
+            . ' bytes). A chunk was likely truncated or replaced with an error page — retry the import.';
+    }
+
+    $zip = new ZipArchive();
+    $status = $zip->open($zipPath);
+    if ($status === true) {
+        $zip->close();
+
+        return '';
+    }
+    $statusCode = is_int($status) ? (string) $status : 'unknown';
+    $hint = $size < 100
+        ? 'File is nearly empty — the upload likely did not finish.'
+        : 'Chunk assembly did not produce a readable archive (status ' . $statusCode . '). Retry the import.';
+
+    return 'Could not open release package ZIP (ZipArchive status '
+        . $statusCode . ', size ' . $size . ' bytes). ' . $hint;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -164,11 +221,6 @@ if (!validate_csrf_token($csrfToken)) {
 }
 
 $root = dirname(__DIR__);
-$tmpDir = $root . '/data/upload_tmp';
-if (!is_dir($tmpDir) && !mkdir($tmpDir, 0750, true) && !is_dir($tmpDir)) {
-    bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Could not create upload staging directory.'], 500);
-}
-
 $collision = bandpromo_release_import_normalize_collision((string) ($_POST['collision'] ?? 'refuse'));
 
 // ─── Chunked upload mode (2 MB parts from admin, same as Files) ───────────────
@@ -178,6 +230,7 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     $filename = basename((string) $_POST['filename']);
     $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
     $uploadId = preg_replace('/[^a-zA-Z0-9._-]/', '', (string) ($_POST['upload_id'] ?? ''));
+    $expectedSize = (int) ($_POST['file_size'] ?? 0);
 
     if ($filename === '' || !in_array($extension, ['prp', 'zip'], true)) {
         bandpromo_release_import_json_exit([
@@ -202,30 +255,60 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
         ], 400);
     }
 
-    $chunkPath = $tmpDir . '/' . $uploadId . '.part' . $chunkIndex;
+    try {
+        $tmpDir = bandpromo_release_import_chunk_staging_dir($root);
+    } catch (Throwable $throwable) {
+        bandpromo_release_import_json_exit(['ok' => false, 'error' => $throwable->getMessage()], 500);
+    }
+
+    $chunkPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $chunkIndex;
     if (!move_uploaded_file((string) $_FILES['chunk']['tmp_name'], $chunkPath)) {
         bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Could not save chunk.'], 500);
     }
 
-    $partsPresent = 0;
-    for ($i = 0; $i < $totalChunks; $i++) {
-        if (is_file($tmpDir . '/' . $uploadId . '.part' . $i)) {
-            $partsPresent++;
-        }
-    }
-
-    if ($partsPresent < $totalChunks) {
+    // Only the final chunk assembles — avoids races if an earlier part is retried.
+    if ($chunkIndex !== $totalChunks - 1) {
         bandpromo_release_import_json_exit([
             'ok' => true,
             'status' => 'partial',
-            'received' => $partsPresent,
+            'received' => $chunkIndex + 1,
             'total' => $totalChunks,
             'upload_id' => $uploadId,
         ]);
     }
 
+    $partsPresent = 0;
+    $partsBytes = 0;
+    for ($i = 0; $i < $totalChunks; $i++) {
+        $partPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $i;
+        if (!is_file($partPath)) {
+            continue;
+        }
+        $partsPresent++;
+        $partsBytes += (int) filesize($partPath);
+    }
+
+    if ($partsPresent < $totalChunks) {
+        bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
+        bandpromo_release_import_json_exit([
+            'ok' => false,
+            'error' => 'Upload finished but chunks are incomplete ('
+                . $partsPresent . '/' . $totalChunks . '). Retry the import.',
+        ], 400);
+    }
+
+    if ($expectedSize > 0 && $partsBytes !== $expectedSize) {
+        bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
+        bandpromo_release_import_json_exit([
+            'ok' => false,
+            'error' => 'Assembled size mismatch (got '
+                . $partsBytes . ' bytes, expected ' . $expectedSize
+                . '). The .prp may be truncated — re-download and retry.',
+        ], 400);
+    }
+
     @set_time_limit(0);
-    $assembledPath = $tmpDir . '/' . $uploadId . '.assembled.' . $extension;
+    $assembledPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.assembled.' . $extension;
     $out = fopen($assembledPath, 'wb');
     if ($out === false) {
         bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
@@ -233,13 +316,16 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     }
     try {
         for ($i = 0; $i < $totalChunks; $i++) {
-            $partPath = $tmpDir . '/' . $uploadId . '.part' . $i;
+            $partPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $i;
             $in = fopen($partPath, 'rb');
             if ($in === false) {
                 throw new RuntimeException('Missing chunk part ' . $i . '.');
             }
-            stream_copy_to_stream($in, $out);
+            $copied = stream_copy_to_stream($in, $out);
             fclose($in);
+            if ($copied === false) {
+                throw new RuntimeException('Could not copy chunk part ' . $i . '.');
+            }
             @unlink($partPath);
         }
     } catch (Throwable $assembleError) {
@@ -252,6 +338,22 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
         ], 500);
     }
     fclose($out);
+
+    $assembledSize = (int) filesize($assembledPath);
+    if ($expectedSize > 0 && $assembledSize !== $expectedSize) {
+        @unlink($assembledPath);
+        bandpromo_release_import_json_exit([
+            'ok' => false,
+            'error' => 'Assembled package size mismatch (got '
+                . $assembledSize . ' bytes, expected ' . $expectedSize . '). Retry the import.',
+        ], 400);
+    }
+
+    $openError = bandpromo_release_import_zip_open_error($assembledPath);
+    if ($openError !== '') {
+        @unlink($assembledPath);
+        bandpromo_release_import_json_exit(['ok' => false, 'error' => $openError], 400);
+    }
 
     try {
         $payload = bandpromo_release_import_run($root, $assembledPath, $filename, $collision);

@@ -3192,6 +3192,306 @@ function bandpromo_release_delete(string $root, string $releaseId): void
     bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
 }
 
+/**
+ * True when another remaining campaign/brand still needs this asset.
+ */
+function bandpromo_release_purge_asset_still_needed(string $root, string $assetId): bool
+{
+    require_once __DIR__ . '/release-campaign-package.php';
+    require_once __DIR__ . '/theme-storage.php';
+
+    $assetId = trim($assetId);
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return false;
+    }
+
+    foreach (bandpromo_release_load_registry($root)['releases'] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $otherId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        if ($otherId === '') {
+            continue;
+        }
+        foreach (bandpromo_release_campaign_collect_asset_ids($root, $otherId) as $usedId) {
+            if ($usedId === $assetId) {
+                return true;
+            }
+        }
+    }
+
+    foreach (bandpromo_theme_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        try {
+            $brand = bandpromo_theme_load_document($root, $brandId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
+            if (trim((string) $slotId) === $assetId) {
+                return true;
+            }
+        }
+        foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
+            if (trim((string) $libraryId) === $assetId) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Delete on-disk tiers + registry row for one asset (best-effort).
+ */
+function bandpromo_release_purge_delete_asset(string $root, array $asset): void
+{
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/sfx-helpers.php';
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    require_once __DIR__ . '/audio-master-helpers.php';
+
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return;
+    }
+
+    $kind = strtolower(trim((string) ($asset['kind'] ?? '')));
+    if ($kind === 'visual') {
+        bandpromo_visual_delivery_delete_for_asset($root, $assetId);
+        bandpromo_visual_delete_tier_files($root, $asset);
+    } elseif ($kind === 'sfx') {
+        bandpromo_sfx_delete_tier_files($root, $asset);
+    } elseif ($kind === 'audio') {
+        $original = basename((string) ($asset['original_filename'] ?? ''));
+        $master = basename((string) ($asset['master_filename'] ?? ''));
+        $listing = $original !== '' ? $original : $master;
+        if ($listing !== '') {
+            foreach (bandpromo_audio_master_paths_for_original($root, $listing) as $masterPath) {
+                if (is_file($masterPath)) {
+                    @unlink($masterPath);
+                }
+            }
+            foreach (bandpromo_audio_delivery_paths_for_original($root, $listing) as $deliveryPath) {
+                if (is_file($deliveryPath)) {
+                    @unlink($deliveryPath);
+                }
+            }
+            $originalPath = $root . '/media/audio/original/' . $listing;
+            if (is_file($originalPath)) {
+                @unlink($originalPath);
+            }
+        }
+        if ($master !== '') {
+            $masterPath = $root . '/media/audio/master/' . $master;
+            if (is_file($masterPath)) {
+                @unlink($masterPath);
+            }
+            $deliveryById = $root . '/media/audio/optimal/' . $assetId . '.mp3';
+            if (is_file($deliveryById)) {
+                @unlink($deliveryById);
+            }
+        }
+    }
+
+    bandpromo_asset_unregister($root, $assetId);
+}
+
+/**
+ * Delete a release. mode=container keeps media; mode=purge removes owned campaign content
+ * and media that nothing else still references (shared duplicate media is kept).
+ *
+ * @return array{
+ *   ok: bool,
+ *   mode: string,
+ *   release_id: string,
+ *   deleted_playlists: list<string>,
+ *   deleted_galleries: list<string>,
+ *   deleted_pages: list<string>,
+ *   deleted_brand_id: string,
+ *   deleted_assets: list<string>,
+ *   retained_shared_assets: list<string>
+ * }
+ */
+function bandpromo_release_delete_with_mode(string $root, string $releaseId, string $mode = 'container'): array
+{
+    require_once __DIR__ . '/release-ownership-helpers.php';
+    require_once __DIR__ . '/release-campaign-package.php';
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/gallery-storage.php';
+    require_once __DIR__ . '/page-registry.php';
+    require_once __DIR__ . '/theme-storage.php';
+
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    $mode = strtolower(trim($mode));
+    if ($mode !== 'purge') {
+        $mode = 'container';
+    }
+
+    if (bandpromo_release_is_protected_id($releaseId)) {
+        throw new InvalidArgumentException('This release cannot be deleted.');
+    }
+    if (!is_file(bandpromo_release_document_path($root, $releaseId))) {
+        throw new InvalidArgumentException('Unknown release.');
+    }
+
+    $result = [
+        'ok' => true,
+        'mode' => $mode,
+        'release_id' => $releaseId,
+        'deleted_playlists' => [],
+        'deleted_galleries' => [],
+        'deleted_pages' => [],
+        'deleted_brand_id' => '',
+        'deleted_assets' => [],
+        'retained_shared_assets' => [],
+    ];
+
+    if ($mode === 'container') {
+        bandpromo_release_delete($root, $releaseId);
+
+        return $result;
+    }
+
+    $children = bandpromo_release_ownership_children($root, $releaseId);
+    $assetIds = bandpromo_release_campaign_collect_asset_ids($root, $releaseId);
+    $registryAssets = bandpromo_asset_load_registry($root);
+    foreach ($registryAssets['assets'] as $assetId => $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        if ((string) ($asset['release_id'] ?? '') === $releaseId) {
+            $assetIds[] = (string) $assetId;
+        }
+    }
+    $assetIds = array_values(array_unique(array_filter($assetIds)));
+
+    foreach ($children['playlists'] as $playlist) {
+        $playlistId = bandpromo_playlist_normalize_id((string) ($playlist['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            bandpromo_playlist_delete($root, $playlistId);
+            $result['deleted_playlists'][] = $playlistId;
+        } catch (Throwable $throwable) {
+            // Protected/demo playlists stay; purge continues.
+        }
+    }
+
+    foreach ($children['galleries'] as $gallery) {
+        $galleryId = bandpromo_gallery_normalize_id((string) ($gallery['id'] ?? ''));
+        if ($galleryId === '') {
+            continue;
+        }
+        try {
+            bandpromo_gallery_delete($root, $galleryId);
+            $result['deleted_galleries'][] = $galleryId;
+        } catch (Throwable $throwable) {
+            // Protected galleries stay.
+        }
+    }
+
+    foreach ($children['pages'] as $page) {
+        $pageId = bandpromo_page_normalize_id((string) ($page['id'] ?? ''));
+        if ($pageId === '' || !bandpromo_release_campaign_page_is_portable($pageId)) {
+            continue;
+        }
+        try {
+            bandpromo_page_delete_page($root, $pageId);
+            $result['deleted_pages'][] = $pageId;
+        } catch (Throwable $throwable) {
+            // FAQ / unknown pages stay.
+        }
+    }
+
+    $brandId = bandpromo_brand_canonical_id((string) ($children['brand_id'] ?? ''));
+    if ($brandId !== '' && $brandId !== BANDPROMO_BRAND_DEFAULT_ID) {
+        $brandExclusive = true;
+        try {
+            $brandDoc = bandpromo_theme_load_document($root, $brandId);
+            $brandOwner = bandpromo_release_normalize_id((string) ($brandDoc['release_id'] ?? ''));
+            if ($brandOwner !== '' && $brandOwner !== $releaseId) {
+                $brandExclusive = false;
+            }
+            if (!empty($brandDoc['locked']) || !empty($brandDoc['system'])) {
+                $brandExclusive = false;
+            }
+        } catch (Throwable $throwable) {
+            $brandExclusive = false;
+        }
+        if ($brandExclusive) {
+            foreach (bandpromo_release_load_registry($root)['releases'] as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $otherId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+                if ($otherId === '' || $otherId === $releaseId) {
+                    continue;
+                }
+                try {
+                    $otherDoc = bandpromo_release_load_document($root, $otherId);
+                } catch (Throwable $throwable) {
+                    continue;
+                }
+                if (bandpromo_brand_canonical_id((string) ($otherDoc['brand_id'] ?? '')) === $brandId) {
+                    $brandExclusive = false;
+                    break;
+                }
+            }
+        }
+        if ($brandExclusive) {
+            try {
+                if (bandpromo_brand_active_id($root) === $brandId) {
+                    bandpromo_theme_set_active_id($root, BANDPROMO_BRAND_DEFAULT_ID);
+                }
+                bandpromo_theme_delete($root, $brandId);
+                $result['deleted_brand_id'] = $brandId;
+            } catch (Throwable $throwable) {
+                // Keep brand when active/locked constraints still apply.
+            }
+        }
+    }
+
+    // Remove release document before asset GC so membership scans skip it.
+    bandpromo_release_delete($root, $releaseId);
+
+    $registryAssets = bandpromo_asset_load_registry($root);
+    foreach ($assetIds as $assetId) {
+        $asset = $registryAssets['assets'][$assetId] ?? null;
+        if (!is_array($asset)) {
+            continue;
+        }
+        if (bandpromo_release_purge_asset_still_needed($root, $assetId)) {
+            $result['retained_shared_assets'][] = $assetId;
+            continue;
+        }
+        try {
+            bandpromo_release_purge_delete_asset($root, $asset);
+            $result['deleted_assets'][] = $assetId;
+        } catch (Throwable $throwable) {
+            $result['retained_shared_assets'][] = $assetId;
+        }
+        $registryAssets = bandpromo_asset_load_registry($root);
+    }
+
+    try {
+        require_once __DIR__ . '/media-library-state.php';
+        bandpromo_media_files_index_rebuild_all($root);
+    } catch (Throwable $throwable) {
+        // Files list heals on next GET.
+    }
+
+    return $result;
+}
+
 function bandpromo_release_repair_catalog_release_ids(string $root): int
 {
     $registry = bandpromo_asset_load_registry($root);

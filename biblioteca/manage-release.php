@@ -91,17 +91,33 @@ try {
             throw new InvalidArgumentException('Release id is required.');
         }
 
-        bandpromo_release_delete($root, $releaseId);
+        $mode = strtolower(trim((string) ($_GET['mode'] ?? 'container')));
+        if ($mode !== 'purge') {
+            $mode = 'container';
+        }
+
+        $result = bandpromo_release_delete_with_mode($root, $releaseId, $mode);
 
         bandpromo_admin_audit_log('release_deleted', [
             'target_type' => 'release',
             'target_id' => $releaseId,
             'status' => 'ok',
+            'data' => [
+                'mode' => $mode,
+                'deleted_playlists' => $result['deleted_playlists'],
+                'deleted_galleries' => $result['deleted_galleries'],
+                'deleted_pages' => $result['deleted_pages'],
+                'deleted_brand_id' => $result['deleted_brand_id'],
+                'deleted_assets' => count($result['deleted_assets']),
+                'retained_shared_assets' => count($result['retained_shared_assets']),
+            ],
         ]);
 
         echo json_encode([
             'ok' => true,
             'deleted' => $releaseId,
+            'mode' => $mode,
+            'purge' => $result,
             'releases' => bandpromo_release_admin_registry_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;

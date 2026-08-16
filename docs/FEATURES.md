@@ -108,6 +108,7 @@ Platform and policy docs: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md]
 
 ### v0.9
 - **Portable release packages (PRP / `.prp`)** — move one finished campaign (masters, brand, playlists, galleries, pages, registry subset) between installs; setup imports `bandPromo-demo.prp` ([PORTABILITY.md](PORTABILITY.md))
+- Catalogue **delete release**: Entire campaign (default) removes owned containers + unreferenced media; Release only keeps Files media. Shared duplicate media is retained on purge.
 - **Implement** access tiers: admin/dev, VIP pre-access, registered fan, anonymous (released-only)
 - Login page with **restricted anonymous entry**; shared URLs → login + FAQ
 - Chromecast / cast send on the new delivery stack

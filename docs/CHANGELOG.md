@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 16:50 - Checkpoint release purge-delete and remote-safe PRP chunked import on `main` as **v0.8.26 build 397**; trigger GitHub Release `v0.8.26-build-397` for Site update.
+
+2026-08-16 16:45 - PRP chunked import (remote-safe): prefer install `data/upload_tmp`, assemble only on the final chunk, require matching `file_size`, and reject non-ZIP headers before ZipArchive open — corrupt assembly was producing bare "Could not open release package ZIP" on hosted imports.
+
+2026-08-16 16:40 - PRP chunked import: stage parts in system temp (not Google Drive `data/upload_tmp`), assemble only on the final chunk, verify `file_size`, and surface ZipArchive status/size when open fails.
+
+2026-08-16 16:30 - Catalogue delete release: operators choose Entire campaign (owned brand/playlists/galleries/pages + unreferenced media) or Release only (container; Files media stays). Shared duplicate media is retained on purge.
+
 2026-08-16 16:20 - Checkpoint PRP gallery asset packing, page registry on import, and post-import deliverables rebuild on `main` as **v0.8.26 build 396**; trigger GitHub Release `v0.8.26-build-396` for Site update.
 
 2026-08-16 15:30 - PRP export/import: resolve gallery `asset_id` from delivery `src` so band-member masters pack; register campaign pages on import; mark + auto-queue deliverables-only rebuild after import (thumbs/streams were masters-only by design).
