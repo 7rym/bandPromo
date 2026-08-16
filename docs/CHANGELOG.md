@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 15:15 - Checkpoint chunked PRP import (2 MB parts, same as Files) on `main` as **v0.8.26 build 395**; trigger GitHub Release `v0.8.26-build-395` for Site update.
+
+2026-08-16 15:10 - Admin PRP import uses 2 MB chunked upload (same as Files): assemble in `data/upload_tmp`, then stream-extract — avoids nginx HTTP 413 on large Spandexual-sized packages.
+
 2026-08-16 15:05 - Checkpoint PRP import stream-extract + clearer Import errors on `main` as **v0.8.26 build 394**; trigger GitHub Release `v0.8.26-build-394` for Site update.
 
 2026-08-16 14:50 - PRP import no longer loads each ZIP entry into PHP memory (`extractTo` instead of `getFromIndex`); admin Import shows HTTP status / body snippet when the host returns a non-JSON failure; fatal OOM during import returns JSON instead of a bare "Import failed".

@@ -12749,6 +12749,70 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                async function parseReleaseImportResponse(response) {
+                    const rawText = await response.text();
+                    let data = {};
+                    try {
+                        data = rawText ? JSON.parse(rawText) : {};
+                    } catch (_parseError) {
+                        data = {};
+                    }
+                    if (!response.ok || data.ok === false) {
+                        let detail = typeof data.error === 'string' ? data.error.trim() : '';
+                        if (!detail) {
+                            if (response.status === 413) {
+                                detail = 'Server rejected a chunk as too large (HTTP 413). Host body limits must allow at least 2 MB uploads.';
+                            } else if (response.status === 502 || response.status === 504) {
+                                detail = `Import timed out or the proxy closed the connection (HTTP ${response.status}). Raise host timeouts or retry.`;
+                            } else {
+                                const snippet = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+                                detail = snippet
+                                    ? `Import failed (HTTP ${response.status}): ${snippet}`
+                                    : `Import failed (HTTP ${response.status || 'unknown'}).`;
+                            }
+                        }
+                        throw new Error(detail);
+                    }
+                    return data;
+                }
+
+                async function importReleasePackageChunked(file, collision, csrfToken, onProgress) {
+                    const chunkSize = 2 * 1024 * 1024; // same as Files uploads
+                    const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
+                    const uploadId = `prp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+                    let lastData = null;
+                    for (let i = 0; i < totalChunks; i++) {
+                        const start = i * chunkSize;
+                        const chunk = file.slice(start, start + chunkSize);
+                        const formData = new FormData();
+                        formData.append('chunk', chunk, file.name);
+                        formData.append('filename', file.name);
+                        formData.append('chunk_index', String(i));
+                        formData.append('total_chunks', String(totalChunks));
+                        formData.append('upload_id', uploadId);
+                        formData.append('collision', collision);
+                        if (csrfToken) {
+                            formData.append('csrf_token', csrfToken);
+                        }
+                        if (i === totalChunks - 1 && onProgress) {
+                            onProgress(1, true);
+                        }
+                        const response = await fetch('/biblioteca/import-release-package.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            body: formData,
+                        });
+                        lastData = await parseReleaseImportResponse(response);
+                        if (onProgress && i < totalChunks - 1) {
+                            onProgress((i + 1) / totalChunks, false);
+                        }
+                    }
+                    if (!lastData || lastData.status === 'partial') {
+                        throw new Error('Upload finished but the server is still missing chunks. Retry the import.');
+                    }
+                    return lastData;
+                }
+
                 async function importReleasePackage() {
                     if (!(releasePackageImportInput instanceof HTMLInputElement) || !releasePackageImportInput.files?.length) {
                         if (releasePackageImportStatus) {
@@ -12757,8 +12821,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         return;
                     }
+                    const file = releasePackageImportInput.files[0];
                     if (releasePackageImportStatus) {
-                        releasePackageImportStatus.textContent = 'Importing…';
+                        releasePackageImportStatus.textContent = 'Uploading…';
                         releasePackageImportStatus.classList.remove('is-error');
                     }
                     if (releasePackageImportBtn instanceof HTMLButtonElement) {
@@ -12768,43 +12833,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const csrfToken = typeof refreshAdminCsrfToken === 'function'
                             ? await refreshAdminCsrfToken()
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
-                        const formData = new FormData();
-                        formData.append('package', releasePackageImportInput.files[0]);
                         const collision = releasePackageImportCollision instanceof HTMLSelectElement
                             ? String(releasePackageImportCollision.value || 'refuse')
                             : 'refuse';
-                        formData.append('collision', collision);
-                        if (csrfToken) {
-                            formData.append('csrf_token', csrfToken);
-                        }
-                        const response = await fetch('/biblioteca/import-release-package.php', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            body: formData,
-                        });
-                        const rawText = await response.text();
-                        let data = {};
-                        try {
-                            data = rawText ? JSON.parse(rawText) : {};
-                        } catch (_parseError) {
-                            data = {};
-                        }
-                        if (!response.ok || data.ok === false) {
-                            let detail = typeof data.error === 'string' ? data.error.trim() : '';
-                            if (!detail) {
-                                if (response.status === 413) {
-                                    detail = 'Server rejected the upload as too large (HTTP 413). Raise nginx/proxy client_max_body_size and PHP post_max_size / upload_max_filesize above the .prp size.';
-                                } else if (response.status === 502 || response.status === 504) {
-                                    detail = `Import timed out or the proxy closed the connection (HTTP ${response.status}). Raise host timeouts or retry.`;
-                                } else {
-                                    const snippet = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
-                                    detail = snippet
-                                        ? `Import failed (HTTP ${response.status}): ${snippet}`
-                                        : `Import failed (HTTP ${response.status || 'unknown'}).`;
-                                }
+                        const data = await importReleasePackageChunked(file, collision, csrfToken, (progress, finishing) => {
+                            if (!releasePackageImportStatus) {
+                                return;
                             }
-                            throw new Error(detail);
-                        }
+                            if (finishing) {
+                                releasePackageImportStatus.textContent = 'Uploading complete — importing…';
+                                return;
+                            }
+                            releasePackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
+                        });
                         const releaseId = String(data.release_id || '').trim();
                         const message = data.message || 'Release package imported.';
                         if (releasePackageImportStatus) {
@@ -12817,7 +12858,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (releasePackageImportStatus) {
                             let message = error && error.message ? String(error.message) : 'Import failed';
                             if (/failed to fetch|networkerror|load failed/i.test(message)) {
-                                message = 'Upload failed before the server could answer. Large .prp files need PHP upload_max_filesize / post_max_size above the package size (this host defaults are often 2M/8M). Restart the local dev server after the limit bump, or import the file from disk.';
+                                message = 'Upload interrupted before the server finished. Retry the import; large packages use 2 MB chunks like Files uploads.';
                             }
                             releasePackageImportStatus.textContent = message;
                             releasePackageImportStatus.classList.add('is-error');

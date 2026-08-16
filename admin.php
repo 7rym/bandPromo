@@ -2985,7 +2985,7 @@ if ($tab === 'analytics') {
                 <h3>💿 Import portable release package</h3>
                 <p class="card-note">
                     Import one campaign as a <code>.prp</code> (or <code>.zip</code>) file: masters, brand, playlists, galleries, pages, and registry subset.
-                    IDs are kept. If the release already exists, choose how to resolve the collision.
+                    IDs are kept. Large packages upload in 2&nbsp;MB chunks (same as Files). If the release already exists, choose how to resolve the collision.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
                 <p class="empty-msg">ZipArchive is required to import release packages on this host.</p>
