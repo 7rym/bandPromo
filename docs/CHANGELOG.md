@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 22:20 - Checkpoint after Demo PRP republish (brand settings) and `.cursor/` hygiene on `main` as **v0.8.27 build 400**; trigger GitHub Release `v0.8.27-build-400` for Site update. Durable `demo-content` SHA256 `36582ba1…`.
+
 2026-08-16 21:55 - Stop tracking `.cursor/` (local Cursor IDE rules); ignore it like `.vscode/` / `.editorconfig`. Policy stays in `docs/AGENTS.md`.
 
 2026-08-16 21:40 - Checkpoint player chrome dim/blur + Cover reflection, shell huge backgrounds, gallery centering, and admin Visual delivery previews on `main` as **v0.8.27 build 399**; trigger GitHub Release `v0.8.27-build-399` for Site update.
