@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-16 22:35 - Checkpoint Linux ffmpeg auto-install via ffbinaries GitHub on `main` as **v0.8.27 build 401**; trigger GitHub Release `v0.8.27-build-401` for Site update / setup rebuild on bandpromo.site.
+
+2026-08-16 22:30 - Linux ffmpeg auto-install downloads `ffmpeg` + `ffprobe` from GitHub `ffbinaries/ffbinaries-prebuilt` (pinned v6.1) instead of `johnvansickle.com`, so shared hosts that block or reset that origin can still finish Publish / setup builds.
+
 2026-08-16 22:20 - Checkpoint after Demo PRP republish (brand settings) and `.cursor/` hygiene on `main` as **v0.8.27 build 400**; trigger GitHub Release `v0.8.27-build-400` for Site update. Durable `demo-content` SHA256 `36582ba1…`.
 
 2026-08-16 21:55 - Stop tracking `.cursor/` (local Cursor IDE rules); ignore it like `.vscode/` / `.editorconfig`. Policy stays in `docs/AGENTS.md`.

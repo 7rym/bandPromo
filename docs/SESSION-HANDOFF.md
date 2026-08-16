@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-16 (after checkpoint v0.8.27 build 400)._
+_Paused: 2026-08-16 (after checkpoint v0.8.27 build 401)._
 
 ## Exact resume point
 
@@ -10,15 +10,15 @@ Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The othe
 
 | Item | Value |
 |------|--------|
-| Git | `main` @ **v0.8.27 build 400** (after this checkpoint) |
-| App tester package | Tag `v0.8.27-build-400` (`bandPromo.zip` + `release-manifest.json`) |
+| Git | `main` @ **v0.8.27 build 401** (after this checkpoint) |
+| App tester package | Tag `v0.8.27-build-401` (`bandPromo.zip` + `release-manifest.json`) |
 | Demo package | Durable tag **`demo-content`** — SHA256 `36582ba1…` (export `prp-bandpromo-demo-20260816-200121`) |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. **Vanilla fresh-install smoke on bandpromo.site** — operator wiping remote; restart from `bootstrap.php` **A→B** without skipping site-settings; then C–F per private smoke suite.
-2. Confirm new brand settings (Cover reflection, Beggars, dim/blur) arrive via Demo PRP.
+1. **Vanilla fresh-install smoke on bandpromo.site** — after Site update / re-bootstrap to **build 401**, resume setup **Start building** (ffmpeg auto-install now uses ffbinaries GitHub). Then C–F.
+2. Confirm new brand settings arrive via Demo PRP.
 3. Continue from [TODO.md](TODO.md) / operator priority.
 
 ## Already done this stretch (do not redo)

@@ -90,7 +90,7 @@ Planned future dependencies should not be listed here until they are actually ad
 - License: upstream FFmpeg is LGPL-2.1-or-later by default, but some builds become GPL depending on enabled components
 - Notes:
   - bandPromo currently treats FFmpeg as an external tool, not a Python package
-  - `scripts/build.py` can attempt to auto-download a static FFmpeg build from `johnvansickle.com/ffmpeg`
+  - On Linux, `scripts/build.py` can auto-download static `ffmpeg` + `ffprobe` from the durable GitHub release tag `ffbinaries/ffbinaries-prebuilt` (currently pinned to v6.1 ZIP assets). Those Linux binaries are repackaged from johnvansickle static builds; GitHub is used as the download host for shared-host reliability.
   - if a project distribution bundles FFmpeg binaries, the exact binary build, its license terms, and corresponding notice/source obligations must be reviewed and documented at distribution time
   - do not assume every FFmpeg binary has the same license profile
 

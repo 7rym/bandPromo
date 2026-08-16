@@ -77,7 +77,14 @@ print("Default stdout encoding: " + str(_default_encoding))
 REQUIREMENTS = SCRIPT_DIR / 'requirements.txt'
 VENDOR_DIR = SCRIPT_DIR / 'vendor'
 VENDOR_WHEELS_DIR = SCRIPT_DIR / 'vendor-wheels'
-FFMPEG_BIN   = SCRIPT_DIR / 'bin' / ('ffmpeg.exe' if platform.system() == 'Windows' else 'ffmpeg')
+FFMPEG_BIN = SCRIPT_DIR / 'bin' / ('ffmpeg.exe' if platform.system() == 'Windows' else 'ffmpeg')
+FFPROBE_BIN = SCRIPT_DIR / 'bin' / ('ffprobe.exe' if platform.system() == 'Windows' else 'ffprobe')
+# Linux auto-install: GitHub-hosted ffbinaries (repackaged static builds; reliable HTTPS for shared hosts).
+FFBINARIES_VERSION = '6.1'
+FFBINARIES_DOWNLOAD_BASE = (
+    'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v'
+    + FFBINARIES_VERSION
+)
 SUPPORTED_AUDIO_EXTENSIONS = ('.flac', '.mp3', '.wav')
 KNOWN_AUDIO_EXTENSIONS = SUPPORTED_AUDIO_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg', '.wma')
 
@@ -413,49 +420,90 @@ def find_ffmpeg():
     return None
 
 
-def download_ffmpeg_static():
-    """Download a static ffmpeg binary for Linux x86_64 (typical shared hosting)."""
-    if platform.system() != 'Linux':
-        return False
-
+def _ffbinaries_linux_platform_code():
+    # type: () -> str
     machine = platform.machine().lower()
-    arch = 'arm64' if ('aarch64' in machine or 'arm64' in machine) else 'amd64'
-    url = f"https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-{arch}-static.tar.xz"
+    if 'aarch64' in machine or 'arm64' in machine:
+        return 'linux-arm-64'
+    return 'linux-64'
 
-    print(f"  ⬇️  Downloading static ffmpeg binary for Linux {arch}...")
-    print(f"      Source: johnvansickle.com/ffmpeg")
+
+def _download_ffbinaries_component(component, platform_code, bin_dir):
+    # type: (str, str, Path) -> bool
+    """Download one ffbinaries ZIP (ffmpeg or ffprobe) into scripts/bin/."""
+    filename = '{0}-{1}-{2}.zip'.format(component, FFBINARIES_VERSION, platform_code)
+    url = FFBINARIES_DOWNLOAD_BASE + '/' + filename
+    archive = bin_dir / filename
+    target = bin_dir / component
+
+    print('  Downloading {0} ({1})...'.format(component, platform_code))
+    print('      Source: github.com/ffbinaries/ffbinaries-prebuilt @ v{0}'.format(FFBINARIES_VERSION))
     sys.stdout.flush()
 
-    bin_dir = FFMPEG_BIN.parent
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    archive = bin_dir / 'ffmpeg.tar.xz'
-
     try:
-        urllib.request.urlretrieve(url, str(archive))
+        request = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'bandPromo-build/{0}'.format(FFBINARIES_VERSION)},
+        )
+        with urllib.request.urlopen(request, timeout=120) as response:
+            with open(str(archive), 'wb') as handle:
+                shutil.copyfileobj(response, handle)
     except Exception as e:
-        print(f"  ❌ Download failed: {e}")
-        print("     Please install ffmpeg manually: https://ffmpeg.org/download.html")
+        print('  Download failed for {0}: {1}'.format(component, e))
+        print('     Manual install: https://ffmpeg.org/download.html')
         sys.stdout.flush()
+        if archive.exists():
+            try:
+                archive.unlink()
+            except Exception:
+                pass
         return False
 
     try:
-        import tarfile
-        with tarfile.open(str(archive), 'r:xz') as tar:
-            for member in tar.getmembers():
-                if member.name.endswith('/ffmpeg') and '/' in member.name:
-                    member.name = 'ffmpeg'
-                    tar.extract(member, path=str(bin_dir))
-                    break
-        archive.unlink()
-        FFMPEG_BIN.chmod(FFMPEG_BIN.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        print(f"  ✅ ffmpeg installed to {FFMPEG_BIN}")
+        extracted = False
+        with zipfile.ZipFile(str(archive), 'r') as zf:
+            for name in zf.namelist():
+                base = os.path.basename(name.rstrip('/'))
+                if base != component or name.endswith('/'):
+                    continue
+                with zf.open(name) as src, open(str(target), 'wb') as dst:
+                    shutil.copyfileobj(src, dst)
+                extracted = True
+                break
+        if archive.exists():
+            archive.unlink()
+        if not extracted or not target.is_file():
+            print('  Extraction failed for {0}: binary not found in archive'.format(component))
+            sys.stdout.flush()
+            return False
+        mode = target.stat().st_mode
+        target.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        print('  {0} installed to {1}'.format(component, target))
         sys.stdout.flush()
         return True
     except Exception as e:
-        print(f"  ❌ Extraction failed: {e}")
+        print('  Extraction failed for {0}: {1}'.format(component, e))
+        sys.stdout.flush()
         if archive.exists():
-            archive.unlink()
+            try:
+                archive.unlink()
+            except Exception:
+                pass
         return False
+
+
+def download_ffmpeg_static():
+    """Download static ffmpeg + ffprobe for Linux (typical shared hosting)."""
+    if platform.system() != 'Linux':
+        return False
+
+    platform_code = _ffbinaries_linux_platform_code()
+    bin_dir = FFMPEG_BIN.parent
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    ffmpeg_ok = _download_ffbinaries_component('ffmpeg', platform_code, bin_dir)
+    ffprobe_ok = _download_ffbinaries_component('ffprobe', platform_code, bin_dir)
+    return bool(ffmpeg_ok and ffprobe_ok)
 
 
 def ensure_ffmpeg():
