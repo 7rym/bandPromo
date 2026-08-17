@@ -567,6 +567,7 @@ if ($supportUrl !== '') {
         window.BANDPROMO_PLAYER_TABS = <?php echo json_encode($playerTabs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEFAULT_PLAYER_VIEW = <?php echo json_encode($defaultPlayerView, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_ID = <?php echo json_encode($activePlaylistId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_PLAYLIST_RELEASE_ID = <?php echo json_encode($playerReleaseId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_LYRICS_LABEL = <?php
             $lyricsModuleLabel = 'Lyrics';
             try {

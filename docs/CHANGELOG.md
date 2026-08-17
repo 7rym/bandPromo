@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 12:05 - Fix local tail hang before auto-next: advance when catalog duration is reached but browser MP3 metadata still claims more audio; stall watchdog near end; preload next track in the last 45s; skip coverflow animation on auto-next (regression from 2026-07-16); throttle living-video loop seeks to the last quarter-second.
+
+2026-08-17 12:00 - Fix living shell/cover stopping after one play: loop watchdog seeks to start before `ended` on streamed MP4; only restart shell video when paused/ended (playlist load no longer interrupts mid-play); soften shell error fallback; clear still layer when living background is active.
+
+2026-08-17 11:55 - Stabilize living shell/cover playback: cancel stale background attach on brand change instead of racing empty `video.load()` error handlers; restart on `ended` so loop survives flaky range requests; skip the <5 Mbps living-media gate on localhost; do not tear down an unchanged living background after playlist load.
+
+2026-08-17 11:50 - Fix playlist switch landing on default: navigate with `/play/?playlist={id}` so demo selection works without `play/.htaccess` rewrites (PHP dev server and hosts missing the runtime stub).
+
+2026-08-17 11:45 - Fix demo (and other) release page tabs missing after playlist switch: coverflow/selector now navigates to `/play/{slug}` so server-rendered Bio/Gallery tabs match the active playlist; playlist API exposes effective `release_id` and backfills empty track ownership; player falls back to playlist release when syncing tab visibility.
+
 2026-08-17 09:35 - Checkpoint fresh-install shell cleanup, player living-background playlist-switch fix, and v0.9 code-layout plan on `main` as **v0.8.28 build 402**; publish GitHub Release `v0.8.28-build-402` for Site update.
 
 2026-08-17 09:30 - Fix player shell background sticking after playlist switch: clear stale living-background video source when brand has no background_video; treat appConfig.media as authoritative in shell-background.js.

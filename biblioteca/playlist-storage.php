@@ -2232,11 +2232,23 @@ function bandpromo_playlist_load_player_response(
         $tracks = array_values(array_reverse($tracks));
     }
 
+    $effectiveReleaseId = bandpromo_playlist_effective_release_id($root, $playlistId);
+    if ($effectiveReleaseId !== '') {
+        foreach ($tracks as $index => $track) {
+            if (!is_array($track)) {
+                continue;
+            }
+            if (trim((string) ($track['release_id'] ?? '')) === '') {
+                $tracks[$index]['release_id'] = $effectiveReleaseId;
+            }
+        }
+    }
+
     return [
         'playlist_id' => $playlistId,
         'playlist_slug' => bandpromo_playlist_public_slug($root, $playlistId),
         'playlist_title' => (string) ($document['title'] ?? $playlistId),
-        'release_id' => bandpromo_release_normalize_id(trim((string) ($document['release_id'] ?? ''))),
+        'release_id' => $effectiveReleaseId,
         'brand_id' => $brandId,
         'package_type' => bandpromo_playlist_normalize_package_type((string) ($document['package_type'] ?? 'other')),
         'play_order' => bandpromo_playlist_normalize_play_order(

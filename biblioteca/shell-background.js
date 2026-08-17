@@ -13,8 +13,13 @@
 (function (global) {
     'use strict';
 
+    let attachGeneration = 0;
     let livingAttachScheduled = false;
     let livingAttached = false;
+    let pendingIdleId = null;
+    let pendingTimeoutId = null;
+    let pendingLoadHandler = null;
+    let livingAbort = null;
 
     function prefersReducedMotion() {
         try {
@@ -30,6 +35,37 @@
             return Number(connectionData.speed) || 0;
         } catch (error) {
             return 0;
+        }
+    }
+
+    function shouldDeferLivingForSpeed() {
+        // Local PHP built-in server speed samples are noisy and should not hide assigned living media.
+        if (global.BANDPROMO_LOCAL_DEV) {
+            return false;
+        }
+        const speed = connectionSpeedMbps();
+        return speed > 0 && speed < 5;
+    }
+
+    function cancelPendingAttach() {
+        attachGeneration += 1;
+        livingAttachScheduled = false;
+        livingAttached = false;
+        if (pendingIdleId !== null && typeof global.cancelIdleCallback === 'function') {
+            global.cancelIdleCallback(pendingIdleId);
+            pendingIdleId = null;
+        }
+        if (pendingTimeoutId !== null) {
+            global.clearTimeout(pendingTimeoutId);
+            pendingTimeoutId = null;
+        }
+        if (pendingLoadHandler) {
+            global.removeEventListener('load', pendingLoadHandler);
+            pendingLoadHandler = null;
+        }
+        if (livingAbort) {
+            livingAbort.abort();
+            livingAbort = null;
         }
     }
 
@@ -55,6 +91,14 @@
         return String(source?.getAttribute('src') || source?.getAttribute('data-src') || '').trim();
     }
 
+    function currentVideoSourceUrl(video) {
+        if (!(video instanceof HTMLVideoElement)) {
+            return '';
+        }
+        const source = video.querySelector('source');
+        return String(source?.getAttribute('src') || video.getAttribute('src') || '').trim();
+    }
+
     function clearVideoSource(video) {
         if (!(video instanceof HTMLVideoElement)) {
             return;
@@ -65,11 +109,24 @@
             source.removeAttribute('data-src');
         }
         video.removeAttribute('data-src');
+        video.removeAttribute('src');
         try {
             video.load();
         } catch (error) {
             // Ignore reload failures.
         }
+    }
+
+    function ensureLoopingMuted(video) {
+        if (!(video instanceof HTMLVideoElement)) {
+            return;
+        }
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.setAttribute('muted', '');
+        video.setAttribute('loop', '');
+        video.setAttribute('playsinline', '');
     }
 
     function ensureVideoSource(video) {
@@ -162,6 +219,128 @@
         probe.src = preferred;
     }
 
+    function shouldRestartFromStart(video) {
+        if (!(video instanceof HTMLVideoElement)) {
+            return false;
+        }
+        if (video.ended) {
+            return true;
+        }
+        const duration = Number(video.duration);
+        if (!Number.isFinite(duration) || duration <= 0) {
+            return false;
+        }
+        return video.currentTime >= duration - 0.15;
+    }
+
+    function restartLivingPlayback(video) {
+        if (!(video instanceof HTMLVideoElement)) {
+            return;
+        }
+        ensureLoopingMuted(video);
+        if (shouldRestartFromStart(video)) {
+            try {
+                video.currentTime = 0;
+            } catch (error) {
+                // Seeking can fail before metadata; play() may still restart.
+            }
+        }
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+                // Autoplay can fail until a gesture; keep video visible for retry.
+            });
+        }
+    }
+
+    function maintainShellVideoLoop(video) {
+        if (!(video instanceof HTMLVideoElement) || video.hidden || video.style.display === 'none') {
+            return;
+        }
+        const duration = Number(video.duration);
+        if (!Number.isFinite(duration) || duration <= 0) {
+            return;
+        }
+        if (video.currentTime < duration - 0.25) {
+            return;
+        }
+        ensureLoopingMuted(video);
+        if (shouldRestartFromStart(video)) {
+            try {
+                video.currentTime = 0;
+            } catch (error) {
+                // Ignore seek failures; ended handler may still recover.
+            }
+            if (video.paused || video.ended) {
+                restartLivingPlayback(video);
+            }
+        }
+    }
+
+    function bindLivingPlayback(video, generation) {
+        if (livingAbort) {
+            livingAbort.abort();
+        }
+        livingAbort = new AbortController();
+        const { signal } = livingAbort;
+        ensureLoopingMuted(video);
+
+        video.addEventListener('ended', () => {
+            if (generation !== attachGeneration) {
+                return;
+            }
+            try {
+                video.currentTime = 0;
+            } catch (error) {
+                // Ignore seek failures.
+            }
+            restartLivingPlayback(video);
+        }, { signal });
+
+        video.addEventListener('timeupdate', () => {
+            if (generation !== attachGeneration) {
+                return;
+            }
+            maintainShellVideoLoop(video);
+        }, { signal });
+
+        let retries = 0;
+        const onError = () => {
+            if (generation !== attachGeneration) {
+                return;
+            }
+            const url = resolveBackgroundVideoUrl(video);
+            if (!url) {
+                showBgImage();
+                return;
+            }
+            if (retries < 2) {
+                retries += 1;
+                try {
+                    video.currentTime = 0;
+                } catch (error) {
+                    // Ignore seek failures.
+                }
+                restartLivingPlayback(video);
+                return;
+            }
+            try {
+                video.pause();
+            } catch (error) {
+                // Ignore pause failures.
+            }
+            video.style.display = 'none';
+            document.body.classList.remove('shell-bg-video');
+            livingAttached = false;
+            showBgImage();
+        };
+        video.addEventListener('error', onError, { signal });
+        const source = video.querySelector('source');
+        if (source) {
+            source.addEventListener('error', onError, { signal });
+        }
+    }
+
     function showBgVideo() {
         const video = document.getElementById('bg-video');
         if (!video) {
@@ -178,29 +357,8 @@
         video.style.display = 'block';
         clearBodyBackgroundImage();
         document.body.classList.add('shell-bg-video');
-
-        const fallbackToImage = () => {
-            showBgImage();
-        };
-        video.addEventListener('error', fallbackToImage, { once: true });
-        const bgVideoSource = video.querySelector('source');
-        if (bgVideoSource) {
-            bgVideoSource.addEventListener('error', () => {
-                try {
-                    video.load();
-                } catch (error) {
-                    // Ignore reload failures.
-                }
-                fallbackToImage();
-            }, { once: true });
-        }
-
-        const playPromise = video.play();
-        if (playPromise && typeof playPromise.catch === 'function') {
-            playPromise.catch(() => {
-                // Autoplay can fail until a gesture; keep video visible for retry.
-            });
-        }
+        bindLivingPlayback(video, attachGeneration);
+        restartLivingPlayback(video);
     }
 
     function scheduleLivingBackgroundAttach() {
@@ -208,36 +366,39 @@
             return;
         }
         livingAttachScheduled = true;
+        const generation = attachGeneration;
 
         const run = () => {
-            if (prefersReducedMotion()) {
+            if (generation !== attachGeneration) {
                 return;
             }
-            const speed = connectionSpeedMbps();
-            if (speed > 0 && speed < 5) {
+            if (prefersReducedMotion() || shouldDeferLivingForSpeed()) {
                 return;
             }
             showBgVideo();
         };
 
         const afterLoad = () => {
-            if (typeof global.requestIdleCallback === 'function') {
-                global.requestIdleCallback(run, { timeout: 3000 });
+            if (generation !== attachGeneration) {
                 return;
             }
-            global.setTimeout(run, 500);
+            if (typeof global.requestIdleCallback === 'function') {
+                pendingIdleId = global.requestIdleCallback(run, { timeout: 3000 });
+                return;
+            }
+            pendingTimeoutId = global.setTimeout(run, 500);
         };
 
         if (document.readyState === 'complete') {
             afterLoad();
             return;
         }
+        pendingLoadHandler = afterLoad;
         global.addEventListener('load', afterLoad, { once: true });
     }
 
     function resetLivingAttach() {
-        livingAttachScheduled = false;
-        livingAttached = false;
+        cancelPendingAttach();
         const video = document.getElementById('bg-video');
         if (!(video instanceof HTMLVideoElement)) {
             return;
@@ -255,11 +416,14 @@
 
     function updateBackground(options) {
         const force = !!(options && options.force);
-        if (force) {
+        const video = document.getElementById('bg-video');
+        const nextUrl = resolveBackgroundVideoUrl(video);
+        const currentUrl = currentVideoSourceUrl(video);
+
+        if (force && currentUrl !== nextUrl) {
             resetLivingAttach();
         }
 
-        const video = document.getElementById('bg-video');
         if (!video) {
             const hasImageSource = !!(global.appConfig?.media?.background_image);
             if (hasImageSource) {
@@ -268,11 +432,10 @@
             return;
         }
 
-        const hasVideoSource = !!resolveBackgroundVideoUrl(video);
+        const hasVideoSource = !!nextUrl;
         const hasImageSource = !!(global.appConfig?.media?.background_image);
         const reduceMotion = prefersReducedMotion();
 
-        // Always paint still first when available — living MP4 attaches after load.
         if (reduceMotion || !hasVideoSource) {
             if (hasImageSource || reduceMotion || !hasVideoSource) {
                 showBgImage();
@@ -280,13 +443,25 @@
             return;
         }
 
-        // Prefer living when assigned (still paints first; video attaches idle).
-        const speed = connectionSpeedMbps();
-        if (speed > 0 && speed < 5) {
+        if (shouldDeferLivingForSpeed()) {
             if (hasImageSource || !hasVideoSource) {
                 showBgImage();
                 return;
             }
+        }
+
+        // Same living URL already attached — keep looping instead of tearing down.
+        if (livingAttached && currentUrl === nextUrl && currentUrl !== '') {
+            video.style.display = 'block';
+            clearBodyBackgroundImage();
+            document.body.classList.add('shell-bg-video');
+            if (!livingAbort) {
+                bindLivingPlayback(video, attachGeneration);
+            }
+            if (video.paused || video.ended) {
+                restartLivingPlayback(video);
+            }
+            return;
         }
 
         showBgImage();
