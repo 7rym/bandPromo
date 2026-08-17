@@ -1652,29 +1652,33 @@ function bandpromo_release_admin_registry_entry(string $root, array $registryEnt
 function bandpromo_release_visible_in_admin_catalog(string $root, array $entry): bool
 {
     $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
-    if (!bandpromo_demo_catalog_entity_is_visible($root, $releaseId)) {
+    // primary is the invisible orphan/upload bucket — never an operator-facing campaign.
+    if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
         return false;
     }
-    if ($releaseId !== BANDPROMO_RELEASE_DEFAULT_ID) {
-        return true;
-    }
-    if ((int) ($entry['track_count'] ?? 0) > 0) {
-        return true;
-    }
-
-    foreach (bandpromo_release_registry_entries($root) as $candidate) {
-        if (!is_array($candidate)) {
-            continue;
-        }
-        $candidateId = bandpromo_release_normalize_id((string) ($candidate['id'] ?? ''));
-        if ($candidateId === '' || $candidateId === BANDPROMO_RELEASE_DEFAULT_ID || $candidateId === BANDPROMO_RELEASE_DEMO_ID) {
-            continue;
-        }
-
+    if (!bandpromo_demo_catalog_entity_is_visible($root, $releaseId)) {
         return false;
     }
 
     return true;
+}
+
+/**
+ * First operator-visible catalogue release id (never primary).
+ */
+function bandpromo_release_default_admin_content_id(string $root): string
+{
+    foreach (bandpromo_release_admin_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $id = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        if ($id !== '') {
+            return $id;
+        }
+    }
+
+    return '';
 }
 
 function bandpromo_release_admin_registry_entries(string $root): array

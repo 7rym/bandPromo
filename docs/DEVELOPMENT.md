@@ -4,6 +4,8 @@ This guide is for developers, maintainers, and server administrators working wit
 
 The product's preferred install story is the bootstrap installer plus published release packages. The repository/manual path still works, but it is a developer fallback rather than the main operator workflow.
 
+**Code layout (v0.9 candidate):** application code is split across `biblioteca/`, `scripts/`, and root `vendor/` today. A consolidated `/lib` tree and `/admin/` entry (mirroring `/play/`) is planned for v0.9 evaluation — see [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md). Do not start during v0.8 polish.
+
 ## Manual Repository Install
 
 Use this path when you are working from the source tree instead of the published bootstrap package flow.

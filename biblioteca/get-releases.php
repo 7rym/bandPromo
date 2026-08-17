@@ -21,9 +21,23 @@ try {
         $demoReleaseId = BANDPROMO_RELEASE_DEMO_ID;
     }
 
+    $defaultAdminReleaseId = '';
+    foreach ($releases as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $candidateId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        if ($candidateId !== '') {
+            $defaultAdminReleaseId = $candidateId;
+            break;
+        }
+    }
+
     echo json_encode([
         'ok' => true,
-        'default_release_id' => BANDPROMO_RELEASE_DEFAULT_ID,
+        // Operator-facing default is the first visible campaign — never the invisible primary orphan bucket.
+        'default_release_id' => $defaultAdminReleaseId,
+        'orphan_release_id' => BANDPROMO_RELEASE_DEFAULT_ID,
         'demo_release_id' => $demoReleaseId,
         'demo_catalog_visible' => bandpromo_demo_catalog_is_visible($root),
         'demo_release_hidden' => bandpromo_demo_release_is_hidden($root),

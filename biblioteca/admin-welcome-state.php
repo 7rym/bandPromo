@@ -272,9 +272,34 @@ function bandpromo_admin_core_setup_complete(array $checklist): bool
     return true;
 }
 
+function bandpromo_admin_install_has_operator_brand(string $root): bool
+{
+    bandpromo_brand_ensure_seeded($root);
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (!is_array($entry) || !empty($entry['system'])) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($brandId !== '') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function bandpromo_admin_build_post_setup_suggestions(string $root): array
 {
     $suggestions = [];
+
+    if (!bandpromo_admin_install_has_operator_brand($root)) {
+        $suggestions[] = [
+            'label' => 'Duplicate the demo brand',
+            'href' => '?tab=content&cntab=themes',
+            'severity' => 'nonblocking',
+            'description' => 'Base brand is still the locked bandPromo Default. Duplicate it in Content → Branding when you want an editable shell of your own.',
+        ];
+    }
 
     if (!bandpromo_demo_catalog_install_has_operator_content($root)) {
         $suggestions[] = [
@@ -367,12 +392,6 @@ function bandpromo_admin_welcome_state(string $root): array
 {
     bandpromo_demo_catalog_restore_if_operator_campaign_gone($root);
     bandpromo_admin_write_inferred_starter_pack_marker($root);
-
-    try {
-        bandpromo_brand_ensure_operator_brand($root);
-    } catch (Throwable $throwable) {
-        // Welcome should still render if brand auto-provision fails.
-    }
 
     // Once first-install is done, never recompute the checklist (Dashboard speed + no reopen).
     if (bandpromo_admin_is_core_setup_latched($root)) {

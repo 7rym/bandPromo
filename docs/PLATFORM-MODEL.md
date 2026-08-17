@@ -44,7 +44,7 @@ Containers reference assets; assets point at files. Operators edit containers an
 
 | Platform provides | Purpose | Examples |
 |-------------------|---------|----------|
-| **Shell** | Site must never break | Player layout, login, install fallbacks (`bandPromo_logo.png`, etc.) |
+| **Shell** | Site must never break | Player chrome (Playlist + Lyrics + release page tabs), login, install fallbacks (`bandPromo_logo.png`, etc.) |
 | **Starter campaign** | First-run "it works" | `bandPromo-demo.prp` imported at setup → normal release + owned containers/assets |
 
 Operators inherit the starter campaign, may **hide** it ("Hide demo catalog") or **duplicate** it as a template, and replace it with their own containers. That is different from authoring the platform demo.
@@ -147,7 +147,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.prp`** as install **base shell**; locked after import (localhost may edit for PRP authoring); remains login/fallback until the operator selects another base. Shell media under Files → Brand assets / Sound effects stays listable while brands reference it (not folded into Hide demo catalog). |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.prp`** as install **base shell**; locked after import (localhost may edit for PRP authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Shell media under Files → Brand assets / Sound effects stays listable while brands reference it (not folded into Hide demo catalog). |
 
 Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
@@ -155,16 +155,16 @@ Selecting a playlist applies that release’s **CSS tokens and visual shell** (l
 
 **Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`), cover reflection (`player.cover_reflection`, default `true`), and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live on the **Base brand** document and travel with brands/PRPs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colors. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
-**Player nav — locked target (implement with PRP slice):**
+**Player nav (shipped):**
 
 | | Rule |
 |--|------|
 | Shell | Playlists + Lyrics/Notes always |
-| Campaign pages | Tabs for pages owned by the **current track’s `release_id`** (`show_in_player`). **Idle player** (nothing playing): **no** campaign page tabs |
+| Campaign pages | Tabs for pages associated to the **playing playlist’s release** (Release editor → Pages; association order = tab order). Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that release has no owned pages |
 | Gallery | Demo (and operator) **Gallery page** with a gallery block; not a separate mandatory module tab |
 | FAQ | **System-owned** install page — login/platform help; **not** in any PRP; survives hide-demo |
 
-Associating a page to a release enables contextual tabs when that release’s track is playing (implementation in progress with PRP).
+Content → **Player layout** is retired (URLs redirect to Catalogue). Brand chrome lives under Branding.
 
 **Duplicate campaign (same install):** New container/brand/release ids; **shared** media `ast_*`; cannot delete an asset while multiple containers reference it. **Import** between installs **keeps** ids. See [PORTABILITY.md](PORTABILITY.md).
 

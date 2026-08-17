@@ -421,7 +421,8 @@ if ($supportUrl !== '') {
             <?php
             require_once dirname(__DIR__) . '/biblioteca/player-modules.php';
             $playerRoot = dirname(__DIR__);
-            $playerTabs = bandpromo_player_content_tabs($playerRoot, $operatorBypass);
+            $playerReleaseId = bandpromo_playlist_effective_release_id($playerRoot, $activePlaylistId);
+            $playerTabs = bandpromo_player_content_tabs($playerRoot, $operatorBypass, $playerReleaseId);
             $defaultPlayerView = bandpromo_player_default_view();
             $hasDefaultView = false;
             foreach ($playerTabs as $playerTab) {

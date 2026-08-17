@@ -499,7 +499,13 @@ if ($welcomeSetupComplete) {
 
 // Analytics sub-tab
 $analyticsTab = $_GET['atab'] ?? 'dashboard';
-if (!in_array($analyticsTab, ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'quality', 'log'])) {
+if ($analyticsTab === 'quality') {
+    header('Location: /admin.php?tab=analytics&atab=dashboard'
+        . (isset($_GET['date_start']) ? '&date_start=' . rawurlencode((string) $_GET['date_start']) : '')
+        . (isset($_GET['date_end']) ? '&date_end=' . rawurlencode((string) $_GET['date_end']) : ''));
+    exit;
+}
+if (!in_array($analyticsTab, ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'log'], true)) {
     $analyticsTab = 'dashboard';
 }
 
@@ -514,7 +520,11 @@ $contentTab = $_GET['cntab'] ?? 'release';
 if ($contentTab === 'bio') {
     $contentTab = 'pages';
 }
-if (!in_array($contentTab, ['release', 'playlist', 'gallery', 'pages', 'themes', 'player'], true)) {
+if (!in_array($contentTab, ['release', 'playlist', 'gallery', 'pages', 'themes'], true)) {
+    if ($contentTab === 'player') {
+        header('Location: /admin.php?tab=content&cntab=release');
+        exit;
+    }
     $contentTab = 'release';
 }
 
@@ -545,12 +555,12 @@ if ($tab === 'content') {
     if ($contentRelease !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentRelease)) {
         $contentRelease = '';
     }
-    if ($contentRelease === '') {
+    if ($contentRelease === '' || $contentRelease === BANDPROMO_RELEASE_DEFAULT_ID) {
         try {
             bandpromo_release_ensure_seeded(__DIR__);
-            $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
+            $contentRelease = bandpromo_release_default_admin_content_id(__DIR__);
         } catch (Throwable $throwable) {
-            $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
+            $contentRelease = '';
         }
     }
     $contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((string) $_GET['gallery']) : '';
@@ -572,16 +582,12 @@ if ($tab === 'content') {
     if (!is_string($contentPage) || !array_key_exists($contentPage, $editablePages)) {
         $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
     }
-    $playerLayoutState = $contentTab === 'player'
-        ? bandpromo_player_layout_admin_state(__DIR__)
-        : ['locked' => [], 'active' => [], 'available' => []];
 } else {
     $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
     $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
-    $contentRelease = BANDPROMO_RELEASE_DEFAULT_ID;
+    $contentRelease = '';
     $contentGallery = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_GALLERY_DEMO_ID : '';
     $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
-    $playerLayoutState = ['locked' => [], 'active' => [], 'available' => []];
 }
 $activeContentPage = $editablePages[$contentPage];
 $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
@@ -653,7 +659,6 @@ $platformStats = [
     'unique_users' => 0,
     'total_sessions' => 0,
     'device_breakdown' => [],
-    'quality_estimate' => [],
     'hourly_distribution' => [],
     'daily_distribution' => [],
     'activity_types' => [],
@@ -680,7 +685,7 @@ if ($tab === 'analytics') {
     <?php if ($tab === 'analytics'): ?>
     <script src="vendor/chart.js/chart.umd.min.js?v=<?php echo filemtime(__DIR__ . '/vendor/chart.js/chart.umd.min.js'); ?>"></script>
     <?php endif; ?>
-    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-content.css'); ?>">
     <?php endif; ?>
     <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
@@ -891,7 +896,6 @@ if ($tab === 'analytics') {
                 <?php renderSubTabLink('tracks',            $analyticsTab, '🎵', 'Hitlist',     $tab, $dateStart, $dateEnd); ?>
                 <?php renderSubTabLink('user-activities',   $analyticsTab, '👤', 'Activities',  $tab, $dateStart, $dateEnd); ?>
                 <?php renderSubTabLink('listening-patterns',$analyticsTab, '🧩', 'Patterns',    $tab, $dateStart, $dateEnd); ?>
-                <?php renderSubTabLink('quality',           $analyticsTab, '⚡', 'Quality',     $tab, $dateStart, $dateEnd); ?>
                 <?php renderSubTabLink('log',               $analyticsTab, '📋', 'Log',         $tab, $dateStart, $dateEnd); ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-analytics" onclick="toggleHelp('analytics')" title="Show/hide help">ⓘ</button>
             </div>
@@ -1016,48 +1020,6 @@ if ($tab === 'analytics') {
                     <?php endif; ?>
                 </tbody>
             </table>
-
-            <!-- Quality -->
-            <?php elseif ($analyticsTab === 'quality'): ?>
-            <?php $qualityStats = $analytics->getQualityStats($dateStart, $dateEnd); ?>
-            <?php renderFilterBar('analytics', $dateStart, $dateEnd, 'quality'); ?>
-            <?php
-                $total   = $qualityStats['real_data_entries'] + $qualityStats['inferred_entries'];
-                $realPct = $total > 0 ? round($qualityStats['real_data_entries'] / $total * 100) : 0;
-                [$originalListenValue, $originalListenUnit] = PlaybackAnalytics::formatTimeStat($qualityStats['original_listening_time']);
-                [$optimizedListenValue, $optimizedListenUnit] = PlaybackAnalytics::formatTimeStat($qualityStats['lq_listening_time']);
-            ?>
-            <p class="hint">
-                Quality sourced from player logs (direct).
-                <?php if ($qualityStats['inferred_entries'] > 0): ?>
-                    <?php echo $realPct; ?>% of entries have real quality data;
-                    <?php echo 100 - $realPct; ?>% fall back to device-type inference (legacy logs).
-                <?php else: ?>
-                    All entries have real quality data.
-                <?php endif; ?>
-            </p>
-            <div class="stats-grid">
-                <?php renderStatCard('Original', number_format($qualityStats['original'])); ?>
-                <?php renderStatCard('Optimized', number_format($qualityStats['lq'])); ?>
-                <?php renderStatCard('Original Listen Time', $originalListenValue, $originalListenUnit); ?>
-                <?php renderStatCard('Optimized Listen Time', $optimizedListenValue, $optimizedListenUnit); ?>
-            </div>
-            <div class="section">
-                <h2>Quality Breakdown by Device</h2>
-                <table>
-                    <thead><tr><th>Device</th><th>Original</th><th>Optimized</th><th>Original %</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($qualityStats['by_device'] as $device => $counts): ?>
-                        <tr>
-                            <td><?php echo getDeviceBadge($device); ?></td>
-                            <td><?php echo number_format($counts['original']); ?></td>
-                            <td><?php echo number_format($counts['lq']); ?></td>
-                            <td><?php echo formatQualityPercentage($counts['original'], $counts['lq']); ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
 
             <!-- Log -->
             <?php elseif ($analyticsTab === 'log'): ?>
@@ -1515,7 +1477,6 @@ if ($tab === 'analytics') {
                     'gallery'  => ['🖼️', 'Galleries'],
                     'pages'    => ['📝', 'Pages'],
                     'themes'   => ['🎨', 'Branding'],
-                    'player'   => ['🎛️', 'Player'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
                     $active = $ct === $contentTab ? 'active' : '';
@@ -1550,11 +1511,9 @@ if ($tab === 'analytics') {
                 <?php elseif ($contentTab === 'gallery'): ?>
                     Galleries are owned by a release. Preview from the pool; edit to reorder. Shift/Ctrl-click multi-select; name and alt edit inline. No build required.
                 <?php elseif ($contentTab === 'pages'): ?>
-                    Campaign pages (for example Bio) are owned by a release. FAQ is required for the login info lightbox. Today, other pages appear in the player only when enabled under Content → Player (site-wide). Target: also show pages associated to the playing track’s release.
+                    Campaign pages (for example Bio) are owned by a release. FAQ is required for the login info lightbox. Optional pages appear in the player when associated under Catalogue → Release editor → Pages (order there is the player tab order for that campaign).
                 <?php elseif ($contentTab === 'themes'): ?>
-                    Branding has two layers. <strong>Base</strong> is the site default for login and shell media (logo, backgrounds, welcome sounds). A <strong>release brand</strong> (set on the Catalogue release) can override player colors and fonts when that release’s playlist is playing — tracks do not carry their own brand. Shell media still follow Base until per-release shell override ships. Duplicate <em>bandPromo Default</em> to customize (it stays locked). Saving Base writes shell paths into site config.
-                <?php elseif ($contentTab === 'player'): ?>
-                    Choose Still or Living for the player shell background, then arrange layout tabs. Playlist and Lyrics always stay first. Optional pages here are global (always on). Assign still/living media under Content → Branding. Shift/Ctrl-click moves multiple items together.
+                    Branding has two layers. <strong>Base</strong> is the site default for login and shell media (logo, backgrounds, welcome sounds). A <strong>release brand</strong> (set on the Catalogue release) can override player colors and fonts when that release’s playlist is playing — tracks do not carry their own brand. Shell media still follow Base until per-release shell override ships. On a fresh install Base is locked <em>bandPromo Default</em> until you duplicate it to customize. Saving Base writes shell paths into site config.
                 <?php endif; ?>
             </div>
 
@@ -2209,43 +2168,6 @@ if ($tab === 'analytics') {
                                 <div class="theme-editor-preview-frame" id="themeEditorPreview">
                                     <p class="theme-editor-empty">No theme selected.</p>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <?php elseif ($contentTab === 'player'): ?>
-            <div class="card content-editor-card" id="playerLayoutCard"
-                 data-layout="<?php echo htmlspecialchars(json_encode($playerLayoutState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🎛️ Player layout</h3>
-
-                <div class="player-layout-editor" id="playerLayoutEditor">
-                    <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--pool">
-                                <h4 class="player-layout-col-title">Available content</h4>
-                                <?php echo $poolHeadSpacerHtml; ?>
-                            </div>
-                            <div class="player-layout-panel-body">
-                                <ol class="playlist-editor player-layout-list player-layout-pool-list" id="playerLayoutAvailableList" aria-label="Available content"></ol>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--active">
-                                <h4 class="player-layout-col-title">
-                                    Player layout <span class="player-layout-count" id="playerLayoutActiveCount"></span>
-                                </h4>
-                                <div class="player-layout-save-row">
-                                    <button type="button" class="btn" id="savePlayerLayoutBtn" hidden>💾 Save player layout</button>
-                                </div>
-                            </div>
-                            <div class="player-layout-panel-body">
-                                <p class="hint player-layout-hint">Playlist and Lyrics are fixed at the top. Drag to reorder optional content. Shift-click or Ctrl/Cmd-click to select multiple items. Move selections back to Available content to remove them from the player.</p>
-                                <ol class="playlist-editor player-layout-list" id="playerLayoutActiveList" aria-label="Player layout"></ol>
                             </div>
                         </div>
                     </div>
@@ -3406,7 +3328,7 @@ if ($tab === 'analytics') {
     <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
     <script src="biblioteca/theme-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-editor.js'); ?>"></script>
     <?php endif; ?>
-    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'player'], true)): ?>
+    <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="biblioteca/content-admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-admin.js'); ?>"></script>
     <?php endif; ?>
 

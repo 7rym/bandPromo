@@ -2,7 +2,7 @@
 
 Source of truth for how bandPromo stores, queries, and retains listener activity and admin audit events.
 
-**Status:** rollup maintainer, client batching, admin export, and retention shipped (2026-07-13). Drill-down tabs (patterns, quality, raw log) still scan raw events where rollups are insufficient.
+**Status:** rollup maintainer, client batching, admin export, and retention shipped (2026-07-13). Drill-down tabs (patterns, raw log) still scan raw events where rollups are insufficient. Analytics → Quality (Original vs Optimized) is retired — public playback is delivery-optimal only.
 
 Related: [ACCESS-MODEL.md](ACCESS-MODEL.md) (time semantics), [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) (offline log sync), [PORTABILITY.md](PORTABILITY.md) (backup/export).
 
@@ -111,5 +111,5 @@ If import fails, block analytics with a plain-language admin notice and keep leg
 - [x] New listener and audit events write only through `activity-store.php` → SQLite.
 - [x] Existing installs can import legacy daily JSONL logs without data loss (one-shot import + delete).
 - [x] Bootstrap and setup preflight require `pdo_sqlite`.
-- [x] Admin dashboard for a 30-day range reads rollups for hot-path cards (dashboard, hitlist, activities); patterns/quality/log tabs still use raw events where needed.
+- [x] Admin dashboard for a 30-day range reads rollups for hot-path cards (dashboard, hitlist, activities); patterns/log tabs still use raw events where needed.
 - [x] Documented retention and export path for operators.

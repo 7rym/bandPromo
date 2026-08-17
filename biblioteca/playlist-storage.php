@@ -137,15 +137,13 @@ function bandpromo_playlist_document_path(string $root, string $playlistId): str
 }
 
 /**
- * Player brand for a playlist: owning release’s brand, else install Base.
- * When playlist.release_id is empty but all entries share one release, use that
- * release (heals orphan ownership so release brand_id reaches /play).
+ * Owning release for a playlist (explicit release_id, else inferred from track membership).
  */
-function bandpromo_playlist_effective_brand_id(string $root, string $playlistId): string
+function bandpromo_playlist_effective_release_id(string $root, string $playlistId): string
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);
     if ($playlistId === '') {
-        return bandpromo_brand_active_id($root);
+        return '';
     }
 
     try {
@@ -157,11 +155,23 @@ function bandpromo_playlist_effective_brand_id(string $root, string $playlistId)
                 bandpromo_release_ownership_infer_from_playlist_entries($root, $document)
             );
         }
-        if ($releaseId !== '') {
-            return bandpromo_release_effective_brand_id($root, $releaseId);
-        }
+
+        return $releaseId;
     } catch (Throwable $throwable) {
-        // Fall back to install base brand.
+        return '';
+    }
+}
+
+/**
+ * Player brand for a playlist: owning release’s brand, else install Base.
+ * When playlist.release_id is empty but all entries share one release, use that
+ * release (heals orphan ownership so release brand_id reaches /play).
+ */
+function bandpromo_playlist_effective_brand_id(string $root, string $playlistId): string
+{
+    $releaseId = bandpromo_playlist_effective_release_id($root, $playlistId);
+    if ($releaseId !== '') {
+        return bandpromo_release_effective_brand_id($root, $releaseId);
     }
 
     return bandpromo_brand_active_id($root);

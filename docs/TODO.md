@@ -117,7 +117,10 @@ Policy — **locked**:
 - [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era). *(Superseded 2026-07-21: Release is the campaign umbrella; album/single packages are playlists under one release; brand identity is owned by that release.)*
 - [x] Lock **Release = campaign umbrella** (2026-07-21) — owns tracks, identity, EPK, galleries, pages; Playlist = streaming listening product. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
 - [x] Lock **release cover on release**: `poster_asset_id` picked from Visual pool with brand filter; not stored inside the brand document.
-- [x] Lock **install default brand**: seed locked `bandpromo-default` on first install; auto-duplicate to editable operator brand (`Your own brand`).
+- [x] Lock **install default brand**: seed locked `bandpromo-default` on first install. Operators duplicate to customize (no auto “Your own brand” on setup).
+- [x] Hide invisible `primary` orphan/upload bucket from Catalogue (operator-facing lists).
+- [x] Release-contextual player page tabs; retire Content → Player layout.
+- [x] Remove Analytics → Quality (optimal-only delivery).
 - [x] Lock **upload role tagging**: contextual uploads inherit role + brand; bulk Visual uploads default to `role: unassigned` — never block upload on role selection.
 - [x] Lock **`special` is legacy intake only**, not a brand role — migrate `media/special/` into Visual pool with explicit role tags.
 - [x] Lock **system shell vs brand overlay**: platform owns layout and dark-shell baseline; brand replaces enumerated identity slots only; broken brand degrades to default, not a broken site (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands).
@@ -129,7 +132,8 @@ Implementation order:
 - [x] **Release editor brand picker** — `brand_id` on releases; inherit install default when empty.
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
-- [x] **Welcome nudge** — auto-provision editable operator brand from bandPromo Default; post-setup suggestions for media, FAQ, Pages, and backup import.
+- [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalog, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
+- [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls. Release Pages associations own player tab order; Player layout tab retired.
 - [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
 ### Analytics and activity log storage (v0.8 data foundation)
@@ -425,7 +429,7 @@ Priority 2 — page editor and presentation (**complete**):
 
 Priority 3a — Content editors and delivery automation (**complete**):
 
-- [x] Unify Content editors (Playlist, Gallery, Pages, Player layout) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls.
+- [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls (Player layout retired; release Pages associations own tab order).
 - [x] Auto-run upload-time delivery tasks (audio, image, video) and gate Content pools on delivery-ready assets.
 - [x] Surface background video delivery progress and failures in Notifications instead of blocking uploads.
 - [x] **Force-stop stuck video delivery** — false “done” without posters could auto-requeue forever and stall Site update; require poster for success, pause incomplete retries, Notifications → Stop retrying, and auto-clear running jobs before package install (2026-07-15).
@@ -478,6 +482,21 @@ Transitional schema work (in progress):
 - [x] Define which theme and asset fields are install defaults, which are release overrides, and which may be overridden per track.
 - [x] Implement runtime compatibility reads so scoped config keys can fall back to current single-release fields.
 - [x] Implement dual-write admin saves for transitional fields during the schema migration window.
+
+### Code layout refactor (v0.9 candidate — plan only)
+
+Policy — **deferred from v0.8**; full plan in [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md). Re-evaluate at v0.9 kickoff after v0.8 exit gate.
+
+- [ ] Lock **scope** — `/lib` consolidation + `/admin/` entry (mirror `/play/`); keep `/biblioteca/` as stable public URL alias unless explicitly dropped.
+- [ ] Lock **scheduling** — Option A–D in plan doc (default: incremental internal `lib/` split in early v0.9; `/admin/` move after login/access URLs stable).
+- [ ] Lock **compatibility** — redirects/shims for `admin.php` and `/biblioteca/*`; release packager + service worker + fleet smoke before closing refactor checkpoint.
+
+Implementation (when scheduled — not now):
+
+- [ ] Phase 2 — split include-only PHP vs public APIs/assets under `lib/`.
+- [ ] Phase 3 — consolidate vendors (`lib/vendor/php`, `lib/vendor/js`, `lib/build/wheels`, `lib/build/site-packages`).
+- [ ] Phase 4 — relocate Python build + ffmpeg under `lib/build/`; keep `scripts/` launchers if needed.
+- [ ] Phase 5 — `admin/index.php`; redirect root `admin.php` → `/admin/`.
 
 Deferred to v0.9 (implement after v0.8 definitions are stable):
 

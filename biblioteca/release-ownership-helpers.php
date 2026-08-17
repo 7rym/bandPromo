@@ -549,6 +549,8 @@ function bandpromo_release_association_pools(string $root, string $releaseId, st
                 $owner,
                 true
             );
+            $item['sort_order'] = (int) ($meta['sort_order'] ?? 0);
+            $item['show_in_player'] = !empty($meta['show_in_player']);
             if ($owner === $releaseId) {
                 $active[] = $item;
             } elseif ($owner === '' && $item['movable']) {
@@ -556,6 +558,11 @@ function bandpromo_release_association_pools(string $root, string $releaseId, st
             }
         }
         usort($active, static function (array $left, array $right): int {
+            $order = ((int) ($left['sort_order'] ?? 0)) <=> ((int) ($right['sort_order'] ?? 0));
+            if ($order !== 0) {
+                return $order;
+            }
+
             return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
         });
         usort($available, static function (array $left, array $right): int {
@@ -661,8 +668,24 @@ function bandpromo_release_save_associations(string $root, string $releaseId, st
             bandpromo_gallery_set_release_id($root, $id, '');
         } else {
             bandpromo_page_set_release_id($root, $id, '');
+            require_once __DIR__ . '/page-registry.php';
+            bandpromo_page_update_registry_entry($root, $id, [
+                'show_in_player' => false,
+            ]);
         }
         $changed++;
+    }
+
+    if ($kind === 'pages') {
+        require_once __DIR__ . '/page-registry.php';
+        $order = 10;
+        foreach (array_keys($desired) as $pageId) {
+            bandpromo_page_update_registry_entry($root, $pageId, [
+                'show_in_player' => true,
+                'sort_order' => $order,
+            ]);
+            $order += 10;
+        }
     }
 
     $fresh = bandpromo_release_association_pools($root, $releaseId, $kind);

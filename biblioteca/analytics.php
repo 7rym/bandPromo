@@ -317,7 +317,6 @@ class PlaybackAnalytics {
             'unique_users' => [],
             'total_sessions' => 0,
             'device_breakdown' => [],
-            'quality_estimate' => [],
             'hourly_distribution' => $hourlyDistribution,
             'daily_distribution' => [],
             'activity_types' => []
@@ -349,14 +348,6 @@ class PlaybackAnalytics {
                 $stats['device_breakdown'] = $deviceBreakdown;
             }
 
-            // Quality distribution: use real data.quality when available
-            $logged = strtoupper(trim($entry['data']['quality'] ?? ''));
-            $quality = ($logged === 'ORIGINAL' || $logged === 'HQ' || $logged === 'LQ' || $logged === 'OPTIMAL') ? (($logged === 'LQ' || $logged === 'OPTIMAL') ? 'LQ' : 'ORIGINAL') : $this->inferQuality($entry['user_agent'] ?? '');
-            /** @var array<string,int> $qualityEstimate */
-            $qualityEstimate = $stats['quality_estimate'];
-            $this->incrementCounter($qualityEstimate, $quality);
-            $stats['quality_estimate'] = $qualityEstimate;
-            
             // Daily distribution (hourly chart uses rollup/query helper above)
             $entryUnix = bandpromo_entry_unix_timestamp($entry);
             if ($entryUnix > 0) {

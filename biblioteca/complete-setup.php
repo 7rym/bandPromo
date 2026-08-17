@@ -9,7 +9,6 @@ require_once __DIR__ . '/admin-api-guard.php';
 
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/setup-state.php';
-require_once __DIR__ . '/brand-storage.php';
 
 if (bandpromo_is_setup_complete()) {
     http_response_code(403);
@@ -76,11 +75,7 @@ if (file_put_contents($marker, date('c')) === false) {
     exit;
 }
 
-try {
-    bandpromo_brand_ensure_operator_brand(dirname(__DIR__));
-} catch (Throwable $throwable) {
-    // Setup can still complete; Welcome will retry brand provisioning on first admin visit.
-}
+// Base brand stays on locked bandPromo Default until the operator duplicates it in Branding.
 
 $_SESSION = [];
 

@@ -101,12 +101,16 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 
 ## Project Structure
 
-- `admin.php`: admin panel entrypoint
+Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md)):
+
+- `admin.php`: admin panel entrypoint (target: `admin/index.php` mirroring `/play/`)
 - `setup.php`: first-run/bootstrap flow
 - `play/index.php`: player UI
+- `biblioteca/`: PHP helpers, HTTP APIs, admin/player JS & CSS, seed templates (target: `lib/`)
 - `biblioteca/templates/`: tracked seed templates (including `runtime/` Apache/PHP stubs)
 - `data/`, `log/`, `backups/`, `media/`: runtime roots — **fully git-ignored**
-- `scripts/build.py`: media/build pipeline
+- `scripts/`: Python build pipeline + dev/session PowerShell (target: `lib/build/`)
+- `vendor/`: committed third-party PHP/JS (target: `lib/vendor/`)
 - `.github/workflows/`: policy and CI workflows
 
 ## Common Pitfalls

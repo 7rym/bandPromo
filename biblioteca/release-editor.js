@@ -2036,7 +2036,7 @@
                     : 'This release is locked. Membership is preview-only until you unlock it from the release list.';
                 return;
             }
-            editorHint.textContent = 'Use the section tabs to manage tracks and associated playlists, galleries, and pages. Changes save as you edit.';
+            editorHint.textContent = 'Use the section tabs to manage tracks and associated playlists, galleries, and pages. Pages associated here appear as optional player tabs (in list order) when this campaign’s playlist is playing. Changes save as you edit.';
         }
 
         async function saveReleaseSettings({ silent = false } = {}) {
@@ -2335,19 +2335,17 @@
                 const list = await window.loadReleasesCatalog();
                 data = {
                     releases: Array.isArray(list) ? list : (window.bandpromoReleasesCatalog || []),
-                    default_release_id: 'primary',
                 };
             } else if (Array.isArray(window.bandpromoReleasesCatalog) && window.bandpromoReleasesCatalog.length) {
                 data = {
                     releases: window.bandpromoReleasesCatalog,
-                    default_release_id: 'primary',
                 };
             } else {
                 data = await fetchJson('/biblioteca/get-releases.php');
             }
             releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : []);
             if (!releaseEntry(selectedReleaseId)) {
-                selectedReleaseId = releases[0]?.id || data.default_release_id || 'primary';
+                selectedReleaseId = releases[0]?.id || '';
             }
             renderReleasePoolList();
         }

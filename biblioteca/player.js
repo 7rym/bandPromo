@@ -1479,7 +1479,9 @@ function applyPlaylistShellMedia(brand) {
     const next = {
         logo: String(assets.logo || '').trim() || baseline.logo,
         background_image: String(assets.background_image || '').trim() || baseline.background_image,
-        background_video: String(assets.background_video || '').trim() || baseline.background_video,
+        background_video: Object.prototype.hasOwnProperty.call(assets, 'background_video')
+            ? String(assets.background_video || '').trim()
+            : String(baseline.background_video || '').trim(),
     };
 
     window.appConfig = window.appConfig || {};
@@ -1501,6 +1503,16 @@ function applyPlaylistShellMedia(brand) {
             bgVideo.setAttribute('data-src', next.background_video);
         } else {
             bgVideo.removeAttribute('data-src');
+            const source = bgVideo.querySelector('source');
+            if (source) {
+                source.removeAttribute('src');
+                source.removeAttribute('data-src');
+            }
+            try {
+                bgVideo.load();
+            } catch (error) {
+                // Ignore reload failures.
+            }
         }
     }
 

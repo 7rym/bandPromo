@@ -39,9 +39,10 @@
     }
 
     function resolveBackgroundVideoUrl(video) {
-        const fromConfig = String(global.appConfig?.media?.background_video || '').trim();
-        if (fromConfig) {
-            return fromConfig;
+        const media = global.appConfig?.media;
+        if (media && typeof media === 'object') {
+            // appConfig is authoritative once set (player playlist switches update it).
+            return String(media.background_video || '').trim();
         }
         if (!(video instanceof HTMLVideoElement)) {
             return '';
@@ -52,6 +53,23 @@
         }
         const source = video.querySelector('source');
         return String(source?.getAttribute('src') || source?.getAttribute('data-src') || '').trim();
+    }
+
+    function clearVideoSource(video) {
+        if (!(video instanceof HTMLVideoElement)) {
+            return;
+        }
+        const source = video.querySelector('source');
+        if (source) {
+            source.removeAttribute('src');
+            source.removeAttribute('data-src');
+        }
+        video.removeAttribute('data-src');
+        try {
+            video.load();
+        } catch (error) {
+            // Ignore reload failures.
+        }
     }
 
     function ensureVideoSource(video) {
@@ -231,6 +249,7 @@
         }
         video.style.display = 'none';
         video.removeAttribute('autoplay');
+        clearVideoSource(video);
         document.body.classList.remove('shell-bg-video');
     }
 

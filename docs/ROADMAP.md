@@ -465,7 +465,7 @@ Closed-beta feedback (2026-06-14) locked the first three implementation prioriti
 
 1. **Package updater** — **shipped** in admin (**Dashboard → Site update**).
 2. **Page editor and presentation** — **shipped** in admin (**Content → Pages**): block JSON authoring, Width/Flow picture model, rich text toolbar, live preview, and JSON-only page storage in `data/pages/`.
-3. **Content editor pool model and delivery automation** — **shipped** in admin: Playlist, Gallery, Pages, and Player layout use the shared pool/result editor; uploads auto-run delivery tasks; Content pools gate on delivery-ready assets; Notifications surfaces background video work.
+3. **Content editor pool model and delivery automation** — **shipped** in admin: Playlist, Gallery, Pages, and Catalogue release associations use the shared pool/result editor; uploads auto-run delivery tasks; Content pools gate on delivery-ready assets; Notifications surfaces background video work. Content → Player layout retired.
 4. **Platform model** — multi-playlist, multi-gallery, page composition, module boundaries, playback/delivery architecture, and stable specs for later access and distribution work.
 
 ### What v0.8 delivers vs defines
@@ -475,7 +475,7 @@ Closed-beta feedback (2026-06-14) locked the first three implementation prioriti
 | Pages | Block-based editor, page registry, player-styled preview, unified pool/result Content editor UX | Module block types (gallery layouts, news, etc.) |
 | Playlists | Single-library pool/result editor with delivery-ready gates; multiple playlist libraries + player selector (in progress) | Access rules per tier (see v0.9) |
 | Galleries | Single-library pool/result editor with delivery-ready gates; multiple gallery libraries (in progress) | Gallery module blocks on pages (grid/carousel/parallax); remove Gallery player tab |
-| Player | Core Playlists + Lyrics; Player layout editor; track deep links from pages (planned) | Chromecast/cast targets |
+| Player | Core Playlists + Lyrics; release-owned page tabs; track deep links from pages (planned) | Chromecast/cast targets |
 | Access | FAQ/login requirement; shared-link → login + FAQ copy | Tier enforcement, anonymous entry, VIP embargo |
 | Delivery/PWA | Upload-time background delivery; delivery-ready Content pool gates (**shipped**) | Protected delivery architecture, cache contract, full offline audio cache + cast send |
 | Brand / Visual | Brand containers (replaces Theme); Visual pool + role tags; registry visual delivery; content AI wizards | — |
@@ -500,7 +500,7 @@ Primary goals:
 Suggested scope:
 
 - admin-panel package updater workflow for hosted operators (**shipped**)
-- unified Content editor pool/result UX across Playlist, Gallery, Pages, and Player layout (**shipped**)
+- unified Content editor pool/result UX across Playlist, Gallery, Pages, and Catalogue associations (**shipped**; Player layout retired)
 - upload-time background delivery for audio, image, and video; Content pools gate on delivery-ready assets (**shipped**)
 - artist → releases → tracks model; playlists as **independent** entities that releases can reference
 - multiple playlist libraries + playlist selector in the player **Playlists** tab
@@ -551,7 +551,7 @@ Closed-beta fleet personas (Vanilla demo install, **Twisted Chronicles** band ca
 
 - **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Branding, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
 - **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
-- **Planned (player context — policy locked 2026-07-22):** release-contextual player page tabs ([PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md), [TODO.md](TODO.md)). Brand shell override (visual) and Lyrics ↔ Notes text panel role shipped.
+- **Shipped:** release-contextual player page tabs via Catalogue → Pages associations ([PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md), [TODO.md](TODO.md)). Brand shell override (visual) and Lyrics ↔ Notes text panel role shipped. Content → Player layout retired.
 - **Planned v0.8 management slice (remaining):** unified Visual tab polish; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
 - **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** (Vanilla = **bandpromo.site** / Twisted Chronicles / HITZ) to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. Fresh installs always use bandpromo.site; never wipe the local Google Drive working copy. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
@@ -742,6 +742,8 @@ Rules:
 
 Theme: public-readiness, **access-tier implementation**, user roles, and user-facing engagement services on stable v0.8 deliverables — **not** the v2 marketing machine.
 
+**Infrastructure candidate (evaluate at v0.9 open):** consolidate application code under `/lib` (PHP, public assets, templates, build tooling, vendors), move operator UI from root `admin.php` to `/admin/` (mirror `/play/`), and retire the scattered `biblioteca/` + `scripts/` + dual-`vendor` layout. Planned in [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) — **not** v0.8 work; schedule after v0.8 exit gate.
+
 Goals:
 
 - **implement** the access model defined in v0.8: admin/dev (full), VIP (pre-access via embargo schedule + per-item operator override), registered fan (released catalog), anonymous (released-only with clear login upsell)
@@ -857,6 +859,7 @@ Before opening v0.9:
 - Chromecast/cast architecture is defined against the delivery model
 - multi-release and access-model assumptions are proven enough to continue
 - theme/module direction is stable enough not to be reworked immediately
+- **optional:** review [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) and pick scheduling (v0.9 opening sprint vs incremental vs defer `/admin/` to v1.0 prep)
 
 Before calling v1.0 releaseable:
 

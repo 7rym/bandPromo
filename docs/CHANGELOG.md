@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 09:35 - Checkpoint fresh-install shell cleanup, player living-background playlist-switch fix, and v0.9 code-layout plan on `main` as **v0.8.28 build 402**; publish GitHub Release `v0.8.28-build-402` for Site update.
+
+2026-08-17 09:30 - Fix player shell background sticking after playlist switch: clear stale living-background video source when brand has no background_video; treat appConfig.media as authoritative in shell-background.js.
+
+2026-08-17 09:15 - Plan v0.9 candidate code layout refactor: consolidate under `/lib`, move operator UI to `/admin/` (mirror `/play/`), URL compatibility policy. Stored in docs/CODE-LAYOUT-REFACTOR.md; linked from ROADMAP and TODO. No implementation in v0.8.
+
+2026-08-16 23:20 - Fresh-install shell cleanup: hide invisible `primary` from Catalogue; stop auto-creating “Your own brand” (Base stays locked bandPromo Default until Duplicate); retire Content → Player layout in favor of release Pages associations for player tabs; remove Analytics → Quality (optimal-only delivery). Docs synced.
+
 2026-08-16 22:35 - Checkpoint Linux ffmpeg auto-install via ffbinaries GitHub on `main` as **v0.8.27 build 401**; trigger GitHub Release `v0.8.27-build-401` for Site update / setup rebuild on bandpromo.site.
 
 2026-08-16 22:30 - Linux ffmpeg auto-install downloads `ffmpeg` + `ffprobe` from GitHub `ffbinaries/ffbinaries-prebuilt` (pinned v6.1) instead of `johnvansickle.com`, so shared hosts that block or reset that origin can still finish Publish / setup builds.

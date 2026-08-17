@@ -254,6 +254,12 @@ function bandpromo_brand_has_operator_brand(string $root): bool
     return false;
 }
 
+/**
+ * Create an editable operator brand by duplicating bandPromo Default and set it as Base.
+ * Not called automatically on setup/Welcome — operators use Content → Branding → Duplicate.
+ *
+ * @return array|null Registry entry for the operator brand when one already exists or was created.
+ */
 function bandpromo_brand_ensure_operator_brand(string $root): ?array
 {
     bandpromo_brand_ensure_seeded($root);

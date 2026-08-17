@@ -68,12 +68,84 @@ function bandpromo_player_default_optional_tab_keys(string $root): array {
     return $keys;
 }
 
+/**
+ * Optional page tabs owned by a release (campaign Pages associations), ordered.
+ *
+ * @return list<string> Keys like page:bio
+ */
+function bandpromo_player_release_optional_tab_keys(string $root, string $releaseId): array
+{
+    require_once __DIR__ . '/page-storage.php';
+    require_once __DIR__ . '/release-storage.php';
+
+    $releaseId = bandpromo_release_normalize_id($releaseId);
+    if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+        return [];
+    }
+
+    $owned = [];
+    foreach (bandpromo_page_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $pageId = bandpromo_page_normalize_id((string) ($entry['id'] ?? ''));
+        if ($pageId === '' || $pageId === BANDPROMO_PAGE_REQUIRED_ID) {
+            continue;
+        }
+        if (($entry['surface'] ?? 'player') === 'login' || !empty($entry['required'])) {
+            continue;
+        }
+        try {
+            $doc = bandpromo_page_load_document($root, $pageId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $owner = bandpromo_release_normalize_id(trim((string) ($doc['release_id'] ?? '')));
+        if ($owner !== $releaseId) {
+            continue;
+        }
+        $owned[] = [
+            'key' => 'page:' . $pageId,
+            'sort_order' => (int) ($entry['sort_order'] ?? 0),
+            'title' => (string) ($entry['title'] ?? $pageId),
+        ];
+    }
+
+    if ($owned === []) {
+        return [];
+    }
+
+    usort($owned, static function (array $left, array $right): int {
+        $order = ($left['sort_order'] ?? 0) <=> ($right['sort_order'] ?? 0);
+        if ($order !== 0) {
+            return $order;
+        }
+
+        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+    });
+
+    return array_values(array_map(static function (array $row): string {
+        return (string) ($row['key'] ?? '');
+    }, $owned));
+}
+
 function bandpromo_player_strip_gallery_tab_keys(array $keys): array {
     return array_values(array_filter($keys, static fn(string $key): bool => $key !== 'module:gallery'));
 }
 
-function bandpromo_player_valid_optional_tab_key_set(string $root): array {
+function bandpromo_player_valid_optional_tab_key_set(string $root, ?array $allowKeys = null): array {
     $valid = [];
+
+    if (is_array($allowKeys)) {
+        foreach ($allowKeys as $key) {
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+            $valid[$key] = true;
+        }
+
+        return $valid;
+    }
 
     foreach (bandpromo_page_registry_entries($root) as $entry) {
         if (empty($entry['show_in_player'])) {
@@ -88,7 +160,12 @@ function bandpromo_player_valid_optional_tab_key_set(string $root): array {
     return $valid;
 }
 
-function bandpromo_player_tab_order_keys(string $root): array {
+function bandpromo_player_tab_order_keys(string $root, string $releaseId = ''): array {
+    $releaseKeys = bandpromo_player_release_optional_tab_keys($root, $releaseId);
+    if ($releaseKeys !== []) {
+        return bandpromo_player_strip_gallery_tab_keys($releaseKeys);
+    }
+
     $configured = get_config('player.tab_order', null);
     $candidateKeys = [];
 
@@ -130,7 +207,7 @@ function bandpromo_player_tab_order_keys(string $root): array {
     return bandpromo_player_strip_gallery_tab_keys($resolved);
 }
 
-function bandpromo_player_tab_from_key(string $root, string $key): ?array {
+function bandpromo_player_tab_from_key(string $root, string $key, bool $requireShowInPlayer = true): ?array {
     $modules = bandpromo_player_modules_config();
 
     if ($key === 'module:gallery') {
@@ -147,7 +224,10 @@ function bandpromo_player_tab_from_key(string $root, string $key): ?array {
     }
 
     $entry = bandpromo_page_registry_entry($root, $pageId);
-    if ($entry === null || empty($entry['show_in_player'])) {
+    if ($entry === null) {
+        return null;
+    }
+    if ($requireShowInPlayer && empty($entry['show_in_player'])) {
         return null;
     }
     if (($entry['surface'] ?? 'player') === 'login') {
@@ -418,7 +498,7 @@ function bandpromo_player_playlist_tab_label(string $root, bool $operatorBypass 
     return $count > 1 ? 'Playlists' : 'Playlist';
 }
 
-function bandpromo_player_content_tabs(string $root, bool $operatorBypass = false): array {
+function bandpromo_player_content_tabs(string $root, bool $operatorBypass = false, string $releaseId = ''): array {
     $modules = bandpromo_player_modules_config();
     $tabs = [];
 
@@ -438,8 +518,10 @@ function bandpromo_player_content_tabs(string $root, bool $operatorBypass = fals
         ];
     }
 
-    foreach (bandpromo_player_tab_order_keys($root) as $key) {
-        $tab = bandpromo_player_tab_from_key($root, $key);
+    $releaseKeys = bandpromo_player_release_optional_tab_keys($root, $releaseId);
+    $requireShowInPlayer = $releaseKeys === [];
+    foreach (bandpromo_player_tab_order_keys($root, $releaseId) as $key) {
+        $tab = bandpromo_player_tab_from_key($root, $key, $requireShowInPlayer);
         if ($tab !== null) {
             $tabs[] = $tab;
         }
