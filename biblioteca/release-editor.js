@@ -384,7 +384,7 @@
                 releaseCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
             }
             if (releaseCoverPreviewShell instanceof HTMLElement) {
-                releaseCoverPreviewShell.title = previewUrl ? 'Release cover' : 'No cover selected';
+                releaseCoverPreviewShell.title = previewUrl ? 'Campaign cover' : 'No cover selected';
             }
             updateReleasePosterLabel();
         }
@@ -433,7 +433,7 @@
             button.disabled = !entry || !hasTracks || creatingPlaylistFromRelease;
             button.textContent = creatingPlaylistFromRelease
                 ? 'Creating playlist…'
-                : 'Create playlist from release';
+                : 'Create playlist from campaign';
         }
 
         function hydrateLazyReleaseControls() {
@@ -600,7 +600,7 @@
             }
             const entry = releaseEntry(selectedReleaseId);
             if (!entry) {
-                releaseEditorPresskitPreview.innerHTML = '<p class="release-preview-empty">No release selected.</p>';
+                releaseEditorPresskitPreview.innerHTML = '<p class="release-preview-empty">No campaign selected.</p>';
                 return;
             }
             const metadata = readReleaseMetadataFromForm();
@@ -703,7 +703,7 @@
             }
             if (releaseEditorPreviewHeading) {
                 const headings = {
-                    base: 'Release preview',
+                    base: 'Campaign preview',
                     tracks: 'Associated tracks',
                     playlists: 'Associated playlists',
                     galleries: 'Associated galleries',
@@ -716,7 +716,7 @@
         }
 
         function renderReleasePreviewMeta(entry) {
-            const title = String(entry?.title || 'Release').trim() || 'Release';
+            const title = String(entry?.title || 'Campaign').trim() || 'Campaign';
             const date = String(entry?.release_date || '').trim();
             const summary = String(entry?.short_description || '').trim();
             if (releasePreviewTitle) {
@@ -747,7 +747,7 @@
                 : '';
 
             if (releasePreviewTitle) {
-                releasePreviewTitle.textContent = title || 'Release';
+                releasePreviewTitle.textContent = title || 'Campaign';
             }
             if (releasePreviewDate) {
                 releasePreviewDate.textContent = date;
@@ -802,7 +802,7 @@
             const brand = children.brand;
             const brandId = String(children.brand_id || brand?.id || '').trim();
             if (!brandId) {
-                return '<p class="release-preview-empty">No brand linked to this release yet.</p>';
+                return '<p class="release-preview-empty">No brand linked to this campaign yet.</p>';
             }
             const title = String(brand?.title || brandId).trim() || brandId;
             const mood = String(brand?.mood || '').trim();
@@ -900,7 +900,7 @@
             releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">Loading brand preview…</p>';
             try {
                 if (!brandId) {
-                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this release yet.</p>';
+                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this campaign yet.</p>';
                     return;
                 }
                 const url = `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`;
@@ -910,7 +910,7 @@
                 }
                 const brand = brandPreviewModelFromThemeDocument(data.document || null);
                 if (!brand) {
-                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this release yet.</p>';
+                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this campaign yet.</p>';
                     return;
                 }
                 releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding({
@@ -993,7 +993,7 @@
         async function createPlaylistFromRelease() {
             const entry = releaseEntry(selectedReleaseId);
             if (!entry || releaseTrackCount(entry) <= 0) {
-                showReleaseToast('Add tracks to the release before creating a playlist.');
+                showReleaseToast('Add tracks to the campaign before creating a playlist.');
                 return;
             }
 
@@ -1002,7 +1002,7 @@
             try {
                 const saved = await saveReleaseSettings({ silent: true });
                 if (!saved) {
-                    throw new Error('Save the release settings before creating a playlist.');
+                    throw new Error('Save the campaign settings before creating a playlist.');
                 }
 
                 const data = await fetchJson('/biblioteca/manage-playlist.php', {
@@ -1040,7 +1040,7 @@
                     }
                     window.openMediaPicker(
                         button.dataset.field || 'releaseSettingsPosterAssetId',
-                        button.dataset.title || 'Choose release cover',
+                        button.dataset.title || 'Choose campaign cover',
                         button.dataset.targets || 'illustrations,photos,special'
                     );
                 });
@@ -1372,7 +1372,7 @@
                 ? `<span class="playlist-track-meta">${escapeHtml(item.publish_date)}</span>`
                 : '';
             const removeMarkup = showRemove
-                ? '<button type="button" class="player-layout-remove-btn" title="Remove from release" aria-label="Remove from release">✕</button>'
+                ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
             const dragHandle = draggable
                 ? '<span class="playlist-drag-handle" title="Drag into release">⠿</span>'
@@ -1424,8 +1424,8 @@
                 const emptyMessage = canEdit
                     ? (active.length
                         ? `All unassigned ${labels.plural} are already associated above. Use ✕ to move one back here.`
-                        : `No unassigned ${labels.plural} are available. Create one in Content → ${labels.plural[0].toUpperCase()}${labels.plural.slice(1)}, or unassign one from another release first.`)
-                    : `${labels.associated} are preview-only while this release is locked.`;
+                        : `No unassigned ${labels.plural} are available. Create one in Content → ${labels.plural[0].toUpperCase()}${labels.plural.slice(1)}, or unassign one from another campaign first.`)
+                    : `${labels.associated} are preview-only while this campaign is locked.`;
                 releaseAssociationAvailableList.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {
                 releaseAssociationAvailableList.innerHTML = available.map((item) => renderAssociationRow(item, {
@@ -1587,7 +1587,7 @@
                     if (token !== tracksPersistToken) {
                         return false;
                     }
-                    showReleaseToast(error.message || 'Could not save release tracks', 'error');
+                    showReleaseToast(error.message || 'Could not save campaign tracks', 'error');
                     trackEditorLoadedReleaseId = '';
                     await loadReleasePreview();
                     return false;
@@ -1697,10 +1697,10 @@
         function validateReleaseDate(value) {
             const trimmed = String(value || '').trim();
             if (trimmed === '') {
-                return 'Release date is required.';
+                return 'Campaign date is required.';
             }
             if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-                return 'Release date must use YYYY-MM-DD.';
+                return 'Campaign date must use YYYY-MM-DD.';
             }
             return '';
         }
@@ -2027,13 +2027,13 @@
                 return;
             }
             if (!isEditing) {
-                editorHint.textContent = 'Select a release from the pool to preview it. Click edit to manage tracks and press kit.';
+                editorHint.textContent = 'Select a campaign from the pool to preview it. Click edit to manage tracks and press kit.';
                 return;
             }
             if (entry?.locked) {
                 editorHint.textContent = releaseIsPlatformDemo(entry) && !releaseMayChangeLock(entry)
                     ? 'bandPromo demo is locked. Duplicate it, or unlock on localhost to edit the PRP source.'
-                    : 'This release is locked. Membership is preview-only until you unlock it from the release list.';
+                    : 'This campaign is locked. Membership is preview-only until you unlock it from the campaign list.';
                 return;
             }
             editorHint.textContent = 'Use the section tabs to manage tracks and associated playlists, galleries, and pages. Pages associated here appear as optional player tabs (in list order) when this campaign’s playlist is playing. Changes save as you edit.';
@@ -2059,7 +2059,7 @@
 
             if (!title) {
                 if (!silent) {
-                    showReleaseToast('Release name is required.', 'error');
+                    showReleaseToast('Campaign name is required.', 'error');
                 }
                 return false;
             }
@@ -2121,7 +2121,7 @@
                 return true;
             } catch (error) {
                 if (!silent) {
-                    showReleaseToast(error.message || 'Could not save release settings', 'error');
+                    showReleaseToast(error.message || 'Could not save campaign settings', 'error');
                 }
                 return false;
             } finally {
@@ -2153,7 +2153,7 @@
                 return;
             }
             releaseDeleteConfirmBtn.textContent = selectedReleaseDeleteMode() === 'container'
-                ? 'Delete release only'
+                ? 'Delete campaign only'
                 : 'Delete entire campaign';
         }
 
@@ -2167,7 +2167,7 @@
                 if (!window.confirm(`Delete entire campaign "${title}"?\n\nRemoves owned brand, playlists, galleries, pages, and unused media. Shared media stays. This cannot be undone.`)) {
                     return;
                 }
-                deleteRelease(releaseId, 'purge').catch((error) => showReleaseToast(error.message || 'Could not delete release'));
+                deleteRelease(releaseId, 'purge').catch((error) => showReleaseToast(error.message || 'Could not delete campaign'));
                 return;
             }
             pendingReleaseDeleteId = releaseId;
@@ -2232,7 +2232,7 @@
                 return;
             }
             if (!releases.length) {
-                poolList.innerHTML = '<li class="player-layout-empty">No releases available yet.</li>';
+                poolList.innerHTML = '<li class="player-layout-empty">No campaigns available yet.</li>';
                 return;
             }
             poolList.innerHTML = releases.map((entry) => {
@@ -2240,19 +2240,19 @@
                 const selectedClass = id === selectedReleaseId ? ' playlist-editor-row-selected' : '';
                 const title = escapeHtml(entry.title || id);
                 const deleteBtn = releaseCanDelete(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-release-id="${escapeHtml(id)}" title="Delete release" aria-label="Delete ${title}">🗑️</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-release-id="${escapeHtml(id)}" title="Delete campaign" aria-label="Delete ${title}">🗑️</button>`
                     : '';
                 const duplicateBtn = id && id !== 'primary'
                     ? `<button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-release-id="${escapeHtml(id)}" title="Duplicate campaign (shared media)" aria-label="Duplicate ${title}">⧉</button>`
                     : '';
                 const exportBtn = id && id !== 'primary'
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-release-id="${escapeHtml(id)}" title="Export portable release package (.prp)" aria-label="Export ${title}">📦</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-release-id="${escapeHtml(id)}" title="Export campaign package (.prp)" aria-label="Export ${title}">📦</button>`
                     : '';
                 const editBtn = releaseCanOpenEditor(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit release" aria-label="Edit ${title}">✏️</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit campaign" aria-label="Edit ${title}">✏️</button>`
                     : '';
                 const lockControl = releaseMayChangeLock(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock release (allow track edits)' : 'Lock release (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock campaign (allow track edits)' : 'Lock campaign (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
                     : (entry.locked
                         ? `<span class="page-pool-lock-badge" title="Locked platform demo">🔒</span>`
                         : '');
@@ -2658,7 +2658,7 @@
                 ? `<span class="playlist-track-num">${options.position}</span>`
                 : '';
             const removeMarkup = options.showRemove
-                ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from release">✕</button>'
+                ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from campaign">✕</button>'
                 : '';
             const rowClass = options.activeRow ? 'playlist-editor-row player-layout-row-active' : 'playlist-editor-row';
             const readonlyClass = !canEditTracks ? ' playlist-editor-row-readonly' : '';
@@ -2710,7 +2710,7 @@
             const file = escapeHtml(track.file || '');
             const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending' : '';
             const removeMarkup = canEditTracks
-                ? '<button type="button" class="player-layout-remove-btn" title="Remove from release" aria-label="Remove from release">✕</button>'
+                ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
 
             return `<li class="playlist-editor-row release-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
@@ -2731,7 +2731,7 @@
             const canEditTracks = releaseTrackEditingEnabled(entry);
 
             if (!selectedReleaseId) {
-                activeEl.innerHTML = '<li class="player-layout-empty">No release selected.</li>';
+                activeEl.innerHTML = '<li class="player-layout-empty">No campaign selected.</li>';
                 return;
             }
 
@@ -2758,9 +2758,9 @@
             if (!availableTracks.length) {
                 const emptyMessage = canEditTracks
                     ? (activeTracks.length
-                        ? 'All tracks for this release are already in the list above. Use ✕ to move a track back here.'
-                        : 'No unassigned catalog tracks are available for this release. Upload audio in Files → Audio, then add tracks here.')
-                    : 'Track membership is preview-only while this release is locked.';
+                        ? 'All tracks for this campaign are already in the list above. Use ✕ to move a track back here.'
+                        : 'No unassigned catalog tracks are available for this campaign. Upload audio in Files → Audio, then add tracks here.')
+                    : 'Track membership is preview-only while this campaign is locked.';
                 availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {
                 availableEl.innerHTML = availableTracks.map((track) => renderTrackRow(track, {
@@ -3168,7 +3168,7 @@
                 releaseDeleteConfirmBtn.disabled = true;
                 await deleteRelease(releaseId, mode);
             } catch (error) {
-                showReleaseToast(error.message || 'Could not delete release');
+                showReleaseToast(error.message || 'Could not delete campaign');
             } finally {
                 releaseDeleteConfirmBtn.disabled = false;
             }
@@ -3343,14 +3343,14 @@
             const title = String(formData.get('title') || '').trim();
             if (!title) {
                 if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = 'Release name is required.';
+                    releaseRegistryStatus.textContent = 'Campaign name is required.';
                     releaseRegistryStatus.style.color = '#f87171';
                 }
                 return;
             }
             try {
                 if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = 'Creating release…';
+                    releaseRegistryStatus.textContent = 'Creating campaign…';
                     releaseRegistryStatus.style.color = '';
                 }
                 const data = await fetchJson('/biblioteca/manage-release.php', {
@@ -3382,7 +3382,7 @@
                 addReleaseForm.reset();
                 setAddReleasePanelOpen(false);
                 if (!newId || !releaseEntry(newId)) {
-                    showReleaseToast('Release was created but could not be opened. Refresh the catalogue and select it from the pool.', 'error');
+                    showReleaseToast('Campaign was created but could not be opened. Refresh the catalogue and select it from the pool.', 'error');
                     renderReleasePoolList();
                     return;
                 }
@@ -3393,7 +3393,7 @@
                 }
             } catch (error) {
                 if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = '❌ ' + (error.message || 'Could not create release');
+                    releaseRegistryStatus.textContent = '❌ ' + (error.message || 'Could not create campaign');
                     releaseRegistryStatus.style.color = '#f87171';
                 }
             }

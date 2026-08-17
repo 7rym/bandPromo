@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-17 (after checkpoint v0.8.29 build 405)._
+_Paused: 2026-08-17 (after checkpoint v0.8.29 build 406)._
 
 ## Exact resume point
 
@@ -8,20 +8,28 @@ _Paused: 2026-08-17 (after checkpoint v0.8.29 build 405)._
 
 Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The other remote test sites are **Twisted Chronicles** and **HITZ**. Never this working copy.
 
-**Next work (agreed, not started):** operator-facing **Campaign** for the Catalogue umbrella. Playlist stays the listening product (what Bandcamp/Discogs/Spotify call a release). Keep `release_id` and PRP. Copy/docs/UI only — no storage rename.
+**Next work:** none queued from this pause — continue operator priority.
 
 | Item | Value |
 |------|--------|
-| Git | `main` — checkpoint **v0.8.29 build 405** |
-| App tester package | Publish **`v0.8.29-build-405`** after push |
+| Git | `main` — checkpoint **v0.8.29 build 406** |
+| App tester package | Publish **`v0.8.29-build-406`** after push |
 | Demo package | Durable tag **`demo-content`** — unchanged unless demo content edits |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Confirm GitHub Release **`v0.8.29-build-405`** published; **Site update** on bandpromo.site offers build 405.
-2. Operator-facing Campaign copy pass: Catalogue list/editor title, Add/Delete, Files column labels, help that currently defines Release as an umbrella. See [TODO.md](TODO.md).
+1. Confirm GitHub Release **`v0.8.29-build-406`** published; **Site update** on bandpromo.site offers build 406.
+2. Continue from [TODO.md](TODO.md) / operator priority.
 3. **Deferred (v0.9 candidate):** code layout refactor — [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md).
+
+## Shipped in build 406 (do not redo)
+
+- Operator-facing **Campaign** for the Catalogue umbrella (copy/docs/UI only; `release_id` / PRP / track **Release date** unchanged). Playlist stays the listening product.
+- System → Backup: PRP export/import above site backup; collision radios Refuse | Overwrite | Skip | AsNew.
+- Content ⓘ help as three-bullet lists (Catalogue, Playlists, Galleries, Pages, Branding).
+- Files ⓘ help: uploads become internal masters; pools/pickers use masters; delivery from masters.
+- Files → Visual campaign filter **All campaigns**; Brand assets type chips (Still/Living/SFX icons); brand filter **All brands**; **Add existing** only when a Brand is selected.
 
 ## Shipped in build 405 (do not redo)
 

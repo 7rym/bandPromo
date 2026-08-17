@@ -109,7 +109,7 @@ function bandpromo_release_normalize_document(array $input, ?string $expectedId 
 {
     $id = bandpromo_release_normalize_id((string) ($input['id'] ?? $expectedId ?? ''));
     if ($id === '' || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $id)) {
-        throw new InvalidArgumentException('Invalid release id.');
+        throw new InvalidArgumentException('Invalid campaign id.');
     }
 
     $title = trim((string) ($input['title'] ?? ''));
@@ -128,7 +128,7 @@ function bandpromo_release_normalize_document(array $input, ?string $expectedId 
         $releaseDate = gmdate('Y-m-d');
     }
     if (!bandpromo_release_validate_date($releaseDate)) {
-        throw new InvalidArgumentException('Release date must use YYYY or YYYY-MM-DD.');
+        throw new InvalidArgumentException('Campaign date must use YYYY or YYYY-MM-DD.');
     }
 
     $tracks = [];
@@ -2668,12 +2668,12 @@ function bandpromo_release_save_tracks(string $root, string $releaseId, array $m
 {
     $releaseId = bandpromo_release_normalize_id($releaseId);
     if ($releaseId === '') {
-        throw new InvalidArgumentException('Release id is required.');
+        throw new InvalidArgumentException('Campaign id is required.');
     }
 
     $document = bandpromo_release_load_document($root, $releaseId);
     if (!empty($document['locked'])) {
-        throw new RuntimeException('This release is locked and cannot be edited.');
+        throw new RuntimeException('This campaign is locked and cannot be edited.');
     }
 
     $tracks = [];
@@ -2770,7 +2770,7 @@ function bandpromo_release_create(string $root, string $title, string $preferred
 {
     $title = trim($title);
     if ($title === '') {
-        throw new InvalidArgumentException('Release name is required.');
+        throw new InvalidArgumentException('Campaign name is required.');
     }
 
     $registry = bandpromo_release_load_registry($root);
@@ -2778,7 +2778,7 @@ function bandpromo_release_create(string $root, string $title, string $preferred
         ? bandpromo_release_normalize_id($preferredId)
         : bandpromo_release_slug_from_title($title);
     if ($baseId === '' || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $baseId)) {
-        throw new InvalidArgumentException('Release id is invalid. Use lowercase letters, numbers, and hyphens.');
+        throw new InvalidArgumentException('Campaign id is invalid. Use lowercase letters, numbers, and hyphens.');
     }
 
     $id = $baseId;
@@ -2820,22 +2820,22 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
 {
     $releaseId = bandpromo_release_normalize_id($releaseId);
     if ($releaseId === '') {
-        throw new InvalidArgumentException('Release id is required.');
+        throw new InvalidArgumentException('Campaign id is required.');
     }
 
     $title = trim((string) ($fields['title'] ?? ''));
     if ($title === '') {
-        throw new InvalidArgumentException('Release name is required.');
+        throw new InvalidArgumentException('Campaign name is required.');
     }
 
     $releaseDate = trim((string) ($fields['release_date'] ?? ''));
     if (!bandpromo_release_validate_date($releaseDate)) {
-        throw new InvalidArgumentException('Release date must use YYYY or YYYY-MM-DD.');
+        throw new InvalidArgumentException('Campaign date must use YYYY or YYYY-MM-DD.');
     }
 
     $locked = array_key_exists('locked', $fields) ? !empty($fields['locked']) : null;
     if ($locked === false && !bandpromo_release_may_change_lock($releaseId)) {
-        throw new InvalidArgumentException('The bandPromo demo release can only be unlocked on localhost.');
+        throw new InvalidArgumentException('The bandPromo demo campaign can only be unlocked on localhost.');
     }
 
     $registry = bandpromo_release_load_registry($root);
@@ -2849,7 +2849,7 @@ function bandpromo_release_update_details(string $root, string $releaseId, array
         break;
     }
     if (!$found) {
-        throw new InvalidArgumentException('Unknown release.');
+        throw new InvalidArgumentException('Unknown campaign.');
     }
     bandpromo_release_write_registry($root, $registry);
 
@@ -2970,7 +2970,7 @@ function bandpromo_release_migrate_campaign_off_primary(string $root, string $ne
         $trackAssetIds[$posterId] = true;
     }
 
-    $actions[] = 'Create release ' . $toId . ' from primary campaign "' . $title . '" (' . count($tracks) . ' tracks).';
+    $actions[] = 'Create campaign ' . $toId . ' from primary campaign "' . $title . '" (' . count($tracks) . ' tracks).';
     $actions[] = 'Reset primary to empty orphan/upload bucket.';
 
     if ($dryRun) {
@@ -3157,7 +3157,7 @@ function bandpromo_release_delete(string $root, string $releaseId): void
 {
     $releaseId = bandpromo_release_normalize_id($releaseId);
     if (bandpromo_release_is_protected_id($releaseId)) {
-        throw new InvalidArgumentException('This release cannot be deleted.');
+        throw new InvalidArgumentException('This campaign cannot be deleted.');
     }
 
     $registry = bandpromo_release_load_registry($root);
@@ -3167,7 +3167,7 @@ function bandpromo_release_delete(string $root, string $releaseId): void
         static fn(array $entry): bool => ($entry['id'] ?? '') !== $releaseId
     ));
     if (count($registry['releases']) === $before) {
-        throw new InvalidArgumentException('Unknown release.');
+        throw new InvalidArgumentException('Unknown campaign.');
     }
 
     bandpromo_release_write_registry($root, $registry);
@@ -3340,10 +3340,10 @@ function bandpromo_release_delete_with_mode(string $root, string $releaseId, str
     }
 
     if (bandpromo_release_is_protected_id($releaseId)) {
-        throw new InvalidArgumentException('This release cannot be deleted.');
+        throw new InvalidArgumentException('This campaign cannot be deleted.');
     }
     if (!is_file(bandpromo_release_document_path($root, $releaseId))) {
-        throw new InvalidArgumentException('Unknown release.');
+        throw new InvalidArgumentException('Unknown campaign.');
     }
 
     $result = [

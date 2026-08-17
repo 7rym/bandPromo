@@ -2883,13 +2883,13 @@ function bandpromo_playlist_create_from_release(string $root, string $releaseId)
 
     $releaseId = bandpromo_release_normalize_id($releaseId);
     if ($releaseId === '') {
-        throw new InvalidArgumentException('Release id is required.');
+        throw new InvalidArgumentException('Campaign id is required.');
     }
 
     $document = bandpromo_release_load_document($root, $releaseId);
     $title = trim((string) ($document['title'] ?? ''));
     if ($title === '') {
-        throw new InvalidArgumentException('Release title is required to create a playlist.');
+        throw new InvalidArgumentException('Campaign title is required to create a playlist.');
     }
 
     $entries = [];
@@ -2910,7 +2910,7 @@ function bandpromo_playlist_create_from_release(string $root, string $releaseId)
     }
 
     if ($entries === []) {
-        throw new InvalidArgumentException('Add tracks to the release before creating a playlist.');
+        throw new InvalidArgumentException('Add tracks to the campaign before creating a playlist.');
     }
 
     $preferredId = bandpromo_playlist_slug_from_title($title);
@@ -2961,7 +2961,7 @@ function bandpromo_playlist_set_release_id(string $root, string $playlistId, str
 
     $releaseId = trim($releaseId);
     if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        throw new InvalidArgumentException('Invalid release id.');
+        throw new InvalidArgumentException('Invalid campaign id.');
     }
 
     $document = bandpromo_playlist_load_document($root, $playlistId);

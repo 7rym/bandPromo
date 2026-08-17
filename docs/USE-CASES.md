@@ -9,7 +9,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 | Persona | Operator type | Stresses |
 |---------|---------------|----------|
 | **Vanilla** | Fresh demo-content install on **https://bandpromo.site** | Setup, demo catalog, Site update, baseline UX |
-| **Twisted Chronicles** | Band / traditional campaign | Album + singles under one Release; per-release Bio/EPK; staggered playlist street dates |
+| **Twisted Chronicles** | Band / traditional campaign | Album + singles under one Campaign; per-campaign Bio/EPK; staggered playlist street dates |
 | **HITZ** | Record label | Artist releases **and** long-form show episodes; Lyrics vs Tracklist on one install |
 
 ---
@@ -36,26 +36,26 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 ### Content shape
 
-- **One Release** per campaign (e.g. album cycle).
+- **One Campaign** per album cycle (e.g. the Violator-era umbrella).
 - **Playlists** under that release: four singles (≈2 tracks each) + one album playlist (≈10 tracks). Street dates stagger (e.g. four weeks apart) via each playlist’s `publish_date`. Album and a single may go public in parallel.
-- **Pages:** Bio/EPK and a page that embeds a **gallery** of art/photos for this release — not one eternal site-wide Bio.
-- **Gallery** container(s) associated to the release; shown via page gallery blocks (there is no dedicated Gallery player tab).
+- **Pages:** Bio/EPK and a page that embeds a **gallery** of art/photos for this campaign — not one eternal site-wide Bio.
+- **Gallery** container(s) associated to the campaign; shown via page gallery blocks (there is no dedicated Gallery player tab).
 - **Tour / concert galleries (operator story):** after each show, batch-upload stills and clips → give each asset a **title**, description, keywords, and capture date → assemble a release-scoped gallery (e.g. `Hamburg Grand Stage 2026-05-17`) via the searchable multi-select picker → embed on a campaign page. Visual naming + picker ship in **v0.8**.
 - **Audience engagement (same story, later build):** fans comment on and share individual gallery assets to grow community around the tour. Fan accounts / comments / share stay in this use case text; **implementation is v0.9+** (access/engagement foundation) — do not strip them from the scenario.
 - **Branding:** one brand document per release (`release.brand_id`).
-- Later campaigns (e.g. nine months later) are **new Releases**, each with their own Bio reflecting lineup/story changes.
+- Later campaigns (e.g. nine months later) are **new Campaigns**, each with their own Bio reflecting lineup/story changes.
 - Campaign calendar / marketing automation for the plan itself is **v2+** — operators stage playlists and pages manually in v0.8.
 
 ### Works today
 
-- Release owns track pool + associations to playlists / galleries / pages (exclusive — no stealing across releases).
+- Campaign owns track pool + associations to playlists / galleries / pages (exclusive — no stealing across campaigns).
 - Playlist catalog exposure by `publish_date` (empty date = public), demo visibility, and non-empty tracks.
 - Player brand **CSS tokens** and **visual shell** (logo, still/living backgrounds) follow the **selected playlist’s** owning release brand (else install base brand). Tracks do not carry player brand. Welcome/Logged-in SFX stay on Base (login).
 - Content → Player can enable **global** page tabs (`show_in_player`). FAQ stays login/global (info lightbox), not a release Bio.
 
 ### Target / planned (not shipped)
 
-- **Release-contextual player pages:** Playlists | Lyrics always; optional **global** pages from Content → Player (may be empty); then pages **associated to the current track’s release** append to the nav. Playing a newer release’s track shows that release’s Bio/EPK instead of the previous campaign’s.
+- **Campaign-contextual player pages:** Playlists | Lyrics always; then pages **associated to the current track’s campaign** append to the nav. Playing a newer campaign’s track shows that campaign’s Bio/EPK instead of the previous campaign’s.
 - Hard scoping of playlist/gallery/page pickers to that release’s pools only (today: soft “prefer”; association exclusivity already enforced).
 
 ### Feedback focus
@@ -72,7 +72,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 ### Content shape
 
-- Multiple **Releases** (artists / campaigns) with normal tracks, lyrics, playlists, pages, brands as needed.
+- Multiple **Campaigns** (artists / shows) with normal tracks, lyrics, playlists, pages, brands as needed.
 - Long-form **episodes** as tracks (often their own playlists or packages) whose “lyrics” field is really a **tracklist**.
 - Operators currently paste tracklists into the Lyrics field and would like the player nav to say **Tracklist** for those items without renaming Lyrics for song singles.
 
@@ -87,7 +87,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 ### Feedback focus
 
 - Mixing artist releases and long-form episodes in Catalogue / Files.
-- Brand active vs per-release tokens when many artist brands share one install.
+- Brand active vs per-campaign tokens when many artist brands share one install.
 
 ---
 

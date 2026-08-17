@@ -50,7 +50,7 @@ try {
 
         $releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? ($payload['id'] ?? '')));
         if ($releaseId === '') {
-            throw new InvalidArgumentException('Release id is required.');
+            throw new InvalidArgumentException('Campaign id is required.');
         }
 
         $entry = bandpromo_release_update_details($root, $releaseId, $payload);
@@ -88,7 +88,7 @@ try {
     if ($method === 'DELETE') {
         $releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? ''));
         if ($releaseId === '') {
-            throw new InvalidArgumentException('Release id is required.');
+            throw new InvalidArgumentException('Campaign id is required.');
         }
 
         $mode = strtolower(trim((string) ($_GET['mode'] ?? 'container')));

@@ -176,7 +176,7 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'complete' => $starterPackInstalled,
             'detail' => $starterPackDetail,
             'href' => '?tab=system&stab=deliverables',
-            'next' => 'Open System → Deliverables and run a full build so bandPromo can install the demo catalog from the Demo Portable Release Package.',
+            'next' => 'Open System → Status and run a full build so bandPromo can install the demo catalog from the Demo Portable Release Package.',
         ],
         [
             'label' => 'The full build process ran successfully',
@@ -187,7 +187,7 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
                 ? 'The latest full build finished successfully.'
                 : 'No successful full build has been recorded yet, or the last full build failed.',
             'href' => '?tab=system&stab=deliverables',
-            'next' => 'Open System → Deliverables and run a full build until it completes successfully.',
+            'next' => 'Open System → Status and run a full build until it completes successfully.',
         ],
         [
             'label' => 'Delivery files are created and ready',
@@ -198,7 +198,7 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
                 ? 'Publish-ready delivery files exist for catalogued audio and artwork.'
                 : $missingDeliveryCount . ' catalogued audio file' . ($missingDeliveryCount === 1 ? '' : 's') . ' still lack streaming MP3 delivery.',
             'href' => '?tab=system&stab=deliverables',
-            'next' => 'Open System → Deliverables and rebuild all deliverables so listeners stream MP3s instead of large originals.',
+            'next' => 'Open System → Status and rebuild listener files so listeners stream MP3s instead of large originals.',
         ],
         [
             'label' => $hasOperatorCampaign ? 'Your own catalog is present' : 'Your own catalog is not present yet',
@@ -206,10 +206,10 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'severity' => 'nonblocking',
             'complete' => $hasOperatorCampaign,
             'detail' => $hasOperatorCampaign
-                ? 'An operator release with a track is exposed on a playlist.'
-                : 'The demo catalog is the only listening campaign so far. Add your own release with a track, then a playlist that plays it.',
+                ? 'An operator campaign with a track is exposed on a playlist.'
+                : 'The demo catalog is the only listening campaign so far. Add your own campaign with a track, then a playlist that plays it.',
             'href' => '?tab=content&cntab=release',
-            'next' => 'Create a release with at least one track and a playlist that exposes that track.',
+            'next' => 'Create a campaign with at least one track and a playlist that exposes that track.',
         ],
         [
             'label' => 'FAQ is personalized',
@@ -306,7 +306,7 @@ function bandpromo_admin_build_post_setup_suggestions(string $root): array
             'label' => 'Add your own catalog',
             'href' => '?tab=content&cntab=release',
             'severity' => 'nonblocking',
-            'description' => 'Create a release with at least one track and a playlist that plays it when you are ready to move beyond the demo catalog.',
+            'description' => 'Create a campaign with at least one track and a playlist that plays it when you are ready to move beyond the demo catalog.',
         ];
     }
 

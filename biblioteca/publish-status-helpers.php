@@ -390,7 +390,7 @@ function bandpromo_delivery_inventory_tile_detail(string $id, array $counts): st
                 : 'Shape your listening flow';
         case 'tracks':
             return (int) ($counts['catalog_tracks'] ?? 0) > 0
-                ? 'Across your releases'
+                ? 'Across your campaigns'
                 : 'Add audio to get started';
         case 'audio':
             return !empty($counts['operator_media_present'])
@@ -431,7 +431,7 @@ function bandpromo_delivery_inventory_tile_detail(string $id, array $counts): st
 function bandpromo_delivery_inventory_tiles(array $counts): array
 {
     $tiles = [
-        ['id' => 'releases', 'icon' => '💿', 'value' => (int) ($counts['releases'] ?? 0), 'label' => 'Releases'],
+        ['id' => 'releases', 'icon' => '💿', 'value' => (int) ($counts['releases'] ?? 0), 'label' => 'Campaigns'],
         ['id' => 'playlists', 'icon' => '🎧', 'value' => (int) ($counts['playlists'] ?? 0), 'label' => 'Playlists'],
         ['id' => 'tracks', 'icon' => '🎵', 'value' => (int) ($counts['catalog_tracks'] ?? 0), 'label' => 'Catalog tracks'],
         ['id' => 'galleries', 'icon' => '📷', 'value' => (int) ($counts['galleries'] ?? 0), 'label' => 'Galleries'],
@@ -457,7 +457,7 @@ function bandpromo_delivery_inventory_copy(array $counts, int $audioReady, int $
 
     if ($catalogTracks > 0 && $releasesWithTracks > 0) {
         $headline = sprintf(
-            '%d track%s across %d release%s',
+            '%d track%s across %d campaign%s',
             $catalogTracks,
             $catalogTracks === 1 ? '' : 's',
             $releasesWithTracks,

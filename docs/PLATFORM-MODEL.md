@@ -135,9 +135,9 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 
 Worked examples: [USE-CASES.md](USE-CASES.md).
 
-**Containers:** Release (campaign umbrella), Playlist (ordered listening product), Gallery (visual set), Page (blocks). Brand is a fifth document under `data/brands/`, owned by a release via `brand_id` / `release_id` — not a peer campaign.
+**Containers:** Campaign (umbrella; storage `release`), Playlist (ordered listening product), Gallery (visual set), Page (blocks). Brand is a fifth document under `data/brands/`, owned by a campaign via `brand_id` / `release_id` — not a peer campaign.
 
-**Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that release only. Release editor Available pools list **unowned** containers; saves refuse stealing from another release.
+**Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that campaign only. Campaign editor Available pools list **unowned** containers; saves refuse stealing from another campaign.
 
 **Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Files → Visual **Catalogue** follows that usage (plus posters, press photos, page pictures, track covers, and Brand visual shell slots those campaigns play, including Base-brand fallback for empty slots). Brand-library membership is not a campaign, but those files are not Orphan either. Catalogue must not infer the campaign from Brand ownership on the asset. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
 
@@ -160,7 +160,7 @@ Selecting a playlist applies that release’s **CSS tokens and visual shell** (l
 | | Rule |
 |--|------|
 | Shell | Playlists + Lyrics/Notes always |
-| Campaign pages | Tabs for pages associated to the **playing playlist’s release** (Release editor → Pages; association order = tab order). Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that release has no owned pages |
+| Campaign pages | Tabs for pages associated to the **playing playlist’s campaign** (Campaign editor → Pages; association order = tab order). Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that campaign has no owned pages |
 | Gallery | Demo (and operator) **Gallery page** with a gallery block; not a separate mandatory module tab |
 | FAQ | **System-owned** install page — login/platform help; **not** in any PRP; survives hide-demo |
 
@@ -168,11 +168,11 @@ Content → **Player layout** is retired (URLs redirect to Catalogue). Brand chr
 
 **Duplicate campaign (same install):** New container/brand/release ids; **shared** media `ast_*`; cannot delete an asset while multiple containers reference it. **Import** between installs **keeps** ids. See [PORTABILITY.md](PORTABILITY.md).
 
-**Delete release:** operators choose **Entire campaign** (default) or **Release only**. Entire campaign removes owned brand, playlists, galleries, pages, and media that nothing else still references; shared media from a prior duplicate is retained. Release only removes the catalogue container and clears asset `release_id` pointers — Files media stays. Platform demo / protected ids cannot be deleted.
+**Delete campaign:** operators choose **Entire campaign** (default) or **Campaign only**. Entire campaign removes owned brand, playlists, galleries, pages, and media that nothing else still references; shared media from a prior duplicate is retained. Campaign only removes the catalogue container and clears asset `release_id` pointers — Files media stays. Platform demo / protected ids cannot be deleted.
 
 **Lyrics vs Notes (shipped):** One shell panel and one master Lyrics field (tag + `display.lyrics`). Per-track `display.text_role` is `lyrics` (default) or `notes`; when Notes, optional `notes_label` (default player nav **Tracklist**, e.g. Show notes / Transcript). Site-wide `player.modules.lyrics.label` remains the Lyrics-mode fallback. Dual fields / timed cues deferred.
 
-**Content admin strip:** Catalogue plus dedicated Playlist / Gallery / Pages / Branding / Player editors remain peers. Release editor handles base info, track membership, and associations — not full child editing.
+**Content admin strip:** Catalogue plus dedicated Playlist / Gallery / Pages / Branding editors remain peers. Campaign editor handles base info, track membership, and associations — not full child editing.
 
 ### Map
 
@@ -221,7 +221,7 @@ flowchart TB
 | Term | Meaning |
 |------|---------|
 | **Asset** | One stored media file or inline content fragment (audio, image, video, richtext HTML). Identified by `asset_id`. |
-| **Release** | Campaign umbrella for a body of work (e.g. Violator): owns all related masters, identity (branding), EPK, galleries, and pages. Not a single streaming tracklist. |
+| **Release** | Storage name for the campaign umbrella (`release_id`, `data/releases/`). **Operator UI: Campaign.** Owns related masters, identity (branding), EPK, galleries, pages, and playlists. Not a single streaming tracklist. |
 | **Brand / identity** | Visual identity **of a release** (colors, typography, mood, logo, shell media, SFX). Stored as a brand document owned by that release — not a peer campaign object. |
 | **Playlist** | Streaming listening product: album order, single package, tour set, radio campaign. Ordered refs into release-owned tracks; reusable across many playlists. |
 | **Container** | Operator-managed document in `data/`: playlist, gallery, page, brand (identity), release. |
@@ -234,7 +234,7 @@ flowchart TB
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
-Admin UI uses friendly names (Release, Playlist, Gallery, Page, Branding). Docs and code use the terms above. **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
+Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Docs and code still say **release** for storage (`release_id`, PRP). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
 
 ## Asset identity and filenames
 

@@ -788,7 +788,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo catalog</h2>
                 <p class="card-note">
-                    You have a release with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
@@ -875,7 +875,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo catalog</h2>
                 <p class="card-note">
-                    You have a release with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
@@ -1167,15 +1167,29 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-files">
                 <?php if ($filesPanel === 'audio'): ?>
-                    Work with <strong>master</strong> audio files only. Filter by catalogue release or search by registered title. Green / amber / red badges show metadata health — click a row for quick tags, or the pencil for the full editor.
-                    <br><strong>After upload:</strong> bandPromo prepares delivery automatically. Tracks appear in Content pools when ready.
+                    <ul>
+                        <li>Any upload is converted automatically into a master media asset. Masters keep the original content — they are not degraded from your file — and add industry-standard metadata and tags.</li>
+                        <li>Every media pool and picker works with these masters. Every delivery file (player streams, downloads) is created from them, never from the raw upload.</li>
+                        <li>Filter by campaign or search by title. Green / amber / red badges show metadata health — click a row for quick tags, or the pencil for the full editor. Tracks appear in Content pools when delivery is ready.</li>
+                    </ul>
                 <?php elseif ($filesPanel === 'visual'): ?>
-                    Still images and video for covers, galleries, pages, and Brand shells. <strong>Catalogue</strong> lists campaigns that play the file (Base brand fills empty Brand slots). Brand-library files with no campaign show that Brand, not Orphan. <strong>In use</strong> is a live assignment (cover, gallery, page, poster, or Brand shell), not Catalogue.
-                    <br><strong>After upload:</strong> delivery variants prepare automatically — check Notifications if a video stalls.
+                    <ul>
+                        <li>Any image or video upload is converted automatically into a master media asset. Masters keep the original content — they are not degraded from your file — and add industry-standard metadata and tags.</li>
+                        <li>Every media pool and picker works with these masters. Every delivery file (thumbs, cards, streams, share images) is created from them. Check Notifications if a video stalls.</li>
+                        <li><strong>Catalogue</strong> lists campaigns that play the file (Base brand fills empty Brand slots). Brand-library files with no campaign show that Brand, not Orphan. <strong>In use</strong> is a live assignment (cover, gallery, page, poster, or Brand shell), not Catalogue.</li>
+                    </ul>
                 <?php elseif ($filesPanel === 'sfx'): ?>
-                    Short brand UI clips (welcome, login, and similar). These belong to brands — assign them under Content → Branding. Not release tracks.
+                    <ul>
+                        <li>Any upload is converted automatically into a master media asset. Masters keep the original content — they are not degraded from your file — and add industry-standard metadata and tags.</li>
+                        <li>Every media pool and picker works with these masters. Every delivery file is created from them, never from the raw upload.</li>
+                        <li>These are short brand UI clips (welcome, login, and similar). Assign them under Content → Branding. They are not campaign tracks.</li>
+                    </ul>
                 <?php elseif ($filesPanel === 'special'): ?>
-                    Brand visuals: logos, share covers, and still/living backgrounds. These belong to brands. Shell audio belongs under Sound effects.
+                    <ul>
+                        <li>Any upload is converted automatically into a master media asset. Masters keep the original content — they are not degraded from your file — and add industry-standard metadata and tags.</li>
+                        <li>Every media pool and picker works with these masters. Every delivery file is created from them, never from the raw upload.</li>
+                        <li>This library is the brand’s logos, share covers, and still/living backgrounds. Shell audio belongs under Sound effects.</li>
+                    </ul>
                 <?php endif; ?>
             </div>
 
@@ -1191,9 +1205,9 @@ if ($tab === 'analytics') {
                 <div class="audio-pool-toolbar" data-media-list-header="audio">
                     <div class="audio-pool-toolbar-main">
                         <label class="media-filter-label">
-                            <span class="visually-hidden">Filter by catalogue</span>
-                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
-                                <option value="all">All files</option>
+                            <span class="visually-hidden">Filter by campaign</span>
+                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by campaign">
+                                <option value="all">All campaigns</option>
                                 <option value="orphans">Orphans</option>
                             </select>
                         </label>
@@ -1215,7 +1229,7 @@ if ($tab === 'analytics') {
                     </div>
                     <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
                     <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
-                    <button type="button" class="media-file-col-sort" data-audio-sort="release" aria-pressed="false">Release</button>
+                    <button type="button" class="media-file-col-sort" data-audio-sort="release" aria-pressed="false">Campaign</button>
                     <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
                     <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
@@ -1240,9 +1254,9 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false" title="Video" aria-label="Video"><span class="visual-filter-chip-icon" aria-hidden="true">🎬</span></button>
                         </div>
                         <label class="media-filter-label">
-                            <span class="visually-hidden">Filter by catalogue</span>
-                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
-                                <option value="all">All files</option>
+                            <span class="visually-hidden">Filter by campaign</span>
+                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by campaign">
+                                <option value="all">All campaigns</option>
                                 <option value="orphans">Orphans</option>
                             </select>
                         </label>
@@ -1295,7 +1309,7 @@ if ($tab === 'analytics') {
                         <label class="media-filter-label">
                             <span class="visually-hidden">Filter by brand</span>
                             <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
-                                <option value="all">All files</option>
+                                <option value="all">All brands</option>
                                 <option value="orphans">Orphans</option>
                             </select>
                         </label>
@@ -1337,14 +1351,14 @@ if ($tab === 'analytics') {
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
                         <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
                             <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="special" aria-pressed="true">All</button>
-                            <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="special" aria-pressed="false">Still</button>
-                            <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="special" aria-pressed="false">Living</button>
-                            <button type="button" class="visual-filter-chip" data-pool-type-filter="audio" data-pool-panel="special" aria-pressed="false">Sound effects</button>
+                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="image" data-pool-panel="special" aria-pressed="false" title="Still" aria-label="Still"><span class="visual-filter-chip-icon" aria-hidden="true">🖼</span></button>
+                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="video" data-pool-panel="special" aria-pressed="false" title="Living" aria-label="Living"><span class="visual-filter-chip-icon" aria-hidden="true">🎬</span></button>
+                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="audio" data-pool-panel="special" aria-pressed="false" title="Sound effects" aria-label="Sound effects"><span class="visual-filter-chip-icon" aria-hidden="true">🔊</span></button>
                         </div>
                         <label class="media-filter-label">
                             <span class="visually-hidden">Filter by brand</span>
                             <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
-                                <option value="all">All files</option>
+                                <option value="all">All brands</option>
                                 <option value="orphans">Orphans</option>
                             </select>
                         </label>
@@ -1364,7 +1378,7 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('special')" aria-label="Upload brand assets" title="Upload brand assets"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openBrandLibraryPicker()" aria-label="Add existing asset to selected brand" title="Add existing asset to selected brand"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Add existing</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="brandLibraryAddExistingBtn" hidden onclick="openBrandLibraryPicker()" aria-label="Add existing asset to selected brand" title="Add existing asset to selected brand"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Add existing</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="special" data-download-variant="original" disabled aria-label="Download selected brand assets" title="Download selected brand assets"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn" data-bulk-remove-target="special" disabled aria-label="Remove selected assets from this Brand library" title="Remove selected assets from this Brand library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>Remove</span></button>
                     </div>
@@ -1505,24 +1519,44 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-content">
                 <?php if ($contentTab === 'release'): ?>
-                    The catalogue lists your releases. Each release is a campaign umbrella: masters, branding, EPK, galleries, pages, and the playlists that package those tracks. New audio uploads create a master and usable title/artist immediately — assign tracks here without waiting for a full rebuild. Open Playlists, Galleries, and Pages from the Release editor section tabs while editing, or use the Content sub-tabs for the full editors. Shift/Ctrl-click selects multiple tracks.
+                    <ul>
+                        <li>A Campaign is the umbrella for one body of work. It owns master media assets like audio, images, and videos.</li>
+                        <li>Assign your audio assets and containers — branding, playlists, galleries, pages, and more — to the campaign.</li>
+                        <li>Set the campaign’s Base info, then use the other tabs to choose which content stays under this campaign.</li>
+                    </ul>
                 <?php elseif ($contentTab === 'playlist'): ?>
-                    Playlists reuse release-owned tracks for streaming (album order, single package, tour set). They do not own masters. Prefer creating them from the Release hub. Saving a playlist prepares any missing delivery files and refreshes the player payload for that playlist — you do not need Rebuild all deliverables for a normal add-track loop. Shift/Ctrl-click selects multiple tracks.
+                    <ul>
+                        <li>Playlists took over traditional listening products — albums, singles, EPs, compilations, live sets. Each playlist is an ordered package of campaign-owned tracks; it does not own masters.</li>
+                        <li>They can also be a running series: podcasts, DJ mixsets, radio shows. Set package type to Show or Podcast and Player track order to Newest first so new episodes play first while you keep appending at the bottom of this list.</li>
+                        <li>Saving a playlist prepares missing delivery files and refreshes the player — you do not need Refresh site files for a normal add-track loop. Shift/Ctrl-click selects multiple tracks.</li>
+                    </ul>
                 <?php elseif ($contentTab === 'gallery'): ?>
-                    Galleries are owned by a release. Preview from the pool; edit to reorder. Shift/Ctrl-click multi-select; name and alt edit inline. No build required.
+                    <ul>
+                        <li>A gallery is a campaign-owned visual set (photos, stills, video). It reuses Files → Visual assets and does not own those files.</li>
+                        <li>Select a gallery to preview; edit to reorder. Shift/Ctrl-click selects multiple items; name and alt edit inline. Saving does not need Refresh site files.</li>
+                        <li>Galleries appear in the player when a campaign page includes a Gallery block — not as their own player tab. Associate that page on Catalogue → Campaign editor → Pages.</li>
+                    </ul>
                 <?php elseif ($contentTab === 'pages'): ?>
-                    Campaign pages (for example Bio) are owned by a release. FAQ is required for the login info lightbox. Optional pages appear in the player when associated under Catalogue → Release editor → Pages (order there is the player tab order for that campaign).
+                    <ul>
+                        <li>Pages are campaign-owned layouts (Bio, custom stories) built from Text, Picture, List, and Gallery blocks.</li>
+                        <li>Associate pages on Catalogue → Campaign editor → Pages; that order is the player tab order for playlists in that campaign. Playlist and Lyrics stay fixed.</li>
+                        <li>FAQ is the login help lightbox. It is install-owned, not a campaign page, and is not packed in a .prp.</li>
+                    </ul>
                 <?php elseif ($contentTab === 'themes'): ?>
-                    Branding has two layers. <strong>Base</strong> is the site default for login and shell media (logo, backgrounds, welcome sounds). A <strong>release brand</strong> (set on the Catalogue release) can override player colors and fonts when that release’s playlist is playing — tracks do not carry their own brand. Shell media still follow Base until per-release shell override ships. On a fresh install Base is locked <em>bandPromo Default</em> until you duplicate it to customize. Saving Base writes shell paths into site config.
+                    <ul>
+                        <li><strong>Base</strong> is the site-wide brand: login chrome, logo, backgrounds, welcome sounds, and player chrome (playlist selector, cover reflection, Beggars banquet).</li>
+                        <li>A <strong>campaign brand</strong> (set on the Catalogue campaign) can override player colors and fonts while that campaign’s playlist is playing. Tracks do not carry a brand. Shell media still follow Base until per-campaign shell override ships.</li>
+                        <li>Fresh installs keep locked <em>bandPromo Default</em> as Base until you duplicate it. Saving Base writes shell paths into site config.</li>
+                    </ul>
                 <?php endif; ?>
             </div>
 
             <?php
             $poolReleaseFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
                 . '<label class="media-filter-label player-layout-pool-filter-label">'
-                . '<span class="visually-hidden">Filter by catalogue</span>'
-                . '<select class="media-filter-select player-layout-pool-filter" data-pool-release-filter aria-label="Filter by catalogue">'
-                . '<option value="all">All files</option>'
+                . '<span class="visually-hidden">Filter by campaign</span>'
+                . '<select class="media-filter-select player-layout-pool-filter" data-pool-release-filter aria-label="Filter by campaign">'
+                . '<option value="all">All campaigns</option>'
                 . '<option value="orphans">Orphans</option>'
                 . '</select>'
                 . '</label>'
@@ -1543,11 +1577,11 @@ if ($tab === 'analytics') {
                         <div class="player-layout-panel content-editor-left-panel">
                             <div id="releasePoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Registered releases</h4>
+                                    <h4 class="player-layout-col-title">Campaigns</h4>
                                     <div class="player-layout-pool-head-slot player-layout-pool-actions">
-                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddReleaseBtn" aria-expanded="false" aria-label="Add release" title="Add release">
+                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddReleaseBtn" aria-expanded="false" aria-label="Add campaign" title="Add campaign">
                                             <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
-                                            <span>Add release</span>
+                                            <span>Add campaign</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1555,26 +1589,26 @@ if ($tab === 'analytics') {
                                     <div class="add-page-panel" id="addReleasePanel" hidden>
                                         <form id="addReleaseForm" class="add-page-form">
                                             <label class="add-page-field">
-                                                <span>Release name</span>
+                                                <span>Campaign name</span>
                                                 <input type="text" name="title" placeholder="Summer EP" required>
                                             </label>
                                             <div class="add-page-actions">
-                                                <button type="submit" class="btn btn-primary">Create release</button>
+                                                <button type="submit" class="btn btn-primary">Create campaign</button>
                                                 <button type="button" class="btn" id="cancelAddReleaseBtn">Cancel</button>
                                             </div>
                                         </form>
                                     </div>
                                     <p id="releaseRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="releasePoolList" aria-label="Releases"></ol>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="releasePoolList" aria-label="Campaigns"></ol>
                                 </div>
                             </div>
 
                             <div id="releaseTracksPoolView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalogue">← Back</button>
-                                    <h3 class="release-editor-header-title">Release editor</h3>
+                                    <h3 class="release-editor-header-title">Campaign editor</h3>
                                 </div>
-                                <div class="release-preview-tabs release-editor-section-tabs release-editor-section-tabs--header" role="tablist" aria-label="Release editor sections">
+                                <div class="release-preview-tabs release-editor-section-tabs release-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
                                     <button type="button" class="release-preview-tab is-active" role="tab" aria-selected="true" data-release-editor-tab="base">Base info</button>
                                     <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="tracks">Tracks</button>
                                     <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="playlists">Playlists</button>
@@ -1588,11 +1622,11 @@ if ($tab === 'analytics') {
                                             <label class="playlist-settings-field release-editor-form-row release-editor-form-row--title">
                                                 <span class="release-editor-form-label">Title</span>
                                                 <span class="release-editor-title-control">
-                                                    <input type="text" class="content-editor-name-input" id="releaseSettingsTitle" maxlength="120" autocomplete="off" placeholder="Release name" aria-label="Release name">
+                                                    <input type="text" class="content-editor-name-input" id="releaseSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
                                                 </span>
                                             </label>
                                             <label class="playlist-settings-field release-catalog-meta-field--date release-editor-form-row">
-                                                <span class="release-editor-form-label">Release date</span>
+                                                <span class="release-editor-form-label">Campaign date</span>
                                                 <?php bandpromo_admin_render_iso_date_field('release_date', '', 'releaseSettingsDate', [
                                                     'variant' => 'form',
                                                     'required' => true,
@@ -1605,21 +1639,21 @@ if ($tab === 'analytics') {
                                             </label>
                                             <label class="playlist-settings-field release-editor-form-row">
                                                 <span class="release-editor-form-label">Branding</span>
-                                                <select id="releaseSettingsBrandId" aria-label="Release brand">
+                                                <select id="releaseSettingsBrandId" aria-label="Campaign brand">
                                                     <option value="">Base brand</option>
                                                 </select>
                                             </label>
                                             <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
                                                 <span class="release-editor-form-label">Blurb</span>
                                                 <span class="release-editor-field-stack">
-                                                    <textarea id="releaseSettingsShortDescription" rows="4" maxlength="300" placeholder="Short release summary" autocomplete="off"></textarea>
+                                                    <textarea id="releaseSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
                                                     <span class="field-note release-short-description-note"><span id="releaseSettingsShortDescriptionCount">0</span>/300 characters</span>
                                                 </span>
                                             </label>
                                             <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
                                                 <span class="release-editor-form-label">Long description <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
                                                 <span class="release-editor-field-stack">
-                                                    <textarea id="releaseSettingsDescription" class="release-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long release description" autocomplete="off"></textarea>
+                                                    <textarea id="releaseSettingsDescription" class="release-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
                                                 </span>
                                             </label>
                                             </div>
@@ -1643,15 +1677,15 @@ if ($tab === 'analytics') {
                                         <div class="audio-master-cover-preview-shell">
                                             <div class="audio-master-cover-preview" id="releaseCoverPreviewShell">
                                                 <div class="audio-master-cover-overlay-actions" id="releaseCoverOverlayActions">
-                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="releaseSettingsPosterAssetId" data-title="Choose release cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose release cover">✎</button>
+                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="releaseSettingsPosterAssetId" data-title="Choose campaign cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose campaign cover">✎</button>
                                                     <button type="button" class="icon-btn audio-master-cover-action" id="releaseCoverClearBtn" title="Clear cover" aria-label="Clear cover">↺</button>
                                                 </div>
-                                                <img id="releaseCoverPreview" alt="Release cover preview" style="display:none;">
+                                                <img id="releaseCoverPreview" alt="Campaign cover preview" style="display:none;">
                                                 <span id="releaseCoverPlaceholder">No cover selected</span>
                                             </div>
                                         </div>
                                         <div class="release-cover-meta">
-                                            <h4 class="release-cover-heading" id="releasePreviewTitle">Release</h4>
+                                            <h4 class="release-cover-heading" id="releasePreviewTitle">Campaign</h4>
                                             <p class="release-preview-date" id="releasePreviewDate"></p>
                                             <p class="release-preview-summary" id="releasePreviewSummary"></p>
                                         </div>
@@ -1666,10 +1700,10 @@ if ($tab === 'analytics') {
                                     </div>
                                 </div>
                                 <ul class="release-preview-tracks release-associated-tracks" id="releaseActiveList" aria-label="Associated tracks" hidden>
-                                    <li class="player-layout-empty">No release selected.</li>
+                                    <li class="player-layout-empty">No campaign selected.</li>
                                 </ul>
                                 <ol class="playlist-editor player-layout-list release-associated-tracks" id="releaseAssociationActiveList" aria-label="Associated items" hidden>
-                                    <li class="player-layout-empty">No release selected.</li>
+                                    <li class="player-layout-empty">No campaign selected.</li>
                                 </ol>
                                 <div id="releaseAvailableSection" class="content-pool-section" hidden>
                                     <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
@@ -1751,7 +1785,7 @@ if ($tab === 'analytics') {
                                                     'allow_year_only' => true,
                                                 ]); ?>
                                             </label>
-                                            <p class="hint">Playlist promotion uses this <strong>UTC calendar day</strong>; track playability still follows each release date.</p>
+                                            <p class="hint">Playlist promotion uses this <strong>UTC calendar day</strong>; track playability still follows each track’s release date.</p>
                                             <label class="playlist-settings-field">
                                                 <span>Package type</span>
                                                 <select id="playlistSettingsPackageType" aria-label="Playlist package type">
@@ -2178,7 +2212,7 @@ if ($tab === 'analytics') {
 
             <div class="modal-overlay" id="releaseDeleteModal" style="display:none;" aria-hidden="true">
                 <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="releaseDeleteModalTitle">
-                    <h3 id="releaseDeleteModalTitle">Delete release?</h3>
+                    <h3 id="releaseDeleteModalTitle">Delete campaign?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. This cannot be undone.</p>
                     <fieldset class="release-delete-mode-fieldset" style="border:0;padding:0;margin:0.75rem 0 1rem;">
                         <legend class="sr-only">Delete mode</legend>
@@ -2188,7 +2222,7 @@ if ($tab === 'analytics') {
                         </label>
                         <label class="release-delete-mode-option" style="display:block;margin:0.5rem 0;">
                             <input type="radio" name="releaseDeleteMode" id="releaseDeleteModeContainer" value="container">
-                            <strong>Release only</strong> — keep tracks and media in Files; only remove this catalogue entry.
+                            <strong>Campaign only</strong> — keep tracks and media in Files; only remove this catalogue entry.
                         </label>
                     </fieldset>
                     <div class="page-unsaved-actions">
@@ -2545,7 +2579,7 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                This page is the health of your catalog: releases, playlists, tracks, and whether those tracks can stream.<br><br>
+                This page is the health of your catalog: campaigns, playlists, tracks, and whether those tracks can stream.<br><br>
                 Counts match <strong>Content → Catalogue</strong> (the invisible upload bucket and login FAQ are not campaigns).<br><br>
                 Uploads and saves usually prepare streaming files automatically. Use <strong>Refresh site files</strong> if something is missing or after a Site update.
             </div>
@@ -2685,13 +2719,15 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Create full-site backups, import a site ZIP, or import a single <strong>release package</strong> (one campaign: masters, branding, playlists, galleries, pages). Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Status</strong> if you want to refresh listener-ready files. See <code>docs/PORTABILITY.md</code>.
+                Move one campaign as a <code>.prp</code> (masters, brand, playlists, galleries, pages), or back up the whole site.
+                Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the campaign, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new campaign id.
+                Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Status</strong> if you need to refresh listener-ready files.
             </div>
 
             <div class="card site-backup-card">
                 <h3>📦 Jobs</h3>
-                <p class="card-note">
-                    Queued export and import jobs for this install. Leave this tab open while a job runs.
+                <p class="card-note backup-builder-note">
+                    Leave this tab open while a job runs. Archives stay in <code>backups/</code> until downloaded or deleted.
                 </p>
                 <div id="siteBackupJobsWrap" class="site-backup-jobs-wrap">
                     <?php if (empty($siteBackupJobs)): ?>
@@ -2755,6 +2791,68 @@ if ($tab === 'analytics') {
                     <?php endif; ?>
                 </div>
                 <p id="siteBackupJobsStatus" class="status-text"></p>
+            </div>
+
+            <div class="backup-action-grid prp-action-grid">
+            <div class="card site-backup-card prp-panel" id="releasePackageExportCard">
+                <h3>💿 Export .prp</h3>
+                <p class="card-note backup-builder-note">
+                    Queue one campaign (masters, brand, playlists, galleries, pages). Download from Jobs when Ready.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="empty-msg">ZipArchive is required to export release packages on this host.</p>
+                <?php else: ?>
+                <div class="prp-panel-toolbar">
+                    <label class="visually-hidden" for="releasePackageExportSelect">Campaign</label>
+                    <select id="releasePackageExportSelect" class="backup-export-panel-select" aria-label="Campaign to export">
+                        <option value="">Loading campaigns…</option>
+                    </select>
+                    <button type="button" class="btn" id="releasePackageExportBtn">📦 Queue export</button>
+                </div>
+                <p id="releasePackageExportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="card site-backup-card prp-panel" id="releasePackageImportCard">
+                <h3>💿 Import .prp</h3>
+                <p class="card-note backup-builder-note">
+                    Upload a <code>.prp</code> or <code>.zip</code>. IDs are kept unless you choose AsNew.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="empty-msg">ZipArchive is required to import release packages on this host.</p>
+                <?php else: ?>
+                <div class="prp-panel-toolbar">
+                    <label class="btn btn-secondary site-backup-import-file-label" for="releasePackageImportInput">
+                        Choose .prp…
+                    </label>
+                    <input type="file" id="releasePackageImportInput" accept=".prp,.zip,application/zip" hidden>
+                    <span id="releasePackageImportFilename" class="site-backup-import-filename text-muted"></span>
+                    <button type="button" class="btn" id="releasePackageImportBtn">📥 Import</button>
+                </div>
+                <div class="prp-collision-row">
+                    <span id="releasePackageImportCollisionLabel">If it exists</span>
+                    <div class="visual-filter-chip-group prp-collision-group" role="radiogroup" aria-labelledby="releasePackageImportCollisionLabel">
+                        <label class="visual-filter-chip prp-collision-chip" title="Keep local and report the conflict">
+                            <input type="radio" name="releasePackageImportCollision" value="refuse" checked>
+                            <span>Refuse</span>
+                        </label>
+                        <label class="visual-filter-chip prp-collision-chip" title="Replace the local campaign">
+                            <input type="radio" name="releasePackageImportCollision" value="overwrite">
+                            <span>Overwrite</span>
+                        </label>
+                        <label class="visual-filter-chip prp-collision-chip" title="Leave existing ids unchanged">
+                            <input type="radio" name="releasePackageImportCollision" value="skip">
+                            <span>Skip</span>
+                        </label>
+                        <label class="visual-filter-chip prp-collision-chip" title="Import with a new campaign id">
+                            <input type="radio" name="releasePackageImportCollision" value="allocate">
+                            <span>AsNew</span>
+                        </label>
+                    </div>
+                </div>
+                <p id="releasePackageImportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
             </div>
 
             <div class="backup-action-grid">
@@ -2886,60 +2984,6 @@ if ($tab === 'analytics') {
                 <p id="siteBackupImportStatus" class="status-text backup-export-panel-status"></p>
                 <?php endif; ?>
             </div>
-            </div>
-
-            <div class="card site-backup-card" id="releasePackageExportCard">
-                <h3>💿 Export portable release package</h3>
-                <p class="card-note">
-                    Queue one campaign as a <code>.prp</code> archive (masters, brand, playlists, galleries, pages, registry subset).
-                    Large packages build in the background like site backups — download from the job list below when Ready.
-                </p>
-                <?php if (empty($siteBackupStatus['zip_available'])): ?>
-                <p class="empty-msg">ZipArchive is required to export release packages on this host.</p>
-                <?php else: ?>
-                <div class="form-row">
-                    <label for="releasePackageExportSelect">Release campaign</label>
-                    <select id="releasePackageExportSelect">
-                        <option value="">Loading releases…</option>
-                    </select>
-                </div>
-                <div class="card-actions site-backup-actions backup-builder-actions">
-                    <button type="button" class="btn" id="releasePackageExportBtn">📦 Queue .prp export</button>
-                </div>
-                <p id="releasePackageExportStatus" class="status-text backup-export-panel-status"></p>
-                <?php endif; ?>
-            </div>
-
-            <div class="card site-backup-card" id="releasePackageImportCard">
-                <h3>💿 Import portable release package</h3>
-                <p class="card-note">
-                    Import one campaign as a <code>.prp</code> (or <code>.zip</code>) file: masters, brand, playlists, galleries, pages, and registry subset.
-                    IDs are kept. Large packages upload in 2&nbsp;MB chunks (same as Files). If the release already exists, choose how to resolve the collision.
-                </p>
-                <?php if (empty($siteBackupStatus['zip_available'])): ?>
-                <p class="empty-msg">ZipArchive is required to import release packages on this host.</p>
-                <?php else: ?>
-                <div class="site-backup-import-file-row">
-                    <label class="btn btn-secondary site-backup-import-file-label" for="releasePackageImportInput">
-                        Choose .prp…
-                    </label>
-                    <input type="file" id="releasePackageImportInput" accept=".prp,.zip,application/zip" hidden>
-                    <span id="releasePackageImportFilename" class="site-backup-import-filename text-muted"></span>
-                </div>
-                <div class="form-row" style="margin-top:0.75rem;">
-                    <label for="releasePackageImportCollision">If release already exists</label>
-                    <select id="releasePackageImportCollision" name="collision">
-                        <option value="refuse" selected>Refuse (keep local; report conflict)</option>
-                        <option value="overwrite">Overwrite local campaign</option>
-                        <option value="skip">Skip import</option>
-                        <option value="allocate">Import as new release id</option>
-                    </select>
-                </div>
-                <div class="card-actions site-backup-actions backup-builder-actions">
-                    <button type="button" class="btn" id="releasePackageImportBtn">📥 Import release package</button>
-                </div>
-                <p id="releasePackageImportStatus" class="status-text backup-export-panel-status"></p>
-                <?php endif; ?>
             </div>
             <?php elseif ($systemTab === 'security'): ?>
             <div class="admin-help-box collapsed" id="help-security">
@@ -3347,16 +3391,16 @@ if ($tab === 'analytics') {
                 <div id="mediaPickerTabs" class="tabs media-picker-tabs"></div>
                 <div class="media-picker-toolbar" id="mediaPickerToolbar">
                     <label class="media-filter-label" data-picker-filter="release">
-                        <span class="visually-hidden">Filter by catalogue</span>
-                        <select class="media-filter-select" data-media-release-filter aria-label="Filter by catalogue">
-                            <option value="all">All files</option>
+                        <span class="visually-hidden">Filter by campaign</span>
+                        <select class="media-filter-select" data-media-release-filter aria-label="Filter by campaign">
+                            <option value="all">All campaigns</option>
                             <option value="orphans">Orphans</option>
                         </select>
                     </label>
                     <label class="media-filter-label" data-picker-filter="brand" hidden>
                         <span class="visually-hidden">Filter by brand</span>
                         <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
-                            <option value="all">All files</option>
+                            <option value="all">All brands</option>
                             <option value="orphans">Orphans</option>
                         </select>
                     </label>

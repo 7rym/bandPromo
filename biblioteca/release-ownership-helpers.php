@@ -593,20 +593,20 @@ function bandpromo_release_save_associations(string $root, string $releaseId, st
     $kind = bandpromo_release_association_normalize_kind($kind);
     $releaseId = bandpromo_release_normalize_id($releaseId);
     if ($releaseId === '') {
-        throw new InvalidArgumentException('Release id is required.');
+        throw new InvalidArgumentException('Campaign id is required.');
     }
 
     $releaseMeta = bandpromo_release_registry_entry($root, $releaseId);
     if ($releaseMeta === null) {
-        throw new InvalidArgumentException('Unknown release.');
+        throw new InvalidArgumentException('Unknown campaign.');
     }
     try {
         $releaseDocument = bandpromo_release_load_document($root, $releaseId);
     } catch (Throwable $throwable) {
-        throw new InvalidArgumentException('Unknown release.');
+        throw new InvalidArgumentException('Unknown campaign.');
     }
     if (!empty($releaseDocument['locked'])) {
-        throw new InvalidArgumentException('This release is locked. Unlock it before changing associations.');
+        throw new InvalidArgumentException('This campaign is locked. Unlock it before changing associations.');
     }
 
     $desired = [];
@@ -639,7 +639,7 @@ function bandpromo_release_save_associations(string $root, string $releaseId, st
         }
         if (!isset($currentAvailable[$id])) {
             throw new InvalidArgumentException(
-                'Cannot associate "' . $id . '": it is missing, locked, or already owned by another release.'
+                'Cannot associate "' . $id . '": it is missing, locked, or already owned by another campaign.'
             );
         }
         if (empty($currentAvailable[$id]['movable'])) {
@@ -660,7 +660,7 @@ function bandpromo_release_save_associations(string $root, string $releaseId, st
             continue;
         }
         if (empty($item['movable'])) {
-            throw new InvalidArgumentException('Cannot remove protected container "' . $id . '" from this release.');
+            throw new InvalidArgumentException('Cannot remove protected container "' . $id . '" from this campaign.');
         }
         if ($kind === 'playlists') {
             bandpromo_playlist_set_release_id($root, $id, '');

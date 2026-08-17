@@ -2045,7 +2045,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function brandFilterOptionsHtml() {
                 const options = [
-                    '<option value="all">All files</option>',
+                    '<option value="all">All brands</option>',
                     '<option value="orphans">Orphans</option>',
                 ];
                 const brands = Array.isArray(brandFilterCatalog) ? brandFilterCatalog.slice() : [];
@@ -2091,6 +2091,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         select.value = 'all';
                     }
                 });
+                syncBrandLibraryAddExistingUi();
+            }
+
+            function syncBrandLibraryAddExistingUi() {
+                const button = document.getElementById('brandLibraryAddExistingBtn');
+                if (!button) {
+                    return;
+                }
+                const brandId = normalizePoolBrandFilter(poolBrandFilter);
+                const enabled = brandId !== 'all' && brandId !== 'orphans';
+                button.hidden = !enabled;
+                button.disabled = !enabled;
             }
 
             function setPoolBrandFilter(nextValue) {
@@ -2991,7 +3003,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function releaseFilterOptionsHtml() {
                 const options = [
-                    '<option value="all">All files</option>',
+                    '<option value="all">All campaigns</option>',
                     '<option value="orphans">Orphans</option>',
                 ];
                 const releases = Array.isArray(releasesCatalog) ? releasesCatalog.slice() : [];
@@ -3076,7 +3088,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const resp = await fetch('/biblioteca/get-releases.php', { credentials: 'same-origin' });
                     const data = await resp.json();
                     if (!resp.ok || !data || data.ok !== true) {
-                        throw new Error(data?.error || 'Could not load releases');
+                        throw new Error(data?.error || 'Could not load campaigns');
                     }
                     releasesCatalog = Array.isArray(data.releases) ? data.releases : [];
                     window.bandpromoReleasesCatalog = releasesCatalog;
@@ -4916,7 +4928,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 const allowed = panelType === 'special'
-                    ? new Set(['all', 'image', 'video'])
+                    ? new Set(['all', 'image', 'video', 'audio'])
                     : (panelType === 'sfx' ? new Set(['all', 'audio']) : new Set(['all', 'image', 'video']));
                 poolTypeFilters[panelType] = allowed.has(nextValue) ? nextValue : 'all';
                 syncPoolTypeFilterUi(panelType);
@@ -6500,7 +6512,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : 'No current cover yet');
 
                 if (sidecarCover) {
-                    coverParts.push('A track-specific image will override the release cover after save');
+                    coverParts.push('A track-specific image will override the campaign cover after save');
                 } else if (data.embedded_cover_present) {
                     coverParts.push('Artwork is already embedded in the track');
                 } else {
@@ -9768,12 +9780,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     if (publishDate && releaseTitle) {
                         parts.push(
-                            `Published ${bandpromoAdminEscapeHtml(publishDate)} from the release "${bandpromoAdminEscapeHtml(releaseTitle)}"`
+                            `Published ${bandpromoAdminEscapeHtml(publishDate)} from the campaign "${bandpromoAdminEscapeHtml(releaseTitle)}"`
                         );
                     } else if (publishDate) {
                         parts.push(`Published ${bandpromoAdminEscapeHtml(publishDate)}`);
                     } else if (releaseTitle) {
-                        parts.push(`From the release "${bandpromoAdminEscapeHtml(releaseTitle)}"`);
+                        parts.push(`From the campaign "${bandpromoAdminEscapeHtml(releaseTitle)}"`);
                     }
 
                     parts.push(`(${bandpromoAdminEscapeHtml(tracksLabel)})`);
@@ -9852,7 +9864,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : playlists;
                     if (!visible.length) {
                         poolList.innerHTML = releaseFilterId
-                            ? '<li class="player-layout-empty">No playlists for this release yet.</li>'
+                            ? '<li class="player-layout-empty">No playlists for this campaign yet.</li>'
                             : '<li class="player-layout-empty">No playlists available yet.</li>';
                         return;
                     }
@@ -10255,7 +10267,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     const releaseTitle = String(track.release_title || '').trim();
                     if (releaseTitle) {
-                        return `from the release ${releaseTitle}`;
+                        return `from the campaign ${releaseTitle}`;
                     }
                     return '';
                 }
@@ -12724,7 +12736,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             });
                             const data = await response.json().catch(() => ({}));
                             if (!response.ok || data.ok === false) {
-                                throw new Error(data.error || 'Could not load releases');
+                                throw new Error(data.error || 'Could not load campaigns');
                             }
                             releases = Array.isArray(data.releases) ? data.releases : [];
                         }
@@ -12737,11 +12749,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             });
                         releasePackageExportSelect.innerHTML = options.length
                             ? options.join('')
-                            : '<option value="">No exportable releases</option>';
+                            : '<option value="">No exportable campaigns</option>';
                     } catch (error) {
-                        releasePackageExportSelect.innerHTML = '<option value="">Could not load releases</option>';
+                        releasePackageExportSelect.innerHTML = '<option value="">Could not load campaigns</option>';
                         if (releasePackageExportStatus) {
-                            releasePackageExportStatus.textContent = error.message || 'Could not load releases';
+                            releasePackageExportStatus.textContent = error.message || 'Could not load campaigns';
                             releasePackageExportStatus.classList.add('is-error');
                         }
                     }
@@ -12819,7 +12831,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const releasePackageImportBtn = document.getElementById('releasePackageImportBtn');
                 const releasePackageImportStatus = document.getElementById('releasePackageImportStatus');
                 const releasePackageImportFilename = document.getElementById('releasePackageImportFilename');
-                const releasePackageImportCollision = document.getElementById('releasePackageImportCollision');
+
+                function selectedReleasePackageCollision() {
+                    const checked = document.querySelector('input[name="releasePackageImportCollision"]:checked');
+                    if (checked instanceof HTMLInputElement) {
+                        return String(checked.value || 'refuse');
+                    }
+                    return 'refuse';
+                }
 
                 if (releasePackageImportInput instanceof HTMLInputElement) {
                     releasePackageImportInput.addEventListener('change', () => {
@@ -12919,9 +12938,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const csrfToken = typeof refreshAdminCsrfToken === 'function'
                             ? await refreshAdminCsrfToken()
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
-                        const collision = releasePackageImportCollision instanceof HTMLSelectElement
-                            ? String(releasePackageImportCollision.value || 'refuse')
-                            : 'refuse';
+                        const collision = selectedReleasePackageCollision();
                         const data = await importReleasePackageChunked(file, collision, csrfToken, (progress, finishing) => {
                             if (!releasePackageImportStatus) {
                                 return;

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 16:30 - Checkpoint operator Campaign copy, Content/Files ⓘ help, Backup compact, and Visual/Brand toolbar polish on `main` as **v0.8.29 build 406**; publish GitHub Release `v0.8.29-build-406` for Site update.
+
+2026-08-17 16:20 - Files → Visual campaign filter says All campaigns. Brand assets type chips match Visual (icons for Still, Living, Sound effects); brand filter says All brands; Add existing shows only when a Brand is selected.
+
+2026-08-17 16:10 - Files ⓘ help for Audio, Visual, Sound effects, and Brand assets: uploads become internal masters (original content + tags); pools/pickers use masters; delivery is generated from masters.
+
+2026-08-17 16:00 - Catalogue ⓘ help: campaign owns master media (audio, images, video); assign assets and containers; Base info vs other tabs. Dropped upload copy from this tab.
+
+2026-08-17 15:55 - Content ⓘ help for Catalogue, Galleries, Pages, and Branding matches Playlists: three bullets, what the container is, how it shows in the player, and how to operate it.
+
+2026-08-17 15:50 - Playlists ⓘ help is a three-item bullet list (listening products, reverse-order series, save/delivery).
+
+2026-08-17 15:45 - Playlists ⓘ help: playlists replaced albums/singles/EPs and can be reverse-order series (podcasts, DJ mixsets, shows). Dropped the “create from Campaign hub” nudge.
+
+2026-08-17 15:15 - Operator UI calls the Catalogue umbrella a **Campaign** (editor, add/delete, Files column, Status tiles, help). Playlist stays the listening product. Track **Release date** and storage `release_id` / PRP are unchanged.
+
+2026-08-17 14:30 - System → Backup: PRP export/import sit above site backup in a compact two-column row; import collision is a Refuse | Overwrite | Skip | AsNew radio pool.
+
 2026-08-17 13:40 - Checkpoint compact Admin Status/Files chrome, local Python metadata bootstrap, and Visual list density on `main` as **v0.8.29 build 405**; publish GitHub Release `v0.8.29-build-405` for Site update. Next: operator-facing Campaign label (no storage rename). Python 3.6 checker skips `scripts/vendor`.
 
 2026-08-17 13:25 - Files toolbars: tighter padding/gaps on type chips, filters, search, and Upload/Download/Delete so Visual All|Images|Video and the rest of the row stay on one line.

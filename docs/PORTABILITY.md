@@ -119,7 +119,7 @@ Legacy `bandpromo-default-theme-*.zip` is **not** published for operators. Campa
 
 #### Operator import collisions
 
-When imported ids already exist, the operator chooses (refuse / overwrite / skip-existing). Labels are implementation detail; silent overwrite of operator campaigns is forbidden.
+When imported ids already exist, the operator chooses **Refuse** / **Overwrite** / **Skip** / **AsNew** (allocate a new campaign id). Labels are implementation detail; silent overwrite of operator campaigns is forbidden.
 
 #### Duplicate vs import
 
