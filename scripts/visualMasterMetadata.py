@@ -25,6 +25,13 @@ else:
 
 
 SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
+
 ROOT_DIR = SCRIPT_DIR.parent
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'

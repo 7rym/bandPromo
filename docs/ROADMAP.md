@@ -536,7 +536,7 @@ Closed-beta fleet personas (Vanilla demo install, **Twisted Chronicles** band ca
 **Updating safely:**
 
 1. **Site update** (Dashboard) replaces application code only. Your `web-config.json`, `.env`, `data/`, `media/`, and `log/` are preserved.
-2. After every successful Site update, run **Rebuild all deliverables** once (System → Deliverables). This is **normal**, not a sign that something failed.
+2. After every successful Site update, run **Refresh site files** once (System → Status). This is **normal**, not a sign that something failed.
 3. Soon (v0.8.3): Publish will also prepare your content links automatically — you will not need a separate “content model upgrade” step.
 4. Before large updates on heavy installs: download a ZIP backup of `data/`, `media/`, and `web-config.json` via your host until in-app backup ships.
 

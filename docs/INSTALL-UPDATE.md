@@ -207,10 +207,10 @@ Package update **preserves** your content. It replaces application PHP/JS only. 
 
 **What to do next (normal workflow):**
 
-1. After **Install update** succeeds, bandPromo opens **System → Deliverables**, starts **Rebuild all deliverables**, and shows the build log automatically — even when delivery status already looked clear.
+1. After **Install update** succeeds, bandPromo opens **System → Status**, starts **Refresh site files**, and shows the build log automatically — even when delivery status already looked clear.
 2. Wait for the rebuild to finish, then smoke-test admin and playback.
 
-If the auto-run cannot start (for example the rebuild button is unavailable), the success toast tells you to click **Rebuild all deliverables** yourself. Notifications also keep a **Fix first** item while package-update delivery work remains pending.
+If the auto-run cannot start (for example the refresh button is unavailable), the success toast tells you to click **Refresh site files** yourself. Notifications also keep a **Fix first** item while package-update delivery work remains pending.
 
 **What Site update does not do:**
 
@@ -219,7 +219,7 @@ If the auto-run cannot start (for example the rebuild button is unavailable), th
 
 **After Site update (v0.8.3+):**
 
-1. bandPromo opens **System → Deliverables** and starts **Rebuild all deliverables** automatically when the install finishes.
+1. bandPromo opens **System → Status** and starts **Refresh site files** automatically when the install finishes.
 2. If a newer Demo PRP was published, the locked platform demo catalog is refreshed before that rebuild so older installs pick up new demo standards/features.
 3. If legacy Visual intake folders still exist, registered originals are relocated into `media/visual/original/` before rebuild.
 4. Config structure updates happen silently in the background when you open admin.

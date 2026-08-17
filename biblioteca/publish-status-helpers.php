@@ -204,13 +204,14 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
     $releases = 0;
     $releasesWithTracks = 0;
     $catalogTrackIds = [];
+    $catalogTrackReadyIds = [];
     foreach (bandpromo_release_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
         }
 
         $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
-        if ($releaseId === '' || !bandpromo_demo_catalog_entity_is_visible($root, $releaseId)) {
+        if ($releaseId === '' || !bandpromo_release_visible_in_admin_catalog($root, $entry)) {
             continue;
         }
 
@@ -225,13 +226,24 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
                     continue;
                 }
                 $assetId = trim((string) ($track['asset_id'] ?? ''));
+                $master = basename(trim((string) ($track['master_filename'] ?? $track['file'] ?? '')));
                 if ($assetId !== '') {
                     $catalogTrackIds[$assetId] = true;
+                } elseif ($master !== '') {
+                    $catalogTrackIds['file:' . $master] = true;
+                } else {
                     continue;
                 }
-                $master = basename(trim((string) ($track['master_filename'] ?? $track['file'] ?? '')));
-                if ($master !== '') {
-                    $catalogTrackIds['file:' . $master] = true;
+
+                if ($master === '' && $assetId !== '') {
+                    $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+                    $master = is_array($asset)
+                        ? basename(trim((string) ($asset['master_filename'] ?? '')))
+                        : '';
+                }
+                if ($master !== '' && bandpromo_asset_audio_delivery_ready($root, $master)) {
+                    $readyKey = $assetId !== '' ? $assetId : ('file:' . $master);
+                    $catalogTrackReadyIds[$readyKey] = true;
                 }
             }
         } catch (Throwable $throwable) {
@@ -243,6 +255,7 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
         }
     }
     $catalogTracks = count($catalogTrackIds);
+    $catalogTracksReady = count($catalogTrackReadyIds);
 
     $playlists = 0;
     $playlistsWithTracks = 0;
@@ -295,7 +308,13 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
         }
 
         $pageId = bandpromo_page_normalize_id((string) ($entry['id'] ?? ''));
-        if ($pageId === '' || !bandpromo_page_runtime_present($root, $pageId)) {
+        if ($pageId === '' || $pageId === BANDPROMO_PAGE_REQUIRED_ID) {
+            continue;
+        }
+        if (($entry['surface'] ?? 'player') === 'login' || !empty($entry['required'])) {
+            continue;
+        }
+        if (!bandpromo_page_runtime_present($root, $pageId)) {
             continue;
         }
 
@@ -327,6 +346,7 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
         'releases' => $releases,
         'releases_with_tracks' => $releasesWithTracks,
         'catalog_tracks' => $catalogTracks,
+        'catalog_tracks_ready' => $catalogTracksReady,
         'playlists' => $playlists,
         'playlists_with_tracks' => $playlistsWithTracks,
         'playlist_tracks' => $playlistTracks,
@@ -396,8 +416,8 @@ function bandpromo_delivery_inventory_tile_detail(string $id, array $counts): st
                 : 'Showcase your visuals';
         case 'pages':
             return (int) ($counts['pages'] ?? 0) > 0
-                ? 'Published for visitors'
-                : 'FAQ and optional pages';
+                ? 'Campaign pages in the player'
+                : 'Add a Bio or story page';
         case 'brands':
             $operator = (int) ($counts['operator_brands'] ?? 0);
             return $operator > 0
@@ -414,9 +434,6 @@ function bandpromo_delivery_inventory_tiles(array $counts): array
         ['id' => 'releases', 'icon' => '💿', 'value' => (int) ($counts['releases'] ?? 0), 'label' => 'Releases'],
         ['id' => 'playlists', 'icon' => '🎧', 'value' => (int) ($counts['playlists'] ?? 0), 'label' => 'Playlists'],
         ['id' => 'tracks', 'icon' => '🎵', 'value' => (int) ($counts['catalog_tracks'] ?? 0), 'label' => 'Catalog tracks'],
-        ['id' => 'audio', 'icon' => '🔊', 'value' => (int) ($counts['audio_files'] ?? 0), 'label' => 'Audio files'],
-        ['id' => 'images', 'icon' => '🖼️', 'value' => (int) ($counts['images'] ?? 0), 'label' => 'Images'],
-        ['id' => 'videos', 'icon' => '🎬', 'value' => (int) ($counts['videos'] ?? 0), 'label' => 'Videos'],
         ['id' => 'galleries', 'icon' => '📷', 'value' => (int) ($counts['galleries'] ?? 0), 'label' => 'Galleries'],
         ['id' => 'pages', 'icon' => '📄', 'value' => (int) ($counts['pages'] ?? 0), 'label' => 'Pages'],
         ['id' => 'brands', 'icon' => '✨', 'value' => (int) ($counts['operator_brands'] ?? 0), 'label' => 'Brands'],
@@ -478,8 +495,15 @@ function bandpromo_delivery_inventory_copy(array $counts, int $audioReady, int $
 
 function bandpromo_delivery_build_inventory(string $root, int $registeredAudio, int $audioReady): array
 {
-    $counts = bandpromo_delivery_inventory_counts($root);
-    $audioTotal = max($registeredAudio, (int) ($counts['audio_files'] ?? 0));
+    $counts = bandpromo_delivery_inventory_counts_compute($root);
+    $catalogTracks = (int) ($counts['catalog_tracks'] ?? 0);
+    $catalogReady = (int) ($counts['catalog_tracks_ready'] ?? 0);
+    if ($catalogTracks > 0) {
+        $audioTotal = $catalogTracks;
+        $audioReady = min($catalogReady, $catalogTracks);
+    } else {
+        $audioTotal = max($registeredAudio, (int) ($counts['audio_files'] ?? 0));
+    }
     $deliveryOk = $audioTotal === 0 || $audioReady >= $audioTotal;
     $copy = bandpromo_delivery_inventory_copy($counts, $audioReady, $audioTotal, $deliveryOk);
     $percent = $audioTotal > 0 ? (int) round(($audioReady / $audioTotal) * 100) : 100;
@@ -581,7 +605,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'label' => 'Streaming files still missing',
             'count' => count($missingDelivery),
             'detail' => 'Some catalogued audio does not have listener-ready MP3 delivery files yet.',
-            'action' => 'bandPromo usually creates these after uploads and saves. Use Rebuild all deliverables if you want to refresh everything now.',
+            'action' => 'bandPromo usually creates these after uploads and saves. Use Refresh site files if you want to rebuild everything now.',
         ];
     }
 

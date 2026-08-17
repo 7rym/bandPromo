@@ -246,6 +246,16 @@ def _verify_required_python_imports():
     return (missing == [], missing)
 
 
+def _vendor_has_required_packages():
+    """True when scripts/vendor contains the packages (not only global site-packages)."""
+    if not VENDOR_DIR.is_dir():
+        return False
+    for name in ('mutagen', 'PIL', 'xxhash'):
+        if not (VENDOR_DIR / name).is_dir():
+            return False
+    return True
+
+
 def _pip_install_to_vendor(extra_args):
     """Run pip install --target scripts/vendor for this interpreter."""
     VENDOR_DIR.mkdir(parents=True, exist_ok=True)
@@ -330,10 +340,13 @@ def install_pip_dependencies():
             sys.path.insert(0, vendor)
 
     ok, missing = _verify_required_python_imports()
-    if ok:
+    if ok and _vendor_has_required_packages():
         print('  OK Dependencies already available for ' + py_tag)
         sys.stdout.flush()
         return True
+    if ok:
+        print('  NOTE Packages import globally; still installing into scripts/vendor')
+        sys.stdout.flush()
 
     # 1) Network install into site-local vendor (writable under the install).
     try:

@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-17 (after checkpoint v0.8.28 build 402)._
+_Paused: 2026-08-17 (after checkpoint v0.8.29 build 405)._
 
 ## Exact resume point
 
@@ -8,28 +8,32 @@ _Paused: 2026-08-17 (after checkpoint v0.8.28 build 402)._
 
 Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The other remote test sites are **Twisted Chronicles** and **HITZ**. Never this working copy.
 
+**Next work (agreed, not started):** operator-facing **Campaign** for the Catalogue umbrella. Playlist stays the listening product (what Bandcamp/Discogs/Spotify call a release). Keep `release_id` and PRP. Copy/docs/UI only — no storage rename.
+
 | Item | Value |
 |------|--------|
-| Git | `main` — checkpoint **v0.8.28 build 402** (shell cleanup + player bg fix + layout plan) |
-| App tester package | Publish **`v0.8.28-build-402`** after push |
+| Git | `main` — checkpoint **v0.8.29 build 405** |
+| App tester package | Publish **`v0.8.29-build-405`** after push |
 | Demo package | Durable tag **`demo-content`** — unchanged unless demo content edits |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Confirm GitHub Release **`v0.8.28-build-402`** published; **Site update** on bandpromo.site offers build 402.
-2. Fresh-install smoke on **bandpromo.site**: Catalogue = demo only; Branding = bandPromo Default only; no Player / Analytics Quality tabs; player Bio/Gallery work; playlist switch clears living background when brand has none.
-3. Continue from [TODO.md](TODO.md) / operator priority.
-4. **Deferred (v0.9 candidate):** code layout refactor — [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md).
+1. Confirm GitHub Release **`v0.8.29-build-405`** published; **Site update** on bandpromo.site offers build 405.
+2. Operator-facing Campaign copy pass: Catalogue list/editor title, Add/Delete, Files column labels, help that currently defines Release as an umbrella. See [TODO.md](TODO.md).
+3. **Deferred (v0.9 candidate):** code layout refactor — [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md).
 
-## Shipped in build 402 (do not redo)
+## Shipped in build 405 (do not redo)
 
-- Hide invisible `primary` from Catalogue / operator release lists.
-- Stop setup/Welcome auto “Your own brand”; Welcome nudges Duplicate when Base is locked demo.
-- Release Pages associations drive player tab order; Content → Player layout removed.
-- Analytics → Quality removed.
-- Player shell living background no longer sticks after playlist/brand switch.
-- v0.9 `/lib` + `/admin/` layout plan documented (no implementation).
+- Compact Admin chrome (identity line + Notifications on the primary tab row).
+- System → **Status** (was Deliverables): Catalogue-matching counts; Repair catalog developer-only; Refresh site files.
+- Local Python metadata: inherit PHP process env; bootstrap `scripts/vendor` before mutagen/Pillow; still write vendor when packages already import globally.
+- Files → Visual: one ⓘ help paragraph; Images/Video icon chips; tighter toolbar padding; list title + status + actions on one line.
+
+## Shipped in build 404 (do not redo)
+
+- Living shell/cover loop + tail auto-next.
+- Playlist switch via `/play/?playlist={id}` so demo Bio/Gallery tabs work without `play/.htaccess`.
 
 ## Constraints
 

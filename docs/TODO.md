@@ -116,6 +116,7 @@ Policy — **locked**:
 - [x] Lock **Brand replaces Theme**: colors, typography, mood narrative, and asset refs live in `data/brands/` — not a separate Theme container.
 - [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era). *(Superseded 2026-07-21: Release is the campaign umbrella; album/single packages are playlists under one release; brand identity is owned by that release.)*
 - [x] Lock **Release = campaign umbrella** (2026-07-21) — owns tracks, identity, EPK, galleries, pages; Playlist = streaming listening product. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
+- [ ] Operator-facing **Campaign** for that umbrella (2026-08-17) — Catalogue/editor copy only; keep `release_id` and PRP. Playlist stays the listening product (single/album/tour street dates). Do not rename storage.
 - [x] Lock **release cover on release**: `poster_asset_id` picked from Visual pool with brand filter; not stored inside the brand document.
 - [x] Lock **install default brand**: seed locked `bandpromo-default` on first install. Operators duplicate to customize (no auto “Your own brand” on setup).
 - [x] Hide invisible `primary` orphan/upload bucket from Catalogue (operator-facing lists).

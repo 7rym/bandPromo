@@ -1108,7 +1108,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     return `Some preparation could not finish automatically (${tasks.join(', ')}). Check Notifications.`;
                 }
-                const action = 'Rebuild all deliverables';
+                const action = 'Refresh site files';
                 if (!tasks.length) {
                     return `Next: run ${action}.`;
                 }
@@ -1121,7 +1121,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function getBuildActionLabel() {
-                return 'Rebuild all deliverables';
+                return 'Refresh site files';
             }
 
             function formatBuildHintMessage(state) {
@@ -1133,7 +1133,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (tasks.length > 1) {
                     return `⚠ ${tasks.length} steps are waiting. Use ${actionLabel} when you are ready.`;
                 }
-                return '⚠ Your latest changes may need refreshed delivery files. Rebuild all deliverables when you are ready.';
+                return '⚠ Your latest changes may need refreshed delivery files. Refresh site files when you are ready.';
             }
 
             function closeOperatorNotifications() {
@@ -1205,7 +1205,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 showAdminToast(
-                    versionPrefix + 'Click Rebuild all deliverables to refresh your public site.',
+                    versionPrefix + 'Click Refresh site files to refresh your public site.',
                     'success'
                 );
             }
@@ -1286,7 +1286,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const details = [
                         { text: lastError !== ''
                             ? 'Automatic preparation after upload did not finish. Fix the issue below, then retry from Deliverables if needed.'
-                            : 'Your edits are saved in admin. Rebuild all deliverables when you are ready for visitors to get the latest files.' },
+                            : 'Your edits are saved in admin. Refresh site files when you are ready for visitors to get the latest files.' },
                         { text: taskIntro },
                     ];
                     if (lastError !== '') {
@@ -11115,7 +11115,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function refreshBuildActionCopy() {
                 if (buildBtn) {
-                    buildBtn.textContent = '▶️ Rebuild all deliverables';
+                    buildBtn.textContent = 'Refresh site files';
                 }
                 if (buildHelpBox) {
                     if (currentBuildRequired) {
@@ -11126,11 +11126,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : 'Pending now: bandPromo still has delivery work to finish.';
                         const afterPackageUpdate = currentBuildReasons.includes('package_update');
                         const intro = afterPackageUpdate
-                            ? 'Site update preserved your content. Rebuilding deliverables is the normal next step so listener-ready files match the new version.'
+                            ? 'Site update preserved your content. Refreshing site files is the normal next step so listeners get the new version.'
                             : `${actionLabel} is the recommended next step for the current pending work.`;
                         buildHelpBox.innerHTML = `${intro} ${taskLine} Jobs continue in the background while this log updates.`;
                     } else {
-                        buildHelpBox.innerHTML = 'bandPromo usually keeps deliverables current automatically after uploads and saves. Use <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.';
+                        buildHelpBox.innerHTML = 'Uploads and saves usually prepare streaming files on their own. Use <strong>Refresh site files</strong> only if something is missing or after a Site update.';
                     }
                 }
             }
@@ -11213,7 +11213,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     `;
 
                     if (tiles.length) {
-                        const coreTileIds = new Set(['releases', 'playlists', 'tracks', 'audio']);
+                        const coreTileIds = new Set(['releases', 'playlists', 'tracks']);
                         const visibleTiles = tiles.filter((tile) => {
                             const value = Number(tile.value || 0);
                             return value > 0 || coreTileIds.has(String(tile.id || ''));
@@ -11247,7 +11247,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         </article>
                     `).join('')}</div>`;
                 } else if (ok) {
-                    checksHtml += '<p class="publish-status-empty">Listener-ready files look current. Rebuild all deliverables whenever you want extra reassurance.</p>';
+                    checksHtml += '<p class="publish-status-empty">Streaming files match your catalog.</p>';
                 }
 
                 publishStatusSummary.innerHTML = `

@@ -1,4 +1,13 @@
 import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
 
 import stdio_utf8
 stdio_utf8.configure()
@@ -9,7 +18,6 @@ import json
 import re
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from mutagen import File
 
 from php_cli import resolve_php_cli
@@ -19,7 +27,6 @@ SUPPORTED_EXTENSIONS = ('.flac', '.mp3', '.wav')
 KNOWN_AUDIO_EXTENSIONS = SUPPORTED_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg', '.wma')
 
 # Find the root directory (scripts/..)
-SCRIPT_DIR    = Path(__file__).parent
 ROOT_DIR      = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR  = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'

@@ -94,8 +94,33 @@ function bandpromo_resolve_light_task_ffmpeg(string $root_dir): string {
     return $configured !== '' ? $configured : 'ffmpeg';
 }
 
-function bandpromo_light_task_env(string $root_dir, array $env_extras = []): array {
+function bandpromo_inherit_process_env(): array {
     $env = $_ENV;
+    foreach ($_SERVER as $key => $value) {
+        if (!is_string($key) || !is_string($value) || $key === '') {
+            continue;
+        }
+        if (!array_key_exists($key, $env)) {
+            $env[$key] = $value;
+        }
+    }
+    foreach ([
+        'PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'APPDATA', 'LOCALAPPDATA',
+        'USERPROFILE', 'HOME', 'TEMP', 'TMP', 'PYTHONPATH', 'PYTHONHOME',
+    ] as $key) {
+        if (!isset($env[$key]) || $env[$key] === '') {
+            $value = getenv($key);
+            if (is_string($value) && $value !== '') {
+                $env[$key] = $value;
+            }
+        }
+    }
+
+    return $env;
+}
+
+function bandpromo_light_task_env(string $root_dir, array $env_extras = []): array {
+    $env = bandpromo_inherit_process_env();
     $env['BUILD_ROOT'] = $root_dir;
     $env['PYTHONIOENCODING'] = 'utf-8:replace';
     $env['FFMPEG_PATH'] = bandpromo_resolve_light_task_ffmpeg($root_dir);

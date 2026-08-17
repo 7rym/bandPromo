@@ -55,7 +55,9 @@ FORBIDDEN = (
 
 
 def iter_python_files(root):
-    for dirpath, _dirnames, filenames in os.walk(root):
+    skip_dirs = {"vendor", "vendor-wheels", "__pycache__", "bin"}
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
         for name in filenames:
             if name.endswith(".py"):
                 yield os.path.join(dirpath, name)

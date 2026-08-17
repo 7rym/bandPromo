@@ -603,16 +603,19 @@ if (!in_array($configTab, ['basics', 'support', 'sharing'], true)) {
 }
 
 // System sub-tab
-$allowedSystemTabs = ['deliverables', 'publish', 'audit', 'backup', 'security'];
+$allowedSystemTabs = ['deliverables', 'status', 'publish', 'audit', 'backup', 'security'];
 $systemTab = $_GET['stab'] ?? 'deliverables';
 if ($systemTab === 'activity') {
     $systemTab = 'backup';
 }
-if ($systemTab === 'publish') {
-    $redirectQuery = $_GET;
-    $redirectQuery['stab'] = 'deliverables';
-    header('Location: /admin.php?' . http_build_query($redirectQuery));
-    exit;
+if ($systemTab === 'publish' || $systemTab === 'status') {
+    if ($systemTab === 'publish') {
+        $redirectQuery = $_GET;
+        $redirectQuery['stab'] = 'deliverables';
+        header('Location: /admin.php?' . http_build_query($redirectQuery));
+        exit;
+    }
+    $systemTab = 'deliverables';
 }
 if (!in_array($systemTab, $allowedSystemTabs, true)) {
     $systemTab = 'deliverables';
@@ -699,21 +702,15 @@ if ($tab === 'analytics') {
 <body>
     <div class="container">
         <h1>🔐 Admin Panel</h1>
-        <p class="app-version">using bandPromo <?php echo htmlspecialchars($appVersion); ?></p>
-        <div class="admin-header-bar">
-            <div class="user-badge">Logged in as: <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>
-                <?php if ($currentUserRole !== ''): ?>
-                    <span class="role-badge <?php echo $currentUserRole === 'developer' ? 'role-developer' : ($currentUserRole === 'admin' ? 'role-admin' : 'role-user'); ?>"><?php echo htmlspecialchars(ucfirst($currentUserRole)); ?></span>
-                <?php endif; ?>
-                &nbsp;·&nbsp;<a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
-                &nbsp;·&nbsp;<a href="/admin.php?logout=1">Logout</a>
-            </div>
-            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsModal">
-                <span class="operator-notifications-icon">🔔</span>
-                <span class="operator-notifications-label">Notifications</span>
-                <span id="operatorNotificationsCount" class="operator-notifications-count is-empty">0</span>
-            </button>
-        </div>
+        <p class="admin-identity">
+            <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong><?php if ($currentUserRole !== ''): ?>
+            <span class="role-badge <?php echo $currentUserRole === 'developer' ? 'role-developer' : ($currentUserRole === 'admin' ? 'role-admin' : 'role-user'); ?>"><?php echo htmlspecialchars(strtolower($currentUserRole)); ?></span><?php endif; ?>
+            using bandPromo <?php echo htmlspecialchars($appVersion); ?>
+            <span class="admin-identity-sep" aria-hidden="true">·</span>
+            <a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
+            <span class="admin-identity-sep" aria-hidden="true">·</span>
+            <a href="/admin.php?logout=1">Logout</a>
+        </p>
 
         <?php if ($message): ?>
             <div class="message success"><?php echo htmlspecialchars($message); ?></div>
@@ -738,6 +735,11 @@ if ($tab === 'analytics') {
             <?php renderTabLink('settings',  $tab, '⚙️', 'Settings'); ?>
             <?php renderTabLink('system',    $tab, '🛠️', 'System'); ?>
             <?php renderTabLink('docs',      $tab, '📚', 'Documentation'); ?>
+            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsModal">
+                <span class="operator-notifications-icon">🔔</span>
+                <span class="operator-notifications-label">Notifications</span>
+                <span id="operatorNotificationsCount" class="operator-notifications-count is-empty">0</span>
+            </button>
         </div>
 
         <!-- ===================== WELCOME TAB ===================== -->
@@ -750,9 +752,9 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard. Use <strong>Notifications</strong> in the header for live tasks (track/video preparation, Site update, validation), then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
+                    This page is your dashboard. Use <strong>Notifications</strong> to the right of the main tabs for live tasks (track/video preparation, Site update, validation), then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome. <strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist. Jump to <strong>Settings</strong> for site basics and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Deliverables</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
+                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome. <strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist. Jump to <strong>Settings</strong> for site basics and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Status</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
                 <?php endif; ?>
             </div>
 
@@ -764,11 +766,11 @@ if ($tab === 'analytics') {
                 $catalogHealth = bandpromo_asset_registry_health_snapshot(__DIR__);
             }
             ?>
-            <?php if (!empty($catalogHealth['needs_attention'])): ?>
+            <?php if (!empty($catalogHealth['needs_attention']) && $currentUserRole === 'developer'): ?>
             <div class="card welcome-catalog-repair-card" id="welcomeCatalogRepairCard">
                 <h2>🔧 Catalog needs a repair pass</h2>
                 <p class="card-note">
-                    bandPromo found registry housekeeping that does not run on every page load (so Content stays fast). Preview and apply repairs under System → Deliverables — this does not publish the public site by itself.
+                    Developer-only: registry housekeeping that does not run on every page load. Preview and apply under System → Status. This does not publish the public site by itself.
                 </p>
                 <?php if (!empty($catalogHealth['reasons']) && is_array($catalogHealth['reasons'])): ?>
                 <ul class="welcome-list">
@@ -1168,7 +1170,7 @@ if ($tab === 'analytics') {
                     Work with <strong>master</strong> audio files only. Filter by catalogue release or search by registered title. Green / amber / red badges show metadata health — click a row for quick tags, or the pencil for the full editor.
                     <br><strong>After upload:</strong> bandPromo prepares delivery automatically. Tracks appear in Content pools when ready.
                 <?php elseif ($filesPanel === 'visual'): ?>
-                    Still images and video for covers, galleries, pages, and Brand shells (logo / still / living). Catalogue lists every campaign that plays the file — including Base-brand fallback when a Brand left that slot empty. Files in a Brand library that no campaign plays show that Brand, not Orphan. Orphans are not used by any campaign and are not in a Brand library.
+                    Still images and video for covers, galleries, pages, and Brand shells. <strong>Catalogue</strong> lists campaigns that play the file (Base brand fills empty Brand slots). Brand-library files with no campaign show that Brand, not Orphan. <strong>In use</strong> is a live assignment (cover, gallery, page, poster, or Brand shell), not Catalogue.
                     <br><strong>After upload:</strong> delivery variants prepare automatically — check Notifications if a video stalls.
                 <?php elseif ($filesPanel === 'sfx'): ?>
                     Short brand UI clips (welcome, login, and similar). These belong to brands — assign them under Content → Branding. Not release tracks.
@@ -1226,8 +1228,6 @@ if ($tab === 'analytics') {
                 <div class="media-panel-header">
                     <div class="media-panel-summary">
                         <span class="media-panel-intro">
-                            Catalogue is the campaign that uses this file (gallery, cover, poster, page, or Brand shell: logo and backgrounds). Empty Brand slots inherit the Base brand. Files in a Brand library that no campaign plays show that Brand, not Orphan. Orphans are not used by any campaign and are not in a Brand library.
-                            <br>
                             <?php echo bandpromo_admin_files_permanent_warning_line(true); ?>
                         </span>
                     </div>
@@ -1236,8 +1236,8 @@ if ($tab === 'analytics') {
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
                         <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
                             <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="visual" aria-pressed="true">All</button>
-                            <button type="button" class="visual-filter-chip" data-pool-type-filter="image" data-pool-panel="visual" aria-pressed="false">Images</button>
-                            <button type="button" class="visual-filter-chip" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false">Video</button>
+                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="image" data-pool-panel="visual" aria-pressed="false" title="Images" aria-label="Images"><span class="visual-filter-chip-icon" aria-hidden="true">🖼</span></button>
+                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false" title="Video" aria-label="Video"><span class="visual-filter-chip-icon" aria-hidden="true">🎬</span></button>
                         </div>
                         <label class="media-filter-label">
                             <span class="visually-hidden">Filter by catalogue</span>
@@ -2528,7 +2528,7 @@ if ($tab === 'analytics') {
         <!-- ===================== SYSTEM TAB ===================== -->
         <div id="tab-system" class="tab-content <?php echo $tab === 'system' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
-                <a href="?tab=system&amp;stab=deliverables" class="tab-link <?php echo $systemTab === 'deliverables' ? 'active' : ''; ?>">📦 Deliverables</a>
+                <a href="?tab=system&amp;stab=deliverables" class="tab-link <?php echo $systemTab === 'deliverables' ? 'active' : ''; ?>">📊 Status</a>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
                 <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup, export &amp; import</a>
                 <a href="?tab=system&amp;stab=security" class="tab-link <?php echo $systemTab === 'security' ? 'active' : ''; ?>">🔒 Security</a>
@@ -2545,25 +2545,27 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                bandPromo usually keeps listener-ready files current automatically after uploads and saves. This page shows delivery health and lets you rebuild everything when you want extra reassurance.<br><br>
-                <strong>Delivery status</strong> summarizes your catalog and whether streaming files are ready.<br><br>
-                Use <strong>Repair catalog</strong> when Welcome suggests registry housekeeping, then <strong>Rebuild all deliverables</strong> when you want the full pipeline refreshed.
+                This page is the health of your catalog: releases, playlists, tracks, and whether those tracks can stream.<br><br>
+                Counts match <strong>Content → Catalogue</strong> (the invisible upload bucket and login FAQ are not campaigns).<br><br>
+                Uploads and saves usually prepare streaming files automatically. Use <strong>Refresh site files</strong> if something is missing or after a Site update.
             </div>
 
             <div id="publishStatusCard" class="card publish-status-card">
                 <div class="build-validation-head">
-                    <h3>📊 Delivery status</h3>
+                    <h3>📊 Site status</h3>
                     <span id="publishStatusOverall" class="badge audit-status-badge status-neutral">Checking…</span>
                 </div>
                 <div id="publishStatusSummary" class="publish-status-summary"></div>
             </div>
 
+            <?php if ($currentUserRole === 'developer'): ?>
             <div id="catalog-repair" class="card catalog-repair-card">
                 <div class="build-validation-head">
                     <h3>🔧 Repair catalog</h3>
+                    <span class="role-badge role-developer">developer</span>
                 </div>
                 <p class="card-note">
-                    Heal registry links, legacy master names, missing visual delivery metadata, and related catalog housekeeping. Preview first; apply only when you want those repairs written. This does not publish listener-facing files by itself — use Rebuild below when delivery still needs a refresh.
+                    Internal recovery for registry links, master filenames, and leftover metadata. A healthy demo install can still list housekeeping that is not an operator problem. Preview first. Apply only when you know a catalog link is wrong.
                 </p>
                 <div class="publish-actions-toolbar">
                     <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>
@@ -2572,13 +2574,17 @@ if ($tab === 'analytics') {
                 <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
                 <ul id="contentAutofixReport" class="welcome-list" hidden></ul>
             </div>
+            <?php endif; ?>
 
             <div id="publishActionsCard" class="card publish-actions-card">
                 <div class="build-validation-head">
-                    <h3>⚡ When you want reassurance</h3>
+                    <h3>🔄 Refresh site files</h3>
                 </div>
+                <p class="card-note">
+                    Rebuilds listener-facing streaming files, covers, and playlists from what you already saved. Not required after a normal upload or playlist save. Site update may start this automatically.
+                </p>
                 <div class="publish-actions-toolbar">
-                    <button type="button" id="buildBtn" class="btn btn-primary">▶️ Rebuild all deliverables</button>
+                    <button type="button" id="buildBtn" class="btn btn-primary">Refresh site files</button>
                     <button type="button" id="recommendedBuildBtn" class="btn" style="display:none"></button>
                 </div>
             </div>
@@ -2679,7 +2685,7 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Create full-site backups, import a site ZIP, or import a single <strong>release package</strong> (one campaign: masters, branding, playlists, galleries, pages). Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Deliverables</strong> if you want to refresh listener-ready files. See <code>docs/PORTABILITY.md</code>.
+                Create full-site backups, import a site ZIP, or import a single <strong>release package</strong> (one campaign: masters, branding, playlists, galleries, pages). Large <code>media/</code> archives can take several minutes. Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Status</strong> if you want to refresh listener-ready files. See <code>docs/PORTABILITY.md</code>.
             </div>
 
             <div class="card site-backup-card">

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 13:40 - Checkpoint compact Admin Status/Files chrome, local Python metadata bootstrap, and Visual list density on `main` as **v0.8.29 build 405**; publish GitHub Release `v0.8.29-build-405` for Site update. Next: operator-facing Campaign label (no storage rename). Python 3.6 checker skips `scripts/vendor`.
+
+2026-08-17 13:25 - Files toolbars: tighter padding/gaps on type chips, filters, search, and Upload/Download/Delete so Visual All|Images|Video and the rest of the row stay on one line.
+
+2026-08-17 13:15 - Files → Visual: one ⓘ help paragraph (Catalogue vs In use vs after-upload); panel keeps only the permanent-edit warning. Images/Video type filters are icon chips. List rows put title, status pill, and actions on one line.
+
+2026-08-17 13:00 - Admin audio/visual metadata tasks inherit the PHP process environment (`$_ENV` is empty on Windows `php -S`) and bootstrap `scripts/vendor` before importing mutagen/Pillow. First rebuild now still writes `scripts/vendor` even when packages already import from user site-packages.
+
+2026-08-17 12:50 - System → Status (was Deliverables): catalog counts match Catalogue (hide invisible `primary`, skip login FAQ); stream-ready ring uses campaign tracks not warehouse files; drop Files-pool tiles that mixed photos/videos with campaigns. Repair catalog is developer-only. Rebuild copy is Refresh site files, not a scare-panel.
+
+2026-08-17 12:28 - Place Admin Notifications on the primary tab row (right of Documentation) so it does not sit in a leftover header row.
+
+2026-08-17 12:25 - Compact Admin chrome: identity, role, version, Open site, and Logout sit on one line under the title; Notifications pill right-aligns at the content top.
+
 2026-08-17 12:05 - Fix local tail hang before auto-next: advance when catalog duration is reached but browser MP3 metadata still claims more audio; stall watchdog near end; preload next track in the last 45s; skip coverflow animation on auto-next (regression from 2026-07-16); throttle living-video loop seeks to the last quarter-second.
 
 2026-08-17 12:00 - Fix living shell/cover stopping after one play: loop watchdog seeks to start before `ended` on streamed MP4; only restart shell video when paused/ended (playlist load no longer interrupts mid-play); soften shell error fallback; clear still layer when living background is active.

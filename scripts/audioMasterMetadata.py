@@ -5,6 +5,14 @@ import shutil
 import sys
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
+
 from mutagen import File
 from mutagen.apev2 import APEv2, APENoHeaderError
 from mutagen.flac import FLAC, Picture
@@ -17,7 +25,6 @@ else:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 
-SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'

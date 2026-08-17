@@ -1012,7 +1012,8 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
             }
         }
         $steps[] = bandpromo_content_autofix_step_result('seed_containers', 'Seed platform containers', [
-            'changed' => 1,
+            'changed' => 0,
+            'skipped' => 1,
             'items' => ['assets', 'releases', 'playlists', 'galleries', 'themes', 'pages'],
         ]);
     } catch (Throwable $throwable) {
@@ -1065,7 +1066,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'errors' => $errors,
         'has_warnings' => $errors !== [],
         'message' => $dryRun
-            ? 'Preview complete. Apply repairs only if you intend to change catalog or container links.'
+            ? 'Preview complete. These are internal housekeeping tasks. A healthy demo install can still list leftover metadata fills — apply only if you know a catalog link is wrong.'
             : ($changedTotal > 0
                 ? 'Catalog repair finished. bandPromo will refresh delivery files automatically when needed.'
                 : 'Catalog already matches the current registry and container links.'),
