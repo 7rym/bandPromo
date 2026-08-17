@@ -13,6 +13,10 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# PowerShell 7+ would otherwise treat git/robocopy stderr as terminating errors.
+if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
 
 function Write-Step {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -25,6 +29,37 @@ function Test-CommandAvailable {
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [Parameter(Mandatory = $true)][string[]]$ArgumentList,
+        [int[]]$SuccessExitCodes = @(0)
+    )
+
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $FilePath @ArgumentList 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                Write-Host ("  {0}" -f $_.Exception.Message)
+            }
+            else {
+                Write-Host ("  {0}" -f $_)
+            }
+        }
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
+
+    if ($SuccessExitCodes -notcontains $exitCode) {
+        throw ("{0} {1} failed with exit code {2}." -f $FilePath, ($ArgumentList -join ' '), $exitCode)
+    }
+
+    return $exitCode
+}
+
 function Get-CommandVersionLine {
     param(
         [Parameter(Mandatory = $true)][string]$Command,
@@ -35,6 +70,8 @@ function Get-CommandVersionLine {
         return "${Command}: not found"
     }
 
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
         $output = & $Command @Arguments 2>$null | Select-Object -First 1
         if ([string]::IsNullOrWhiteSpace([string]$output)) {
@@ -45,6 +82,9 @@ function Get-CommandVersionLine {
     catch {
         return "${Command}: available"
     }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
 }
 
 function Ensure-Directory {
@@ -54,6 +94,33 @@ function Ensure-Directory {
     }
 }
 
+function Test-IncompleteProjectPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $false
+    }
+
+    $items = @(Get-ChildItem -LiteralPath $Path -Force)
+    if ($items.Count -eq 0) {
+        return $true
+    }
+
+    $names = @($items | ForEach-Object { $_.Name })
+    return ($names.Count -eq 1 -and $names[0] -eq '.git')
+}
+
+function Remove-IncompleteProjectPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-IncompleteProjectPath -Path $Path)) {
+        return
+    }
+
+    Write-Output "Removing leftover incomplete folder: $Path"
+    Remove-Item -LiteralPath $Path -Recurse -Force
+}
+
 function Copy-DirectoryTree {
     param(
         [Parameter(Mandatory = $true)][string]$Source,
@@ -61,16 +128,44 @@ function Copy-DirectoryTree {
     )
 
     Ensure-Directory -Path $Destination
-    $robocopyArgs = @(
-        $Source,
-        $Destination,
-        '/MIR',
-        '/XD', '.git',
-        '/NFL', '/NDL', '/NJH', '/NJS', '/NC', '/NS', '/NP'
-    )
-    $exitCode = & robocopy @robocopyArgs
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & robocopy $Source $Destination /E /XD .git /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
+
+    # robocopy: 0-7 are success/partial-success; 8+ is failure.
     if ($exitCode -ge 8) {
         throw "robocopy failed while copying from $Source to $Destination (exit $exitCode)."
+    }
+}
+
+function Copy-RuntimeState {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$DestinationRoot
+    )
+
+    foreach ($dirName in @('data', 'media', 'log', 'backups')) {
+        $srcDir = Join-Path $SourceRoot $dirName
+        $dstDir = Join-Path $DestinationRoot $dirName
+        if (Test-Path -LiteralPath $srcDir) {
+            Write-Output "Copying runtime folder: $dirName"
+            Copy-DirectoryTree -Source $srcDir -Destination $dstDir
+        }
+    }
+
+    foreach ($fileName in @('web-config.json', '.env')) {
+        $srcFile = Join-Path $SourceRoot $fileName
+        $dstFile = Join-Path $DestinationRoot $fileName
+        if ((Test-Path -LiteralPath $srcFile) -and -not (Test-Path -LiteralPath $dstFile)) {
+            Copy-Item -LiteralPath $srcFile -Destination $dstFile
+            Write-Output "Copied $fileName"
+        }
     }
 }
 
@@ -96,10 +191,48 @@ function Test-GitRepository {
         return $false
     }
 
-    Push-Location -LiteralPath $Path
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
-        git rev-parse --is-inside-work-tree 2>$null | Out-Null
-        return $LASTEXITCODE -eq 0
+        Push-Location -LiteralPath $Path
+        try {
+            git rev-parse --is-inside-work-tree 1>$null 2>$null
+            return $LASTEXITCODE -eq 0
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
+}
+
+function Set-GitOriginUrl {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$Url
+    )
+
+    Push-Location -LiteralPath $RepoRoot
+    try {
+        $previousEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $remotes = @(& git remote)
+        }
+        finally {
+            $ErrorActionPreference = $previousEap
+        }
+
+        if ($remotes -contains 'origin') {
+            Invoke-NativeCommand -FilePath 'git' -ArgumentList @('remote', 'set-url', 'origin', $Url) | Out-Null
+            Write-Output "Set origin to $Url"
+        }
+        else {
+            Invoke-NativeCommand -FilePath 'git' -ArgumentList @('remote', 'add', 'origin', $Url) | Out-Null
+            Write-Output "Added origin remote: $Url"
+        }
     }
     finally {
         Pop-Location
@@ -116,20 +249,18 @@ function Invoke-RepositorySync {
         throw "Expected a git repository at $RepoRoot"
     }
 
+    Set-GitOriginUrl -RepoRoot $RepoRoot -Url $RepoUrl
+
+    if ($SkipPull) {
+        return
+    }
+
+    Write-Output 'Pulling latest main from origin...'
     Push-Location -LiteralPath $RepoRoot
     try {
-        $remotes = @(git remote)
-        if ($remotes -notcontains 'origin') {
-            git remote add origin $RepoUrl | Out-Null
-            Write-Output "Added origin remote: $RepoUrl"
-        }
-
-        if (-not $SkipPull) {
-            Write-Output 'Pulling latest main from origin...'
-            git fetch origin main 2>&1 | ForEach-Object { Write-Output "  $_" }
-            git checkout main 2>&1 | ForEach-Object { Write-Output "  $_" }
-            git pull --ff-only origin main 2>&1 | ForEach-Object { Write-Output "  $_" }
-        }
+        Invoke-NativeCommand -FilePath 'git' -ArgumentList @('fetch', 'origin', 'main') | Out-Null
+        Invoke-NativeCommand -FilePath 'git' -ArgumentList @('checkout', 'main') | Out-Null
+        Invoke-NativeCommand -FilePath 'git' -ArgumentList @('pull', '--ff-only', 'origin', 'main') | Out-Null
     }
     finally {
         Pop-Location
@@ -147,7 +278,7 @@ function Resolve-SetupMode {
         return $RequestedMode
     }
 
-    if (Test-Path -LiteralPath $TargetPath) {
+    if ((Test-Path -LiteralPath $TargetPath) -and -not (Test-IncompleteProjectPath -Path $TargetPath)) {
         return 'existing'
     }
 
@@ -173,6 +304,7 @@ Write-Output ''
 
 Write-Step 'Ensure C:\dev exists'
 Ensure-Directory -Path $devRoot
+Remove-IncompleteProjectPath -Path $targetPath
 
 switch ($resolvedMode) {
     'clone' {
@@ -185,7 +317,7 @@ switch ($resolvedMode) {
         }
 
         Write-Step "Clone repository into $targetPath"
-        git clone $RepoUrl $targetPath 2>&1 | ForEach-Object { Write-Output "  $_" }
+        Invoke-NativeCommand -FilePath 'git' -ArgumentList @('clone', $RepoUrl, $targetPath) | Out-Null
     }
 
     'migrate' {
@@ -197,50 +329,29 @@ switch ($resolvedMode) {
             throw "Source path not found: $sourcePath"
         }
 
+        if (-not (Test-CommandAvailable -Name 'git')) {
+            throw 'git is required. Install Git for Windows first: https://git-scm.com/download/win'
+        }
+
         Write-Step "Migrate working copy from $sourcePath"
-        Ensure-Directory -Path $targetPath
-
-        if (Test-GitRepository -Path $sourcePath) {
-            Write-Output 'Source is a git repo - cloning metadata, then syncing tracked files...'
-            git clone $sourcePath $targetPath 2>&1 | ForEach-Object { Write-Output "  $_" }
-
-            $runtimeDirs = @('data', 'media', 'log', 'backups')
-            foreach ($dirName in $runtimeDirs) {
-                $srcDir = Join-Path $sourcePath $dirName
-                $dstDir = Join-Path $targetPath $dirName
-                if (Test-Path -LiteralPath $srcDir) {
-                    Write-Output "Copying runtime folder: $dirName"
-                    Copy-DirectoryTree -Source $srcDir -Destination $dstDir
-                }
-            }
-
-            foreach ($fileName in @('web-config.json', '.env')) {
-                $srcFile = Join-Path $sourcePath $fileName
-                $dstFile = Join-Path $targetPath $fileName
-                if ((Test-Path -LiteralPath $srcFile) -and -not (Test-Path -LiteralPath $dstFile)) {
-                    Copy-Item -LiteralPath $srcFile -Destination $dstFile
-                    Write-Output "Copied $fileName"
-                }
-            }
+        Write-Output 'Cloning from GitHub so origin points at the remote, then copying local runtime...'
+        try {
+            Invoke-NativeCommand -FilePath 'git' -ArgumentList @('clone', $RepoUrl, $targetPath) | Out-Null
         }
-        else {
-            Write-Output 'Source is not a git repo - copying tree without .git, then initializing git...'
-            Copy-DirectoryTree -Source $sourcePath -Destination $targetPath
-            Push-Location -LiteralPath $targetPath
-            try {
-                git init
-                git remote add origin $RepoUrl
-                git fetch origin main
-                git checkout -B main origin/main
-            }
-            finally {
-                Pop-Location
-            }
+        catch {
+            Write-Warning "GitHub clone failed; cloning local copy instead. $($_.Exception.Message)"
+            Invoke-NativeCommand -FilePath 'git' -ArgumentList @('clone', $sourcePath, $targetPath) | Out-Null
+            Set-GitOriginUrl -RepoRoot $targetPath -Url $RepoUrl
         }
+
+        Copy-RuntimeState -SourceRoot $sourcePath -DestinationRoot $targetPath
     }
 
     'existing' {
         Write-Step "Use existing project at $targetPath"
+        if ((Test-Path -LiteralPath $sourcePath) -and ($sourcePath -ne $targetPath)) {
+            Copy-RuntimeState -SourceRoot $sourcePath -DestinationRoot $targetPath
+        }
     }
 
     default {
@@ -264,7 +375,7 @@ Write-Step 'Check local tooling'
 Write-Output ('  git:    {0}' -f (Get-CommandVersionLine -Command 'git' -Arguments @('--version')))
 Write-Output ('  php:    {0}' -f (Get-CommandVersionLine -Command 'php' -Arguments @('-v')))
 Write-Output ('  python: {0}' -f (Get-CommandVersionLine -Command 'python' -Arguments @('--version')))
-Write-Output ('  ffmpeg: {0}' -f (Get-CommandVersionLine -Command 'ffmpeg' -Arguments @('-version')))
+Write-Output ('  ffmpeg: {0}' -f (Get-CommandVersionLine -Command 'ffmpeg' -Arguments @('--version')))
 
 $missing = @()
 if (-not (Test-CommandAvailable -Name 'git')) { $missing += 'git' }
@@ -283,7 +394,14 @@ if ($StartDevServer -or $hasRuntime) {
     Write-Step 'Start local PHP dev server'
     $startScript = Join-Path $targetPath 'scripts\start-dev-server.ps1'
     if (Test-Path -LiteralPath $startScript) {
-        & powershell -ExecutionPolicy Bypass -File $startScript
+        $previousEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            & powershell -ExecutionPolicy Bypass -File $startScript
+        }
+        finally {
+            $ErrorActionPreference = $previousEap
+        }
     }
 }
 
