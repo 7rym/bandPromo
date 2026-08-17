@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 11:30 - Windows dev bootstrap: treat git/robocopy stderr as output (PowerShell 5.1), clone from GitHub so origin is not the Desktop folder, and remove leftover incomplete `C:\\dev\\bandpromo` folders.
+2026-08-17 11:05 - Windows dev bootstrap: fix PowerShell 5.1 parse error by replacing Unicode dashes and saving setup script as UTF-8 with BOM.
+2026-08-17 10:55 - Windows dev bootstrap: `scripts/setup-windows-dev.ps1` installs `C:\dev\bandpromo`, migrates from a legacy folder, syncs `main`, and writes local `.vscode/tasks.json` from `scripts/templates/vscode-tasks.json`.
 2026-08-17 09:35 - Checkpoint fresh-install shell cleanup, player living-background playlist-switch fix, and v0.9 code-layout plan on `main` as **v0.8.28 build 402**; publish GitHub Release `v0.8.28-build-402` for Site update.
 
 2026-08-17 09:30 - Fix player shell background sticking after playlist switch: clear stale living-background video source when brand has no background_video; treat appConfig.media as authoritative in shell-background.js.
