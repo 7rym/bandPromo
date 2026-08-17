@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 19:55 - Published updated Demo PRP to durable GitHub tag **demo-content** (SHA256 `813689c4…`, 206167434 bytes). Retry application GitHub Release **v0.8.29-build-407**.
+
 2026-08-17 19:30 - Checkpoint Admin Open player and hide-demo false-positive fix on `main` as **v0.8.29 build 407**; publish GitHub Release `v0.8.29-build-407` for Site update.
 
 2026-08-17 19:20 - Hide demo catalog no longer treats demo track covers (and other demo-owned assignments) as external blockers. Real blockers now say which track, playlist, gallery, page, or campaign to fix.

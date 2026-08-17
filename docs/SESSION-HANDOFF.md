@@ -14,12 +14,12 @@ Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The othe
 |------|--------|
 | Git | `main` — checkpoint **v0.8.29 build 407** |
 | App tester package | Publish **`v0.8.29-build-407`** after push |
-| Demo package | Durable tag **`demo-content`** — unchanged unless demo content edits |
+| Demo package | Durable tag **`demo-content`** — refreshed 2026-08-17 (SHA256 `813689c4f96c2398ca6c22256940293d2af3444b156b40a9976d4ece2cad05e1`) |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Confirm GitHub Release **`v0.8.29-build-407`** published; **Site update** on bandpromo.site offers build 407.
+1. Confirm GitHub Release **`v0.8.29-build-407`** published; **Site update** on bandpromo.site offers build 407 (and Demo PRP SHA `813689c4…` if the install is locked).
 2. Continue from [TODO.md](TODO.md) / operator priority.
 3. **Deferred (v0.9 candidate):** code layout refactor — [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md).
 
