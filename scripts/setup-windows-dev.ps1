@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$DevRoot = 'C:\dev',
     [string]$ProjectName = 'bandpromo',
@@ -79,7 +79,7 @@ function Install-IdeTasks {
 
     $templatePath = Join-Path $RepoRoot 'scripts\templates\vscode-tasks.json'
     if (-not (Test-Path -LiteralPath $templatePath)) {
-        Write-Warning "Missing $templatePath — skipping IDE task install."
+        Write-Warning "Missing $templatePath - skipping IDE task install."
         return
     }
 
@@ -201,7 +201,7 @@ switch ($resolvedMode) {
         Ensure-Directory -Path $targetPath
 
         if (Test-GitRepository -Path $sourcePath) {
-            Write-Output 'Source is a git repo — cloning metadata, then syncing tracked files...'
+            Write-Output 'Source is a git repo - cloning metadata, then syncing tracked files...'
             git clone $sourcePath $targetPath 2>&1 | ForEach-Object { Write-Output "  $_" }
 
             $runtimeDirs = @('data', 'media', 'log', 'backups')
@@ -224,7 +224,7 @@ switch ($resolvedMode) {
             }
         }
         else {
-            Write-Output 'Source is not a git repo — copying tree without .git, then initializing git...'
+            Write-Output 'Source is not a git repo - copying tree without .git, then initializing git...'
             Copy-DirectoryTree -Source $sourcePath -Destination $targetPath
             Push-Location -LiteralPath $targetPath
             try {
@@ -249,7 +249,7 @@ switch ($resolvedMode) {
 }
 
 if (-not (Test-Path -LiteralPath $targetPath)) {
-    throw "Setup failed — project path does not exist: $targetPath"
+    throw "Setup failed - project path does not exist: $targetPath"
 }
 
 Write-Step 'Sync repository'
@@ -292,10 +292,10 @@ Write-Output "1. Open this folder in Cursor: $targetPath"
 Write-Output '2. Run task: bandPromo: Session start'
 if (-not $hasRuntime) {
     Write-Output '3. Fresh local site: open http://127.0.0.1:8000/setup.php and complete the wizard'
-    Write-Output '   (This creates local data/, media/, and web-config.json — they stay on your PC only.)'
+    Write-Output '   (This creates local data/, media/, and web-config.json - they stay on your PC only.)'
 }
 else {
-    Write-Output '3. Existing runtime detected — open http://127.0.0.1:8000/admin.php after starting the dev server'
+    Write-Output '3. Existing runtime detected - open http://127.0.0.1:8000/admin.php after starting the dev server'
 }
 Write-Output '4. Remote Linux servers: deploy published GitHub Release packages (bootstrap/Site update), not your C:\dev folder'
 Write-Output '5. After the Desktop copy is verified, you can archive or delete:'
