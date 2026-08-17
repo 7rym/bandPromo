@@ -47,7 +47,7 @@ if ($hiding) {
         http_response_code(409);
         echo json_encode([
             'ok' => false,
-            'error' => 'Cannot hide the demo catalog while demo campaign assets are still used outside the demo release. Remove or replace those references first.',
+            'error' => 'Cannot hide the demo catalog while your own campaigns still use demo media. Replace those assignments first.',
             'hide_blockers' => $blockers,
             'demo_release_id' => bandpromo_demo_release_id($root),
             'demo_catalog_visible' => true,

@@ -7838,10 +7838,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const blockers = Array.isArray(data.hide_blockers) ? data.hide_blockers : [];
                         if (blockers.length > 0) {
                             const preview = blockers.slice(0, 4).map((item) => {
-                                const file = item.filename || item.asset_id || 'asset';
-                                const where = item.label || item.container_id || item.kind || 'external reference';
-                                return file + ' → ' + where;
-                            }).join('; ');
+                                if (item && item.detail) {
+                                    return String(item.detail);
+                                }
+                                const where = item.label || item.container_id || item.kind || 'your catalog';
+                                return 'Still used on ' + where + '.';
+                            }).join(' ');
                             const more = blockers.length > 4 ? ' (+' + (blockers.length - 4) + ' more)' : '';
                             message += ' ' + preview + more;
                         }

@@ -553,7 +553,7 @@ function bandpromo_asset_is_in_locked_release(
 
 function bandpromo_demo_release_reference_owner_id(array $reference): string
 {
-    foreach (['playlist_id', 'gallery_id', 'page_id', 'release_id', 'brand_id'] as $field) {
+    foreach (['playlist_id', 'gallery_id', 'page_id', 'release_id', 'brand_id', 'container_id'] as $field) {
         $value = trim((string) ($reference[$field] ?? ''));
         if ($value !== '') {
             return $value;
@@ -570,9 +570,11 @@ function bandpromo_demo_release_reference_is_demo_owned(string $root, array $ref
     require_once __DIR__ . '/gallery-storage.php';
     require_once __DIR__ . '/page-storage.php';
     require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
 
     $kind = (string) ($reference['kind'] ?? '');
     $scope = (string) ($reference['scope'] ?? '');
+    $containerId = trim((string) ($reference['container_id'] ?? ''));
 
     // Brand/config shell refs are out of hide scope (campaign set excludes them).
     if ($scope === 'config' || strpos($kind, 'theme-') === 0 || strpos($kind, 'brand-') === 0
@@ -582,6 +584,9 @@ function bandpromo_demo_release_reference_is_demo_owned(string $root, array $ref
     }
 
     $playlistId = bandpromo_playlist_normalize_id((string) ($reference['playlist_id'] ?? ''));
+    if ($playlistId === '' && $containerId !== '' && ($kind === 'playlist-poster' || $scope === 'playlist')) {
+        $playlistId = bandpromo_playlist_normalize_id($containerId);
+    }
     if ($playlistId !== '') {
         if ($playlistId === $demoId) {
             return true;
@@ -596,6 +601,9 @@ function bandpromo_demo_release_reference_is_demo_owned(string $root, array $ref
     }
 
     $galleryId = bandpromo_gallery_normalize_id((string) ($reference['gallery_id'] ?? ''));
+    if ($galleryId === '' && $containerId !== '' && ($kind === 'gallery-item' || $scope === 'gallery')) {
+        $galleryId = bandpromo_gallery_normalize_id($containerId);
+    }
     if ($galleryId !== '') {
         if ($galleryId === $demoId) {
             return true;
@@ -610,6 +618,9 @@ function bandpromo_demo_release_reference_is_demo_owned(string $root, array $ref
     }
 
     $pageId = trim((string) ($reference['page_id'] ?? ''));
+    if ($pageId === '' && $containerId !== '' && (strpos($kind, 'page-') === 0 || $scope === 'page')) {
+        $pageId = $containerId;
+    }
     if ($pageId !== '') {
         try {
             $doc = bandpromo_page_load_document($root, $pageId);
@@ -621,6 +632,18 @@ function bandpromo_demo_release_reference_is_demo_owned(string $root, array $ref
     }
 
     $releaseId = bandpromo_release_normalize_id(trim((string) ($reference['release_id'] ?? '')));
+    if ($releaseId === '' && $containerId !== '' && (strpos($kind, 'release-') === 0 || $scope === 'release')) {
+        $releaseId = bandpromo_release_normalize_id($containerId);
+    }
+    if ($releaseId === '' && (in_array($kind, ['track-cover', 'track-living-cover'], true) || $scope === 'track')) {
+        $audioId = trim((string) ($reference['asset_id'] ?? ''));
+        if ($audioId !== '') {
+            $audio = bandpromo_asset_lookup_by_id($root, $audioId);
+            if (is_array($audio)) {
+                $releaseId = bandpromo_release_normalize_id(trim((string) ($audio['release_id'] ?? '')));
+            }
+        }
+    }
     if ($releaseId !== '') {
         return $releaseId === $demoId;
     }
@@ -643,7 +666,7 @@ function bandpromo_demo_release_reference_is_demo_owned(string $root, array $ref
 /**
  * External (non-demo) references to demo campaign assets. Empty ⇒ hide is safe.
  *
- * @return list<array{asset_id:string,target:string,filename:string,kind:string,label:string,container_id:string,scope:string}>
+ * @return list<array{asset_id:string,target:string,filename:string,kind:string,label:string,container_id:string,scope:string,detail:string,href:string}>
  */
 function bandpromo_demo_release_hide_blockers(string $root): array
 {
@@ -692,7 +715,7 @@ function bandpromo_demo_release_hide_blockers(string $root): array
             }
             $seen[$dedupe] = true;
 
-            $blockers[] = [
+            $blocker = [
                 'asset_id' => $assetId,
                 'target' => $target,
                 'filename' => $filename,
@@ -701,10 +724,67 @@ function bandpromo_demo_release_hide_blockers(string $root): array
                 'container_id' => $containerId,
                 'scope' => (string) ($reference['scope'] ?? ''),
             ];
+            $blocker['detail'] = bandpromo_demo_release_hide_blocker_detail($blocker);
+            $blocker['href'] = bandpromo_demo_release_hide_blocker_href($blocker);
+            $blockers[] = $blocker;
         }
     }
 
     return $blockers;
+}
+
+function bandpromo_demo_release_hide_blocker_detail(array $blocker): string
+{
+    $kind = (string) ($blocker['kind'] ?? '');
+    $label = trim((string) ($blocker['label'] ?? ''));
+    $name = $label !== '' ? $label : 'that item';
+
+    switch ($kind) {
+        case 'track-cover':
+            return 'Track cover on “' . $name . '”. Open Files → Audio, edit that track, and choose a different cover.';
+        case 'track-living-cover':
+            return 'Living cover on “' . $name . '”. Open Files → Audio, edit that track, and choose a different living cover.';
+        case 'playlist-track':
+            return 'Demo audio is on playlist “' . $name . '”. Remove it from that playlist or replace it with your own track.';
+        case 'playlist-poster':
+            return 'Playlist cover on “' . $name . '”. Open Content → Playlists and choose a different cover.';
+        case 'gallery-item':
+            return 'Used in gallery “' . $name . '”. Open Content → Galleries and remove or replace that item.';
+        case 'page-image':
+        case 'page-poster':
+            return 'Used on page “' . $name . '”. Open Content → Pages and replace that picture.';
+        case 'release-poster':
+            return 'Campaign cover on “' . $name . '”. Open Content → Catalogue and choose a different cover.';
+        case 'release-press-photo':
+            return 'Press photo on campaign “' . $name . '”. Replace it in the Campaign editor.';
+        default:
+            $kindLabel = $kind !== '' ? $kind : 'reference';
+            return 'Still assigned on “' . $name . '” (' . $kindLabel . '). Replace that assignment with your own media.';
+    }
+}
+
+function bandpromo_demo_release_hide_blocker_href(array $blocker): string
+{
+    $kind = (string) ($blocker['kind'] ?? '');
+    $id = rawurlencode(trim((string) ($blocker['container_id'] ?? '')));
+
+    if (in_array($kind, ['track-cover', 'track-living-cover'], true)) {
+        return '?tab=files&fpanel=audio';
+    }
+    if ($kind === 'playlist-track' || $kind === 'playlist-poster') {
+        return $id !== '' ? ('?tab=content&cntab=playlist&playlist=' . $id) : '?tab=content&cntab=playlist';
+    }
+    if ($kind === 'gallery-item') {
+        return $id !== '' ? ('?tab=content&cntab=gallery&gallery=' . $id) : '?tab=content&cntab=gallery';
+    }
+    if (strpos($kind, 'page-') === 0) {
+        return $id !== '' ? ('?tab=content&cntab=pages&page=' . $id) : '?tab=content&cntab=pages';
+    }
+    if (strpos($kind, 'release-') === 0) {
+        return $id !== '' ? ('?tab=content&cntab=release&release=' . $id) : '?tab=content&cntab=release';
+    }
+
+    return '';
 }
 
 function bandpromo_demo_catalog_is_operator_release_id(string $root, string $releaseId): bool

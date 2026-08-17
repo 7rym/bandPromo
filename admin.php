@@ -707,7 +707,7 @@ if ($tab === 'analytics') {
             <span class="role-badge <?php echo $currentUserRole === 'developer' ? 'role-developer' : ($currentUserRole === 'admin' ? 'role-admin' : 'role-user'); ?>"><?php echo htmlspecialchars(strtolower($currentUserRole)); ?></span><?php endif; ?>
             using bandPromo <?php echo htmlspecialchars($appVersion); ?>
             <span class="admin-identity-sep" aria-hidden="true">·</span>
-            <a href="<?php echo htmlspecialchars($siteUrl ?: '/'); ?>" rel="noopener">Open site ↗</a>
+            <a href="/play/" rel="noopener">Open player ↗</a>
             <span class="admin-identity-sep" aria-hidden="true">·</span>
             <a href="/admin.php?logout=1">Logout</a>
         </p>

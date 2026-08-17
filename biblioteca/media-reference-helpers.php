@@ -819,6 +819,7 @@ function bandpromo_media_reference_build_track_visual_index(string $root): array
                 'label' => $label,
                 'audio_file' => $masterFile,
                 'asset_id' => (string) ($asset['id'] ?? ''),
+                'release_id' => trim((string) ($asset['release_id'] ?? '')),
             ];
             foreach (bandpromo_media_reference_usage_lookup_keys($root, $cover) as $key) {
                 $covers[$key][] = $coverRef;
@@ -833,6 +834,7 @@ function bandpromo_media_reference_build_track_visual_index(string $root): array
                 'label' => $label,
                 'audio_file' => $masterFile,
                 'asset_id' => (string) ($asset['id'] ?? ''),
+                'release_id' => trim((string) ($asset['release_id'] ?? '')),
             ];
             foreach (bandpromo_media_reference_usage_lookup_keys($root, $living) as $key) {
                 $livingCovers[$key][] = $livingRef;

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-17 19:30 - Checkpoint Admin Open player and hide-demo false-positive fix on `main` as **v0.8.29 build 407**; publish GitHub Release `v0.8.29-build-407` for Site update.
+
+2026-08-17 19:20 - Hide demo catalog no longer treats demo track covers (and other demo-owned assignments) as external blockers. Real blockers now say which track, playlist, gallery, page, or campaign to fix.
+
+2026-08-17 17:20 - Admin header **Open player** opens `/play/` (was Open site to the configured site URL).
+
 2026-08-17 16:30 - Checkpoint operator Campaign copy, Content/Files ⓘ help, Backup compact, and Visual/Brand toolbar polish on `main` as **v0.8.29 build 406**; publish GitHub Release `v0.8.29-build-406` for Site update.
 
 2026-08-17 16:20 - Files → Visual campaign filter says All campaigns. Brand assets type chips match Visual (icons for Still, Living, Sound effects); brand filter says All brands; Add existing shows only when a Brand is selected.

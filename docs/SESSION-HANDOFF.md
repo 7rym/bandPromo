@@ -1,6 +1,6 @@
 # Session handoff — resume here
 
-_Paused: 2026-08-17 (after checkpoint v0.8.29 build 406)._
+_Paused: 2026-08-17 (after checkpoint v0.8.29 build 407)._
 
 ## Exact resume point
 
@@ -12,16 +12,21 @@ Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The othe
 
 | Item | Value |
 |------|--------|
-| Git | `main` — checkpoint **v0.8.29 build 406** |
-| App tester package | Publish **`v0.8.29-build-406`** after push |
+| Git | `main` — checkpoint **v0.8.29 build 407** |
+| App tester package | Publish **`v0.8.29-build-407`** after push |
 | Demo package | Durable tag **`demo-content`** — unchanged unless demo content edits |
 | Local runtime | Operator working copy — **never wipe** |
 
 ## Next
 
-1. Confirm GitHub Release **`v0.8.29-build-406`** published; **Site update** on bandpromo.site offers build 406.
+1. Confirm GitHub Release **`v0.8.29-build-407`** published; **Site update** on bandpromo.site offers build 407.
 2. Continue from [TODO.md](TODO.md) / operator priority.
 3. **Deferred (v0.9 candidate):** code layout refactor — [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md).
+
+## Shipped in build 407 (do not redo)
+
+- Admin header **Open player** links to `/play/` (was Open site).
+- Hide demo catalog no longer treats demo-owned track covers / posters as external blockers. Real blockers name the track, playlist, gallery, page, or campaign to fix.
 
 ## Shipped in build 406 (do not redo)
 
