@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Portable release package (.prp / .zip) import.
+ * Portable Campaign File (.pcf) import. Legacy .prp is accepted without advertising it.
  *
  * Single-file mode: POST package=… (small archives)
  * Chunked mode (preferred for large campaigns): POST with
@@ -165,7 +165,7 @@ function bandpromo_release_import_chunk_staging_dir(string $root): string
     $base = rtrim((string) sys_get_temp_dir(), "\\/");
     $dir = $base . DIRECTORY_SEPARATOR . 'bandpromo-prp-upload';
     if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) {
-        throw new RuntimeException('Could not create PRP upload staging directory.');
+        throw new RuntimeException('Could not create campaign-file upload staging directory.');
     }
 
     return $dir;
@@ -185,7 +185,7 @@ function bandpromo_release_import_zip_open_error(string $zipPath): string
     if ($header !== '' && $header !== "PK\x03\x04" && $header !== "PK\x05\x06" && $header !== "PK\x07\x08") {
         $hex = strtoupper(bin2hex($header));
 
-        return 'Assembled upload is not a ZIP (header ' . $hex . ', size ' . $size
+        return 'The uploaded file is not a valid .pcf (header ' . $hex . ', size ' . $size
             . ' bytes). A chunk was likely truncated or replaced with an error page — retry the import.';
     }
 
@@ -199,9 +199,9 @@ function bandpromo_release_import_zip_open_error(string $zipPath): string
     $statusCode = is_int($status) ? (string) $status : 'unknown';
     $hint = $size < 100
         ? 'File is nearly empty — the upload likely did not finish.'
-        : 'Chunk assembly did not produce a readable archive (status ' . $statusCode . '). Retry the import.';
+        : 'Chunk assembly did not produce a readable campaign file (status ' . $statusCode . '). Retry the import.';
 
-    return 'Could not open release package ZIP (ZipArchive status '
+    return 'Could not open the campaign file (status '
         . $statusCode . ', size ' . $size . ' bytes). ' . $hint;
 }
 
@@ -241,10 +241,10 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     $uploadId = preg_replace('/[^a-zA-Z0-9._-]/', '', (string) ($_POST['upload_id'] ?? ''));
     $expectedSize = (int) ($_POST['file_size'] ?? 0);
 
-    if ($filename === '' || !in_array($extension, ['prp', 'zip'], true)) {
+    if ($filename === '' || !bandpromo_pcf_is_campaign_file_extension($extension)) {
         bandpromo_release_import_json_exit([
             'ok' => false,
-            'error' => 'Release packages must be .prp or .zip files.',
+            'error' => bandpromo_pcf_operator_extension_error(),
         ], 400);
     }
     if ($uploadId === '' || strlen($uploadId) < 8 || strlen($uploadId) > 80) {
@@ -312,7 +312,7 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
             'ok' => false,
             'error' => 'Assembled size mismatch (got '
                 . $partsBytes . ' bytes, expected ' . $expectedSize
-                . '). The .prp may be truncated — re-download and retry.',
+                . '). The .pcf may be truncated — re-download and retry.',
         ], 400);
     }
 
@@ -382,7 +382,7 @@ $file = $_FILES['package'] ?? null;
 if (!is_array($file)) {
     bandpromo_release_import_json_exit([
         'ok' => false,
-        'error' => 'Upload a portable release package (.prp or .zip), or use chunked upload fields.',
+        'error' => 'Upload a Portable Campaign File (.pcf), or use chunked upload fields.',
     ], 400);
 }
 
@@ -394,7 +394,7 @@ if ($uploadError !== UPLOAD_ERR_OK) {
         UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Package exceeds PHP upload limits (upload_max_filesize='
             . $uploadMax . ', post_max_size=' . $postMax . '). Use the admin chunked importer.',
         UPLOAD_ERR_PARTIAL => 'Upload was interrupted before the package finished transferring.',
-        UPLOAD_ERR_NO_FILE => 'Upload a portable release package (.prp or .zip).',
+        UPLOAD_ERR_NO_FILE => 'Upload a Portable Campaign File (.pcf).',
         UPLOAD_ERR_NO_TMP_DIR => 'Server temporary upload directory is missing.',
         UPLOAD_ERR_CANT_WRITE => 'Server could not write the uploaded package.',
         UPLOAD_ERR_EXTENSION => 'A PHP extension blocked the upload.',
@@ -404,16 +404,16 @@ if ($uploadError !== UPLOAD_ERR_OK) {
 }
 
 $tmpName = (string) ($file['tmp_name'] ?? '');
-$originalName = (string) ($file['name'] ?? 'package.prp');
+$originalName = (string) ($file['name'] ?? 'package.pcf');
 if ($tmpName === '' || !is_uploaded_file($tmpName)) {
     bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Invalid upload.'], 400);
 }
 
 $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-if (!in_array($extension, ['prp', 'zip'], true)) {
+if (!bandpromo_pcf_is_campaign_file_extension($extension)) {
     bandpromo_release_import_json_exit([
         'ok' => false,
-        'error' => 'Release packages must be .prp or .zip files.',
+        'error' => bandpromo_pcf_operator_extension_error(),
     ], 400);
 }
 

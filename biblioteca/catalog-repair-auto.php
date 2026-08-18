@@ -117,7 +117,7 @@ function bandpromo_catalog_repair_maybe_run(string $root, array $reconcileResult
     if (!is_dir($logDir) && !mkdir($logDir, 0777, true) && !is_dir($logDir)) {
         return [
             'status' => 'error',
-            'message' => 'Could not start catalog preparation.',
+            'message' => 'Could not start catalogue preparation.',
         ];
     }
 
@@ -148,7 +148,7 @@ function bandpromo_catalog_repair_maybe_run(string $root, array $reconcileResult
             return [
                 'status' => 'completed',
                 'changed_total' => $changedTotal,
-                'message' => 'bandPromo prepared uploads and catalog links automatically.',
+                'message' => 'bandPromo prepared uploads and catalogue links automatically.',
             ];
         }
 

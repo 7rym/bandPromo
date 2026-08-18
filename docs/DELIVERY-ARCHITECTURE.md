@@ -34,7 +34,7 @@ Delivery files use `ast_{ULID}` names (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md
 | Chromecast / custom receiver UI | Cast `MediaMetadata` + custom receiver from registry (v0.9+) |
 | Operator source of truth | **Master** files keep full tags |
 
-Rationale: smaller delivery files, no dual-tag bloat, and cache scrapers who grab delivery bytes get audio only — not catalog identity. Masters remain fully tagged for editing, PRP export, and distributor packaging.
+Rationale: smaller delivery files, no dual-tag bloat, and cache scrapers who grab delivery bytes get audio only — not catalogue identity. Masters remain fully tagged for editing, PCF export, and distributor packaging.
 
 Previously tagged delivery files are treated as stale on the next audio-delivery / Publish pass so installs migrate automatically.
 

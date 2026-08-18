@@ -134,6 +134,49 @@ function bandpromo_page_autorotate_interval_ms(string $speed): int {
     return 2000;
 }
 
+function bandpromo_page_normalize_gallery_preset(mixed $value): string {
+    $preset = strtolower(trim((string) $value));
+    if ($preset === 'parallax') {
+        return 'animated';
+    }
+    if (!in_array($preset, BANDPROMO_PAGE_GALLERY_PRESETS, true)) {
+        return 'grid';
+    }
+
+    return $preset;
+}
+
+function bandpromo_page_normalize_gallery_motion(mixed $value): string {
+    $motion = strtolower(trim((string) $value));
+    if (!in_array($motion, BANDPROMO_PAGE_GALLERY_MOTIONS, true)) {
+        return 'blend';
+    }
+
+    return $motion;
+}
+
+function bandpromo_page_animated_hold_ms(string $speed): int {
+    if ($speed === 'slow') {
+        return 5000;
+    }
+    if ($speed === 'fast') {
+        return 2000;
+    }
+
+    return 3500;
+}
+
+function bandpromo_page_animated_wipe_ms(string $speed): int {
+    if ($speed === 'slow') {
+        return 1100;
+    }
+    if ($speed === 'fast') {
+        return 400;
+    }
+
+    return 700;
+}
+
 function bandpromo_page_legacy_size_to_fraction(mixed $value): array {
     $size = (int) $value;
 
@@ -243,7 +286,7 @@ const BANDPROMO_PAGE_GALLERY_PRESETS = [
     'grid',
     'list',
     'carousel',
-    'parallax',
+    'animated',
 ];
 
 const BANDPROMO_PAGE_GALLERY_COLUMNS_MIN = 2;
@@ -252,6 +295,16 @@ const BANDPROMO_PAGE_GALLERY_AUTOROTATE_SPEEDS = [
     'slow',
     'normal',
     'fast',
+];
+const BANDPROMO_PAGE_GALLERY_MOTIONS = [
+    'blend',
+    'blocks',
+    'spiral-in',
+    'spiral-out',
+    'push-left',
+    'push-right',
+    'push-up',
+    'push-down',
 ];
 
 const BANDPROMO_PAGE_BLOCK_TYPES = [
@@ -811,10 +864,7 @@ function bandpromo_page_normalize_block(array $block): ?array {
         require_once __DIR__ . '/gallery-storage.php';
         $galleryId = bandpromo_gallery_resolve_id((string) ($block['gallery_id'] ?? BANDPROMO_GALLERY_DEMO_ID));
 
-        $preset = strtolower(trim((string) ($block['preset'] ?? 'grid')));
-        if (!in_array($preset, BANDPROMO_PAGE_GALLERY_PRESETS, true)) {
-            $preset = 'grid';
-        }
+        $preset = bandpromo_page_normalize_gallery_preset($block['preset'] ?? 'grid');
 
         $columns = (int) ($block['columns'] ?? 0);
         if ($columns < BANDPROMO_PAGE_GALLERY_COLUMNS_MIN || $columns > BANDPROMO_PAGE_GALLERY_COLUMNS_MAX) {
@@ -828,6 +878,8 @@ function bandpromo_page_normalize_block(array $block): ?array {
             'columns' => $columns,
             'autorotate' => bandpromo_page_normalize_bool_flag($block['autorotate'] ?? false, false),
             'autorotate_speed' => bandpromo_page_normalize_autorotate_speed($block['autorotate_speed'] ?? 'normal'),
+            'motion' => bandpromo_page_normalize_gallery_motion($block['motion'] ?? 'blend'),
+            'transition_speed' => bandpromo_page_normalize_autorotate_speed($block['transition_speed'] ?? 'normal'),
         ];
     }
 

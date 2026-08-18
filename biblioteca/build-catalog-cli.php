@@ -40,16 +40,16 @@ foreach ($steps as $step) {
     }
 }
 
-// Catalog prepares masters (counted as handled); public deliverables come from later stages.
+// Catalogue prepares masters (counted as handled); public deliverables come from later stages.
 echo 'BUILD_STATS scope=catalog handled=' . ($changedTotal + $skippedTotal)
     . ' fresh=' . $skippedTotal
     . ' failed=' . $errorTotal
     . "\n";
 
 if (!empty($result['errors'])) {
-    echo "Catalog stage finished with errors.\n";
+    echo "Catalogue stage finished with errors.\n";
     exit(1);
 }
 
-echo "Catalog stage finished.\n";
+echo "Catalogue stage finished.\n";
 exit(0);

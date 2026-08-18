@@ -495,7 +495,7 @@ function bandpromo_cover_art_resolve_linked_cover_basename(string $root, array $
 
 /**
  * Register Visual assets for embedded/sidecar covers linked to audio masters.
- * Makes extracted track art selectable in Visual pickers without Repair catalog.
+ * Makes extracted track art selectable in Visual pickers without Repair catalogue.
  *
  * @param list<string> $audioFilenames Master or original audio basenames
  * @return array{covers: list<string>, asset_ids: list<string>, count: int}

@@ -699,7 +699,7 @@ $siteContactHtml = htmlspecialchars($siteContact);
   <!-- STEP 3: Build -->
   <div class="panel" id="panel-3">
     <h1>Installing demo content and building site</h1>
-    <p class="subtitle">First we download and import the demo PRP (Portable Release Package). That download can take a minute — progress appears in the log below. Then we build delivery files so the player can run. You can hide the demo content later in Admin after you upload your own.</p>
+    <p class="subtitle">First we download and import the demo PCF (Portable Campaign File). That download can take a minute — progress appears in the log below. Then we build delivery files so the player can run. You can hide the demo content later in Admin after you upload your own.</p>
     <?php if (!class_exists('ZipArchive')): ?>
     <div class="msg" style="display:block;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:#f0b429;">
       ZipArchive is not available on this host. The build can still run, but bootstrap package install/update flows and multi-file downloads will remain unavailable until the PHP ZipArchive extension is enabled.
@@ -1106,10 +1106,10 @@ document.getElementById('s3-build').addEventListener('click', async () => {
   setDisabled('s3-build', true);
   setSpin('s3-spin', true);
 
-  // Poll immediately so Demo PRP download lines are visible while build.php runs.
-  document.getElementById('build-status').textContent = 'Downloading Demo PRP\u2026';
+  // Poll immediately so Demo PCF download lines are visible while build.php runs.
+  document.getElementById('build-status').textContent = 'Downloading Demo PCF\u2026';
   document.getElementById('build-status').style.color = '#60a5fa';
-  appendLog('Starting setup build — Demo PRP download/import runs first.');
+  appendLog('Starting setup build — Demo PCF download/import runs first.');
   clearInterval(pollTimer);
   pollTimer = setInterval(pollLog, 1500);
   setTimeout(pollLog, 400);

@@ -45,38 +45,38 @@ Containers reference assets; assets point at files. Operators edit containers an
 | Platform provides | Purpose | Examples |
 |-------------------|---------|----------|
 | **Shell** | Site must never break | Player chrome (Playlist + Lyrics + release page tabs), login, install fallbacks (`bandPromo_logo.png`, etc.) |
-| **Starter campaign** | First-run "it works" | `bandPromo-demo.prp` imported at setup → normal release + owned containers/assets |
+| **Starter campaign** | First-run "it works" | `bandPromo-demo.pcf` imported at setup → normal release + owned containers/assets |
 
-Operators inherit the starter campaign, may **hide** it ("Hide demo catalog") or **duplicate** it as a template, and replace it with their own containers. That is different from authoring the platform demo.
+Operators inherit the starter campaign, may **hide** it ("Hide demo catalogue") or **duplicate** it as a template, and replace it with their own containers. That is different from authoring the platform demo.
 
 ### Demo release policy (install preference)
 
-The **first PRP imported at setup** becomes this install’s protected fallback release. Operators may still label it “bandPromo demo”; policy keys off the **internal release id** (PRP keeps `bandpromo-demo`).
+The **first PCF imported at setup** becomes this install’s protected fallback release. Operators may still label it “bandPromo demo”; policy keys off the **internal release id** (PCF keeps `bandpromo-demo`).
 
 | Preference | Storage | Meaning |
 |------------|---------|---------|
-| `demo_release_id` | `data/install-preferences.json` | Protected demo release id (from first PRP import; derived from installed `platform_demo` / `bandpromo-demo` on upgrade if missing) |
+| `demo_release_id` | `data/install-preferences.json` | Protected demo release id (from first PCF import; derived from installed `platform_demo` / `bandpromo-demo` on upgrade if missing) |
 | `demo_release_hidden` | same file | Operator hide toggle (`true` = hidden). Legacy `demo_catalog_visible` is the inverse, kept for API/UI compat |
 
-**Lock:** the demo release stays locked for operators. **Localhost only** may unlock, edit, and re-export the PRP. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
+**Lock:** the demo release stays locked for operators. **Localhost only** may unlock, edit, and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
 
-**Hide:** operators may hide **only** that demo release’s **campaign** content (owned playlists / pages / galleries and their associated Audio/Visual pool media). Hide is offered only after the install has **operator catalog**: an operator-created release that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **blocked** if any demo-owned campaign asset is still referenced by a **non-demo** container/release — the API returns structured `hide_blockers` (what/where). Do not silently keep shared assets while hiding, and do not hide shared assets without that warning. If the operator later deletes that catalog so the gate no longer passes, **show the demo catalog again** (`demo_release_hidden=false`).
+**Hide:** operators may hide **only** that demo release’s **campaign** content (owned playlists / pages / galleries and their associated Audio/Visual pool media). Hide is offered only after the install has **operator catalogue**: an operator-created release that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **blocked** if any demo-owned campaign asset is still referenced by a **non-demo** container/release — the API returns structured `hide_blockers` (what/where). Do not silently keep shared assets while hiding, and do not hide shared assets without that warning. If the operator later deletes that catalogue so the gate no longer passes, **show the demo catalogue again** (`demo_release_hidden=false`).
 
 **Brand shell out of hide scope:** Files → Brand assets and Sound effects stay listable even when the demo campaign is hidden (operators duplicate brand; branding is secondary). There is no per-file soft-hide of demo shell media — hide is release-level only.
 
 **Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses release ownership + the prefs above.
 
-**Upgrade safety:** if prefs are missing, derive `demo_release_id` from the installed platform demo release, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the demo PRP is present. After **Site update**, when the published Demo PRP SHA differs from the install marker, the locked platform demo is refreshed (overwrite); hide preference is preserved; unlocked localhost authoring skips the refresh.
+**Upgrade safety:** if prefs are missing, derive `demo_release_id` from the installed platform demo release, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the Demo PCF is present. After **Site update**, when the published Demo PCF SHA differs from the install marker, the locked platform demo is refreshed (overwrite); hide preference is preserved; unlocked localhost authoring skips the refresh.
 
-**Rule — no special demo content handling:** Once the release owns containers and assets, demo media/containers are not a second content system. Do not add heal/force/`bandPromo_*` → demo-release forks, parallel seed packs, or association exceptions “because demo.” Legitimate demo surfaces only: setup PRP import, lock (operators) / localhost unlock + export, hide, duplicate. `/media` is git-ignored; masters travel in PRP / release packages.
+**Rule — no special demo content handling:** Once the release owns containers and assets, demo media/containers are not a second content system. Do not add heal/force/`bandPromo_*` → demo-release forks, parallel seed packs, or association exceptions “because demo.” Legitimate demo surfaces only: setup PCF import, lock (operators) / localhost unlock + export, hide, duplicate. `/media` is git-ignored; masters travel in PCF / campaign files.
 
-### Inside operator ownership: default slot vs real catalog
+### Inside operator ownership: default slot vs real catalogue
 
 | Slot | Id today | What it is |
 |------|----------|------------|
 | **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real release. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
-| **Operator catalog** | Any id they create (or import via PRP) | Real releases, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
-| **Platform demo** | `bandpromo-demo` (persisted as `demo_release_id`) | Locked campaign from **`bandPromo-demo.prp`** at setup (normal PRP import, then locked). Operators may hide / duplicate. Hide applies to campaign containers + owned media only; brand shell stays visible. Hide blocked while non-demo containers still reference demo campaign assets. **Localhost** may unlock to edit and re-export the PRP. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
+| **Operator catalogue** | Any id they create (or import via PCF) | Real releases, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
+| **Platform demo** | `bandpromo-demo` (persisted as `demo_release_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to campaign containers + owned media only; brand shell stays visible. Hide blocked while non-demo containers still reference demo campaign assets. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
 
 ### Asset provenance (orthogonal to actor)
 
@@ -117,12 +117,12 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 | Word in code/docs | Read it as |
 |-------------------|------------|
 | `primary` (release id) | **Invisible orphan/upload bucket** — not an operator-facing campaign |
-| `bandpromo-demo` | **Platform demo campaign** from `bandPromo-demo.prp` (hideable, read-only) |
-| `.prp` / PRP | **Portable release package** — bandPromo ZIP for one campaign ([PORTABILITY.md](PORTABILITY.md)) |
+| `bandpromo-demo` | **Platform demo campaign** from `bandPromo-demo.pcf` (hideable, read-only) |
+| `.pcf` / PCF | **Portable Campaign File** — one campaign ([PORTABILITY.md](PORTABILITY.md)). Never call it a ZIP in operator copy. Legacy `.prp` import still works. |
 | `system` (playlist `kind`) | **Site-level playlist** until user playlists exist |
-| `system: true` (brand) | **Platform-shipped** — locked on hosted installs; localhost may edit for PRP source; operators duplicate to customize |
+| `system: true` (brand) | **Platform-shipped** — locked on hosted installs; localhost may edit for PCF source; operators duplicate to customize |
 | `user-upload` (origin) | **Operator upload** (not fan upload) |
-| `bundled-placeholder` | **Platform demo file** (legacy wording; demo media travels in the demo PRP) |
+| `bundled-placeholder` | **Platform demo file** (legacy wording; demo media travels in the Demo PCF) |
 | Theme | Legacy name for **Brand** |
 
 ### How to read any path in five seconds
@@ -139,7 +139,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 **Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that campaign only. Campaign editor Available pools list **unowned** containers; saves refuse stealing from another campaign.
 
-**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalog. **Not hard-enforced** in editors or save paths yet. Files → Visual **Catalogue** follows that usage (plus posters, press photos, page pictures, track covers, and Brand visual shell slots those campaigns play, including Base-brand fallback for empty slots). Brand-library membership is not a campaign, but those files are not Orphan either. Catalogue must not infer the campaign from Brand ownership on the asset. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
+**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalogue. **Not hard-enforced** in editors or save paths yet. Files → Visual **Catalogue** follows that usage (plus posters, press photos, page pictures, track covers, and Brand visual shell slots those campaigns play, including Base-brand fallback for empty slots). Brand-library membership is not a campaign, but those files are not Orphan either. Catalogue must not infer the campaign from Brand ownership on the asset. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
 
 **Base brand vs release brand:**
 
@@ -147,22 +147,22 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.prp`** as install **base shell**; locked after import (localhost may edit for PRP authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Shell media under Files → Brand assets / Sound effects stays listable while brands reference it (not folded into Hide demo catalog). |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Shell media under Files → Brand assets / Sound effects stays listable while brands reference it (not folded into Hide demo catalogue). |
 
 Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
-**Publish must not steal Base:** Demo PRP ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
+**Publish must not steal Base:** Demo PCF ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`), cover reflection (`player.cover_reflection`, default `true`), and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live on the **Base brand** document and travel with brands/PRPs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colors. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
+**Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`), cover reflection (`player.cover_reflection`, default `true`), and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live on the **Base brand** document and travel with brands/PCFs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
 **Player nav (shipped):**
 
 | | Rule |
 |--|------|
 | Shell | Playlists + Lyrics/Notes always |
-| Campaign pages | Tabs for pages associated to the **playing playlist’s campaign** (Campaign editor → Pages; association order = tab order). Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that campaign has no owned pages |
+| Campaign pages | Tabs for pages associated to the **playing playlist’s campaign** (Campaign editor → Pages; association order = tab order). That editor lists the same page name as Content → Pages (registry title). Player tab text is the page `label`. Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that campaign has no owned pages |
 | Gallery | Demo (and operator) **Gallery page** with a gallery block; not a separate mandatory module tab |
-| FAQ | **System-owned** install page — login/platform help; **not** in any PRP; survives hide-demo |
+| FAQ | **System-owned** install page — login/platform help; **not** in any PCF; survives hide-demo |
 
 Content → **Player layout** is retired (URLs redirect to Catalogue). Brand chrome lives under Branding.
 
@@ -181,7 +181,7 @@ flowchart TB
   subgraph platform [Platform / System]
     shell[Shell: player, login, layout, fallbacks]
     faq[System FAQ]
-    demo[Demo campaign via bandPromo-demo.prp]
+    demo[Demo campaign via bandPromo-demo.pcf]
     templates[Tracked seeds + code]
   end
 
@@ -197,7 +197,7 @@ flowchart TB
   end
 
   templates -->|first-run seed| catalog
-  demo -->|setup imports PRP| catalog
+  demo -->|setup imports PCF| catalog
   orphanBucket -->|invisible catch-all| uploads
   uploads --> catalog
   shell --> access
@@ -222,7 +222,7 @@ flowchart TB
 |------|---------|
 | **Asset** | One stored media file or inline content fragment (audio, image, video, richtext HTML). Identified by `asset_id`. |
 | **Release** | Storage name for the campaign umbrella (`release_id`, `data/releases/`). **Operator UI: Campaign.** Owns related masters, identity (branding), EPK, galleries, pages, and playlists. Not a single streaming tracklist. |
-| **Brand / identity** | Visual identity **of a release** (colors, typography, mood, logo, shell media, SFX). Stored as a brand document owned by that release — not a peer campaign object. |
+| **Brand / identity** | Visual identity **of a release** (colours, typography, mood, logo, shell media, SFX). Stored as a brand document owned by that release — not a peer campaign object. |
 | **Playlist** | Streaming listening product: album order, single package, tour set, radio campaign. Ordered refs into release-owned tracks; reusable across many playlists. |
 | **Container** | Operator-managed document in `data/`: playlist, gallery, page, brand (identity), release. |
 | **Block** | One composition unit inside a page container. |
@@ -234,7 +234,7 @@ flowchart TB
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
-Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Docs and code still say **release** for storage (`release_id`, PRP). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
+Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Docs and code still say **release** for storage (`release_id`, PCF). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
 
 ## Asset identity and filenames
 
@@ -264,7 +264,7 @@ All containers, registries, playlists, releases, and deep links reference **`ass
 
 - `display`: title, artist, version, alt text, etc.
 - `slug`: unique **per release** for audio tracks (see URLs)
-- `release_id` for an audio track's exclusive campaign/catalog home
+- `release_id` for an audio track's exclusive campaign/catalogue home
 - `original_filename`: exact upload name
 - `storage`: paths to original, master, delivery tiers
 - `tags`: explicit **role tags** and filter facets for unified media pools (see **Tags and roles**)
@@ -284,7 +284,7 @@ Admin UI, player, and notifications **read** the registry and published containe
 | Audio/image/video **upload** | Register asset; queue delivery job; **files index** entry (size/mtime/format/delivery flags) |
 | **Tag / cover / living-cover save** | `assets[].display` (+ cover/living refs); **keep last-good** player payloads; ensure delivery MP3 stays **tagless** when present; quiet republish playlists that include the track (never leave `/play` on empty `tracks`) |
 | **Delivery job success/fail** | `assets[].delivery.audio_optimal` + `data/delivery/inventory-snapshot.json`; **files index** pool_ready / video meta |
-| **Catalog register / autofix** (explicit operator action) | Membership, masters |
+| **Catalogue register / autofix** (explicit operator action) | Membership, masters |
 | **Publish** | Player playlist payloads in `data/playlists/{id}.json`, validation report, inventory snapshot / delivery flags, **full files-index rebuild** |
 | **Playlist reorder / release membership save** | Entry refs only (`master_file` / `asset_id` / `release_id`); clear player payload; mark build required — **no** tag parse |
 | **Media delete** | Unregister asset; remove **files index** entry |
@@ -299,7 +299,7 @@ Three **operator pools** (Files). Two heavy pipelines (music audio vs visual); S
 
 | Pool | Contents | Operator surface |
 |------|----------|------------------|
-| **Audio** | Catalog / release music tracks | Files → Audio; release + playlist references |
+| **Audio** | Catalogue / release music tracks | Files → Audio; release + playlist references |
 | **Visual** | Still images **and** video | Files → Visual; gallery/page/brand/release visuals |
 | **Sound effects** | Brand UI / navigation / interaction clips (welcome, login, future click/zoom, …) | Files → Sound effects; owned by **brands**; assigned from Content → Branding slots; three-tier `media/sfx/{original,master,optimal}` |
 
@@ -321,7 +321,7 @@ Containers, galleries, pages, brands, track covers, living covers, and social/sh
 
 **Replace upload:** same `original_filename` reuses one `ast_*` and overwrites master bytes (no clone storm).
 
-**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. When `display.title` is empty, Files / pickers fall back to the registry **role label** only (e.g. `Track cover`, `Unassigned`) via `operator_title` — not brand or release suffixes. When build **extracts** embedded art from a master into a new Visual original, it one-time seeds empty fields only: `display.title` as **`Track cover: {track title}`**, `keywords` as **`[role, artist]`** (e.g. `Track cover`, artist name), and `captured_at` from the audio catalog/tag date when available. Later builds, hash-match reuse, and assigned covers never overwrite those fields. Listing still synthesizes `Track cover: {linked track title}` when `display.title` is empty.
+**Operator identity (visual `display`):** registry `assets[].display` for `kind=visual` holds human fields — **`title`**, **`description`**, optional **`captured_at`**, optional **`keywords`**. These are the primary names operators search and edit. When `display.title` is empty, Files / pickers fall back to the registry **role label** only (e.g. `Track cover`, `Unassigned`) via `operator_title` — not brand or release suffixes. When build **extracts** embedded art from a master into a new Visual original, it one-time seeds empty fields only: `display.title` as **`Track cover: {track title}`**, `keywords` as **`[role, artist]`** (e.g. `Track cover`, artist name), and `captured_at` from the audio catalogue/tag date when available. Later builds, hash-match reuse, and assigned covers never overwrite those fields. Listing still synthesizes `Track cover: {linked track title}` when `display.title` is empty.
 
 **Operator address (Files / pickers):** **title first** when set; else role + linked context; `ast_*` secondary; original upload name tertiary. Shared assets show “used by N”; delete warns when multiple live refs.
 
@@ -383,28 +383,28 @@ It is **not** merely one CD tracklist. Album order vs Personal Jesus single pack
 
 ### Rules
 
-- Every audio track **should** belong to exactly one release (exclusive catalog home). Orphans (`release_id` empty) are allowed until associated. Playlists only reference tracks; they never own masters.
+- Every audio track **should** belong to exactly one release (exclusive catalogue home). Orphans (`release_id` empty) are allowed until associated. Playlists only reference tracks; they never own masters.
 - Release track membership is an **unordered pool**. Listening order exists only in playlists.
-- **Identity** (colors, typography, mood, logo, share/still/living shell, Welcome/Logged-in SFX) is **owned by the release** via its linked brand document (`brand_id`). Brand is not a competing peer campaign.
+- **Identity** (colours, typography, mood, logo, share/still/living shell, Welcome/Logged-in SFX) is **owned by the release** via its linked brand document (`brand_id`). Brand is not a competing peer campaign.
 - Release owns campaign **galleries** and **pages** (e.g. Bio) via `release_id` on those containers (and optional reverse indexes on the release document).
 - Release owns **listening products** as playlists with `release_id` set to this release; a track may appear in many of those playlists.
 - **Normal operator flow:** playlist entries under a release come from that release’s track pool — prefer, not hard-enforced yet.
 - `release_date` is the primary campaign/street date (often the album date). Individual playlist `publish_date` values carry single/tour package street dates.
 - `poster_asset_id` is the release cover (album art), distinct from brand logo/share slots.
-- **`catalog_id`**: optional operator catalog reference (for example `CD001`, `EP002`).
+- **`catalog_id`**: optional operator catalogue reference (for example `CD001`, `EP002`).
 - Future **distribution handoff lock**: master immutable after external distributor handover.
 
 ### Operator hub
 
 Content work starts in the **Catalogue** (list of releases). From one release operators manage:
 
-- Tracks (catalog membership)
+- Tracks (catalogue membership)
 - Identity / Branding (tokens + shell media)
 - Playlists (album / single / tour packages)
 - Galleries and pages
 - EPK / marketing fields
 
-Playlist editors must not look like a second release catalog.
+Playlist editors must not look like a second release catalogue.
 
 ### Storage
 
@@ -478,26 +478,26 @@ Playlists are **streaming listening products** under a release: album sequence, 
 - Playlist is shown **in full**; embargoed tracks appear but are **not playable** for the current user tier.
 - Analytics bind plays to **track → release**, not to playlist.
 - v0.8: operator site playlists use `kind: "system"` until **user/VIP playlists** ship (v0.9+). In code, "system playlist" often means **site playlist**, not platform demo.
-- Player playlist selector appears when **two or more** catalog playlists are public (see Default playlist).
+- Player playlist selector appears when **two or more** catalogue playlists are public (see Default playlist).
 - **Player payloads** (`tracks`, `brand_styles`, `delivery_summary`) are written into `data/playlists/{id}.json` at Publish.
 
 ### Presentation metadata (v0.8.3+)
 
 | Field | Playlists | Pages | Releases |
 |-------|-----------|-------|----------|
-| `catalog_id` | — | — | Operator catalog reference |
+| `catalog_id` | — | — | Operator catalogue reference |
 | `description` | Product blurb for share cards | Share/summary text | Press / EPK blurb |
 | `poster_asset_id` | Product cover / share image | Share/OG image | Release cover (campaign art) |
 | `release_id` | Owning campaign release | Owning campaign release | — |
 
-**Release EPK** lives on the release. Playlists are listening products only — they must not duplicate catalog ownership or feel like a second release editor.
+**Release EPK** lives on the release. Playlists are listening products only — they must not duplicate catalogue ownership or feel like a second release editor.
 **Contact / email storage (v0.8.4+):** operator and release contacts use RFC 5322 strings (for example `7rym <7rym@7rym.net>`). Values are validated and canonicalized on save: control characters stripped, mailbox domains lowercased, display names trimmed. Empty contact is allowed when no valid mailbox can be derived (for example localhost dev installs). Outbound mail is not implemented in v0.8; this layer prepares consistent contact data for future press-reply and notification features and improves deliverability hygiene before any SMTP work lands.
 
 ### Default playlist
 
-Player opens a catalog playlist on first visit (no special `main` id — clean installs seed `bandpromo-demo`; operator campaigns use their own ids).
+Player opens a catalogue playlist on first visit (no special `main` id — clean installs seed `bandpromo-demo`; operator campaigns use their own ids).
 
-**Pinned default (preferred):** `install.pointers.default_playlist_id` in `web-config.json`. Operators set this from Content → Playlist settings (“Default playlist for the player”). When that id is still player-visible (public, demo-visible, non-empty), the player uses it. Clearing the checkbox clears the pointer for that playlist only when it was the pinned one.
+**Pinned default (preferred):** `install.pointers.default_playlist_id` in `web-config.json`. Operators set this from Content → Playlists with **★ Set as default** in the Playlist header (same pattern as Branding → **★ Set as base**). When that id is still player-visible (public, demo-visible, non-empty), the player uses it. Pinning another playlist replaces the pointer; there is no uncheck-to-clear control.
 
 **Fallback:** among registry playlists that are demo-visible, non-empty, and public (`publish_date` empty or `<= today` UTC; operators may bypass future dates), pick the **latest** `publish_date`. Prefer an operator playlist over the demo playlist when demo would otherwise win.
 
@@ -546,7 +546,7 @@ Canonical storage: `data/pages/*.json` + `data/pages/registry.json` (shipped).
 | `picture` | Image `asset_id` or `src`, layout, optional **plain-text** `caption` only |
 | `picture_richtext` | Image + optional sanitized richtext `body` |
 | `list` | Ordered/unordered items |
-| `gallery` | `gallery_id` + `preset` (`grid` original-ratio mosaic with optional `columns` 2–6, `list` rows, `carousel` snap with peek + dots, optional `autorotate` + `autorotate_speed` slow/normal/fast, `parallax` still compact tiles) |
+| `gallery` | `gallery_id` + `preset` (`grid` original-ratio mosaic with optional `columns` 2–6, `list` rows, `carousel` snap with peek + dots, optional `autorotate` + `autorotate_speed` slow/normal/fast, `animated` frame sized to each photo’s ratio with `motion` wipes + `transition_speed`; legacy `parallax` migrates to `animated`) |
 
 All block types are implemented as **modules** (editor + renderer). Playlists and lyrics stay in the **player shell**; pages link in via deep links, not embedded players.
 
@@ -579,7 +579,7 @@ Pages use **sanitized HTML richtext** (TinyMCE + HTMLPurifier). Player-facing op
 | Field | Reason |
 |-------|--------|
 | `short_description` on releases, playlists, pages | Share cards, OG/meta previews need stripped one-line text |
-| Titles, artist, and legacy tagline/genre/catalog ids | Identity labels, not body copy |
+| Titles, artist, and legacy tagline/genre/catalogue ids | Identity labels, not body copy |
 | Page `richtext` / `picture_richtext` blocks | Separate HTML authoring model (unchanged) |
 | Page `picture` captions | Plain caption only (unchanged) |
 
@@ -662,7 +662,7 @@ Value is the visual registry id, not a human title and not an original filename.
 
 ## Brands (release identity)
 
-**Brand** is the visual **identity package of a release** — colors, typography, mood narrative, and shell asset refs. It is not a separate campaign competing with Release.
+**Brand** is the visual **identity package of a release** — colours, typography, mood narrative, and shell asset refs. It is not a separate campaign competing with Release.
 
 **Release cover art stays on the release** (`poster_asset_id`). The brand document holds identity slots (logo, share/poster, still/living backgrounds, Welcome/Logged-in SFX) and presentation tokens for that release.
 
@@ -678,7 +678,7 @@ Value is the visual registry id, not a human title and not an original filename.
 ### Ownership rules (locked 2026-07-21)
 
 - Each release has **one** identity brand document (`release.brand_id` ↔ `brand.release_id`).
-- Do **not** model “many catalog SKUs → one shared brand era” as peer Releases. Album vs single packages are **playlists** under one Release.
+- Do **not** model “many catalogue SKUs → one shared brand era” as peer Releases. Album vs single packages are **playlists** under one Release.
 - Install base identity (`install.pointers.active_brand_id`) selects which release’s identity drives login/player shell; preferably the demo/base release’s brand.
 - Setup seeds locked **`bandpromo-default`** identity for the demo release; operators duplicate/customize as part of their own release, not as a free-floating Branding peer forever.
 
@@ -696,10 +696,10 @@ Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`.
 - Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
 - **Set as base** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).
 - Duplicate copies the Brand container and shares its stable Visual/SFX `asset_id` references. A global asset cannot be deleted while any Brand library still contains it.
-- Publish / brand ensure self-heals missing demo poster/share paths on the locked default and in `web-config.json` (hosted operators duplicate bandPromo Default; localhost may edit for PRP source). Starter-pack presence checks include `bandPromo_cover.png`.
+- Publish / brand ensure self-heals missing demo poster/share paths on the locked default and in `web-config.json` (hosted operators duplicate bandPromo Default; localhost may edit for PCF source). Starter-pack presence checks include `bandPromo_cover.png`.
 - Player token + visual shell overlay uses the selected playlist’s owning release brand; login shell stays on install Base.
 
-### Semantic color and layout tokens
+### Semantic colour and layout tokens
 
 Brand containers expose tokens that map to CSS custom properties on `:root` (player, pages, login share one contract). Brand packs and GitHub ZIP distributions reuse this schema.
 
@@ -743,7 +743,7 @@ Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Seconda
 | Welcome / logged-in audio | Sound effects pool (`role: sfx`); usage via brand slots |
 | Favicon package | optional; icons under `media/icons/` |
 
-**Narrative:** `mood`, `keywords`, `tone_notes` — plain-language identity brief for future premade themes / AI helpers. Stored on the brand document; **hidden from the Branding editor UI for now** (operators edit colors, readability effects, typography, and shell media).
+**Narrative:** `mood` is the operator-facing brand **description** (Branding → Base info; Catalogue campaign preview). `keywords` and `tone_notes` stay on the brand document for future premade themes / AI helpers and remain hidden from the editor. Operators also edit colours, readability effects, typography, and shell media.
 
 **Typography (v0.8 minimum):**
 
@@ -758,7 +758,7 @@ Renderer injects tokens as `:root` overrides when a brand is active.
 
 - Support remains an external, operator-owned destination; bandPromo does not become the payment flow.
 - The public player uses one provider-neutral in-flow link below the audio controls (**Beggars banquet**). Floating third-party widgets are not part of the responsive contract because the platform cannot guarantee that they will avoid content.
-- Operators enable destination, short label, and validated colors in Settings → Support. The **Base brand** toggles whether Beggars banquet appears (`player.beggars_banquet`). bandPromo controls placement, maximum dimensions, contrast floor, and the brief intermittent attention halo.
+- Operators enable destination, short label, and validated colours in Settings → Support. The **Base brand** toggles whether Beggars banquet appears (`player.beggars_banquet`). bandPromo controls placement, maximum dimensions, contrast floor, and the brief intermittent attention halo.
 - Motion pauses during interaction and is disabled by `prefers-reduced-motion`.
 
 ### Brand document sketch
@@ -846,9 +846,13 @@ Content editors use one pattern (shipped for playlist/gallery/pages):
 2. Right: preview of selected container.
 3. **Add** or **edit** replaces the container list with a pool of **assets** (or block types) to insert.
 
+Edit views group settings in **section cards** (`.content-editor-section`) with `--border2` chrome headers. Pages use **Base info** then **Page builder**. Playlists use **Base info**. Branding uses Base info, Typography, Colours, Readability, Shell media, and Player chrome.
+
 ### Gallery assembly (v0.8)
 
-Gallery membership is built with a searchable **multi-select media picker** (type, role, brand/release, date, keyword; title + larger thumb), then an **ordered selected list** with explicit reorder. Do not rely on Available↔Associated drag-and-drop of tiny `ast_*` thumbs as the primary flow — concert galleries need searchable named media (e.g. assemble `Hamburg Grand Stage 2026-05-17` from titled stills/clips).
+**Shipped today:** Available↔Associated drag-and-drop, same pool pattern as playlists.
+
+**Locked target:** searchable **multi-select media picker** (type, role, brand/release, date, keyword; title + larger thumb), then an **ordered selected list** with explicit reorder. Concert galleries need searchable named media (e.g. assemble `Hamburg Grand Stage 2026-05-17` from titled stills/clips) — do not keep tiny `ast_*` thumbs as the primary flow.
 
 ## Module registry
 
@@ -868,7 +872,7 @@ Shipped in every install; may not be disabled in v0.8:
 | `container.gallery` | container editor | System galleries |
 | `container.page` | container editor | Shipped |
 | `container.brand` | container editor | Brand pool editor (transitional id: `container.theme`) |
-| `container.release` | container editor | Release catalog |
+| `container.release` | container editor | Release catalogue |
 | `player.playlists` | player shell | Not a page block |
 | `player.lyrics` | player shell | Not a page block |
 
@@ -907,7 +911,7 @@ Disabled modules: hide editor entry points; renderer skips block type with admin
 
 - **Access:** [ACCESS-MODEL.md](ACCESS-MODEL.md) — VIP per-release default + per-track override; anonymous sees embargoed tracks locked, not hidden.
 - **Delivery / PWA / cast:** [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — PHP authorizes, static delivery serves bytes; cast scope = full playable/viewable media (v0.9+).
-- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export, and **portable release packages (PRP / `.prp`)**.
+- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export, and **Portable Campaign Files (PCF / `.pcf`)**.
 
 ## `web-config.json` target shape (install shell)
 

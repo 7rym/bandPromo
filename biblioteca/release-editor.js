@@ -1421,10 +1421,11 @@
             }
 
             if (!available.length) {
+                const contentTab = labels.plural.charAt(0).toUpperCase() + labels.plural.slice(1);
                 const emptyMessage = canEdit
                     ? (active.length
-                        ? `All unassigned ${labels.plural} are already associated above. Use ✕ to move one back here.`
-                        : `No unassigned ${labels.plural} are available. Create one in Content → ${labels.plural[0].toUpperCase()}${labels.plural.slice(1)}, or unassign one from another campaign first.`)
+                        ? `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here; every other ${labels.singular} is already owned by another campaign.`
+                        : `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here. Create one in Content → ${contentTab}, or unassign one from another campaign.`)
                     : `${labels.associated} are preview-only while this campaign is locked.`;
                 releaseAssociationAvailableList.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {
@@ -2032,7 +2033,7 @@
             }
             if (entry?.locked) {
                 editorHint.textContent = releaseIsPlatformDemo(entry) && !releaseMayChangeLock(entry)
-                    ? 'bandPromo demo is locked. Duplicate it, or unlock on localhost to edit the PRP source.'
+                    ? 'bandPromo demo is locked. Duplicate it, or unlock on localhost to edit the PCF source.'
                     : 'This campaign is locked. Membership is preview-only until you unlock it from the campaign list.';
                 return;
             }
@@ -2246,7 +2247,7 @@
                     ? `<button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-release-id="${escapeHtml(id)}" title="Duplicate campaign (shared media)" aria-label="Duplicate ${title}">⧉</button>`
                     : '';
                 const exportBtn = id && id !== 'primary'
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-release-id="${escapeHtml(id)}" title="Export campaign package (.prp)" aria-label="Export ${title}">📦</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-release-id="${escapeHtml(id)}" title="Export campaign file (.pcf)" aria-label="Export ${title}">📦</button>`
                     : '';
                 const editBtn = releaseCanOpenEditor(entry)
                     ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit campaign" aria-label="Edit ${title}">✏️</button>`
@@ -2416,7 +2417,7 @@
                 return;
             }
             const sourceTitle = String(entry.title || releaseId).trim() || releaseId;
-            showReleaseToast(`Queueing PRP export for "${sourceTitle}"…`);
+            showReleaseToast(`Queueing PCF export for "${sourceTitle}"…`);
             const csrfToken = typeof refreshAdminCsrfToken === 'function'
                 ? await refreshAdminCsrfToken()
                 : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
@@ -2428,7 +2429,7 @@
                     csrf_token: csrfToken,
                 }),
             });
-            const message = data.message || 'PRP export queued.';
+            const message = data.message || 'PCF export queued.';
             showReleaseToast(message);
             if (window.confirm(`${message}\n\nOpen System → Backup, export & import to watch progress / download?`)) {
                 window.location.href = String(data.jobs_url || '?tab=system&stab=backup');
@@ -2758,8 +2759,8 @@
             if (!availableTracks.length) {
                 const emptyMessage = canEditTracks
                     ? (activeTracks.length
-                        ? 'All tracks for this campaign are already in the list above. Use ✕ to move a track back here.'
-                        : 'No unassigned catalog tracks are available for this campaign. Upload audio in Files → Audio, then add tracks here.')
+                        ? 'No unassigned tracks to add. Orphans would appear here; every other track is already owned by another campaign.'
+                        : 'No unassigned tracks to add. Orphans would appear here. Upload audio in Files → Audio, or unassign a track from another campaign.')
                     : 'Track membership is preview-only while this campaign is locked.';
                 availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {

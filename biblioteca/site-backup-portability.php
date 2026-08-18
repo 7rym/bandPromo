@@ -364,7 +364,7 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
     $releaseId = trim((string) ($job['release_id'] ?? ''));
     if ($isPrp) {
         $labelCore = $releaseTitle !== '' ? $releaseTitle : ($releaseId !== '' ? $releaseId : 'campaign');
-        $typeLabel = 'PRP · ' . $labelCore;
+        $typeLabel = 'PCF · ' . $labelCore;
     } else {
         $componentsLabel = bandpromo_site_backup_components_label($components);
         $typeLabel = $direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT
@@ -429,7 +429,7 @@ function bandpromo_site_backup_enqueue(string $root, array $components, string $
 }
 
 /**
- * Queue a portable release package (.prp) export as a background backup job.
+ * Queue a Portable Campaign File (.pcf) export as a background backup job.
  */
 function bandpromo_site_backup_enqueue_prp(string $root, string $releaseId, string $actor): array
 {
@@ -449,7 +449,7 @@ function bandpromo_site_backup_enqueue_prp(string $root, string $releaseId, stri
     $suffix = bin2hex(random_bytes(3));
     $stamp = gmdate('Ymd-His');
     $jobId = bandpromo_site_backup_sanitize_job_id('prp-' . $releaseId . '-' . $stamp . '-' . $suffix);
-    $filename = 'bandPromo-' . $releaseId . '-' . $stamp . '.prp';
+    $filename = 'bandPromo-' . $releaseId . '-' . $stamp . '.pcf';
 
     $job = [
         'id' => $jobId,
@@ -600,7 +600,7 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
 
     $job = bandpromo_site_backup_read_job($root, $jobId);
     if ($job === null) {
-        throw new RuntimeException('PRP export job was not found.');
+        throw new RuntimeException('PCF export job was not found.');
     }
 
     $status = (string) ($job['status'] ?? '');
@@ -621,7 +621,7 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
 
     try {
         if ($releaseId === '') {
-            throw new RuntimeException('PRP export job is missing release_id.');
+            throw new RuntimeException('PCF export job is missing release_id.');
         }
         bandpromo_release_campaign_export_to_zip($root, $releaseId, $zipPath);
         $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
@@ -1007,7 +1007,7 @@ function bandpromo_site_backup_stream_file(string $path, string $downloadName): 
     }
 
     http_response_code($status);
-    header('Content-Type: application/zip');
+    header('Content-Type: ' . (preg_match('/\.(pcf|prp)$/i', $safeName) === 1 ? 'application/octet-stream' : 'application/zip'));
     header('Content-Length: ' . (string) $length);
     header('Content-Disposition: attachment; filename="' . $safeName . '"');
     header('Accept-Ranges: bytes');

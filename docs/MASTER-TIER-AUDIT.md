@@ -1,6 +1,6 @@
 # Master-tier audit and completion plan
 
-_Date: 2026-08-13 — after a fresh Demo PRP install on a live host (v0.8.15)._  
+_Date: 2026-08-13 — after a fresh Demo PCF install on a live host (v0.8.15)._  
 **Status: complete (T0–T7 shipped).** Sections C1–C5 below are the **pre-fix evidence inventory** from that install; do not treat them as current runtime behavior.
 
 Source of truth for **original → master → deliverables** across **audio, Visual, Sound effects, and Brand assets**. Implementation checkboxes live here; [TODO.md](TODO.md) points at this file. Related: [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [PORTABILITY.md](PORTABILITY.md).
@@ -11,9 +11,9 @@ This is not the v0.8-exit [LEGACY-AUDIT.md](LEGACY-AUDIT.md) (runtime fallbacks 
 
 ## Why this exists
 
-A fresh Demo PRP install played audio (playlist + masters) but:
+A fresh Demo PCF install played audio (playlist + masters) but:
 
-- **Files → Audio** showed **No files yet** because the Files index scanned `media/audio/original/` (PRP ships masters only).
+- **Files → Audio** showed **No files yet** because the Files index scanned `media/audio/original/` (PCF ships masters only).
 - **`/play` covers 404’d** because the player still asked for legacy `/media/img/{optimal|original}/{stem}.*` instead of `/media/visual/delivery/{ast_*}/`.
 
 Build 380 patched those two symptoms. The same class of bug remains in cover extract, living cover, video delivery, login SFX, Brand `media/special/`, stem sidecars, and several Publish/Python paths. This document inventories them and orders the rewrite.
@@ -35,7 +35,7 @@ One rule for every family (audio, Visual stills, Visual video, Sound effects, Br
 - Unlink original **as part of asset delete** (also unlink master + delivery).
 - Registry `original_filename` / `by_original_filename` as **display and provenance** only.
 
-Download original must 404 when the original is absent (PRP / masters-only). Do not stream the master and label it original.
+Download original must 404 when the original is absent (PCF / masters-only). Do not stream the master and label it original.
 
 ### Preferred master formats
 
@@ -72,7 +72,7 @@ Download original must 404 when the original is absent (PRP / masters-only). Do 
 
 - Audio/visual/SFX **materialize master from original** at upload (`audio-master-helpers.php`, `visual-master-helpers.php`, `sfx-helpers.php`).
 - Visual image delivery for **registered** assets writes `media/visual/delivery/{ast_*}/` (`optimizeMedia.process_visual_image_asset`). Registered video skips `video/optimal` dual-write (`optimizeVideo.process_one_video`).
-- PRP **audio/visual export is masters-only**; import rebuilds the Files index (build 380).
+- PCF **audio/visual export is masters-only**; import rebuilds the Files index (build 380).
 - Playlist enrich can emit `cover_url` via `bandpromo_visual_resolve_url`; player tries `/media/visual/delivery/{ast_*}/` when the cover stem is an asset id (build 380).
 - Files index **second pass** indexes registry masters when originals are missing (build 380).
 - `scripts/visualMasterMetadata.py` already reads/writes visual **masters** only (but is not Python 3.6-safe: `from __future__ import annotations` — fix when touching).
@@ -131,10 +131,10 @@ Policy already says **no stem guessing**. Code still pairs `{audioStem}.jpg` in 
 | Setup dirs | `setup.php` still creates legacy `img/photo/.../original|optimal|thumb` and `media/special` |
 | Shell / OG | `theme_resolve_shell_slot_url`, `config-loader.php`, `index.php`, `play/index.php` fall back to `/media/special/` and `/media/video/original/` |
 | Page allowlist | `page-blocks.php` allows `/media/img\|photo/optimal/` and `/media/special/` |
-| PRP SFX | Export falls back to `media/sfx/original/` when the master is not `ast_*` |
+| PCF SFX | Export falls back to `media/sfx/original/` when the master is not `ast_*` |
 | Player bases | `play/index.php` sets `MEDIA_IMG_BASE='/media/img'` |
 
-**Fix:** Fold Brand visuals into Visual original/master/delivery. Brand slots are `asset_ids` only. SFX PRP is master-or-refuse.
+**Fix:** Fold Brand visuals into Visual original/master/delivery. Brand slots are `asset_ids` only. SFX PCF is master-or-refuse.
 
 ### C5 — Preferred formats not finished (known exception)
 
@@ -194,7 +194,7 @@ Stop teaching the stack that covers and living covers are original basenames.
 
 ### T4 — Brand assets and leftover folders
 
-Absorbs the old “Phase 3 Brand-assets fold” and PRP SFX original fallback.
+Absorbs the old “Phase 3 Brand-assets fold” and PCF SFX original fallback.
 
 - [x] Relocate `media/special/` brand visuals into Visual original (write-once) + `ast_*` master + delivery; brand slots are `asset_ids` only.
 - [x] Brand duplicate clones **new `ast_*` masters**, not `{brand}_{slot}` files in `special/` / `sfx/original/`.
@@ -202,7 +202,7 @@ Absorbs the old “Phase 3 Brand-assets fold” and PRP SFX original fallback.
 - [x] **Upload intake:** stop writing new stills/videos to `media/img|photo|video/original` — unified `media/visual/original` only; relocate deletes leftover legacy copies.
 - [x] **Publish / Site update:** if any legacy Visual intake folder still exists, one-shot relocate all registered Visual originals into `media/visual/original/` and remove empty legacy dirs.
 - [x] Config / OG / login / player shell fallbacks resolve Base brand `asset_ids` → delivery (no hardcoded `/media/special/bandPromo_*.png`).
-- [x] PRP SFX: export master or refuse the row; never pack `sfx/original`.
+- [x] PCF SFX: export master or refuse the row; never pack `sfx/original`.
 - [x] Files → Brand assets becomes a **filter/role** on Visual (or SFX), not a parallel intake tree.
 
 ### T5 — Preferred master formats
@@ -217,21 +217,21 @@ Absorbs open Visual naming tasks.
 ### T6 — Fail loud and delete shims
 
 - [x] Remove dual-read branches listed in C3/C4 once T1–T5 callers are gone.
-- [x] Welcome starter-pack file list: drop `media/audio/original/bandPromo_*.flac` existence checks (Demo PRP marker / demo release doc only).
+- [x] Welcome starter-pack file list: drop `media/audio/original/bandPromo_*.flac` existence checks (Demo PCF marker / demo release doc only).
 - [x] `scripts/visualMasterMetadata.py`: drop `from __future__ import annotations` / `capture_output` / `text=` (Python 3.6.9) when that file is touched.
 - [x] `initialSiteSeed.py` gallery `src`: Visual delivery / asset id, not `/media/photo|video/original/`.
 - [x] Content autofix: keep one-shot original→master **repair** only; do not add new runtime original scans.
 
 ### T7 — Verify
 
-Fresh **Demo PRP** install (masters-only) plus an operator upload:
+Fresh **Demo PCF** install (masters-only) plus an operator upload:
 
 - [x] Files → Audio / Visual / Sound effects list **masters**; titles from registry; original name is secondary.
 - [x] `/play` covers and living covers load `/media/visual/delivery/{ast_*}/…` only (no `/media/img/` or `/media/video/optimal/` 404s).
 - [x] Login welcome/logged-in SFX is `media/sfx/optimal/{ast_*}.mp3`.
 - [x] Publish extract does **not** create `img/original/{stem}.*`; new covers are Visual `ast_*`.
-- [x] PRP export includes track-cover and living-cover **visual masters** and SFX masters; import does not need originals.
-- [x] Operator Download original works when original exists; 404 on PRP rows. Delete removes original+master+delivery.
+- [x] PCF export includes track-cover and living-cover **visual masters** and SFX masters; import does not need originals.
+- [x] Operator Download original works when original exists; 404 on PCF rows. Delete removes original+master+delivery.
 - [x] Brand logo/poster/backgrounds resolve from `asset_ids` → visual delivery.
 
 **T7 notes (2026-08-13):** Player enrich rejects non-visual cover refs; content autofix rewrites/clears invalid audio `display.cover` / playlist payload covers to Visual `ast_*` only (never call `bandpromo_playlist_clear_player_payload_fields` when saving covers — that helper strips player `tracks`).
@@ -249,7 +249,7 @@ These open/partial items are **owned by this plan** (check them off here, not as
 | Video remux-to-MKV | T5 |
 | Still IPTC/XMP | T5 |
 | M4 leftover stem optimal dual-read (resolver, gallery, player) | T3 |
-| PRP SFX original fallback | T4 |
+| PCF SFX original fallback | T4 |
 | Cover extract / sidecar / `process_track_cover` | T1, T3 |
 | Files index originals-first (partially patched in build 380) | T2 |
 
@@ -257,6 +257,6 @@ These open/partial items are **owned by this plan** (check them off here, not as
 
 ## Exit criteria
 
-The slice is done when a masters-only PRP install and a normal operator upload both obey the three-tier rule **without original/stem dual-read**, and the evidence files in C1–C5 no longer treat originals as working copies.
+The slice is done when a masters-only PCF install and a normal operator upload both obey the three-tier rule **without original/stem dual-read**, and the evidence files in C1–C5 no longer treat originals as working copies.
 
 _Last updated: 2026-08-13 (T7 verify done — master-tier plan complete. Player/cover harden + autofix visual-only refs.)_

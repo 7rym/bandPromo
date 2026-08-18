@@ -827,7 +827,7 @@ def has_publishable_audio_sources():
             if suffix in SUPPORTED_AUDIO_EXTENSIONS:
                 supported.append(('master', entry.name))
 
-    # Registry-backed masters (Demo PRP imports masters + registry, no originals).
+    # Registry-backed masters (Demo PCF imports masters + registry, no originals).
     registry_path = ROOT_DIR / 'data' / 'assets' / 'registry.json'
     if registry_path.is_file() and audio_master.exists():
         try:
@@ -879,12 +879,12 @@ def run_preflight():
     supported_audio, unsupported_audio = has_publishable_audio_sources()
 
     if not supported_audio:
-        print("\n❌ No publishable audio found (upload originals or import a PRP with audio masters).")
+        print("\n❌ No publishable audio found (upload originals or import a PCF with audio masters).")
         print("   Checked: media/audio/original and media/audio/master (+ asset registry).")
         if unsupported_audio:
             print("   Unsupported audio files present: " + ', '.join(sorted(unsupported_audio)))
             print("   Current supported source formats: FLAC, MP3, and WAV")
-        print("   Upload your source files via Admin → Files, or re-run setup Demo PRP import.")
+        print("   Upload your source files via Admin → Files, or re-run setup Demo PCF import.")
         sys.stdout.flush()
         return None
 

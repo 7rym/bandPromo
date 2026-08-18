@@ -116,9 +116,9 @@ The intended product concepts are expressed as **explicit role tags** on registr
 | `page-illustration` | Static page and module visuals |
 | `unassigned` | Bulk pool upload until operator assigns a role |
 
-**Brand container** holds tokens (colors, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
+**Brand container** holds tokens (colours, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic use registry identity and explicit references, not folder tabs. **Shipped operator surface:** Files → Audio (catalog music), Files → Visual (global image/video warehouse), Files → **Sound effects** (global brand UI audio warehouse), and Files → Brand assets (the selected Brand's curated Visual + SFX library).
+Storage folders do not match these roles. The admin UI, validation rules, and build logic use registry identity and explicit references, not folder tabs. **Shipped operator surface:** Files → Audio (catalogue music), Files → Visual (global image/video warehouse), Files → **Sound effects** (global brand UI audio warehouse), and Files → Brand assets (the selected Brand's curated Visual + SFX library).
 
 ### Current exposed model vs prepared internal model
 
@@ -179,7 +179,7 @@ Typical release-specific fields:
 - release gallery membership
 - release-specific descriptive metadata and EPK
 
-Do **not** model many catalog SKUs as peer Releases that share one brand era — use playlists under one Release instead ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+Do **not** model many catalogue SKUs as peer Releases that share one brand era — use playlists under one Release instead ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 ### Track-specific exceptions
 
@@ -213,7 +213,7 @@ With inheritance:
 - each release can override only the pieces that give it its own identity
 - tracks can remain lightweight unless they need true exceptions
 
-This is the maintainable path for labels, micro-labels, and artists with large catalogs.
+This is the maintainable path for labels, micro-labels, and artists with large catalogues.
 
 ## Current config transition map
 
@@ -616,9 +616,9 @@ Operator-facing summary:
 - **master/** — internal canonical file (`ast_…`); admin metadata edits target this tier
 - **optimal/** — generated MP3s the player serves by default; not meant for manual browsing
 
-Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalog registration succeeds. Files that exist only as **masters** (Demo PRP / campaign import, no intake original) are listed in Files from the asset registry and are editable. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s player payload so `/play` can load without a full site rebuild.
+Files that exist only in **original/** (for example a failed upload that never registered a master) are not editable or playable until catalogue registration succeeds. Files that exist only as **masters** (Demo PCF / campaign import, no intake original) are listed in Files from the asset registry and are editable. Normal Files → Audio uploads create the master immediately and prepare delivery without waiting for Rebuild all deliverables. Playlist save republishes that playlist’s player payload so `/play` can load without a full site rebuild.
 
-Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via setup import of `bandPromo-demo.prp` (or local seed) and are built into the normal three-tier layout on the host. Admin Publish does not re-download demo packages. Sound effects use the same three-tier idea under `media/sfx/{original,master,optimal}` (login plays delivery MP3 when ready). **Rebuild all deliverables** runs an `sfx-delivery` stage that materializes masters and builds tagless optimal MP3s when missing or stale (same helper as upload/import backfill); already-fresh deliveries are skipped.
+Bundled demo audio is **not** git-tracked. The entire `/media` tree is ignored. Demo assets arrive via setup import of `bandPromo-demo.pcf` (or local seed) and are built into the normal three-tier layout on the host. Admin Publish does not re-download demo packages. Sound effects use the same three-tier idea under `media/sfx/{original,master,optimal}` (login plays delivery MP3 when ready). **Rebuild all deliverables** runs an `sfx-delivery` stage that materializes masters and builds tagless optimal MP3s when missing or stale (same helper as upload/import backfill); already-fresh deliveries are skipped.
 
 It is not:
 
@@ -640,7 +640,7 @@ bandPromo should unify the operator mental model, not force audio, image, and vi
 
 The long-term filesystem/build direction should move from:
 
-- `media/audio/…` (catalog music — unchanged family)
+- `media/audio/…` (catalogue music — unchanged family)
 - `media/sfx/original/` — Sound effects (brand UI clips; not release tracks)
 - legacy visual split leftovers: `media/img/`, `media/photo/`, `media/video/`, `media/special/` (dual-read only)
 - flat `media/*/optimal/` delivery buckets
@@ -749,11 +749,11 @@ The current `bandPromo_*` naming convention may be used as a temporary implement
 
 ### Admin visibility rule
 
-**Campaign demo media** (Audio / Visual pools owned by the install’s protected demo release — see `demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide demo catalog**. When the demo release is hidden, those owned campaign files stay out of normal browsing and pickers. Filename prefixes such as `bandPromo_*` are **not** the hide gate.
+**Campaign demo media** (Audio / Visual pools owned by the install’s protected demo release — see `demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide demo catalogue**. When the demo release is hidden, those owned campaign files stay out of normal browsing and pickers. Filename prefixes such as `bandPromo_*` are **not** the hide gate.
 
 **Hide blockers:** if a demo-owned campaign asset is still referenced by a non-demo playlist, gallery, page, or release, hide is refused and the operator is shown what/where.
 
-**Brand shell media** (Files → Brand assets / Sound effects: logo, poster, still/living backgrounds, welcome/logged-in SFX) stays visible while brands still reference it. Do not auto-hide those files just because the operator uploaded other Brand assets, and do not fold them into “Hide demo catalog.” Per-file soft-hide is retired.
+**Brand shell media** (Files → Brand assets / Sound effects: logo, poster, still/living backgrounds, welcome/logged-in SFX) stays visible while brands still reference it. Do not auto-hide those files just because the operator uploaded other Brand assets, and do not fold them into “Hide demo catalogue.” Per-file soft-hide is retired.
 
 **Locked demo delete:** deleting campaign media that belongs to the locked demo release is denied until the demo release is unlocked on localhost.
 
@@ -766,7 +766,7 @@ Deleting media from Admin is a real delete (unlink), subject to:
 - locked demo campaign ownership guards
 - in-use / multi-reference detach requirements
 
-Demo catalog visibility is **release-level only** (`demo_release_hidden`). Do not soft-hide individual files (including Brand assets / Sound effects or legacy `bandPromo_*` names) as a substitute for that toggle. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
+Demo catalogue visibility is **release-level only** (`demo_release_hidden`). Do not soft-hide individual files (including Brand assets / Sound effects or legacy `bandPromo_*` names) as a substitute for that toggle. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
 
 ### Recommended first implementation shape
 
@@ -972,7 +972,7 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped |
 | `huge` | Player lightbox fullscreen stills; login/player shell still backgrounds | contain inside **1920×1080px** | Shipped; lightbox + shell still prefer `huge`, fall back to `card` |
 | `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Brand assets list; Grid view uses larger cards |
-| `grid` | Page gallery block `.page-gallery-item img` | Grid: natural ratio, column cap 2–6; Carousel: ~78% pane width, max-height ~520px contain | List thumbs 168px square |
+| `grid` | Page gallery block `.page-gallery-item img` | Grid: natural ratio, column cap 2–6; Carousel: ~78% pane width, max-height ~520px contain; Animated: frame sized to the photo (contain, no crop) | List thumbs 168px square |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
 | `lightbox` | Player/page lightbox enlarged view | aliases **`huge`** (≈96vw / 94vh frame) | Falls back to `card` when huge is missing |
 | `share` | `makeSocial.py` OG Facebook/Twitter crops | **1200×630** shipped | Instagram/TikTok native-post sizes registered only — generate with v2+ API publish, not site share |
@@ -1304,7 +1304,7 @@ This is currently the richest metadata path in the codebase.
 
 Generated MP3 delivery files are **tagless**: after copy or transcode, the optimizer strips all ID3 and APEv2 blocks (including APIC cover art).
 
-Listener-facing identity (title, artist, album, lyrics, covers) comes from the asset registry and published playlist JSON. Media Session and future Chromecast metadata use those sources — not embedded tags. Masters remain fully tagged for editing and portable release packages.
+Listener-facing identity (title, artist, album, lyrics, covers) comes from the asset registry and published playlist JSON. Media Session and future Chromecast metadata use those sources — not embedded tags. Masters remain fully tagged for editing and Portable Campaign Files.
 
 See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) § Tagless audio delivery.
 

@@ -2,11 +2,11 @@
 """Prepare the durable demo-content GitHub release assets.
 
 Writes:
-  dist/demo-content/bandPromo-demo.prp
+  dist/demo-content/bandPromo-demo.pcf
   dist/demo-content/demo-manifest.json
 
-Source is an Admin-exported PRP (or a previously published .prp). Demo content
-is updated only when campaign media/docs change — not on every app build.
+Source is an Admin-exported PCF (or a previously published .pcf / legacy .prp).
+Demo content is updated only when campaign media/docs change — not on every app build.
 
 Must stay runnable on CPython 3.6.9+ (hard floor for all scripts/).
 """
@@ -28,9 +28,9 @@ DEMO_CONTENT_TAG = "demo-content"
 DEFAULT_PACKAGE_URL = (
     "https://github.com/7rym/bandPromo/releases/download/"
     + DEMO_CONTENT_TAG
-    + "/bandPromo-demo.prp"
+    + "/bandPromo-demo.pcf"
 )
-ALIAS_NAME = "bandPromo-demo.prp"
+ALIAS_NAME = "bandPromo-demo.pcf"
 
 
 def sha256_file(path):
@@ -60,17 +60,22 @@ def handle_remove_readonly(func, path, exc_info):
 def parse_args():
     # type: () -> argparse.Namespace
     parser = argparse.ArgumentParser(
-        description="Prepare durable demo-content release assets from a PRP file."
+        description="Prepare durable demo-content release assets from a Portable Campaign File."
+    )
+    parser.add_argument(
+        "--pcf",
+        default=None,
+        help="Path to bandPromo-demo.pcf (legacy .prp is accepted).",
     )
     parser.add_argument(
         "--prp",
-        required=True,
-        help="Path to bandPromo-demo.prp (or .zip Admin export).",
+        default=None,
+        help="Deprecated alias for --pcf.",
     )
     parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
-        help="Directory for bandPromo-demo.prp + demo-manifest.json.",
+        help="Directory for bandPromo-demo.pcf + demo-manifest.json.",
     )
     parser.add_argument(
         "--clean",
@@ -134,7 +139,7 @@ def publish_demo_content(output_dir, repo):
             "--title",
             "bandPromo demo content",
             "--notes",
-            "Durable Demo PRP for setup. Updated only when demo campaign content changes. "
+            "Durable Demo PCF for setup. Updated only when demo campaign content changes. "
             "Marked prerelease so /releases/latest stays on application builds.",
             "--prerelease",
         ]
@@ -158,9 +163,13 @@ def publish_demo_content(output_dir, repo):
 def main():
     # type: () -> int
     args = parse_args()
-    source = Path(args.prp).expanduser().resolve()
+    source_arg = args.pcf or args.prp
+    if not source_arg:
+        print("ERROR: Provide --pcf (or the legacy --prp alias).", file=sys.stderr)
+        return 1
+    source = Path(source_arg).expanduser().resolve()
     if not source.is_file():
-        print("ERROR: PRP not found: {0}".format(source), file=sys.stderr)
+        print("ERROR: PCF not found: {0}".format(source), file=sys.stderr)
         return 1
 
     output_dir = Path(args.output_dir).resolve()
@@ -181,21 +190,21 @@ def main():
         "package_alias": ALIAS_NAME,
         "sha256": digest,
         "package_url": str(args.package_url).strip(),
-        "role": "platform_demo_prp",
-        "format": "prp",
+        "role": "platform_demo_pcf",
+        "format": "pcf",
         "release_id": "bandpromo-demo",
         "release_export_version": 1,
         "platform_demo": True,
         "release_tag": DEMO_CONTENT_TAG,
         "notes": [
-            "Durable Demo PRP for setup. Updated only when demo campaign content changes.",
-            "Application releases embed this manifest pointer; they do not re-upload the PRP.",
+            "Durable Demo PCF for setup. Updated only when demo campaign content changes.",
+            "Application releases embed this manifest pointer; they do not re-upload the PCF.",
         ],
     }
     manifest_path = output_dir / "demo-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    print("Prepared Demo PRP: {0}".format(dest))
+    print("Prepared Demo PCF: {0}".format(dest))
     print("Bytes: {0}".format(dest.stat().st_size))
     print("SHA256: {0}".format(digest))
     print("Wrote: {0}".format(manifest_path))

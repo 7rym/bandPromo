@@ -92,7 +92,7 @@ function bandpromo_run_publish_preflight(string $root, ?callable $logger = null)
     } else {
         bandpromo_publish_preflight_log_line('[preflight] Site settings check passed.', $logger);
         bandpromo_publish_preflight_log_line(
-            '[preflight] Catalog preparation runs automatically in the background when uploads need registry or master fixes.',
+            '[preflight] Catalogue preparation runs automatically in the background when uploads need registry or master fixes.',
             $logger
         );
     }

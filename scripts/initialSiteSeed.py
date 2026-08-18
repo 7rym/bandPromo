@@ -11,7 +11,7 @@ Creates when container documents are still empty:
 
 Does not write play/playlist.json, data/playlist-order.json, or data/gallery.json.
 
-After Demo PRP import, playlist/gallery docs are usually already populated.
+After Demo PCF import, playlist/gallery docs are usually already populated.
 In that case this script only finishes player layout + records the seed marker.
 """
 
@@ -95,7 +95,7 @@ def write_json_file(path, payload):
 def collect_audio_filenames():
     files, unsupported_files, hidden_bundled_files = makePlaylists.collect_audio_source_files()
     if not files:
-        # Masters-only installs (Demo PRP): fall back to playlist document masters,
+        # Masters-only installs (Demo PCF): fall back to playlist document masters,
         # then to files present under media/audio/master.
         document_order = makePlaylists.load_playlist_document_master_order()
         recovered = []
@@ -277,7 +277,7 @@ def gallery_document_is_empty(gallery_id):
 
 
 def containers_already_seeded():
-    """True when Demo PRP / prior import already filled playlist + gallery docs."""
+    """True when Demo PCF / prior import already filled playlist + gallery docs."""
     playlist_id = makePlaylists.resolve_build_playlist_id()
     playlist_ready = bool(playlist_id) and (not playlist_document_is_empty(playlist_id))
     gallery_ready = not gallery_document_is_empty(GALLERY_DEFAULT_ID)
@@ -451,7 +451,7 @@ def main():
             print('ℹ️  Hidden bundled demo tracks skipped: ' + ', '.join(file.name for file in hidden_bundled_files))
         seed_playlist_if_empty(filenames)
     elif playlist_ready:
-        print('ℹ️  Playlist containers already populated (Demo PRP / prior import); skipping playlist seed.')
+        print('ℹ️  Playlist containers already populated (Demo PCF / prior import); skipping playlist seed.')
 
     gallery_items = build_gallery_items()
     if gallery_items:

@@ -768,7 +768,7 @@ if ($tab === 'analytics') {
             ?>
             <?php if (!empty($catalogHealth['needs_attention']) && $currentUserRole === 'developer'): ?>
             <div class="card welcome-catalog-repair-card" id="welcomeCatalogRepairCard">
-                <h2>🔧 Catalog needs a repair pass</h2>
+                <h2>🔧 Catalogue needs a repair pass</h2>
                 <p class="card-note">
                     Developer-only: registry housekeeping that does not run on every page load. Preview and apply under System → Status. This does not publish the public site by itself.
                 </p>
@@ -780,18 +780,18 @@ if ($tab === 'analytics') {
                 </ul>
                 <?php endif; ?>
                 <div class="card-actions">
-                    <a class="btn btn-primary" href="<?php echo htmlspecialchars((string) ($catalogHealth['href'] ?? '?tab=system&amp;stab=deliverables#catalog-repair')); ?>">Open Repair catalog</a>
+                    <a class="btn btn-primary" href="<?php echo htmlspecialchars((string) ($catalogHealth['href'] ?? '?tab=system&amp;stab=deliverables#catalog-repair')); ?>">Open Repair catalogue</a>
                 </div>
             </div>
             <?php endif; ?>
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
-                <h2>🎭 bandPromo demo catalog</h2>
+                <h2>🎭 bandPromo demo catalogue</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
+                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalogue</button>
                     <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
                     <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
@@ -873,12 +873,12 @@ if ($tab === 'analytics') {
 
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
-                <h2>🎭 bandPromo demo catalog</h2>
+                <h2>🎭 bandPromo demo catalogue</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalog, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalog</button>
+                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalogue</button>
                     <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
                     <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
@@ -1540,12 +1540,12 @@ if ($tab === 'analytics') {
                     <ul>
                         <li>Pages are campaign-owned layouts (Bio, custom stories) built from Text, Picture, Video, List, and Gallery blocks.</li>
                         <li>Associate pages on Catalogue → Campaign editor → Pages; that order is the player tab order for playlists in that campaign. Playlist and Lyrics stay fixed.</li>
-                        <li>FAQ is the login help lightbox. It is install-owned, not a campaign page, and is not packed in a .prp.</li>
+                        <li>FAQ is the login help lightbox. It is install-owned, not a campaign page, and is not packed in a .pcf.</li>
                     </ul>
                 <?php elseif ($contentTab === 'themes'): ?>
                     <ul>
                         <li><strong>Base</strong> is the site-wide brand: login chrome, logo, backgrounds, welcome sounds, and player chrome (playlist selector, cover reflection, Beggars banquet).</li>
-                        <li>A <strong>campaign brand</strong> (set on the Catalogue campaign) can override player colors and fonts while that campaign’s playlist is playing. Tracks do not carry a brand. Shell media still follow Base until per-campaign shell override ships.</li>
+                        <li>A <strong>campaign brand</strong> (set on the Catalogue campaign) can override player colours and fonts while that campaign’s playlist is playing. Tracks do not carry a brand. Shell media still follow Base until per-campaign shell override ships.</li>
                         <li>Fresh installs keep locked <em>bandPromo Default</em> as Base until you duplicate it. Saving Base writes shell paths into site config.</li>
                     </ul>
                 <?php endif; ?>
@@ -1658,6 +1658,25 @@ if ($tab === 'analytics') {
                                             </label>
                                             </div>
                                         </div>
+                                        <div class="release-editor-section-panel" data-release-editor-panel="tracks" role="tabpanel" hidden>
+                                            <p class="release-editor-helper-title">Add the tracks that should be owned by this campaign</p>
+                                            <p class="hint">This campaign is the catalogue home for those masters. Playlists pick tracks from this pool and set their own play order — they never own the files. Unassigned tracks stay orphans in Files until you add them here.</p>
+                                        </div>
+                                        <div class="release-editor-section-panel" data-release-editor-panel="playlists" role="tabpanel" hidden>
+                                            <p class="release-editor-helper-title">Associate the playlists this campaign should play</p>
+                                            <p class="hint">During a campaign you can ship several playlists, the way a release often meant a single, an EP, and an album at once. A playlist is a virtual container: an ordered bunch of tracks from this campaign’s pool.</p>
+                                            <p class="hint">Examples: the album in original order; a radio-edit / B-side single package; a tour set. A show or podcast series works the same way — each track is an episode in that series.</p>
+                                        </div>
+                                        <div class="release-editor-section-panel" data-release-editor-panel="galleries" role="tabpanel" hidden>
+                                            <p class="release-editor-helper-title">Associate the galleries this campaign should own</p>
+                                            <p class="hint">A gallery is a visual set (photos, stills, video) that reuses Files → Visual assets — it does not own those files. Associating it here makes this campaign the catalogue home.</p>
+                                            <p class="hint">Galleries are page building blocks. Add a Gallery block on a campaign page (Pages) and choose how it is presented: Grid, List, Carousel, or Animated.</p>
+                                        </div>
+                                        <div class="release-editor-section-panel" data-release-editor-panel="pages" role="tabpanel" hidden>
+                                            <p class="release-editor-helper-title">Associate the pages this campaign should show</p>
+                                            <p class="hint">Pages are campaign-owned layouts built from Text, Picture, Video, List, and Gallery blocks. Use them for biographies, tour info, merch, and other campaign stories.</p>
+                                            <p class="hint">Order here is the player tab order when this campaign’s playlist is playing. Playlist and Lyrics stay fixed.</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1767,72 +1786,71 @@ if ($tab === 'analytics') {
                             </div>
 
                             <div id="playlistTracksPoolView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                <div class="player-layout-col-head page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
+                                        <span class="theme-editor-head-badges" id="playlistEditorHeadBadges"></span>
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="playlistSettingsStatus"></span>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
-                                    <div class="playlist-settings-panel" id="playlistSettingsPanel">
-                                        <div class="playlist-settings-fields release-catalog-meta-fields">
-                                            <label class="playlist-settings-field release-catalog-meta-field--date">
-                                                <span>Publish date</span>
-                                                <?php bandpromo_admin_render_iso_date_field('publish_date', '', 'playlistSettingsPublishDate', [
-                                                    'variant' => 'form',
-                                                    'required' => true,
-                                                    'allow_year_only' => true,
-                                                ]); ?>
-                                            </label>
-                                            <p class="hint">Playlist promotion uses this <strong>UTC calendar day</strong>; track playability still follows each track’s release date.</p>
-                                            <label class="playlist-settings-field">
-                                                <span>Package type</span>
-                                                <select id="playlistSettingsPackageType" aria-label="Playlist package type">
-                                                    <option value="single">Single</option>
-                                                    <option value="ep">EP</option>
-                                                    <option value="album">Album</option>
-                                                    <option value="show">Show</option>
-                                                    <option value="podcast">Podcast</option>
-                                                    <option value="live">Live</option>
-                                                    <option value="compilation">Compilation</option>
-                                                    <option value="other" selected>Other</option>
-                                                </select>
-                                            </label>
-                                            <label class="playlist-settings-field">
-                                                <span>Player track order</span>
-                                                <select id="playlistSettingsPlayOrder" aria-label="Player track order">
-                                                    <option value="stored">As listed (first track first)</option>
-                                                    <option value="reverse">Newest first (reverse list)</option>
-                                                </select>
-                                            </label>
-                                            <p class="hint">Shows and podcasts default to newest first so you can append episodes at the bottom of the edit list.</p>
-                                            <label class="playlist-settings-field playlist-settings-field--wide playlist-settings-default-flag">
-                                                <span class="playlist-settings-checkbox-row">
-                                                    <input type="checkbox" id="playlistSettingsSetAsDefault">
-                                                    <span>Default playlist for the player</span>
-                                                </span>
-                                            </label>
-                                            <p class="hint">When set, the player opens this playlist first (if it is public and has tracks). Otherwise the latest publish date wins.</p>
-                                            <label class="playlist-settings-field release-catalog-meta-field--id">
-                                                <span>Slug</span>
-                                                <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
-                                            </label>
-                                            <p class="hint release-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>
+                                    <section class="content-editor-section" id="playlistSettingsPanel">
+                                        <div class="content-editor-section-head">
+                                            <h4 class="player-layout-col-title">Base info</h4>
                                         </div>
-                                        <div class="playlist-settings-fields">
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Description</span>
-                                                <textarea id="playlistSettingsDescription" rows="3" maxlength="4000" placeholder="Campaign summary or listening notes" autocomplete="off"></textarea>
-                                                <?php echo bandpromo_admin_markdown_help_note('Markdown supported'); ?>
-                                            </label>
-                                            <label class="playlist-settings-field playlist-settings-field--wide">
-                                                <span>Short description</span>
-                                                <textarea id="playlistSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
-                                                <div class="field-note release-short-description-note"><span id="playlistSettingsShortDescriptionCount">0</span>/300 characters</div>
-                                            </label>
+                                        <div class="content-editor-section-body">
+                                            <div class="page-editor-meta playlist-base-info">
+                                                <label class="page-meta-field">
+                                                    <span>Publish date</span>
+                                                    <?php bandpromo_admin_render_iso_date_field('publish_date', '', 'playlistSettingsPublishDate', [
+                                                        'variant' => 'form',
+                                                        'required' => true,
+                                                        'allow_year_only' => true,
+                                                    ]); ?>
+                                                    <p class="hint">Playlist promotion uses this UTC calendar day. Track playability still follows each track’s release date.</p>
+                                                </label>
+                                                <div class="playlist-base-info-row">
+                                                    <label class="page-meta-field">
+                                                        <span>Package type</span>
+                                                        <select id="playlistSettingsPackageType" aria-label="Playlist package type">
+                                                            <option value="single">Single</option>
+                                                            <option value="ep">EP</option>
+                                                            <option value="album">Album</option>
+                                                            <option value="show">Show</option>
+                                                            <option value="podcast">Podcast</option>
+                                                            <option value="live">Live</option>
+                                                            <option value="compilation">Compilation</option>
+                                                            <option value="other" selected>Other</option>
+                                                        </select>
+                                                    </label>
+                                                    <label class="page-meta-field">
+                                                        <span>Player track order</span>
+                                                        <select id="playlistSettingsPlayOrder" aria-label="Player track order">
+                                                            <option value="stored">As listed (first track first)</option>
+                                                            <option value="reverse">Newest first (reverse list)</option>
+                                                        </select>
+                                                    </label>
+                                                </div>
+                                                <p class="hint">Shows and podcasts default to newest first so new episodes can append at the bottom of the list.</p>
+                                                <label class="page-meta-field">
+                                                    <span>Slug</span>
+                                                    <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
+                                                    <p class="hint release-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>
+                                                </label>
+                                                <label class="page-meta-field page-meta-field--wide">
+                                                    <span>Short description</span>
+                                                    <textarea id="playlistSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
+                                                    <div class="field-note release-short-description-note"><span id="playlistSettingsShortDescriptionCount">0</span>/300 characters</div>
+                                                </label>
+                                                <label class="page-meta-field page-meta-field--wide">
+                                                    <span>Description</span>
+                                                    <textarea id="playlistSettingsDescription" rows="3" maxlength="4000" placeholder="Campaign summary or listening notes" autocomplete="off"></textarea>
+                                                    <?php echo bandpromo_admin_markdown_help_note('Markdown supported'); ?>
+                                                </label>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </section>
                                 </div>
                             </div>
                         </div>
@@ -1844,7 +1862,8 @@ if ($tab === 'analytics') {
                                 <h4 class="player-layout-col-title">
                                     Playlist <span class="player-layout-count" id="playlistActiveCount"></span>
                                 </h4>
-                                <div class="player-layout-save-row">
+                                <div class="player-layout-save-row theme-editor-actions">
+                                    <button type="button" id="playlistSetDefaultBtn" class="btn" hidden title="Open this playlist first on the player">★ Set as default</button>
                                     <button type="button" id="playlistSaveBtn" class="btn" hidden>💾 Save playlist</button>
                                 </div>
                             </div>
@@ -2055,48 +2074,56 @@ if ($tab === 'analytics') {
                                     </div>
                                 </div>
                                 <div class="player-layout-panel-body page-editor-view-body">
-                                    <div class="page-editor-meta">
-                                        <label class="page-meta-field" id="pageLabelFieldWrap"<?php echo $activePageIsLoginOnly ? ' hidden' : ''; ?>>
-                                            <span>Player tab</span>
-                                            <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
-                                        </label>
-                                        <label class="page-meta-field page-meta-field--wide">
-                                            <span>Short description</span>
-                                            <textarea id="pageSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
-                                            <div class="field-note release-short-description-note"><span id="pageSettingsShortDescriptionCount">0</span>/300 characters</div>
-                                        </label>
-                                        <label class="page-meta-field page-meta-field--wide">
-                                            <span>Description</span>
-                                            <textarea id="pageSettingsDescription" rows="3" maxlength="4000" placeholder="Summary for this page" autocomplete="off"></textarea>
-                                        </label>
-                                        <label class="page-meta-field page-meta-field--wide">
-                                            <span>Share image</span>
-                                            <input type="hidden" id="pageSettingsPosterAssetId" data-empty-label="No share image selected">
-                                            <div class="asset-picker-row">
-                                                <span id="pageSettingsPosterAssetId_label" class="asset-picker-value empty">No share image selected</span>
-                                                <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="pageSettingsPosterAssetId" data-title="Choose share image" data-targets="illustrations,photos,special" title="Choose share image" aria-label="Choose share image">✎</button>
-                                            </div>
-                                            <p class="hint">Stored for when public sharing ships in v0.9. OG tags are not wired yet.</p>
-                                        </label>
-                                    </div>
-                                    <div class="page-editor-builder-intro">
-                                        <h4 class="player-layout-col-title">Page builder</h4>
-                                        <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
-                                    </div>
-                                    <div class="page-editor-panel-head">
-                                        <h4 class="player-layout-col-title">Page building blocks</h4>
-                                        <div class="page-editor-toolbar">
-                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
-                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
-                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="video">+ Video</button>
-                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture_richtext">+ Picture + text</button>
-                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="gallery">+ Gallery</button>
-                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
+                                    <section class="content-editor-section">
+                                        <div class="content-editor-section-head">
+                                            <h4 class="player-layout-col-title">Base info</h4>
                                         </div>
-                                    </div>
-                                    <div class="page-editor-blocks" id="pageEditorBlocks">
-                                        <p class="page-editor-empty">Loading page blocks…</p>
-                                    </div>
+                                        <div class="content-editor-section-body">
+                                            <div class="page-editor-meta">
+                                                <label class="page-meta-field" id="pageLabelFieldWrap"<?php echo $activePageIsLoginOnly ? ' hidden' : ''; ?>>
+                                                    <span>Player tab</span>
+                                                    <input type="text" id="pageLabelInput" value="<?php echo htmlspecialchars($activeContentPage['label'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="32">
+                                                </label>
+                                                <label class="page-meta-field page-meta-field--wide">
+                                                    <span>Short description</span>
+                                                    <textarea id="pageSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
+                                                    <div class="field-note release-short-description-note"><span id="pageSettingsShortDescriptionCount">0</span>/300 characters</div>
+                                                </label>
+                                                <label class="page-meta-field page-meta-field--wide">
+                                                    <span>Description</span>
+                                                    <textarea id="pageSettingsDescription" rows="3" maxlength="4000" placeholder="Summary for this page" autocomplete="off"></textarea>
+                                                </label>
+                                                <label class="page-meta-field page-meta-field--wide">
+                                                    <span>Share image</span>
+                                                    <input type="hidden" id="pageSettingsPosterAssetId" data-empty-label="No share image selected">
+                                                    <div class="asset-picker-row">
+                                                        <span id="pageSettingsPosterAssetId_label" class="asset-picker-value empty">No share image selected</span>
+                                                        <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="pageSettingsPosterAssetId" data-title="Choose share image" data-targets="illustrations,photos,special" title="Choose share image" aria-label="Choose share image">✎</button>
+                                                    </div>
+                                                    <p class="hint">Stored for when public sharing ships in v0.9. OG tags are not wired yet.</p>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </section>
+                                    <section class="content-editor-section page-editor-section--builder">
+                                        <div class="content-editor-section-head page-editor-panel-head">
+                                            <h4 class="player-layout-col-title">Page builder</h4>
+                                            <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
+                                            <div class="page-editor-toolbar">
+                                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
+                                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
+                                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="video">+ Video</button>
+                                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture_richtext">+ Picture + text</button>
+                                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="gallery">+ Gallery</button>
+                                                <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
+                                            </div>
+                                        </div>
+                                        <div class="content-editor-section-body">
+                                            <div class="page-editor-blocks" id="pageEditorBlocks">
+                                                <p class="page-editor-empty">Loading page blocks…</p>
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
                             </div>
                         </div>
@@ -2176,7 +2203,7 @@ if ($tab === 'analytics') {
                             </div>
 
                             <div id="themeEditorView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head theme-editor-view-head content-editor-view-head">
+                                <div class="player-layout-col-head page-editor-view-head theme-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Back</button>
                                     <div class="theme-editor-head-name content-editor-head-name">
                                         <input type="text" class="theme-editor-name-input content-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
@@ -2293,7 +2320,7 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalog</strong> below to hide or restore the shipped bandPromo demo release and its campaign media (Brand assets / Sound effects stay visible).
+                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalogue</strong> below to hide or restore the shipped bandPromo demo release and its campaign media (Brand assets / Sound effects stay visible).
                 <?php elseif ($configTab === 'support'): ?>
                     Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
@@ -2383,13 +2410,13 @@ if ($tab === 'analytics') {
             </div>
 
             <div class="card">
-                <h3>🎭 Demo catalog</h3>
+                <h3>🎭 Demo catalogue</h3>
                 <p class="card-note">
-                    Hide is available after you have an operator-created release with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalog, the demo is shown again automatically.
+                    Hide is available after you have an operator-created release with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
                     <input type="checkbox" id="cfgDemoCatalogVisible"<?php echo $demoCatalogVisible ? ' checked' : ''; ?>>
-                    <span>Show bandPromo demo catalog</span>
+                    <span>Show bandPromo demo catalogue</span>
                 </label>
                 <div class="card-actions">
                     <span id="cfgDemoCatalogStatus" class="status-text"></span>
@@ -2583,7 +2610,7 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                This page is the health of your catalog: campaigns, playlists, tracks, and whether those tracks can stream.<br><br>
+                This page is the health of your catalogue: campaigns, playlists, tracks, and whether those tracks can stream.<br><br>
                 Counts match <strong>Content → Catalogue</strong> (the invisible upload bucket and login FAQ are not campaigns).<br><br>
                 Uploads and saves usually prepare streaming files automatically. Use <strong>Refresh site files</strong> if something is missing or after a Site update.
             </div>
@@ -2599,11 +2626,11 @@ if ($tab === 'analytics') {
             <?php if ($currentUserRole === 'developer'): ?>
             <div id="catalog-repair" class="card catalog-repair-card">
                 <div class="build-validation-head">
-                    <h3>🔧 Repair catalog</h3>
+                    <h3>🔧 Repair catalogue</h3>
                     <span class="role-badge role-developer">developer</span>
                 </div>
                 <p class="card-note">
-                    Internal recovery for registry links, master filenames, and leftover metadata. A healthy demo install can still list housekeeping that is not an operator problem. Preview first. Apply only when you know a catalog link is wrong.
+                    Internal recovery for registry links, master filenames, and leftover metadata. A healthy demo install can still list housekeeping that is not an operator problem. Preview first. Apply only when you know a catalogue link is wrong.
                 </p>
                 <div class="publish-actions-toolbar">
                     <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>
@@ -2723,7 +2750,7 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Move one campaign as a <code>.prp</code> (masters, brand, playlists, galleries, pages), or back up the whole site.
+                Move one campaign as a <code>.pcf</code> (masters, brand, playlists, galleries, pages), or back up the whole site.
                 Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the campaign, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new campaign id.
                 Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Status</strong> if you need to refresh listener-ready files.
             </div>
@@ -2799,12 +2826,12 @@ if ($tab === 'analytics') {
 
             <div class="backup-action-grid prp-action-grid">
             <div class="card site-backup-card prp-panel" id="releasePackageExportCard">
-                <h3>💿 Export .prp</h3>
+                <h3>💿 Export .pcf</h3>
                 <p class="card-note backup-builder-note">
                     Queue one campaign (masters, brand, playlists, galleries, pages). Download from Jobs when Ready.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
-                <p class="empty-msg">ZipArchive is required to export release packages on this host.</p>
+                <p class="empty-msg">This host cannot export campaign files.</p>
                 <?php else: ?>
                 <div class="prp-panel-toolbar">
                     <label class="visually-hidden" for="releasePackageExportSelect">Campaign</label>
@@ -2818,18 +2845,18 @@ if ($tab === 'analytics') {
             </div>
 
             <div class="card site-backup-card prp-panel" id="releasePackageImportCard">
-                <h3>💿 Import .prp</h3>
+                <h3>💿 Import .pcf</h3>
                 <p class="card-note backup-builder-note">
-                    Upload a <code>.prp</code> or <code>.zip</code>. IDs are kept unless you choose AsNew.
+                    Upload a <code>.pcf</code>. IDs are kept unless you choose AsNew.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
-                <p class="empty-msg">ZipArchive is required to import release packages on this host.</p>
+                <p class="empty-msg">This host cannot import campaign files.</p>
                 <?php else: ?>
                 <div class="prp-panel-toolbar">
                     <label class="btn btn-secondary site-backup-import-file-label" for="releasePackageImportInput">
-                        Choose .prp…
+                        Choose .pcf…
                     </label>
-                    <input type="file" id="releasePackageImportInput" accept=".prp,.zip,application/zip" hidden>
+                    <input type="file" id="releasePackageImportInput" accept=".pcf,.prp" hidden>
                     <span id="releasePackageImportFilename" class="site-backup-import-filename text-muted"></span>
                     <button type="button" class="btn" id="releasePackageImportBtn">📥 Import</button>
                 </div>

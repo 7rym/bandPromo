@@ -493,7 +493,7 @@ function bandpromo_playlist_prefer_cover_delivery_url(
 }
 
 /**
- * Coverflow/catalog art: playlist poster, then owning release poster, then first track cover.
+ * Coverflow/catalogue art: playlist poster, then owning release poster, then first track cover.
  */
 function bandpromo_playlist_resolve_catalog_cover_url(string $root, array $entry): string
 {

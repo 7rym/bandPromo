@@ -1726,6 +1726,12 @@ audio {
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
+.page-box .page-gallery-item img,
+.page-box .page-gallery-item video {
+    max-height: none;
+    box-shadow: none;
+}
+
 .page-box strong {
     color: var(--primary-color);
 }

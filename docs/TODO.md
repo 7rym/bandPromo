@@ -15,15 +15,15 @@ Rules for this file:
 
 ## Current milestone
 
-**v0.8 beta (active) — the management machine** — catalog, media, brands, containers, delivery scaling, and **portable release packages (PRP)**. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
+**v0.8 beta (active) — the management machine** — catalogue, media, brands, containers, delivery scaling, and **Portable Campaign Files (PCF)**. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**Active gate (2026-08-13):** finish **original → master → deliverables** for every family (audio, Visual, SFX, Brand assets). Findings and checkboxes: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Absorbs Brand-assets fold, living-cover `ast_*` tags, video MKV remux, still IPTC/XMP, and leftover stem/sidecar dual-read.
+**Active gate (2026-08-13):** **original → master → deliverables** for every family — **complete (T0–T7)**. Evidence and checkboxes: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Remainders: gallery multi-select picker, `media/special/` fold, content AI wizards.
 
-**Active gate (2026-08-06):** lock and ship **PRP** (`.prp`) as the only campaign data handoff — setup imports `bandPromo-demo.prp`; Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable release packages.
+**Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
-**Policy (2026-08-08):** no special-case demo content handling beyond setup PRP import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
+**Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
-**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalog regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalog hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page container metadata + OG wiring (v0.9), Visual pool Phase 3 Brand-assets fold (relocate `media/special/` visuals → `media/visual/original/`; living-cover `ast_*`), content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Sound effects + Brand assetsor pool + Brand assets rename + content date-field unification shipped (2026-07-15/16). Visual registry + multi-variant delivery Phases 0b–2 shipped (2026-07-21). — **not published as a Site-update package yet**.
+**v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalogue regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalogue hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page OG/share runtime wiring (v0.9; storage shipped), Brand-assets `media/special/` fold, content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Sound effects pool + Brand assets rename + content date-field unification shipped (2026-07-15/16). Visual registry + multi-variant delivery Phases 0b–2 shipped (2026-07-21).
 
 **v0.8.4 working slice (2026-07-01):** legacy cleanup, VERSION session format, Release editor, initial site seed rename — largely complete; visual media policy remains open. See **v0.8.4 active slice** below.
 
@@ -88,17 +88,17 @@ Reference: [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md).
 
 Policy — **lock before implementation**:
 
-- [x] Lock **target stage order**: preflight (tools) → site shell (theme/config/social/PWA inputs) → catalog (masters/registry) → deliverables (from registry) → artifacts (playlist validation report, share crops, manifest) → initial layout seed (setup/recovery only).
+- [x] Lock **target stage order**: preflight (tools) → site shell (theme/config/social/PWA inputs) → catalogue (masters/registry) → deliverables (from registry) → artifacts (playlist validation report, share crops, manifest) → initial layout seed (setup/recovery only).
 - [x] Lock **deliverable scope**: **every registered asset**, independent of release/playlist membership.
 - [x] Lock **prune rule**: deliverables removed **only on asset delete**, not on playlist/release membership change.
-- [x] Lock **publish must not mutate catalog**: move `content-autofix` out of publish preflight; catalog repair now runs automatically in the background when needed.
+- [x] Lock **publish must not mutate catalogue**: move `content-autofix` out of publish preflight; catalogue repair now runs automatically in the background when needed.
 - [x] Lock **initial layout seed** (formerly “compose”): **setup** + explicit **recover layout from disk** only; never routine publish; rename in UI/docs.
 
 Implementation order:
 
 - [x] Phase A — stop the bleeding (remove autofix from publish, fix validation UX labels).
 - [x] Phase B — stage runner skeleton (skippable stages, structured log).
-- [x] Phase C — catalog stage (masters for all originals).
+- [x] Phase C — catalogue stage (masters for all originals).
 - [x] Phase D — registry-scoped deliverables (`optimizeMedia.py` decoupled from playlist scope).
 - [x] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
 - [x] Phase F — demote layout seed to setup-only (`run-layout-seed.php` + `scripts/initialSiteSeed.py`; removed from `build.py`).
@@ -113,10 +113,10 @@ Primary focus after hotfix stability. Policy locked 2026-07-11 — see [PLATFORM
 
 Policy — **locked**:
 
-- [x] Lock **Brand replaces Theme**: colors, typography, mood narrative, and asset refs live in `data/brands/` — not a separate Theme container.
+- [x] Lock **Brand replaces Theme**: colours, typography, mood narrative, and asset refs live in `data/brands/` — not a separate Theme container.
 - [x] Lock **many releases → one brand** via release `brand_id` (singles, EPs, album, post-album singles in the same era). *(Superseded 2026-07-21: Release is the campaign umbrella; album/single packages are playlists under one release; brand identity is owned by that release.)*
 - [x] Lock **Release = campaign umbrella** (2026-07-21) — owns tracks, identity, EPK, galleries, pages; Playlist = streaming listening product. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
-- [x] Operator-facing **Campaign** for that umbrella (2026-08-17) — Catalogue/editor copy only; keep `release_id` and PRP. Playlist stays the listening product (single/album/tour street dates). Do not rename storage.
+- [x] Operator-facing **Campaign** for that umbrella (2026-08-17) — Catalogue/editor copy only; keep `release_id` and PCF. Playlist stays the listening product (single/album/tour street dates). Do not rename storage.
 - [x] Lock **release cover on release**: `poster_asset_id` picked from Visual pool with brand filter; not stored inside the brand document.
 - [x] Lock **install default brand**: seed locked `bandpromo-default` on first install. Operators duplicate to customize (no auto “Your own brand” on setup).
 - [x] Hide invisible `primary` orphan/upload bucket from Catalogue (operator-facing lists).
@@ -133,7 +133,7 @@ Implementation order:
 - [x] **Release editor brand picker** — `brand_id` on releases; inherit install default when empty.
 - [x] **Player per-release brand** — resolve release `brand_id` at playlist/track load; swap CSS variables; brand alpha tokens in shared CSS.
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
-- [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalog, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
+- [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalogue, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
 - [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls. Release Pages associations own player tab order; Player layout tab retired.
 - [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
@@ -191,7 +191,7 @@ Implementation order:
 
 **Resume (2026-08-13 pause):** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) — T1 is on `main` as v0.8.15 build 381 (**not** published). Next work is **T2**.
 
-See [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Same rule for audio, Visual, Sound effects, and Brand assets: store originals (write-once), work on `ast_{ULID}` masters, build deliverables from masters. Trigger: fresh Demo PRP install (Files empty, `/play` covers 404 on stem img paths).
+See [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Same rule for audio, Visual, Sound effects, and Brand assets: store originals (write-once), work on `ast_{ULID}` masters, build deliverables from masters. Trigger: fresh Demo PCF install (Files empty, `/play` covers 404 on stem img paths).
 
 Policy — **locked**:
 
@@ -205,10 +205,10 @@ Implementation order (check off in the audit):
 - [x] **T1** — Identity: `ast_*` refs; stop stem guessing and cover extract to `img/original/{stem}.*`. *(covers/living covers persist as visual asset ids; Publish extract writes `media/visual/original/embedded-*` and registers `ast_*`. Remaining: one-shot filename autofix + fail loud — see audit T1 last checkbox / T6.)*
 - [ ] **T2** — Working copy is the master (Files index, playback, Publish, SFX play, delete/download).
 - [ ] **T3** — Deliverables from masters; kill stem `optimal`/`thumb`/`video/poster` dual-write/read.
-- [ ] **T4** — Fold Brand `media/special/` and leftover intake folders; PRP SFX masters only.
+- [ ] **T4** — Fold Brand `media/special/` and leftover intake folders; PCF SFX masters only.
 - [ ] **T5** — Preferred formats: video MKV remux, still IPTC/XMP, living-cover ready = Visual `standard-stream`.
 - [ ] **T6** — Fail loud; delete dual-read shims.
-- [ ] **T7** — Verify on Demo PRP + operator upload.
+- [ ] **T7** — Verify on Demo PCF + operator upload.
 
 ### Visual identity completion (M1–M6) — policy locked 2026-08-04
 
@@ -247,8 +247,8 @@ Policy — **locked**:
 Implementation order:
 
 - [ ] **Schema + Files UX** — normalize/write visual `display`; Files drilldown + picker labels use title first.
-- [ ] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
-- [ ] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
+- [x] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
+- [x] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
 - [ ] **Gallery multi-select picker** — replace Available DnD primary flow.
 
 ### Delivery smoothness leftovers (deferred 2026-08-04)
@@ -308,39 +308,39 @@ Implementation order:
 - [x] **Player loop** — existing `<video>` on flip-card cover.
 - [ ] **Visual registry IDs for living cover** — store visual asset id instead of video filename in master tags. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T1 / T5.**
 
-### Portable release packages (PRP) — active v0.8 gate
+### Portable Campaign Files (PCF) — active v0.8 gate
 
-Policy lock **2026-08-06** — see [PORTABILITY.md](PORTABILITY.md) §3; [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
+Policy lock **2026-08-18** (rename from PRP / `.prp`) — see [PORTABILITY.md](PORTABILITY.md) §3; [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
 
 **Product — locked:**
 
-- [x] Lock **`.prp`** — bandPromo-specific ZIP (rename to `.zip` OK); not DistroKid/distributor format.
-- [x] Lock **PRPs only** for campaign data — no parallel default-theme / demo-release **content** ZIPs.
-- [x] Lock **masters only** in PRP; deliverables built on import/Publish; disposable.
+- [x] Lock **`.pcf`** — Portable Campaign File; never describe it to operators as a ZIP. Import still accepts legacy `.prp`.
+- [x] Lock **PCFs only** for campaign data — no parallel default-theme / demo-release **content** packages.
+- [x] Lock **masters only** in PCF; deliverables built on import/Publish; disposable.
 - [x] Lock **stable IDs** on export/import (`ast_*`, release, containers).
-- [x] Lock **demo PRP** — setup imports `bandPromo-demo.prp`; locked base shell brand; operator read-only; optional hide; localhost-only source edits; system re-import overwrites.
-- [x] Lock **demo pages in PRP** — Bio + Gallery page (gallery block → demo gallery); **FAQ is system-owned**, not in PRP.
+- [x] Lock **demo PCF** — setup imports `bandPromo-demo.pcf`; locked base shell brand; operator read-only; optional hide; localhost-only source edits; system re-import overwrites.
+- [x] Lock **demo pages in PCF** — Bio + Gallery page (gallery block → demo gallery); **FAQ is system-owned**, not in PCF.
 - [x] Lock **player chrome** — Base brand owns playlist selector (default coverflow); shell + track living media preferred when assigned (no Still|Living install toggle); campaign page tabs follow **current track’s `release_id`**; idle = no campaign pages.
 - [x] Lock **Primary** — invisible orphan/upload bucket; operators never manage it as a release.
 - [x] Lock **duplicate** — new container ids, **shared** media `ast_*`, multi-ref delete guard.
-- [x] Lock **import collision** — operator chooses; analytics/logs stay out of PRPs.
+- [x] Lock **import collision** — operator chooses; analytics/logs stay out of PCFs.
 - [x] Lock **ambassador workflow** — prepare on one install, import on another; no marketplace cut.
 
 **Implementation order (active):**
 
-- [x] **Docs lock** — PORTABILITY / PLATFORM-MODEL / ACCESS-MODEL / TODO aligned to PRP (2026-08-06).
-- [x] **PRP schema + export builder** — Bio/Gallery/brand/masters/registry; emit `.prp`; strip delivery; FAQ excluded.
-- [x] **Setup imports demo PRP** — remote `demo_release_package` as `.prp` with overwrite; local template seed fallback remains until fleet cuts over.
+- [x] **Docs lock** — PORTABILITY / PLATFORM-MODEL / ACCESS-MODEL / TODO aligned to PCF (2026-08-18).
+- [x] **PCF schema + export builder** — Bio/Gallery/brand/masters/registry; emit `.pcf`; strip delivery; FAQ excluded.
+- [x] **Setup imports Demo PCF** — remote `demo_release_package` as `.pcf` with overwrite; fall back to published legacy `.prp`.
 - [x] **System FAQ seed + coverflow/living defaults**.
-- [x] **Contextual page tabs** — current track `release_id`; idle hides campaign pages (hide-demo catalog filter still open).
+- [x] **Contextual page tabs** — current track `release_id`; idle hides campaign pages (hide-demo catalogue filter still open).
 - [x] **Duplicate + multi-ref delete guard** — `duplicate-release-campaign.php`; Files delete refuses in-use without detach.
 - [x] **Import collision UI**; system demo overwrite.
-- [x] **Ship `bandPromo-demo.prp`** — `build_release_package.py` emits versioned + alias `.prp` (publish on next release package workflow).
+- [x] **Ship `bandPromo-demo.pcf`** — `prepare_demo_content_package.py` writes `.pcf` (legacy GitHub asset may still be `.prp` until the next demo publish).
 - [ ] **Validate** — local → bandpromo.site fresh → Winter Party / Retroscopy roundtrip → HITZ → TC.
 
-**Follow-ups (not blocking PRP schema, priority after validate):**
+**Follow-ups (not blocking PCF schema, priority after validate):**
 
-- [x] **Collapse demo special-cases** — remove demo track/playlist sync, template seed fallback, `system_managed` edit freeze, `bandPromo_*`→demo ownership inference, empty demo ensure/create; keep only setup PRP import → lock, localhost unlock + export, hide, duplicate (PLATFORM-MODEL 2026-08-10).
+- [x] **Collapse demo special-cases** — remove demo track/playlist sync, template seed fallback, `system_managed` edit freeze, `bandPromo_*`→demo ownership inference, empty demo ensure/create; keep only setup PCF import → lock, localhost unlock + export, hide, duplicate (PLATFORM-MODEL 2026-08-10).
 - [ ] **Analytics / play-logs** — store and export **UID-only** asset/release handles (no filename identity).
 - [ ] **Full site backup** — rewrite export/import for UID asset model (see [PORTABILITY.md](PORTABILITY.md) §1).
 
@@ -351,7 +351,7 @@ Legacy checklist (superseded wording kept for history):
 - [x] Lock **registry subset required** — filtered `data/assets` rows; import merges.
 - [x] **Ownership fields + migrate** — `release_id` on brand/playlist/gallery/page.
 - [x] **Release hub admin IA**.
-- [x] **Import flow** — shared setup + admin importer (evolve to PRP-only).
+- [x] **Import flow** — shared setup + admin importer (evolve to PCF-only).
 - [ ] **Ambassador docs** — short operator-facing how-to.
 
 ### Beta fleet sync + legacy audit gate (v0.8 exit)
@@ -426,7 +426,7 @@ Priority 2 — page editor and presentation (**complete**):
 - [x] Define the server-rendering contract for JSON-backed pages: safe HTML output, allowed block rendering rules, and optional cached HTML artifacts.
 - [x] Define the JSON-only page storage contract for v0.8 beta: `data/pages/*.json` as the sole runtime source, with HTML rendered at delivery time.
 - [x] Plan and ship the page-editor replacement around the locked schema and block-based editing flow.
-- [x] Design the first theme/config structure and player semantic color tokens so page presentation and future theme packs share one contract (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Themes).
+- [x] Design the first theme/config structure and player semantic colour tokens so page presentation and future theme packs share one contract (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Themes).
 
 Priority 3a — Content editors and delivery automation (**complete**):
 
@@ -444,7 +444,7 @@ Policy and model — **locked in [PLATFORM-MODEL.md](PLATFORM-MODEL.md)** (2026-
 - [x] Define multi-playlist libraries: playlists independent of releases; admin library UX; player **Playlists** tab selector above track list.
 - [x] Define multi-gallery libraries: admin library UX; galleries placed via **module blocks** on pages; **remove Gallery player tab** when module blocks ship.
 - [x] Define track deep links: path URLs `/play/{playlist}/{release-slug}/{track-slug}`; page links `/pages/{page-id}`.
-- [x] Define gallery module presentation presets (grid, list, carousel, parallax, etc.) at product level.
+- [x] Define gallery module presentation presets (grid, list, carousel, animated, etc.) at product level.
 - [x] Define asset identity: `ast_{ULID}` on-disk names, `data/assets` registry, operators never depend on filenames.
 - [x] Define release locking: locked releases block track metadata edits; playlist reorder must not mutate masters.
 - [x] Define the multi-release data model: explicit release records + required track membership; playlists reference tracks, not the reverse.
@@ -465,7 +465,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
 - [x] Implement first gallery **module block** on pages (minimum: `grid` preset).
 - [x] Gallery Grid (original photo ratios, max-across columns), List rows, and Carousel (snap, peek, optional in-view autorotate).
-- [ ] Gallery **Parallax** preset (still compact tiles).
+- [x] Gallery **Animated** preset (full-width frame; Speed/Motion/Wipe; legacy Parallax migrates here).
 - [x] Implement `data/themes` + setup protected seed + duplicate + active pointer. *(Transitional — migrate to `data/brands/` + `bandpromo-default` in management slice.)*
 - [x] Split `picture` (plain caption) and `picture_richtext` page blocks.
 - [x] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.
@@ -474,7 +474,7 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] **Demo media git hygiene** — remove tracked `bandPromo_*` originals from git; bundled demo ships only via setup starter pack (`bandpromo-demo` locked release); document in `MEDIA-HANDLING.md` and `INSTALL-UPDATE.md`.
 - [x] **Release editor** — operator UI for `container.release` (create/edit releases, track membership, lock state) using existing `data/releases` storage.
 - [x] Rename protected system gallery id `main` to `bandpromo-demo`; migrate registry, page blocks, and templates.
-- [x] **Demo catalog visibility** — install preference hides shipped demo release, playlist, gallery, and bundled `bandPromo_*` media from player, editors, and pickers; publish builds still process demo files on disk.
+- [x] **Demo catalogue visibility** — install preference hides shipped demo release, playlist, gallery, and bundled `bandPromo_*` media from player, editors, and pickers; publish builds still process demo files on disk.
 - [x] **Site update reliability** — writable probe for synced folders, HTTPS requires curl or openssl, ZipArchive advisory on local dev, ahead-of-published OK state when local VERSION exceeds the published package.
 - [ ] Replace hardcoded player/share fallback meta values with fully config-driven defaults before anonymous/public access ships in v0.9.
 
@@ -694,7 +694,7 @@ Scope: first real tester/operator experience. Put items here when they concern h
   - [x] Files tab: standardized permanent-action warning line across sub-tabs
   - [x] Files tab: list-header filters, master checkbox selection, and labeled Upload/Download/Delete bulk actions
   - [x] Welcome tab: setup checklist vs completed-install dashboard help text and layout; completed installs rely on the header inbox instead of duplicate dashboard task cards
-  - [x] **Notifications ≠ Welcome checklist** — setup checklist stays on Welcome only; Notifications is live ops (prep, Site update, publish/validation); poll paths no longer auto-spawn video jobs or scan catalog every few seconds (2026-07-15).
+  - [x] **Notifications ≠ Welcome checklist** — setup checklist stays on Welcome only; Notifications is live ops (prep, Site update, publish/validation); poll paths no longer auto-spawn video jobs or scan catalogue every few seconds (2026-07-15).
   - [x] Login/player session expiry redirects back to login with a clear message
   - [x] Operator inbox: open focused modal instead of inline expanding drawer
   - [x] Operator inbox: plain-language copy for non-technical operators
@@ -721,6 +721,6 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 - **v0.7 is complete** (exit gates passed 2026-06-15). Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
 - **v0.8 = management machine** — Brand (replaces Theme), Visual pool + role tags, release `brand_id`, content AI wizards, delivery scaling. See **v0.8 management slice**.
 - **v0.9** — access-tier implementation, login/anonymous entry, user roles, Chromecast/cast implementation.
-- **v2+ = marketing machine** — campaign automation and marketing AI from existing catalog content.
+- **v2+ = marketing machine** — campaign automation and marketing AI from existing catalogue content.
 - Current operator model: one base brand (duplicate demo default), multiple releases/playlists/galleries — releases link to shared brands by era.
 - If a task does not help ship or define the current v0.8 milestone, it probably belongs in the roadmap, not here.

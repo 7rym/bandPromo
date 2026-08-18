@@ -101,11 +101,11 @@ try {
 
     $message = 'bandPromo was updated to ' . $applyResult['installed_version'] . '.';
     if (is_array($demoRefresh) && !empty($demoRefresh['refreshed'])) {
-        $message .= ' Demo catalog was refreshed to the latest published package.';
+        $message .= ' Demo catalogue was refreshed to the latest published package.';
     } elseif (is_array($demoRefresh) && ($demoRefresh['skip_reason'] ?? '') === 'unlocked_localhost') {
-        $message .= ' Demo catalog left unchanged (unlocked on localhost).';
+        $message .= ' Demo catalogue left unchanged (unlocked on localhost).';
     } elseif (is_array($demoRefresh) && empty($demoRefresh['ok'])) {
-        $message .= ' Demo catalog could not be refreshed automatically; rebuild may still use the previous demo files.';
+        $message .= ' Demo catalogue could not be refreshed automatically; rebuild may still use the previous demo files.';
     }
     $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
 

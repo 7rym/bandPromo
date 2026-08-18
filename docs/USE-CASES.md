@@ -8,7 +8,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 | Persona | Operator type | Stresses |
 |---------|---------------|----------|
-| **Vanilla** | Fresh demo-content install on **https://bandpromo.site** | Setup, demo catalog, Site update, baseline UX |
+| **Vanilla** | Fresh demo-content install on **https://bandpromo.site** | Setup, demo catalogue, Site update, baseline UX |
 | **Twisted Chronicles** | Band / traditional campaign | Album + singles under one Campaign; per-campaign Bio/EPK; staggered playlist street dates |
 | **HITZ** | Record label | Artist releases **and** long-form show episodes; Lyrics vs Tracklist on one install |
 
@@ -22,7 +22,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 **Content shape:** Seeded demo release, playlist, gallery, brand (`bandpromo-default`), FAQ + demo pages.
 
-**Works today:** Setup, Hide demo catalog, Site update, Publish / Deliverables, Content editors against demo data.
+**Works today:** Setup, Hide demo catalogue, Site update, Publish / Deliverables, Content editors against demo data.
 
 **Feedback focus:** First-run clarity, broken empty states, update/rebuild friction, docs vs UI wording.
 
@@ -40,7 +40,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 - **Playlists** under that release: four singles (≈2 tracks each) + one album playlist (≈10 tracks). Street dates stagger (e.g. four weeks apart) via each playlist’s `publish_date`. Album and a single may go public in parallel.
 - **Pages:** Bio/EPK and a page that embeds a **gallery** of art/photos for this campaign — not one eternal site-wide Bio.
 - **Gallery** container(s) associated to the campaign; shown via page gallery blocks (there is no dedicated Gallery player tab).
-- **Tour / concert galleries (operator story):** after each show, batch-upload stills and clips → give each asset a **title**, description, keywords, and capture date → assemble a release-scoped gallery (e.g. `Hamburg Grand Stage 2026-05-17`) via the searchable multi-select picker → embed on a campaign page. Visual naming + picker ship in **v0.8**.
+- **Tour / concert galleries (operator story):** after each show, batch-upload stills and clips → give each asset a **title**, description, keywords, and capture date → assemble a release-scoped gallery (e.g. `Hamburg Grand Stage 2026-05-17`) via the searchable multi-select picker → embed on a campaign page. Visual naming ships in **v0.8**; the picker is the locked target (Available drag-and-drop still ships).
 - **Audience engagement (same story, later build):** fans comment on and share individual gallery assets to grow community around the tour. Fan accounts / comments / share stay in this use case text; **implementation is v0.9+** (access/engagement foundation) — do not strip them from the scenario.
 - **Branding:** one brand document per release (`release.brand_id`).
 - Later campaigns (e.g. nine months later) are **new Campaigns**, each with their own Bio reflecting lineup/story changes.
@@ -49,7 +49,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 ### Works today
 
 - Campaign owns track pool + associations to playlists / galleries / pages (exclusive — no stealing across campaigns).
-- Playlist catalog exposure by `publish_date` (empty date = public), demo visibility, and non-empty tracks.
+- Playlist catalogue exposure by `publish_date` (empty date = public), demo visibility, and non-empty tracks.
 - Player brand **CSS tokens** and **visual shell** (logo, still/living backgrounds) follow the **selected playlist’s** owning release brand (else install base brand). Tracks do not carry player brand. Welcome/Logged-in SFX stay on Base (login).
 - Content → Player can enable **global** page tabs (`show_in_player`). FAQ stays login/global (info lightbox), not a release Bio.
 

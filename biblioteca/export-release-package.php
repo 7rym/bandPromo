@@ -64,7 +64,7 @@ try {
         'job' => $job,
         'job_id' => (string) ($job['id'] ?? ''),
         'filename' => (string) ($job['filename'] ?? ''),
-        'message' => 'PRP export queued. It will appear under System → Backup, export & import when ready.',
+        'message' => 'PCF export queued. It will appear under System → Backup, export & import when ready.',
         'jobs_url' => '?tab=system&stab=backup',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 

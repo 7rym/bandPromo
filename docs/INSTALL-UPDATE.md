@@ -76,7 +76,7 @@ Preserved runtime paths include at least:
 - `media/`
 - `log/`
 
-Bundled demo content (locked release `bandpromo-demo`) is installed from **`bandPromo-demo.prp`** during setup (first build with `ensure_demo`). The entire `/media` tree is git-ignored; demo media never resides in the repository and is not treated as operator uploads in git.
+Bundled demo content (locked release `bandpromo-demo`) is installed from **`bandPromo-demo.pcf`** during setup (first build with `ensure_demo`; legacy `bandPromo-demo.prp` still accepted). The entire `/media` tree is git-ignored; demo media never resides in the repository and is not treated as operator uploads in git.
 
 ### 6. Continue into setup
 
@@ -87,11 +87,11 @@ Setup should then:
 - verify required PHP extensions (including `pdo_sqlite` for activity logging)
 - create the first admin account
 - seed the required runtime files from tracked templates
-- import **`bandPromo-demo.prp`** on the first setup build (`ensure_demo`) from the durable GitHub **`demo-content`** release (fail clearly if missing — no template seed fallback)
+- import **`bandPromo-demo.pcf`** on the first setup build (`ensure_demo`) from the durable GitHub **`demo-content`** release (fail clearly if missing — no template seed fallback; fall back to published legacy `.prp`)
 - ask for the license/operator-responsibility acknowledgment
 - land you in admin with seeded demo content and a next-step checklist
 
-The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Bootstrap downloads **`bandPromo.zip`** (application only). Demo audio/media travel in the separate Demo PRP — never as git-tracked binaries, because `/media` is fully ignored. Later Admin **Publish** builds do **not** re-download the Demo PRP; they use content already on the host. **Site update** may refresh the Demo PRP when a newer `demo-content` package is published (SHA marker mismatch).
+The seeded demo content is intentional. It is part of first-run verification and helps confirm that playback, theming, and the site shell are working on the real host. Bootstrap downloads **`bandPromo.zip`** (application only). Demo audio/media travel in the separate Demo PCF — never as git-tracked binaries, because `/media` is fully ignored. Later Admin **Publish** builds do **not** re-download the Demo PCF; they use content already on the host. **Site update** may refresh the Demo PCF when a newer `demo-content` package is published (SHA marker mismatch).
 
 ## If the bootstrap stops
 
@@ -185,7 +185,7 @@ Where practical, the updater runs required post-update tasks automatically, such
 - build-required recalculation
 - required migrations for the shipped version
 - site-local Python dependency bootstrap into `scripts/vendor/` (operators never run `pip` themselves; offline wheels in `scripts/vendor-wheels/` match the host Python, including **cp36** / Python 3.6.9)
-- **Demo PRP refresh** when the durable GitHub `demo-content` package SHA differs from `data/demo-release-package.json` (locked platform demo only; skipped if unlocked on localhost)
+- **Demo PCF refresh** when the durable GitHub `demo-content` package SHA differs from `data/demo-release-package.json` (locked platform demo only; skipped if unlocked on localhost)
 - **Visual intake relocate** when any legacy `media/img|photo|video|special` folder still exists (move registered originals into `media/visual/original/`, delete leftover copies)
 
 ### 5. Report the outcome clearly
@@ -215,12 +215,12 @@ If the auto-run cannot start (for example the refresh button is unavailable), th
 **What Site update does not do:**
 
 - It does **not** wipe or replace your operator pages, playlists, media, or config.
-- It does **not** re-run Demo PRP import on every Admin **Publish** — only after Site update when the published demo package is newer than the install marker (and not when the demo is unlocked on localhost).
+- It does **not** re-run Demo PCF import on every Admin **Publish** — only after Site update when the published demo package is newer than the install marker (and not when the demo is unlocked on localhost).
 
 **After Site update (v0.8.3+):**
 
 1. bandPromo opens **System → Status** and starts **Refresh site files** automatically when the install finishes.
-2. If a newer Demo PRP was published, the locked platform demo catalog is refreshed before that rebuild so older installs pick up new demo standards/features.
+2. If a newer Demo PCF was published, the locked platform demo catalogue is refreshed before that rebuild so older installs pick up new demo standards/features.
 3. If legacy Visual intake folders still exist, registered originals are relocated into `media/visual/original/` before rebuild.
 4. Config structure updates happen silently in the background when you open admin.
 

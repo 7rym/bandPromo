@@ -1,6 +1,6 @@
 {
   "release_export_version": 1,
-  "format": "prp",
+  "format": "pcf",
   "release_id": "bandpromo-demo",
   "title": "bandPromo Demo Release",
   "platform_demo": true,

@@ -5405,7 +5405,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         await ensureBrandFilterCatalog();
                     }
                     // Match Files pools: never re-include per-file soft-hidden rows.
-                    // Demo catalog visibility is release-level (list-media ownership filter),
+                    // Demo catalogue visibility is release-level (list-media ownership filter),
                     // not a signal to show install-local hidden map entries.
                     let files = await fetchMediaFiles(target, {
                         includeHidden: false,
@@ -7983,7 +7983,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const data = await resp.json();
                     if (data.ok) {
                         if (statusEl) {
-                            statusEl.textContent = visible ? '✅ Demo catalog shown' : '✅ Demo catalog hidden';
+                            statusEl.textContent = visible ? '✅ Demo catalogue shown' : '✅ Demo catalogue hidden';
                             statusEl.style.color = 'var(--success, #4ade80)';
                         }
                         return true;
@@ -7996,7 +7996,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 if (item && item.detail) {
                                     return String(item.detail);
                                 }
-                                const where = item.label || item.container_id || item.kind || 'your catalog';
+                                const where = item.label || item.container_id || item.kind || 'your catalogue';
                                 return 'Still used on ' + where + '.';
                             }).join(' ');
                             const more = blockers.length > 4 ? ' (+' + (blockers.length - 4) + ' more)' : '';
@@ -9394,7 +9394,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistSettingsPublishDate = document.getElementById('playlistSettingsPublishDate');
                 const playlistSettingsPackageType = document.getElementById('playlistSettingsPackageType');
                 const playlistSettingsPlayOrder = document.getElementById('playlistSettingsPlayOrder');
-                const playlistSettingsSetAsDefault = document.getElementById('playlistSettingsSetAsDefault');
+                const playlistSetDefaultBtn = document.getElementById('playlistSetDefaultBtn');
+                const playlistEditorHeadBadges = document.getElementById('playlistEditorHeadBadges');
                 const playlistSettingsSlug = document.getElementById('playlistSettingsSlug');
                 const playlistSettingsSlugPreview = document.getElementById('playlistSettingsSlugPreview');
                 const playlistSettingsDescription = document.getElementById('playlistSettingsDescription');
@@ -9422,7 +9423,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     publish_date: '',
                     package_type: 'other',
                     play_order: 'stored',
-                    set_as_default: false,
                     slug: '',
                     description: '',
                     short_description: '',
@@ -9485,9 +9485,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const playOrder = playlistSettingsPlayOrder instanceof HTMLSelectElement
                         ? (String(playlistSettingsPlayOrder.value || '').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored')
                         : (String(entry?.play_order || 'stored').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored');
-                    const setAsDefault = playlistSettingsSetAsDefault instanceof HTMLInputElement
-                        ? Boolean(playlistSettingsSetAsDefault.checked)
-                        : Boolean(entry?.is_default);
                     const slug = playlistSettingsSlug instanceof HTMLInputElement
                         ? String(playlistSettingsSlug.value || '').trim()
                         : String(entry?.slug || entry?.id || '').trim();
@@ -9506,7 +9503,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         publish_date: publishDate,
                         package_type: packageType || 'other',
                         play_order: playOrder,
-                        set_as_default: setAsDefault,
                         slug,
                         description,
                         short_description: shortDescription,
@@ -9716,7 +9712,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const playOrder = String(entry?.play_order || defaultPlayOrderForPackageType(packageType)).trim().toLowerCase() === 'reverse'
                         ? 'reverse'
                         : 'stored';
-                    const setAsDefault = Boolean(entry?.is_default);
                     const slug = String(entry?.slug || entry?.id || playlistId || '').trim();
                     const description = String(entry?.description || '').trim();
                     const shortDescription = String(entry?.short_description || '').trim();
@@ -9741,9 +9736,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (playlistSettingsPlayOrder instanceof HTMLSelectElement) {
                         playlistSettingsPlayOrder.value = playOrder;
                     }
-                    if (playlistSettingsSetAsDefault instanceof HTMLInputElement) {
-                        playlistSettingsSetAsDefault.checked = setAsDefault;
-                    }
                     if (playlistSettingsSlug instanceof HTMLInputElement) {
                         playlistSettingsSlug.value = slug;
                     }
@@ -9765,6 +9757,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     playlistSettingsBaseline = readPlaylistSettingsFromForm();
                     updatePlaylistSlugPreview();
                     updatePlaylistCoverPanel();
+                    renderPlaylistHeadBadges();
+                    updatePlaylistDefaultButton();
                     if (playlistSettingsStatus) {
                         playlistSettingsStatus.textContent = '';
                     }
@@ -9785,7 +9779,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         publish_date: publishDate,
                         package_type: packageType,
                         play_order: playOrder,
-                        set_as_default: setAsDefault,
                         slug,
                         description,
                         short_description: shortDescription,
@@ -9838,7 +9831,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 publish_date: publishDate,
                                 package_type: packageType,
                                 play_order: playOrder,
-                                set_as_default: setAsDefault,
                                 slug,
                                 description,
                                 short_description: shortDescription,
@@ -9850,6 +9842,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             throw new Error(data.error || 'Could not save playlist details');
                         }
                         playlists = Array.isArray(data.playlists) ? data.playlists : playlists;
+                        const pinned = playlists.find((entry) => entry && entry.is_default);
+                        if (pinned) {
+                            defaultPlaylistId = String(pinned.id || defaultPlaylistId);
+                        }
 
                         const savedEntry = playlistEntry(selectedPlaylistId);
                         const savedPoster = String(savedEntry?.poster_asset_id || posterAssetId || '').trim();
@@ -9917,6 +9913,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function playlistEntry(playlistId) {
                     return playlists.find((entry) => entry && entry.id === playlistId) || null;
+                }
+
+                function playlistIsDefault(playlistId) {
+                    const id = String(playlistId || '');
+                    if (!id) {
+                        return false;
+                    }
+                    const entry = playlistEntry(id);
+                    if (entry && typeof entry.is_default === 'boolean') {
+                        return Boolean(entry.is_default);
+                    }
+                    return id === defaultPlaylistId;
+                }
+
+                function applyPlaylistDefaultId(nextId) {
+                    const id = String(nextId || '').trim();
+                    if (id) {
+                        defaultPlaylistId = id;
+                    }
+                    playlists = playlists.map((entry) => Object.assign({}, entry, {
+                        is_default: String(entry.id || '') === defaultPlaylistId,
+                    }));
+                }
+
+                function renderPlaylistHeadBadges() {
+                    if (!playlistEditorHeadBadges) {
+                        return;
+                    }
+                    if (!isEditing || !playlistIsDefault(selectedPlaylistId)) {
+                        playlistEditorHeadBadges.innerHTML = '';
+                        return;
+                    }
+                    playlistEditorHeadBadges.innerHTML = '<span class="theme-editor-badge theme-editor-badge--active">Default</span>';
+                }
+
+                function updatePlaylistDefaultButton() {
+                    if (!playlistSetDefaultBtn) {
+                        return;
+                    }
+                    if (!selectedPlaylistId) {
+                        playlistSetDefaultBtn.hidden = true;
+                        return;
+                    }
+                    const isDefault = playlistIsDefault(selectedPlaylistId);
+                    playlistSetDefaultBtn.hidden = false;
+                    playlistSetDefaultBtn.disabled = isDefault;
+                    playlistSetDefaultBtn.textContent = isDefault ? '✓ Default playlist' : '★ Set as default';
+                    playlistSetDefaultBtn.classList.toggle('btn-saved', isDefault);
+                    playlistSetDefaultBtn.title = isDefault
+                        ? 'This playlist opens first on the player'
+                        : 'Open this playlist first on the player';
                 }
 
                 function playlistCanDelete(entry) {
@@ -9997,6 +10044,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     updatePlaylistCoverPanel();
                     renderPlaylistPoolList();
+                    renderPlaylistHeadBadges();
+                    updatePlaylistDefaultButton();
                 }
 
                 function showEditView(playlistId) {
@@ -10012,6 +10061,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     updatePlaylistCoverPanel();
                     renderPlaylistPoolList();
+                    renderPlaylistHeadBadges();
+                    updatePlaylistDefaultButton();
                 }
 
                 function renderPlaylistPoolList() {
@@ -10136,6 +10187,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     selectedPlaylistId = playlistId;
                     syncPlaylistUrl(playlistId, false);
                     renderPlaylistPoolList();
+                    updatePlaylistDefaultButton();
                     await loadPlaylistPreview({ preserveSavedState: true });
                 }
 
@@ -10244,8 +10296,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 playlistSettingsPlayOrder?.addEventListener('change', () => {
                     savePlaylistSettings();
                 });
-                playlistSettingsSetAsDefault?.addEventListener('change', () => {
-                    savePlaylistSettings();
+                playlistSetDefaultBtn?.addEventListener('click', async () => {
+                    if (!selectedPlaylistId || playlistIsDefault(selectedPlaylistId)) {
+                        return;
+                    }
+                    const statusEl = isEditing ? playlistSettingsStatus : playlistRegistryStatus;
+                    try {
+                        playlistSetDefaultBtn.disabled = true;
+                        const resp = await fetch('/biblioteca/set-default-playlist.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ playlist_id: selectedPlaylistId }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || 'Could not set default playlist');
+                        }
+                        if (Array.isArray(data.playlists) && data.playlists.length) {
+                            playlists = data.playlists;
+                        }
+                        applyPlaylistDefaultId(String(data.default_playlist_id || selectedPlaylistId));
+                        renderPlaylistPoolList();
+                        renderPlaylistHeadBadges();
+                        if (statusEl) {
+                            statusEl.textContent = '';
+                            if (statusEl === playlistRegistryStatus) {
+                                statusEl.style.color = '';
+                            }
+                        }
+                    } catch (error) {
+                        if (statusEl) {
+                            statusEl.textContent = error.message || 'Could not set default playlist';
+                            if (statusEl === playlistRegistryStatus) {
+                                statusEl.style.color = '#f87171';
+                            }
+                        }
+                    } finally {
+                        updatePlaylistDefaultButton();
+                    }
                 });
                 playlistSettingsSlug?.addEventListener('blur', () => {
                     savePlaylistSettings();
@@ -11416,7 +11505,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         </article>
                     `).join('')}</div>`;
                 } else if (ok) {
-                    checksHtml += '<p class="publish-status-empty">Streaming files match your catalog.</p>';
+                    checksHtml += '<p class="publish-status-empty">Streaming files match your catalogue.</p>';
                 }
 
                 publishStatusSummary.innerHTML = `
@@ -11443,7 +11532,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     case 'missing_artist_tag':
                         return { severity: 'fix-before-publish', action: 'Add the artist name' };
                     case 'missing_album_tag':
-                        return { severity: 'recommended-fix', action: 'Add a release name in song metadata (your catalog release until a Releases editor ships)' };
+                        return { severity: 'recommended-fix', action: 'Add a release name in song metadata (your catalogue release until a Releases editor ships)' };
                     case 'missing_track_number':
                         return {
                             severity: totalTracks > 1 ? 'fix-before-publish' : 'recommended-fix',
@@ -11806,7 +11895,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     previewBtn.disabled = true;
                     applyBtn.disabled = true;
                     statusEl.hidden = false;
-                    statusEl.textContent = dryRun ? 'Checking catalog…' : 'Repairing catalog…';
+                    statusEl.textContent = dryRun ? 'Checking catalogue…' : 'Repairing catalogue…';
                     if (reportEl) {
                         reportEl.hidden = true;
                     }
@@ -11819,17 +11908,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json().catch(() => ({}));
                         if (!resp.ok || data.error) {
-                            throw new Error(data.error || 'Catalog repair failed');
+                            throw new Error(data.error || 'Catalogue repair failed');
                         }
                         latestPreview = data;
-                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Catalog repair complete.');
+                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Catalogue repair complete.');
                         renderAutofixReport(data);
                         applyBtn.hidden = dryRun ? Number(data.changed_total || 0) === 0 : true;
                         if (!dryRun && data.recommend_build) {
                             await refreshBuildRequiredState({ full: true });
                         }
                     } catch (error) {
-                        statusEl.textContent = error.message || 'Catalog repair failed';
+                        statusEl.textContent = error.message || 'Catalogue repair failed';
                     } finally {
                         previewBtn.disabled = false;
                         applyBtn.disabled = false;
@@ -12419,7 +12508,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>`
                             : '';
                         const downloadHtml = job.download_ready
-                            ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">${String(job.type || '') === 'prp' ? '⬇️ Download .prp' : '⬇️ Download'}</a>`
+                            ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">${String(job.type || '') === 'prp' ? '⬇️ Download .pcf' : '⬇️ Download'}</a>`
                             : '';
                         const deleteHtml = job.status !== 'building'
                             ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}">🗑️ Delete</button>`
@@ -12929,7 +13018,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     if (releasePackageExportStatus) {
-                        releasePackageExportStatus.textContent = 'Queueing PRP export…';
+                        releasePackageExportStatus.textContent = 'Queueing PCF export…';
                         releasePackageExportStatus.classList.remove('is-error');
                     }
                     if (releasePackageExportBtn instanceof HTMLButtonElement) {
@@ -12950,9 +13039,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await response.json().catch(() => ({}));
                         if (!response.ok || data.ok === false) {
-                            throw new Error(data.error || 'Could not queue PRP export');
+                            throw new Error(data.error || 'Could not queue PCF export');
                         }
-                        const message = data.message || 'PRP export queued.';
+                        const message = data.message || 'PCF export queued.';
                         if (releasePackageExportStatus) {
                             releasePackageExportStatus.textContent = message;
                         }
@@ -13078,7 +13167,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function importReleasePackage() {
                     if (!(releasePackageImportInput instanceof HTMLInputElement) || !releasePackageImportInput.files?.length) {
                         if (releasePackageImportStatus) {
-                            releasePackageImportStatus.textContent = 'Choose a .prp or .zip package first.';
+                            releasePackageImportStatus.textContent = 'Choose a .pcf first.';
                             releasePackageImportStatus.classList.add('is-error');
                         }
                         return;

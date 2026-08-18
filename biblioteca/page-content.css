@@ -1038,32 +1038,137 @@
     }
 }
 
-/* Parallax: compact tiles until that preset is built. */
-.page-gallery--parallax .page-gallery-item {
-    flex: 0 0 180px;
-    width: 180px;
+/* Animated: one full-width frame; JS wipes to the next item.
+   The viewport is sized to the active photo’s ratio (capped by max-height)
+   so images fill the frame without cropping. */
+.page-gallery--animated .page-gallery-animated-viewport {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: 160px;
+    max-height: min(58vh, 560px);
+    margin-inline: auto;
+    overflow: hidden;
+    background: #000;
+    border-radius: 8px;
 }
 
-.page-gallery--parallax .page-gallery-media {
-    height: 160px;
+.page-gallery--animated .page-gallery-item {
+    position: absolute;
+    inset: 0;
+    flex: none;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
 }
 
-.page-gallery--parallax .page-gallery-item img,
-.page-gallery--parallax .page-gallery-item video {
-    height: 160px;
+.page-gallery--animated .page-gallery-item.is-active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
 }
 
-.page-gallery--parallax .page-gallery-item figcaption {
-    padding: 8px 10px;
-    font-size: 0.85rem;
-    color: var(--color-text-muted, #dddddd);
+.page-gallery--animated .page-gallery-item.is-incoming {
+    opacity: 1;
+    pointer-events: none;
+    z-index: 2;
 }
+
+.page-gallery--animated .page-gallery-media {
+    position: absolute;
+    inset: 0;
+    height: auto;
+}
+
+.page-gallery--animated .page-gallery-item img,
+.page-gallery--animated .page-gallery-item video,
+.page-box .page-gallery--animated .page-gallery-item img,
+.page-box .page-gallery--animated .page-gallery-item video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    object-fit: contain;
+    object-position: center;
+    transition: none;
+}
+
+.page-gallery--animated .page-gallery-item:hover img,
+.page-gallery--animated .page-gallery-item:hover video {
+    transform: none;
+}
+
+.page-gallery--animated .page-gallery-item figcaption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    margin: 0;
+    padding: 28px 14px 12px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+    color: #fff;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    text-align: left;
+    pointer-events: none;
+}
+
+.page-gallery-animated-fx {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+}
+
+.page-gallery-animated-fx svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.page-gallery-animated-tiles {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    pointer-events: none;
+}
+
+.page-gallery-animated-tiles span {
+    display: block;
+    background-repeat: no-repeat;
+    opacity: 1;
+}
+
+@keyframes bp-gallery-push-left-out { to { transform: translateX(-100%); } }
+@keyframes bp-gallery-push-left-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes bp-gallery-push-right-out { to { transform: translateX(100%); } }
+@keyframes bp-gallery-push-right-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes bp-gallery-push-up-out { to { transform: translateY(-100%); } }
+@keyframes bp-gallery-push-up-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes bp-gallery-push-down-out { to { transform: translateY(100%); } }
+@keyframes bp-gallery-push-down-in { from { transform: translateY(-100%); } to { transform: none; } }
+@keyframes bp-gallery-blend-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
     .page-gallery-item img,
     .page-gallery-item video,
     .page-gallery--grid .page-gallery-item figcaption,
-    .page-gallery--carousel .page-gallery-item figcaption {
+    .page-gallery--carousel .page-gallery-item figcaption,
+    .page-gallery--animated .page-gallery-item figcaption {
         transition: none;
     }
 

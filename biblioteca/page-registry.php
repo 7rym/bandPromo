@@ -94,6 +94,31 @@ function bandpromo_page_normalize_registry_entry(array $entry, int $fallbackOrde
     ];
 }
 
+/**
+ * Operator-facing page name: registry title (Content → Pages), then document title, then tab label, then id.
+ *
+ * @param array<string,mixed> $meta
+ * @param array<string,mixed> $document
+ */
+function bandpromo_page_operator_title(array $meta, array $document = []): string
+{
+    $title = trim((string) ($meta['title'] ?? ''));
+    if ($title !== '') {
+        return $title;
+    }
+    $title = trim((string) ($document['title'] ?? ''));
+    if ($title !== '') {
+        return $title;
+    }
+    $title = trim((string) ($meta['label'] ?? ''));
+    if ($title !== '') {
+        return $title;
+    }
+    $id = trim((string) ($meta['id'] ?? $document['id'] ?? ''));
+
+    return $id !== '' ? $id : 'page';
+}
+
 function bandpromo_page_default_registry(): array {
     return [
         'version' => BANDPROMO_PAGE_REGISTRY_VERSION,

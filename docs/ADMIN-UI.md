@@ -71,7 +71,7 @@ Semantic hooks for event delegation (also carry the `icon-btn` classes above):
 ### Danger vs quiet delete
 
 - **Red** (`--error`, `.btn-danger`, `.icon-btn--danger`, pool delete): irreversible or registry deletes that need alarm.  
-- **Grey quiet** (`.media-action-danger`): remove from a working set / dismiss without “panic” color.  
+- **Grey quiet** (`.media-action-danger`): remove from a working set / dismiss without “panic” colour.  
 - **In-row ✕** (`.player-layout-remove-btn`): muted until hover, then soft red.
 
 Do not mix coral primary + `danger` on the same confirm button — use `.btn.btn-danger`.
@@ -118,6 +118,15 @@ Long player-facing prose textareas (track description, lyrics/Notes, release/pla
 
 Helpers: `bandpromo_admin_markdown_help_trigger()` / `bandpromo_admin_markdown_help_note()` in `biblioteca/player-markdown.php`.
 
+## Content editor sections
+
+Pages and Branding edit views group fields in `.content-editor-section` cards:
+
+- Chrome header: `.content-editor-section-head` with `--border2` fill (same bar as Page/Branding Back/name and Live preview headers, and block card headers)
+- Body: `.content-editor-section-body`
+
+Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (publish date, package type, play order, slug, descriptions). Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Branding: Base info, Typography, Colours, Readability, Shell media, Player chrome.
+
 ## Drag-and-drop rows
 
 | Context | Look |
@@ -130,12 +139,18 @@ Do not put `release-associated-track-row` on association pool rows.
 
 ## Gallery membership (v0.8)
 
-Primary flow for assembling gallery items:
+**Shipped today:** Available↔Associated drag-and-drop (same pool pattern as playlists).
+
+**Locked target** (not the current primary flow):
 
 1. **Searchable multi-select picker** — shared media-picker pattern; filters for type, role, brand/release, date, keyword; show **human title** + larger thumb (not tiny `ast_*`-only chips).
 2. **Ordered selected list** — explicit reorder; multi-select add/remove.
 
-Available↔Associated drag-and-drop of small thumbs is not the primary assembly path for concert-scale galleries.
+Available↔Associated drag-and-drop of small thumbs is not the intended primary assembly path for concert-scale galleries.
+
+## Copy
+
+House style is **UK English** (see [AGENTS.md](AGENTS.md) Language). Operator labels use **catalogue**, not catalog. Do not rename CSS tokens, file names, or JSON keys to match.
 
 ## Related docs
 

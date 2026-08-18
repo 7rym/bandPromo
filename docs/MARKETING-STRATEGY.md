@@ -50,7 +50,7 @@ bandPromo does **not**:
 - Guarantee a new audience out of thin air
 - Replace paid promotion entirely (but reduces dependence on it)
 - Host your career inside Facebook or Google's walled garden
-- Act as a central music discovery catalog for all bandPromo sites
+- Act as a central music discovery catalogue for all bandPromo sites
 
 **Realistic pitch to yourself:** bandPromo makes each person who already cares about you **more valuable** — longer listens, return visits, signups, support — instead of sending them to a generic link tree or a file dump.
 
@@ -137,7 +137,7 @@ Use this as a **timing guide**, not a promise that everything is available today
 ### v0.8 (platform model — in progress)
 
 - **Multiple playlists and galleries** in admin
-- **Gallery blocks on pages** (grid, carousel, parallax, etc.) — visuals live where you tell the story, not only in a separate tab
+- **Gallery blocks on pages** (grid, carousel, animated, etc.) — visuals live where you tell the story, not only in a separate tab
 - **Track deep links** — page content can open the player on the right playlist and track
 - **Playback/delivery architecture** — foundation for reliable listening when traffic spikes
 
@@ -146,7 +146,7 @@ Use this as a **timing guide**, not a promise that everything is available today
 - **Share/OG metadata** tuned for when links are opened from social apps
 - **Login + FAQ flow** for shared links — visitors understand what your site is
 - **Restricted anonymous entry** — try the site without an account, within clear limits
-- **Access tiers** — VIP early access, released catalog for fans, admin/dev full access
+- **Access tiers** — VIP early access, released catalogue for fans, admin/dev full access
 - **Chromecast / cast** (architecture first) — listen on TV/speakers from your site, not only on the phone app
 
 ### v1+ (engagement and campaigns)
@@ -203,7 +203,7 @@ That independence is the marketing point:
 
 - Your domain, your presentation, your audience relationship
 - Coexist with Spotify, Bandcamp, and social — link out from **your** hub
-- No central bandPromo catalog competing with you for the same listener
+- No central bandPromo catalogue competing with you for the same listener
 
 The uphill battle against platform magnets is real. bandPromo's answer is not to outspend them — it is to make **your site** the place worth leaving the feed for, and to give you tools to say that clearly, repeatedly, and without rebuilding the same promo from scratch every release.
 

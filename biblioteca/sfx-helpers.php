@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 /**
  * Sound effects pool — brand UI audio (welcome, login, future interaction clips).
- * Three-tier like catalog audio: original → master (ast_*) → delivery MP3 (optimal).
- * Not catalog music: no release membership or playlist coupling.
+ * Three-tier like catalogue audio: original → master (ast_*) → delivery MP3 (optimal).
+ * Not catalogue music: no release membership or playlist coupling.
  */
 require_once __DIR__ . '/json-file-helpers.php';
 
@@ -197,7 +197,7 @@ function bandpromo_sfx_resolve_stored_path(string $root, string $webPath): strin
 
 /**
  * Copy/convert original → media/sfx/master/ast_*.{ext} and update registry master_filename.
- * WAV originals become tagged FLAC masters (same policy as catalog audio).
+ * WAV originals become tagged FLAC masters (same policy as catalogue audio).
  *
  * @param array<string, mixed> $asset
  * @return array{ok: bool, asset: array<string, mixed>, path?: string, warning?: string}
@@ -374,7 +374,7 @@ function bandpromo_sfx_build_delivery(string $root, array $asset): array
         }
     }
 
-    // Strip leftover ID3/APE on delivery MP3 (tagless like catalog delivery).
+    // Strip leftover ID3/APE on delivery MP3 (tagless like catalogue delivery).
     bandpromo_sfx_strip_delivery_tags($root, $dest);
 
     $updated = bandpromo_asset_update_entry($root, $assetId, [

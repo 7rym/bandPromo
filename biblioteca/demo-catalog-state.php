@@ -964,7 +964,7 @@ function bandpromo_demo_catalog_install_has_operator_content(string $root): bool
 }
 
 /**
- * If the operator later deletes their campaign, the demo catalog must return.
+ * If the operator later deletes their campaign, the demo catalogue must return.
  */
 function bandpromo_demo_catalog_restore_if_operator_campaign_gone(string $root): bool
 {

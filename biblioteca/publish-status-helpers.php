@@ -382,7 +382,7 @@ function bandpromo_delivery_inventory_tile_detail(string $id, array $counts): st
             $withTracks = (int) ($counts['releases_with_tracks'] ?? 0);
             return $withTracks > 0
                 ? $withTracks . ' with tracks'
-                : 'Ready for your catalog';
+                : 'Ready for your catalogue';
         case 'playlists':
             $withTracks = (int) ($counts['playlists_with_tracks'] ?? 0);
             return $withTracks > 0
@@ -395,7 +395,7 @@ function bandpromo_delivery_inventory_tile_detail(string $id, array $counts): st
         case 'audio':
             return !empty($counts['operator_media_present'])
                 ? 'Including your uploads'
-                : 'Starter and catalog audio';
+                : 'Starter and catalogue audio';
         case 'images':
             $parts = [];
             if ((int) ($counts['illustrations'] ?? 0) > 0) {
@@ -433,7 +433,7 @@ function bandpromo_delivery_inventory_tiles(array $counts): array
     $tiles = [
         ['id' => 'releases', 'icon' => '💿', 'value' => (int) ($counts['releases'] ?? 0), 'label' => 'Campaigns'],
         ['id' => 'playlists', 'icon' => '🎧', 'value' => (int) ($counts['playlists'] ?? 0), 'label' => 'Playlists'],
-        ['id' => 'tracks', 'icon' => '🎵', 'value' => (int) ($counts['catalog_tracks'] ?? 0), 'label' => 'Catalog tracks'],
+        ['id' => 'tracks', 'icon' => '🎵', 'value' => (int) ($counts['catalog_tracks'] ?? 0), 'label' => 'Catalogue tracks'],
         ['id' => 'galleries', 'icon' => '📷', 'value' => (int) ($counts['galleries'] ?? 0), 'label' => 'Galleries'],
         ['id' => 'pages', 'icon' => '📄', 'value' => (int) ($counts['pages'] ?? 0), 'label' => 'Pages'],
         ['id' => 'brands', 'icon' => '✨', 'value' => (int) ($counts['operator_brands'] ?? 0), 'label' => 'Brands'],

@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-18 19:10 - Checkpoint PCF campaign files, playlist Base info, UK English copy, and Demo PCF refresh on `main` as **v0.8.29 build 409**; trigger GitHub Release `v0.8.29-build-409` for Site update.
+
+2026-08-18 19:05 - Published Demo PCF to durable GitHub tag **demo-content** (`bandPromo-demo.pcf`, SHA256 `3b24420a…`, 210432604 bytes). Setup prefers `.pcf` and still falls back to a published `.prp`.
+
+2026-08-18 18:55 - Portable Campaign File (PCF / `.pcf`) replaces PRP in operator copy, export filenames, and current docs. Operators are never told the campaign file is a ZIP. Import still accepts legacy `.prp`. Setup prefers `bandPromo-demo.pcf` and falls back to the published `.prp`. Second UK English pass: colour / organise in current policy docs.
+
+2026-08-18 18:50 - Docs pass: FEATURES/ROADMAP/TODO/handoff match shipped v0.8 (gallery Animated, campaign tabs, PRP/delete campaign not v0.9). Gallery picker is still the locked target. Branding section label **Colours**.
+
+2026-08-18 18:40 - House style is UK English for repository-authored copy (docs, UI, comments, logs). Existing code identifiers and CSS property names stay as they are.
+
+2026-08-18 18:35 - Operator-facing copy uses British **catalogue** (Content tab already did). Code identifiers keep `catalog`.
+
+2026-08-18 18:25 - Playlist editor Base info matches the Page editor (stacked fields, section card). Default playlist is **★ Set as default** in the Playlist header, same pattern as Branding **★ Set as base**.
+
+2026-08-18 18:05 - Playlist editor Back/name and Playlist/Saved bars use the same `--border2` chrome as the Page editor.
+
+2026-08-18 18:00 - Campaign editor Pages helper uses use-cases (biographies, tour info, merch) instead of parentheticals and drops the FAQ aside.
+
+2026-08-18 17:56 - Campaign editor Galleries helper drops the “not their own player tab” line.
+
+2026-08-18 17:55 - Campaign editor Galleries helper: galleries are page building blocks with Grid, List, Carousel, and Animated presentation.
+
+2026-08-18 17:50 - Campaign editor Galleries and Pages tabs get the same helper bar as Tracks and Playlists (ownership vs player tab vs FAQ).
+
+2026-08-18 17:45 - Campaign editor Available playlists, galleries, and pages empty states match tracks: no unassigned containers left; the rest are owned by another campaign.
+
+2026-08-18 17:40 - Campaign editor Available tracks empty state: no orphans left to add; remaining catalog tracks are owned by another campaign.
+
+2026-08-18 17:35 - Campaign editor Tracks helper: playlists pick tracks from the campaign pool and set their own play order; they do not own the masters.
+
+2026-08-18 17:25 - Campaign editor Playlists tab explains that a campaign can ship several listening products (album, single package, tour set, show/podcast series).
+
+2026-08-18 17:20 - Campaign editor Tracks tab explains that added tracks are campaign-owned masters; playlists pick from that pool and set play order.
+
+2026-08-18 17:15 - Branding editor Back/name and Live preview bars use the same `--border2` chrome as the Page editor.
+
+2026-08-18 17:05 - Page editor Live preview grows with the page instead of a viewport-capped inner scroller. The Live preview / Save header stays sticky.
+
+2026-08-18 16:50 - Pages and Branding editors share section cards with `--border2` chrome headers. Page editor Base info holds tab/description/share fields; Page builder is the next card (hint + add-block buttons + blocks). Branding sections use the same header treatment.
+
+2026-08-18 16:40 - Branding editor Base info (above Typography) edits the brand description; it is stored as `mood` and shown on Catalogue campaign preview. Keywords and tone notes stay hidden.
+
+2026-08-18 16:30 - Campaign editor Pages lists the same page name as Content → Pages (registry title). Renames now write that name onto the page document so the two stores cannot drift.
+
+2026-08-18 16:20 - Player Bio no longer shrinks Animated gallery photos after a wipe: page-box image max-height (320px) does not apply inside gallery frames.
+
+2026-08-18 16:15 - Gallery Animated spiral wipes draw in the frame’s real pixel size so the next photo stays at the same scale during the transition.
+
+2026-08-18 16:10 - Page gallery Animated keeps each photo’s ratio: the frame is sized to the image (width-capped by the column, height-capped at ~58vh) and uses `object-fit: contain`, so nothing is cropped.
+
+2026-08-18 16:05 - Page gallery **Animated** replaces Parallax: one full-width 16:9 frame, then a timed wipe to the next photo. Editor settings are Speed (hold 5s/3.5s/2s), Motion (blend, blocks, spiral in/out, push left/right/up/down), and Wipe (1.1s/0.7s/0.4s). Legacy `preset: parallax` migrates to `animated`. Reduced-motion visitors get a short blend. Click still opens the lightbox.
+
+2026-08-18 15:55 - Page gallery **Parallax** is stacked full-width scenes (~68vh) with a slow scroll drift and caption scrim. The dimmed gallery box is dropped so scenes span the content column. Reduced-motion visitors see still frames. Click still opens the lightbox.
+
 2026-08-18 15:50 - Checkpoint page gallery Grid/List/Carousel, Video page blocks, and page editor chrome on `main` as **v0.8.29 build 408**; publish GitHub Release `v0.8.29-build-408` for Site update. Next: Gallery Parallax.
 
 2026-08-18 15:45 - Page editor adds a **Page builder** heading above the block-editing hint.

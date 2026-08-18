@@ -87,7 +87,7 @@ function bandpromo_admin_runtime_files_present(string $root): bool
 
 /**
  * Do not invent default-theme-package.json from legacy on-disk FLAC/special probes.
- * Demo installs record the marker via Demo PRP import.
+ * Demo installs record the marker via Demo PCF import.
  */
 function bandpromo_admin_write_inferred_starter_pack_marker(string $root): bool
 {
@@ -138,8 +138,8 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
     $hasOperatorCampaign = bandpromo_demo_catalog_install_has_operator_content($root);
     $starterPackInstalled = bandpromo_admin_demo_content_installed($root);
     $starterPackDetail = $starterPackInstalled
-        ? 'The Demo Portable Release Package is installed on this site.'
-        : 'The demo catalog is not fully available yet. Finish setup or run a full build so bandPromo can install it.';
+        ? 'The Demo Portable Campaign File is installed on this site.'
+        : 'The demo catalogue is not fully available yet. Finish setup or run a full build so bandPromo can install it.';
 
     $pagesPublished =
         bandpromo_page_runtime_present($root, 'faq')
@@ -170,13 +170,13 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'next' => 'Finish setup and make sure the required runtime files are in place before treating the install as live.',
         ],
         [
-            'label' => 'Demo catalog installed',
-            'action_label' => 'Install the demo catalog',
+            'label' => 'Demo catalogue installed',
+            'action_label' => 'Install the demo catalogue',
             'severity' => 'blocking',
             'complete' => $starterPackInstalled,
             'detail' => $starterPackDetail,
             'href' => '?tab=system&stab=deliverables',
-            'next' => 'Open System → Status and run a full build so bandPromo can install the demo catalog from the Demo Portable Release Package.',
+            'next' => 'Open System → Status and run a full build so bandPromo can install the demo catalogue from the Demo Portable Campaign File.',
         ],
         [
             'label' => 'The full build process ran successfully',
@@ -201,13 +201,13 @@ function bandpromo_admin_build_welcome_checklist(string $root): array
             'next' => 'Open System → Status and rebuild listener files so listeners stream MP3s instead of large originals.',
         ],
         [
-            'label' => $hasOperatorCampaign ? 'Your own catalog is present' : 'Your own catalog is not present yet',
-            'action_label' => 'Add your own catalog',
+            'label' => $hasOperatorCampaign ? 'Your own catalogue is present' : 'Your own catalogue is not present yet',
+            'action_label' => 'Add your own catalogue',
             'severity' => 'nonblocking',
             'complete' => $hasOperatorCampaign,
             'detail' => $hasOperatorCampaign
                 ? 'An operator campaign with a track is exposed on a playlist.'
-                : 'The demo catalog is the only listening campaign so far. Add your own campaign with a track, then a playlist that plays it.',
+                : 'The demo catalogue is the only listening campaign so far. Add your own campaign with a track, then a playlist that plays it.',
             'href' => '?tab=content&cntab=release',
             'next' => 'Create a campaign with at least one track and a playlist that exposes that track.',
         ],
@@ -303,10 +303,10 @@ function bandpromo_admin_build_post_setup_suggestions(string $root): array
 
     if (!bandpromo_demo_catalog_install_has_operator_content($root)) {
         $suggestions[] = [
-            'label' => 'Add your own catalog',
+            'label' => 'Add your own catalogue',
             'href' => '?tab=content&cntab=release',
             'severity' => 'nonblocking',
-            'description' => 'Create a campaign with at least one track and a playlist that plays it when you are ready to move beyond the demo catalog.',
+            'description' => 'Create a campaign with at least one track and a playlist that plays it when you are ready to move beyond the demo catalogue.',
         ];
     }
 

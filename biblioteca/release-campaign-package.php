@@ -773,7 +773,7 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
     require_once __DIR__ . '/visual-master-helpers.php';
 
     if (!class_exists('ZipArchive')) {
-        throw new RuntimeException('ZipArchive is required to export release packages.');
+        throw new RuntimeException('This host cannot export campaign files.');
     }
 
     $releaseId = bandpromo_release_normalize_id($releaseId);
@@ -935,7 +935,7 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
 
     $manifest = [
         'release_export_version' => BANDPROMO_RELEASE_CAMPAIGN_EXPORT_VERSION,
-        'format' => 'prp',
+        'format' => 'pcf',
         'release_id' => $releaseId,
         'title' => (string) ($release['title'] ?? $releaseId),
         'platform_demo' => $releaseId === BANDPROMO_RELEASE_DEMO_ID,
@@ -951,7 +951,7 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
 
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        throw new RuntimeException('Could not create release package ZIP.');
+        throw new RuntimeException('Could not create the campaign file.');
     }
     $zip->addFile($manifestPath, 'release-package-manifest.json');
     foreach ($paths as $relative => $absolute) {
@@ -1205,10 +1205,10 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
 function bandpromo_release_campaign_import_from_zip(string $root, string $zipPath, array $options = []): array
 {
     if (!class_exists('ZipArchive')) {
-        throw new RuntimeException('ZipArchive is not available on this host.');
+        throw new RuntimeException('This host cannot import campaign files.');
     }
     if (!is_file($zipPath)) {
-        throw new RuntimeException('Release package ZIP is missing.');
+        throw new RuntimeException('Campaign file is missing.');
     }
 
     $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_DEMO_RELEASE_WORKDIR . DIRECTORY_SEPARATOR . 'import-' . bin2hex(random_bytes(4));
@@ -1221,7 +1221,7 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
         $size = is_file($zipPath) ? (int) filesize($zipPath) : 0;
         $code = is_int($openStatus) ? (string) $openStatus : 'unknown';
         throw new RuntimeException(
-            'Could not open release package ZIP (ZipArchive status ' . $code
+            'Could not open the campaign file (status ' . $code
             . ', size ' . $size . ' bytes).'
         );
     }
@@ -1247,7 +1247,7 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
         }
 
         if ($allowedNames === []) {
-            throw new RuntimeException('Release package ZIP has no importable entries.');
+            throw new RuntimeException('The campaign file has no importable entries.');
         }
         if ($zip->extractTo($workDir, $allowedNames) !== true) {
             throw new RuntimeException('Could not extract release package contents.');
@@ -1284,7 +1284,7 @@ function bandpromo_release_campaign_seed_demo_from_templates(string $root): arra
         'ok' => is_file($root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases'
             . DIRECTORY_SEPARATOR . BANDPROMO_RELEASE_DEMO_ID . '.json'),
         'release_id' => BANDPROMO_RELEASE_DEMO_ID,
-        'message' => 'Template demo seed disabled — use bandPromo-demo.prp via setup.',
+        'message' => 'Template demo seed disabled — use bandPromo-demo.pcf via setup.',
         'imported_files' => 0,
         'ownership' => [],
     ];
@@ -1514,8 +1514,8 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
 }
 
 /**
- * Setup-only: install the published Demo PRP (or local template seed).
- * Does not pull the legacy default-theme media ZIP — campaign media travels in the PRP.
+ * Setup-only: install the published Demo PCF (or local template seed).
+ * Campaign media travels in the PCF; do not pull a parallel default-theme content package.
  *
  * @return array{installed: bool, source: string, release_id: string, version?: string, message: string}
  */
@@ -1547,10 +1547,10 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
             bandpromo_release_log($logger, '[demo release] Loading durable demo-content manifest...');
             $demoManifest = bandpromo_release_load_manifest(BANDPROMO_DEMO_MANIFEST_URL);
             if (trim((string) ($demoManifest['package_url'] ?? '')) === '') {
-                $demoManifest['package_url'] = BANDPROMO_DEMO_PRP_URL;
+                $demoManifest['package_url'] = BANDPROMO_DEMO_PCF_URL;
             }
             if (trim((string) ($demoManifest['package_file'] ?? '')) === '') {
-                $demoManifest['package_file'] = 'bandPromo-demo.prp';
+                $demoManifest['package_file'] = BANDPROMO_DEMO_PCF_FILENAME;
             }
             $demoPackage = $demoManifest;
         }
@@ -1563,29 +1563,37 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
             $marker = is_file($markerPath) ? bandpromo_json_read_array_file($markerPath) : null;
             $already = is_array($marker) && (string) ($marker['sha256'] ?? '') === (string) $demoPackage['sha256'];
             if ($already) {
-                bandpromo_release_log($logger, '[demo release] Demo PRP already installed for this manifest.');
+                bandpromo_release_log($logger, '[demo campaign] Demo PCF already installed for this manifest.');
 
                 return [
                     'installed' => false,
-                    'source' => 'remote-demo-prp-cached',
+                    'source' => 'remote-demo-pcf-cached',
                     'release_id' => BANDPROMO_RELEASE_DEMO_ID,
                     'version' => (string) ($demoPackage['version'] ?? ''),
-                    'message' => 'Demo PRP already present.',
+                    'message' => 'Demo PCF already present.',
                 ];
             }
 
             $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_DEMO_RELEASE_WORKDIR;
-            $downloadPath = $workDir . DIRECTORY_SEPARATOR . 'bandPromo-demo.prp';
+            $packageFile = trim((string) ($demoPackage['package_file'] ?? ''));
+            if ($packageFile === '') {
+                $packageFile = BANDPROMO_DEMO_PCF_FILENAME;
+            }
+            $downloadPath = $workDir . DIRECTORY_SEPARATOR . basename($packageFile);
             bandpromo_release_rrmdir($workDir);
             bandpromo_release_ensure_dir($workDir);
-            bandpromo_release_log($logger, '[demo release] Downloading Demo PRP (this can take a minute on first install)...');
-            bandpromo_release_download_file((string) $demoPackage['package_url'], $downloadPath);
-            bandpromo_release_log($logger, '[demo release] Verifying Demo PRP checksum...');
+            bandpromo_release_log($logger, '[demo campaign] Downloading Demo PCF (this can take a minute on first install)...');
+            $downloadPath = bandpromo_release_download_demo_campaign_file(
+                (string) $demoPackage['package_url'],
+                $downloadPath,
+                $logger
+            );
+            bandpromo_release_log($logger, '[demo campaign] Verifying Demo PCF checksum...');
             $actual = bandpromo_release_sha256_file($downloadPath);
             if ($actual !== (string) $demoPackage['sha256']) {
-                throw new RuntimeException('Demo PRP checksum did not match the published manifest.');
+                throw new RuntimeException('Demo PCF checksum did not match the published manifest.');
             }
-            bandpromo_release_log($logger, '[demo release] Importing Demo PRP into this site...');
+            bandpromo_release_log($logger, '[demo campaign] Importing Demo PCF into this site...');
             $import = bandpromo_release_campaign_import_from_zip($root, $downloadPath, [
                 'mode' => 'demo',
                 'allow_demo_overwrite' => true,
@@ -1597,7 +1605,7 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 'version' => (string) ($demoPackage['version'] ?? ''),
                 'sha256' => (string) $demoPackage['sha256'],
                 'package_file' => (string) ($demoPackage['package_file'] ?? ''),
-                'format' => 'prp',
+                'format' => 'pcf',
                 'installed_at' => gmdate('c'),
             ]);
             bandpromo_release_lock_platform_demo_after_import($root);
@@ -1616,15 +1624,15 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
 
             return [
                 'installed' => true,
-                'source' => 'remote-demo-prp',
+                    'source' => 'remote-demo-pcf',
                 'release_id' => $import['release_id'],
                 'version' => (string) ($demoPackage['version'] ?? ''),
                 'message' => $import['message'],
             ];
         }
-        bandpromo_release_log($logger, '[demo release] Manifest has no Demo PRP entry yet.');
+        bandpromo_release_log($logger, '[demo campaign] Manifest has no Demo PCF entry yet.');
     } catch (Throwable $throwable) {
-        bandpromo_release_log($logger, '[demo release] Remote Demo PRP unavailable: ' . $throwable->getMessage());
+        bandpromo_release_log($logger, '[demo campaign] Remote Demo PCF unavailable: ' . $throwable->getMessage());
     }
 
     // Demo content must come from the published PRP — no parallel template seed.
@@ -1647,6 +1655,6 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
         'installed' => false,
         'source' => 'missing',
         'release_id' => BANDPROMO_RELEASE_DEMO_ID,
-        'message' => 'bandPromo-demo.prp was not available. Setup cannot seed demo content from templates.',
+        'message' => 'bandPromo-demo.pcf was not available. Setup cannot seed demo content from templates.',
     ];
 }

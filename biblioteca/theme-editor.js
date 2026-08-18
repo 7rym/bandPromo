@@ -92,6 +92,16 @@
                 .replace(/"/g, '&quot;');
         }
 
+        function renderEditorSection(title, innerHtml, extraClass) {
+            const extra = extraClass ? ` ${extraClass}` : '';
+            return `<div class="content-editor-section theme-editor-section${extra}">
+                <div class="content-editor-section-head">
+                    <h4 class="player-layout-col-title">${escapeHtml(title)}</h4>
+                </div>
+                <div class="content-editor-section-body">${innerHtml}</div>
+            </div>`;
+        }
+
         function showThemeToast(message, type = 'warning') {
             const text = String(message || '').trim();
             if (!text) {
@@ -598,14 +608,12 @@
                 ? 'bandPromo Default is locked — shell media cannot be changed here.'
                 : 'Click ✎ on a slot to choose compatible media already curated under Files → Brand assets.';
 
-            return `
-                <div class="theme-editor-section theme-editor-section--shell-media">
-                    <h5>Shell media</h5>
+            return renderEditorSection('Shell media', `
                     <p class="theme-field-hint">${slotHint}</p>
                     <div class="theme-shell-media-grid" id="themeShellSlots">
                         ${slots}
                     </div>
-                </div>`;
+            `, 'theme-editor-section--shell-media');
         }
 
         function normalizePlaylistSelectorMode(value) {
@@ -634,9 +642,7 @@
                     <span>${escapeHtml(label)}</span>
                 </label>`).join('');
 
-            return `
-                <div class="theme-editor-section theme-editor-section--player-chrome">
-                    <h5>Player chrome</h5>
+            return renderEditorSection('Player chrome', `
                     <p class="theme-field-hint">Playlist selector, cover mirror, and Beggars banquet. The Base brand’s choices apply site-wide on /play.</p>
                     <h6 class="theme-editor-subheading">Playlist selector</h6>
                     <p class="theme-field-hint">Shown in the Playlists tab when more than one playlist is available. Cover flow uses each playlist’s poster.</p>
@@ -655,7 +661,7 @@
                         <span>Beggars banquet</span>
                     </label>
                     <p class="theme-field-hint">In-flow support link under the player transport. Destination, label, and colors still come from Settings → Support.</p>
-                </div>`;
+            `, 'theme-editor-section--player-chrome');
         }
 
         function updateShellSlotDom(key) {
@@ -943,28 +949,35 @@
             const fontBase = tokenValue(editorDocument, 'typography.font_family_base');
             const fontHeading = tokenValue(editorDocument, 'typography.font_family_heading');
 
+            const description = String(editorDocument.mood || '').trim();
+
             formEl.innerHTML = `
                 ${fieldsLocked ? '<p class="theme-editor-locked-note">bandPromo Default is protected. Duplicate it to customize this brand.</p>' : ''}
                 ${!fieldsLocked && editorDocument.locked && themeIsPlatformDefault(editorDocument)
-                    ? '<p class="theme-editor-locked-note">Localhost PRP edit: platform default is editable here. Remote installs stay locked.</p>'
+                    ? '<p class="theme-editor-locked-note">Localhost PCF edit: platform default is editable here. Remote installs stay locked.</p>'
                     : ''}
-                <div class="theme-editor-section">
-                    <h5>Typography</h5>
+                ${renderEditorSection('Base info', `
+                    <div class="theme-token-grid theme-token-grid--stacked">
+                        <div class="theme-token-field">
+                            <label for="themeBrandDescription">Description</label>
+                            <textarea id="themeBrandDescription" data-brand-field="mood" maxlength="500" rows="3" ${fieldsLocked ? 'disabled' : ''}>${escapeHtml(description)}</textarea>
+                        </div>
+                    </div>
+                `)}
+                ${renderEditorSection('Typography', `
                     <div class="theme-token-grid theme-token-grid--stacked">
                         ${renderFontPresetSelect('base', fontBase, fieldsLocked)}
                         ${renderFontPresetSelect('heading', fontHeading, fieldsLocked)}
                     </div>
-                </div>
-                <div class="theme-editor-section theme-editor-section--colors">
-                    <h5>Colors</h5>
-                    <p class="theme-field-hint">Type a hex color (e.g. #FF6F61) or use the color square. Accent transparency (alpha) is derived automatically from Primary/Secondary — not a separate control.</p>
+                `)}
+                ${renderEditorSection('Colours', `
+                    <p class="theme-field-hint">Type a hex colour (e.g. #FF6F61) or use the colour square. Accent transparency (alpha) is derived automatically from Primary/Secondary — not a separate control.</p>
                     ${renderCompactColors(fieldsLocked)}
-                </div>
-                <div class="theme-editor-section theme-editor-section--effects">
-                    <h5>Readability</h5>
+                `, 'theme-editor-section--colors')}
+                ${renderEditorSection('Readability', `
                     <p class="theme-field-hint">Dim busy still/living backdrops and soften glass panels so text stays readable.</p>
                     ${renderEffectsFields(fieldsLocked)}
-                </div>
+                `, 'theme-editor-section--effects')}
                 ${renderShellMediaFields(fieldsLocked)}
                 ${renderPlaylistSelectorFields(fieldsLocked)}
             `;
@@ -1026,6 +1039,10 @@
             const reflectionToggle = formEl.querySelector('input[name="themeCoverReflection"]');
             if (reflectionToggle instanceof HTMLInputElement) {
                 editorDocument.player.cover_reflection = !!reflectionToggle.checked;
+            }
+            const descriptionInput = formEl.querySelector('[data-brand-field="mood"]');
+            if (descriptionInput instanceof HTMLTextAreaElement || descriptionInput instanceof HTMLInputElement) {
+                editorDocument.mood = String(descriptionInput.value || '').trim();
             }
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement) || input.hidden) return;
@@ -1244,6 +1261,7 @@
             if (
                 input.hasAttribute('data-token-path')
                 || input.hasAttribute('data-asset-key')
+                || input.hasAttribute('data-brand-field')
             ) {
                 if (input.hasAttribute('data-effect-range')) {
                     const key = input.getAttribute('data-effect-range') || '';
@@ -1303,7 +1321,7 @@
         saveBtn?.addEventListener('click', async () => {
             if (!editorDocument) return;
             if (!themeMayEdit(editorDocument)) {
-                notifyThemeError('This brand is locked. Duplicate it to customize, or unlock on localhost for PRP source edits.');
+                notifyThemeError('This brand is locked. Duplicate it to customise, or unlock on localhost for PCF source edits.');
                 return;
             }
             collectFormIntoDocument();

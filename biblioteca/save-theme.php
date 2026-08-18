@@ -36,7 +36,7 @@ try {
 
     $existing = bandpromo_theme_load_document($root, $themeId);
     if (!bandpromo_brand_may_edit_document($existing)) {
-        throw new RuntimeException('This theme is locked. Duplicate it to customize colors, or unlock on localhost for PRP source edits.');
+        throw new RuntimeException('This theme is locked. Duplicate it to customise colours, or unlock on localhost for PCF source edits.');
     }
 
     $document = bandpromo_theme_normalize_document(array_merge($existing, $decoded), $themeId);

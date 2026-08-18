@@ -5,9 +5,11 @@ Operator-facing app releases ship:
   - bandPromo.zip (stable alias; also the package_file in the manifest)
   - release-manifest.json
 
-Demo campaign content ships separately as bandPromo-demo.prp on the durable
+Demo campaign content ships separately as bandPromo-demo.pcf on the durable
 GitHub release tag `demo-content` (see scripts/prepare_demo_content_package.py).
-App manifests point at that durable Demo PRP; they do not re-upload it.
+App manifests point at that durable Demo PCF; they do not re-upload it.
+Until the next demo-content publish, GitHub may still serve the legacy
+bandPromo-demo.prp filename; setup prefers .pcf and falls back to .prp.
 
 Must stay runnable on CPython 3.6.9+ (hard floor for all scripts/).
 """
@@ -246,7 +248,7 @@ def load_demo_manifest(demo_manifest_url):
             raw = response.read()
     except Exception as exc:
         raise RuntimeError(
-            "Could not load durable Demo PRP manifest from {0}: {1}".format(
+            "Could not load durable Demo PCF manifest from {0}: {1}".format(
                 demo_manifest_url, exc
             )
         )
@@ -256,27 +258,30 @@ def load_demo_manifest(demo_manifest_url):
         decoded = json.loads(raw.decode("utf-8"))
     except Exception as exc:
         raise RuntimeError(
-            "Demo PRP manifest at {0} is not valid JSON: {1}".format(
+            "Demo PCF manifest at {0} is not valid JSON: {1}".format(
                 demo_manifest_url, exc
             )
         )
     if not isinstance(decoded, dict):
-        raise RuntimeError("Demo PRP manifest must be a JSON object.")
+        raise RuntimeError("Demo PCF manifest must be a JSON object.")
     package_url = str(decoded.get("package_url") or "").strip()
     sha256 = str(decoded.get("sha256") or "").strip()
-    package_file = str(decoded.get("package_file") or "bandPromo-demo.prp").strip()
+    package_file = str(decoded.get("package_file") or "bandPromo-demo.pcf").strip()
+    package_alias = str(decoded.get("package_alias") or package_file).strip()
+    role = str(decoded.get("role") or "platform_demo_pcf").strip()
+    fmt = str(decoded.get("format") or "pcf").strip()
     if package_url == "" or sha256 == "":
         raise RuntimeError(
-            "Demo PRP manifest is missing package_url and/or sha256."
+            "Demo PCF manifest is missing package_url and/or sha256."
         )
     return {
         "version": str(decoded.get("version") or "").strip(),
         "package_file": package_file,
-        "package_alias": "bandPromo-demo.prp",
+        "package_alias": package_alias,
         "sha256": sha256,
         "package_url": package_url,
-        "role": "platform_demo_prp",
-        "format": "prp",
+        "role": role,
+        "format": fmt,
         "release_id": str(decoded.get("release_id") or "bandpromo-demo"),
         "release_export_version": int(decoded.get("release_export_version") or 1),
         "platform_demo": True,
@@ -304,7 +309,7 @@ def build_zip(
         if relative_path not in app_files:
             app_files.append(relative_path)
 
-    # Install icons ship with the application package (Demo PRP is masters-only).
+    # Install icons ship with the application package (Demo PCF is masters-only).
     ensure_install_icons_on_disk()
     for relative_path in INSTALL_ICON_PATHS:
         if (ROOT / relative_path).is_file():
@@ -345,8 +350,8 @@ def build_zip(
             "This package is built only on explicit operator/developer action.",
             "Tracked runtime state such as web-config.json, .env, data/, log/, and media/ is excluded from git by repository policy.",
             "Apache/PHP protection stubs (.htaccess, .user.ini) are generated from biblioteca/templates/runtime/ during setup and packaging; they are not tracked at install paths.",
-            "Application releases ship bandPromo.zip only. Demo campaign media ships as bandPromo-demo.prp on the durable demo-content GitHub release.",
-            "Setup imports bandPromo-demo.prp for the locked platform demo campaign.",
+            "Application releases ship bandPromo.zip only. Demo campaign media ships as a Portable Campaign File (.pcf) on the durable demo-content GitHub release.",
+            "Setup imports the Demo PCF for the locked platform demo campaign.",
         ],
     }
 
@@ -419,7 +424,7 @@ def parse_args():
     parser.add_argument(
         "--require-demo-manifest",
         action="store_true",
-        help="Fail if the durable Demo PRP manifest cannot be loaded and embedded.",
+        help="Fail if the durable Demo PCF manifest cannot be loaded and embedded.",
     )
     parser.add_argument(
         "--skip-demo-manifest",
@@ -480,10 +485,10 @@ def main():
     print("App package files: {0}".format(manifest["tracked_file_count"]))
     demo = manifest.get("demo_release_package")
     if isinstance(demo, dict):
-        print("Demo PRP: {0}".format(demo.get("package_url")))
-        print("Demo PRP SHA256: {0}".format(demo.get("sha256")))
+        print("Demo PCF: {0}".format(demo.get("package_url")))
+        print("Demo PCF SHA256: {0}".format(demo.get("sha256")))
     else:
-        print("Demo PRP: (not embedded; use --require-demo-manifest for publish builds)")
+        print("Demo PCF: (not embedded; use --require-demo-manifest for publish builds)")
     return 0
 
 

@@ -295,19 +295,31 @@
             ],
         };
         let galleryCatalog = [{ id: 'bandpromo-demo', title: 'bandPromo demo' }];
-        let galleryPresets = ['grid', 'list', 'carousel', 'parallax'];
+        let galleryPresets = ['grid', 'list', 'carousel', 'animated'];
         const galleryPresetLabels = {
             grid: 'Grid',
             list: 'List',
             carousel: 'Carousel',
-            parallax: 'Parallax',
+            animated: 'Animated',
+            parallax: 'Animated',
         };
         const galleryHints = {
             grid: 'Mosaic of photos at their original ratios. Max across is a ceiling — narrower panes wrap to fewer columns.',
             list: 'Editorial rows: square thumb on the left, name on the right.',
             carousel: 'Snap-scroll hero with a peek of the next photo. Autorotate advances while this block is on screen (Slow 3s, Normal 2s, Fast 1s) and pauses when it is not.',
-            parallax: 'Full-width scenes (layout still in progress).',
+            animated: 'One full-width frame. Speed is the hold (Slow 5s, Normal 3.5s, Fast 2s). Motion is the wipe; Wipe is how long it lasts. Reduced-motion visitors get a simple blend.',
+            parallax: 'One full-width frame. Speed is the hold (Slow 5s, Normal 3.5s, Fast 2s). Motion is the wipe; Wipe is how long it lasts. Reduced-motion visitors get a simple blend.',
         };
+        const galleryMotions = [
+            { value: 'blend', label: 'Blend' },
+            { value: 'blocks', label: 'Blocks' },
+            { value: 'spiral-in', label: 'Spiral in' },
+            { value: 'spiral-out', label: 'Spiral out' },
+            { value: 'push-left', label: 'Push left' },
+            { value: 'push-right', label: 'Push right' },
+            { value: 'push-up', label: 'Push up' },
+            { value: 'push-down', label: 'Push down' },
+        ];
 
         function galleryHint(preset) {
             return galleryHints[String(preset || 'grid')] || galleryHints.grid;
@@ -334,13 +346,15 @@
                 const selected = activeGalleryId === id ? ' selected' : '';
                 return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(entry.title || id)}</option>`;
             }).join('');
-            const preset = String(block.preset || 'grid');
+            const preset = String(block.preset || 'grid') === 'parallax' ? 'animated' : String(block.preset || 'grid');
             const columns = Number(block.columns) >= 2 ? Number(block.columns) : 0;
+            const layoutPresets = galleryPresets.map((value) => (value === 'parallax' ? 'animated' : value));
+            const uniquePresets = layoutPresets.filter((value, index, list) => list.indexOf(value) === index);
             const presetChips = renderChipPool(
                 index,
                 'preset',
                 'Layout',
-                galleryPresets.map((value) => ({
+                uniquePresets.map((value) => ({
                     value,
                     label: galleryPresetLabels[value] || value,
                 })),
@@ -354,6 +368,12 @@
             const autorotateSpeed = ['slow', 'normal', 'fast'].includes(String(block.autorotate_speed || ''))
                 ? String(block.autorotate_speed)
                 : 'normal';
+            const transitionSpeed = ['slow', 'normal', 'fast'].includes(String(block.transition_speed || ''))
+                ? String(block.transition_speed)
+                : 'normal';
+            const motion = galleryMotions.some((entry) => entry.value === String(block.motion || ''))
+                ? String(block.motion)
+                : 'blend';
             const autorotateChips = renderOnOffChipPool(index, 'autorotate', 'Autorotate', autorotateOn);
             const speedChips = renderChipPool(
                 index,
@@ -366,6 +386,30 @@
                 ],
                 autorotateSpeed
             );
+            const holdChips = renderChipPool(
+                index,
+                'autorotate_speed',
+                'Speed',
+                [
+                    { value: 'slow', label: 'Slow' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'fast', label: 'Fast' },
+                ],
+                autorotateSpeed,
+                'animated-hold'
+            );
+            const motionChips = renderChipPool(index, 'motion', 'Motion', galleryMotions, motion);
+            const wipeChips = renderChipPool(
+                index,
+                'transition_speed',
+                'Wipe',
+                [
+                    { value: 'slow', label: 'Slow' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'fast', label: 'Fast' },
+                ],
+                transitionSpeed
+            );
             return `
                 <div class="page-picture-style-bar" data-block-index="${index}">
                     <label class="page-picture-style-inline page-gallery-source-inline">
@@ -377,6 +421,11 @@
                     <div data-gallery-carousel-opts-for="${index}"${preset === 'carousel' ? '' : ' hidden'}>
                         ${autorotateChips}
                         ${speedChips}
+                    </div>
+                    <div data-gallery-animated-opts-for="${index}"${preset === 'animated' ? '' : ' hidden'}>
+                        ${holdChips}
+                        ${motionChips}
+                        ${wipeChips}
                     </div>
                 </div>
                 <p class="hint" data-gallery-hint-for="${index}">${escapeHtml(galleryHint(preset))}</p>
@@ -766,8 +815,8 @@
             }).join('');
         }
 
-        function renderChipPool(index, field, label, options, selected) {
-            const name = `page-block-${field}-${index}`;
+        function renderChipPool(index, field, label, options, selected, nameKey) {
+            const name = `page-block-${nameKey || field}-${index}`;
             const chips = options.map((entry) => {
                 const value = String(entry.value ?? '');
                 const text = String(entry.label ?? value);
@@ -1690,7 +1739,7 @@
                 return { type: 'list', style: 'unordered', items: ['First item'] };
             }
             if (type === 'gallery') {
-                return { type: 'gallery', gallery_id: 'bandpromo-demo', preset: 'grid', columns: 4, autorotate: false, autorotate_speed: 'normal' };
+                return { type: 'gallery', gallery_id: 'bandpromo-demo', preset: 'grid', columns: 4, autorotate: false, autorotate_speed: 'normal', motion: 'blend', transition_speed: 'normal' };
             }
             return { type: 'richtext', html: '<p>Write your text here.</p>' };
         }
@@ -1789,19 +1838,37 @@
             }
 
             if (field === 'preset' && block.type === 'gallery') {
-                block.preset = value;
+                block.preset = String(value) === 'parallax' ? 'animated' : value;
                 const columnsRow = layout?.querySelector(`[data-gallery-columns-for="${index}"]`);
                 if (columnsRow) {
-                    columnsRow.hidden = String(value) !== 'grid';
+                    columnsRow.hidden = block.preset !== 'grid';
                 }
                 const carouselOpts = layout?.querySelector(`[data-gallery-carousel-opts-for="${index}"]`);
                 if (carouselOpts) {
-                    carouselOpts.hidden = String(value) !== 'carousel';
+                    carouselOpts.hidden = block.preset !== 'carousel';
+                }
+                const animatedOpts = layout?.querySelector(`[data-gallery-animated-opts-for="${index}"]`);
+                if (animatedOpts) {
+                    animatedOpts.hidden = block.preset !== 'animated';
                 }
                 const hint = layout?.querySelector(`[data-gallery-hint-for="${index}"]`);
                 if (hint) {
-                    hint.textContent = galleryHint(value);
+                    hint.textContent = galleryHint(block.preset);
                 }
+                queuePreview();
+                return;
+            }
+
+            if (field === 'motion' && block.type === 'gallery') {
+                const motion = String(value || '').toLowerCase();
+                block.motion = galleryMotions.some((entry) => entry.value === motion) ? motion : 'blend';
+                queuePreview();
+                return;
+            }
+
+            if (field === 'transition_speed' && block.type === 'gallery') {
+                const speed = String(value || '').toLowerCase();
+                block.transition_speed = ['slow', 'normal', 'fast'].includes(speed) ? speed : 'normal';
                 queuePreview();
                 return;
             }
@@ -2020,7 +2087,10 @@
                 galleryCatalog = data.galleries;
             }
             if (Array.isArray(data.gallery_presets) && data.gallery_presets.length > 0) {
-                galleryPresets = data.gallery_presets.map((preset) => String(preset));
+                galleryPresets = data.gallery_presets.map((preset) => {
+                    const value = String(preset);
+                    return value === 'parallax' ? 'animated' : value;
+                }).filter((value, index, list) => list.indexOf(value) === index);
             }
             syncMetaFromRegistry(data.registry);
             renderBlocks({ silent: true });
@@ -2047,6 +2117,7 @@
                 saveUi?.markFailed();
                 throw new Error('Page name is required.');
             }
+            documentState.title = meta.title;
 
             try {
                 const resp = await fetch(`/biblioteca/save-page.php?page=${encodeURIComponent(currentPageKey)}`, {

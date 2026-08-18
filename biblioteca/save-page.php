@@ -45,11 +45,16 @@ if (!is_array($decoded) || !isset($decoded['document']) || !is_array($decoded['d
 }
 
 try {
-    $result = bandpromo_page_save_document($root, $decoded['document']);
+    $documentPayload = $decoded['document'];
+    $meta = is_array($decoded['meta'] ?? null) ? $decoded['meta'] : [];
+    if (array_key_exists('title', $meta)) {
+        $documentPayload['title'] = (string) $meta['title'];
+    }
+
+    $result = bandpromo_page_save_document($root, $documentPayload);
     $document = $result['document'];
     $html = $result['html'];
     $registryEntry = null;
-    $meta = is_array($decoded['meta'] ?? null) ? $decoded['meta'] : [];
     $registryChanges = [];
 
     if (array_key_exists('title', $meta)) {

@@ -508,7 +508,7 @@ function bandpromo_package_run_post_update_tasks(string $root, array $applyResul
     require_once __DIR__ . '/build-required.php';
 
     // App updates no longer pull the legacy default-theme media ZIP. Icons ship
-    // in bandPromo.zip; campaign media arrives via PRP at setup (or operator import).
+    // in bandPromo.zip; campaign media arrives via PCF at setup (or operator import).
     // When the durable demo-content package moved since this install's marker,
     // refresh the locked platform demo so older hosts pick up new standards.
     $buildRequired = bandpromo_mark_build_required('package_update');
@@ -558,7 +558,7 @@ function bandpromo_package_relocate_legacy_visual_intake(string $root): array
 }
 
 /**
- * After Site update: import the published Demo PRP when its SHA differs from the install marker.
+ * After Site update: import the published Demo PCF when its SHA differs from the install marker.
  * Soft-fails (never undoes the app package apply). Skips localhost authoring when demo is unlocked.
  *
  * @return array{
@@ -588,7 +588,7 @@ function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
                             'refreshed' => false,
                             'skipped' => true,
                             'skip_reason' => 'unlocked_localhost',
-                            'message' => 'Skipped Demo PRP refresh: platform demo is unlocked on localhost.',
+                            'message' => 'Skipped Demo PCF refresh: platform demo is unlocked on localhost.',
                         ];
                     }
                 } catch (Throwable $ignored) {
@@ -600,7 +600,7 @@ function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
         $result = bandpromo_ensure_demo_release_package($root, BANDPROMO_RELEASE_MANIFEST_URL);
         $source = (string) ($result['source'] ?? '');
         $version = (string) ($result['version'] ?? '');
-        $refreshed = !empty($result['installed']) && $source === 'remote-demo-prp';
+        $refreshed = !empty($result['installed']) && in_array($source, ['remote-demo-pcf', 'remote-demo-prp'], true);
 
         if ($source === 'missing') {
             return [
@@ -609,7 +609,7 @@ function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
                 'skipped' => false,
                 'source' => $source,
                 'version' => $version,
-                'message' => (string) ($result['message'] ?? 'Published Demo PRP was not available.'),
+                'message' => (string) ($result['message'] ?? 'Published Demo PCF was not available.'),
             ];
         }
 
@@ -620,7 +620,7 @@ function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
                 'skipped' => false,
                 'source' => $source,
                 'version' => $version,
-                'message' => 'Demo PRP refreshed to the latest published package.',
+                'message' => 'Demo PCF refreshed to the latest published package.',
             ];
         }
 
@@ -631,14 +631,14 @@ function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
             'skip_reason' => 'already_current',
             'source' => $source,
             'version' => $version,
-            'message' => (string) ($result['message'] ?? 'Demo PRP already current.'),
+            'message' => (string) ($result['message'] ?? 'Demo PCF already current.'),
         ];
     } catch (Throwable $throwable) {
         return [
             'ok' => false,
             'refreshed' => false,
             'skipped' => false,
-            'message' => 'Demo PRP refresh failed after app update: ' . $throwable->getMessage(),
+            'message' => 'Demo PCF refresh failed after app update: ' . $throwable->getMessage(),
         ];
     }
 }

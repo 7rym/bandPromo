@@ -9,7 +9,7 @@ Companion policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](ME
 The admin **Publish** flow mixes three different concerns:
 
 1. **Environment readiness** (tools, templates, theme pack)
-2. **Silent catalog repair** (`content-autofix` mutating releases/playlists/registry)
+2. **Silent catalogue repair** (`content-autofix` mutating releases/playlists/registry)
 3. **Delivery + player artifacts** (Python pipeline)
 
 Historically the Python pipeline was **playlist-first** (`makePlaylists.py` before `optimizeMedia.py`), which contradicted the platform model (pool → master → deliverable → containers). That order is fixed: deliverables run before playlist/social/PWA artifacts (see stage table below). Successful rebuilds end with a scoped summary (media / playlists / share images / manifest) plus elapsed time.
@@ -23,7 +23,7 @@ Historically the Python pipeline was **playlist-first** (`makePlaylists.py` befo
 | **Deliverable** | Playback/display derivative (`media/*/optimal/`, etc.) |
 | **Container** | Operator document: release, playlist, gallery, page, theme |
 | **Artifact** | Generated runtime file consumed by the site (`site.webmanifest`, share JPGs) |
-| **Initial site seed** | See below — not delivery, not catalog repair |
+| **Initial site seed** | See below — not delivery, not catalogue repair |
 
 ### What “initial site seed” means (formerly “compose”)
 
@@ -42,7 +42,7 @@ It does **not** write legacy playlist artifacts like `play/playlist.json`, `data
 Initial site seed is **not**:
 
 - Transcoding or optimizing media (that is **delivery**)
-- Creating masters or registry entries (that is **catalog**)
+- Creating masters or registry entries (that is **catalogue**)
 - Honouring release membership or playlist documents the operator already configured (non-empty containers are left alone)
 
 Initial site seed **is**:
@@ -77,7 +77,7 @@ Publish should run **staged**, **logged**, and **skippable** stages. Default ful
 
 **Does not** transcode uploads. May **read** deliverable paths if they already exist.
 
-### Stage 2 — Catalog (masters & registry)
+### Stage 2 — Catalogue (masters & registry)
 
 **Purpose:** Every supported original upload is registered and has a master.
 
@@ -90,11 +90,11 @@ Publish should run **staged**, **logged**, and **skippable** stages. Default ful
 
 - Change release membership or playlist order (operator Content editors own that)
 - Build deliverables
-- Run silently unless operator opted into **Repair catalog** (separate action)
+- Run silently unless operator opted into **Repair catalogue** (separate action)
 
 ### Stage 3 — Deliverables (from masters/registry)
 
-**Purpose:** Generate playback/display files from **catalog scope**, not playlist scope.
+**Purpose:** Generate playback/display files from **catalogue scope**, not playlist scope.
 
 - **Audio:** MP3 (or configured delivery) for **every registered audio asset** that has a master
 - **Visual:** illustrations, photos, video — **every registered visual asset** with a master/original
@@ -115,7 +115,7 @@ Playlist membership must **not** be the driver for whether an uploaded song gets
 - `data/validation/playlist-validation.json` (validation report; playlist-scoped is OK here)
 - Social share renditions (`makeSocial.py`) from config + deliverable sources
 - `site.webmanifest` (`makePWA.py`)
-- Release/catalog JSON is already in `data/releases/` — build validates, does not rewrite membership
+- Release/catalogue JSON is already in `data/releases/` — build validates, does not rewrite membership
 
 ### Stage 5 — Initial layout seed (optional; not “Compose” on publish)
 
@@ -133,7 +133,7 @@ Must not override non-empty playlist, release, or gallery documents unless recov
 
 | Button | Entry | Python | Notes |
 |--------|-------|--------|-------|
-| Run Publish Build | `biblioteca/build.php` `mode=full` | `scripts/build.py` (5 steps) | Config-structure preflight only; **no** catalog repair |
+| Run Publish Build | `biblioteca/build.php` `mode=full` | `scripts/build.py` (5 steps) | Config-structure preflight only; **no** catalogue repair |
 | Refresh Image Files | `biblioteca/build.php` `mode=optimize` | `scripts/optimizeMedia.py` only | `BANDPROMO_OPTIMIZE_MODE=image-only` |
 
 There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-delivery`, …) are notification labels only.
@@ -143,7 +143,7 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 | Step | Code | Problem |
 |------|------|---------|
 | Lock + log | `build.php` | OK |
-| Preflight | `publish-preflight-helpers.php` → config repair only | Site settings structure check; catalog repair is explicit **Repair catalog** |
+| Preflight | `publish-preflight-helpers.php` → config repair only | Site settings structure check; catalogue repair is explicit **Repair catalogue** |
 | Theme pack | `bandpromo_ensure_default_theme_package` | OK for empty installs; should be Stage 0/1 |
 | Launch | `build-runner.php` → `build.py` | OK |
 
@@ -170,7 +170,7 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 | Image upload | `optimizeMedia.py` image-only |
 | Video upload | background `optimizeVideo.py` |
 | Playlist save | master materialization (PHP), not full build |
-| `content-autofix` API (Repair catalog) | explicit catalog repair pipeline |
+| `content-autofix` API (Repair catalogue) | explicit catalogue repair pipeline |
 
 These **helpers** follow registry/pool delivery prep; they are not a second playlist-first publish path.
 
@@ -179,7 +179,7 @@ These **helpers** follow registry/pool delivery prep; they are not a second play
 1. ~~**Wrong order:** playlist artifacts before media deliverables.~~ **Fixed (Phase E).**
 2. ~~**Wrong audio scope:** deliverables driven by playlist, not registry/pool.~~ **Fixed (Phase D).**
 3. ~~**Autofix inside publish:** silent release/playlist rewrites.~~ **Fixed (Phase A).**
-4. ~~**No stage isolation:** cannot run catalog-only or deliverables-only.~~ **Fixed (Phase B profiles).**
+4. ~~**No stage isolation:** cannot run catalogue-only or deliverables-only.~~ **Fixed (Phase B profiles).**
 5. ~~**Compose mislabeled:** bundled as publish step 6.~~ **Fixed (Phase F).**
 6. ~~**Validation UX:** playlist-only card under System.~~ **Fixed (Publish status card).**
 7. **Site shell stage:** theme/config/social prerequisites still split between PHP preflight and artifact stages (no dedicated Stage 1 runner yet).
@@ -191,7 +191,7 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 
 ### Phase A — Stop the bleeding (small, safe)
 
-- [x] Remove `content-autofix` from publish preflight; expose as explicit **Repair catalog** action with dry-run preview.
+- [x] Remove `content-autofix` from publish preflight; expose as explicit **Repair catalogue** action with dry-run preview.
 - [x] Document current behaviour in admin Publish help (playlist vs pool scope).
 - [x] Fix operator messaging: validation block titled **Playlist validation**, not “build complete”. *(Superseded: Publish tab now uses site-wide **Publish status**; playlist metadata stays in notifications/Files.)*
 
@@ -201,10 +201,10 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 - [x] Log each stage start/end + exit code in `log/build.log` (`STAGE_START:` / `STAGE_END:` lines).
 - [x] `build.php` accepts `profile` or `stages[]` presets: `full`, `deliverables-only`, `artifacts-only` (written to `log/build.meta.json`).
 
-### Phase C — Catalog stage (master-first)
+### Phase C — Catalogue stage (master-first)
 
 - [x] New `scripts/buildCatalog.py` + `biblioteca/build-catalog-helpers.php`: register + materialize + canonicalize for **all** catalogued originals (no playlist/release rewrites).
-- [x] Upload path calls catalog finalize after audio master preparation (`bandpromo_build_catalog_finalize_audio_upload`).
+- [x] Upload path calls catalogue finalize after audio master preparation (`bandpromo_build_catalog_finalize_audio_upload`).
 
 ### Phase D — Deliverables stage (registry-scoped)
 
@@ -226,7 +226,7 @@ Work in policy order; do not add more helpers until Stage 0–3 exist.
 ## Open questions (operator decisions)
 
 1. **Deliverable scope:** ~~all registry audio assets, or only those referenced by a release/playlist?~~ **Locked (2026-07-01):** deliverables for **every registered asset**, independent of release or playlist membership.
-2. **Prune policy:** ~~when a track is removed from playlist, delete its MP3 deliverable or keep until registry delete?~~ **Locked (2026-07-01):** prune deliverables **only when the asset is deleted** from the catalog/registry — not when removed from a playlist or release.
+2. **Prune policy:** ~~when a track is removed from playlist, delete its MP3 deliverable or keep until registry delete?~~ **Locked (2026-07-01):** prune deliverables **only when the asset is deleted** from the catalogue/registry — not when removed from a playlist or release.
 3. **Initial site seed:** ~~delete auto-compose entirely vs keep as setup-only wizard?~~ **Locked (2026-07-01):** **setup-only** plus an explicit **disaster recovery** path (`force: true`). **Not** part of routine publish. Renamed in code/docs to **initial site seed** (`initialSiteSeed.py`).
 
 ### Initial site seed — scope clarification (locked narrative)
@@ -248,13 +248,13 @@ It is **not** useful when:
 
 - The site already has playlist, release, and gallery documents the operator manages in Content
 - Routine publish after uploads/edits
-- Substituting for catalog repair or deliverable generation
+- Substituting for catalogue repair or deliverable generation
 
 **Naming:** use **Initial site seed** (setup) or **Recover layout from disk** (`force: true` recovery).
 
 ## Success criteria
 
-- Uploading 20 audio files and publishing processes **catalog + deliverables** for the agreed scope — not only the six tracks on `main` playlist.
+- Uploading 20 audio files and publishing processes **catalogue + deliverables** for the agreed scope — not only the six tracks on `main` playlist.
 - Publish log shows **stage names** in target order; each stage can be skipped in dev/CLI.
-- No release/playlist membership changes during publish unless operator ran **Repair catalog**.
+- No release/playlist membership changes during publish unless operator ran **Repair catalogue**.
 - Initial site seed never runs on routine publish for established sites.

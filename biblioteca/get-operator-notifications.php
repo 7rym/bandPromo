@@ -65,7 +65,7 @@ function bandpromo_filter_metadata_validation_for_notifications(string $rootDir,
 }
 
 /**
- * Read-only catalog repair status for Notifications — never starts repair/Python from this endpoint.
+ * Read-only catalogue repair status for Notifications — never starts repair/Python from this endpoint.
  */
 function bandpromo_notifications_catalog_repair_snapshot(string $root): array
 {
@@ -166,7 +166,7 @@ if ($validationFile !== null && file_exists($validationFile)) {
 
 $metadataValidation = bandpromo_filter_metadata_validation_for_notifications($rootDir, $metadataValidation);
 
-// Read-only only — catalog repair / uncatalogued materialize must not run here.
+// Read-only only — catalogue repair / uncatalogued materialize must not run here.
 $catalogRepair = bandpromo_notifications_catalog_repair_snapshot($rootDir);
 $uncataloguedAudioFailures = [];
 

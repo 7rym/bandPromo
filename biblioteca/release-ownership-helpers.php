@@ -291,7 +291,7 @@ function bandpromo_release_ownership_children(string $root, string $releaseId): 
         }
         $out['pages'][] = [
             'id' => $pageId,
-            'title' => trim((string) ($doc['title'] ?? $meta['title'] ?? $meta['label'] ?? $pageId)) ?: $pageId,
+            'title' => bandpromo_page_operator_title($meta, $doc),
         ];
     }
 
@@ -545,7 +545,7 @@ function bandpromo_release_association_pools(string $root, string $releaseId, st
             $owner = bandpromo_release_normalize_optional_id((string) ($doc['release_id'] ?? ''));
             $item = bandpromo_release_association_item(
                 $pageId,
-                trim((string) ($doc['title'] ?? $meta['title'] ?? $meta['label'] ?? $pageId)),
+                bandpromo_page_operator_title($meta, $doc),
                 $owner,
                 true
             );

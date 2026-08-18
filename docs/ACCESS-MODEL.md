@@ -9,8 +9,8 @@ Related: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
 ## Principles
 
 - bandPromo remains a **closed authenticated site** through v0.8 beta; tier rules are defined now and enforced in v0.9.
-- **FAQ** (`faq`) is a **system-owned** required page — platform/login help and shared-link context. It is **not** part of any portable release package (PRP). It survives **Hide demo catalog**. Operators may edit copy; they cannot delete FAQ.
-- Campaign pages (Bio, Gallery, News, …) belong to releases via `release_id` and travel in PRPs when owned by that campaign.
+- **FAQ** (`faq`) is a **system-owned** required page — platform/login help and shared-link context. It is **not** part of any Portable Campaign File (PCF). It survives **Hide demo catalogue**. Operators may edit copy; they cannot delete FAQ.
+- Campaign pages (Bio, Gallery, News, …) belong to releases via `release_id` and travel in PCFs when owned by that campaign.
 - **Release date** on each release is the primary public availability threshold.
 - **Playlist publish date** controls playlist promotion and default selection; it does not override per-track release gates.
 - **Operators and developers** always bypass availability gates.
@@ -22,8 +22,8 @@ Related: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ROADMAP.md](ROADMAP.md).
 |------|--------------|----------|-------------------|-------|
 | **Operator / developer** | `admin`, `developer` | All tracks, all releases | All | Admin panel access |
 | **VIP** | `vip` (registered) | Pre-release per VIP rules | Released + VIP-allowed content | Early access window |
-| **Registered fan** | `user` (registered) | Released catalog only | Released pages/content | May set own default playlist (v0.9+) |
-| **Anonymous** | No account / restricted entry | Released catalog only | Released static content | Login upsell for more |
+| **Registered fan** | `user` (registered) | Released catalogue only | Released pages/content | May set own default playlist (v0.9+) |
+| **Anonymous** | No account / restricted entry | Released catalogue only | Released static content | Login upsell for more |
 
 Listener accounts today map to **registered fan** until VIP and anonymous paths ship.
 
@@ -72,9 +72,9 @@ Storage sketch on release membership:
 
 ### FAQ page
 
-- **System-owned** required page (`faq`); cannot be deleted; **not** included in PRPs.
+- **System-owned** required page (`faq`); cannot be deleted; **not** included in PCFs.
 - Explains the **platform** (login, player, what bandPromo does) more than campaign content.
-- Seeded from a platform template at setup (not from `bandPromo-demo.prp`).
+- Seeded from a platform template at setup (not from `bandPromo-demo.pcf`).
 - Surfaces: login lightbox, shared-link explanations, operator-editable site rules.
 - Lives in `data/pages/faq.json` like any page container; hide-demo does not remove it.
 

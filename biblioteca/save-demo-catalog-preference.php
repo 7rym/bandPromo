@@ -34,7 +34,7 @@ if ($hiding) {
         http_response_code(409);
         echo json_encode([
             'ok' => false,
-            'error' => 'Hide the demo catalog after you have a release with a track on a playlist.',
+            'error' => 'Hide the demo catalogue after you have a release with a track on a playlist.',
             'demo_release_id' => bandpromo_demo_release_id($root),
             'demo_catalog_visible' => true,
             'demo_release_hidden' => false,
@@ -47,7 +47,7 @@ if ($hiding) {
         http_response_code(409);
         echo json_encode([
             'ok' => false,
-            'error' => 'Cannot hide the demo catalog while your own campaigns still use demo media. Replace those assignments first.',
+            'error' => 'Cannot hide the demo catalogue while your own campaigns still use demo media. Replace those assignments first.',
             'hide_blockers' => $blockers,
             'demo_release_id' => bandpromo_demo_release_id($root),
             'demo_catalog_visible' => true,

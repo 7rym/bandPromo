@@ -124,10 +124,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
 
         $galleryId = bandpromo_gallery_resolve_id((string) ($block['gallery_id'] ?? BANDPROMO_GALLERY_DEMO_ID));
 
-        $preset = strtolower(trim((string) ($block['preset'] ?? 'grid')));
-        if (!in_array($preset, BANDPROMO_PAGE_GALLERY_PRESETS, true)) {
-            $preset = 'grid';
-        }
+        $preset = bandpromo_page_normalize_gallery_preset($block['preset'] ?? 'grid');
 
         $columns = (int) ($block['columns'] ?? 0);
         if ($columns < BANDPROMO_PAGE_GALLERY_COLUMNS_MIN || $columns > BANDPROMO_PAGE_GALLERY_COLUMNS_MAX) {
@@ -136,6 +133,10 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
         $autorotate = bandpromo_page_normalize_bool_flag($block['autorotate'] ?? false, false);
         $autorotateSpeed = bandpromo_page_normalize_autorotate_speed($block['autorotate_speed'] ?? 'normal');
         $autorotateMs = bandpromo_page_autorotate_interval_ms($autorotateSpeed);
+        $motion = bandpromo_page_normalize_gallery_motion($block['motion'] ?? 'blend');
+        $transitionSpeed = bandpromo_page_normalize_autorotate_speed($block['transition_speed'] ?? 'normal');
+        $holdMs = bandpromo_page_animated_hold_ms($autorotateSpeed);
+        $wipeMs = bandpromo_page_animated_wipe_ms($transitionSpeed);
 
         try {
             bandpromo_gallery_ensure_seeded($root);
@@ -164,7 +165,8 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
                     continue;
                 }
                 $posterAttr = $poster !== '' ? ' poster="' . $poster . '"' : '';
-                $figures .= '<figure class="page-gallery-item page-gallery-item--video" role="button" tabindex="0">';
+                $activeClass = ($preset === 'animated' && $slideCount === 0) ? ' is-active' : '';
+                $figures .= '<figure class="page-gallery-item page-gallery-item--video' . $activeClass . '" role="button" tabindex="0">';
                 $figures .= '<span class="page-gallery-media">';
                 // Keep src off the wire until lightbox play — preload=metadata still
                 // pulls large byte ranges on PHP's single-threaded built-in server.
@@ -185,7 +187,8 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
             if ($src === '') {
                 continue;
             }
-            $figures .= '<figure class="page-gallery-item page-gallery-item--image" role="button" tabindex="0">';
+            $activeClass = ($preset === 'animated' && $slideCount === 0) ? ' is-active' : '';
+            $figures .= '<figure class="page-gallery-item page-gallery-item--image' . $activeClass . '" role="button" tabindex="0">';
             $figures .= '<span class="page-gallery-media">';
             $figures .= '<img src="' . $src . '" alt="' . $alt . '" loading="lazy" decoding="async">';
             $figures .= '</span>';
@@ -201,6 +204,15 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
         $colsClass = ($preset === 'grid' && $columns >= BANDPROMO_PAGE_GALLERY_COLUMNS_MIN) ? ' page-gallery--cols' : '';
         $colsStyle = $colsClass !== '' ? ' style="--page-gallery-columns:' . $columns . '"' : '';
         $html = '<section class="page-gallery page-gallery--' . $presetClass . $colsClass . '" data-gallery-id="' . bandpromo_page_escape($galleryId) . '"' . $colsStyle . '>';
+        if ($preset === 'animated') {
+            $singleClass = $slideCount < 2 ? ' page-gallery--animated-single' : '';
+            $html = '<section class="page-gallery page-gallery--animated' . $singleClass . '" data-gallery-id="' . bandpromo_page_escape($galleryId) . '" data-motion="' . bandpromo_page_escape($motion) . '" data-hold-ms="' . $holdMs . '" data-wipe-ms="' . $wipeMs . '" data-autorotate-speed="' . bandpromo_page_escape($autorotateSpeed) . '" data-transition-speed="' . bandpromo_page_escape($transitionSpeed) . '" style="--gallery-wipe-ms:' . $wipeMs . 'ms">';
+            $html .= '<div class="page-gallery-animated-viewport" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Animated gallery">';
+            $html .= $figures;
+            $html .= '</div></section>';
+
+            return $html;
+        }
         if ($preset === 'carousel') {
             $singleClass = $slideCount < 2 ? ' page-gallery--carousel-single' : '';
             $html = '<section class="page-gallery page-gallery--carousel' . $singleClass . '" data-gallery-id="' . bandpromo_page_escape($galleryId) . '" data-autorotate="' . ($autorotate ? 'true' : 'false') . '" data-autorotate-speed="' . bandpromo_page_escape($autorotateSpeed) . '" data-autorotate-ms="' . $autorotateMs . '">';

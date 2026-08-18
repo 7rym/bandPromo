@@ -258,7 +258,7 @@ function shouldAutoAdvanceAtCurrentPosition() {
         return true;
     }
 
-    // Catalog duration reached while browser metadata still claims more audio (common on local MP3 tails).
+    // Catalogue duration reached while browser metadata still claims more audio (common on local MP3 tails).
     if (catalog > 0 && current >= catalog - TRACK_END_GUARD_EPSILON_SECONDS) {
         if (!Number.isFinite(live) || live <= 0 || live - current > 0.5) {
             return true;

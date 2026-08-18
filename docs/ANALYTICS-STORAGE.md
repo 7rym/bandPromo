@@ -8,7 +8,7 @@ Related: [ACCESS-MODEL.md](ACCESS-MODEL.md) (time semantics), [DELIVERY-ARCHITEC
 
 ## Why v0.8
 
-v0.8 is the **management machine** milestone: catalog, media, brands, containers, and **data foundations** operators can trust before scale changes.
+v0.8 is the **management machine** milestone: catalogue, media, brands, containers, and **data foundations** operators can trust before scale changes.
 
 v0.9 opens wider access (anonymous entry, tier enforcement, more concurrent listeners). Beta sites must not reach v0.9 still on a single-user JSONL scan model. **Storage and query strategy ship in v0.8**; v0.9 adds features and traffic on top of that foundation.
 

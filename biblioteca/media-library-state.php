@@ -122,7 +122,7 @@ function bandpromo_media_filename_kind(string $filename): string
 }
 
 /**
- * Files → Audio lists catalog audio only. Covers and other leftovers in
+ * Files → Audio lists catalogue audio only. Covers and other leftovers in
  * media/audio/original must not become pool rows.
  */
 function bandpromo_media_is_audio_pool_filename(string $filename): bool

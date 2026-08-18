@@ -292,7 +292,7 @@ function bandpromo_release_sync_primary_audio_assets(string $root): void
 
 function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): array
 {
-    $step = bandpromo_content_autofix_step_result('release_membership', 'Repair catalog release links on audio assets');
+    $step = bandpromo_content_autofix_step_result('release_membership', 'Repair catalogue release links on audio assets');
     if ($dryRun) {
         $registry = bandpromo_asset_load_registry($root);
         $membershipIndex = bandpromo_release_asset_membership_index($root);
@@ -1066,9 +1066,9 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'errors' => $errors,
         'has_warnings' => $errors !== [],
         'message' => $dryRun
-            ? 'Preview complete. These are internal housekeeping tasks. A healthy demo install can still list leftover metadata fills — apply only if you know a catalog link is wrong.'
+            ? 'Preview complete. These are internal housekeeping tasks. A healthy demo install can still list leftover metadata fills — apply only if you know a catalogue link is wrong.'
             : ($changedTotal > 0
-                ? 'Catalog repair finished. bandPromo will refresh delivery files automatically when needed.'
-                : 'Catalog already matches the current registry and container links.'),
+                ? 'Catalogue repair finished. bandPromo will refresh delivery files automatically when needed.'
+                : 'Catalogue already matches the current registry and container links.'),
     ];
 }

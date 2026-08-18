@@ -172,14 +172,14 @@ if ($mode === 'full') {
 
 file_put_contents($log_file, "[setup] Starting publish build...\n", FILE_APPEND);
 
-// First-run setup may request Demo PRP install. Admin Publish never does —
-// campaign content is already on the host (setup import or operator PRP).
+// First-run setup may request Demo PCF install. Admin Publish never does —
+// campaign content is already on the host (setup import or operator PCF).
 $ensureDemo = !empty($request_data['ensure_demo']) || !empty($_POST['ensure_demo']);
 if ($ensureDemo) {
     try {
         file_put_contents(
             $log_file,
-            "[setup] Preparing Demo PRP download/import (progress appears below)...\n",
+            "[setup] Preparing Demo PCF download/import (progress appears below)...\n",
             FILE_APPEND
         );
         $debug['demo_release_package'] = bandpromo_ensure_demo_release_package(
@@ -214,7 +214,7 @@ if ($ensureDemo) {
         file_put_contents($log_file, '[demo release] Failed: ' . $throwable->getMessage() . "\n", FILE_APPEND);
         @unlink($lock_file);
         echo json_encode([
-            'error' => 'bandPromo could not prepare the Demo PRP this site needs before the first build can continue. ' . $throwable->getMessage(),
+            'error' => 'bandPromo could not prepare the Demo PCF this site needs before the first build can continue. ' . $throwable->getMessage(),
             'debug' => $debug,
         ]);
         exit;
@@ -224,7 +224,7 @@ if ($ensureDemo) {
     bandpromo_demo_release_ensure_preferences($root_dir);
     file_put_contents(
         $log_file,
-        "[setup] Skipping Demo PRP ensure (Publish uses content already on this host).\n",
+        "[setup] Skipping Demo PCF ensure (Publish uses content already on this host).\n",
         FILE_APPEND
     );
 }
@@ -280,7 +280,7 @@ if (is_array($debug['demo_release_package'])) {
     $demoPackage = $debug['demo_release_package'];
     $demoState = !empty($demoPackage['installed']) ? 'imported' : 'already present / local seed';
     $demoVersion = (string) ($demoPackage['version'] ?? $demoPackage['source'] ?? 'n/a');
-    file_put_contents($log_file, "DEBUG Demo PRP: {$demoState} ({$demoVersion})\n", FILE_APPEND);
+    file_put_contents($log_file, "DEBUG Demo PCF: {$demoState} ({$demoVersion})\n", FILE_APPEND);
 }
 file_put_contents($meta_file, json_encode([
     'run_id' => $build_run_id,

@@ -1037,9 +1037,9 @@ def process_audio_delivery(
     print(f"\n🎵 Processing: {headline}")
     print(f"  → Source tier: {source_tier}")
     if display_artist or display_title:
-        print(f"  → Catalog display: {format_track_label(display_artist, display_title, master_filename)}")
+        print(f"  → Catalogue display: {format_track_label(display_artist, display_title, master_filename)}")
     else:
-        print("  → Catalog display: (empty — using filename for logs)")
+        print("  → Catalogue display: (empty — using filename for logs)")
 
     print(f"  → Asset file: {master_filename}")
 
@@ -1125,7 +1125,7 @@ def main():
         audio_queue = load_registry_audio_delivery_queue()
         if not audio_queue:
             print("❌ No registered audio assets found in data/assets/registry.json")
-            print("   Run Repair catalog or upload audio via Files first.")
+            print("   Run Repair catalogue or upload audio via Files first.")
             sys.exit(1)
         print(f"✓ Found {len(audio_queue)} registered audio assets")
     print("=" * 70)

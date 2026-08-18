@@ -29,7 +29,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 ## Version principles
 
 - **v0.7 is complete** — exit gates passed 2026-06-15. Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
-- **v0.8 beta is active — the management machine** — catalog, media, brands, containers, delivery pipeline, and **content AI wizards** that help operators fill missing pieces from release + brand canon.
+- **v0.8 beta is active — the management machine** — catalogue, media, brands, containers, delivery pipeline, and **content AI wizards** that help operators fill missing pieces from release + brand canon.
 - **v0.9 — access and engagement foundation** — implements access tiers defined in v0.8, login/anonymous entry, user roles, and user-facing services on stable deliverables.
 - **v1.0** is public-ready, stable, and trustworthy.
 - **v1.x** expands fan and artist utility without overloading the core.
@@ -47,13 +47,13 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Block-based page editor | Shipped |
 | Unified Content editors + upload-time delivery automation | Shipped |
 | Platform model (multi-playlist/gallery, module blocks, delivery architecture) | In progress |
-| Brand containers + semantic player colors (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
+| Brand containers + semantic player colours (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
 | Visual pool + role tags + registry-scoped delivery | Phases 0b–2 + **identity completion M1–M6 shipped** 2026-08-04 (`asset_id`, masters, XXH3, register-or-fail, operator titles, campaign export); physical `media/special/` retirement residual |
 
 | Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** v0.8 residual polish — visual naming (IPTC/XMP stills, MKV video masters) + gallery multi-select pickers; physical Brand-assets `media/special/` fold into Visual-only intake; Content AI wizards remain defined. Page container metadata / OG polish still v0.9. Fan comment/share on gallery assets is **v0.9+** (keep in USE-CASES tour story). See [TODO.md](TODO.md).
+**Next focus:** Gallery multi-select picker (Available DnD still ships); physical Brand-assets `media/special/` fold; Content AI wizards remain defined, not built. Page OG/share runtime still v0.9 (storage shipped). Fan comment/share on gallery assets is **v0.9+** (keep in USE-CASES tour story). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -79,7 +79,7 @@ Core features are part of every bandPromo install and define the listening + ope
 
 Modular features can be enabled or omitted per install. Modules extend pages and operator workflows; they do not replace core playback:
 
-- **gallery presentation blocks** on pages (grid, carousel, parallax, and similar layouts referencing a gallery library)
+- **gallery presentation blocks** on pages (grid, carousel, animated, and similar layouts referencing a gallery library)
 - news publishing with timed release and social push (v1+)
 - fanboard, feeds, and similar engagement surfaces
 - quizzes and games
@@ -90,7 +90,7 @@ Modular features can be enabled or omitted per install. Modules extend pages and
 - analytics integrations such as Google Analytics
 - community/chat features
 - future automation and publishing integrations
-- semi-automatic **marketing** tools (**v2+** — campaigns from existing catalog content)
+- semi-automatic **marketing** tools (**v2+** — campaigns from existing catalogue content)
 - external AI **marketing** helpers (**v2+** — social series, timed pushes, newsletter drafts from published releases)
 
 **Composition rule:** operators build pages from **core blocks** (text, pictures, lists, and future first-party block types). **Module blocks** (gallery, news, fanboard, feeds, etc.) reference module libraries or services and are rendered inside those pages. The player remains the primary listening shell.
@@ -101,11 +101,11 @@ Modular features can be enabled or omitted per install. Modules extend pages and
 
 ## Brand strategy (replaces Theme strategy)
 
-**Brand** replaces the former Theme container. Colors, typography, mood narrative, and curated visual assets belong in one **brand identity package** per era or campaign — not split across Theme vs brand asset paths.
+**Brand** replaces the former Theme container. Colours, typography, mood narrative, and curated visual assets belong in one **brand identity package** per era or campaign — not split across Theme vs brand asset paths.
 
 Initial brand support should focus on:
 
-- design tokens and CSS variables (colors, typography)
+- design tokens and CSS variables (colours, typography)
 - curated asset refs in the Visual pool: logos, portraits, style references, shell backgrounds/audio
 - **`bandpromo-default`** locked seed on first install so demo content works out of the box; operators duplicate as their first customization task
 - **release `brand_id` links** — many releases (singles, EPs, album, post-album singles) may share one brand; release cover stays **`poster_asset_id` on the release**
@@ -126,7 +126,7 @@ v0.8 ships **content-creation wizards** — operator-triggered helpers that fill
 - operator-configured external model/API settings
 - outputs are drafts; generated assets enter the Visual pool with `origin: ai-generated` until confirmed
 
-This is **not** the v2+ marketing machine (campaign calendars, scheduled social pushes, multi-post series from an existing catalog). Those stay v2+.
+This is **not** the v2+ marketing machine (campaign calendars, scheduled social pushes, multi-post series from an existing catalogue). Those stay v2+.
 
 See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands and [MEDIA-HANDLING.md](MEDIA-HANDLING.md) → upload role tagging.
 
@@ -459,7 +459,7 @@ Caching and update propagation (aggressive safe caching, low needless re-downloa
 
 ## v0.8 beta goals (active)
 
-Theme: architectural shift from a private single-release site to a reusable artist platform foundation — **v0.8 is the management machine** (catalog, media, brands, content wizards), not every future fan or marketing feature at once.
+Theme: architectural shift from a private single-release site to a reusable artist platform foundation — **v0.8 is the management machine** (catalogue, media, brands, content wizards), not every future fan or marketing feature at once.
 
 Closed-beta feedback (2026-06-14) locked the first three implementation priorities:
 
@@ -529,32 +529,26 @@ Betatesters should treat current builds as **v0.8 beta**, not a finished v1.0 pl
 
 Closed-beta fleet personas (Vanilla demo install, **Twisted Chronicles** band campaign, **HITZ** label + long-form shows): [USE-CASES.md](USE-CASES.md). Use those stories when giving feedback on Catalogue, player tabs, branding, and Lyrics vs Tracklist.
 
-**Checkpoint 2026-06-16 (v0.8.3 docs):** all betatesters are on the latest build (292+). Legacy HTML pages (`data/bio.html`, `data/faq.html`) are **not** imported automatically — content lives in `data/pages/*.json` only. If you still have old HTML files on the host from backups, copy text into the Pages editor manually.
-
-**Image delivery (v0.8 visual slice):** today's Publish step still flattens illustrations and photos to a single oversized JPEG in `optimal/`, which destroys PNG transparency (logos) and wastes bandwidth. **Operator UX shipped (2026-07-15/16):** Files → Visual merges the old Illustrations/Photos/Video tabs; Files → Brand assets is the label for legacy `media/special/`. **Still planned (Phases 0b–2):** `ast_{ULID}` visual identity, format-aware multi-variant delivery, brand filter. Workaround until migration: store transparent logos under **Brand assets** (`media/special/`).
-
 **Updating safely:**
 
 1. **Site update** (Dashboard) replaces application code only. Your `web-config.json`, `.env`, `data/`, `media/`, and `log/` are preserved.
 2. After every successful Site update, run **Refresh site files** once (System → Status). This is **normal**, not a sign that something failed.
-3. Soon (v0.8.3): Publish will also prepare your content links automatically — you will not need a separate “content model upgrade” step.
-4. Before large updates on heavy installs: download a ZIP backup of `data/`, `media/`, and `web-config.json` via your host until in-app backup ships.
+3. Content-link housekeeping runs in the background; **Repair catalogue** is developer-only, not an operator health check.
+4. Before large updates on heavy installs: use Admin → System → **Backup & export**, or download a ZIP of `data/`, `media/`, and `web-config.json` from the host.
 
 **Release and tour workflow (target model):**
 
-- **Releases** = campaign umbrellas (not merely one CD tracklist) with `release_date`, track membership, brand, EPK/press metadata, and associated playlists/galleries/pages.
-- **Playlists** = listening packages (“Single 1”, “Album”, “Tour set”) with their own `publish_date`; latest public catalog playlist opens by default in the player.
-- **Pages** = story, bio/EPK, art pages — **target:** globals from Content → Player plus **contextual** pages for the playing track’s release ([USE-CASES.md](USE-CASES.md) Twisted Chronicles). Today only globals/`show_in_player` ship.
-- **Galleries** = containers embedded via page gallery blocks (no dedicated Gallery player tab).
+- **Campaigns** (Catalogue) = umbrellas with `release_date`, track membership, brand, EPK/press metadata, and associated playlists/galleries/pages.
+- **Playlists** = listening packages (“Single 1”, “Album”, “Tour set”) with their own `publish_date`; **★ Set as default** pins the player homepage when that playlist is still public, else latest public catalogue playlist.
+- **Pages** = story, bio/EPK, art pages. Player tabs come from pages associated on Catalogue → Campaign editor → Pages (association order is tab order). Playlist and Lyrics stay fixed. Site-wide `player.tab_order` / `show_in_player` is only a fallback when a playlist has no campaign-owned pages.
+- **Galleries** = containers embedded via page gallery blocks (Grid / List / Carousel / Animated — no dedicated Gallery player tab). Concert-scale assemble-from-picker is still the target; today Available drag-and-drop ships.
 - **News module** (v1+) = dated tour/diary posts that archive forever; pages + galleries cover this pattern until then.
-- **Sharing** (playlist `/play/{id}`, track deep links, page `/pages/{id}`) gets richer cards after description + poster fields ship — not before core trust work.
+- **Sharing** cards use container description + poster fields in storage; public OG runtime wiring is **v0.9**.
 
-- **Shipped now:** package updater; block-based Pages editor; unified Content editors; upload-time delivery; platform storage/API; **Backup & export** (component picker + import); **Brand core** (Content → Branding, release `brand_id`, player brand tokens); **SQLite activity store**; **Deliverables** page; playlist documents + runtime materialization (legacy `play/playlist.json` removed).
-- **In progress in v0.8:** Visual pool + registry migration; content AI wizards; analytics rollups/export/retention; gallery module blocks; track deep links; playback/delivery architecture polish.
-- **Shipped:** release-contextual player page tabs via Catalogue → Pages associations ([PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md), [TODO.md](TODO.md)). Brand shell override (visual) and Lyrics ↔ Notes text panel role shipped. Content → Player layout retired.
-- **Planned v0.8 management slice (remaining):** unified Visual tab polish; format/dimension-aware delivery; visual `ast_{ULID}` backfill from legacy folders.
-- **v0.8 exit gate (after analytics tail + Visual pool):** sync all **3 remote beta test sites** (Vanilla = **bandpromo.site** / Twisted Chronicles / HITZ) to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. Fresh installs always use bandpromo.site; never wipe the local Google Drive working copy. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
-- **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists.
+- **Shipped now:** package updater; Backup & export; Branding; block-based Pages + gallery presets; unified Content editors; upload-time delivery; platform storage/API; SQLite activity store; playlist documents (legacy `play/playlist.json` removed); campaign-associated player page tabs; Brand shell override; Lyrics ↔ Notes; Content → Player layout retired; Demo PCF setup import; Catalogue campaign delete.
+- **In progress in v0.8:** gallery multi-select picker; `media/special/` fold; content AI wizards; PCF campaign handoff polish; playback/delivery architecture polish.
+- **v0.8 exit gate:** sync all **3 remote beta test sites** (Vanilla = **bandpromo.site** / Twisted Chronicles / HITZ) to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. Fresh installs always use bandpromo.site; never wipe the local Google Drive working copy. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
+- **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists, page OG tags.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
 
@@ -565,7 +559,7 @@ Feedback is welcome on all of the above; missing items in the “In progress” 
 The flexible page builder is the long-term composition surface:
 
 - **Core blocks** (every install): rich text, picture+text, list — with more core block types over time.
-- **Module blocks** (optional per install): gallery (grid/carousel/parallax referencing a gallery library), news, fanboard, feeds, and similar.
+- **Module blocks** (optional per install): gallery (grid / list / carousel / animated referencing a gallery library), news, fanboard, feeds, and similar.
 - **Not module blocks:** playlists and lyrics remain in the **player shell**. Pages link **into** playlists via track URLs; they do not embed playlist players.
 
 Admin keeps familiar **Playlist** and **Gallery** management areas, but each supports **multiple libraries** instead of exactly one. Placement differs:
@@ -746,7 +740,7 @@ Theme: public-readiness, **access-tier implementation**, user roles, and user-fa
 
 Goals:
 
-- **implement** the access model defined in v0.8: admin/dev (full), VIP (pre-access via embargo schedule + per-item operator override), registered fan (released catalog), anonymous (released-only with clear login upsell)
+- **implement** the access model defined in v0.8: admin/dev (full), VIP (pre-access via embargo schedule + per-item operator override), registered fan (released catalogue), anonymous (released-only with clear login upsell)
 - **implement** login/FAQ/shared-link entry: shared URLs → login + FAQ context; **restricted anonymous entry** on the login page
 - registered-user foundation beyond today's listener accounts
 - excerpt/full-access rules where needed for public previews
@@ -806,13 +800,13 @@ Examples of good early registered-user features:
 
 ## v2+ goals
 
-Theme: integrations, **marketing machine** automation, and campaign tooling built on catalog content the operator already manages in v0.8.
+Theme: integrations, **marketing machine** automation, and campaign tooling built on catalogue content the operator already manages in v0.8.
 
 Examples:
 
 - semi-automatic marketing campaigns from existing releases and pages
 - **timed worldwide drops** (`release_at_utc` or operator-local instant) with fan countdown, pre/post-drop chat, and drop-moment analytics
-- social/share copy and image series scheduled from catalog state
+- social/share copy and image series scheduled from catalogue state
 - newsletters and mailing integrations tied to tour/release calendars
 - QR and shortlink generation for campaigns
 - campaign checklists and operator workflow automation
@@ -876,7 +870,7 @@ Before calling v1.0 releaseable:
 
 bandPromo started as a self-hosted way for artists to present music better than simply sending files through cloud storage links, download folders, or generic sharing services. The original need was not to build another streaming platform, but to give the artist control over presentation, context, access, identity, and listener experience.
 
-The project has since grown into a broader idea: small artists, independent musicians, micro-labels, and experimental creators need a credible way to publish, preview, promote, and monetize their work outside large platform ecosystems. Many of these artists receive little practical benefit from the discovery advantages of major streaming platforms. Their work is technically available, but effectively buried beneath large catalogs, algorithmic preference structures, playlist gatekeeping, advertising budgets, major-label leverage, and high-volume content strategies.
+The project has since grown into a broader idea: small artists, independent musicians, micro-labels, and experimental creators need a credible way to publish, preview, promote, and monetize their work outside large platform ecosystems. Many of these artists receive little practical benefit from the discovery advantages of major streaming platforms. Their work is technically available, but effectively buried beneath large catalogues, algorithmic preference structures, playlist gatekeeping, advertising budgets, major-label leverage, and high-volume content strategies.
 
 bandPromo should therefore remain focused on artist-owned presence rather than platform dependency. The purpose is not to replace Spotify, Apple Music, YouTube, Bandcamp, SoundCloud, or social media. The purpose is to give artists a home base that they control: their own installation, their own domain, their own release presentation, their own fan contact surface, and their own route to direct support, sales, downloads, mailing lists, private listening, press access, and campaign material.
 
@@ -943,7 +937,7 @@ Possible v2+ goals include:
 - identifying which tracks, pages, or campaigns receive meaningful engagement
 - helping the artist understand direct audience behavior without depending on platform dashboards
 
-These features should be assistant-like, not fully autonomous. The operator should remain responsible for publishing, sending, claiming, targeting, and approving promotional material. bandPromo can draft, suggest, package, organize, validate, and schedule locally, but should not silently act as the artist in public channels without explicit operator approval.
+These features should be assistant-like, not fully autonomous. The operator should remain responsible for publishing, sending, claiming, targeting, and approving promotional material. bandPromo can draft, suggest, package, organise, validate, and schedule locally, but should not silently act as the artist in public channels without explicit operator approval.
 
 ### Product boundaries for v2+
 
@@ -961,9 +955,9 @@ If future support, membership, or premium-access features need provider-side ver
 
 If bandPromo later sells paid modules, themes, services, or other install-locked add-ons directly, a simple visible installation UID will not be enough to protect those entitlements. The future-proof design boundary should be: core bandPromo stays fully functional without central activation, while install-locked paid add-ons may rely on a stronger installation identity and provider-side entitlement check that can distinguish a legitimate moved/restored install from a copied clone.
 
-bandPromo should not become a central discovery catalog.
+bandPromo should not become a central discovery catalogue.
 
-A central catalog would change the project’s role. It could create moderation, ranking, takedown, spam, copyright, and platform-governance obligations. If discovery features are ever considered, they should be treated as a separate strategic decision with a much higher risk profile.
+A central catalogue would change the project’s role. It could create moderation, ranking, takedown, spam, copyright, and platform-governance obligations. If discovery features are ever considered, they should be treated as a separate strategic decision with a much higher risk profile.
 
 bandPromo should avoid central user accounts across installations.
 
@@ -1021,7 +1015,7 @@ Mitigation:
 - document operator responsibility
 - make integrations operator-owned
 - avoid holding money or content centrally
-- avoid global ranking or catalog features unless intentionally designed as a separate product
+- avoid global ranking or catalogue features unless intentionally designed as a separate product
 
 #### 2. Rights and content risk
 

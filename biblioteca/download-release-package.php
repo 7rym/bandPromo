@@ -18,12 +18,12 @@ if ($filename === '' || str_contains($filename, '..')) {
 }
 
 $lower = strtolower($filename);
-$allowed = (bool) preg_match('/^bandpromo-[a-z0-9-]+-\d{8}-\d{6}\.prp$/i', $filename)
+$allowed = (bool) preg_match('/^bandpromo-[a-z0-9-]+-\d{8}-\d{6}\.(pcf|prp)$/i', $filename)
     || (bool) preg_match('/^release-package-[a-z0-9-]+-\d{8}-\d{6}\.zip$/i', $filename);
 if (!$allowed) {
     http_response_code(400);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'error' => 'Invalid portable release package filename.']);
+    echo json_encode(['ok' => false, 'error' => 'Invalid campaign file name.']);
     exit;
 }
 
@@ -45,9 +45,9 @@ bandpromo_admin_audit_log('release_package_downloaded', [
     ],
 ]);
 
-$mime = str_ends_with($lower, '.prp') || str_ends_with($lower, '.zip')
-    ? 'application/zip'
-    : 'application/octet-stream';
+$mime = str_ends_with($lower, '.pcf') || str_ends_with($lower, '.prp')
+    ? 'application/octet-stream'
+    : (str_ends_with($lower, '.zip') ? 'application/zip' : 'application/octet-stream');
 
 header('Content-Type: ' . $mime);
 header('Content-Length: ' . (string) filesize($path));

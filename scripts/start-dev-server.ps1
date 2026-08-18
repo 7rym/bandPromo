@@ -22,7 +22,7 @@ if (-not (Test-Path -LiteralPath $logDir)) {
 }
 
 $php = (Get-Command php -ErrorAction Stop).Source
-# Large PRP imports (e.g. Spandexual ~380MB) need upload/post ceilings above the
+# Large PCF imports (e.g. Spandexual ~380MB) need upload/post ceilings above the
 # PHP defaults (2M/8M). Hosted installs use biblioteca/templates/runtime/user.ini.
 $argumentList = @(
     "-d", "date.timezone=$Timezone",

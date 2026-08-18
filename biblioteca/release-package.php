@@ -5,10 +5,39 @@ const BANDPROMO_RELEASE_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releas
 const BANDPROMO_GITHUB_REPOSITORY = '7rym/bandPromo';
 const BANDPROMO_GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/7rym/bandPromo/releases?per_page=100';
 const BANDPROMO_GITHUB_RELEASES_ATOM_URL = 'https://github.com/7rym/bandPromo/releases.atom';
-/** Durable Demo PRP lives on a fixed release tag, not every app build. */
+/** Durable Demo PCF lives on a fixed release tag, not every app build. */
 const BANDPROMO_DEMO_CONTENT_TAG = 'demo-content';
 const BANDPROMO_DEMO_MANIFEST_URL = 'https://github.com/7rym/bandPromo/releases/download/demo-content/demo-manifest.json';
+const BANDPROMO_DEMO_PCF_FILENAME = 'bandPromo-demo.pcf';
+const BANDPROMO_DEMO_PRP_FILENAME = 'bandPromo-demo.prp';
+const BANDPROMO_DEMO_PCF_URL = 'https://github.com/7rym/bandPromo/releases/download/demo-content/bandPromo-demo.pcf';
+/** Legacy published asset until the next demo-content publish. */
 const BANDPROMO_DEMO_PRP_URL = 'https://github.com/7rym/bandPromo/releases/download/demo-content/bandPromo-demo.prp';
+
+function bandpromo_pcf_is_campaign_file_extension(string $ext): bool
+{
+    $ext = strtolower(trim($ext, ". \t\n\r\0\x0B"));
+
+    return in_array($ext, ['pcf', 'prp', 'zip'], true);
+}
+
+function bandpromo_pcf_operator_extension_error(): string
+{
+    return 'Campaign files must be .pcf.';
+}
+
+function bandpromo_demo_pcf_alternate_url(string $url): string
+{
+    if (preg_match('/\.pcf$/i', $url) === 1) {
+        return (string) preg_replace('/\.pcf$/i', '.prp', $url);
+    }
+    if (preg_match('/\.prp$/i', $url) === 1) {
+        return (string) preg_replace('/\.prp$/i', '.pcf', $url);
+    }
+
+    return '';
+}
+
 const BANDPROMO_DEFAULT_THEME_MARKER = 'data/default-theme-package.json';
 const BANDPROMO_DEFAULT_THEME_WORKDIR = '.bandpromo-theme-package';
 const BANDPROMO_DEFAULT_THEME_DISPLAY_VERSION = '1.0';
@@ -288,6 +317,25 @@ function bandpromo_release_download_file(string $url, string $destination): void
     stream_copy_to_stream($source, $target);
     fclose($source);
     fclose($target);
+}
+
+function bandpromo_release_download_demo_campaign_file(string $url, string $destination, ?callable $logger = null): string
+{
+    try {
+        bandpromo_release_download_file($url, $destination);
+
+        return $destination;
+    } catch (Throwable $first) {
+        $alt = bandpromo_demo_pcf_alternate_url($url);
+        if ($alt === '') {
+            throw $first;
+        }
+        $altDest = dirname($destination) . DIRECTORY_SEPARATOR . basename($alt);
+        bandpromo_release_log($logger, '[demo campaign] Preferred demo file was not available; trying the published filename…');
+        bandpromo_release_download_file($alt, $altDest);
+
+        return $altDest;
+    }
 }
 
 function bandpromo_release_sha256_file(string $path): string {

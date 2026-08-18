@@ -114,7 +114,7 @@ Available paths:
 - Run `python scripts/build_release_package.py --clean --skip-demo-manifest` locally for a quick app package/manifest sanity check (use `--require-demo-manifest` when the durable `demo-content` release exists).
 - Trigger **Build release package artifact** for a private/manual artifact build (no public release).
 - Trigger **Publish release package** when a build should become the latest operator-facing immutable GitHub Release package (`bandPromo.zip` + `release-manifest.json` only).
-- Update Demo PRP only when campaign content changes: `python scripts/prepare_demo_content_package.py --prp path\to\export.prp --clean --publish`.
+- Update Demo PCF only when campaign content changes: `python scripts/prepare_demo_content_package.py --pcf path\to\export.pcf --clean --publish`.
 - Or use `scripts/session-end.ps1 -Push -Publish` after a validated checkpoint commit.
 
 Example publish command (GitHub CLI):
@@ -133,7 +133,7 @@ The bootstrap installer and admin **Site update** both rely on the published `re
 
 **Fresh-install tests** always run on **https://bandpromo.site** (Vanilla: empty install + setup / Site update). The other two remote test sites are **Twisted Chronicles** and **HITZ**. Never delete local `data/`, `media/`, `log/` (analytics/audit test data), or `backups/` in this Google Drive working copy.
 
-Local PHP built-in server must allow large PRP uploads: `scripts/start-dev-server.ps1` sets `upload_max_filesize=512M` / `post_max_size=520M`. Hosted installs use `biblioteca/templates/runtime/user.ini` (same ceilings). Backup/PRP background jobs must still run when `fastcgi_finish_request()` is missing.
+Local PHP built-in server must allow large PCF uploads: `scripts/start-dev-server.ps1` sets `upload_max_filesize=512M` / `post_max_size=520M`. Hosted installs use `biblioteca/templates/runtime/user.ini` (same ceilings). Backup/PCF background jobs must still run when `fastcgi_finish_request()` is missing.
 
 Platform install icons are tracked at `biblioteca/templates/icons/bP-icons.zip`. Build/setup/packaging copy and expand them into gitignored `media/icons/` when required favicon/PWA files are missing; they are never committed under `/media`.
 

@@ -7,9 +7,9 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 - bandPromo is a PHP-based music site with an admin panel, setup flow, media build pipeline, and analytics.
 - Runtime/user-managed content lives outside tracked templates and is created during setup.
-- **Campaign content** is portable via **PRP** (`.prp` ZIP) — see [PORTABILITY.md](PORTABILITY.md). Setup imports `bandPromo-demo.prp`; do not invent parallel default-theme/demo content packages for new work.
-- **No special demo content handling:** setup imports `bandPromo-demo.prp` as a normal PRP, then locks it. Operators hide / duplicate; localhost may unlock + re-export. Hide is release-level (`demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`), not filename-prefix policy; brand shell stays visible; hide is blocked while non-demo containers still use demo campaign assets. Do not add heal/sync/force/`bandPromo_*`→demo forks or a `system_managed` freeze beyond `locked`. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) and [PORTABILITY.md](PORTABILITY.md).
-- The entire `/media`, `/data`, `/log`, and `/backups` trees are git-ignored. Demo masters travel in the demo PRP / published artifacts, not as tracked git binaries.
+- **Campaign content** is portable via **PCF** (Portable Campaign File, `.pcf`) — see [PORTABILITY.md](PORTABILITY.md). Setup imports `bandPromo-demo.pcf` (legacy `bandPromo-demo.prp` still accepted until the next demo-content publish). Do not invent parallel default-theme/demo content packages for new work.
+- **No special demo content handling:** setup imports the Demo PCF as a normal campaign file, then locks it. Operators hide / duplicate; localhost may unlock + re-export. Hide is release-level (`demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`), not filename-prefix policy; brand shell stays visible; hide is blocked while non-demo containers still use demo campaign assets. Do not add heal/sync/force/`bandPromo_*`→demo forks or a `system_managed` freeze beyond `locked`. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) and [PORTABILITY.md](PORTABILITY.md).
+- The entire `/media`, `/data`, `/log`, and `/backups` trees are git-ignored. Demo masters travel in the Demo PCF / published artifacts, not as tracked git binaries.
 - Apache/PHP protection stubs (root `.htaccess`, `.user.ini`, `play/.htaccess`, deny-all stubs under data/log/backups/media) are generated from `biblioteca/templates/runtime/` by setup when missing — not tracked at install paths.
 - Operators can verify and repair those managed stubs from **System → Security** (`security-sanity-check.php` / `security-sanity-repair.php`). Repair overwrites drifted managed stubs only; it never rewrites `web-config.json`.
 - IDE preferences (`.vscode/`, `.cursor/`, `.editorconfig`) are local-only and not tracked.
@@ -29,10 +29,20 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - **desktop.ini files:** Windows + Google Drive creates these metadata files in every folder locally. They are **not** tracked by git (see `.gitignore`) and will be recreated on every local sync. Never try to add them to git; they cause corruption in `.git/refs/` and should always be ignored. If you accidentally commit one, remove it immediately.
 - This repository lives inside Google Drive, so `.gitignore` alone is not enough. Run `powershell -ExecutionPolicy Bypass -File scripts/protect-google-drive-git.ps1` once per clone to move `.git` outside the synced folder. That is the durable fix; `.gitignore` only protects the working tree.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
-- Keep repository-authored text in English only.
+- Keep repository-authored text in **UK English** only (not US English). See **Language** below.
 - Exception: content inside `biblioteca/templates/` and runtime user data (for example `data/`) may contain any language.
 - Always add a timestamped note to `docs/CHANGELOG.md` whenever repository files are changed.
 - **Python 3.6.9 hard floor:** every file under `scripts/` must parse and run on CPython **3.6.9+** (shared-host baseline, e.g. bandpromo.site). Do not use `from __future__ import annotations`, PEP 604 `X | Y`, PEP 585 `list[str]`/`dict[...]`, `subprocess` `text=`/`capture_output=`, or `shutil.rmtree(..., onexc=)`. Prefer `typing.List`/`Dict`/`Optional`/`Union`, `universal_newlines=True`, and `stdout=`/`stderr=` pipes. Run `python scripts/check_python36_compat.py` before committing script changes.
+
+### Language
+
+House style is **UK English** for every repository-authored string: admin and player copy, docs, comments, logs, notifications, and system messages. Prefer **catalogue**, **colour**, **organise**, **favourite**, **-ise** / **-our** spellings over US **catalog**, **color**, **organize**, **favorite**.
+
+Do not rename existing code identifiers, CSS properties, JSON keys, file names, or APIs to match UK spelling (`catalog_id`, `demo-catalog-state.php`, `buildCatalog.py`, CSS `color`, HTML/JS ids). New identifiers may keep the established `catalog` / `color` technical names so they stay consistent with those APIs. Operator-facing labels next to those identifiers still use UK English (Content → **Catalogue**, **Repair catalogue**).
+
+**Portable Campaign File (PCF):** operator-facing name is always **PCF** or **`.pcf`**. Never tell operators it is a ZIP, that they may rename it to `.zip`, or mention ZipArchive for campaign files. Full site backup remains a ZIP; the application package remains `bandPromo.zip`. Import still accepts legacy `.prp` without advertising it. Internally the file is zip-backed (`ZipArchive`). Prefer `.pcf` on export and on the durable `demo-content` tag; fall back to `.prp` when that is what GitHub still serves.
+
+`biblioteca/templates/` and runtime user data may use any language.
 
 ### VERSION + push/pull workflow
 
@@ -54,13 +64,13 @@ After pushing a checkpoint meant for testers, also publish the release package:
 3. Confirm the new tag appears on GitHub Releases with **`bandPromo.zip`** and **`release-manifest.json` only** (clean title like `bandPromo v0.8.15 build 377`).
 4. Sanity-check that **Site update** on a test install offers the new build.
 
-**Demo content is separate:** durable GitHub release tag `demo-content` holds `bandPromo-demo.prp` + `demo-manifest.json`. Update it only when demo campaign content changes. Setup imports it once; **Site update** re-imports when the published SHA differs from the install marker (locked demo; skip unlocked localhost). Admin Publish does not re-download Demo PRP.
+**Demo content is separate:** durable GitHub release tag `demo-content` holds `bandPromo-demo.pcf` + `demo-manifest.json` (legacy `bandPromo-demo.prp` until the next demo publish). Update it only when demo campaign content changes. Setup imports it once; **Site update** re-imports when the published SHA differs from the install marker (locked demo; skip unlocked localhost). Admin Publish does not re-download the Demo PCF.
 
 ```powershell
-python scripts/prepare_demo_content_package.py --prp path\to\export.prp --clean --publish
+python scripts/prepare_demo_content_package.py --pcf path\to\export.pcf --clean --publish
 ```
 
-App release manifests embed a pointer to that durable Demo PRP; they do not re-upload the ~145MB PRP on every app build.
+App release manifests embed a pointer to that durable Demo PCF; they do not re-upload the ~145MB PCF on every app build.
 
 Example (GitHub CLI):
 
@@ -115,14 +125,14 @@ Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFA
 
 ## Common Pitfalls
 
-- **Wiping local `data/`, `media/`, or `log/`:** this Google Drive tree is the live operator catalog (`log/` includes analytics test history). Fresh-install smokes always run on **bandpromo.site**; the other remote tests are Twisted Chronicles and HITZ. Do not rmtree runtime roots unless the operator named those paths in the same message.
+- **Wiping local `data/`, `media/`, or `log/`:** this Google Drive tree is the live operator catalogue (`log/` includes analytics test history). Fresh-install smokes always run on **bandpromo.site**; the other remote tests are Twisted Chronicles and HITZ. Do not rmtree runtime roots unless the operator named those paths in the same message.
 - Accidentally tracking local files from `data/`, `log/`, `backups/`, `media/`, root config, generated assets, `.vscode/`, `.cursor/`, or `.editorconfig`.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to bump `VERSION` before pushing changes to `main`.
 - Reaching for Bash/Linux commands in a Windows PowerShell session before checking the active environment and available repo tasks.
 - Assuming ripgrep is available on every Windows environment.
 - Introducing non-UTF-8 encoded files that later cause garbled output in tools/logs.
-- Mixing non-English operational text into code comments, docs, logs, or admin/system messaging.
+- Mixing US English or non-English operational text into code comments, docs, logs, or admin/system messaging (house style is UK English).
 - **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
 - **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
 - **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Platform favicon seed is tracked at `biblioteca/templates/icons/bP-icons.zip`; packaging/setup extract it into gitignored `media/icons/` for the app ZIP and installs. Never re-add demo binaries or host Apache stubs to git.
@@ -134,7 +144,7 @@ Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFA
 - Ask for confirmation before destructive or wide-reaching repository operations. Deleting gitignored runtime trees (`data/`, `media/`, `log/`, `backups/`) is the same class of action as entering a password: **forbidden** unless the operator named those exact paths in the same message. Docs and “fresh install” are not permission.
 
 
-_Last updated: 2026-08-14_
+_Last updated: 2026-08-18_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
-- **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PRP / `.prp` contract is source of truth for demo and operator campaign handoff.
+- **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PCF / `.pcf` contract is source of truth for demo and operator campaign handoff.

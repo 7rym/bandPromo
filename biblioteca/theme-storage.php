@@ -1230,7 +1230,10 @@ function bandpromo_theme_normalize_document(array $input, ?string $expectedId = 
         'system' => $system,
         'locked' => $locked,
         'release_id' => $releaseId,
-        'mood' => bandpromo_brand_normalize_narrative_field($input['mood'] ?? '', 500),
+        'mood' => bandpromo_brand_normalize_narrative_field(
+            $input['mood'] ?? $input['description'] ?? '',
+            500
+        ),
         'keywords' => array_values(array_filter(array_map(
             static fn(mixed $item): string => bandpromo_brand_normalize_narrative_field($item, 80),
             is_array($input['keywords'] ?? null)
