@@ -400,7 +400,7 @@ Policy — **lock before implementation**:
 - [x] Lock **picker filter contract** per admin context (track cover, release cover, gallery, page picture, brand logo, shell background, share source).
 - [ ] Lock **format-by-content** rule: delivery codec follows alpha and role requirements; no global JPEG flattening (see [MEDIA-HANDLING.md](MEDIA-HANDLING.md)).
 - [ ] Lock **dimension-by-context** rule: delivery pixels target real UI surfaces (+ retina margin), not source upload dimensions.
-- [ ] Complete **display-context audit**: verify seed matrix (logo 320px, playlist thumb 70px, card 320px, gallery grid 160px, lightbox, share crops) on phone/tablet/desktop; publish delivery context registry.
+- [ ] Complete **display-context audit**: verify seed matrix (logo 320px, playlist thumb 70px, card 320px, gallery grid natural-ratio ~220–320px, lightbox, share crops) on phone/tablet/desktop; publish delivery context registry.
 - [ ] Lock **variant set per role**: which of `thumb` / `card` / `lightbox` / `share` / video `poster` / `standard-stream` each reference context requires.
 
 Implementation order (v0.8.4):
@@ -464,6 +464,8 @@ Implementation slices (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) order):
 - [x] Implement path deep links with per-release track slugs; embargoed tracks visible but not playable.
 - [x] Implement `data/galleries` + registry; migrate off `data/gallery.json`.
 - [x] Implement first gallery **module block** on pages (minimum: `grid` preset).
+- [x] Gallery Grid (original photo ratios, max-across columns), List rows, and Carousel (snap, peek, optional in-view autorotate).
+- [ ] Gallery **Parallax** preset (still compact tiles).
 - [x] Implement `data/themes` + setup protected seed + duplicate + active pointer. *(Transitional — migrate to `data/brands/` + `bandpromo-default` in management slice.)*
 - [x] Split `picture` (plain caption) and `picture_richtext` page blocks.
 - [x] Remove Gallery player tab once page-embedded gallery modules cover the operator workflow.

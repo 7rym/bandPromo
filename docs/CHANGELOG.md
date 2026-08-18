@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-18 15:50 - Checkpoint page gallery Grid/List/Carousel, Video page blocks, and page editor chrome on `main` as **v0.8.29 build 408**; publish GitHub Release `v0.8.29-build-408` for Site update. Next: Gallery Parallax.
+
+2026-08-18 15:45 - Page editor adds a **Page builder** heading above the block-editing hint.
+
+2026-08-18 15:40 - Page editor add-block heading is **Page building blocks**.
+
+2026-08-18 15:35 - Page editor Back/name bar uses the same `--border2` fill as block headers; the page name field is bold.
+
+2026-08-18 15:30 - Page editor **Page blocks** and **Live preview** chrome use the same `--border2` fill as block card headers.
+
+2026-08-18 15:25 - Picture and Video blocks no longer show a “Caption (plain text)” label; the field keeps the optional-caption placeholder.
+
+2026-08-18 15:20 - Picture + text blocks no longer show a “Text with this picture” label above the rich-text toolbar.
+
+2026-08-18 15:10 - Page editor keeps **Page blocks** (add-block bar) and **Live preview** sticky at the top while the left column scrolls through blocks.
+
+2026-08-18 15:00 - Page editor block headers use the lighter `--border2` bar (`#333`) instead of a darker fill, so they lift off the card form.
+
+2026-08-18 14:55 - Page editor block headers are a distinct chrome bar (darker fill, bottom edge, brighter type) so they no longer blend into the form.
+
+2026-08-18 14:50 - Gallery block source control is labeled **Source** inline with the selector. Layout helper text no longer repeats “Edit items in Content → Galleries.”
+
+2026-08-18 14:45 - Carousel **Speed** chip pool: Slow (3s), Normal (2s), Fast (1s) for in-view autorotate.
+
+2026-08-18 14:40 - Gallery layout helper text is per preset (Grid / List / Carousel / Parallax). Carousel gains **Autorotate** (On/Off); it advances while the block is on screen and stops when it leaves the viewport, the tab is hidden, or reduced-motion is on.
+
+2026-08-18 14:30 - Page gallery **Carousel** is a snap-scroll hero with neighbor peek, prev/next, and dots. Photos keep original ratios; click still opens the lightbox. Parallax remains compact tiles.
+
+2026-08-18 14:25 - Gallery Grid **Max across** uses CSS grid (`minmax(0, 1fr)`) so 4–5 columns fit inside the player pane (borders and photo intrinsic width no longer overflow).
+
+2026-08-18 14:10 - Page gallery Grid keeps original photo ratios (no 4:5 crop). Operators set **Max across** (Auto or 2–6) as a column ceiling. Layout preset uses chip radios (Grid|List|Carousel|Parallax). Player path deep links (`/play/{playlist}/{track}`) are parsed in `play/index.php` so php -S no longer falls through to the default playlist and `replaceState` no longer overwrites the URL.
+
+2026-08-18 13:50 - Page gallery **Grid** is a centered mosaic (flex `1 1 220px`, max 280px, 4:5 crop, caption overlay). **List** is editorial rows (168px square thumb + name). Carousel and Parallax stay compact 180×160 tiles until those presets are built. Player `page-content.css` cache-busts on file mtime so layout CSS is not stuck on the VERSION query.
+
+2026-08-18 13:35 - Picture / Picture + text / Video blocks gain Flow **Full row**: the block occupies the whole row and centers the media (width fraction still sizes the picture). Carousel and Parallax gallery presets are still visual stubs of Grid.
+
+2026-08-18 13:10 - Page Video Audio/Loop controls use the same compact chip radio pool as Backup collision (On|Off), on the Width/Flow row instead of stacked native radios.
+
+2026-08-18 12:40 - Admin main tabs remember the last used sub-tab (Files Audio/Visual/SFX/Brand assets, Content Catalogue/Playlists/Galleries/Pages/Branding, plus Analytics/Settings/System/Documentation). Switching primary tabs no longer always opens the first sub-level. Explicit deep links keep their sub-tab.
+
+2026-08-18 12:28 - Video delivery keeps soundtrack by default (gallery, page, unassigned). Brand shell living backgrounds (`role=shell-background-video`) and living covers (role or track assignment) build silent `standard-stream`. Existing files rebuild on the next video-delivery pass when `audio_mode` no longer matches.
+
+2026-08-18 11:52 - Video page blocks now include editor radio toggles for **Audio** (On/Off) and **Loop** (On/Off). Settings are stored in page JSON and applied in preview/player rendering (`muted`, `loop`).
+
+2026-08-18 11:40 - Pages now support a **Video** content block end-to-end (editor + save + preview/player render). Video blocks edit with the same width/flow controls as Picture blocks and render an inline media player with optional caption.
+
 2026-08-17 19:55 - Published updated Demo PRP to durable GitHub tag **demo-content** (SHA256 `813689c4…`, 206167434 bytes). Retry application GitHub Release **v0.8.29-build-407**.
 
 2026-08-17 19:30 - Checkpoint Admin Open player and hide-demo false-positive fix on `main` as **v0.8.29 build 407**; publish GitHub Release `v0.8.29-build-407` for Site update.

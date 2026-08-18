@@ -19,7 +19,8 @@ bandpromo_playlist_ensure_seeded($playerRoot);
 $currentUserRole = current_user_role();
 $operatorBypass = in_array($currentUserRole, ['admin', 'developer'], true);
 
-$requestedSegment = trim((string) ($_GET['playlist'] ?? ''));
+$playerRoute = bandpromo_playlist_route_from_request();
+$requestedSegment = trim((string) ($playerRoute['playlist'] ?? ''));
 $resolvedPlaylistId = $requestedSegment !== ''
     ? bandpromo_playlist_resolve_route_id($playerRoot, $requestedSegment)
     : '';
@@ -62,8 +63,8 @@ if (!is_array($siteCfg)) {
 
 require_once '../biblioteca/config-loader.php';
 
-$deepLinkReleaseSlug = strtolower(trim((string) ($_GET['release'] ?? '')));
-$deepLinkTrackSlug = strtolower(trim((string) ($_GET['track'] ?? '')));
+$deepLinkReleaseSlug = strtolower(trim((string) ($playerRoute['release'] ?? '')));
+$deepLinkTrackSlug = strtolower(trim((string) ($playerRoute['track'] ?? '')));
 $playlistCatalog = bandpromo_playlist_player_catalog_entries($playerRoot, $operatorBypass);
 $activePlaylistSlug = bandpromo_playlist_public_slug($playerRoot, $activePlaylistId);
 
@@ -268,7 +269,7 @@ if ($supportUrl !== '') {
     ?>
     <meta name="theme-color" content="<?php echo htmlspecialchars($themeColorMeta, ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="/biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
-    <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
+    <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/../biblioteca/page-content.css'); ?>">
     <?php
     echo bandpromo_brand_render_css_for_id($playerRoot, $playerBrandId);
     ?>
@@ -611,6 +612,7 @@ if ($supportUrl !== '') {
     <script src="/biblioteca/session-auth.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/shell-background.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/lightbox.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
+    <script src="/biblioteca/page-gallery.js?v=<?php echo filemtime(__DIR__ . '/../biblioteca/page-gallery.js'); ?>"></script>
     <script src="/biblioteca/player-markdown.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script src="/biblioteca/player.js?v=<?php echo rawurlencode($appVersion); ?>"></script>
     <script>

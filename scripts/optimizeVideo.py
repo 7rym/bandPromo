@@ -12,8 +12,9 @@ Output:
 - media/visual/delivery/{asset_id}/poster.jpg
 
 Audio policy:
-- role=gallery → keep soundtrack in delivery
-- all other video roles (living covers, shell backgrounds, unassigned, …) → silent delivery (video track only)
+- brand shell living backgrounds (role=shell-background-video) → silent delivery
+- living covers (role=living-cover, or assigned on an audio track) → silent delivery
+- all other video roles (gallery, page, unassigned, …) → keep soundtrack in delivery
 """
 
 import io
@@ -50,6 +51,8 @@ VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 SUPPORTED_VIDEO_EXTENSIONS = ('.mp4', '.mov', '.webm', '.mkv')
 _XXHASH_WARNED = False
+_LIVING_COVER_REFS = None
+SILENT_VIDEO_ROLES = ('shell-background-video', 'living-cover')
 
 
 def warn_xxhash_once():
@@ -152,12 +155,66 @@ def delivery_mode_for(source_path: Path, keep_audio: bool = True) -> str:
     return 'transcode'
 
 
-def video_keeps_audio(asset) -> bool:
-    """Gallery videos may keep soundtrack; living covers / shell / other roles are silent."""
+def living_cover_refs():
+    """Asset ids / filenames assigned as living covers on audio tracks."""
+    global _LIVING_COVER_REFS
+    if _LIVING_COVER_REFS is not None:
+        return _LIVING_COVER_REFS
+
+    refs = set()
+    payload = load_asset_registry()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    for asset in assets.values():
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or '').strip().lower() != 'audio':
+            continue
+        display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+        raw = str(display.get('living_cover') or '').strip()
+        if raw == '':
+            continue
+        name = Path(raw.replace('\\', '/')).name
+        if name == '':
+            continue
+        refs.add(name.lower())
+        stem = Path(name).stem
+        if stem:
+            refs.add(stem.lower())
+
+    _LIVING_COVER_REFS = refs
+    return _LIVING_COVER_REFS
+
+
+def video_is_silent_delivery(asset) -> bool:
+    """Brand shell backgrounds and living covers are silent; other videos keep soundtrack."""
     if not isinstance(asset, dict):
-        return True
+        return False
     role = str(asset.get('role') or '').strip().lower()
-    return role == 'gallery'
+    if role in SILENT_VIDEO_ROLES:
+        return True
+
+    refs = living_cover_refs()
+    if not refs:
+        return False
+
+    candidates = [
+        str(asset.get('id') or '').strip().lower(),
+        basename_lower(asset.get('original_filename')),
+        basename_lower(asset.get('master_filename')),
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if candidate in refs:
+            return True
+        stem = Path(candidate).stem.lower()
+        if stem and stem in refs:
+            return True
+    return False
+
+
+def video_keeps_audio(asset) -> bool:
+    return not video_is_silent_delivery(asset)
 
 
 def audio_mode_label(keep_audio: bool) -> str:
@@ -208,7 +265,7 @@ def _run_ffmpeg_capture(command):
 
 
 def remux_mp4_silent(source_path: Path, target_path: Path) -> bool:
-    """Fast path: copy video stream, drop all audio (living covers / shell backgrounds)."""
+    """Fast path: copy video stream, drop all audio (brand shell / living covers)."""
     ffmpeg = get_ffmpeg_path()
     target_path.parent.mkdir(parents=True, exist_ok=True)
     command = [

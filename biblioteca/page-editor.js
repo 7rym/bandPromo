@@ -132,7 +132,7 @@
                 throw new Error(data.error || 'Could not load page preview');
             }
             if (typeof data.html === 'string') {
-                previewEl.innerHTML = data.html;
+                setPreviewHtml(data.html);
             } else {
                 previewEl.innerHTML = '<p class="page-editor-empty">Preview is not available for this page.</p>';
             }
@@ -241,6 +241,16 @@
         const blockDeleteCancelBtn = document.getElementById('pageBlockDeleteCancelBtn');
         const blocksEl = document.getElementById('pageEditorBlocks');
         const previewEl = document.getElementById('pageEditorPreview');
+
+        function setPreviewHtml(html) {
+            if (!previewEl) {
+                return;
+            }
+            previewEl.innerHTML = html;
+            if (typeof window.bandpromoBindPageGalleryCarousels === 'function') {
+                window.bandpromoBindPageGalleryCarousels(previewEl);
+            }
+        }
         const saveBtn = document.getElementById('pageSaveBtn');
         const pagePicturePickerField = document.getElementById('pagePicturePickerField');
 
@@ -250,7 +260,7 @@
             flow: 'row',
         };
 
-        const PICTURE_FLOWS = ['row', 'row-end', 'wrap-left', 'wrap-right', 'beside-left', 'beside-right'];
+        const PICTURE_FLOWS = ['row', 'row-end', 'row-center', 'wrap-left', 'wrap-right', 'beside-left', 'beside-right'];
 
         const PICTURE_LAYOUT_TO_STYLE = {
             full: { width_num: 1, width_den: 1, flow: 'row' },
@@ -277,6 +287,7 @@
             flows: [
                 { value: 'row', label: 'In row' },
                 { value: 'row-end', label: 'End of row' },
+                { value: 'row-center', label: 'Full row' },
                 { value: 'wrap-left', label: 'Wrap left' },
                 { value: 'wrap-right', label: 'Wrap right' },
                 { value: 'beside-left', label: 'Beside left' },
@@ -285,6 +296,22 @@
         };
         let galleryCatalog = [{ id: 'bandpromo-demo', title: 'bandPromo demo' }];
         let galleryPresets = ['grid', 'list', 'carousel', 'parallax'];
+        const galleryPresetLabels = {
+            grid: 'Grid',
+            list: 'List',
+            carousel: 'Carousel',
+            parallax: 'Parallax',
+        };
+        const galleryHints = {
+            grid: 'Mosaic of photos at their original ratios. Max across is a ceiling — narrower panes wrap to fewer columns.',
+            list: 'Editorial rows: square thumb on the left, name on the right.',
+            carousel: 'Snap-scroll hero with a peek of the next photo. Autorotate advances while this block is on screen (Slow 3s, Normal 2s, Fast 1s) and pauses when it is not.',
+            parallax: 'Full-width scenes (layout still in progress).',
+        };
+
+        function galleryHint(preset) {
+            return galleryHints[String(preset || 'grid')] || galleryHints.grid;
+        }
 
         function normalizeGalleryId(galleryId) {
             const id = String(galleryId || '').trim();
@@ -307,20 +334,52 @@
                 const selected = activeGalleryId === id ? ' selected' : '';
                 return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(entry.title || id)}</option>`;
             }).join('');
-            const presetOptions = galleryPresets.map((preset) => {
-                const selected = (block.preset || 'grid') === preset ? ' selected' : '';
-                return `<option value="${escapeHtml(preset)}"${selected}>${escapeHtml(preset)}</option>`;
-            }).join('');
+            const preset = String(block.preset || 'grid');
+            const columns = Number(block.columns) >= 2 ? Number(block.columns) : 0;
+            const presetChips = renderChipPool(
+                index,
+                'preset',
+                'Layout',
+                galleryPresets.map((value) => ({
+                    value,
+                    label: galleryPresetLabels[value] || value,
+                })),
+                preset
+            );
+            const columnChoices = [{ value: '0', label: 'Auto' }].concat(
+                [2, 3, 4, 5, 6].map((count) => ({ value: String(count), label: String(count) }))
+            );
+            const columnChips = renderChipPool(index, 'columns', 'Max across', columnChoices, String(columns));
+            const autorotateOn = block.autorotate === true;
+            const autorotateSpeed = ['slow', 'normal', 'fast'].includes(String(block.autorotate_speed || ''))
+                ? String(block.autorotate_speed)
+                : 'normal';
+            const autorotateChips = renderOnOffChipPool(index, 'autorotate', 'Autorotate', autorotateOn);
+            const speedChips = renderChipPool(
+                index,
+                'autorotate_speed',
+                'Speed',
+                [
+                    { value: 'slow', label: 'Slow' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'fast', label: 'Fast' },
+                ],
+                autorotateSpeed
+            );
             return `
-                <div class="page-block-field">
-                    <label>Gallery</label>
-                    <select data-field="gallery_id" data-block-index="${index}">${galleryOptions}</select>
+                <div class="page-picture-style-bar" data-block-index="${index}">
+                    <label class="page-picture-style-inline page-gallery-source-inline">
+                        <span class="page-picture-style-label">Source</span>
+                        <select class="page-gallery-source-select" data-field="gallery_id" data-block-index="${index}" aria-label="Gallery source">${galleryOptions}</select>
+                    </label>
+                    ${presetChips}
+                    <div data-gallery-columns-for="${index}"${preset === 'grid' ? '' : ' hidden'}>${columnChips}</div>
+                    <div data-gallery-carousel-opts-for="${index}"${preset === 'carousel' ? '' : ' hidden'}>
+                        ${autorotateChips}
+                        ${speedChips}
+                    </div>
                 </div>
-                <div class="page-block-field">
-                    <label>Layout preset</label>
-                    <select data-field="preset" data-block-index="${index}">${presetOptions}</select>
-                </div>
-                <p class="hint">Embeds the selected gallery on this page. Edit items in Content → Galleries.</p>
+                <p class="hint" data-gallery-hint-for="${index}">${escapeHtml(galleryHint(preset))}</p>
             `;
         }
 
@@ -558,6 +617,7 @@
         function blockLabel(block) {
             if (block?.type === 'picture') return 'Picture';
             if (block?.type === 'picture_richtext') return 'Picture + text';
+            if (block?.type === 'video') return 'Video';
             if (block?.type === 'gallery') return 'Gallery';
             if (block?.type === 'list') return 'List';
             return 'Text';
@@ -565,6 +625,10 @@
 
         function isPictureFamilyBlock(block) {
             return block?.type === 'picture' || block?.type === 'picture_richtext';
+        }
+
+        function isVisualMediaBlock(block) {
+            return isPictureFamilyBlock(block) || block?.type === 'video';
         }
 
         function renderToolbarButton(index, field, format, iconHtml, title, extraAttrs = '', wide = false) {
@@ -702,7 +766,40 @@
             }).join('');
         }
 
-        function renderPictureStyleBar(block, index) {
+        function renderChipPool(index, field, label, options, selected) {
+            const name = `page-block-${field}-${index}`;
+            const chips = options.map((entry) => {
+                const value = String(entry.value ?? '');
+                const text = String(entry.label ?? value);
+                const checked = String(selected) === value ? ' checked' : '';
+                return `
+                    <label class="visual-filter-chip prp-collision-chip">
+                        <input type="radio" name="${escapeHtml(name)}" data-field="${escapeHtml(field)}" data-block-index="${index}" value="${escapeHtml(value)}"${checked}>
+                        <span>${escapeHtml(text)}</span>
+                    </label>`;
+            }).join('');
+            return `
+                <div class="page-picture-style-inline">
+                    <span class="page-picture-style-label">${escapeHtml(label)}</span>
+                    <div class="visual-filter-chip-group" role="radiogroup" aria-label="${escapeHtml(label)}">${chips}</div>
+                </div>
+            `;
+        }
+
+        function renderOnOffChipPool(index, field, label, isOn) {
+            return renderChipPool(
+                index,
+                field,
+                label,
+                [
+                    { value: 'on', label: 'On' },
+                    { value: 'off', label: 'Off' },
+                ],
+                isOn ? 'on' : 'off'
+            );
+        }
+
+        function renderPictureStyleBar(block, index, extraHtml = '') {
             const style = resolvePictureStyle(block);
 
             return `
@@ -728,6 +825,7 @@
                                 data-block-index="${index}"
                                 aria-label="Picture flow">${renderPictureFlowOptions(style.flow)}</select>
                     </label>
+                    ${extraHtml}
                 </div>
             `;
         }
@@ -739,14 +837,12 @@
 
             const captionField = `
                 <div class="page-block-field">
-                    <label for="page-picture-caption-${index}">Caption (plain text)</label>
-                    <input type="text" id="page-picture-caption-${index}" data-field="caption" data-block-index="${index}" value="${escapeHtml(block.caption || '')}" maxlength="500" placeholder="Optional short caption">
+                    <input type="text" id="page-picture-caption-${index}" data-field="caption" data-block-index="${index}" value="${escapeHtml(block.caption || '')}" maxlength="500" placeholder="Optional short caption" aria-label="Caption">
                 </div>
             `;
 
             const richField = `
                 <div class="page-block-field">
-                    <label>Text with this picture</label>
                     ${renderRichEditor(index, 'body', block.body || '', true)}
                 </div>
             `;
@@ -761,6 +857,31 @@
                         </div>
                     </div>
                     ${block.type === 'picture_richtext' ? richField : captionField}
+                </div>
+            `;
+        }
+
+        function renderVideoEditor(block, index) {
+            const thumb = block.src
+                ? `<video src="${escapeHtml(block.src)}" class="page-picture-thumb" preload="metadata" muted playsinline></video>`
+                : '<div class="page-picture-empty">No video</div>';
+            const audioOn = block.audio_on !== false;
+            const loopOn = block.loop_on === true;
+
+            const playbackBar = `${renderOnOffChipPool(index, 'audio_on', 'Audio', audioOn)}${renderOnOffChipPool(index, 'loop_on', 'Loop', loopOn)}`;
+
+            return `
+                <div class="page-picture-editor">
+                    <div class="page-picture-top">
+                        <div class="page-picture-visual">${thumb}</div>
+                        <div class="page-picture-controls">
+                            <button type="button" class="btn btn-primary page-picture-change-btn" data-action="pick-video" data-block-index="${index}">${block.src ? 'Change video' : 'Choose video'}</button>
+                            ${renderPictureStyleBar(block, index, playbackBar)}
+                        </div>
+                    </div>
+                    <div class="page-block-field">
+                        <input type="text" id="page-video-caption-${index}" data-field="caption" data-block-index="${index}" value="${escapeHtml(block.caption || '')}" maxlength="500" placeholder="Optional short caption" aria-label="Caption">
+                    </div>
                 </div>
             `;
         }
@@ -789,13 +910,16 @@
             if (isPictureFamilyBlock(block)) {
                 return renderPictureEditor(block, index);
             }
+            if (block.type === 'video') {
+                return renderVideoEditor(block, index);
+            }
             if (block.type === 'list') {
                 return renderListEditor(block, index);
             }
             if (block.type === 'gallery') {
                 return renderGalleryEditor(block, index);
             }
-            return '<p class="hint">Unsupported block type. Remove it and add Text, Picture, Gallery, or List.</p>';
+            return '<p class="hint">Unsupported block type. Remove it and add Text, Picture, Video, Gallery, or List.</p>';
         }
 
         function renderBlockPreview(block) {
@@ -818,6 +942,27 @@
                             ${caption}
                         </figure>
                         ${body ? `<div class="page-picture-body">${body}</div>` : ''}
+                    </section>
+                `;
+            }
+            if (block.type === 'video') {
+                if (!block.src) return '';
+                const style = resolvePictureStyle(block);
+                const attrs = pictureStyleAttrs(style);
+                const caption = block.caption
+                    ? `<figcaption class="page-caption">${escapeHtml(block.caption)}</figcaption>`
+                    : '';
+                const poster = block.poster ? ` poster="${escapeHtml(block.poster)}"` : '';
+                const muted = block.audio_on === false ? ' muted' : '';
+                const loop = block.loop_on === true ? ' loop' : '';
+                return `
+                    <section class="page-picture page-video ${attrs.className}" style="${attrs.styleAttr}">
+                        <figure class="page-picture-media">
+                            <video controls preload="metadata" playsinline${poster}${muted}${loop}>
+                                <source src="${escapeHtml(block.src)}" type="video/mp4">
+                            </video>
+                            ${caption}
+                        </figure>
                     </section>
                 `;
             }
@@ -1466,7 +1611,7 @@
             }
 
             if (blocks.length === 0) {
-                blocksEl.innerHTML = '<p class="page-editor-empty">Start with + Text, + Picture, + Picture + text, or + List.</p>';
+                blocksEl.innerHTML = '<p class="page-editor-empty">Start with + Text, + Picture, + Video, + Picture + text, or + List.</p>';
                 queuePreview();
                 if (options.silent) {
                     window.requestAnimationFrame(() => {
@@ -1518,15 +1663,15 @@
                         return;
                     }
                     if (!resp.ok || !data.ok || typeof data.html !== 'string') {
-                        previewEl.innerHTML = renderPreviewHtml(documentState);
+                        setPreviewHtml(renderPreviewHtml(documentState));
                         return;
                     }
-                    previewEl.innerHTML = data.html;
+                    setPreviewHtml(data.html);
                 } catch (error) {
                     if (requestId !== previewRequestId) {
                         return;
                     }
-                    previewEl.innerHTML = renderPreviewHtml(documentState);
+                    setPreviewHtml(renderPreviewHtml(documentState));
                 }
             }, 200);
         }
@@ -1535,6 +1680,9 @@
             if (type === 'picture' || type === 'image') {
                 return { type: 'picture', src: '', alt: 'Picture', width_num: 1, width_den: 2, flow: 'row', caption: '' };
             }
+            if (type === 'video') {
+                return { type: 'video', src: '', alt: 'Video', width_num: 1, width_den: 2, flow: 'row', caption: '', audio_on: true, loop_on: false };
+            }
             if (type === 'picture_richtext') {
                 return { type: 'picture_richtext', src: '', alt: 'Picture', width_num: 1, width_den: 2, flow: 'row', body: '<p>Write text with this picture.</p>' };
             }
@@ -1542,7 +1690,7 @@
                 return { type: 'list', style: 'unordered', items: ['First item'] };
             }
             if (type === 'gallery') {
-                return { type: 'gallery', gallery_id: 'bandpromo-demo', preset: 'grid' };
+                return { type: 'gallery', gallery_id: 'bandpromo-demo', preset: 'grid', columns: 4, autorotate: false, autorotate_speed: 'normal' };
             }
             return { type: 'richtext', html: '<p>Write your text here.</p>' };
         }
@@ -1614,6 +1762,50 @@
                 return;
             }
 
+            if ((field === 'audio_on' || field === 'loop_on') && block.type === 'video') {
+                block[field] = String(value || '').toLowerCase() === 'on';
+                queuePreview();
+                return;
+            }
+
+            if (field === 'columns' && block.type === 'gallery') {
+                const parsed = parseInt(String(value), 10);
+                block.columns = Number.isFinite(parsed) && parsed >= 2 ? parsed : 0;
+                queuePreview();
+                return;
+            }
+
+            if (field === 'autorotate' && block.type === 'gallery') {
+                block.autorotate = String(value || '').toLowerCase() === 'on';
+                queuePreview();
+                return;
+            }
+
+            if (field === 'autorotate_speed' && block.type === 'gallery') {
+                const speed = String(value || '').toLowerCase();
+                block.autorotate_speed = ['slow', 'normal', 'fast'].includes(speed) ? speed : 'normal';
+                queuePreview();
+                return;
+            }
+
+            if (field === 'preset' && block.type === 'gallery') {
+                block.preset = value;
+                const columnsRow = layout?.querySelector(`[data-gallery-columns-for="${index}"]`);
+                if (columnsRow) {
+                    columnsRow.hidden = String(value) !== 'grid';
+                }
+                const carouselOpts = layout?.querySelector(`[data-gallery-carousel-opts-for="${index}"]`);
+                if (carouselOpts) {
+                    carouselOpts.hidden = String(value) !== 'carousel';
+                }
+                const hint = layout?.querySelector(`[data-gallery-hint-for="${index}"]`);
+                if (hint) {
+                    hint.textContent = galleryHint(value);
+                }
+                queuePreview();
+                return;
+            }
+
             block[field] = value;
             queuePreview();
         }
@@ -1630,7 +1822,7 @@
 
         function updatePictureStyleBar(index) {
             const block = documentState?.blocks?.[index];
-            if (!block || !isPictureFamilyBlock(block)) return;
+            if (!block || !isVisualMediaBlock(block)) return;
 
             const card = blocksEl?.querySelector(`.page-block-card[data-block-index="${index}"]`);
             const styleBar = card?.querySelector('.page-picture-style-bar');
@@ -1648,7 +1840,7 @@
 
         function setPictureWidth(index, part, rawValue) {
             const block = documentState?.blocks?.[index];
-            if (!block || !isPictureFamilyBlock(block)) return;
+            if (!block || !isVisualMediaBlock(block)) return;
 
             const style = resolvePictureStyle(block);
             const next = normalizePictureFraction(
@@ -1663,7 +1855,7 @@
 
         function setPictureFlow(index, rawValue) {
             const block = documentState?.blocks?.[index];
-            if (!block || !isPictureFamilyBlock(block)) return;
+            if (!block || !isVisualMediaBlock(block)) return;
 
             const style = resolvePictureStyle(block);
             const flow = PICTURE_FLOWS.includes(rawValue) ? rawValue : PICTURE_STYLE_DEFAULTS.flow;
@@ -1673,37 +1865,57 @@
             markDirty();
         }
 
-        function applyPictureSelection(index, selection) {
+        function applyVisualSelection(index, selection, mode) {
             const block = documentState?.blocks?.[index];
-            if (!block || !isPictureFamilyBlock(block)) return;
+            if (!block || !isVisualMediaBlock(block)) return;
+            const wantsVideo = mode === 'video';
+            if (wantsVideo && block.type !== 'video') return;
+            if (!wantsVideo && !isPictureFamilyBlock(block)) return;
 
             const assetId = String(selection?.assetId || '').trim();
             const path = String(selection?.path || '').trim();
             const filename = String(selection?.filename || '').trim();
-            const src = path
-                || (assetId ? `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg` : '');
+            const src = path || (assetId
+                ? (wantsVideo
+                    ? `/media/visual/delivery/${encodeURIComponent(assetId)}/standard-stream.mp4`
+                    : `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`)
+                : '');
             if (!src && !assetId) {
                 return;
             }
 
             block.src = src;
-            block.alt = filename || block.alt || 'Picture';
+            block.alt = filename || block.alt || (wantsVideo ? 'Video' : 'Picture');
             if (assetId) {
                 block.asset_id = assetId;
+                if (wantsVideo) {
+                    block.poster = `/media/visual/delivery/${encodeURIComponent(assetId)}/poster.jpg`;
+                }
             } else {
                 delete block.asset_id;
+                if (wantsVideo) {
+                    delete block.poster;
+                }
             }
 
             const card = blocksEl?.querySelector(`.page-block-card[data-block-index="${index}"]`);
             if (card) {
                 const visual = card.querySelector('.page-picture-visual');
                 if (visual) {
-                    visual.innerHTML = block.src
-                        ? `<img src="${escapeHtml(block.src)}" alt="" class="page-picture-thumb">`
-                        : '<div class="page-picture-empty">No picture</div>';
+                    if (wantsVideo) {
+                        visual.innerHTML = block.src
+                            ? `<video src="${escapeHtml(block.src)}" class="page-picture-thumb" preload="metadata" muted playsinline></video>`
+                            : '<div class="page-picture-empty">No video</div>';
+                    } else {
+                        visual.innerHTML = block.src
+                            ? `<img src="${escapeHtml(block.src)}" alt="" class="page-picture-thumb">`
+                            : '<div class="page-picture-empty">No picture</div>';
+                    }
                 }
                 const pickBtn = card.querySelector('[data-action="pick-image"]');
                 if (pickBtn) pickBtn.textContent = block.src ? 'Change picture' : 'Choose picture';
+                const pickVideoBtn = card.querySelector('[data-action="pick-video"]');
+                if (pickVideoBtn) pickVideoBtn.textContent = block.src ? 'Change video' : 'Choose video';
             } else {
                 renderBlocks();
             }
@@ -1731,7 +1943,33 @@
                         if (targetIndex === null || targetIndex === undefined) {
                             return;
                         }
-                        applyPictureSelection(targetIndex, selection || {});
+                        applyVisualSelection(targetIndex, selection || {}, 'image');
+                    },
+                }
+            );
+        }
+
+        function openVideoPicker(index) {
+            if (typeof window.openMediaPicker !== 'function' || !(pagePicturePickerField instanceof HTMLInputElement)) {
+                window.alert('Media picker is not available. Reload the admin panel and try again.');
+                return;
+            }
+            imagePickerTargetIndex = index;
+            const current = documentState?.blocks?.[index];
+            pagePicturePickerField.value = String(current?.src || current?.asset_id || '').trim();
+            window.openMediaPicker(
+                'pagePicturePickerField',
+                current?.src ? 'Change video' : 'Choose video',
+                'video,special',
+                {
+                    acceptKinds: ['video'],
+                    onSelect(selection) {
+                        const targetIndex = imagePickerTargetIndex;
+                        imagePickerTargetIndex = null;
+                        if (targetIndex === null || targetIndex === undefined) {
+                            return;
+                        }
+                        applyVisualSelection(targetIndex, selection || {}, 'video');
                     },
                 }
             );
@@ -1787,7 +2025,7 @@
             syncMetaFromRegistry(data.registry);
             renderBlocks({ silent: true });
             if (typeof data.html === 'string' && previewEl) {
-                previewEl.innerHTML = data.html;
+                setPreviewHtml(data.html);
             }
             window.requestAnimationFrame(() => {
                 window.requestAnimationFrame(() => {
@@ -1828,7 +2066,7 @@
                 documentState = data.document || documentState;
                 syncMetaFromRegistry(data.registry);
                 if (typeof data.html === 'string' && previewEl) {
-                    previewEl.innerHTML = data.html;
+                    setPreviewHtml(data.html);
                 }
                 updateActiveTabLabel(data.registry || meta);
                 resetBaseline();
@@ -1878,6 +2116,10 @@
             }
             if (action === 'pick-image') {
                 openImagePicker(blockIndex);
+                return;
+            }
+            if (action === 'pick-video') {
+                openVideoPicker(blockIndex);
                 return;
             }
         });
@@ -1936,7 +2178,8 @@
                 return;
             }
 
-            if (target instanceof HTMLSelectElement) {
+            if (target instanceof HTMLSelectElement
+                || (target instanceof HTMLInputElement && target.type === 'radio')) {
                 const field = target.dataset.field;
                 const blockIndex = Number(target.dataset.blockIndex);
                 if (!field || Number.isNaN(blockIndex)) return;

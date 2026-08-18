@@ -21,6 +21,7 @@ const BANDPROMO_PAGE_PICTURE_WIDTH_MAX = 6;
 const BANDPROMO_PAGE_PICTURE_FLOWS = [
     'row',
     'row-end',
+    'row-center',
     'wrap-left',
     'wrap-right',
     'beside-left',
@@ -40,6 +41,7 @@ function bandpromo_page_operator_picture_styles(): array {
         'flows' => [
             ['value' => 'row', 'label' => 'In row'],
             ['value' => 'row-end', 'label' => 'End of row'],
+            ['value' => 'row-center', 'label' => 'Full row'],
             ['value' => 'wrap-left', 'label' => 'Wrap left'],
             ['value' => 'wrap-right', 'label' => 'Wrap right'],
             ['value' => 'beside-left', 'label' => 'Beside left'],
@@ -89,6 +91,47 @@ function bandpromo_page_normalize_picture_flow(string $value): string {
     }
 
     return $flow;
+}
+
+function bandpromo_page_normalize_bool_flag(mixed $value, bool $default = false): bool {
+    if (is_bool($value)) {
+        return $value;
+    }
+    if (is_int($value) || is_float($value)) {
+        return ((int) $value) !== 0;
+    }
+    $normalized = strtolower(trim((string) $value));
+    if ($normalized === '') {
+        return $default;
+    }
+    if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+        return true;
+    }
+    if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+        return false;
+    }
+
+    return $default;
+}
+
+function bandpromo_page_normalize_autorotate_speed(mixed $value): string {
+    $speed = strtolower(trim((string) $value));
+    if (!in_array($speed, BANDPROMO_PAGE_GALLERY_AUTOROTATE_SPEEDS, true)) {
+        return 'normal';
+    }
+
+    return $speed;
+}
+
+function bandpromo_page_autorotate_interval_ms(string $speed): int {
+    if ($speed === 'slow') {
+        return 3000;
+    }
+    if ($speed === 'fast') {
+        return 1000;
+    }
+
+    return 2000;
 }
 
 function bandpromo_page_legacy_size_to_fraction(mixed $value): array {
@@ -203,10 +246,19 @@ const BANDPROMO_PAGE_GALLERY_PRESETS = [
     'parallax',
 ];
 
+const BANDPROMO_PAGE_GALLERY_COLUMNS_MIN = 2;
+const BANDPROMO_PAGE_GALLERY_COLUMNS_MAX = 6;
+const BANDPROMO_PAGE_GALLERY_AUTOROTATE_SPEEDS = [
+    'slow',
+    'normal',
+    'fast',
+];
+
 const BANDPROMO_PAGE_BLOCK_TYPES = [
     'richtext',
     'picture',
     'picture_richtext',
+    'video',
     'list',
     'gallery',
     'heading',
@@ -328,6 +380,27 @@ function bandpromo_page_is_allowed_image_src(string $src): bool {
     return false;
 }
 
+function bandpromo_page_is_allowed_video_src(string $src): bool {
+    $allowedPrefixes = [
+        '/media/visual/delivery/',
+    ];
+
+    foreach ($allowedPrefixes as $prefix) {
+        if (str_starts_with($src, $prefix)) {
+            return true;
+        }
+    }
+
+    // Bare asset id or basename that resolves later.
+    require_once __DIR__ . '/asset-registry.php';
+    $ref = basename(trim($src));
+    if ($ref !== '' && bandpromo_asset_is_asset_id($ref)) {
+        return true;
+    }
+
+    return false;
+}
+
 /**
  * Resolve a page picture block to a public delivery URL (asset_id preferred).
  */
@@ -354,6 +427,62 @@ function bandpromo_page_resolve_picture_src(string $root, array $block): string
 
     $resolved = bandpromo_visual_resolve_url($root, basename($src), 'card');
     return $resolved !== '' ? $resolved : $src;
+}
+
+/**
+ * Resolve a page video block to a public delivery stream URL.
+ */
+function bandpromo_page_resolve_video_src(string $root, array $block): string
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    $assetId = trim((string) ($block['asset_id'] ?? ''));
+    if ($assetId !== '') {
+        $url = bandpromo_visual_resolve_url($root, $assetId, 'standard-stream');
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    $src = trim((string) ($block['src'] ?? ''));
+    if ($src === '') {
+        return '';
+    }
+
+    if (str_starts_with($src, '/media/visual/delivery/') || str_starts_with($src, 'http')) {
+        return $src;
+    }
+
+    $resolved = bandpromo_visual_resolve_url($root, basename($src), 'standard-stream');
+    return $resolved !== '' ? $resolved : $src;
+}
+
+/**
+ * Resolve a page video poster to a public delivery URL.
+ */
+function bandpromo_page_resolve_video_poster(string $root, array $block): string
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    $assetId = trim((string) ($block['asset_id'] ?? ''));
+    if ($assetId !== '') {
+        $url = bandpromo_visual_resolve_url($root, $assetId, 'poster');
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    $poster = trim((string) ($block['poster'] ?? ''));
+    if ($poster === '') {
+        return '';
+    }
+
+    if (str_starts_with($poster, '/media/visual/delivery/') || str_starts_with($poster, 'http')) {
+        return $poster;
+    }
+
+    $resolved = bandpromo_visual_resolve_url($root, basename($poster), 'poster');
+    return $resolved !== '' ? $resolved : $poster;
 }
 
 function bandpromo_page_plain_fragment_to_html(array $block): string {
@@ -412,7 +541,7 @@ function bandpromo_page_is_picture_family(string $type): bool {
 function bandpromo_page_is_modern_block(array $block): bool {
     $type = (string) ($block['type'] ?? '');
 
-    return in_array($type, ['richtext', 'picture', 'picture_richtext', 'list', 'gallery'], true);
+    return in_array($type, ['richtext', 'picture', 'picture_richtext', 'video', 'list', 'gallery'], true);
 }
 
 function bandpromo_page_is_text_fragment_block(array $block): bool {
@@ -602,6 +731,55 @@ function bandpromo_page_normalize_block(array $block): ?array {
         return $normalized;
     }
 
+    if ($type === 'video') {
+        $assetId = trim((string) ($block['asset_id'] ?? ''));
+        require_once __DIR__ . '/asset-registry.php';
+        if ($assetId !== '' && !bandpromo_asset_is_asset_id($assetId)) {
+            $assetId = '';
+        }
+
+        $src = bandpromo_page_normalize_url((string) ($block['src'] ?? ''));
+        if ($src === '' && $assetId !== '') {
+            $src = $assetId;
+        }
+        if (!bandpromo_page_is_allowed_video_src($src) && $assetId === '') {
+            return null;
+        }
+        if ($src === '' && $assetId === '') {
+            return null;
+        }
+
+        $poster = bandpromo_page_normalize_url((string) ($block['poster'] ?? ''));
+        $style = bandpromo_page_resolve_picture_style($block);
+        $alt = bandpromo_page_normalize_text((string) ($block['alt'] ?? ''), 240);
+        if ($alt === '') {
+            $alt = 'Video';
+        }
+
+        $normalized = [
+            'type' => 'video',
+            'src' => $src !== '' ? $src : $assetId,
+            'alt' => $alt,
+            'width_num' => $style['width_num'],
+            'width_den' => $style['width_den'],
+            'flow' => $style['flow'],
+            'audio_on' => bandpromo_page_normalize_bool_flag($block['audio_on'] ?? true, true),
+            'loop_on' => bandpromo_page_normalize_bool_flag($block['loop_on'] ?? false, false),
+        ];
+        if ($assetId !== '') {
+            $normalized['asset_id'] = $assetId;
+        }
+        if ($poster !== '') {
+            $normalized['poster'] = $poster;
+        }
+        $caption = bandpromo_page_normalize_text((string) ($block['caption'] ?? ''), 500);
+        if ($caption !== '') {
+            $normalized['caption'] = $caption;
+        }
+
+        return $normalized;
+    }
+
     if ($type === 'list') {
         $style = strtolower(trim((string) ($block['style'] ?? 'unordered')));
         if (!in_array($style, ['unordered', 'ordered'], true)) {
@@ -638,10 +816,18 @@ function bandpromo_page_normalize_block(array $block): ?array {
             $preset = 'grid';
         }
 
+        $columns = (int) ($block['columns'] ?? 0);
+        if ($columns < BANDPROMO_PAGE_GALLERY_COLUMNS_MIN || $columns > BANDPROMO_PAGE_GALLERY_COLUMNS_MAX) {
+            $columns = 0;
+        }
+
         return [
             'type' => 'gallery',
             'gallery_id' => $galleryId,
             'preset' => $preset,
+            'columns' => $columns,
+            'autorotate' => bandpromo_page_normalize_bool_flag($block['autorotate'] ?? false, false),
+            'autorotate_speed' => bandpromo_page_normalize_autorotate_speed($block['autorotate_speed'] ?? 'normal'),
         ];
     }
 

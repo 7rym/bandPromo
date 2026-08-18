@@ -375,6 +375,161 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
     }
 });
 
+// Remember last-used sub-tabs when switching Dashboard | Analytics | Files | Content | …
+(function initAdminNavMemory() {
+    const STORAGE_KEY = 'bandpromo_admin_nav_memory';
+    const SUBTAB_KEYS = {
+        analytics: { key: 'atab', allowed: ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'log'] },
+        files: { key: 'fpanel', allowed: ['audio', 'visual', 'sfx', 'special'] },
+        content: { key: 'cntab', allowed: ['release', 'playlist', 'gallery', 'pages', 'themes'] },
+        settings: { key: 'ctab', allowed: ['basics', 'support', 'sharing'] },
+        system: { key: 'stab', allowed: ['deliverables', 'audit', 'backup', 'security'] },
+        docs: { key: 'doc_scope', allowed: ['operator', 'developer', 'all'] },
+    };
+    const SUBTAB_ALIASES = {
+        fpanel: { photos: 'visual', video: 'visual', illustrations: 'visual' },
+        cntab: { bio: 'pages', player: 'release' },
+        stab: { publish: 'deliverables', status: 'deliverables', activity: 'backup' },
+        atab: { quality: 'dashboard' },
+        ctab: { theme: 'basics' },
+    };
+
+    function readMemory() {
+        try {
+            const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function writeMemory(memory) {
+        try {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(memory));
+        } catch (error) {
+            // Ignore quota / private-mode failures.
+        }
+    }
+
+    function canonicalizeSubValue(paramKey, rawValue) {
+        const value = String(rawValue || '').trim().toLowerCase();
+        if (!value) {
+            return '';
+        }
+        const aliases = SUBTAB_ALIASES[paramKey] || {};
+        return aliases[value] || value;
+    }
+
+    function rememberedSubtab(tab) {
+        const spec = SUBTAB_KEYS[tab];
+        if (!spec) {
+            return '';
+        }
+        const memory = readMemory();
+        const value = canonicalizeSubValue(spec.key, memory[tab]);
+        return spec.allowed.includes(value) ? value : '';
+    }
+
+    function captureCurrentSubtab() {
+        let url;
+        try {
+            url = new URL(window.location.href);
+        } catch (error) {
+            return;
+        }
+        const tab = String(
+            (typeof adminActiveTab === 'string' && adminActiveTab)
+                ? adminActiveTab
+                : (url.searchParams.get('tab') || 'welcome')
+        ).trim();
+        const spec = SUBTAB_KEYS[tab];
+        if (!spec) {
+            return;
+        }
+        let value = canonicalizeSubValue(spec.key, url.searchParams.get(spec.key));
+        if (!value) {
+            const activeSub = document.querySelector(
+                '.tab-content.active .sub-tabs a.tab-link.active, .docs-scope-link.active'
+            );
+            if (activeSub instanceof HTMLAnchorElement) {
+                try {
+                    const subUrl = new URL(activeSub.href, window.location.href);
+                    value = canonicalizeSubValue(spec.key, subUrl.searchParams.get(spec.key));
+                } catch (error) {
+                    value = '';
+                }
+            }
+        }
+        if (!spec.allowed.includes(value)) {
+            return;
+        }
+        const memory = readMemory();
+        if (memory[tab] === value) {
+            return;
+        }
+        memory[tab] = value;
+        writeMemory(memory);
+    }
+
+    function withRememberedSubtab(href) {
+        let url;
+        try {
+            url = new URL(href, window.location.href);
+        } catch (error) {
+            return href;
+        }
+        if (!/admin\.php$/i.test(url.pathname)) {
+            return href;
+        }
+        const tab = String(url.searchParams.get('tab') || '').trim();
+        const spec = SUBTAB_KEYS[tab];
+        if (!spec) {
+            return href;
+        }
+        if (url.searchParams.has(spec.key)) {
+            return href;
+        }
+        const remembered = rememberedSubtab(tab);
+        if (!remembered) {
+            return href;
+        }
+        url.searchParams.set(spec.key, remembered);
+        return `${url.pathname}${url.search}${url.hash}`;
+    }
+
+    function rewriteAdminNavHrefs(root) {
+        const scope = root instanceof Element ? root : document;
+        scope.querySelectorAll('a[href]').forEach((link) => {
+            const href = link.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+                return;
+            }
+            const next = withRememberedSubtab(href);
+            if (next !== href) {
+                link.setAttribute('href', next);
+            }
+        });
+    }
+
+    captureCurrentSubtab();
+    rewriteAdminNavHrefs(document);
+
+    document.addEventListener('click', (event) => {
+        const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+        if (!link || (link.target && link.target !== '_self') || link.hasAttribute('download')) {
+            return;
+        }
+        const href = link.getAttribute('href');
+        if (!href) {
+            return;
+        }
+        const next = withRememberedSubtab(href);
+        if (next !== href) {
+            link.setAttribute('href', next);
+        }
+    }, true);
+})();
+
 // =============================================================================
 // Tab panel logic — Files, Settings, System
 // (data vars injected by admin.php: adminActivePanel, adminActiveTab, adminContentTab, adminDateStart, adminDateEnd)

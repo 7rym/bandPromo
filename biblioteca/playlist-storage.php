@@ -320,6 +320,79 @@ function bandpromo_playlist_resolve_route_id(string $root, string $segment): str
     return bandpromo_playlist_find_id_by_slug($root, $segment);
 }
 
+/**
+ * Parse /play/{playlist}[/{track}] or /play/{playlist}/{release}/{track} from a request path.
+ *
+ * @return array{playlist: string, release: string, track: string}
+ */
+function bandpromo_playlist_route_from_path(string $requestUri): array
+{
+    $empty = ['playlist' => '', 'release' => '', 'track' => ''];
+    $path = parse_url($requestUri, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return $empty;
+    }
+
+    $parts = array_values(array_filter(explode('/', rawurldecode($path)), static function ($part) {
+        return $part !== '';
+    }));
+    $playAt = array_search('play', $parts, true);
+    $after = $playAt === false ? $parts : array_slice($parts, $playAt + 1);
+    if (($after[0] ?? '') === 'index.php') {
+        $after = array_slice($after, 1);
+    }
+
+    $count = count($after);
+    if ($count < 1) {
+        return $empty;
+    }
+    if ($count >= 3) {
+        return [
+            'playlist' => (string) $after[0],
+            'release' => strtolower((string) $after[1]),
+            'track' => strtolower((string) $after[2]),
+        ];
+    }
+    if ($count === 2) {
+        return [
+            'playlist' => (string) $after[0],
+            'release' => '',
+            'track' => strtolower((string) $after[1]),
+        ];
+    }
+
+    return [
+        'playlist' => (string) $after[0],
+        'release' => '',
+        'track' => '',
+    ];
+}
+
+/**
+ * Query-string playlist/release/track win; otherwise parse the pretty path (php -S has no .htaccess).
+ *
+ * @return array{playlist: string, release: string, track: string}
+ */
+function bandpromo_playlist_route_from_request(): array
+{
+    $fromGet = [
+        'playlist' => trim((string) ($_GET['playlist'] ?? '')),
+        'release' => strtolower(trim((string) ($_GET['release'] ?? ''))),
+        'track' => strtolower(trim((string) ($_GET['track'] ?? ''))),
+    ];
+    $fromPath = bandpromo_playlist_route_from_path((string) ($_SERVER['REQUEST_URI'] ?? ''));
+    $pathInfo = trim((string) ($_SERVER['PATH_INFO'] ?? ''));
+    if ($fromPath['playlist'] === '' && $pathInfo !== '') {
+        $fromPath = bandpromo_playlist_route_from_path($pathInfo);
+    }
+
+    return [
+        'playlist' => $fromGet['playlist'] !== '' ? $fromGet['playlist'] : $fromPath['playlist'],
+        'release' => $fromGet['release'] !== '' ? $fromGet['release'] : $fromPath['release'],
+        'track' => $fromGet['track'] !== '' ? $fromGet['track'] : $fromPath['track'],
+    ];
+}
+
 function bandpromo_playlist_public_slug(string $root, string $playlistId): string
 {
     $playlistId = bandpromo_playlist_normalize_id($playlistId);

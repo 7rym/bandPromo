@@ -327,7 +327,7 @@ Containers, galleries, pages, brands, track covers, living covers, and social/sh
 
 **Still masters — EXIF read, IPTC write:** Camera **EXIF** stays camera-origin (read `DateTimeOriginal` / GPS for `captured_at`; do not overwrite editorial fields into EXIF). Operator title / description / keywords are written as **IPTC Core** serialized in an **XMP** packet on the **master** image only. Autofix heals *empty* registry `display` from embedded IPTC/XMP (and EXIF dates).
 
-**Video masters — MKV; delivery — MP4:** On register/materialize, remux intake to `media/visual/master/ast_*.mkv` with stream copy (no re-encode). Matroska tags carry title / description / keywords / date. Original intake bytes stay under `media/visual/original/` (or legacy intake). Delivery stays `standard-stream.mp4` (silent except `role=gallery`). Browsers never load MKV.
+**Video masters — MKV; delivery — MP4:** On register/materialize, remux intake to `media/visual/master/ast_*.mkv` with stream copy (no re-encode). Matroska tags carry title / description / keywords / date. Original intake bytes stay under `media/visual/original/` (or legacy intake). Delivery stays `standard-stream.mp4` (silent for brand `role=shell-background-video` and living covers). Browsers never load MKV.
 
 **Shared track covers:** identical intake/embedded image bytes map to one Visual asset. Content identity uses **XXH3** (`content_xxh3`; dual-read legacy `content_sha256` during migration). Multiple audio tracks link to that `asset_id`; build must not mint per-stem clones when a match exists.
 
@@ -546,7 +546,7 @@ Canonical storage: `data/pages/*.json` + `data/pages/registry.json` (shipped).
 | `picture` | Image `asset_id` or `src`, layout, optional **plain-text** `caption` only |
 | `picture_richtext` | Image + optional sanitized richtext `body` |
 | `list` | Ordered/unordered items |
-| `gallery` | `gallery_id` + `preset` (`grid`, `list`, `carousel`, `parallax`, …) |
+| `gallery` | `gallery_id` + `preset` (`grid` original-ratio mosaic with optional `columns` 2–6, `list` rows, `carousel` snap with peek + dots, optional `autorotate` + `autorotate_speed` slow/normal/fast, `parallax` still compact tiles) |
 
 All block types are implemented as **modules** (editor + renderer). Playlists and lyrics stay in the **player shell**; pages link in via deep links, not embedded players.
 
@@ -620,7 +620,7 @@ No ID3/APIC on delivery. See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md
 
 **Status:** policy locked (2026-07-15 — closed-beta feedback). Implementation in [TODO.md](TODO.md).
 
-Short, silent, looping video on the **main flip-card cover** when the operator assigns a **living cover** and video delivery is ready. Full music videos and gallery playback stay separate. Publish builds living-cover / shell-background streams **without an audio track**; only `role=gallery` video delivery keeps soundtrack.
+Short, silent, looping video on the **main flip-card cover** when the operator assigns a **living cover** and video delivery is ready. Full music videos and gallery playback stay separate. Player mutes living-cover playback so it never fights the track. Publish strips audio from **brand** shell-background streams (`role=shell-background-video`) and from **living covers** (role or track assignment); gallery, page, and other visual videos keep soundtrack in `standard-stream`.
 
 ### Operator control
 

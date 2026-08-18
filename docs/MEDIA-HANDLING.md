@@ -662,7 +662,7 @@ Examples:
 - audio delivery variants: `standard-stream`, `mobile-stream`, `lossless-download` when genuinely supported
 - image delivery variants: `thumb`, `card`, `huge`, `lightbox`, `share`
 - video delivery variants: `poster`, `standard-stream`, `mobile-stream`
-- **Video soundtrack policy:** `role=gallery` keeps audio in `standard-stream`; all other video roles (living covers, shell backgrounds, unassigned, …) build **silent** delivery (video track only) to save bytes
+- **Video soundtrack policy:** Brand shell living backgrounds (`role=shell-background-video`) and **living covers** (role or track assignment) build **silent** `standard-stream` (video track only). Gallery, page, and other visual videos **keep soundtrack**. Player still mutes living covers and shell video at playback.
 
 This keeps the system honest about what each generated asset is for.
 
@@ -689,7 +689,7 @@ Video master:
 - corrected canonical source for future poster/transcode generation
 - may include normalized naming, poster association, and packaging metadata
 - should not be prematurely flattened into one streaming format if the canonical edited source should remain richer
-- **Container (locked):** remux intake → `media/visual/master/ast_*.mkv` with **stream copy** (no re-encode). Matroska tags hold title / description / keywords / date. Original intake preserved. **Delivery stays MP4** (`standard-stream.mp4`; silent except `role=gallery`). Upload allowlist may expand to MKV once masters are MKV; browsers never load master MKV.
+- **Container (locked):** remux intake → `media/visual/master/ast_*.mkv` with **stream copy** (no re-encode). Matroska tags hold title / description / keywords / date. Original intake preserved. **Delivery stays MP4** (`standard-stream.mp4`; silent for brand `role=shell-background-video` and living covers). Upload allowlist may expand to MKV once masters are MKV; browsers never load master MKV.
 
 ### Important implementation constraint
 
@@ -972,7 +972,7 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped |
 | `huge` | Player lightbox fullscreen stills; login/player shell still backgrounds | contain inside **1920×1080px** | Shipped; lightbox + shell still prefer `huge`, fall back to `card` |
 | `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Brand assets list; Grid view uses larger cards |
-| `grid` | Page gallery block `.page-gallery-item img` | min column ~160px tall crop (+ 2× → ~320px) | Grid `minmax(160px, 1fr)` |
+| `grid` | Page gallery block `.page-gallery-item img` | Grid: natural ratio, column cap 2–6; Carousel: ~78% pane width, max-height ~520px contain | List thumbs 168px square |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
 | `lightbox` | Player/page lightbox enlarged view | aliases **`huge`** (≈96vw / 94vh frame) | Falls back to `card` when huge is missing |
 | `share` | `makeSocial.py` OG Facebook/Twitter crops | **1200×630** shipped | Instagram/TikTok native-post sizes registered only — generate with v2+ API publish, not site share |

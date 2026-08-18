@@ -101,7 +101,7 @@ $welcomeDashboardLinks = [
     [
         'label' => 'Files',
         'icon' => '📁',
-        'href' => '?tab=files&fpanel=audio',
+        'href' => '?tab=files',
         'description' => 'Uploads and cover art',
     ],
     [
@@ -1538,7 +1538,7 @@ if ($tab === 'analytics') {
                     </ul>
                 <?php elseif ($contentTab === 'pages'): ?>
                     <ul>
-                        <li>Pages are campaign-owned layouts (Bio, custom stories) built from Text, Picture, List, and Gallery blocks.</li>
+                        <li>Pages are campaign-owned layouts (Bio, custom stories) built from Text, Picture, Video, List, and Gallery blocks.</li>
                         <li>Associate pages on Catalogue → Campaign editor → Pages; that order is the player tab order for playlists in that campaign. Playlist and Lyrics stay fixed.</li>
                         <li>FAQ is the login help lightbox. It is install-owned, not a campaign page, and is not packed in a .prp.</li>
                     </ul>
@@ -2079,12 +2079,16 @@ if ($tab === 'analytics') {
                                             <p class="hint">Stored for when public sharing ships in v0.9. OG tags are not wired yet.</p>
                                         </label>
                                     </div>
-                                    <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
+                                    <div class="page-editor-builder-intro">
+                                        <h4 class="player-layout-col-title">Page builder</h4>
+                                        <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
+                                    </div>
                                     <div class="page-editor-panel-head">
-                                        <h4 class="player-layout-col-title">Page blocks</h4>
+                                        <h4 class="player-layout-col-title">Page building blocks</h4>
                                         <div class="page-editor-toolbar">
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
+                                            <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="video">+ Video</button>
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture_richtext">+ Picture + text</button>
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="gallery">+ Gallery</button>
                                             <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
@@ -3368,6 +3372,7 @@ if ($tab === 'analytics') {
     <script src="biblioteca/theme-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-preview.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
+    <script src="biblioteca/page-gallery.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-gallery.js'); ?>"></script>
     <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'release'): ?>

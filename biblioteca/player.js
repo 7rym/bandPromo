@@ -2743,6 +2743,9 @@ function bindPageGalleryLightboxes() {
 
 function bindPageLightboxes() {
     bindPageGalleryLightboxes();
+    if (typeof window.bandpromoBindPageGalleryCarousels === 'function') {
+        window.bandpromoBindPageGalleryCarousels();
+    }
 
     document.querySelectorAll('[data-page-id]').forEach((pageBox) => {
         if (pageBox.dataset.lightboxBound === 'true') {

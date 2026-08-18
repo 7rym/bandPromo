@@ -43,7 +43,7 @@ Download original must 404 when the original is absent (PRP / masters-only). Do 
 |--------|--------|----------|
 | Audio | Tagged FLAC when source is WAV; otherwise tagged copy in the source codec (`ast_*.flac` / `ast_*.mp3`) — never misrepresent lossy as lossless | `media/audio/optimal/{ast_*}.mp3` (tagless) |
 | Visual still | Same codec as intake (`jpg` / `png` / `webp`) at `media/visual/master/ast_*.{ext}`; IPTC Core via XMP on the master | `media/visual/delivery/{ast_*}/thumb\|card` |
-| Visual video | Stream-copy remux to **MKV** + Matroska tags (`ast_*.mkv`) | `standard-stream.mp4` (+ `poster`); silent except `role=gallery` |
+| Visual video | Stream-copy remux to **MKV** + Matroska tags (`ast_*.mkv`) | `standard-stream.mp4` (+ `poster`); silent for `role=shell-background-video` and living covers |
 | Sound effects | Same three-tier as audio (`media/sfx/{original,master,optimal}`) | `media/sfx/optimal/{ast_*}.mp3` |
 | Brand assets | Same Visual (or SFX) pipeline — **no parallel `media/special/` working copies** | Visual delivery / SFX optimal |
 
