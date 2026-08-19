@@ -3462,6 +3462,7 @@ if ($tab === 'analytics') {
     </div>
 
     <script src="biblioteca/iso-date.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/iso-date.js'); ?>"></script>
+    <script src="biblioteca/editor-sort.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-sort.js'); ?>"></script>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 
     <!-- Admin media preview lightbox -->

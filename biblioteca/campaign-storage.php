@@ -1609,26 +1609,6 @@ function bandpromo_campaign_admin_preview_tracks(string $root, array $document):
         ];
     }
 
-    usort($tracks, static function (array $left, array $right): int {
-        $dateCompare = strcmp(
-            (string) ($right['release_date'] ?? ''),
-            (string) ($left['release_date'] ?? '')
-        );
-        if ($dateCompare !== 0) {
-            return $dateCompare;
-        }
-
-        $artistCompare = strcasecmp(
-            (string) ($left['artist'] ?? ''),
-            (string) ($right['artist'] ?? '')
-        );
-        if ($artistCompare !== 0) {
-            return $artistCompare;
-        }
-
-        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
-    });
-
     return $tracks;
 }
 
@@ -1728,13 +1708,6 @@ function bandpromo_campaign_admin_registry_entries(string $root): array
     }
 
     usort($entries, static function (array $left, array $right): int {
-        $leftDate = (string) ($left['release_date'] ?? '');
-        $rightDate = (string) ($right['release_date'] ?? '');
-        $dateCompare = strcmp($rightDate, $leftDate);
-        if ($dateCompare !== 0) {
-            return $dateCompare;
-        }
-
         return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
     });
 
@@ -2539,6 +2512,44 @@ function bandpromo_campaign_track_row_from_asset(string $root, array $asset, str
     ];
 }
 
+function bandpromo_editor_track_sort_label(array $track): string
+{
+    $artist = trim((string) ($track['artist'] ?? ''));
+    $title = trim((string) ($track['title'] ?? ''));
+    if ($title === '') {
+        $title = trim((string) ($track['file'] ?? ''));
+    }
+    if ($title === '') {
+        $title = 'Untitled';
+    }
+
+    return $artist !== '' ? $artist . ' - ' . $title : $title;
+}
+
+function bandpromo_editor_sort_track_rows(array $tracks): array
+{
+    usort($tracks, static function (array $left, array $right): int {
+        return strnatcasecmp(
+            bandpromo_editor_track_sort_label($left),
+            bandpromo_editor_track_sort_label($right)
+        );
+    });
+
+    return $tracks;
+}
+
+function bandpromo_editor_sort_container_rows_by_title(array $rows): array
+{
+    usort($rows, static function (array $left, array $right): int {
+        return strnatcasecmp(
+            (string) ($left['title'] ?? $left['id'] ?? ''),
+            (string) ($right['title'] ?? $right['id'] ?? '')
+        );
+    });
+
+    return $rows;
+}
+
 function bandpromo_campaign_admin_editor_state(
     string $root,
     string $releaseId,
@@ -2619,9 +2630,7 @@ function bandpromo_campaign_admin_editor_state(
             $releaseTitle
         );
     }
-    usort($availableTracks, static function (array $left, array $right): int {
-        return strcasecmp((string) ($left['file'] ?? ''), (string) ($right['file'] ?? ''));
-    });
+    $availableTracks = bandpromo_editor_sort_track_rows($availableTracks);
 
     return [
         'ok' => true,

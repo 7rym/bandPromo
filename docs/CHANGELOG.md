@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 22:00 - Editor/picker sort: shared `editor-sort.js`; available track pools sort A–Z by artist/title (not master filename or release grouping); campaign/playlist/association container pools sort by title; associated campaign tracks keep manual document order.
+
 2026-08-19 21:50 - Campaign track save hotfix: `save-campaign-tracks.php` accepts `?campaign=` (was defaulting to invisible `primary` so drops never stuck); reject primary bucket saves; `manage-campaign.php` and `get-campaign-preview-section.php` accept `campaign` query param to match the editor.
 
 2026-08-19 21:40 - Build 422 one-shot migration: orphan audio uploads stuck on invisible `primary` / Default release (clears primary track list + stale registry tags); runs automatically after Site update, via Content autofix preview/apply, and on bootstrap; marker `data/install/migrations/orphan-primary-uploads-b422.json` prevents re-run. Files → Audio listing ignores primary membership so operators see Orphan.

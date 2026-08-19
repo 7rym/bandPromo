@@ -464,12 +464,6 @@ function bandpromo_campaign_association_pools(string $root, string $releaseId, s
             }
         }
         usort($active, static function (array $left, array $right): int {
-            $leftDate = (string) ($left['publish_date'] ?? '');
-            $rightDate = (string) ($right['publish_date'] ?? '');
-            if ($leftDate !== $rightDate) {
-                return strcmp($rightDate, $leftDate);
-            }
-
             return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
         });
         usort($available, static function (array $left, array $right): int {

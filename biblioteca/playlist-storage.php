@@ -2538,15 +2538,10 @@ function bandpromo_playlist_sort_available_tracks(string $root, string $releaseF
     }
 
     usort($tracks, static function (array $left, array $right): int {
-        $releaseCompare = strcasecmp(
-            (string) ($left['release_title'] ?? $left['release_id'] ?? ''),
-            (string) ($right['release_title'] ?? $right['release_id'] ?? '')
+        return strnatcasecmp(
+            bandpromo_editor_track_sort_label($left),
+            bandpromo_editor_track_sort_label($right)
         );
-        if ($releaseCompare !== 0) {
-            return $releaseCompare;
-        }
-
-        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
     });
 
     return $tracks;
@@ -2877,13 +2872,6 @@ function bandpromo_playlist_admin_registry_entries(string $root): array
     }
 
     usort($entries, static function (array $left, array $right): int {
-        $leftDate = (string) ($left['publish_date'] ?? '');
-        $rightDate = (string) ($right['publish_date'] ?? '');
-        $dateCompare = strcmp($rightDate, $leftDate);
-        if ($dateCompare !== 0) {
-            return $dateCompare;
-        }
-
         return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
     });
 

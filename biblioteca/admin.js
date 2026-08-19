@@ -3156,19 +3156,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     '<option value="all">All campaigns</option>',
                     '<option value="orphans">Orphans</option>',
                 ];
-                const campaigns = Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [];
-                campaigns.sort((left, right) => {
-                    const leftDate = String(left?.release_date || '');
-                    const rightDate = String(right?.release_date || '');
-                    if (leftDate !== rightDate) {
-                        return rightDate.localeCompare(leftDate);
-                    }
-                    return String(left?.title || left?.id || '').localeCompare(
-                        String(right?.title || right?.id || ''),
-                        undefined,
-                        { sensitivity: 'base' }
-                    );
-                });
+                const campaigns = window.bandpromoEditorSort.sortItemsByTitle(
+                    Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
+                    'title'
+                );
                 campaigns.forEach((entry) => {
                     const id = String(entry?.id || '').trim();
                     if (!id) {
@@ -10658,6 +10649,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const safeIndex = Math.max(0, Math.min(targetIndex, target.length));
                     target.splice(safeIndex, 0, ...moving.map(cloneTrack));
 
+                    if (toList === 'available') {
+                        availableTracks = sortPlaylistAvailableTracks(availableTracks);
+                    }
+
                     if (fromList === 'active') {
                         files.forEach((file) => rangeSelection.getSelected('active').delete(file));
                         if (rangeSelection.getAnchor('active') && fileSet.has(rangeSelection.getAnchor('active'))) {
@@ -10923,11 +10918,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 bindDragList(activeEl);
                 bindDragList(availableEl);
 
+                function sortPlaylistAvailableTracks(tracks) {
+                    return window.bandpromoEditorSort.sortTracksByLabel(tracks);
+                }
+
                 function applyPreviewData(data) {
                     const hasSplit = Array.isArray(data.activeTracks) || Array.isArray(data.availableTracks);
                     if (hasSplit) {
                         activeTracks = Array.isArray(data.activeTracks) ? data.activeTracks.map(cloneTrack) : [];
-                        availableTracks = Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : [];
+                        availableTracks = sortPlaylistAvailableTracks(
+                            Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : []
+                        );
                     } else {
                         activeTracks = Array.isArray(data.tracks) ? data.tracks.map(cloneTrack) : [];
                         availableTracks = [];
@@ -10947,9 +10948,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         const activeFiles = new Set(activeTracks.map((track) => String(track.file || '')).filter(Boolean));
                         const available = Array.isArray(data.availableTracks) ? data.availableTracks : [];
-                        availableTracks = available
-                            .map(cloneTrack)
-                            .filter((track) => !activeFiles.has(String(track.file || '')));
+                        availableTracks = sortPlaylistAvailableTracks(
+                            available
+                                .map(cloneTrack)
+                                .filter((track) => !activeFiles.has(String(track.file || '')))
+                        );
 
                         renderLists();
                     } catch (e) {

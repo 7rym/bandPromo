@@ -1487,22 +1487,7 @@
 
         function sortAssociationItems(kind, items) {
             const rows = (Array.isArray(items) ? items : []).map(cloneAssociationItem).filter((item) => item.id);
-            if (kind === 'playlists') {
-                rows.sort((left, right) => {
-                    const dateCompare = String(right.publish_date || '').localeCompare(String(left.publish_date || ''));
-                    if (dateCompare !== 0) {
-                        return dateCompare;
-                    }
-                    return String(left.title || '').localeCompare(String(right.title || ''), undefined, { sensitivity: 'base' });
-                });
-                return rows;
-            }
-            rows.sort((left, right) => String(left.title || '').localeCompare(
-                String(right.title || ''),
-                undefined,
-                { sensitivity: 'base' }
-            ));
-            return rows;
+            return window.bandpromoEditorSort.sortItemsByTitle(rows, 'title');
         }
 
         function renderAssociationRow(item, { showRemove = false, draggable = false, canEdit = false, kind = '', listName = 'available', selected = false } = {}) {
@@ -2047,19 +2032,7 @@
         }
 
         function sortCampaignEntries(list) {
-            return [...list].sort((left, right) => {
-                const leftDate = String(left?.release_date || '');
-                const rightDate = String(right?.release_date || '');
-                const dateCompare = rightDate.localeCompare(leftDate);
-                if (dateCompare !== 0) {
-                    return dateCompare;
-                }
-                return String(left?.title || left?.id || '').localeCompare(
-                    String(right?.title || right?.id || ''),
-                    undefined,
-                    { sensitivity: 'base' }
-                );
-            });
+            return window.bandpromoEditorSort.sortItemsByTitle(list, 'title');
         }
 
         function syncCampaignUrl(campaignId, editing = isEditing) {
@@ -2788,26 +2761,8 @@
             </li>`;
         }
 
-        function sortAssociatedTracks(tracks) {
-            return (Array.isArray(tracks) ? tracks : []).slice().sort((left, right) => {
-                const dateCompare = String(right.release_date || '').localeCompare(String(left.release_date || ''));
-                if (dateCompare !== 0) {
-                    return dateCompare;
-                }
-                const artistCompare = String(left.artist || '').localeCompare(
-                    String(right.artist || ''),
-                    undefined,
-                    { sensitivity: 'base' }
-                );
-                if (artistCompare !== 0) {
-                    return artistCompare;
-                }
-                return displayTrackTitle(left).localeCompare(
-                    displayTrackTitle(right),
-                    undefined,
-                    { sensitivity: 'base' }
-                );
-            });
+        function sortAvailableTracks(tracks) {
+            return window.bandpromoEditorSort.sortTracksByLabel(tracks);
         }
 
         function renderAssociatedTrackRow(track, canEditTracks) {
@@ -2847,7 +2802,6 @@
                     ? '<li class="player-layout-empty">Drag tracks here from Available tracks.</li>'
                     : '<li class="player-layout-empty">This campaign has no tracks yet.</li>';
             } else {
-                activeTracks = sortAssociatedTracks(activeTracks);
                 activeEl.innerHTML = activeTracks
                     .map((track) => renderAssociatedTrackRow(track, canEditTracks))
                     .join('');
@@ -2870,6 +2824,7 @@
                     : 'Track membership is preview-only while this campaign is locked.';
                 availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {
+                availableTracks = sortAvailableTracks(availableTracks);
                 availableEl.innerHTML = availableTracks.map((track) => renderTrackRow(track, {
                     showPosition: false,
                     showRemove: false,
@@ -2937,6 +2892,10 @@
             });
             target.splice(safeIndex, 0, ...movedClones);
 
+            if (toList === 'available') {
+                availableTracks = sortAvailableTracks(availableTracks);
+            }
+
             if (fromList === 'active') {
                 files.forEach((file) => rangeSelection.getSelected('active').delete(file));
                 const anchor = rangeSelection.getAnchor('active');
@@ -2951,7 +2910,6 @@
                 }
             }
 
-            activeTracks = sortAssociatedTracks(activeTracks);
             renderLists();
             void persistCampaignTracks();
             return true;
@@ -3222,7 +3180,9 @@
             }
 
             activeTracks = Array.isArray(data.activeTracks) ? data.activeTracks.map(cloneTrack) : [];
-            availableTracks = Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : [];
+            availableTracks = sortAvailableTracks(
+                Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : []
+            );
             trackEditorLoadedCampaignId = selectedCampaignId;
 
             renderCampaignPoolList();
