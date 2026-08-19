@@ -2424,7 +2424,7 @@
                             registry.actionButton({
                                 icon: '⧉',
                                 title: 'Duplicate campaign (shared media)',
-                                className: 'page-pool-duplicate-btn',
+                                className: 'registry-btn--duplicate',
                                 dataAttribute: `data-campaign-id="${escapedId}"`,
                             })
                         );
@@ -2434,7 +2434,7 @@
                             registry.actionButton({
                                 icon: '✏️',
                                 title: 'Edit campaign',
-                                className: 'page-pool-edit-btn',
+                                className: 'registry-btn--edit',
                                 dataAttribute: `data-campaign-id="${escapedId}"`,
                             })
                         );
@@ -2444,7 +2444,7 @@
                             registry.actionButton({
                                 icon: '🗑️',
                                 title: 'Delete campaign',
-                                className: 'page-pool-delete-btn icon-btn--danger',
+                                className: 'registry-btn--delete icon-btn--danger',
                                 dataAttribute: `data-campaign-id="${escapedId}"`,
                             })
                         );

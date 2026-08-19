@@ -8385,10 +8385,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         renderRow: function (entry, isSelected) {
                             const id = String(entry.id || '');
                             var actions = [
-                                window.bandpromoRegistryList.actionButton({ icon: '✏️', title: 'Edit gallery', className: 'page-pool-edit-btn', dataAttribute: 'data-gallery-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }),
+                                window.bandpromoRegistryList.actionButton({ icon: '✏️', title: 'Edit gallery', className: 'registry-btn--edit', dataAttribute: 'data-gallery-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }),
                             ];
                             if (galleryCanDelete(entry)) {
-                                actions.push(window.bandpromoRegistryList.actionButton({ icon: '🗑️', title: 'Delete gallery', className: 'icon-btn--danger page-pool-delete-btn', dataAttribute: 'data-gallery-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }));
+                                actions.push(window.bandpromoRegistryList.actionButton({ icon: '🗑️', title: 'Delete gallery', className: 'icon-btn--danger registry-btn--delete', dataAttribute: 'data-gallery-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }));
                             }
                             return window.bandpromoRegistryList.row({
                                 id: id,
@@ -10023,10 +10023,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         renderRow: function (entry, isSelected) {
                             const id = String(entry.id || '');
                             var actions = [
-                                window.bandpromoRegistryList.actionButton({ icon: '✏️', title: 'Edit playlist', className: 'page-pool-edit-btn', dataAttribute: 'data-playlist-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }),
+                                window.bandpromoRegistryList.actionButton({ icon: '✏️', title: 'Edit playlist', className: 'registry-btn--edit', dataAttribute: 'data-playlist-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }),
                             ];
                             if (playlistCanDelete(entry)) {
-                                actions.push(window.bandpromoRegistryList.actionButton({ icon: '🗑️', title: 'Delete playlist', className: 'icon-btn--danger page-pool-delete-btn', dataAttribute: 'data-playlist-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }));
+                                actions.push(window.bandpromoRegistryList.actionButton({ icon: '🗑️', title: 'Delete playlist', className: 'icon-btn--danger registry-btn--delete', dataAttribute: 'data-playlist-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }));
                             }
                             return window.bandpromoRegistryList.row({
                                 id: id,

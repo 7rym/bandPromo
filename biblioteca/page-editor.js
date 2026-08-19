@@ -102,7 +102,7 @@
                         window.bandpromoRegistryList.actionButton({
                             icon: '✏️',
                             title: `Edit ${label}`,
-                            className: 'page-pool-edit-btn',
+                            className: 'registry-btn--edit',
                             dataAttribute: `data-page-id="${escapeHtml(pageId)}"`,
                         }),
                     ];

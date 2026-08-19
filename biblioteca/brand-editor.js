@@ -949,7 +949,7 @@
                             window.bandpromoRegistryList.actionButton({
                                 icon: '✏️',
                                 title: `Edit ${label}`,
-                                className: 'page-pool-edit-btn',
+                                className: 'registry-btn--edit',
                                 dataAttribute: `data-brand-id="${escapeHtml(id)}"`,
                             })
                         );
@@ -958,7 +958,7 @@
                         window.bandpromoRegistryList.actionButton({
                             icon: '⧉',
                             title: `Duplicate ${label}`,
-                            className: 'page-pool-duplicate-btn',
+                            className: 'registry-btn--duplicate',
                             dataAttribute: `data-brand-id="${escapeHtml(id)}"`,
                         })
                     );

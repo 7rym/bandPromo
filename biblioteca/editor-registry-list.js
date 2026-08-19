@@ -87,6 +87,21 @@
 
     function expandRegistryButtonClasses(className) {
         var classes = className ? className.split(/\s+/).filter(Boolean) : [];
+        if (classes.indexOf('registry-btn--edit') !== -1 && classes.indexOf('page-pool-edit-btn') === -1) {
+            classes.push('page-pool-edit-btn');
+        }
+        if (classes.indexOf('registry-btn--delete') !== -1 && classes.indexOf('page-pool-delete-btn') === -1) {
+            classes.push('page-pool-delete-btn');
+        }
+        if (classes.indexOf('registry-btn--duplicate') !== -1 && classes.indexOf('page-pool-duplicate-btn') === -1) {
+            classes.push('page-pool-duplicate-btn');
+        }
+        if (classes.indexOf('registry-btn--lock') !== -1 && classes.indexOf('page-pool-lock-btn') === -1) {
+            classes.push('page-pool-lock-btn');
+        }
+        if (classes.indexOf('registry-btn--lock-active') !== -1 && classes.indexOf('page-pool-lock-btn--active') === -1) {
+            classes.push('page-pool-lock-btn--active');
+        }
         if (classes.indexOf('page-pool-edit-btn') !== -1 && classes.indexOf('registry-btn--edit') === -1) {
             classes.push('registry-btn--edit');
         }
