@@ -1927,8 +1927,8 @@ if ($tab === 'analytics') {
                 }
             ?>
             <?php if ($galleryError): ?>
-            <div class="card" style="border-color:#f87171">
-                <p class="card-note" style="color:#f87171"><?php echo htmlspecialchars($galleryError); ?></p>
+            <div class="card gallery-error-card">
+                <p class="card-note gallery-error-note"><?php echo htmlspecialchars($galleryError); ?></p>
             </div>
             <?php else: ?>
             <div class="card content-editor-card editor-card" id="galleryEditorCard"
@@ -1981,7 +1981,7 @@ if ($tab === 'analytics') {
                                         <p>Selected items appear under <strong>Gallery order</strong> on the right. Drag rows to reorder, edit names and alt text inline, or click <strong>✕</strong> to remove individual items.</p>
                                         <p>To remove several items at once, click rows in the Gallery order list (Ctrl+click or Shift+click to multi-select), then press <strong>Remove selected</strong>.</p>
                                     </div>
-                                    <div class="gallery-picker-toolbar" style="margin-top:8px">
+                                    <div class="gallery-picker-toolbar gallery-picker-toolbar--spaced">
                                         <div class="gallery-picker-actions">
                                             <button type="button" class="btn btn-primary btn-sm" id="galleryBrowseCatalogueBtn">Browse catalogue…</button>
                                             <button type="button" class="btn btn-sm" id="galleryRemoveSelectedBtn">Remove selected</button>
@@ -2251,13 +2251,13 @@ if ($tab === 'analytics') {
                 <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="campaignDeleteModalTitle">
                     <h3 id="campaignDeleteModalTitle">Delete campaign?</h3>
                     <p class="card-note">You are about to permanently delete <strong id="campaignDeleteModalName"></strong>. This cannot be undone.</p>
-                    <fieldset class="campaign-delete-mode-fieldset" style="border:0;padding:0;margin:0.75rem 0 1rem;">
+                    <fieldset class="campaign-delete-mode-fieldset campaign-delete-mode-fieldset--bare">
                         <legend class="sr-only">Delete mode</legend>
-                        <label class="campaign-delete-mode-option" style="display:block;margin:0.5rem 0;">
+                        <label class="campaign-delete-mode-option campaign-delete-mode-option--stacked">
                             <input type="radio" name="campaignDeleteMode" id="campaignDeleteModePurge" value="purge" checked>
                             <strong>Entire campaign</strong> — remove owned brand, playlists, galleries, pages, and media that nothing else uses.
                         </label>
-                        <label class="campaign-delete-mode-option" style="display:block;margin:0.5rem 0;">
+                        <label class="campaign-delete-mode-option campaign-delete-mode-option--stacked">
                             <input type="radio" name="campaignDeleteMode" id="campaignDeleteModeContainer" value="container">
                             <strong>Campaign only</strong> — keep tracks and media in Files; only remove this catalogue entry.
                         </label>

@@ -4906,6 +4906,54 @@ canvas { max-width: 100%; height: auto; }
 .text-error  { color: var(--error); font-size: 13px; }
 .status-text { font-size: 13px; }
 
+.admin-centred-note {
+    text-align: center;
+    padding: 40px;
+}
+
+.admin-centred-note--muted {
+    color: #999;
+}
+
+.admin-centred-note--error {
+    color: #dc3545;
+}
+
+.upload-status-success {
+    color: #4ade80;
+}
+
+.upload-status-warning {
+    color: #f0b429;
+}
+
+.upload-status-error {
+    color: #f55;
+}
+
+.gallery-error-card {
+    border-color: #f87171;
+}
+
+.gallery-error-note {
+    color: #f87171;
+}
+
+.gallery-picker-toolbar--spaced {
+    margin-top: 8px;
+}
+
+.campaign-delete-mode-fieldset--bare {
+    border: 0;
+    padding: 0;
+    margin: 0.75rem 0 1rem;
+}
+
+.campaign-delete-mode-option--stacked {
+    display: block;
+    margin: 0.5rem 0;
+}
+
 /* ===== Modal helpers ===== */
 .modal-actions {
     display: flex;

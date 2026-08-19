@@ -1664,7 +1664,7 @@
                 renderAssociationLists();
             } catch (error) {
                 if (campaignAssociationActiveList) {
-                    campaignAssociationActiveList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message || 'Could not load associations')}</li>`;
+                    campaignAssociationActiveList.innerHTML = `<li class="player-layout-empty text-error">${escapeHtml(error.message || 'Could not load associations')}</li>`;
                 }
                 if (campaignAssociationAvailableList) {
                     campaignAssociationAvailableList.innerHTML = '<li class="player-layout-empty"></li>';
@@ -3258,7 +3258,7 @@
                 applyPreviewData(data);
             } catch (error) {
                 activeEl.innerHTML = '';
-                availableEl.innerHTML = `<li class="player-layout-empty" style="color:#f87171">Could not load campaign preview: ${escapeHtml(error.message)}</li>`;
+                availableEl.innerHTML = `<li class="player-layout-empty text-error">Could not load campaign preview: ${escapeHtml(error.message)}</li>`;
             }
         }
 
@@ -3634,7 +3634,7 @@
         loadSiteSharingContext()
             .then(() => loadCampaignRegistry())
             .catch((error) => {
-                poolList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message)}</li>`;
+                poolList.innerHTML = `<li class="player-layout-empty text-error">${escapeHtml(error.message)}</li>`;
             })
             .finally(async () => {
                 if (startInEdit) {

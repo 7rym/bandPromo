@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 20:45 - Inline-style cleanup pass (Content editor scope): replaced hardcoded inline error/status/display spacing styles in `campaign-editor.js`, `brand-editor.js`, `admin.js`, and Content-tab `admin.php` blocks with semantic classes in `admin.css` (`admin-centred-note*`, `upload-status-*`, `gallery-error-*`, campaign delete mode/layout helpers). Remaining inline styles in these files are now data-driven dynamic values (CSS vars/backgrounds/progress) rather than fixed presentation constants.
+
 2026-08-19 20:38 - Registry alias hardening: shared `editor-registry-list` action-button class expansion now maps legacy↔new in both directions (`page-pool-*-btn` and `registry-btn--*`), and editor call-sites now prefer `registry-btn--*` while auto-including legacy class names for backwards-compatible selectors.
 
 2026-08-19 20:31 - Completed additive registry-button alias rollout: shared action-button renderer now auto-adds `registry-btn--*` aliases from legacy `page-pool-*-btn` classes; hardcoded delete/lock buttons now include registry aliases; click handlers across Campaign/Pages/Branding/Gallery/Playlist accept both old and new button classes; CSS now styles `registry-btn--edit|delete|duplicate|lock` and active-lock states in parallel with legacy selectors.

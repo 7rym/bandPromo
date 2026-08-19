@@ -243,7 +243,7 @@ function deleteUser(username) {
 function openUserDetail(username) {
     const modal   = document.getElementById('userDetailModal');
     const content = document.getElementById('userDetailContent');
-    content.innerHTML = '<p style="color:#999; text-align:center; padding:40px;">Loading…</p>';
+    content.innerHTML = '<p class="admin-centred-note admin-centred-note--muted">Loading…</p>';
     modal.style.display = 'flex';
 
     const params = new URLSearchParams({
@@ -261,7 +261,7 @@ function openUserDetail(username) {
     })
     .then(html => { content.innerHTML = html; })
     .catch(err => {
-        content.innerHTML = `<p style="color:#dc3545; text-align:center; padding:40px;">Failed to load user data.<br><small>${err.message}</small></p>`;
+        content.innerHTML = `<p class="admin-centred-note admin-centred-note--error">Failed to load user data.<br><small>${err.message}</small></p>`;
     });
 }
 
@@ -7801,11 +7801,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             done++;
                         } catch(e) {
                             failed++;
-                            modalStatus.innerHTML += `<br><span style="color:#f55">❌ ${file.name}: ${e.message}</span>`;
+                            modalStatus.innerHTML += `<br><span class="upload-status-error">❌ ${file.name}: ${e.message}</span>`;
                         }
                     }
                     if (failed === 0) {
-                        modalStatus.innerHTML = `<span style="color:#4ade80">✅ ${done} file${done !== 1 ? 's' : ''} uploaded</span>`;
+                        modalStatus.innerHTML = `<span class="upload-status-success">✅ ${done} file${done !== 1 ? 's' : ''} uploaded</span>`;
                         modalFiles = [];
                         modalList.innerHTML = '';
                         await loadMediaList(modalTarget);
@@ -7838,10 +7838,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         if (masterWarnings.length || uniqueUploadWarnings.length) {
                             const combined = [...masterWarnings, ...uniqueUploadWarnings];
-                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
+                            modalStatus.innerHTML += `<br><span class="upload-status-warning">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
                         }
                     } else {
-                        modalStatus.innerHTML += `<br><span style="color:#f55">❌ ${failed} failed, ✅ ${done} ok</span>`;
+                        modalStatus.innerHTML += `<br><span class="upload-status-error">❌ ${failed} failed, ✅ ${done} ok</span>`;
                         if (done > 0) {
                             await loadMediaList(modalTarget);
                         }
@@ -7857,7 +7857,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             showAdminToast(`Uploaded ${done} file(s), ${failed} failed.${masterNote}`, 'warning');
                         }
                         if (masterWarnings.length) {
-                            modalStatus.innerHTML += `<br><span style="color:#f0b429">⚠️ ${bandpromoAdminEscapeHtml(masterWarnings.join(' | '))}</span>`;
+                            modalStatus.innerHTML += `<br><span class="upload-status-warning">⚠️ ${bandpromoAdminEscapeHtml(masterWarnings.join(' | '))}</span>`;
                         }
                     }
                     refreshBuildHint();
@@ -8438,7 +8438,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             saveUi?.setBaseline();
                         }
                     } catch (e) {
-                        activeEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Could not load gallery: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        activeEl.innerHTML = '<li class="player-layout-empty text-error">Could not load gallery: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
@@ -9271,7 +9271,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 loadGalleryRegistry()
                     .catch((e) => {
                         if (poolList) {
-                            poolList.innerHTML = '<li class="player-layout-empty" style="color:#f87171">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                            poolList.innerHTML = '<li class="player-layout-empty text-error">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                         }
                     })
                     .finally(async () => {
@@ -10963,7 +10963,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         renderLists();
                     } catch (e) {
-                        availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Could not refresh available tracks: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        availableEl.innerHTML = '<li class="player-layout-empty text-error">Could not refresh available tracks: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
@@ -10984,7 +10984,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     } catch (e) {
                         activeEl.innerHTML = '';
-                        availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Could not load playlist preview: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        availableEl.innerHTML = '<li class="player-layout-empty text-error">Could not load playlist preview: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
@@ -11043,7 +11043,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 loadPlaylistRegistry()
                     .catch((e) => {
                         if (poolList) {
-                            poolList.innerHTML = '<li class="player-layout-empty" style="color:#f87171">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                            poolList.innerHTML = '<li class="player-layout-empty text-error">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                         }
                     })
                     .finally(async () => {

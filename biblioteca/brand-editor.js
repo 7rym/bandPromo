@@ -1446,7 +1446,7 @@
 
         loadRegistry()
             .catch((error) => {
-                poolList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message)}</li>`;
+                poolList.innerHTML = `<li class="player-layout-empty text-error">${escapeHtml(error.message)}</li>`;
             })
             .finally(async () => {
                 if (startInEdit) {
