@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 11:23 - Created admin editor refactor plan (`docs/ADMIN-EDITOR-REFACTOR.md`): four-phase approach covering terminology rename (release→campaign, theme→brand — filenames, PHP functions, action params, JS identifiers, URL params, CSS classes), UK English sweep, shared JS module extraction, CSS class rename, and save UX unification. Fixed `session-start.ps1` PowerShell stderr handling for git.
+
+2026-08-19 10:27 - Gallery editor: removed the Available media list and drag-and-drop flow. Replaced with a helper panel explaining the new workflow. **Browse catalogue** is now the sole way to add media; Gallery order keeps reorder, inline edit, and remove.
+
+2026-08-19 10:16 - Gallery editor: **Browse catalogue** button opens the shared media picker in multi-select mode. Selected visuals are inserted at the end of the gallery order. Items already in the gallery are hidden in the picker.
+
+2026-08-19 10:12 - Fix: player brand colours flashing correct then reverting to stale cached values. Brand save now bumps `player_built_at` on affected playlists so the playlist API ETag changes and the browser fetches fresh data. The page also embeds a cache-buster token in the playlist API URL.
+
+2026-08-19 10:08 - Fix: `session-start.ps1` falsely reported `git pull failed` because git's stderr info line triggered PowerShell's `$ErrorActionPreference = 'Stop'`. Now uses `$LASTEXITCODE` check instead. Added `.cursor/rules/windows-powershell-env.mdc` documenting the Windows + PowerShell environment and common git/stderr quirks.
+
+2026-08-19 00:10 - Hide demo catalogue now removes demo campaign files from Files → Visual even when they also sit in the demo Brand library. Brand shell slots stay visible and list the Brand, not the hidden campaign. Brand assets / Sound effects stay the shell library.
+
+2026-08-18 23:45 - Brand assets **Add existing** filters were cosmetic: they mirrored the Files toolbar and did not narrow the grid. The picker now has its own Campaign (Visual) and Brand (Sound effects) dropdowns, plus working title search.
+
+2026-08-18 23:35 - Files → Visual untitled rows use the original filename stem as the listing title instead of the role label **Unassigned**. `ast_*` originals stay skipped; linked track covers still list as `Track cover: {track}`.
+
+2026-08-18 22:40 - Files → Visual **Orphans** was lying after visual re-register: track covers still stored the former `ast_*`, so live cover files listed as unfiled. Lookup now aliases `{former_id}.ext` originals and `/media/visual/delivery/{id}/…` URLs; page catalogue also follows block `src`/`poster`.
+
 2026-08-18 19:10 - Checkpoint PCF campaign files, playlist Base info, UK English copy, and Demo PCF refresh on `main` as **v0.8.29 build 409**; trigger GitHub Release `v0.8.29-build-409` for Site update.
 
 2026-08-18 19:05 - Published Demo PCF to durable GitHub tag **demo-content** (`bandPromo-demo.pcf`, SHA256 `3b24420a…`, 210432604 bytes). Setup prefers `.pcf` and still falls back to a published `.prp`.

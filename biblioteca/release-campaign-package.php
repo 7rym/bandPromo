@@ -753,8 +753,22 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
         }
         $add((string) ($doc['poster_asset_id'] ?? ''));
         foreach (is_array($doc['blocks'] ?? null) ? $doc['blocks'] : [] as $block) {
-            if (is_array($block)) {
-                $add((string) ($block['asset_id'] ?? ''));
+            if (!is_array($block)) {
+                continue;
+            }
+            foreach (['asset_id', 'src', 'poster', 'poster_asset_id'] as $field) {
+                $ref = trim((string) ($block[$field] ?? ''));
+                if ($ref === '') {
+                    continue;
+                }
+                if (bandpromo_asset_is_asset_id($ref)) {
+                    $add($ref);
+                    continue;
+                }
+                $visual = bandpromo_asset_lookup_from_media_ref($root, $ref);
+                if (is_array($visual) && strtolower((string) ($visual['kind'] ?? '')) === 'visual') {
+                    $add((string) ($visual['id'] ?? ''));
+                }
             }
         }
     }

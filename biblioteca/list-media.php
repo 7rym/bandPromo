@@ -672,7 +672,7 @@ if ($target === 'special') {
 }
 
 foreach ($allFiles as $entry) {
-    if ($entry['hidden'] && !$includeHidden) {
+    if (!empty($entry['hidden']) && !$includeHidden && !$isBrandOwnedPool) {
         continue;
     }
 

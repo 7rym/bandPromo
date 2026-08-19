@@ -376,8 +376,36 @@ function bandpromo_visual_linked_track_title_from_entry(array $entry): string
 }
 
 /**
- * Primary Files / picker label: human display title when set, else role label
- * (for track covers, "Track cover: {linked track title}" when a track is linked).
+ * Human listing title from the original filename stem.
+ * Skips ULID originals (`ast_*`) so re-registered files do not list as ids.
+ */
+function bandpromo_visual_filename_stem_title(array $asset, array $entry = []): string
+{
+    $original = basename(trim((string) (
+        $asset['original_filename']
+        ?? $entry['original_filename']
+        ?? $entry['name']
+        ?? ''
+    )));
+    if ($original === '' || strcasecmp($original, 'desktop.ini') === 0) {
+        return '';
+    }
+
+    $stem = (string) pathinfo($original, PATHINFO_FILENAME);
+    if ($stem === '' || preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $stem) === 1) {
+        return '';
+    }
+
+    $title = trim(preg_replace('/\s+/u', ' ', str_replace(['_', '-'], ' ', $stem)) ?? $stem);
+
+    return $title;
+}
+
+/**
+ * Primary Files / picker label: human display title when set, else the original
+ * filename stem. Track covers still synthesize "Track cover: {linked track}"
+ * when title is empty and a track is linked. Role labels (Unassigned, Gallery)
+ * are the last resort, not the default name.
  */
 function bandpromo_visual_listing_title(string $root, array $asset, array $entry = []): string
 {
@@ -394,6 +422,11 @@ function bandpromo_visual_listing_title(string $root, array $asset, array $entry
         if ($trackTitle !== '') {
             return bandpromo_visual_role_colon_title($roleLabel, $trackTitle);
         }
+    }
+
+    $stemTitle = bandpromo_visual_filename_stem_title($asset, $entry);
+    if ($stemTitle !== '') {
+        return $stemTitle;
     }
 
     return $roleLabel;

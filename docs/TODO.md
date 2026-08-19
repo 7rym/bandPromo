@@ -249,7 +249,7 @@ Implementation order:
 - [ ] **Schema + Files UX** — normalize/write visual `display`; Files drilldown + picker labels use title first.
 - [x] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
 - [x] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
-- [ ] **Gallery multi-select picker** — replace Available DnD primary flow.
+- [x] **Gallery multi-select picker** — Browse catalogue button opens shared media picker in multi-select mode; DnD remains as secondary flow.
 
 ### Delivery smoothness leftovers (deferred 2026-08-04)
 
@@ -257,7 +257,7 @@ P0 tag-save `/play` calm + P1a shared-cover exact-hash link shipped 2026-08-03. 
 
 - [ ] **Orphan visual delivery GC** — prune stale `media/visual/delivery/{asset_id}/` trees when the asset is gone or remapped.
 - [ ] **Deliverables skip/reuse summary** — operator-facing Publish/Deliverables counts for skipped-fresh variants and reused covers (beyond build-log lines).
-- [ ] **Visual pool honesty polish** — first-class “used by N” / Unused vs Orphan chips (partial `reference_count` / orphan plumbing already exists).
+- [ ] **Visual pool honesty polish** — first-class “used by N” / Unused vs Orphan chips (partial `reference_count` / orphan plumbing already exists). Catalogue Orphans now follow live track-cover ids after re-register (former `ast_*` filename alias) and page `src`/`poster` delivery URLs; chip copy is still the leftover.
 
 Related open items (absorbed into M1 unless noted):
 

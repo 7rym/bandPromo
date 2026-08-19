@@ -803,6 +803,7 @@
 
         function showPoolView() {
             isEditing = false;
+            if (root) root.classList.remove('is-editing');
             if (poolView) poolView.hidden = false;
             if (editorView) editorView.hidden = true;
             if (saveBtn) {
@@ -815,6 +816,7 @@
 
         function showEditView(themeId) {
             isEditing = true;
+            if (root) root.classList.add('is-editing');
             selectedThemeId = themeId;
             if (poolView) poolView.hidden = true;
             if (editorView) editorView.hidden = false;

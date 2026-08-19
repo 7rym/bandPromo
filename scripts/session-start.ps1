@@ -193,12 +193,17 @@ Write-Output ''
 
 if (-not $SkipPull) {
     Write-Output 'Repository sync'
-    try {
-        $pullOutput = git -C $repoRoot pull --ff-only origin main 2>&1
-        $pullOutput | ForEach-Object { Write-Output ('  {0}' -f $_) }
-    }
-    catch {
-        Write-Output ('  git pull failed: {0}' -f $_.Exception.Message)
+    # git writes progress/info to stderr; PowerShell converts those lines into
+    # ErrorRecord objects that terminate under $ErrorActionPreference = 'Stop'.
+    # Temporarily lower it so we can inspect $LASTEXITCODE instead.
+    $savedEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $pullOutput = git -C $repoRoot pull --ff-only origin main 2>&1
+    $pullExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $savedEAP
+    $pullOutput | ForEach-Object { Write-Output ('  {0}' -f $_) }
+    if ($pullExitCode -ne 0) {
+        Write-Output '  git pull returned a non-zero exit code.'
         Write-Output '  Continue locally, but resolve sync before checkpointing.'
     }
     Write-Output ''

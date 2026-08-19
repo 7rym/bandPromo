@@ -726,6 +726,7 @@ function bandpromo_playlist_refresh_brand_styles_for_brand(string $root, string 
         }
 
         $document['brand_styles'] = bandpromo_playlist_normalize_stored_brand_styles($fresh);
+        $document['player_built_at'] = gmdate('c');
         try {
             bandpromo_playlist_write_document($root, $document);
             $updated[] = $playlistId;

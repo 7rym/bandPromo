@@ -124,11 +124,13 @@ $origin = bandpromo_current_origin();
 $preferredAudioVariant = bandpromo_preferred_audio_variant($_SESSION['quality'] ?? null);
 
 $playlistTracks = [];
+$playerBuiltAt = '';
 try {
     $playlistDocument = bandpromo_playlist_load_document($playerRoot, $activePlaylistId);
     $playlistTracks = is_array($playlistDocument['tracks'] ?? null)
         ? bandpromo_playlist_normalize_stored_tracks($playlistDocument['tracks'])
         : [];
+    $playerBuiltAt = trim((string) ($playlistDocument['player_built_at'] ?? ''));
 } catch (Throwable $throwable) {
     $playlistTracks = [];
 }
@@ -588,7 +590,7 @@ if ($supportUrl !== '') {
             'release' => $deepLinkReleaseSlug,
             'track' => $deepLinkTrackSlug,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-        window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo');
+        window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo') + <?php echo json_encode($playerBuiltAt !== '' ? '&_=' . substr(sha1($playerBuiltAt), 0, 8) : ''); ?>;
         window.MEDIA_AUDIO_BASE = '/media/audio';
         window.BANDPROMO_PREFERRED_AUDIO_VARIANT = <?php echo json_encode($preferredAudioVariant); ?>;
         window.BANDPROMO_IS_OPERATOR = <?php echo json_encode($showOperatorNotice); ?>;

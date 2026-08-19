@@ -1118,8 +1118,11 @@ function bandpromo_release_visual_membership_index(string $root): array
             $date = $releaseMeta[$releaseId]['date'];
             $addRef((string) ($doc['poster_asset_id'] ?? ''), $releaseId, $title, $date);
             foreach (is_array($doc['blocks'] ?? null) ? $doc['blocks'] : [] as $block) {
-                if (is_array($block)) {
-                    $addRef((string) ($block['asset_id'] ?? ''), $releaseId, $title, $date);
+                if (!is_array($block)) {
+                    continue;
+                }
+                foreach (['asset_id', 'src', 'poster', 'poster_asset_id'] as $field) {
+                    $addRef((string) ($block[$field] ?? ''), $releaseId, $title, $date);
                 }
             }
         }
@@ -1244,7 +1247,7 @@ function bandpromo_release_visual_listing_meta(string $root, string $assetId, st
         ? (bandpromo_release_visual_membership_index($root)[$assetId] ?? [])
         : [];
 
-    if ($memberships === [] && $storedReleaseId !== '') {
+    if ($memberships === [] && $storedReleaseId !== '' && bandpromo_demo_catalog_entity_is_visible($root, $storedReleaseId)) {
         try {
             $document = bandpromo_release_load_document($root, $storedReleaseId);
             $memberships = [[
@@ -1256,6 +1259,21 @@ function bandpromo_release_visual_listing_meta(string $root, string $assetId, st
             $memberships = [];
         }
     }
+
+    $memberships = array_values(array_filter(
+        $memberships,
+        static function ($row) use ($root): bool {
+            if (!is_array($row)) {
+                return false;
+            }
+            $releaseId = bandpromo_release_normalize_id((string) ($row['release_id'] ?? ''));
+            if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+                return false;
+            }
+
+            return bandpromo_demo_catalog_entity_is_visible($root, $releaseId);
+        }
+    ));
 
     if ($memberships === []) {
         $library = $assetId !== ''

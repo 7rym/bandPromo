@@ -2190,6 +2190,7 @@
         function showPoolView() {
             isEditing = false;
             editorCard.classList.add('release-editor-is-preview');
+            editorCard.classList.remove('is-editing');
             if (poolView) {
                 poolView.hidden = false;
             }
@@ -2213,6 +2214,7 @@
         function showEditView(releaseId) {
             isEditing = true;
             editorCard.classList.remove('release-editor-is-preview');
+            editorCard.classList.add('is-editing');
             selectedReleaseId = releaseId;
             if (poolView) {
                 poolView.hidden = true;

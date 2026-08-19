@@ -384,22 +384,16 @@ function bandpromo_demo_release_asset_set(string $root): array
         return $empty;
     }
 
-    $brandLibraryIds = [];
+    $brandSlotIds = [];
     try {
         $release = bandpromo_release_load_document($root, $demoId);
         $brandId = trim((string) ($release['brand_id'] ?? ''));
         if ($brandId !== '') {
             $brand = bandpromo_theme_load_document($root, $brandId);
-            foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
-                $slotId = trim((string) $slotId);
-                if ($slotId !== '') {
-                    $brandLibraryIds[$slotId] = true;
-                }
-            }
-            foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
-                $libraryId = trim((string) $libraryId);
-                if ($libraryId !== '') {
-                    $brandLibraryIds[$libraryId] = true;
+            foreach (bandpromo_release_visual_shell_slot_asset_ids($root, $brand) as $slotAssetId) {
+                $slotAssetId = trim((string) $slotAssetId);
+                if ($slotAssetId !== '') {
+                    $brandSlotIds[$slotAssetId] = true;
                 }
             }
         }
@@ -413,7 +407,7 @@ function bandpromo_demo_release_asset_set(string $root): array
 
     foreach (bandpromo_release_campaign_collect_asset_ids($root, $demoId) as $assetId) {
         $assetId = trim((string) $assetId);
-        if ($assetId === '' || isset($brandLibraryIds[$assetId])) {
+        if ($assetId === '' || isset($brandSlotIds[$assetId])) {
             continue;
         }
 
@@ -423,16 +417,19 @@ function bandpromo_demo_release_asset_set(string $root): array
         }
 
         $assetIds[$assetId] = true;
-        $filename = basename(trim((string) ($asset['original_filename'] ?? $asset['master_filename'] ?? '')));
-        if ($filename === '') {
-            continue;
-        }
         $target = bandpromo_demo_release_asset_files_target($asset);
         if ($target === 'special' || $target === 'sfx') {
             continue;
         }
-        $key = $target . '|' . $filename;
-        if (!isset($fileKeys[$key])) {
+        foreach (['original_filename', 'master_filename'] as $field) {
+            $filename = basename(trim((string) ($asset[$field] ?? '')));
+            if ($filename === '') {
+                continue;
+            }
+            $key = $target . '|' . $filename;
+            if (isset($fileKeys[$key])) {
+                continue;
+            }
             $fileKeys[$key] = true;
             $files[] = [
                 'asset_id' => $assetId,

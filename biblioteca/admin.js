@@ -2269,11 +2269,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (activeMediaPanel === 'special' || activeMediaPanel === 'sfx') {
                     loadMediaList(activeMediaPanel);
                 }
-                if (mediaPickerState
-                    && (mediaPickerState.activeTarget === 'special' || mediaPickerState.activeTarget === 'sfx')
-                ) {
-                    renderMediaPickerList(mediaPickerState.activeTarget);
-                }
             }
 
             function syncMediaReferenceFilterUi() {
@@ -4722,7 +4717,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const display = (file && typeof file.display === 'object' && file.display) ? file.display : {};
                 if (titleInput) {
                     titleInput.value = String(display.title || file.display_title || '').trim();
-                    // Prefer explicit display.title; if listing fell back to operator title, leave blank for new naming.
+                    // Prefer explicit display.title. Role-label fallbacks (Unassigned) stay blank
+                    // so Save does not persist them; filename-stem listing defaults stay visible.
                     if (!String(display.title || '').trim() && String(file.operator_title || '').trim() === titleInput.value) {
                         titleInput.value = '';
                     }
@@ -5219,9 +5215,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (activeMediaPanel) {
                     loadMediaList(activeMediaPanel);
                 }
-                if (mediaPickerState) {
-                    renderMediaPickerList(mediaPickerState.activeTarget);
-                }
                 releaseFilterListeners.forEach((listener) => listener());
             }
 
@@ -5376,19 +5369,46 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }).join('');
             }
 
+            function mediaPickerHasFixedBrandScope() {
+                const brandId = String(mediaPickerState?.brandId || '').trim();
+                return brandId !== '' && brandId !== 'all' && brandId !== 'orphans';
+            }
+
             function syncMediaPickerOwnershipFilters(target) {
                 const usesBrand = target === 'special' || target === 'sfx';
-                const fixedScope = !!String(mediaPickerState?.brandId || '').trim()
-                    || (
-                        !!String(mediaPickerState?.brandFilter || '').trim()
-                        && !!String(mediaPickerState?.releaseFilter || '').trim()
-                    );
+                const fixedScope = mediaPickerHasFixedBrandScope();
                 document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="release"]').forEach((el) => {
                     el.hidden = usesBrand || fixedScope;
                 });
                 document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="brand"]').forEach((el) => {
                     el.hidden = !usesBrand || fixedScope;
                 });
+            }
+
+            function syncMediaPickerFilterSelects() {
+                if (!mediaPickerState) {
+                    return;
+                }
+                const releaseSelect = document.querySelector('#mediaPickerToolbar [data-picker-release-filter]');
+                if (releaseSelect) {
+                    releaseSelect.innerHTML = releaseFilterOptionsHtml();
+                    const value = normalizePoolReleaseFilter(mediaPickerState.releaseFilter || 'all');
+                    releaseSelect.value = value;
+                    if (releaseSelect.value !== value) {
+                        releaseSelect.value = 'all';
+                        mediaPickerState.releaseFilter = 'all';
+                    }
+                }
+                const brandSelect = document.querySelector('#mediaPickerToolbar [data-picker-brand-filter]');
+                if (brandSelect) {
+                    brandSelect.innerHTML = brandFilterOptionsHtml();
+                    const value = normalizePoolBrandFilter(mediaPickerState.brandFilter || 'all');
+                    brandSelect.value = value;
+                    if (brandSelect.value !== value) {
+                        brandSelect.value = 'all';
+                        mediaPickerState.brandFilter = 'all';
+                    }
+                }
             }
 
             async function renderMediaPickerList(target) {
@@ -5403,13 +5423,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 try {
                     if (target === 'special' || target === 'sfx') {
                         await ensureBrandFilterCatalog();
+                    } else {
+                        await loadReleasesCatalog();
                     }
+                    syncMediaPickerFilterSelects();
                     // Match Files pools: never re-include per-file soft-hidden rows.
                     // Demo catalogue visibility is release-level (list-media ownership filter),
                     // not a signal to show install-local hidden map entries.
+                    const pickerBrand = mediaPickerHasFixedBrandScope()
+                        ? mediaPickerState.brandId
+                        : mediaPickerState.brandFilter;
                     let files = await fetchMediaFiles(target, {
                         includeHidden: false,
-                        brand: mediaPickerState.brandFilter || mediaPickerState.brandId || undefined,
+                        brand: pickerBrand || undefined,
                         release: mediaPickerState.releaseFilter || undefined,
                     });
                     if (target === 'visual' && Array.isArray(mediaPickerState.visualBuckets) && mediaPickerState.visualBuckets.length) {
@@ -5669,8 +5695,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     visualBuckets: normalized.visualBuckets,
                     acceptKinds: normalizePickerAcceptKinds(opts.acceptKinds),
                     brandId: String(opts.brandId || '').trim(),
-                    brandFilter: String(opts.brandFilter || '').trim(),
-                    releaseFilter: String(opts.releaseFilter || '').trim(),
+                    brandFilter: normalizePoolBrandFilter(opts.brandFilter || 'all'),
+                    releaseFilter: normalizePoolReleaseFilter(opts.releaseFilter || 'all'),
                     onSelect: typeof opts.onSelect === 'function' ? opts.onSelect : null,
                     onSelectMany: typeof opts.onSelectMany === 'function' ? opts.onSelectMany : null,
                     multiSelect: opts.multiSelect === true,
@@ -5683,18 +5709,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     mediaPickerTitle.textContent = mediaPickerState.title;
                 }
                 if (mediaPickerHint) {
-                    mediaPickerHint.textContent = mediaPickerState.multiSelect
-                        ? 'Click to select one or more assets, then Add selected. Assets already in this Brand library are hidden.'
-                        : 'Pick an uploaded asset. Storage paths stay hidden.';
+                    const customHint = typeof opts.hint === 'string' ? opts.hint.trim() : '';
+                    mediaPickerHint.textContent = customHint
+                        || (mediaPickerState.multiSelect
+                            ? 'Visual: filter by campaign catalogue. Sound effects: filter by Brand. Search matches titles. Files already in this library are hidden.'
+                            : 'Pick an uploaded asset. Storage paths stay hidden.');
                 }
                 const pickerSearchEl = document.getElementById('mediaPickerSearch');
                 if (pickerSearchEl) {
                     pickerSearchEl.value = '';
                 }
                 populateReleaseFilterSelects();
-                syncReleaseFilterUi();
                 populateBrandFilterSelects();
-                syncBrandFilterUi();
+                syncMediaPickerFilterSelects();
                 pickerModal.style.display = 'flex';
                 pickerModal.classList.add('media-picker-modal--open');
                 syncMediaPickerConfirmUi();
@@ -5799,6 +5826,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!mediaPickerState) {
                         return;
                     }
+                    renderMediaPickerList(mediaPickerState.activeTarget);
+                });
+            }
+
+            const mediaPickerReleaseFilter = document.querySelector('#mediaPickerToolbar [data-picker-release-filter]');
+            if (mediaPickerReleaseFilter) {
+                mediaPickerReleaseFilter.addEventListener('change', () => {
+                    if (!mediaPickerState) {
+                        return;
+                    }
+                    mediaPickerState.releaseFilter = normalizePoolReleaseFilter(mediaPickerReleaseFilter.value || 'all');
+                    renderMediaPickerList(mediaPickerState.activeTarget);
+                });
+            }
+
+            const mediaPickerBrandFilter = document.querySelector('#mediaPickerToolbar [data-picker-brand-filter]');
+            if (mediaPickerBrandFilter) {
+                mediaPickerBrandFilter.addEventListener('change', () => {
+                    if (!mediaPickerState) {
+                        return;
+                    }
+                    mediaPickerState.brandFilter = normalizePoolBrandFilter(mediaPickerBrandFilter.value || 'all');
                     renderMediaPickerList(mediaPickerState.activeTarget);
                 });
             }
@@ -8110,7 +8159,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const poolView = document.getElementById('galleryPoolView');
                 const itemsPoolView = document.getElementById('galleryItemsPoolView');
                 const poolList = document.getElementById('galleryPoolList');
-                const availableEl = document.getElementById('galleryAvailableList');
+                const availableEl = null;
                 const activeEl = document.getElementById('galleryActiveList');
                 const countBadge = document.getElementById('galleryActiveCount');
                 const saveBtn = document.getElementById('gallerySaveBtn');
@@ -8121,7 +8170,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const addGalleryForm = document.getElementById('addGalleryForm');
                 const cancelAddGalleryBtn = document.getElementById('cancelAddGalleryBtn');
                 const galleryRegistryStatus = document.getElementById('galleryRegistryStatus');
-                if (!poolList || !availableEl || !activeEl || !saveBtn) return;
+                if (!poolList || !activeEl || !saveBtn) return;
 
                 let galleries = [];
                 let selectedGalleryId = String(editorCard?.dataset.initialGallery || 'bandpromo-demo');
@@ -8288,6 +8337,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function showPoolView() {
                     isEditing = false;
+                    if (editorCard) editorCard.classList.remove('is-editing');
                     if (poolView) poolView.hidden = false;
                     if (itemsPoolView) itemsPoolView.hidden = true;
                     if (saveBtn) saveBtn.hidden = true;
@@ -8299,6 +8349,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function showEditView(galleryId) {
                     isEditing = true;
+                    if (editorCard) editorCard.classList.add('is-editing');
                     selectedGalleryId = galleryId;
                     if (poolView) poolView.hidden = true;
                     if (itemsPoolView) itemsPoolView.hidden = false;
@@ -8306,7 +8357,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     syncGalleryUrl(galleryId, true);
                     syncGallerySettingsPanel(galleryId);
                     if (editorHint) {
-                        editorHint.textContent = 'Search and multi-select media on the left, then Add selected. Reorder the gallery on the right. Drag remains available as a shortcut.';
+                        editorHint.textContent = '';
                     }
                     renderGalleryPoolList();
                 }
@@ -8612,8 +8663,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let selectionAnchorAvailable = '';
                 let selectionAnchorActive = '';
                 let suppressNextClick = false;
-                const availableSearchEl = document.getElementById('galleryAvailableSearch');
-                const addSelectedBtn = document.getElementById('galleryAddSelectedBtn');
+                const availableSearchEl = null;
+                const addSelectedBtn = null;
                 const removeSelectedBtn = document.getElementById('galleryRemoveSelectedBtn');
 
                 function videoPosterPathFromSrc(src) {
@@ -8702,7 +8753,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function getAvailableRows() {
-                    return Array.from(availableEl.querySelectorAll('.gallery-pool-row'));
+                    return [];
                 }
 
                 function getActiveRows() {
@@ -8814,76 +8865,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function renderAvailable() {
-                    pruneAvailableSelection();
-                    const taken = activeSrcs();
-                    if (!allFiles.length && !galleryPendingFiles.length) {
-                        availableEl.innerHTML = '<li class="player-layout-empty">No delivery-ready visuals in the pool yet. Upload under Files → Visual, or check Notifications for missing delivery variants.</li>';
-                        return;
-                    }
-                    const needle = String(availableSearchNeedle || '').trim().toLowerCase();
-                    const available = allFiles.filter((file) => {
-                        if (taken.has(file.src)) {
-                            return false;
-                        }
-                        if (needle === '') {
-                            return true;
-                        }
-                        return galleryItemHaystack(file).includes(needle);
-                    }).sort((left, right) => galleryItemLabel(left).localeCompare(
-                        galleryItemLabel(right),
-                        undefined,
-                        { sensitivity: 'base' }
-                    ));
-                    const pendingRows = galleryPendingFiles
-                        .filter((file) => needle === '' || galleryItemHaystack(file).includes(needle))
-                        .slice()
-                        .sort((left, right) => galleryItemLabel(left).localeCompare(
-                            galleryItemLabel(right),
-                            undefined,
-                            { sensitivity: 'base' }
-                        ))
-                        .map((file) => {
-                        const reason = file.pool_ready_reason || 'Delivery variants not ready yet';
-                        const label = galleryItemLabel(file);
-                        return `<li class="playlist-editor-row gallery-pool-row playlist-editor-row-pending" draggable="false" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" aria-disabled="true" title="${bandpromoAdminEscapeHtml(reason)}">
-                            ${renderThumbMarkup(file, false)}
-                            <span class="playlist-track-info">
-                                <strong>${bandpromoAdminEscapeHtml(label)}</strong>
-                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(reason)}</span>
-                            </span>
-                        </li>`;
-                    }).join('');
-                    if (available.length === 0 && !pendingRows) {
-                        availableEl.innerHTML = needle
-                            ? '<li class="player-layout-empty">No media matches this search.</li>'
-                            : '<li class="player-layout-empty">All matching content is already in the gallery. Select items on the right and click Remove selected, or use ✕.</li>';
-                        return;
-                    }
-                    const readyRows = available.map((file) => {
-                        const poster = resolveVideoPoster(file);
-                        const selectedClass = selectedAvailable.has(file.src) ? ' playlist-editor-row-selected' : '';
-                        const label = galleryItemLabel(file);
-                        return `<li class="playlist-editor-row gallery-pool-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(file.src)}" data-type="${bandpromoAdminEscapeHtml(file.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" data-name="${bandpromoAdminEscapeHtml(label)}" aria-selected="${selectedAvailable.has(file.src) ? 'true' : 'false'}">
-                            <span class="playlist-drag-handle" title="Drag into gallery order">⠿</span>
-                            ${renderThumbMarkup(file, false)}
-                            <span class="playlist-track-info">
-                                <strong>${bandpromoAdminEscapeHtml(label)}</strong>
-                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(mediaTypeLabel(file.type))}</span>
-                            </span>
-                        </li>`;
-                    }).join('');
-                    availableEl.innerHTML = readyRows + pendingRows;
                 }
 
                 function addSelectedAvailableToGallery() {
-                    const files = allFiles.filter((file) => selectedAvailable.has(file.src));
-                    if (!files.length) {
-                        return;
-                    }
-                    insertActiveItems(files, activeItems.length);
-                    selectedAvailable.clear();
-                    selectionAnchorAvailable = '';
-                    syncAvailableSelectionUi();
                 }
 
                 function removeSelectedActiveFromGallery() {
@@ -8911,7 +8895,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pruneActiveSelection();
                     if (!activeItems.length) {
                         activeEl.innerHTML = isEditing
-                            ? '<li class="player-layout-empty">Drag content here from Available content.</li>'
+                            ? '<li class="player-layout-empty">Use Browse catalogue to add photos and videos.</li>'
                             : '<li class="player-layout-empty">This gallery has no content yet. Click edit to add photos and videos.</li>';
                         if (countBadge) countBadge.textContent = '';
                         saveUi?.reconcile();
@@ -9218,12 +9202,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
-                availableEl.addEventListener('click', (event) => {
-                    if (!isEditing || suppressNextClick) return;
-                    const row = event.target.closest('.gallery-pool-row');
-                    if (!row || !availableEl.contains(row)) return;
-                    handleAvailableSelection(row, event);
-                });
+                
 
                 activeEl.addEventListener('click', (event) => {
                     if (!isEditing) return;
@@ -9242,7 +9221,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
 
                 bindDragList(activeEl);
-                bindDragList(availableEl);
+                if (availableEl) bindDragList(availableEl);
 
                 saveBtn.addEventListener('click', async () => {
                     syncFromDOM();
@@ -9289,6 +9268,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     || poolAssetStillPreviewUrl(file, 'thumb'));
                             const entry = {
                                 src: deliverySrc,
+                                asset_id: String(file.asset_id || '').trim(),
                                 name: String(file.display_title || '').trim() || prettifyName(file.name),
                                 display_title: String(file.display_title || '').trim(),
                                 operator_title: String(file.operator_title || '').trim(),
@@ -9314,25 +9294,51 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         allFiles = ready;
                         galleryPendingFiles = pending;
                     } catch (e) {
-                        availableEl.innerHTML = '<li class="player-layout-empty" style="color:#f87171">Failed to load media files.</li>';
                         return;
                     }
-                    renderAvailable();
                 }
 
                 registerReleaseFilterListener(reloadGalleryPool);
 
-                if (availableSearchEl) {
-                    availableSearchEl.addEventListener('input', () => {
-                        availableSearchNeedle = String(availableSearchEl.value || '');
-                        renderAvailable();
-                    });
-                }
-                if (addSelectedBtn) {
-                    addSelectedBtn.addEventListener('click', () => addSelectedAvailableToGallery());
-                }
+                
+                
                 if (removeSelectedBtn) {
                     removeSelectedBtn.addEventListener('click', () => removeSelectedActiveFromGallery());
+                }
+                const browseCatalogueBtn = document.getElementById('galleryBrowseCatalogueBtn');
+                if (browseCatalogueBtn) {
+                    browseCatalogueBtn.addEventListener('click', () => {
+                        if (typeof window.openMediaPicker !== 'function') return;
+                        const taken = activeSrcs();
+                        const ownedIds = new Set(
+                            allFiles
+                                .filter((file) => taken.has(file.src) && file.asset_id)
+                                .map((file) => file.asset_id)
+                        );
+                        window.openMediaPicker(
+                            'galleryPickerField',
+                            'Add to gallery',
+                            'visual',
+                            {
+                                releaseFilter: 'all',
+                                multiSelect: true,
+                                ownedAssetIds: ownedIds,
+                                hint: 'Select photos and videos to add to this gallery. Items already in the gallery are hidden.',
+                                async onSelectMany(selections) {
+                                    const ids = (Array.isArray(selections) ? selections : [])
+                                        .map((item) => String(item?.assetId || '').trim())
+                                        .filter(Boolean);
+                                    if (!ids.length) return;
+                                    const idSet = new Set(ids);
+                                    const files = allFiles.filter((file) => file.asset_id && idSet.has(file.asset_id));
+                                    if (files.length) {
+                                        insertActiveItems(files, activeItems.length);
+                                    }
+                                    window.closeMediaPickerModal();
+                                },
+                            }
+                        );
+                    });
                 }
 
                 const urlParams = new URLSearchParams(window.location.search);
@@ -10035,6 +10041,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function showPoolView() {
                     isEditing = false;
+                    if (editorCard) editorCard.classList.remove('is-editing');
                     if (poolView) poolView.hidden = false;
                     if (tracksPoolView) tracksPoolView.hidden = true;
                     if (playlistAvailableSection) playlistAvailableSection.hidden = true;
@@ -10050,6 +10057,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function showEditView(playlistId) {
                     isEditing = true;
+                    if (editorCard) editorCard.classList.add('is-editing');
                     selectedPlaylistId = playlistId;
                     if (poolView) poolView.hidden = true;
                     if (tracksPoolView) tracksPoolView.hidden = false;

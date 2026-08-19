@@ -251,9 +251,13 @@ function bandpromo_media_reference_gallery_item_asset_id(string $root, array $it
     require_once __DIR__ . '/theme-storage.php';
 
     $assetId = trim((string) ($item['asset_id'] ?? ''));
-    if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
-        if (bandpromo_asset_lookup_by_id($root, $assetId) !== null) {
-            return $assetId;
+    if ($assetId !== '') {
+        $resolved = bandpromo_asset_lookup_from_media_ref($root, $assetId);
+        if (is_array($resolved) && strtolower((string) ($resolved['kind'] ?? '')) === 'visual') {
+            $liveId = trim((string) ($resolved['id'] ?? ''));
+            if ($liveId !== '') {
+                return $liveId;
+            }
         }
     }
 

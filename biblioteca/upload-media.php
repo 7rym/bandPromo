@@ -366,10 +366,16 @@ function bandpromo_register_visual_upload_if_needed(
     $role = isset($_POST['role']) ? (string) $_POST['role'] : 'unassigned';
     $brandId = isset($_POST['brand_id']) ? trim((string) $_POST['brand_id']) : '';
 
+    require_once __DIR__ . '/media-delivery-helpers.php';
+    $stemTitle = bandpromo_visual_filename_stem_title(['original_filename' => $saved_name]);
+
     try {
         return bandpromo_asset_register_visual($root_dir, $saved_name, $intakeBucket, $mediaType, [
             'role' => $role,
             'brand_id' => $brandId,
+            'display' => [
+                'title' => $stemTitle,
+            ],
         ]);
     } catch (Throwable $throwable) {
         return null;

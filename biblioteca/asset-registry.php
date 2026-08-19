@@ -739,12 +739,40 @@ function bandpromo_asset_lookup_visual(
 }
 
 /**
+ * After re-register, track covers may still store the previous visual id.
+ * The live Visual row often keeps that former id as original_filename
+ * (`ast_OLD.png`). Do not treat a dead ast_* as a Visual unless a live
+ * row actually uses it as a filename stem.
+ */
+function bandpromo_asset_lookup_visual_by_former_id(string $root, string $assetId): ?array
+{
+    $assetId = trim($assetId);
+    if ($assetId !== '' && preg_match('/^ast_([0-9A-HJKMNP-TV-Z]{20})$/i', $assetId, $matches) === 1) {
+        $assetId = 'ast_' . strtoupper($matches[1]);
+    }
+    if (!bandpromo_asset_is_asset_id($assetId)) {
+        return null;
+    }
+
+    static $extensions = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp4', 'webm', 'mov', 'mkv', 'm4v'];
+    foreach ($extensions as $extension) {
+        $filename = $assetId . '.' . $extension;
+        $asset = bandpromo_asset_lookup_by_original_filename($root, $filename)
+            ?? bandpromo_asset_lookup_by_master_filename($root, $filename);
+        if (is_array($asset) && strtolower((string) ($asset['kind'] ?? '')) === 'visual') {
+            return $asset;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Resolve a media ref that may be a bare asset id, an asset-id filename
- * (`ast_….png`), a master filename, or a human original filename.
- *
- * PRP cover fields often store `ast_{id}.png` (stem + extension). Bare-id
- * lookup fails on that string, and original-filename lookup fails when the
- * visual was ingested as a human name. This helper tries all three.
+ * (`ast_….png`), a master filename, a human original filename, or a
+ * `/media/visual/delivery/{id}/…` URL. PCF cover fields often store
+ * `ast_{id}.png`. Bare-id lookup fails on that string, and original-filename
+ * lookup fails when the visual was ingested as a human name.
  */
 function bandpromo_asset_lookup_from_media_ref(string $root, string $ref): ?array
 {
@@ -753,23 +781,47 @@ function bandpromo_asset_lookup_from_media_ref(string $root, string $ref): ?arra
         return null;
     }
 
-    $base = basename($ref);
+    $path = str_replace('\\', '/', $ref);
+    if (preg_match('#(?:^|/)media/visual/delivery/(ast_[0-9A-HJKMNP-TV-Z]{20})/#i', $path, $matches) === 1) {
+        $deliveryId = 'ast_' . strtoupper(substr($matches[1], 4));
+        $asset = bandpromo_asset_lookup_by_id($root, $deliveryId);
+        if (is_array($asset)) {
+            return $asset;
+        }
+        $former = bandpromo_asset_lookup_visual_by_former_id($root, $deliveryId);
+        if (is_array($former)) {
+            return $former;
+        }
+
+        // Delivery variant names (card.jpg, poster.jpg) are not Files originals.
+        return null;
+    }
+
+    $base = basename($path);
     if ($base === '' || strcasecmp($base, 'desktop.ini') === 0) {
         return null;
     }
 
-    if (bandpromo_asset_is_asset_id($base)) {
+    if (preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $base) === 1) {
         $asset = bandpromo_asset_lookup_by_id($root, $base);
         if (is_array($asset)) {
             return $asset;
         }
+        $former = bandpromo_asset_lookup_visual_by_former_id($root, $base);
+        if (is_array($former)) {
+            return $former;
+        }
     }
 
     $stem = (string) pathinfo($base, PATHINFO_FILENAME);
-    if ($stem !== $base && bandpromo_asset_is_asset_id($stem)) {
+    if ($stem !== $base && preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $stem) === 1) {
         $asset = bandpromo_asset_lookup_by_id($root, $stem);
         if (is_array($asset)) {
             return $asset;
+        }
+        $former = bandpromo_asset_lookup_visual_by_former_id($root, $stem);
+        if (is_array($former)) {
+            return $former;
         }
     }
 

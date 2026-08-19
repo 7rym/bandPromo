@@ -1967,21 +1967,20 @@ if ($tab === 'analytics') {
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="gallerySettingsStatus"></span>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
-                                    <div class="player-layout-col-head player-layout-col-head--pool gallery-available-toolbar" style="height:auto;min-height:0;padding-top:0">
-                                        <h4 class="player-layout-col-title">Available media</h4>
-                                        <?php echo $poolReleaseFilterHtml; ?>
+                                <div class="player-layout-panel-body page-pool-panel-body gallery-helper-panel">
+                                    <div class="gallery-helper-text">
+                                        <h4 class="player-layout-col-title">How galleries work</h4>
+                                        <p>Use <strong>Browse catalogue</strong> to open the media picker and select photos and videos for this gallery. You can select multiple items at once.</p>
+                                        <p>Selected items appear under <strong>Gallery order</strong> on the right. Drag rows to reorder, edit names and alt text inline, or click <strong>✕</strong> to remove individual items.</p>
+                                        <p>To remove several items at once, click rows in the Gallery order list (Ctrl+click or Shift+click to multi-select), then press <strong>Remove selected</strong>.</p>
                                     </div>
-                                    <div class="gallery-picker-toolbar">
-                                        <input type="search" id="galleryAvailableSearch" class="gallery-available-search" placeholder="Search title, keywords…" aria-label="Search available media" autocomplete="off">
+                                    <div class="gallery-picker-toolbar" style="margin-top:8px">
                                         <div class="gallery-picker-actions">
-                                            <button type="button" class="btn btn-primary btn-sm" id="galleryAddSelectedBtn">Add selected</button>
+                                            <button type="button" class="btn btn-primary btn-sm" id="galleryBrowseCatalogueBtn">Browse catalogue…</button>
                                             <button type="button" class="btn btn-sm" id="galleryRemoveSelectedBtn">Remove selected</button>
                                         </div>
+                                        <input type="hidden" id="galleryPickerField" value="">
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list gallery-pool-list" id="galleryAvailableList" aria-label="Available media">
-                                        <li class="player-layout-empty">Loading media…</li>
-                                    </ol>
                                 </div>
                             </div>
                         </div>
@@ -3423,15 +3422,15 @@ if ($tab === 'analytics') {
                 <div id="mediaPickerTabs" class="tabs media-picker-tabs"></div>
                 <div class="media-picker-toolbar" id="mediaPickerToolbar">
                     <label class="media-filter-label" data-picker-filter="release">
-                        <span class="visually-hidden">Filter by campaign</span>
-                        <select class="media-filter-select" data-media-release-filter aria-label="Filter by campaign">
+                        <span class="media-filter-label-text">Campaign</span>
+                        <select class="media-filter-select" data-picker-release-filter aria-label="Filter by campaign">
                             <option value="all">All campaigns</option>
                             <option value="orphans">Orphans</option>
                         </select>
                     </label>
                     <label class="media-filter-label" data-picker-filter="brand" hidden>
-                        <span class="visually-hidden">Filter by brand</span>
-                        <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand">
+                        <span class="media-filter-label-text">Brand</span>
+                        <select class="media-filter-select" data-picker-brand-filter aria-label="Filter by brand">
                             <option value="all">All brands</option>
                             <option value="orphans">Orphans</option>
                         </select>

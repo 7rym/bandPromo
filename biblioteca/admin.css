@@ -2044,6 +2044,17 @@ canvas { max-width: 100%; height: auto; }
     margin: 0.65rem 0 0.25rem;
 }
 
+#mediaPickerToolbar .media-filter-label[hidden] {
+    display: none !important;
+}
+
+#mediaPickerToolbar .media-filter-label-text {
+    margin-right: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
 .media-picker-tile-label {
     display: block;
     margin-top: 0.35rem;
@@ -4457,6 +4468,35 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+
+.content-editor-card.is-editing .player-layout-col-head {
+    border-bottom: 1px solid var(--border2);
+    background: var(--border2);
+}
+
+#galleryEditorCard .content-editor-name-input {
+    font-weight: 600;
+}
+
+.gallery-helper-text {
+    padding: 8px 4px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.gallery-helper-text h4 {
+    color: var(--text);
+    margin: 0 0 8px;
+}
+
+.gallery-helper-text p {
+    margin: 0 0 10px;
+}
+
+.gallery-helper-text p:last-child {
+    margin-bottom: 0;
 }
 
 .gallery-thumb--lg {
