@@ -11,16 +11,20 @@ session_write_close();
 header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
-$themeId = bandpromo_brand_normalize_id((string) ($_GET['theme'] ?? bandpromo_brand_active_id($root)));
+$brandId = bandpromo_brand_normalize_id((string) ($_GET['brand'] ?? $_GET['theme'] ?? bandpromo_brand_active_id($root)));
 
 try {
     bandpromo_brand_ensure_seeded($root);
-    $document = bandpromo_brand_load_document($root, $themeId);
+    $document = bandpromo_brand_load_document($root, $brandId);
+    $activeBrandId = bandpromo_brand_active_id($root);
 
     echo json_encode([
         'ok' => true,
-        'theme_id' => $themeId,
-        'active_theme_id' => bandpromo_brand_active_id($root),
+        'brand_id' => $brandId,
+        'active_brand_id' => $activeBrandId,
+        // Backwards compatibility for older clients not yet migrated.
+        'theme_id' => $brandId,
+        'active_theme_id' => $activeBrandId,
         'document' => bandpromo_brand_api_document($document),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {

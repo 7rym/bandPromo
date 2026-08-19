@@ -26,25 +26,27 @@ if (!is_array($decoded)) {
     exit;
 }
 
-$themeId = bandpromo_brand_normalize_id((string) ($decoded['theme_id'] ?? ''));
+$brandId = bandpromo_brand_normalize_id((string) ($decoded['brand_id'] ?? $decoded['theme_id'] ?? ''));
 
 try {
     bandpromo_brand_ensure_seeded($root);
-    if ($themeId === '') {
-        throw new InvalidArgumentException('theme_id is required.');
+    if ($brandId === '') {
+        throw new InvalidArgumentException('brand_id is required.');
     }
 
-    bandpromo_brand_set_active_id($root, $themeId);
+    bandpromo_brand_set_active_id($root, $brandId);
 
     bandpromo_admin_audit_log('theme_activated', [
         'target_type' => 'theme',
-        'target_id' => $themeId,
+        'target_id' => $brandId,
         'status' => 'ok',
     ]);
 
     echo json_encode([
         'ok' => true,
-        'active_theme_id' => $themeId,
+        'active_brand_id' => $brandId,
+        // Backwards compatibility for older clients not yet migrated.
+        'active_theme_id' => $brandId,
     ]);
 } catch (Throwable $throwable) {
     http_response_code(400);

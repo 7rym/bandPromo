@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 18:35 - Session end checkpoint: branding API payload migration compatibility shipped (`brands`/`brand_id`/`active_brand_id` with legacy theme aliases), bump build for tester release package.
+
+2026-08-19 18:30 - Branding API compatibility fix: `get-brands.php`, `get-brand.php`, and `set-active-brand.php` now expose `brands` / `active_brand_id` / `brand_id` for migrated editors while still returning legacy `themes` / `active_theme_id` / `theme_id` keys for backwards compatibility.
+
 2026-08-19 18:25 - Checkpoint fixes for Content editors after terminology migration: restored Playlist preview endpoint filter call (`bandpromo_playlist_normalize_campaign_filter`), aligned Catalogue API payload key with Campaign editor expectations (`campaigns`), and corrected Campaign pool metadata copy typo (`released`).
 
 2026-08-19 12:42 - Phase 2 shared JS modules created: `editor-lifecycle.js`, `editor-drag-reorder.js`, `editor-range-selection.js`, `editor-registry-list.js`. Script tags added to `admin.php`. Migration of individual editors to use shared modules is next.

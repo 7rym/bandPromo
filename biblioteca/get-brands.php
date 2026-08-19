@@ -14,13 +14,16 @@ $root = dirname(__DIR__);
 
 try {
     bandpromo_brand_ensure_seeded($root);
-    $themes = bandpromo_brand_registry_entries($root);
+    $brands = bandpromo_brand_registry_entries($root);
     $activeId = bandpromo_brand_active_id($root);
 
     echo json_encode([
         'ok' => true,
+        'active_brand_id' => $activeId,
+        'brands' => $brands,
+        // Backwards compatibility for older clients not yet migrated.
         'active_theme_id' => $activeId,
-        'themes' => $themes,
+        'themes' => $brands,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(500);
