@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 21:50 - Campaign track save hotfix: `save-campaign-tracks.php` accepts `?campaign=` (was defaulting to invisible `primary` so drops never stuck); reject primary bucket saves; `manage-campaign.php` and `get-campaign-preview-section.php` accept `campaign` query param to match the editor.
+
 2026-08-19 21:40 - Build 422 one-shot migration: orphan audio uploads stuck on invisible `primary` / Default release (clears primary track list + stale registry tags); runs automatically after Site update, via Content autofix preview/apply, and on bootstrap; marker `data/install/migrations/orphan-primary-uploads-b422.json` prevents re-run. Files → Audio listing ignores primary membership so operators see Orphan.
 
 2026-08-19 20:50 - Login/player hotfix: restored brand shell/CSS helpers lost in Phase 1 merge (`bandpromo_brand_render_css_for_id`, `bandpromo_brand_render_css_for_document`, `bandpromo_brand_resolve_active_shell_slot`, `bandpromo_brand_player_shell_assets`); player playlist brand_styles again includes shell asset URLs.

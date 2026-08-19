@@ -13,7 +13,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ''));
+$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['campaign'] ?? $_GET['release'] ?? ''));
 $section = strtolower(trim((string) ($_GET['section'] ?? '')));
 $allowedSections = ['tracks', 'playlists', 'galleries', 'pages', 'branding', 'presskit'];
 

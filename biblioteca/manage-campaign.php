@@ -48,7 +48,7 @@ try {
             throw new InvalidArgumentException('Invalid JSON payload.');
         }
 
-        $releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ($payload['id'] ?? '')));
+        $releaseId = bandpromo_campaign_normalize_id((string) ($_GET['campaign'] ?? $_GET['release'] ?? ($payload['id'] ?? '')));
         if ($releaseId === '') {
             throw new InvalidArgumentException('Campaign id is required.');
         }
@@ -86,7 +86,7 @@ try {
     }
 
     if ($method === 'DELETE') {
-        $releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ''));
+        $releaseId = bandpromo_campaign_normalize_id((string) ($_GET['campaign'] ?? $_GET['release'] ?? ''));
         if ($releaseId === '') {
             throw new InvalidArgumentException('Campaign id is required.');
         }

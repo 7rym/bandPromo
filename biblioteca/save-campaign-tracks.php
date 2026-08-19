@@ -43,9 +43,16 @@ foreach ($order as $entry) {
 }
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? BANDPROMO_CAMPAIGN_DEFAULT_ID));
+$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['campaign'] ?? $_GET['release'] ?? ''));
 if ($releaseId === '') {
-    $releaseId = BANDPROMO_CAMPAIGN_DEFAULT_ID;
+    http_response_code(400);
+    echo json_encode(['error' => 'Campaign id is required.']);
+    exit;
+}
+if ($releaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Cannot save tracks on the invisible upload bucket.']);
+    exit;
 }
 
 try {
