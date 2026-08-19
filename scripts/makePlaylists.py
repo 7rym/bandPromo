@@ -43,7 +43,8 @@ PLAYLIST_REGISTRY_FILE = ROOT_DIR / 'data' / 'playlists' / 'registry.json'
 PLAYLISTS_DIR = ROOT_DIR / 'data' / 'playlists'
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
 CONFIG_COVER_BASENAME = 'configured_release_cover'
-BANDPROMO_RELEASE_DEFAULT_ID = 'primary'
+BANDPROMO_CAMPAIGN_DEFAULT_ID = 'primary'
+BANDPROMO_RELEASE_DEFAULT_ID = BANDPROMO_CAMPAIGN_DEFAULT_ID
 BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo'
 ASSET_ID_RE = re.compile(r'^ast_[0-9A-HJKMNP-TV-Z]{20}$', re.I)
 
@@ -316,7 +317,14 @@ def resolve_audio_working_path(filename):
     return AUDIO_MASTER_DIR / safe_name
 
 
-def load_asset_release_map():
+def asset_campaign_id(asset):
+    """Resolve campaign id from registry asset (campaign_id preferred, release_id legacy)."""
+    if not isinstance(asset, dict):
+        return ''
+    return str(asset.get('campaign_id') or asset.get('release_id') or '').strip()
+
+
+def load_asset_campaign_map():
     if not ASSET_REGISTRY_FILE.exists():
         return {}
 
@@ -329,42 +337,54 @@ def load_asset_release_map():
     if not isinstance(payload, dict):
         return {}
 
-    release_map = {}
+    campaign_map = {}
     assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
     for asset in assets.values():
         if not isinstance(asset, dict):
             continue
         if str(asset.get('kind') or '').strip() != 'audio':
             continue
+        campaign_id = asset_campaign_id(asset)
         master_filename = os.path.basename(str(asset.get('master_filename') or '').strip())
-        release_id = str(asset.get('release_id') or '').strip()
-        if master_filename and release_id:
-            release_map[master_filename] = release_id
+        if master_filename and campaign_id:
+            campaign_map[master_filename] = campaign_id
         original_filename = os.path.basename(str(asset.get('original_filename') or '').strip())
-        if original_filename and release_id:
-            release_map[original_filename] = release_id
+        if original_filename and campaign_id:
+            campaign_map[original_filename] = campaign_id
 
-    return release_map
+    return campaign_map
+
+
+def load_asset_release_map():
+    """Legacy alias — prefer load_asset_campaign_map()."""
+    return load_asset_campaign_map()
+
+
+def resolve_audio_campaign_id(filename, campaign_map):
+    campaign_id = str(campaign_map.get(filename) or '').strip()
+    if campaign_id:
+        return campaign_id
+    # No filename→demo inference. Unmapped audio falls into the primary orphan bucket.
+    return BANDPROMO_CAMPAIGN_DEFAULT_ID
 
 
 def resolve_audio_release_id(filename, release_map):
-    release_id = str(release_map.get(filename) or '').strip()
-    if release_id:
-        return release_id
-    # No filename→demo inference. Unmapped audio falls into the primary orphan bucket.
-    return BANDPROMO_RELEASE_DEFAULT_ID
+    """Legacy alias — prefer resolve_audio_campaign_id()."""
+    return resolve_audio_campaign_id(filename, release_map)
 
 
-def collect_audio_source_files(release_filter=None):
+def collect_audio_source_files(campaign_filter=None, release_filter=None):
     """Enumerate audio work from masters / registry (not media/audio/original)."""
     supported = []
     unsupported = []
     hidden_bundled = []
     hidden_keys = load_hidden_media_keys()
-    release_filter = str(release_filter or '').strip()
-    if release_filter in ('', 'all'):
-        release_filter = ''
-    release_map = load_asset_release_map()
+    if campaign_filter is None:
+        campaign_filter = release_filter
+    campaign_filter = str(campaign_filter or '').strip()
+    if campaign_filter in ('', 'all'):
+        campaign_filter = ''
+    campaign_map = load_asset_campaign_map()
 
     seen = set()
     candidates = []
@@ -399,8 +419,8 @@ def collect_audio_source_files(release_filter=None):
             continue
         seen.add(key)
 
-        release_id = resolve_audio_release_id(entry.name, release_map)
-        if release_filter and release_id != release_filter:
+        campaign_id = resolve_audio_campaign_id(entry.name, campaign_map)
+        if campaign_filter and campaign_id != campaign_filter:
             continue
 
         label = entry.name

@@ -2350,7 +2350,7 @@ function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
     }
 
     if ($result['changed'] > 0) {
-        bandpromo_campaign_repair_catalog_campaign_ids($root);
+        bandpromo_campaign_repair_catalog_release_ids($root);
         bandpromo_mark_build_required('media_audio_upload');
     }
 

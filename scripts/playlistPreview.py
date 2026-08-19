@@ -133,11 +133,11 @@ def split_active_available(pool_track_map, saved_order, playlist_by_file, docume
 def main():
     payload = read_payload()
     playlist_id = str(payload.get('playlistId') or payload.get('playlist_id') or '').strip()
-    release_filter = str(payload.get('release') or payload.get('releaseId') or '').strip()
+    release_filter = str(payload.get('campaign') or payload.get('campaignId') or payload.get('release') or payload.get('releaseId') or '').strip()
     if release_filter in ('', 'all'):
         release_filter = ''
 
-    files, unsupported_files, hidden_bundled_files = makePlaylists.collect_audio_source_files(release_filter=release_filter)
+    files, unsupported_files, hidden_bundled_files = makePlaylists.collect_audio_source_files(campaign_filter=release_filter)
     files.sort(key=lambda item: (makePlaylists.get_track_number(str(item)), item.name.lower()))
 
     saved_order = load_saved_order()
@@ -145,14 +145,14 @@ def main():
         order_index = {name: idx for idx, name in enumerate(saved_order)}
         files.sort(key=lambda item: (order_index.get(item.name, len(saved_order)), makePlaylists.get_track_number(str(item)), item.name.lower()))
 
-    release_map = makePlaylists.load_asset_release_map()
+    campaign_map = makePlaylists.load_asset_campaign_map()
     pool_track_map = {}
     for filepath in files:
         filename = filepath.name
         ready = audio_delivery_ready(filename)
         working_path = makePlaylists.resolve_audio_working_path(filename)
         info = makePlaylists.parse_audio_file(str(working_path))
-        release_id = makePlaylists.resolve_audio_release_id(filename, release_map)
+        campaign_id = makePlaylists.resolve_audio_campaign_id(filename, campaign_map)
         pool_track_map[filename] = {
             'file': filename,
             'title': info.get('title') or filename,
@@ -162,7 +162,8 @@ def main():
             'origin': 'bundled-placeholder' if makePlaylists.is_bundled_placeholder(filename) else 'user-upload',
             'sourceTier': 'master' if Path(working_path).parent == makePlaylists.AUDIO_MASTER_DIR else 'original',
             'deliveryReady': ready or makePlaylists.is_bundled_placeholder(filename),
-            'release_id': release_id,
+            'campaign_id': campaign_id,
+            'release_id': campaign_id,
         }
 
     document_active_files = load_playlist_document_active_files(playlist_id) if playlist_id else []
@@ -181,6 +182,7 @@ def main():
         'availableTracks': available_tracks,
         'hiddenBundledSourceFiles': [entry.name for entry in hidden_bundled_files],
         'unsupportedSourceFiles': [entry.name for entry in unsupported_files],
+        'campaign_filter': release_filter or 'all',
         'release_filter': release_filter or 'all',
         'playlist_id': makePlaylists.normalize_playlist_id(playlist_id),
     }, ensure_ascii=False))

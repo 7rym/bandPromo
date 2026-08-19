@@ -578,10 +578,10 @@ function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
 
     try {
         if (bandpromo_is_local_dev_host()) {
-            $docPath = bandpromo_release_document_path($root, BANDPROMO_RELEASE_DEMO_ID);
+            $docPath = bandpromo_campaign_document_path($root, BANDPROMO_RELEASE_DEMO_ID);
             if (is_file($docPath)) {
                 try {
-                    $document = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+                    $document = bandpromo_campaign_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
                     if (empty($document['locked'])) {
                         return [
                             'ok' => true,

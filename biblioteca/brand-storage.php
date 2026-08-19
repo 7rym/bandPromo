@@ -1607,6 +1607,64 @@ function bandpromo_brand_token_value(array $document, string $path): string
     return is_scalar($value) ? trim((string) $value) : '';
 }
 
+function bandpromo_brand_css_variables(array $document): array
+{
+    $vars = [];
+    foreach (bandpromo_brand_css_variable_map() as $tokenPath => $cssVar) {
+        $value = bandpromo_brand_token_value($document, $tokenPath);
+        if ($value !== '') {
+            $vars[$cssVar] = $value;
+        }
+    }
+
+    $fontBase = bandpromo_brand_token_value($document, 'typography.font_family_base');
+    if ($fontBase !== '') {
+        $vars['font-family'] = $fontBase;
+    }
+
+    foreach (bandpromo_brand_derived_alpha_css_variables() as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
+    foreach (bandpromo_brand_effects_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
+    return $vars;
+}
+
+/**
+ * Build player-facing brand style snippets keyed by brand id.
+ *
+ * @param list<string> $brandIds
+ * @return array<string, array{id: string, title: string, css_variables: array<string, string>}>
+ */
+function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): array
+{
+    $styles = [];
+    bandpromo_brand_ensure_seeded($root);
+
+    foreach ($brandIds as $brandId) {
+        $brandId = bandpromo_brand_canonical_id((string) $brandId);
+        if ($brandId === '' || isset($styles[$brandId])) {
+            continue;
+        }
+
+        try {
+            $document = bandpromo_brand_load_document($root, $brandId);
+            $styles[$brandId] = [
+                'id' => $brandId,
+                'title' => (string) ($document['title'] ?? $brandId),
+                'css_variables' => bandpromo_brand_css_variables($document),
+            ];
+        } catch (Throwable $throwable) {
+            continue;
+        }
+    }
+
+    return $styles;
+}
+
 function bandpromo_brand_render_css(string $root): string
 {
     try {

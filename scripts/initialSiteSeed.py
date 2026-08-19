@@ -197,9 +197,10 @@ def build_playlist_entries(filenames):
             asset_id = str(asset.get('id') or '').strip()
             if asset_id:
                 entry['asset_id'] = asset_id
-            release_id = str(asset.get('release_id') or '').strip()
-            if release_id:
-                entry['release_id'] = release_id
+            campaign_id = makePlaylists.asset_campaign_id(asset)
+            if campaign_id:
+                entry['campaign_id'] = campaign_id
+                entry['release_id'] = campaign_id
         entries.append(entry)
 
     return entries
