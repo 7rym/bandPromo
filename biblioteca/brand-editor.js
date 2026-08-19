@@ -20,6 +20,10 @@
         if (!root || !poolList || !formEl || !previewEl) {
             return;
         }
+        if (root.dataset.brandEditorInitialized === 'true') {
+            return;
+        }
+        root.dataset.brandEditorInitialized = 'true';
 
         const isLocalDevHost = window.BANDPROMO_LOCAL_DEV === true;
 
@@ -61,9 +65,15 @@
             { id: 'georgia', label: 'Georgia (serif)', value: "Georgia, 'Times New Roman', serif" },
         ];
 
+        const initialUrlParams = new URLSearchParams(window.location.search);
         let brands = [];
         let activeBrandId = '';
-        let selectedBrandId = String(root.dataset.initialBrand || 'setup-default');
+        let selectedBrandId = String(
+            initialUrlParams.get('brand')
+            || initialUrlParams.get('theme')
+            || root.dataset.initialBrand
+            || 'setup-default'
+        );
         let previewDocument = null;
         let editorDocument = null;
         let isEditing = false;
@@ -151,17 +161,49 @@
             showBrandToast(text, 'warning');
         }
 
+        const lifecycle = window.bandpromoEditorLifecycle.create({
+            root: root,
+            poolView: poolView,
+            editorView: editorView,
+            saveBtn: saveBtn,
+            cntab: 'branding',
+            entityParam: 'brand',
+            onShowPool: function () {
+                isEditing = false;
+                saveUi?.reset();
+                renderPoolList();
+                updateActionButtons(previewDocument);
+            },
+            onShowEdit: function (brandId) {
+                isEditing = true;
+                selectedBrandId = brandId;
+                renderPoolList();
+                updateActionButtons(editorDocument);
+            },
+            onBeforeClose: async function () {
+                if (brandSettingsDirty()) {
+                    const saved = await saveBrandSettings();
+                    if (!saved) {
+                        return false;
+                    }
+                }
+                if (hasUnsavedChanges()) {
+                    const proceed = window.confirm('You have unsaved brand changes. Leave edit mode without saving?');
+                    if (!proceed) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+            onAfterClose: async function () {
+                editorDocument = null;
+                formEl.innerHTML = '<p class="brand-editor-locked-note">Select a brand from the pool.</p>';
+                await loadBrandDocuments(selectedBrandId);
+            },
+        });
+
         function syncBrandUrl(brandId, editing = isEditing) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('tab', 'content');
-            url.searchParams.set('cntab', 'branding');
-            url.searchParams.set('brand', brandId);
-            if (editing) {
-                url.searchParams.set('edit', '1');
-            } else {
-                url.searchParams.delete('edit');
-            }
-            window.history.replaceState({}, '', url.toString());
+            lifecycle.syncUrl(brandId, editing);
         }
 
         async function fetchJson(url, options) {
@@ -801,27 +843,11 @@
         }
 
         function showPoolView() {
-            isEditing = false;
-            if (root) root.classList.remove('is-editing');
-            if (poolView) poolView.hidden = false;
-            if (editorView) editorView.hidden = true;
-            if (saveBtn) {
-                saveBtn.hidden = true;
-            }
-            saveUi?.reset();
-            renderPoolList();
-            updateActionButtons(previewDocument);
+            lifecycle.showPoolView();
         }
 
         function showEditView(brandId) {
-            isEditing = true;
-            if (root) root.classList.add('is-editing');
-            selectedBrandId = brandId;
-            if (poolView) poolView.hidden = true;
-            if (editorView) editorView.hidden = false;
-            syncBrandUrl(brandId, true);
-            renderPoolList();
-            updateActionButtons(editorDocument);
+            lifecycle.showEditView(brandId);
         }
 
         function brandEntry(brandId) {
@@ -908,35 +934,51 @@
         }
 
         function renderPoolList() {
-            if (!brands.length) {
-                poolList.innerHTML = '<li class="player-layout-empty">No brands available.</li>';
-                return;
-            }
-
-            poolList.innerHTML = brands.map((entry) => {
-                const id = entry.id || '';
-                const selectedClass = id === selectedBrandId ? ' playlist-editor-row-selected' : '';
-                const activeClass = id === activeBrandId ? ' brand-pool-row--active' : '';
-                const activeDot = id === activeBrandId ? '<span class="brand-pool-active-dot" title="Base brand">●</span>' : '';
-                const title = escapeHtml(entry.title || id);
-                const deleteBtn = brandCanDelete(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-brand-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${title}">🗑️</button>`
-                    : '';
-                const editBtn = brandMayEdit(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-brand-id="${escapeHtml(id)}" title="Edit brand" aria-label="Edit ${title}">✏️</button>`
-                    : '';
-                return `<li class="playlist-editor-row brand-pool-row page-pool-row${selectedClass}${activeClass}" data-brand-id="${escapeHtml(id)}" aria-selected="${id === selectedBrandId ? 'true' : 'false'}">
-                    <span class="playlist-track-info">
-                        <strong>🎨 ${title}${activeDot}</strong>
-                        <span class="playlist-track-meta">${brandMetaHtml(entry)}</span>
-                    </span>
-                    <span class="page-pool-row-actions">
-                        ${editBtn}
-                        <button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-brand-id="${escapeHtml(id)}" title="Duplicate brand" aria-label="Duplicate ${title}">⧉</button>
-                        ${deleteBtn}
-                    </span>
-                </li>`;
-            }).join('');
+            window.bandpromoRegistryList.render(poolList, {
+                entries: brands,
+                selectedId: selectedBrandId,
+                dataAttribute: 'brand-id',
+                emptyMessage: 'No brands available.',
+                renderRow: function (entry, isSelected) {
+                    const id = String(entry?.id || '');
+                    const label = String(entry?.title || id).trim() || id;
+                    const activeClass = id === activeBrandId ? ' brand-pool-row--active' : '';
+                    const actions = [];
+                    if (brandMayEdit(entry)) {
+                        actions.push(
+                            window.bandpromoRegistryList.actionButton({
+                                icon: '✏️',
+                                title: `Edit ${label}`,
+                                className: 'page-pool-edit-btn',
+                                dataAttribute: `data-brand-id="${escapeHtml(id)}"`,
+                            })
+                        );
+                    }
+                    actions.push(
+                        window.bandpromoRegistryList.actionButton({
+                            icon: '⧉',
+                            title: `Duplicate ${label}`,
+                            className: 'page-pool-duplicate-btn',
+                            dataAttribute: `data-brand-id="${escapeHtml(id)}"`,
+                        })
+                    );
+                    if (brandCanDelete(entry)) {
+                        actions.push(
+                            `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn registry-btn--delete" data-brand-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${escapeHtml(label)}">🗑️</button>`
+                        );
+                    }
+                    return window.bandpromoRegistryList.row({
+                        id: id,
+                        dataAttribute: 'data-brand-id',
+                        isSelected: isSelected,
+                        icon: '🎨',
+                        title: label,
+                        meta: brandMetaHtml(entry),
+                        extraClasses: `brand-pool-row${activeClass}`,
+                        actions: actions,
+                    });
+                },
+            });
         }
 
         function renderForm() {
@@ -1081,22 +1123,7 @@
         }
 
         async function requestCloseEditor() {
-            if (brandSettingsDirty()) {
-                const saved = await saveBrandSettings();
-                if (!saved) {
-                    return false;
-                }
-            }
-            if (hasUnsavedChanges()) {
-                const proceed = window.confirm('You have unsaved brand changes. Leave edit mode without saving?');
-                if (!proceed) return false;
-            }
-            showPoolView();
-            syncBrandUrl(selectedBrandId, false);
-            editorDocument = null;
-            formEl.innerHTML = '<p class="brand-editor-locked-note">Select a brand from the pool.</p>';
-            await loadBrandDocuments(selectedBrandId);
-            return true;
+            return lifecycle.requestClose();
         }
 
         async function openBrandEditor(brandId) {
@@ -1148,7 +1175,7 @@
 
         poolList.addEventListener('click', (event) => {
             const deleteBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-delete-btn')
+                ? event.target.closest('.page-pool-delete-btn, .registry-btn--delete')
                 : null;
             if (deleteBtn) {
                 event.preventDefault();
@@ -1159,7 +1186,7 @@
             }
 
             const editBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-edit-btn')
+                ? event.target.closest('.page-pool-edit-btn, .registry-btn--edit')
                 : null;
             if (editBtn) {
                 event.preventDefault();
@@ -1170,7 +1197,7 @@
             }
 
             const rowDuplicateBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-duplicate-btn')
+                ? event.target.closest('.page-pool-duplicate-btn, .registry-btn--duplicate')
                 : null;
             if (rowDuplicateBtn) {
                 event.preventDefault();
@@ -1415,8 +1442,7 @@
             }
         }
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const startInEdit = urlParams.get('edit') === '1';
+        const startInEdit = initialUrlParams.get('edit') === '1';
 
         loadRegistry()
             .catch((error) => {

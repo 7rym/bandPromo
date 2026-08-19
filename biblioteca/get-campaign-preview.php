@@ -11,7 +11,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 session_write_close();
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? BANDPROMO_CAMPAIGN_DEFAULT_ID));
+$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['campaign'] ?? $_GET['release'] ?? BANDPROMO_CAMPAIGN_DEFAULT_ID));
 if ($releaseId === '') {
     $releaseId = BANDPROMO_CAMPAIGN_DEFAULT_ID;
 }

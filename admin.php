@@ -1573,13 +1573,13 @@ if ($tab === 'analytics') {
 
             <!-- ── CAMPAIGN ──────────────────────────────────────────────── -->
             <?php if ($contentTab === 'campaign'): ?>
-            <div class="card content-editor-card" id="campaignEditorCard"
+            <div class="card content-editor-card editor-card" id="campaignEditorCard"
                  data-initial-campaign="<?php echo htmlspecialchars($contentCampaign, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="campaign-editor-card-head">
                     <h2>💿 Catalogue</h2>
                 </div>
 
-                <div class="player-layout-editor playlist-editor-layout" id="campaignEditorLayout">
+                <div class="player-layout-editor split-editor playlist-editor-layout" id="campaignEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
                             <div id="campaignPoolView">
@@ -1757,11 +1757,11 @@ if ($tab === 'analytics') {
 
             <!-- ── PLAYLIST ─────────────────────────────────────────────── -->
             <?php elseif ($contentTab === 'playlist'): ?>
-            <div class="card content-editor-card" id="playlistEditorCard"
+            <div class="card content-editor-card editor-card" id="playlistEditorCard"
                  data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎵 Playlists</h3>
 
-                <div class="player-layout-editor playlist-editor-layout" id="playlistEditorLayout">
+                <div class="player-layout-editor split-editor playlist-editor-layout" id="playlistEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
                             <div id="playlistPoolView">
@@ -1931,11 +1931,11 @@ if ($tab === 'analytics') {
                 <p class="card-note" style="color:#f87171"><?php echo htmlspecialchars($galleryError); ?></p>
             </div>
             <?php else: ?>
-            <div class="card content-editor-card" id="galleryEditorCard"
+            <div class="card content-editor-card editor-card" id="galleryEditorCard"
                  data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🖼️ Galleries</h3>
 
-                <div class="player-layout-editor playlist-editor-layout" id="galleryEditorLayout">
+                <div class="player-layout-editor split-editor playlist-editor-layout" id="galleryEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
                             <div id="galleryPoolView">
@@ -2036,12 +2036,12 @@ if ($tab === 'analytics') {
                     ];
                 }
             ?>
-            <div class="card content-editor-card" id="pageEditorRoot"
+            <div class="card content-editor-card editor-card" id="pageEditorRoot"
                  data-initial-page="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
                  data-pages="<?php echo htmlspecialchars(json_encode($pagePoolData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>📄 Pages</h3>
 
-                <div class="player-layout-editor page-editor-layout" id="pageEditorLayout">
+                <div class="player-layout-editor split-editor page-editor-layout" id="pageEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel page-editor-left-panel">
                             <div id="pagePoolView">
@@ -2191,11 +2191,11 @@ if ($tab === 'analytics') {
             </div>
 
             <?php elseif ($contentTab === 'branding'): ?>
-            <div class="card content-editor-card" id="brandEditorRoot"
+            <div class="card content-editor-card editor-card" id="brandEditorRoot"
                  data-initial-brand="<?php echo htmlspecialchars($contentBrand, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎨 Branding</h3>
 
-                <div class="player-layout-editor brand-editor-layout playlist-editor-layout" id="brandEditorLayout">
+                <div class="player-layout-editor split-editor brand-editor-layout playlist-editor-layout" id="brandEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
                             <div id="brandPoolView">

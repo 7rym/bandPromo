@@ -12,12 +12,12 @@ session_write_close();
 header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ''));
+$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['campaign'] ?? $_GET['release'] ?? ''));
 $kind = strtolower(trim((string) ($_GET['kind'] ?? '')));
 
 if ($releaseId === '') {
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Release id is required.']);
+    echo json_encode(['ok' => false, 'error' => 'Campaign id is required.']);
     exit;
 }
 
@@ -26,6 +26,7 @@ try {
     $pools = bandpromo_campaign_association_pools($root, $releaseId, $kind);
     echo json_encode([
         'ok' => true,
+        'campaign_id' => $releaseId,
         'release_id' => $releaseId,
         'kind' => bandpromo_campaign_association_normalize_kind($kind),
         'active' => $pools['active'],

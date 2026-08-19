@@ -8536,7 +8536,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 poolList.addEventListener('click', (event) => {
                     const deleteBtn = event.target instanceof HTMLElement
-                        ? event.target.closest('.page-pool-delete-btn')
+                        ? event.target.closest('.page-pool-delete-btn, .registry-btn--delete')
                         : null;
                     if (deleteBtn) {
                         event.preventDefault();
@@ -8547,7 +8547,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     const editBtn = event.target instanceof HTMLElement
-                        ? event.target.closest('.page-pool-edit-btn')
+                        ? event.target.closest('.page-pool-edit-btn, .registry-btn--edit')
                         : null;
                     if (editBtn) {
                         event.preventDefault();
@@ -8763,6 +8763,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const src = row.dataset.src || '';
                         const selected = rangeSelection.getSelected('available').has(src);
                         row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
@@ -8772,6 +8774,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const src = row.dataset.src || '';
                         const selected = rangeSelection.getSelected('active').has(src);
                         row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
@@ -8830,7 +8834,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const alt = String(item.alt || '').trim();
                             const meta = [mediaTypeLabel(item.type)];
                             if (alt) meta.push(alt);
-                            return `<li class="playlist-editor-row gallery-preview-row">
+                            return `<li class="playlist-editor-row editor-row gallery-preview-row">
                                 <span class="playlist-track-num">${index + 1}</span>
                                 ${renderThumbMarkup(item, true)}
                                 <span class="playlist-track-info">
@@ -8846,9 +8850,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     activeEl.innerHTML = activeItems.map((item, index) => {
                         const poster = resolveVideoPoster(item);
-                        const selectedClass = rangeSelection.getSelected('active').has(item.src) ? ' playlist-editor-row-selected' : '';
+                        const selectedClass = rangeSelection.getSelected('active').has(item.src) ? ' playlist-editor-row-selected editor-row--selected' : '';
                         return `<li class="gallery-active-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(item.src)}" data-type="${bandpromoAdminEscapeHtml(item.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" aria-selected="${rangeSelection.getSelected('active').has(item.src) ? 'true' : 'false'}">
-                            <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
+                            <span class="playlist-drag-handle editor-drag-handle" title="Drag to reorder">⠿</span>
                             <span class="playlist-track-num">${index + 1}</span>
                             ${renderThumbMarkup(item, true)}
                             <div class="gallery-active-fields">
@@ -8941,7 +8945,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function ensurePlaceholder() {
                     if (!dragPlaceholder) {
                         dragPlaceholder = document.createElement('li');
-                        dragPlaceholder.className = 'playlist-editor-placeholder';
+                        dragPlaceholder.className = 'playlist-editor-placeholder editor-placeholder';
                     }
                     return dragPlaceholder;
                 }
@@ -10172,7 +10176,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 poolList.addEventListener('click', (event) => {
                     const deleteBtn = event.target instanceof HTMLElement
-                        ? event.target.closest('.page-pool-delete-btn')
+                        ? event.target.closest('.page-pool-delete-btn, .registry-btn--delete')
                         : null;
                     if (deleteBtn) {
                         event.preventDefault();
@@ -10183,7 +10187,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     const editBtn = event.target instanceof HTMLElement
-                        ? event.target.closest('.page-pool-edit-btn')
+                        ? event.target.closest('.page-pool-edit-btn, .registry-btn--edit')
                         : null;
                     if (editBtn) {
                         event.preventDefault();
@@ -10472,11 +10476,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function getAvailableRows() {
-                    return Array.from(availableEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+                    return Array.from(availableEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
                 }
 
                 function getActiveRows() {
-                    return Array.from(activeEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+                    return Array.from(activeEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
                 }
 
                 function syncAvailableSelectionUi() {
@@ -10484,6 +10488,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const file = String(row.dataset.file || '');
                         const selected = rangeSelection.getSelected('available').has(file);
                         row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
@@ -10493,6 +10499,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const file = String(row.dataset.file || '');
                         const selected = rangeSelection.getSelected('active').has(file);
                         row.classList.toggle('playlist-editor-row-selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
+                        row.classList.toggle('editor-row--selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
@@ -10512,17 +10520,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const meta = bandpromoAdminEscapeHtml(trackMeta(track));
                     const duration = track.deliveryReady === false ? '' : formatPlaylistDuration(track.duration);
                     const file = bandpromoAdminEscapeHtml(track.file || '');
-                    const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo' : '';
-                    const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending' : '';
-                    const selectedClass = options.selected ? ' playlist-editor-row-selected' : '';
+                    const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo editor-row--demo' : '';
+                    const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending editor-row--pending' : '';
+                    const selectedClass = options.selected ? ' playlist-editor-row-selected editor-row--selected' : '';
                     const positionMarkup = options.showPosition
                         ? `<span class="playlist-track-num">${options.position}</span>`
                         : '';
                     const removeMarkup = options.showRemove
                         ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from playlist">✕</button>'
                         : '';
-                    const rowClass = options.activeRow ? 'playlist-editor-row player-layout-row-active' : 'playlist-editor-row';
-                    const readonlyClass = !isEditing ? ' playlist-editor-row-readonly' : '';
+                    const rowClass = options.activeRow ? 'playlist-editor-row editor-row player-layout-row-active' : 'playlist-editor-row editor-row';
+                    const readonlyClass = !isEditing ? ' playlist-editor-row-readonly editor-row--readonly' : '';
                     const draggable = isEditing && track.deliveryReady !== false ? 'true' : 'false';
                     const dragTitle = !isEditing
                         ? 'Preview only — click edit to reorder'
@@ -10532,7 +10540,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     return `<li class="${rowClass}${demoClass}${pendingClass}${selectedClass}${readonlyClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
                         ${positionMarkup}
-                        <span class="playlist-drag-handle" title="${dragTitle}">⠿</span>
+                        <span class="playlist-drag-handle editor-drag-handle" title="${dragTitle}">⠿</span>
                         <span class="playlist-track-info">
                             <strong>${title}</strong>
                             <span class="playlist-track-meta">${meta}</span>
@@ -10608,9 +10616,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     appliedPlaylistFocusFromQuery = true;
-                    document.querySelectorAll('#playlistActiveList .playlist-editor-row-focus, #playlistAvailableList .playlist-editor-row-focus')
-                        .forEach((row) => row.classList.remove('playlist-editor-row-focus'));
+                    document.querySelectorAll('#playlistActiveList .playlist-editor-row-focus, #playlistAvailableList .playlist-editor-row-focus, #playlistActiveList .editor-row--focus, #playlistAvailableList .editor-row--focus')
+                        .forEach((row) => {
+                            row.classList.remove('playlist-editor-row-focus');
+                            row.classList.remove('editor-row--focus');
+                        });
                     targetRow.classList.add('playlist-editor-row-focus');
+                    targetRow.classList.add('editor-row--focus');
                     targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
                 }
 
@@ -10675,14 +10687,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function ensurePlaceholder() {
                     if (!dragPlaceholder) {
                         dragPlaceholder = document.createElement('li');
-                        dragPlaceholder.className = 'playlist-editor-placeholder';
+                        dragPlaceholder.className = 'playlist-editor-placeholder editor-placeholder';
                     }
                     return dragPlaceholder;
                 }
 
                 function getDraggableRows(listEl) {
                     if (!listEl) return [];
-                    return Array.from(listEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+                    return Array.from(listEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
                 }
 
                 function listNameForElement(listEl) {
@@ -10705,7 +10717,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let index = 0;
                     for (let i = 0; i < placeholderIndex; i += 1) {
                         const child = children[i];
-                        if (!child.classList.contains('playlist-editor-row')) continue;
+                        if (!(child.classList.contains('playlist-editor-row') || child.classList.contains('editor-row'))) continue;
                         const file = String(child.dataset.file || '');
                         if (movingFiles.has(file)) continue;
                         index += 1;
@@ -10723,7 +10735,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let index = 0;
                     for (let i = 0; i < placeholderIndex; i += 1) {
                         const child = children[i];
-                        if (!child.classList.contains('playlist-editor-row')) continue;
+                        if (!(child.classList.contains('playlist-editor-row') || child.classList.contains('editor-row'))) continue;
                         const file = String(child.dataset.file || '');
                         if (movingFiles.has(file)) continue;
                         index += 1;
@@ -10827,7 +10839,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function bindDragList(listEl) {
                     listEl.addEventListener('dragstart', (event) => {
-                        const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                        const row = event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]');
                         if (!row || !listEl.contains(row)) return;
                         dragSrc = row;
                         dragSourceList = listNameForElement(listEl);
@@ -10897,7 +10909,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 availableEl.addEventListener('click', (event) => {
                     if (suppressNextClick) return;
-                    const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                    const row = event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]');
                     if (!row || !availableEl.contains(row)) return;
                     handleAvailableSelection(row, event);
                 });
@@ -10905,7 +10917,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 activeEl.addEventListener('click', (event) => {
                     const button = event.target.closest('.player-layout-remove-btn');
                     if (button && activeEl.contains(button)) {
-                        const row = button.closest('.playlist-editor-row');
+                        const row = button.closest('.playlist-editor-row, .editor-row');
                         if (!row) return;
                         const file = String(row.dataset.file || '').trim();
                         if (!file) return;
@@ -10913,7 +10925,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     if (suppressNextClick) return;
-                    const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                    const row = event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]');
                     if (!row || !activeEl.contains(row)) return;
                     handleActiveSelection(row, event);
                 });

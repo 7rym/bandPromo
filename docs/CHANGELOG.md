@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 20:31 - Completed additive registry-button alias rollout: shared action-button renderer now auto-adds `registry-btn--*` aliases from legacy `page-pool-*-btn` classes; hardcoded delete/lock buttons now include registry aliases; click handlers across Campaign/Pages/Branding/Gallery/Playlist accept both old and new button classes; CSS now styles `registry-btn--edit|delete|duplicate|lock` and active-lock states in parallel with legacy selectors.
+
+2026-08-19 20:21 - Added page editor CSS aliases for registry naming (`.registry-row`, `.registry-row-actions`) alongside existing `.page-pool-row*` rules, keeping styling stable during the additive class migration.
+
+2026-08-19 20:18 - Phase 3 compatibility sweep continued: remaining Campaign and Playlist interaction selectors now accept both legacy and new row classes (`.playlist-editor-row` + `.editor-row`) for click/drag/order paths; selection/focus toggles now apply/remove both class families to keep UI state in sync during additive rename rollout.
+
+2026-08-19 20:12 - Phase 3 compatibility pass expanded: `admin.php` editor cards/layout wrappers now include additive `editor-card`/`split-editor` classes; `content-admin.js` and `admin.js` now emit dual row/selection/placeholder/drag-handle classes (`playlist-editor-*` + `editor-*`) and accept both selectors during drag/select handling.
+
+2026-08-19 20:04 - Phase 3 low-risk compatibility pass started: shared registry rows now emit both legacy and new class names (`playlist-editor-row` + `editor-row`, `page-pool-row` + `registry-row`, selected state aliases), admin CSS now styles both naming schemes in parallel (`editor-row`, `editor-row--selected`, `editor-placeholder`, `editor-drag-handle`, `split-editor`, `editor-card` aliases), and Campaign track/association rows emit dual classes for forward-safe CSS migration.
+
+2026-08-19 19:55 - Phase 2 migration continued: `page-editor.js` and `brand-editor.js` now use shared `editor-lifecycle.js` and `editor-registry-list.js`; both editors also gained init guards to prevent duplicate event binding on repeated script loads.
+
+2026-08-19 19:42 - Campaign editor Tracks regression fixes: `get-campaign-preview.php` now accepts `campaign` query param (with `release` fallback), and campaign editor startup now resolves selected campaign from URL (`campaign`/`release`) with a safe registry fallback to `get-campaigns.php` when inline release catalogues are empty.
+
+2026-08-19 19:48 - Campaign associations regression fix: `get-campaign-associations.php` and `save-campaign-associations.php` now accept `campaign` (with legacy `release` fallback) and return `campaign_id` plus legacy `release_id`, restoring Playlists/Galleries/Pages association tabs in Campaign editor.
+
+2026-08-19 19:15 - Campaign Base info fixes: campaign brand selector now loads from `get-brands.php`/`get-brand.php` (previous legacy theme endpoints were 404), and campaign metadata form layout now enforces full-width Blurb/Long description rows instead of side-by-side wrapping.
+
+2026-08-19 19:22 - Campaign editor Phase 3 (tracks): replaced local available/active multi-select state with shared `editor-range-selection.js` (`rangeSelection`) for click/Ctrl/Shift selection and drag selection persistence.
+
+2026-08-19 19:28 - Campaign editor associations: added shared range-selection state per association kind (playlists/galleries/pages) to support multi-select available rows and multi-item drag/drop/import into campaign ownership lists.
+
+2026-08-19 19:33 - Campaign editor stability fix: guard against duplicate Campaign editor initialisation by marking `#campaignEditorCard` after first bind pass, preventing double event handlers that can cause repeated tab actions and inconsistent Tracks state.
+
+2026-08-19 18:45 - Campaign editor migration continued: Phase 1 wired shared `editor-lifecycle.js` for pool/edit transitions and close handling, and Phase 2 switched Campaign pool list rendering to shared `editor-registry-list.js` while preserving lock/export/duplicate/edit/delete controls.
+
 2026-08-19 18:35 - Session end checkpoint: branding API payload migration compatibility shipped (`brands`/`brand_id`/`active_brand_id` with legacy theme aliases), bump build for tester release package.
 
 2026-08-19 18:30 - Branding API compatibility fix: `get-brands.php`, `get-brand.php`, and `set-active-brand.php` now expose `brands` / `active_brand_id` / `brand_id` for migrated editors while still returning legacy `themes` / `active_theme_id` / `theme_id` keys for backwards compatibility.

@@ -271,7 +271,7 @@
         }
 
         function renderLockedRow(item, position) {
-            return `<li class="playlist-editor-row player-layout-row-locked" data-tab-key="${escapeHtml(item.key)}">
+            return `<li class="playlist-editor-row editor-row player-layout-row-locked" data-tab-key="${escapeHtml(item.key)}">
                 <span class="player-layout-lock" title="Always on" aria-hidden="true">🔒</span>
                 <span class="playlist-track-num">${position}</span>
                 <span class="playlist-track-info">
@@ -307,7 +307,7 @@
 
         function getAvailableRows() {
             if (!availableList) return [];
-            return Array.from(availableList.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+            return Array.from(availableList.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
         }
 
         function getActiveRows() {
@@ -320,6 +320,7 @@
                 const key = row.dataset.tabKey || '';
                 const selected = selectedAvailable.has(key);
                 row.classList.toggle('playlist-editor-row-selected', selected);
+                row.classList.toggle('editor-row--selected', selected);
                 row.setAttribute('aria-selected', selected ? 'true' : 'false');
             });
         }
@@ -329,6 +330,7 @@
                 const key = row.dataset.tabKey || '';
                 const selected = selectedActive.has(key);
                 row.classList.toggle('playlist-editor-row-selected', selected);
+                row.classList.toggle('editor-row--selected', selected);
                 row.setAttribute('aria-selected', selected ? 'true' : 'false');
             });
         }
@@ -420,9 +422,9 @@
         }
 
         function renderActiveRow(item, position) {
-            const selectedClass = selectedActive.has(item.key) ? ' playlist-editor-row-selected' : '';
-            return `<li class="playlist-editor-row player-layout-row-active${selectedClass}" draggable="true" data-tab-key="${escapeHtml(item.key)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}" aria-selected="${selectedActive.has(item.key) ? 'true' : 'false'}">
-                <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
+            const selectedClass = selectedActive.has(item.key) ? ' playlist-editor-row-selected editor-row--selected' : '';
+            return `<li class="playlist-editor-row editor-row player-layout-row-active${selectedClass}" draggable="true" data-tab-key="${escapeHtml(item.key)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}" aria-selected="${selectedActive.has(item.key) ? 'true' : 'false'}">
+                <span class="playlist-drag-handle editor-drag-handle" title="Drag to reorder">⠿</span>
                 <span class="playlist-track-num">${position}</span>
                 <span class="playlist-track-info">
                     <strong>${escapeHtml(itemTitle(item))}</strong>
@@ -433,9 +435,9 @@
         }
 
         function renderAvailableRow(item) {
-            const selectedClass = selectedAvailable.has(item.key) ? ' playlist-editor-row-selected' : '';
-            return `<li class="playlist-editor-row${selectedClass}" draggable="true" data-tab-key="${escapeHtml(item.key)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}" aria-selected="${selectedAvailable.has(item.key) ? 'true' : 'false'}">
-                <span class="playlist-drag-handle" title="Drag into player tabs">⠿</span>
+            const selectedClass = selectedAvailable.has(item.key) ? ' playlist-editor-row-selected editor-row--selected' : '';
+            return `<li class="playlist-editor-row editor-row${selectedClass}" draggable="true" data-tab-key="${escapeHtml(item.key)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}" aria-selected="${selectedAvailable.has(item.key) ? 'true' : 'false'}">
+                <span class="playlist-drag-handle editor-drag-handle" title="Drag into player tabs">⠿</span>
                 <span class="playlist-track-info">
                     <strong>${escapeHtml(itemTitle(item))}</strong>
                     <span class="playlist-track-meta">${escapeHtml(itemMeta(item))}</span>
@@ -521,14 +523,14 @@
         function ensurePlaceholder() {
             if (!dragPlaceholder) {
                 dragPlaceholder = document.createElement('li');
-                dragPlaceholder.className = 'playlist-editor-placeholder';
+                dragPlaceholder.className = 'playlist-editor-placeholder editor-placeholder';
             }
             return dragPlaceholder;
         }
 
         function getDraggableRows(listEl) {
             if (!listEl) return [];
-            return Array.from(listEl.querySelectorAll('.playlist-editor-row[draggable="true"]'));
+            return Array.from(listEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
         }
 
         function listNameForElement(listEl) {
@@ -551,7 +553,7 @@
             let index = 0;
             for (let i = 0; i < placeholderIndex; i += 1) {
                 const child = children[i];
-                if (!child.classList.contains('playlist-editor-row')) continue;
+                if (!(child.classList.contains('playlist-editor-row') || child.classList.contains('editor-row'))) continue;
                 const key = child.dataset.tabKey || '';
                 if (movingKeys.has(key)) continue;
                 index += 1;
@@ -689,7 +691,7 @@
             if (!listEl) return;
 
             listEl.addEventListener('dragstart', (event) => {
-                const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+                const row = event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]');
                 if (!row || !listEl.contains(row)) return;
                 dragSrc = row;
                 dragSourceList = listNameForElement(listEl);
@@ -759,7 +761,7 @@
 
         availableList?.addEventListener('click', (event) => {
             if (suppressNextClick) return;
-            const row = event.target.closest('.playlist-editor-row[draggable="true"]');
+            const row = event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]');
             if (!row || !availableList.contains(row)) return;
             handleAvailableSelection(row, event);
         });
@@ -767,7 +769,7 @@
         activeList?.addEventListener('click', (event) => {
             const button = event.target.closest('.player-layout-remove-btn');
             if (button && activeList.contains(button)) {
-                const row = button.closest('.playlist-editor-row');
+                const row = button.closest('.playlist-editor-row, .editor-row');
                 if (!row) return;
                 const key = row.dataset.tabKey || '';
                 if (!key) return;

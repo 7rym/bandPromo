@@ -5,12 +5,17 @@
         if (!layout || !root) {
             return;
         }
+        if (root.dataset.pageEditorInitialized === 'true') {
+            return;
+        }
+        root.dataset.pageEditorInitialized = 'true';
 
         const poolView = document.getElementById('pagePoolView');
         const editorView = document.getElementById('pageEditorView');
         const poolList = document.getElementById('pagePoolList');
         const backBtn = document.getElementById('pageEditorBackBtn');
         const pageLabelFieldWrap = document.getElementById('pageLabelFieldWrap');
+        const saveBtn = document.getElementById('pageSaveBtn');
 
         let pages = [];
         try {
@@ -50,12 +55,29 @@
             return 'Not in player layout';
         }
 
+        const lifecycle = window.bandpromoEditorLifecycle.create({
+            root: root,
+            poolView: poolView,
+            editorView: editorView,
+            saveBtn: saveBtn,
+            cntab: 'pages',
+            entityParam: 'page',
+            trackEditParam: false,
+            onShowPool: function () {
+                isEditing = false;
+                renderPoolList();
+            },
+            onShowEdit: function (pageId) {
+                isEditing = true;
+                currentPageKey = pageId;
+                selectedPageId = pageId;
+                updateLabelFieldVisibility(pageId);
+                renderPoolList();
+            },
+        });
+
         function syncPageUrl(pageId) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('tab', 'content');
-            url.searchParams.set('cntab', 'pages');
-            url.searchParams.set('page', pageId);
-            window.history.replaceState({}, '', url.toString());
+            lifecycle.syncUrl(pageId, false);
         }
 
         function updateLabelFieldVisibility(pageId) {
@@ -68,51 +90,46 @@
 
         function renderPoolList() {
             if (!poolList) return;
-            if (!pages.length) {
-                poolList.innerHTML = '<li class="player-layout-empty">No pages available yet.</li>';
-                return;
-            }
-
-            poolList.innerHTML = pages.map((entry) => {
-                const selectedClass = entry.id === selectedPageId ? ' playlist-editor-row-selected' : '';
-                const title = `${entry.emoji || '📝'} ${entry.title || entry.label || entry.id}`.trim();
-                const deleteBtn = !entry.required
-                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-page-id="${escapeHtml(entry.id)}" data-page-title="${escapeHtml(entry.title || entry.label || entry.id)}" title="Delete page" aria-label="Delete ${escapeHtml(entry.title || entry.label || entry.id)}">🗑️</button>`
-                    : '';
-                return `<li class="playlist-editor-row page-pool-row${selectedClass}" data-page-id="${escapeHtml(entry.id)}" aria-selected="${entry.id === selectedPageId ? 'true' : 'false'}">
-                    <span class="playlist-track-info">
-                        <strong>${escapeHtml(title)}</strong>
-                        <span class="playlist-track-meta">${escapeHtml(pageMetaLine(entry))}</span>
-                    </span>
-                    <span class="page-pool-row-actions">
-                        <button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-page-id="${escapeHtml(entry.id)}" title="Edit page" aria-label="Edit ${escapeHtml(entry.title || entry.label || entry.id)}">✏️</button>
-                        ${deleteBtn}
-                    </span>
-                </li>`;
-            }).join('');
+            window.bandpromoRegistryList.render(poolList, {
+                entries: pages,
+                selectedId: selectedPageId,
+                dataAttribute: 'page-id',
+                emptyMessage: 'No pages available yet.',
+                renderRow: function (entry, isSelected) {
+                    const pageId = String(entry?.id || '');
+                    const label = String(entry?.title || entry?.label || pageId).trim() || pageId;
+                    const actions = [
+                        window.bandpromoRegistryList.actionButton({
+                            icon: '✏️',
+                            title: `Edit ${label}`,
+                            className: 'page-pool-edit-btn',
+                            dataAttribute: `data-page-id="${escapeHtml(pageId)}"`,
+                        }),
+                    ];
+                    if (!entry?.required) {
+                        actions.push(
+                            `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn registry-btn--delete" data-page-id="${escapeHtml(pageId)}" data-page-title="${escapeHtml(label)}" title="Delete page" aria-label="Delete ${escapeHtml(label)}">🗑️</button>`
+                        );
+                    }
+                    return window.bandpromoRegistryList.row({
+                        id: pageId,
+                        dataAttribute: 'data-page-id',
+                        isSelected: isSelected,
+                        icon: entry?.emoji || '📝',
+                        title: label,
+                        meta: escapeHtml(pageMetaLine(entry)),
+                        actions: actions,
+                    });
+                },
+            });
         }
 
         function showPoolView() {
-            isEditing = false;
-            if (root) root.classList.remove('is-editing');
-            if (poolView) poolView.hidden = false;
-            if (editorView) editorView.hidden = true;
-            if (saveBtn) {
-                saveBtn.hidden = true;
-            }
-            renderPoolList();
+            lifecycle.showPoolView();
         }
 
         function showEditorView(pageId) {
-            isEditing = true;
-            if (root) root.classList.add('is-editing');
-            currentPageKey = pageId;
-            selectedPageId = pageId;
-            if (poolView) poolView.hidden = true;
-            if (editorView) editorView.hidden = false;
-            syncPageUrl(pageId);
-            updateLabelFieldVisibility(pageId);
-            renderPoolList();
+            lifecycle.showEditView(pageId);
         }
 
         function updatePoolEntry(pageId, meta) {
@@ -180,12 +197,12 @@
                 openUnsavedModal(BACK_TO_POOL);
                 return;
             }
-            showPoolView();
+            lifecycle.showPoolView();
         }
 
         poolList?.addEventListener('click', (event) => {
             const deleteBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-delete-btn')
+                ? event.target.closest('.page-pool-delete-btn, .registry-btn--delete')
                 : null;
             if (deleteBtn) {
                 event.preventDefault();
@@ -199,7 +216,7 @@
             }
 
             const editBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-edit-btn')
+                ? event.target.closest('.page-pool-edit-btn, .registry-btn--edit')
                 : null;
             if (editBtn) {
                 event.preventDefault();
@@ -253,7 +270,6 @@
                 window.bandpromoBindPageGalleryCarousels(previewEl);
             }
         }
-        const saveBtn = document.getElementById('pageSaveBtn');
         const pagePicturePickerField = document.getElementById('pagePicturePickerField');
 
         const PICTURE_STYLE_DEFAULTS = {

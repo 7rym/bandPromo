@@ -26,7 +26,11 @@ if (!is_array($payload)) {
 }
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ($payload['release_id'] ?? '')));
+$releaseId = bandpromo_campaign_normalize_id((string) (
+    $_GET['campaign']
+    ?? $_GET['release']
+    ?? ($payload['campaign_id'] ?? ($payload['release_id'] ?? ''))
+));
 $kind = strtolower(trim((string) ($payload['kind'] ?? $_GET['kind'] ?? '')));
 $activeIds = $payload['ids'] ?? $payload['active'] ?? [];
 if (!is_array($activeIds)) {
@@ -55,6 +59,7 @@ try {
 
     echo json_encode([
         'ok' => true,
+        'campaign_id' => $releaseId,
         'release_id' => $releaseId,
         'kind' => $kind,
         'active' => $saved['active'],

@@ -173,7 +173,8 @@
     flex: 0 0 auto;
 }
 
-.page-pool-list .page-pool-row {
+.page-pool-list .page-pool-row,
+.page-pool-list .registry-row {
     cursor: pointer;
 }
 
@@ -186,7 +187,8 @@
 /* Pool row icon tools: canonical styles live in admin.css
    (.icon-btn--pool + .page-pool-*-btn aliases). */
 
-.page-pool-row-actions {
+.page-pool-row-actions,
+.registry-row-actions {
     display: inline-flex;
     align-items: center;
     gap: 6px;

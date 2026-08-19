@@ -47,21 +47,21 @@
     function registryRow(options) {
         var id = options.id || '';
         var dataAttr = options.dataAttribute || 'data-id';
-        var selectedClass = options.isSelected ? ' playlist-editor-row-selected' : '';
+        var selectedClass = options.isSelected ? ' playlist-editor-row-selected editor-row--selected' : '';
         var extra = options.extraClasses ? ' ' + options.extraClasses : '';
         var title = escapeHtml(options.title || id);
         var icon = options.icon || '';
         var meta = options.meta || '';
         var actions = (options.actions || []).join('');
 
-        return '<li class="playlist-editor-row page-pool-row' + extra + selectedClass + '" '
+        return '<li class="playlist-editor-row editor-row page-pool-row registry-row' + extra + selectedClass + '" '
             + dataAttr + '="' + escapeAttr(id) + '" '
             + 'aria-selected="' + (options.isSelected ? 'true' : 'false') + '">'
             + '<span class="playlist-track-info">'
             + '<strong>' + icon + (icon ? ' ' : '') + title + '</strong>'
             + (meta ? '<span class="playlist-track-meta">' + meta + '</span>' : '')
             + '</span>'
-            + '<span class="page-pool-row-actions">' + actions + '</span>'
+            + '<span class="page-pool-row-actions registry-row-actions">' + actions + '</span>'
             + '</li>';
     }
 
@@ -76,11 +76,33 @@
      * @returns {string}
      */
     function actionButton(options) {
+        var className = String(options.className || '').trim();
+        var expandedClassName = expandRegistryButtonClasses(className);
         return '<button type="button" class="icon-btn icon-btn--pool '
-            + (options.className || '') + '"'
+            + expandedClassName + '"'
             + (options.dataAttribute ? ' ' + options.dataAttribute : '')
             + ' title="' + escapeAttr(options.title || '') + '"'
             + '>' + (options.icon || '') + '</button>';
+    }
+
+    function expandRegistryButtonClasses(className) {
+        var classes = className ? className.split(/\s+/).filter(Boolean) : [];
+        if (classes.indexOf('page-pool-edit-btn') !== -1 && classes.indexOf('registry-btn--edit') === -1) {
+            classes.push('registry-btn--edit');
+        }
+        if (classes.indexOf('page-pool-delete-btn') !== -1 && classes.indexOf('registry-btn--delete') === -1) {
+            classes.push('registry-btn--delete');
+        }
+        if (classes.indexOf('page-pool-duplicate-btn') !== -1 && classes.indexOf('registry-btn--duplicate') === -1) {
+            classes.push('registry-btn--duplicate');
+        }
+        if (classes.indexOf('page-pool-lock-btn') !== -1 && classes.indexOf('registry-btn--lock') === -1) {
+            classes.push('registry-btn--lock');
+        }
+        if (classes.indexOf('page-pool-lock-btn--active') !== -1 && classes.indexOf('registry-btn--lock-active') === -1) {
+            classes.push('registry-btn--lock-active');
+        }
+        return classes.join(' ');
     }
 
     function escapeHtml(str) {
