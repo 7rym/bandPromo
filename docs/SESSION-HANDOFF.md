@@ -2,48 +2,44 @@
 
 ## Resume point
 
-Admin editor refactor — Phase 2 migration.
+Admin editor refactor — **Phase 3 real cleanup** (remove legacy class names after additive alias rollout).
 
 ## What's done
 
-### Phase 1 — Terminology rename (committed, not pushed)
+### Phase 1 — Terminology rename (committed)
 
-- **release→campaign**: ~14 PHP files renamed, ~96 function defs + ~350 call sites, all JS/CSS/HTML IDs updated. Backwards-compat URL aliases in `admin.php`.
-- **theme→brand**: ~8 PHP files renamed, ~65 function defs + call sites, all JS/CSS renamed.
-- **UK English**: `customize`→`customise` in 3 files.
-- Fixed pre-existing duplicate `bandpromo_brand_active_id` function.
-- Exclusions preserved: `release-package.php` (app updates), `release_date` fields, `theme-preview-*` CSS (preview rendering), config keys like `release.identity.*`.
+- release→campaign, theme→brand, UK English pass. Backwards-compat URL/API aliases retained where needed.
 
-### Phase 2 — Shared JS modules (created, not yet wired)
+### Phase 2 — Shared JS modules + migration (committed, local)
 
-Four new files under `biblioteca/`:
-- `editor-lifecycle.js` — `window.bandpromoEditorLifecycle.create()` factory for pool/edit view toggling, URL sync, close gating
-- `editor-drag-reorder.js` — `window.bandpromoDragReorder.bind()` for drag-and-drop list reorder
-- `editor-range-selection.js` — `window.bandpromoRangeSelection.create()` for shift-click/ctrl-click multi-select
-- `editor-registry-list.js` — `window.bandpromoRegistryList.render()` + `.row()` + `.actionButton()` for pool list rendering
+- Shared modules: `editor-lifecycle.js`, `editor-drag-reorder.js`, `editor-range-selection.js`, `editor-registry-list.js`.
+- Wired into Gallery, Playlist (admin.js), Campaign, Pages, Brand editors.
+- Init guards on Campaign/Pages/Brand editors (duplicate load fix).
+- PHP/API fixes for campaign/brand query params and response keys.
 
-Script tags added to `admin.php` inside the `<?php if ($tab === 'content'): ?>` block.
+### Phase 3 — Additive CSS/JS alias rollout (committed, local, not pushed)
+
+- Dual class emission (`playlist-editor-row` + `editor-row`, `page-pool-*` + `registry-*`, etc.).
+- Parallel CSS in `admin.css` / `page-editor.css`.
+- Bidirectional registry button class expansion in `editor-registry-list.js`.
+- Inline style cleanup in content-editor HTML/JS → semantic classes in `admin.css`.
+
+Latest local commit: inline style cleanup checkpoint (`v0.8.32 build 417`). **Three commits ahead of origin/main.**
 
 ## What's next
 
-### Phase 2 — Migration (editors → shared modules)
+### Phase 3 — Real cleanup (start here)
 
-Wire each editor to use the shared modules, then delete the duplicated local code. Order:
-1. **Gallery editor** (admin.js) — closest to the shared pattern, good proof of concept
-2. **Playlist editor** (admin.js) — very similar to gallery
-3. **Campaign editor** (campaign-editor.js) — has extra tab-link patching and association sections
-4. **Pages editor** (page-editor.js) — simplest lifecycle, no range selection
-5. **Brand editor** (brand-editor.js) — has saveUi integration
+Remove legacy class names and selectors now that dual aliases are in place:
 
-For each migration: replace local lifecycle, drag-reorder, range-selection, and pool-list rendering with shared module calls, smoke test, then delete the old code.
+1. Drop legacy classes from JS/HTML emitters (`playlist-editor-row`, `page-pool-*`, `content-editor-card`, `player-layout-editor`, etc.).
+2. Remove parallel legacy CSS selectors; keep `editor-*`, `registry-*`, `split-editor`, `editor-card` only.
+3. Tighten JS `closest` / `querySelectorAll` to new names only.
+4. Smoke-test Gallery, Playlist, Campaign (tracks + associations), Pages, Brand editors.
 
-### Phase 3 — CSS rename
+### Phase 4 — Unify save UX (deferred)
 
-`playlist-editor-row` → `editor-row`, `player-layout-*` → `split-editor*`, `page-pool-*` → `registry-*`. Remove dead classes.
-
-### Phase 4 — Unify save UX
-
-Add `bandpromoContentSaveUi` to Catalogue, adopt Pages-style unsaved modal everywhere, standardise save feedback.
+Add `bandpromoContentSaveUi` to Catalogue; Pages-style unsaved modal everywhere.
 
 ## Plan document
 

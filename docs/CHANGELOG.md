@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 20:17 - Session handoff updated for Phase 3 real cleanup: additive CSS/JS alias rollout and inline-style cleanup are checkpoint-complete locally (build 417); next step is removing legacy class names/selectors across content editors.
+
 2026-08-19 20:45 - Inline-style cleanup pass (Content editor scope): replaced hardcoded inline error/status/display spacing styles in `campaign-editor.js`, `brand-editor.js`, `admin.js`, and Content-tab `admin.php` blocks with semantic classes in `admin.css` (`admin-centred-note*`, `upload-status-*`, `gallery-error-*`, campaign delete mode/layout helpers). Remaining inline styles in these files are now data-driven dynamic values (CSS vars/backgrounds/progress) rather than fixed presentation constants.
 
 2026-08-19 20:38 - Registry alias hardening: shared `editor-registry-list` action-button class expansion now maps legacy↔new in both directions (`page-pool-*-btn` and `registry-btn--*`), and editor call-sites now prefer `registry-btn--*` while auto-including legacy class names for backwards-compatible selectors.
