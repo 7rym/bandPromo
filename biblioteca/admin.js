@@ -8174,8 +8174,48 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 let galleries = [];
                 let selectedGalleryId = String(editorCard?.dataset.initialGallery || 'bandpromo-demo');
-                let isEditing = false;
                 let pendingGalleryDeleteId = '';
+
+                let isEditing = false;
+
+                const lifecycle = window.bandpromoEditorLifecycle.create({
+                    root: editorCard,
+                    poolView: poolView,
+                    editorView: itemsPoolView,
+                    saveBtn: saveBtn,
+                    cntab: 'gallery',
+                    entityParam: 'gallery',
+                    onShowPool: function () {
+                        isEditing = false;
+                        if (editorHint) {
+                            editorHint.textContent = 'Select a gallery from the pool, then click edit to change its content order.';
+                        }
+                        renderGalleryPoolList();
+                    },
+                    onShowEdit: function (entityId) {
+                        isEditing = true;
+                        selectedGalleryId = entityId;
+                        syncGallerySettingsPanel(entityId);
+                        if (editorHint) {
+                            editorHint.textContent = '';
+                        }
+                        renderGalleryPoolList();
+                    },
+                    onBeforeClose: async function () {
+                        if (gallerySettingsDirty()) {
+                            const saved = await saveGallerySettings();
+                            if (!saved) return false;
+                        }
+                        if (saveBtn.classList.contains('btn-amber')) {
+                            const proceed = window.confirm('You have unsaved gallery changes. Leave edit mode without saving?');
+                            if (!proceed) return false;
+                        }
+                        return true;
+                    },
+                    onAfterClose: async function () {
+                        await loadGalleryPreview({ preserveSavedState: true });
+                    },
+                });
 
                 const galleryDeleteModal = document.getElementById('galleryDeleteModal');
                 const galleryDeleteModalName = document.getElementById('galleryDeleteModalName');
@@ -8307,17 +8347,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     galleryDeleteConfirmBtn?.focus();
                 }
 
-                function syncGalleryUrl(galleryId, editing = isEditing) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'content');
-                    url.searchParams.set('cntab', 'gallery');
-                    url.searchParams.set('gallery', galleryId);
-                    if (editing) {
-                        url.searchParams.set('edit', '1');
-                    } else {
-                        url.searchParams.delete('edit');
-                    }
-                    window.history.replaceState({}, '', url.toString());
+                function syncGalleryUrl(galleryId, editing) {
+                    lifecycle.syncUrl(galleryId, editing);
                 }
 
                 function setAddGalleryPanelOpen(open) {
@@ -8336,58 +8367,41 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function showPoolView() {
-                    isEditing = false;
-                    if (editorCard) editorCard.classList.remove('is-editing');
-                    if (poolView) poolView.hidden = false;
-                    if (itemsPoolView) itemsPoolView.hidden = true;
-                    if (saveBtn) saveBtn.hidden = true;
-                    if (editorHint) {
-                        editorHint.textContent = 'Select a gallery from the pool, then click edit to change its content order.';
-                    }
-                    renderGalleryPoolList();
+                    lifecycle.showPoolView();
                 }
 
                 function showEditView(galleryId) {
-                    isEditing = true;
-                    if (editorCard) editorCard.classList.add('is-editing');
-                    selectedGalleryId = galleryId;
-                    if (poolView) poolView.hidden = true;
-                    if (itemsPoolView) itemsPoolView.hidden = false;
-                    if (saveBtn) saveBtn.hidden = false;
-                    syncGalleryUrl(galleryId, true);
-                    syncGallerySettingsPanel(galleryId);
-                    if (editorHint) {
-                        editorHint.textContent = '';
-                    }
-                    renderGalleryPoolList();
+                    lifecycle.showEditView(galleryId);
                 }
 
                 function renderGalleryPoolList() {
                     if (!poolList) return;
-                    if (!galleries.length) {
-                        poolList.innerHTML = '<li class="player-layout-empty">No galleries available yet.</li>';
-                        return;
-                    }
                     const ordered = galleries.slice().sort((left, right) => String(left.title || left.id || '')
                         .localeCompare(String(right.title || right.id || ''), undefined, { sensitivity: 'base' }));
-                    poolList.innerHTML = ordered.map((entry) => {
-                        const id = String(entry.id || '');
-                        const selectedClass = id === selectedGalleryId ? ' playlist-editor-row-selected' : '';
-                        const title = bandpromoAdminEscapeHtml(entry.title || id);
-                        const deleteBtn = galleryCanDelete(entry)
-                            ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Delete gallery" aria-label="Delete ${title}">🗑️</button>`
-                            : '';
-                        return `<li class="playlist-editor-row gallery-pool-row page-pool-row${selectedClass}" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedGalleryId ? 'true' : 'false'}">
-                            <span class="playlist-track-info">
-                                <strong>🖼️ ${title}</strong>
-                                <span class="playlist-track-meta">${bandpromoAdminEscapeHtml(galleryMetaLine(entry))}</span>
-                            </span>
-                            <span class="page-pool-row-actions">
-                                <button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-gallery-id="${bandpromoAdminEscapeHtml(id)}" title="Edit gallery" aria-label="Edit ${title}">✏️</button>
-                                ${deleteBtn}
-                            </span>
-                        </li>`;
-                    }).join('');
+                    window.bandpromoRegistryList.render(poolList, {
+                        entries: ordered,
+                        selectedId: selectedGalleryId,
+                        emptyMessage: 'No galleries available yet.',
+                        renderRow: function (entry, isSelected) {
+                            const id = String(entry.id || '');
+                            var actions = [
+                                window.bandpromoRegistryList.actionButton({ icon: '✏️', title: 'Edit gallery', className: 'page-pool-edit-btn', dataAttribute: 'data-gallery-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }),
+                            ];
+                            if (galleryCanDelete(entry)) {
+                                actions.push(window.bandpromoRegistryList.actionButton({ icon: '🗑️', title: 'Delete gallery', className: 'icon-btn--danger page-pool-delete-btn', dataAttribute: 'data-gallery-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }));
+                            }
+                            return window.bandpromoRegistryList.row({
+                                id: id,
+                                dataAttribute: 'data-gallery-id',
+                                isSelected: isSelected,
+                                icon: '🖼️',
+                                title: entry.title || id,
+                                meta: window.bandpromoRegistryList.escapeHtml(galleryMetaLine(entry)),
+                                extraClasses: 'gallery-pool-row',
+                                actions: actions,
+                            });
+                        },
+                    });
                 }
 
                 async function loadGalleryRegistry() {
@@ -8416,10 +8430,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             throw new Error(data.error || 'Could not load gallery');
                         }
                         activeItems = Array.isArray(data.items) ? data.items : [];
-                        selectedActive.clear();
-                        selectionAnchorActive = '';
-                        selectedAvailable.clear();
-                        selectionAnchorAvailable = '';
+                        rangeSelection.clearAll();
                         renderGalleryLists();
                         if (preserveSavedState) {
                             saveUi?.markSaved();
@@ -8432,20 +8443,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 async function requestCloseEditor() {
-                    if (gallerySettingsDirty()) {
-                        const saved = await saveGallerySettings();
-                        if (!saved) {
-                            return false;
-                        }
-                    }
-                    if (saveBtn.classList.contains('btn-amber')) {
-                        const proceed = window.confirm('You have unsaved gallery changes. Leave edit mode without saving?');
-                        if (!proceed) return false;
-                    }
-                    showPoolView();
-                    syncGalleryUrl(selectedGalleryId, false);
-                    await loadGalleryPreview({ preserveSavedState: true });
-                    return true;
+                    return lifecycle.requestClose();
                 }
 
                 async function openGalleryEditor(galleryId) {
@@ -8658,14 +8656,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let draggedRows = [];
                 let dragSourceList = '';
                 let dragPlaceholder = null;
-                let selectedAvailable = new Set();
-                let selectedActive = new Set();
-                let selectionAnchorAvailable = '';
-                let selectionAnchorActive = '';
                 let suppressNextClick = false;
                 const availableSearchEl = null;
                 const addSelectedBtn = null;
                 const removeSelectedBtn = document.getElementById('galleryRemoveSelectedBtn');
+
+                const rangeSelection = window.bandpromoRangeSelection.create({
+                    dataKey: 'src',
+                    getAvailableRows: function () { return getAvailableRows(); },
+                    getActiveRows: function () { return getActiveRows(); },
+                    onSelectionChange: function (listName) {
+                        if (listName === 'available') syncAvailableSelectionUi();
+                        else syncActiveSelectionUi();
+                    },
+                });
 
                 function videoPosterPathFromSrc(src) {
                     const normalized = String(src || '').replace(/\\/g, '/');
@@ -8730,25 +8734,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function pruneAvailableSelection() {
                     const allowed = new Set(allFiles.filter((file) => !activeSrcs().has(file.src)).map((file) => file.src));
-                    selectedAvailable.forEach((src) => {
-                        if (!allowed.has(src)) {
-                            selectedAvailable.delete(src);
-                        }
-                    });
-                    if (selectionAnchorAvailable && !allowed.has(selectionAnchorAvailable)) {
-                        selectionAnchorAvailable = '';
+                    const sel = rangeSelection.getSelected('available');
+                    sel.forEach((src) => { if (!allowed.has(src)) sel.delete(src); });
+                    if (rangeSelection.getAnchor('available') && !allowed.has(rangeSelection.getAnchor('available'))) {
+                        rangeSelection.setAnchor('available', '');
                     }
                 }
 
                 function pruneActiveSelection() {
                     const allowed = new Set(activeItems.map((item) => item.src));
-                    selectedActive.forEach((src) => {
-                        if (!allowed.has(src)) {
-                            selectedActive.delete(src);
-                        }
-                    });
-                    if (selectionAnchorActive && !allowed.has(selectionAnchorActive)) {
-                        selectionAnchorActive = '';
+                    const sel = rangeSelection.getSelected('active');
+                    sel.forEach((src) => { if (!allowed.has(src)) sel.delete(src); });
+                    if (rangeSelection.getAnchor('active') && !allowed.has(rangeSelection.getAnchor('active'))) {
+                        rangeSelection.setAnchor('active', '');
                     }
                 }
 
@@ -8763,7 +8761,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function syncAvailableSelectionUi() {
                     getAvailableRows().forEach((row) => {
                         const src = row.dataset.src || '';
-                        const selected = selectedAvailable.has(src);
+                        const selected = rangeSelection.getSelected('available').has(src);
                         row.classList.toggle('playlist-editor-row-selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
@@ -8772,95 +8770,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function syncActiveSelectionUi() {
                     getActiveRows().forEach((row) => {
                         const src = row.dataset.src || '';
-                        const selected = selectedActive.has(src);
+                        const selected = rangeSelection.getSelected('active').has(src);
                         row.classList.toggle('playlist-editor-row-selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
 
-                function selectAvailableRange(targetSrc, preserveExisting) {
-                    const rows = getAvailableRows();
-                    if (!rows.length) return;
-                    const anchorSrc = selectionAnchorAvailable && rows.some((row) => row.dataset.src === selectionAnchorAvailable)
-                        ? selectionAnchorAvailable
-                        : targetSrc;
-                    const anchorIndex = rows.findIndex((row) => row.dataset.src === anchorSrc);
-                    const targetIndex = rows.findIndex((row) => row.dataset.src === targetSrc);
-                    if (anchorIndex === -1 || targetIndex === -1) return;
-
-                    const nextSelected = preserveExisting ? new Set(selectedAvailable) : new Set();
-                    const start = Math.min(anchorIndex, targetIndex);
-                    const end = Math.max(anchorIndex, targetIndex);
-                    rows.slice(start, end + 1).forEach((row) => {
-                        const src = row.dataset.src || '';
-                        if (src) nextSelected.add(src);
-                    });
-                    selectedAvailable = nextSelected;
-                }
-
-                function selectActiveRange(targetSrc, preserveExisting) {
-                    const rows = getActiveRows();
-                    if (!rows.length) return;
-                    const anchorSrc = selectionAnchorActive && rows.some((row) => row.dataset.src === selectionAnchorActive)
-                        ? selectionAnchorActive
-                        : targetSrc;
-                    const anchorIndex = rows.findIndex((row) => row.dataset.src === anchorSrc);
-                    const targetIndex = rows.findIndex((row) => row.dataset.src === targetSrc);
-                    if (anchorIndex === -1 || targetIndex === -1) return;
-
-                    const nextSelected = preserveExisting ? new Set(selectedActive) : new Set();
-                    const start = Math.min(anchorIndex, targetIndex);
-                    const end = Math.max(anchorIndex, targetIndex);
-                    rows.slice(start, end + 1).forEach((row) => {
-                        const src = row.dataset.src || '';
-                        if (src) nextSelected.add(src);
-                    });
-                    selectedActive = nextSelected;
-                }
-
                 function handleAvailableSelection(row, event) {
-                    const src = row.dataset.src || '';
-                    if (!src) return;
-                    selectedActive.clear();
-                    selectionAnchorActive = '';
-                    syncActiveSelectionUi();
-
-                    if (event.shiftKey) {
-                        selectAvailableRange(src, event.ctrlKey || event.metaKey);
-                    } else if (event.ctrlKey || event.metaKey) {
-                        if (selectedAvailable.has(src)) {
-                            selectedAvailable.delete(src);
-                        } else {
-                            selectedAvailable.add(src);
-                        }
-                    } else {
-                        selectedAvailable = new Set([src]);
-                    }
-
-                    selectionAnchorAvailable = selectedAvailable.size ? src : '';
+                    rangeSelection.handleSelection('available', row, event);
                     syncAvailableSelectionUi();
                 }
 
                 function handleActiveSelection(row, event) {
-                    const src = row.dataset.src || '';
-                    if (!src) return;
-                    selectedAvailable.clear();
-                    selectionAnchorAvailable = '';
-                    syncAvailableSelectionUi();
-
-                    if (event.shiftKey) {
-                        selectActiveRange(src, event.ctrlKey || event.metaKey);
-                    } else if (event.ctrlKey || event.metaKey) {
-                        if (selectedActive.has(src)) {
-                            selectedActive.delete(src);
-                        } else {
-                            selectedActive.add(src);
-                        }
-                    } else {
-                        selectedActive = new Set([src]);
-                    }
-
-                    selectionAnchorActive = selectedActive.size ? src : '';
+                    rangeSelection.handleSelection('active', row, event);
                     syncActiveSelectionUi();
                 }
 
@@ -8871,10 +8793,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function removeSelectedActiveFromGallery() {
-                    if (!selectedActive.size) {
+                    if (!rangeSelection.getSelected('active').size) {
                         return;
                     }
-                    removeActiveBySrcs(Array.from(selectedActive));
+                    removeActiveBySrcs(Array.from(rangeSelection.getSelected('active')));
                 }
 
                 function renderGalleryLists() {
@@ -8924,8 +8846,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     activeEl.innerHTML = activeItems.map((item, index) => {
                         const poster = resolveVideoPoster(item);
-                        const selectedClass = selectedActive.has(item.src) ? ' playlist-editor-row-selected' : '';
-                        return `<li class="gallery-active-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(item.src)}" data-type="${bandpromoAdminEscapeHtml(item.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" aria-selected="${selectedActive.has(item.src) ? 'true' : 'false'}">
+                        const selectedClass = rangeSelection.getSelected('active').has(item.src) ? ' playlist-editor-row-selected' : '';
+                        return `<li class="gallery-active-row${selectedClass}" draggable="true" data-src="${bandpromoAdminEscapeHtml(item.src)}" data-type="${bandpromoAdminEscapeHtml(item.type || 'image')}" data-poster="${bandpromoAdminEscapeHtml(poster)}" aria-selected="${rangeSelection.getSelected('active').has(item.src) ? 'true' : 'false'}">
                             <span class="playlist-drag-handle" title="Drag to reorder">⠿</span>
                             <span class="playlist-track-num">${index + 1}</span>
                             ${renderThumbMarkup(item, true)}
@@ -8982,9 +8904,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     syncFromDOM();
                     const removeSet = new Set(srcs);
                     activeItems = activeItems.filter((item) => !removeSet.has(item.src));
-                    srcs.forEach((src) => selectedActive.delete(src));
-                    if (selectionAnchorActive && removeSet.has(selectionAnchorActive)) {
-                        selectionAnchorActive = '';
+                    srcs.forEach((src) => rangeSelection.getSelected('active').delete(src));
+                    if (rangeSelection.getAnchor('active') && removeSet.has(rangeSelection.getAnchor('active'))) {
+                        rangeSelection.setAnchor('active', '');
                     }
                     renderActive();
                     renderAvailable();
@@ -9121,10 +9043,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function collectDraggedRows(listEl, row) {
                     const listName = listNameForElement(listEl);
                     if (listName === 'available') {
-                        return getAvailableRows().filter((candidate) => selectedAvailable.has(candidate.dataset.src || ''));
+                        return getAvailableRows().filter((candidate) => rangeSelection.getSelected('available').has(candidate.dataset.src || ''));
                     }
                     if (listName === 'active') {
-                        return getActiveRows().filter((candidate) => selectedActive.has(candidate.dataset.src || ''));
+                        return getActiveRows().filter((candidate) => rangeSelection.getSelected('active').has(candidate.dataset.src || ''));
                     }
                     return [];
                 }
@@ -9142,16 +9064,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const sourceSrc = row.dataset.src || '';
 
                         if (dragSourceList === 'available') {
-                            if (sourceSrc && !selectedAvailable.has(sourceSrc)) {
-                                selectedAvailable = new Set([sourceSrc]);
-                                selectionAnchorAvailable = sourceSrc;
+                            if (sourceSrc && !rangeSelection.getSelected('available').has(sourceSrc)) {
+                                rangeSelection.setSelected('available', new Set([sourceSrc]));
+                                rangeSelection.setAnchor('available', sourceSrc);
                                 syncAvailableSelectionUi();
                             }
                             draggedRows = collectDraggedRows(listEl, row);
                         } else if (dragSourceList === 'active') {
-                            if (sourceSrc && !selectedActive.has(sourceSrc)) {
-                                selectedActive = new Set([sourceSrc]);
-                                selectionAnchorActive = sourceSrc;
+                            if (sourceSrc && !rangeSelection.getSelected('active').has(sourceSrc)) {
+                                rangeSelection.setSelected('active', new Set([sourceSrc]));
+                                rangeSelection.setAnchor('active', sourceSrc);
                                 syncActiveSelectionUi();
                             }
                             draggedRows = collectDraggedRows(listEl, row);
@@ -9201,8 +9123,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                     });
                 }
-
-                
 
                 activeEl.addEventListener('click', (event) => {
                     if (!isEditing) return;
@@ -9390,6 +9310,53 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let isEditing = false;
                 let pendingPlaylistDeleteId = '';
                 const campaignFilterId = String(new URLSearchParams(window.location.search).get('campaign') || '').trim();
+
+                const lifecycle = window.bandpromoEditorLifecycle.create({
+                    root: editorCard,
+                    poolView: poolView,
+                    editorView: tracksPoolView,
+                    saveBtn: saveBtn,
+                    cntab: 'playlist',
+                    entityParam: 'playlist',
+                    onShowPool: function () {
+                        isEditing = false;
+                        if (playlistAvailableSection) playlistAvailableSection.hidden = true;
+                        if (editorHint) {
+                            editorHint.textContent = 'Select a playlist from the pool, then click edit to change its track order.';
+                        }
+                        updatePlaylistCoverPanel();
+                        renderPlaylistPoolList();
+                        renderPlaylistHeadBadges();
+                        updatePlaylistDefaultButton();
+                    },
+                    onShowEdit: function (entityId) {
+                        isEditing = true;
+                        selectedPlaylistId = entityId;
+                        if (playlistAvailableSection) playlistAvailableSection.hidden = false;
+                        syncPlaylistSettingsPanel(entityId);
+                        if (editorHint) {
+                            editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available content to remove them from the playlist.';
+                        }
+                        updatePlaylistCoverPanel();
+                        renderPlaylistPoolList();
+                        renderPlaylistHeadBadges();
+                        updatePlaylistDefaultButton();
+                    },
+                    onBeforeClose: async function () {
+                        if (playlistSettingsDirty()) {
+                            const saved = await savePlaylistSettings();
+                            if (!saved) return false;
+                        }
+                        if (saveBtn.classList.contains('btn-amber')) {
+                            const proceed = window.confirm('You have unsaved playlist changes. Leave edit mode without saving?');
+                            if (!proceed) return false;
+                        }
+                        return true;
+                    },
+                    onAfterClose: async function () {
+                        await loadPlaylistPreview({ preserveSavedState: true });
+                    },
+                });
 
                 const playlistDeleteModal = document.getElementById('playlistDeleteModal');
                 const playlistDeleteModalName = document.getElementById('playlistDeleteModalName');
@@ -10011,17 +9978,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return line;
                 }
 
-                function syncPlaylistUrl(playlistId, editing = isEditing) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'content');
-                    url.searchParams.set('cntab', 'playlist');
-                    url.searchParams.set('playlist', playlistId);
-                    if (editing) {
-                        url.searchParams.set('edit', '1');
-                    } else {
-                        url.searchParams.delete('edit');
-                    }
-                    window.history.replaceState({}, '', url.toString());
+                function syncPlaylistUrl(playlistId, editing) {
+                    lifecycle.syncUrl(playlistId, editing);
                 }
 
                 function setAddPlaylistPanelOpen(open) {
@@ -10040,37 +9998,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function showPoolView() {
-                    isEditing = false;
-                    if (editorCard) editorCard.classList.remove('is-editing');
-                    if (poolView) poolView.hidden = false;
-                    if (tracksPoolView) tracksPoolView.hidden = true;
-                    if (playlistAvailableSection) playlistAvailableSection.hidden = true;
-                    if (saveBtn) saveBtn.hidden = true;
-                    if (editorHint) {
-                        editorHint.textContent = 'Select a playlist from the pool, then click edit to change its track order.';
-                    }
-                    updatePlaylistCoverPanel();
-                    renderPlaylistPoolList();
-                    renderPlaylistHeadBadges();
-                    updatePlaylistDefaultButton();
+                    lifecycle.showPoolView();
                 }
 
                 function showEditView(playlistId) {
-                    isEditing = true;
-                    if (editorCard) editorCard.classList.add('is-editing');
-                    selectedPlaylistId = playlistId;
-                    if (poolView) poolView.hidden = true;
-                    if (tracksPoolView) tracksPoolView.hidden = false;
-                    if (playlistAvailableSection) playlistAvailableSection.hidden = false;
-                    syncPlaylistUrl(playlistId, true);
-                    syncPlaylistSettingsPanel(playlistId);
-                    if (editorHint) {
-                        editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available content to remove them from the playlist.';
-                    }
-                    updatePlaylistCoverPanel();
-                    renderPlaylistPoolList();
-                    renderPlaylistHeadBadges();
-                    updatePlaylistDefaultButton();
+                    lifecycle.showEditView(playlistId);
                 }
 
                 function renderPlaylistPoolList() {
@@ -10078,30 +10010,32 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const visible = campaignFilterId
                         ? playlists.filter((entry) => String(entry.release_id || '').trim() === campaignFilterId)
                         : playlists;
-                    if (!visible.length) {
-                        poolList.innerHTML = campaignFilterId
-                            ? '<li class="player-layout-empty">No playlists for this campaign yet.</li>'
-                            : '<li class="player-layout-empty">No playlists available yet.</li>';
-                        return;
-                    }
-                    poolList.innerHTML = visible.map((entry) => {
-                        const id = String(entry.id || '');
-                        const selectedClass = id === selectedPlaylistId ? ' playlist-editor-row-selected' : '';
-                        const title = bandpromoAdminEscapeHtml(entry.title || id);
-                        const deleteBtn = playlistCanDelete(entry)
-                            ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Delete playlist" aria-label="Delete ${title}">🗑️</button>`
-                            : '';
-                        return `<li class="playlist-editor-row playlist-pool-row page-pool-row${selectedClass}" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" aria-selected="${id === selectedPlaylistId ? 'true' : 'false'}">
-                            <span class="playlist-track-info">
-                                <strong>🎵 ${title}</strong>
-                                <span class="playlist-track-meta">${playlistPoolMetaHtml(entry)}</span>
-                            </span>
-                            <span class="page-pool-row-actions">
-                                <button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-playlist-id="${bandpromoAdminEscapeHtml(id)}" title="Edit playlist" aria-label="Edit ${title}">✏️</button>
-                                ${deleteBtn}
-                            </span>
-                        </li>`;
-                    }).join('');
+                    window.bandpromoRegistryList.render(poolList, {
+                        entries: visible,
+                        selectedId: selectedPlaylistId,
+                        emptyMessage: campaignFilterId
+                            ? 'No playlists for this campaign yet.'
+                            : 'No playlists available yet.',
+                        renderRow: function (entry, isSelected) {
+                            const id = String(entry.id || '');
+                            var actions = [
+                                window.bandpromoRegistryList.actionButton({ icon: '✏️', title: 'Edit playlist', className: 'page-pool-edit-btn', dataAttribute: 'data-playlist-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }),
+                            ];
+                            if (playlistCanDelete(entry)) {
+                                actions.push(window.bandpromoRegistryList.actionButton({ icon: '🗑️', title: 'Delete playlist', className: 'icon-btn--danger page-pool-delete-btn', dataAttribute: 'data-playlist-id="' + window.bandpromoRegistryList.escapeHtml(id) + '"' }));
+                            }
+                            return window.bandpromoRegistryList.row({
+                                id: id,
+                                dataAttribute: 'data-playlist-id',
+                                isSelected: isSelected,
+                                icon: '🎵',
+                                title: entry.title || id,
+                                meta: playlistPoolMetaHtml(entry),
+                                extraClasses: 'playlist-pool-row',
+                                actions: actions,
+                            });
+                        },
+                    });
                 }
 
                 async function loadPlaylistRegistry() {
@@ -10145,20 +10079,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 async function requestCloseEditor() {
-                    if (playlistSettingsDirty()) {
-                        const saved = await savePlaylistSettings();
-                        if (!saved) {
-                            return false;
-                        }
-                    }
-                    if (saveBtn.classList.contains('btn-amber')) {
-                        const proceed = window.confirm('You have unsaved playlist changes. Leave edit mode without saving?');
-                        if (!proceed) return false;
-                    }
-                    showPoolView();
-                    syncPlaylistUrl(selectedPlaylistId, false);
-                    await loadPlaylistPreview({ preserveSavedState: true });
-                    return true;
+                    return lifecycle.requestClose();
                 }
 
                 async function openPlaylistEditor(playlistId) {
@@ -10452,11 +10373,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let draggedRows = [];
                 let dragSourceList = '';
                 let dragPlaceholder = null;
-                let selectedAvailable = new Set();
-                let selectedActive = new Set();
-                let selectionAnchorAvailable = '';
-                let selectionAnchorActive = '';
                 let suppressNextClick = false;
+
+                const rangeSelection = window.bandpromoRangeSelection.create({
+                    dataKey: 'file',
+                    getAvailableRows: function () { return getAvailableRows(); },
+                    getActiveRows: function () { return getActiveRows(); },
+                    onSelectionChange: function (listName) {
+                        if (listName === 'available') syncAvailableSelectionUi();
+                        else syncActiveSelectionUi();
+                    },
+                });
 
                 function formatPlaylistDuration(seconds) {
                     const duration = Math.max(0, Number(seconds) || 0);
@@ -10528,25 +10455,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function pruneAvailableSelection() {
                     const allowed = new Set(availableTracks.map((track) => String(track.file || '')));
-                    selectedAvailable.forEach((file) => {
-                        if (!allowed.has(file)) {
-                            selectedAvailable.delete(file);
-                        }
-                    });
-                    if (selectionAnchorAvailable && !allowed.has(selectionAnchorAvailable)) {
-                        selectionAnchorAvailable = '';
+                    const sel = rangeSelection.getSelected('available');
+                    sel.forEach((file) => { if (!allowed.has(file)) sel.delete(file); });
+                    if (rangeSelection.getAnchor('available') && !allowed.has(rangeSelection.getAnchor('available'))) {
+                        rangeSelection.setAnchor('available', '');
                     }
                 }
 
                 function pruneActiveSelection() {
                     const allowed = new Set(activeTracks.map((track) => String(track.file || '')));
-                    selectedActive.forEach((file) => {
-                        if (!allowed.has(file)) {
-                            selectedActive.delete(file);
-                        }
-                    });
-                    if (selectionAnchorActive && !allowed.has(selectionAnchorActive)) {
-                        selectionAnchorActive = '';
+                    const sel = rangeSelection.getSelected('active');
+                    sel.forEach((file) => { if (!allowed.has(file)) sel.delete(file); });
+                    if (rangeSelection.getAnchor('active') && !allowed.has(rangeSelection.getAnchor('active'))) {
+                        rangeSelection.setAnchor('active', '');
                     }
                 }
 
@@ -10561,7 +10482,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function syncAvailableSelectionUi() {
                     getAvailableRows().forEach((row) => {
                         const file = String(row.dataset.file || '');
-                        const selected = selectedAvailable.has(file);
+                        const selected = rangeSelection.getSelected('available').has(file);
                         row.classList.toggle('playlist-editor-row-selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
@@ -10570,95 +10491,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function syncActiveSelectionUi() {
                     getActiveRows().forEach((row) => {
                         const file = String(row.dataset.file || '');
-                        const selected = selectedActive.has(file);
+                        const selected = rangeSelection.getSelected('active').has(file);
                         row.classList.toggle('playlist-editor-row-selected', selected);
                         row.setAttribute('aria-selected', selected ? 'true' : 'false');
                     });
                 }
 
-                function selectAvailableRange(targetFile, preserveExisting) {
-                    const rows = getAvailableRows();
-                    if (!rows.length) return;
-                    const anchorFile = selectionAnchorAvailable && rows.some((row) => String(row.dataset.file || '') === selectionAnchorAvailable)
-                        ? selectionAnchorAvailable
-                        : targetFile;
-                    const anchorIndex = rows.findIndex((row) => String(row.dataset.file || '') === anchorFile);
-                    const targetIndex = rows.findIndex((row) => String(row.dataset.file || '') === targetFile);
-                    if (anchorIndex === -1 || targetIndex === -1) return;
-
-                    const nextSelected = preserveExisting ? new Set(selectedAvailable) : new Set();
-                    const start = Math.min(anchorIndex, targetIndex);
-                    const end = Math.max(anchorIndex, targetIndex);
-                    rows.slice(start, end + 1).forEach((row) => {
-                        const file = String(row.dataset.file || '');
-                        if (file) nextSelected.add(file);
-                    });
-                    selectedAvailable = nextSelected;
-                }
-
-                function selectActiveRange(targetFile, preserveExisting) {
-                    const rows = getActiveRows();
-                    if (!rows.length) return;
-                    const anchorFile = selectionAnchorActive && rows.some((row) => String(row.dataset.file || '') === selectionAnchorActive)
-                        ? selectionAnchorActive
-                        : targetFile;
-                    const anchorIndex = rows.findIndex((row) => String(row.dataset.file || '') === anchorFile);
-                    const targetIndex = rows.findIndex((row) => String(row.dataset.file || '') === targetFile);
-                    if (anchorIndex === -1 || targetIndex === -1) return;
-
-                    const nextSelected = preserveExisting ? new Set(selectedActive) : new Set();
-                    const start = Math.min(anchorIndex, targetIndex);
-                    const end = Math.max(anchorIndex, targetIndex);
-                    rows.slice(start, end + 1).forEach((row) => {
-                        const file = String(row.dataset.file || '');
-                        if (file) nextSelected.add(file);
-                    });
-                    selectedActive = nextSelected;
-                }
-
                 function handleAvailableSelection(row, event) {
-                    const file = String(row.dataset.file || '').trim();
-                    if (!file) return;
-                    selectedActive.clear();
-                    selectionAnchorActive = '';
-                    syncActiveSelectionUi();
-
-                    if (event.shiftKey) {
-                        selectAvailableRange(file, event.ctrlKey || event.metaKey);
-                    } else if (event.ctrlKey || event.metaKey) {
-                        if (selectedAvailable.has(file)) {
-                            selectedAvailable.delete(file);
-                        } else {
-                            selectedAvailable.add(file);
-                        }
-                    } else {
-                        selectedAvailable = new Set([file]);
-                    }
-
-                    selectionAnchorAvailable = selectedAvailable.size ? file : '';
+                    rangeSelection.handleSelection('available', row, event);
                     syncAvailableSelectionUi();
                 }
 
                 function handleActiveSelection(row, event) {
-                    const file = String(row.dataset.file || '').trim();
-                    if (!file) return;
-                    selectedAvailable.clear();
-                    selectionAnchorAvailable = '';
-                    syncAvailableSelectionUi();
-
-                    if (event.shiftKey) {
-                        selectActiveRange(file, event.ctrlKey || event.metaKey);
-                    } else if (event.ctrlKey || event.metaKey) {
-                        if (selectedActive.has(file)) {
-                            selectedActive.delete(file);
-                        } else {
-                            selectedActive.add(file);
-                        }
-                    } else {
-                        selectedActive = new Set([file]);
-                    }
-
-                    selectionAnchorActive = selectedActive.size ? file : '';
+                    rangeSelection.handleSelection('active', row, event);
                     syncActiveSelectionUi();
                 }
 
@@ -10717,7 +10562,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             position: index + 1,
                             showRemove: isEditing,
                             activeRow: true,
-                            selected: selectedActive.has(String(track.file || '')),
+                            selected: rangeSelection.getSelected('active').has(String(track.file || '')),
                         })).join('');
                     }
 
@@ -10739,7 +10584,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             showPosition: false,
                             showRemove: false,
                             activeRow: false,
-                            selected: selectedAvailable.has(String(track.file || '')),
+                            selected: rangeSelection.getSelected('available').has(String(track.file || '')),
                         })).join('');
                     }
 
@@ -10812,14 +10657,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     target.splice(safeIndex, 0, ...moving.map(cloneTrack));
 
                     if (fromList === 'active') {
-                        files.forEach((file) => selectedActive.delete(file));
-                        if (selectionAnchorActive && fileSet.has(selectionAnchorActive)) {
-                            selectionAnchorActive = '';
+                        files.forEach((file) => rangeSelection.getSelected('active').delete(file));
+                        if (rangeSelection.getAnchor('active') && fileSet.has(rangeSelection.getAnchor('active'))) {
+                            rangeSelection.setAnchor('active', '');
                         }
                     } else {
-                        files.forEach((file) => selectedAvailable.delete(file));
-                        if (selectionAnchorAvailable && fileSet.has(selectionAnchorAvailable)) {
-                            selectionAnchorAvailable = '';
+                        files.forEach((file) => rangeSelection.getSelected('available').delete(file));
+                        if (rangeSelection.getAnchor('available') && fileSet.has(rangeSelection.getAnchor('available'))) {
+                            rangeSelection.setAnchor('available', '');
                         }
                     }
 
@@ -10972,10 +10817,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function collectDraggedRows(listEl) {
                     const listName = listNameForElement(listEl);
                     if (listName === 'available') {
-                        return getAvailableRows().filter((row) => selectedAvailable.has(String(row.dataset.file || '')));
+                        return getAvailableRows().filter((row) => rangeSelection.getSelected('available').has(String(row.dataset.file || '')));
                     }
                     if (listName === 'active') {
-                        return getActiveRows().filter((row) => selectedActive.has(String(row.dataset.file || '')));
+                        return getActiveRows().filter((row) => rangeSelection.getSelected('active').has(String(row.dataset.file || '')));
                     }
                     return [];
                 }
@@ -10989,16 +10834,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const sourceFile = String(row.dataset.file || '').trim();
 
                         if (dragSourceList === 'available') {
-                            if (sourceFile && !selectedAvailable.has(sourceFile)) {
-                                selectedAvailable = new Set([sourceFile]);
-                                selectionAnchorAvailable = sourceFile;
+                            if (sourceFile && !rangeSelection.getSelected('available').has(sourceFile)) {
+                                rangeSelection.setSelected('available', new Set([sourceFile]));
+                                rangeSelection.setAnchor('available', sourceFile);
                                 syncAvailableSelectionUi();
                             }
                             draggedRows = collectDraggedRows(listEl);
                         } else if (dragSourceList === 'active') {
-                            if (sourceFile && !selectedActive.has(sourceFile)) {
-                                selectedActive = new Set([sourceFile]);
-                                selectionAnchorActive = sourceFile;
+                            if (sourceFile && !rangeSelection.getSelected('active').has(sourceFile)) {
+                                rangeSelection.setSelected('active', new Set([sourceFile]));
+                                rangeSelection.setAnchor('active', sourceFile);
                                 syncActiveSelectionUi();
                             }
                             draggedRows = collectDraggedRows(listEl);

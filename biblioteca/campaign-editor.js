@@ -1846,7 +1846,7 @@
 
             let line = escapeHtml(tracksLabel);
             if (campaignDate) {
-                line += ` campaignd ${campaignDate}`;
+                line += ` released ${campaignDate}`;
             }
 
             return line;

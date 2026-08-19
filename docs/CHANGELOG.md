@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 18:25 - Checkpoint fixes for Content editors after terminology migration: restored Playlist preview endpoint filter call (`bandpromo_playlist_normalize_campaign_filter`), aligned Catalogue API payload key with Campaign editor expectations (`campaigns`), and corrected Campaign pool metadata copy typo (`released`).
+
 2026-08-19 12:42 - Phase 2 shared JS modules created: `editor-lifecycle.js`, `editor-drag-reorder.js`, `editor-range-selection.js`, `editor-registry-list.js`. Script tags added to `admin.php`. Migration of individual editors to use shared modules is next.
 
 2026-08-19 12:47 - Session end checkpoint (Phase 2 modules loaded): bump build, checkpoint local package, prepare Phase 2 migrations.

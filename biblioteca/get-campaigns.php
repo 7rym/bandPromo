@@ -41,7 +41,7 @@ try {
         'demo_release_id' => $demoReleaseId,
         'demo_catalog_visible' => bandpromo_demo_catalog_is_visible($root),
         'demo_release_hidden' => bandpromo_demo_campaign_is_hidden($root),
-        'releases' => $releases,
+        'campaigns' => $releases,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(500);

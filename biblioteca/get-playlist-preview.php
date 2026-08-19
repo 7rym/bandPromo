@@ -6,7 +6,7 @@ bandpromo_enforce_https();
 
 require_once __DIR__ . '/admin-api-guard.php';
 
-$releaseFilter = bandpromo_playlist_normalize_release_filter((string) ($_GET['release'] ?? 'all'));
+$releaseFilter = bandpromo_playlist_normalize_campaign_filter((string) ($_GET['release'] ?? 'all'));
 session_write_close();
 
 $root = dirname(__DIR__);
