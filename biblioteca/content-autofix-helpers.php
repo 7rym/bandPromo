@@ -290,6 +290,43 @@ function bandpromo_campaign_sync_primary_audio_assets(string $root): void
     bandpromo_campaign_repair_catalog_release_ids($root);
 }
 
+function bandpromo_content_autofix_orphan_primary_uploads(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/install-migrations.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'orphan_primary_uploads',
+        'Orphan uploads stuck on the hidden Default release bucket'
+    );
+    $result = bandpromo_install_migration_run_orphan_primary_uploads($root, [
+        'dry_run' => $dryRun,
+        'trigger' => 'content_autofix',
+    ]);
+
+    if (empty($result['ok'])) {
+        $step['errors'][] = (string) ($result['skip_reason'] ?? 'Orphan repair failed.');
+
+        return $step;
+    }
+
+    if (!empty($result['skipped'])) {
+        $step['skipped'] = 1;
+
+        return $step;
+    }
+
+    $changed = (int) ($result['changed'] ?? 0);
+    $step['changed'] = $changed;
+    if ($changed > 0) {
+        $step['items'][] = [
+            'tracks_orphaned' => (int) ($result['tracks_orphaned'] ?? 0),
+            'registry_cleared' => (int) ($result['registry_cleared'] ?? 0),
+        ];
+    }
+
+    return $step;
+}
+
 function bandpromo_content_autofix_sync_campaigns(string $root, bool $dryRun): array
 {
     $step = bandpromo_content_autofix_step_result('release_membership', 'Repair catalogue release links on audio assets');
@@ -1025,6 +1062,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'bandpromo_content_autofix_canonicalize_master_filenames',
         'bandpromo_content_autofix_materialize_visual_masters',
         'bandpromo_content_autofix_heal_visual_display',
+        'bandpromo_content_autofix_orphan_primary_uploads',
         'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_campaigns',

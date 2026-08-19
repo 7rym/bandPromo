@@ -126,6 +126,8 @@ function bandpromo_ensure_runtime_files_seeded(): array {
         bandpromo_gallery_ensure_seeded($root);
         bandpromo_brand_ensure_seeded($root);
         bandpromo_campaign_ownership_migrate($root);
+        require_once __DIR__ . '/install-migrations.php';
+        bandpromo_install_migrations_run_after_update($root);
     } catch (Throwable $throwable) {
         $errors[] = $throwable->getMessage();
     }

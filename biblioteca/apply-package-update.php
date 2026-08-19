@@ -8,6 +8,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/package-updater.php';
+require_once __DIR__ . '/install-migrations.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -108,6 +109,13 @@ try {
         $message .= ' Demo catalogue could not be refreshed automatically; rebuild may still use the previous demo files.';
     }
     $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
+
+    $orphanMigration = is_array($postUpdate['install_migrations'][BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID] ?? null)
+        ? $postUpdate['install_migrations'][BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID]
+        : null;
+    if (is_array($orphanMigration) && (int) ($orphanMigration['tracks_orphaned'] ?? 0) > 0) {
+        $message .= ' Uploaded tracks that were stuck on Default release are now ready to assign to your campaigns.';
+    }
 
     // Re-check and rewrite cache so Notifications immediately show up to date.
     bandpromo_package_write_update_cache($root, bandpromo_package_check_update($root));

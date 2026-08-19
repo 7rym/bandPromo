@@ -1452,7 +1452,21 @@ function bandpromo_campaign_audio_listing_meta(string $root, string $filename): 
 
     $assetId = trim((string) ($asset['id'] ?? ''));
     $assignedReleaseId = bandpromo_campaign_normalize_id(trim((string) ($asset['release_id'] ?? '')));
+    if ($assignedReleaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
+        $assignedReleaseId = '';
+    }
     $memberships = bandpromo_campaign_memberships_for_asset($root, $assetId, $assignedReleaseId);
+    $memberships = array_values(array_filter(
+        $memberships,
+        static function ($row): bool {
+            if (!is_array($row)) {
+                return false;
+            }
+            $releaseId = bandpromo_campaign_normalize_id((string) ($row['release_id'] ?? ''));
+
+            return $releaseId !== '' && $releaseId !== BANDPROMO_CAMPAIGN_DEFAULT_ID;
+        }
+    ));
 
     if ($memberships === []) {
         return $empty;
@@ -2907,6 +2921,132 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
     }
 
     return bandpromo_campaign_admin_registry_entry($root, $updated);
+}
+
+/**
+ * True when primary is the invisible upload bucket, not an operator-named campaign.
+ */
+function bandpromo_campaign_primary_looks_like_upload_bucket(array $document): bool
+{
+    $title = trim((string) ($document['title'] ?? ''));
+    if ($title === '') {
+        return true;
+    }
+
+    foreach (['Default release', 'Default campaign'] as $legacyTitle) {
+        if (strcasecmp($title, $legacyTitle) === 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Orphan audio uploads stuck on the invisible `primary` bucket (legacy Default release).
+ * Clears primary track membership and stale release_id=primary registry tags.
+ *
+ * @return array{
+ *   ok: bool,
+ *   dry_run: bool,
+ *   skipped: bool,
+ *   skip_reason?: string,
+ *   tracks_orphaned: int,
+ *   registry_cleared: int,
+ *   changed: int
+ * }
+ */
+function bandpromo_campaign_orphan_uploads_on_primary(string $root, bool $dryRun = false): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $releaseId = BANDPROMO_CAMPAIGN_DEFAULT_ID;
+    $empty = [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'skipped' => true,
+        'tracks_orphaned' => 0,
+        'registry_cleared' => 0,
+        'changed' => 0,
+    ];
+
+    try {
+        $document = bandpromo_campaign_load_document($root, $releaseId);
+    } catch (Throwable $throwable) {
+        return array_merge($empty, [
+            'ok' => false,
+            'skip_reason' => 'Could not load primary release: ' . $throwable->getMessage(),
+        ]);
+    }
+
+    if (!bandpromo_campaign_primary_looks_like_upload_bucket($document)) {
+        return array_merge($empty, [
+            'skip_reason' => 'primary holds a named operator campaign; skipped automatic orphan repair.',
+        ]);
+    }
+
+    $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
+    $trackCount = count($tracks);
+
+    $registry = bandpromo_asset_load_registry($root);
+    $registryPrimaryCount = 0;
+    foreach ($registry['assets'] as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+        if (bandpromo_campaign_normalize_id(trim((string) ($asset['release_id'] ?? ''))) === $releaseId) {
+            $registryPrimaryCount++;
+        }
+    }
+
+    if ($trackCount === 0 && $registryPrimaryCount === 0) {
+        return array_merge($empty, [
+            'skip_reason' => 'primary upload bucket already empty.',
+        ]);
+    }
+
+    if ($dryRun) {
+        return [
+            'ok' => true,
+            'dry_run' => true,
+            'skipped' => false,
+            'tracks_orphaned' => $trackCount,
+            'registry_cleared' => $registryPrimaryCount,
+            'changed' => $trackCount + $registryPrimaryCount,
+        ];
+    }
+
+    $emptyPrimary = bandpromo_campaign_default_document();
+    $emptyPrimary['release_date'] = gmdate('Y-m-d');
+    bandpromo_campaign_write_document($root, $emptyPrimary);
+    bandpromo_campaign_invalidate_runtime_cache($root);
+
+    $registryChanged = 0;
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+        if (bandpromo_campaign_normalize_id(trim((string) ($asset['release_id'] ?? ''))) !== $releaseId) {
+            continue;
+        }
+        $registry['assets'][$assetId]['release_id'] = '';
+        $registryChanged++;
+    }
+    if ($registryChanged > 0) {
+        bandpromo_asset_write_registry($root, $registry);
+    }
+
+    bandpromo_campaign_repair_catalog_release_ids($root);
+    bandpromo_campaign_invalidate_runtime_cache($root);
+
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'skipped' => false,
+        'tracks_orphaned' => $trackCount,
+        'registry_cleared' => $registryChanged,
+        'changed' => $trackCount + $registryChanged,
+    ];
 }
 
 /**

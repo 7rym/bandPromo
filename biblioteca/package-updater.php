@@ -506,6 +506,7 @@ function bandpromo_package_apply_release(string $root, array $manifest): array {
 
 function bandpromo_package_run_post_update_tasks(string $root, array $applyResult): array {
     require_once __DIR__ . '/build-required.php';
+    require_once __DIR__ . '/install-migrations.php';
 
     // App updates no longer pull the legacy default-theme media ZIP. Icons ship
     // in bandPromo.zip; campaign media arrives via PCF at setup (or operator import).
@@ -514,12 +515,14 @@ function bandpromo_package_run_post_update_tasks(string $root, array $applyResul
     $buildRequired = bandpromo_mark_build_required('package_update');
     $demoRefresh = bandpromo_package_refresh_demo_prp_if_needed($root);
     $legacyRelocate = bandpromo_package_relocate_legacy_visual_intake($root);
+    $installMigrations = bandpromo_install_migrations_run_after_update($root, $applyResult);
 
     return [
         'default_theme' => null,
         'default_theme_error' => null,
         'demo_release_package' => $demoRefresh,
         'visual_legacy_relocate' => $legacyRelocate,
+        'install_migrations' => $installMigrations,
         'build_required' => $buildRequired,
         // Always open Deliverables after a package update. Rebuild all deliverables
         // is the normal next step so listener-ready files match the new app code,
