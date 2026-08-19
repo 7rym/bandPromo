@@ -20,7 +20,7 @@
         var renderRow = options.renderRow;
 
         if (!entries.length) {
-            listEl.innerHTML = '<li class="player-layout-empty">' + escapeHtml(emptyMessage) + '</li>';
+            listEl.innerHTML = '<li class="editor-empty">' + escapeHtml(emptyMessage) + '</li>';
             return;
         }
 

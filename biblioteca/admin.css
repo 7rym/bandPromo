@@ -4503,7 +4503,7 @@ canvas { max-width: 100%; height: auto; }
     gap: 6px;
 }
 
-.editor-card.is-editing .player-layout-col-head {
+.editor-card.is-editing .split-editor__header {
     border-bottom: 1px solid var(--border2);
     background: var(--border2);
 }
@@ -6039,7 +6039,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 /* Playlist editor */
-.playlist-editor {
+.split-editor__track-list {
     list-style: none;
     margin: 0 0 16px 0;
     padding: 0;
@@ -6157,9 +6157,9 @@ canvas { max-width: 100%; height: auto; }
     font-variant-numeric: tabular-nums;
 }
 
-/* Gallery editor uses shared player-layout panels */
+/* Gallery editor uses shared split-editor panels */
 
-.player-layout-setting,
+.editor-setting,
 .player-shell-background-settings {
     display: flex;
     flex-wrap: wrap;
@@ -6173,24 +6173,24 @@ canvas { max-width: 100%; height: auto; }
     background: rgba(255, 255, 255, 0.03);
 }
 
-.player-layout-setting-copy,
+.editor-setting__copy,
 .player-shell-background-copy {
     min-width: 0;
     flex: 1 1 220px;
 }
 
-.player-layout-setting-copy strong,
+.editor-setting__copy strong,
 .player-shell-background-copy strong {
     display: block;
     margin-bottom: 0.2rem;
 }
 
-.player-layout-setting-copy .hint,
+.editor-setting__copy .hint,
 .player-shell-background-copy .hint {
     margin: 0;
 }
 
-.player-layout-setting-toggle,
+.editor-setting__toggle,
 .player-shell-background-toggle {
     display: inline-flex;
     flex-wrap: wrap;
@@ -6201,7 +6201,7 @@ canvas { max-width: 100%; height: auto; }
     background: rgba(0, 0, 0, 0.2);
 }
 
-.player-layout-setting-option,
+.editor-setting__option,
 .player-shell-background-option {
     display: inline-flex;
     align-items: center;
@@ -6209,14 +6209,14 @@ canvas { max-width: 100%; height: auto; }
     margin: 0;
 }
 
-.player-layout-setting-option input,
+.editor-setting__option input,
 .player-shell-background-option input {
     position: absolute;
     opacity: 0;
     pointer-events: none;
 }
 
-.player-layout-setting-option span,
+.editor-setting__option span,
 .player-shell-background-option span {
     display: inline-block;
     padding: 0.35rem 0.9rem;
@@ -6225,13 +6225,13 @@ canvas { max-width: 100%; height: auto; }
     color: var(--color-text-muted, #bbb);
 }
 
-.player-layout-setting-option input:checked + span,
+.editor-setting__option input:checked + span,
 .player-shell-background-option input:checked + span {
     background: rgba(110, 168, 254, 0.18);
     color: var(--text-color, #fff);
 }
 
-.player-layout-setting-option input:focus-visible + span,
+.editor-setting__option input:focus-visible + span,
 .player-shell-background-option input:focus-visible + span {
     outline: 2px solid var(--primary-color, #6ea8fe);
     outline-offset: 2px;
@@ -6243,38 +6243,17 @@ canvas { max-width: 100%; height: auto; }
     align-items: stretch;
 }
 
-.container-pool-layout {
-    display: flex;
-    gap: 18px;
-    align-items: stretch;
-}
-
-.container-pool-layout .player-layout-col--registry {
-    flex: 0 0 220px;
-    max-width: 260px;
-}
-
-.container-pool-layout .player-layout-col--editor {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-}
-
-.container-pool-layout .player-layout-col--editor > .split-editor {
-    width: 100%;
-}
-
-.container-registry-list .editor-row {
+.registry-list .editor-row {
     cursor: pointer;
 }
 
-.player-layout-col {
+.split-editor__col {
     flex: 1;
     min-width: 0;
     display: flex;
 }
 
-.player-layout-panel {
+.split-editor__panel {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -6285,7 +6264,7 @@ canvas { max-width: 100%; height: auto; }
     overflow: hidden;
 }
 
-.player-layout-col-head {
+.split-editor__header {
     margin: 0;
     padding: 10px 14px;
     height: 48px;
@@ -6299,24 +6278,24 @@ canvas { max-width: 100%; height: auto; }
     flex-shrink: 0;
 }
 
-.player-layout-col-head--active {
+.split-editor__header--active {
     justify-content: space-between;
     gap: 12px;
 }
 
-.player-layout-col-head--pool {
+.split-editor__header--pool {
     justify-content: space-between;
     gap: 12px;
 }
 
-.player-layout-col-head--pool .player-layout-col-title {
+.split-editor__header--pool .split-editor__title {
     flex: 1 1 auto;
     min-width: 0;
 }
 
-.player-layout-pool-head-slot,
-.player-layout-pool-filters,
-.player-layout-pool-actions {
+.split-editor__pool-head-slot,
+.split-editor__pool-filters,
+.split-editor__pool-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -6327,7 +6306,7 @@ canvas { max-width: 100%; height: auto; }
     margin-left: auto;
 }
 
-.player-layout-pool-action {
+.split-editor__pool-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -6350,34 +6329,34 @@ canvas { max-width: 100%; height: auto; }
     max-width: 118px;
 }
 
-.player-layout-pool-action:hover {
+.split-editor__pool-action:hover {
     border-color: var(--accent);
     background: rgba(255, 107, 107, 0.1);
 }
 
-.player-layout-pool-action.active {
+.split-editor__pool-action.active {
     border-color: var(--accent);
     background: rgba(255, 107, 107, 0.14);
 }
 
-.player-layout-pool-action-icon {
+.split-editor__pool-action-icon {
     font-size: 12px;
     line-height: 1;
     flex-shrink: 0;
 }
 
-.player-layout-pool-action.page-editor-add-btn {
+.split-editor__pool-action.page-editor-add-btn {
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
 }
 
-.player-layout-pool-filter-label {
+.split-editor__pool-filter-label {
     margin: 0;
     width: 100%;
 }
 
-.player-layout-pool-filter {
+.split-editor__pool-filter {
     width: 100%;
     min-width: 0;
     height: 28px;
@@ -6388,7 +6367,7 @@ canvas { max-width: 100%; height: auto; }
     box-sizing: border-box;
 }
 
-.player-layout-save-row {
+.split-editor__save-row {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -6397,13 +6376,13 @@ canvas { max-width: 100%; height: auto; }
     min-height: 30px;
 }
 
-.player-layout-save-row .btn {
+.split-editor__save-row .btn {
     font-size: 13px;
     padding: 6px 10px;
     white-space: nowrap;
 }
 
-.campaign-editor-is-preview .player-layout-save-row {
+.campaign-editor-is-preview .split-editor__save-row {
     display: none;
 }
 
@@ -6695,19 +6674,19 @@ textarea.campaign-settings-description-autofit {
     }
 }
 
-.player-layout-panel-body > .playlist-editor {
+.split-editor__body > .split-editor__track-list {
     margin-bottom: 0;
 }
 
-.player-layout-col--pool .player-layout-panel-body > .player-layout-list,
-.player-layout-col--pool .player-layout-panel-body > .registry-list {
+.split-editor__col--pool .split-editor__body > .split-editor__list,
+.split-editor__col--pool .split-editor__body > .registry-list {
     flex: 1 1 auto;
     min-height: 220px;
     max-height: min(520px, calc(100vh - 280px));
     overflow-y: auto;
 }
 
-.player-layout-col-title {
+.split-editor__title {
     font-size: 15px;
     font-weight: 600;
     color: var(--text);
@@ -6717,13 +6696,13 @@ textarea.campaign-settings-description-autofit {
     line-height: 1.25;
 }
 
-.player-layout-count {
+.split-editor__count {
     color: var(--muted);
     font-size: 14px;
     font-weight: 500;
 }
 
-.player-layout-panel-body {
+.split-editor__body {
     flex: 1;
     min-height: 0;
     display: flex;
@@ -6732,55 +6711,55 @@ textarea.campaign-settings-description-autofit {
     padding: 12px;
 }
 
-.player-layout-col--pool .player-layout-panel-body {
+.split-editor__col--pool .split-editor__body {
     min-height: 280px;
 }
 
-.player-layout-hint {
+.split-editor__hint {
     margin: 0;
     font-size: 12px;
     line-height: 1.45;
 }
 
-.player-layout-list {
+.split-editor__list {
     flex: 1;
     min-height: 240px;
     margin: 0;
 }
 
-.player-layout-pool-list {
+.split-editor__pool-list {
     max-height: none;
     overflow-y: auto;
     padding-right: 2px;
 }
 
-.player-layout-col--active .player-layout-list {
+.split-editor__col--active .split-editor__list {
     max-height: 460px;
     overflow-y: auto;
     padding-right: 2px;
 }
 
-.player-layout-col--pool .editor-row {
+.split-editor__col--pool .editor-row {
     background: var(--card);
 }
 
-.player-layout-col--active .editor-row {
+.split-editor__col--active .editor-row {
     background: var(--surface);
 }
 
-.player-layout-col--pool .editor-row.editor-row--selected,
-.player-layout-col--active .editor-row.editor-row--selected {
+.split-editor__col--pool .editor-row.editor-row--selected,
+.split-editor__col--active .editor-row.editor-row--selected {
     border-color: rgba(98, 179, 255, 0.55);
     background: rgba(98, 179, 255, 0.08);
 }
 
-.player-layout-row-locked {
+.editor-row--locked {
     cursor: default;
     opacity: 0.9;
     background: rgba(15, 23, 42, 0.5);
 }
 
-.player-layout-lock {
+.editor-lock-badge {
     font-size: 16px;
     line-height: 1;
     flex-shrink: 0;
@@ -6788,11 +6767,11 @@ textarea.campaign-settings-description-autofit {
     text-align: center;
 }
 
-.player-layout-row-active {
+.editor-row--active {
     padding-right: 8px;
 }
 
-.player-layout-remove-btn,
+.editor-remove-btn,
 .gallery-remove-btn {
     background: none;
     border: none;
@@ -6807,13 +6786,13 @@ textarea.campaign-settings-description-autofit {
     margin-left: auto;
 }
 
-.player-layout-remove-btn:hover,
+.editor-remove-btn:hover,
 .gallery-remove-btn:hover {
     color: #f87171;
     background: rgba(248, 113, 113, 0.12);
 }
 
-.player-layout-empty {
+.editor-empty {
     margin: 0;
     min-height: 160px;
     flex: 1 1 auto;
@@ -6836,25 +6815,25 @@ textarea.campaign-settings-description-autofit {
         flex-direction: column;
     }
 
-    .player-layout-panel {
+    .split-editor__panel {
         min-height: 0;
     }
 
-    .player-layout-list {
+    .split-editor__list {
         min-height: 180px;
     }
 
-    .player-layout-col-head--active {
+    .split-editor__header--active {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .player-layout-save-row {
+    .split-editor__save-row {
         justify-content: flex-start;
     }
 
-    .player-layout-col--active .player-layout-list,
-    .player-layout-col--active .gallery-active-list {
+    .split-editor__col--active .split-editor__list,
+    .split-editor__col--active .gallery-active-list {
         max-height: 320px;
     }
 }
@@ -6875,7 +6854,7 @@ textarea.campaign-settings-description-autofit {
     padding-right: 2px;
 }
 
-.player-layout-col--active .gallery-active-list {
+.split-editor__col--active .gallery-active-list {
     max-height: 460px;
     overflow-y: auto;
 }

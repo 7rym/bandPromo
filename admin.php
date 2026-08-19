@@ -1559,16 +1559,16 @@ if ($tab === 'analytics') {
             </div>
 
             <?php
-            $poolCampaignFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
-                . '<label class="media-filter-label player-layout-pool-filter-label">'
+            $poolCampaignFilterHtml = '<div class="split-editor__pool-head-slot split-editor__pool-filters">'
+                . '<label class="media-filter-label split-editor__pool-filter-label">'
                 . '<span class="visually-hidden">Filter by campaign</span>'
-                . '<select class="media-filter-select player-layout-pool-filter" data-pool-campaign-filter aria-label="Filter by campaign">'
+                . '<select class="media-filter-select split-editor__pool-filter" data-pool-campaign-filter aria-label="Filter by campaign">'
                 . '<option value="all">All campaigns</option>'
                 . '<option value="orphans">Orphans</option>'
                 . '</select>'
                 . '</label>'
                 . '</div>';
-            $poolHeadSpacerHtml = '<div class="player-layout-pool-head-slot" aria-hidden="true"></div>';
+            $poolHeadSpacerHtml = '<div class="split-editor__pool-head-slot" aria-hidden="true"></div>';
             ?>
 
             <!-- ── CAMPAIGN ──────────────────────────────────────────────── -->
@@ -1579,20 +1579,20 @@ if ($tab === 'analytics') {
                     <h2>💿 Catalogue</h2>
                 </div>
 
-                <div class="split-editor playlist-editor-layout" id="campaignEditorLayout">
-                    <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel content-editor-left-panel">
+                <div class="split-editor split-editor--pools" id="campaignEditorLayout">
+                    <div class="split-editor__col split-editor__col--pool">
+                        <div class="split-editor__panel content-editor-left-panel">
                             <div id="campaignPoolView">
-                                <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Campaigns</h4>
-                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
-                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddCampaignBtn" aria-expanded="false" aria-label="Add campaign" title="Add campaign">
-                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                <div class="split-editor__header split-editor__header--pool">
+                                    <h4 class="split-editor__title">Campaigns</h4>
+                                    <div class="split-editor__pool-head-slot split-editor__pool-actions">
+                                        <button type="button" class="split-editor__pool-action page-editor-add-btn" id="toggleAddCampaignBtn" aria-expanded="false" aria-label="Add campaign" title="Add campaign">
+                                            <span class="split-editor__pool-action-icon" aria-hidden="true">＋</span>
                                             <span>Add campaign</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
+                                <div class="split-editor__body registry-panel-body">
                                     <div class="add-page-panel" id="addCampaignPanel" hidden>
                                         <form id="addCampaignForm" class="add-page-form">
                                             <label class="add-page-field">
@@ -1605,15 +1605,16 @@ if ($tab === 'analytics') {
                                             </div>
                                         </form>
                                     </div>
-                                    <p id="campaignRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list registry-list" id="campaignPoolList" aria-label="Campaigns"></ol>
+                                    <p id="campaignRegistryStatus" class="status-text registry-panel-status"></p>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="campaignPoolList" aria-label="Campaigns"></ol>
                                 </div>
                             </div>
 
                             <div id="campaignTracksPoolView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                <div class="split-editor__header split-editor__header--pool page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="campaignEditorBackBtn" title="Back to catalogue">← Back</button>
                                     <h3 class="campaign-editor-header-title">Campaign editor</h3>
+                                    <span class="status-text playlist-settings-status content-editor-name-status" id="campaignSettingsStatus"></span>
                                 </div>
                                 <div class="campaign-preview-tabs campaign-editor-section-tabs campaign-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
                                     <button type="button" class="campaign-preview-tab is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
@@ -1622,7 +1623,7 @@ if ($tab === 'analytics') {
                                     <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
                                     <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
+                                <div class="split-editor__body registry-panel-body">
                                     <div class="playlist-settings-panel" id="campaignSettingsPanel">
                                         <div class="campaign-editor-section-panel is-active" data-campaign-editor-panel="base" role="tabpanel">
                                         <div class="playlist-settings-fields campaign-catalog-meta-fields">
@@ -1690,12 +1691,15 @@ if ($tab === 'analytics') {
                         </div>
                     </div>
 
-                    <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--active">
-                                <h3 class="player-layout-col-title" id="campaignEditorPreviewHeading">Preview</h3>
+                    <div class="split-editor__col split-editor__col--active">
+                        <div class="split-editor__panel">
+                            <div class="split-editor__header split-editor__header--active">
+                                <h3 class="split-editor__title" id="campaignEditorPreviewHeading">Preview</h3>
+                                <div class="split-editor__save-row">
+                                    <button type="button" id="campaignSaveBtn" class="btn" hidden>💾 Save campaign</button>
+                                </div>
                             </div>
-                            <div class="player-layout-panel-body campaign-editor-active-body">
+                            <div class="split-editor__body campaign-editor-active-body">
                                 <div id="campaignCoverPanel" class="campaign-cover-panel" hidden>
                                     <input type="hidden" id="campaignSettingsPosterAssetId" data-empty-label="No cover selected">
                                     <span id="campaignSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
@@ -1726,27 +1730,27 @@ if ($tab === 'analytics') {
                                     </div>
                                 </div>
                                 <ul class="campaign-preview-tracks campaign-associated-tracks" id="campaignActiveList" aria-label="Associated tracks" hidden>
-                                    <li class="player-layout-empty">No campaign selected.</li>
+                                    <li class="editor-empty">No campaign selected.</li>
                                 </ul>
-                                <ol class="playlist-editor player-layout-list campaign-associated-tracks" id="campaignAssociationActiveList" aria-label="Associated items" hidden>
-                                    <li class="player-layout-empty">No campaign selected.</li>
+                                <ol class="split-editor__track-list split-editor__list campaign-associated-tracks" id="campaignAssociationActiveList" aria-label="Associated items" hidden>
+                                    <li class="editor-empty">No campaign selected.</li>
                                 </ol>
                                 <div id="campaignAvailableSection" class="content-pool-section" hidden>
-                                    <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
-                                        <h4 class="player-layout-col-title" id="campaignAvailableHeading">Available tracks</h4>
+                                    <div class="split-editor__header split-editor__header--pool content-pool-head">
+                                        <h4 class="split-editor__title" id="campaignAvailableHeading">Available tracks</h4>
                                         <?php echo $poolHeadSpacerHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="campaignAvailableList" aria-label="Available tracks">
-                                        <li class="player-layout-empty">Loading tracks…</li>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list content-pool-list" id="campaignAvailableList" aria-label="Available tracks">
+                                        <li class="editor-empty">Loading tracks…</li>
                                     </ol>
                                 </div>
                                 <div id="campaignAssociationAvailableSection" class="content-pool-section" hidden>
-                                    <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
-                                        <h4 class="player-layout-col-title" id="campaignAssociationAvailableHeading">Available playlists</h4>
+                                    <div class="split-editor__header split-editor__header--pool content-pool-head">
+                                        <h4 class="split-editor__title" id="campaignAssociationAvailableHeading">Available playlists</h4>
                                         <?php echo $poolHeadSpacerHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="campaignAssociationAvailableList" aria-label="Available items">
-                                        <li class="player-layout-empty">Loading…</li>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list content-pool-list" id="campaignAssociationAvailableList" aria-label="Available items">
+                                        <li class="editor-empty">Loading…</li>
                                     </ol>
                                 </div>
                             </div>
@@ -1761,20 +1765,20 @@ if ($tab === 'analytics') {
                  data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎵 Playlists</h3>
 
-                <div class="split-editor playlist-editor-layout" id="playlistEditorLayout">
-                    <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel content-editor-left-panel">
+                <div class="split-editor split-editor--pools" id="playlistEditorLayout">
+                    <div class="split-editor__col split-editor__col--pool">
+                        <div class="split-editor__panel content-editor-left-panel">
                             <div id="playlistPoolView">
-                                <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Available content</h4>
-                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
-                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddPlaylistBtn" aria-expanded="false" aria-label="Add playlist" title="Add playlist">
-                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                <div class="split-editor__header split-editor__header--pool">
+                                    <h4 class="split-editor__title">Available content</h4>
+                                    <div class="split-editor__pool-head-slot split-editor__pool-actions">
+                                        <button type="button" class="split-editor__pool-action page-editor-add-btn" id="toggleAddPlaylistBtn" aria-expanded="false" aria-label="Add playlist" title="Add playlist">
+                                            <span class="split-editor__pool-action-icon" aria-hidden="true">＋</span>
                                             <span>Add playlist</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
+                                <div class="split-editor__body registry-panel-body">
                                     <div class="add-page-panel" id="addPlaylistPanel" hidden>
                                         <form id="addPlaylistForm" class="add-page-form">
                                             <label class="add-page-field">
@@ -1787,13 +1791,13 @@ if ($tab === 'analytics') {
                                             </div>
                                         </form>
                                     </div>
-                                    <p id="playlistRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list registry-list" id="playlistPoolList" aria-label="Playlists"></ol>
+                                    <p id="playlistRegistryStatus" class="status-text registry-panel-status"></p>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="playlistPoolList" aria-label="Playlists"></ol>
                                 </div>
                             </div>
 
                             <div id="playlistTracksPoolView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head page-editor-view-head content-editor-view-head">
+                                <div class="split-editor__header page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
@@ -1801,10 +1805,10 @@ if ($tab === 'analytics') {
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="playlistSettingsStatus"></span>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
+                                <div class="split-editor__body registry-panel-body">
                                     <section class="content-editor-section" id="playlistSettingsPanel">
                                         <div class="content-editor-section-head">
-                                            <h4 class="player-layout-col-title">Base info</h4>
+                                            <h4 class="split-editor__title">Base info</h4>
                                         </div>
                                         <div class="content-editor-section-body">
                                             <div class="page-editor-meta playlist-base-info">
@@ -1863,18 +1867,18 @@ if ($tab === 'analytics') {
                         </div>
                     </div>
 
-                    <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--active">
-                                <h4 class="player-layout-col-title">
-                                    Playlist <span class="player-layout-count" id="playlistActiveCount"></span>
+                    <div class="split-editor__col split-editor__col--active">
+                        <div class="split-editor__panel">
+                            <div class="split-editor__header split-editor__header--active">
+                                <h4 class="split-editor__title">
+                                    Playlist <span class="split-editor__count" id="playlistActiveCount"></span>
                                 </h4>
-                                <div class="player-layout-save-row brand-editor-actions">
+                                <div class="split-editor__save-row brand-editor-actions">
                                     <button type="button" id="playlistSetDefaultBtn" class="btn" hidden title="Open this playlist first on the player">★ Set as default</button>
                                     <button type="button" id="playlistSaveBtn" class="btn" hidden>💾 Save playlist</button>
                                 </div>
                             </div>
-                            <div class="player-layout-panel-body playlist-editor-active-body">
+                            <div class="split-editor__body split-editor__active-body">
                                 <div id="playlistCoverPanel" class="campaign-cover-panel" hidden>
                                     <input type="hidden" id="playlistSettingsPosterAssetId" data-empty-label="No cover selected">
                                     <span id="playlistSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
@@ -1895,17 +1899,17 @@ if ($tab === 'analytics') {
                                         </div>
                                     </div>
                                 </div>
-                                <p class="hint player-layout-hint" id="playlistEditorHint">Select a playlist from the pool, then click edit to change its track order.</p>
-                                <ol class="playlist-editor player-layout-list" id="playlistActiveList" aria-label="Playlist order">
-                                    <li class="player-layout-empty">No playlist selected.</li>
+                                <p class="hint split-editor__hint" id="playlistEditorHint">Select a playlist from the pool, then click edit to change its track order.</p>
+                                <ol class="split-editor__track-list split-editor__list" id="playlistActiveList" aria-label="Playlist order">
+                                    <li class="editor-empty">No playlist selected.</li>
                                 </ol>
                                 <div id="playlistAvailableSection" class="content-pool-section" hidden>
-                                    <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
-                                        <h4 class="player-layout-col-title">Available content</h4>
+                                    <div class="split-editor__header split-editor__header--pool content-pool-head">
+                                        <h4 class="split-editor__title">Available content</h4>
                                         <?php echo $poolCampaignFilterHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="playlistAvailableList" aria-label="Available tracks">
-                                        <li class="player-layout-empty">Loading tracks…</li>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list content-pool-list" id="playlistAvailableList" aria-label="Available tracks">
+                                        <li class="editor-empty">Loading tracks…</li>
                                     </ol>
                                 </div>
                             </div>
@@ -1935,20 +1939,20 @@ if ($tab === 'analytics') {
                  data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🖼️ Galleries</h3>
 
-                <div class="split-editor playlist-editor-layout" id="galleryEditorLayout">
-                    <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel content-editor-left-panel">
+                <div class="split-editor split-editor--pools" id="galleryEditorLayout">
+                    <div class="split-editor__col split-editor__col--pool">
+                        <div class="split-editor__panel content-editor-left-panel">
                             <div id="galleryPoolView">
-                                <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Available content</h4>
-                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
-                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddGalleryBtn" aria-expanded="false" aria-label="Add gallery" title="Add gallery">
-                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                <div class="split-editor__header split-editor__header--pool">
+                                    <h4 class="split-editor__title">Available content</h4>
+                                    <div class="split-editor__pool-head-slot split-editor__pool-actions">
+                                        <button type="button" class="split-editor__pool-action page-editor-add-btn" id="toggleAddGalleryBtn" aria-expanded="false" aria-label="Add gallery" title="Add gallery">
+                                            <span class="split-editor__pool-action-icon" aria-hidden="true">＋</span>
                                             <span>Add gallery</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
+                                <div class="split-editor__body registry-panel-body">
                                     <div class="add-page-panel" id="addGalleryPanel" hidden>
                                         <form id="addGalleryForm" class="add-page-form">
                                             <label class="add-page-field">
@@ -1961,22 +1965,22 @@ if ($tab === 'analytics') {
                                             </div>
                                         </form>
                                     </div>
-                                    <p id="galleryRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list registry-list" id="galleryPoolList" aria-label="Galleries"></ol>
+                                    <p id="galleryRegistryStatus" class="status-text registry-panel-status"></p>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="galleryPoolList" aria-label="Galleries"></ol>
                                 </div>
                             </div>
 
                             <div id="galleryItemsPoolView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
+                                <div class="split-editor__header split-editor__header--pool page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="gallerySettingsTitle" maxlength="120" autocomplete="off" placeholder="Gallery name" aria-label="Gallery name">
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="gallerySettingsStatus"></span>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body gallery-helper-panel">
+                                <div class="split-editor__body registry-panel-body gallery-helper-panel">
                                     <div class="gallery-helper-text">
-                                        <h4 class="player-layout-col-title">How galleries work</h4>
+                                        <h4 class="split-editor__title">How galleries work</h4>
                                         <p>Use <strong>Browse catalogue</strong> to open the media picker and select photos and videos for this gallery. You can select multiple items at once.</p>
                                         <p>Selected items appear under <strong>Gallery order</strong> on the right. Drag rows to reorder, edit names and alt text inline, or click <strong>✕</strong> to remove individual items.</p>
                                         <p>To remove several items at once, click rows in the Gallery order list (Ctrl+click or Shift+click to multi-select), then press <strong>Remove selected</strong>.</p>
@@ -1993,20 +1997,20 @@ if ($tab === 'analytics') {
                         </div>
                     </div>
 
-                    <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel">
-                            <div class="player-layout-col-head player-layout-col-head--active">
-                                <h4 class="player-layout-col-title">
-                                    Gallery order <span class="player-layout-count" id="galleryActiveCount"></span>
+                    <div class="split-editor__col split-editor__col--active">
+                        <div class="split-editor__panel">
+                            <div class="split-editor__header split-editor__header--active">
+                                <h4 class="split-editor__title">
+                                    Gallery order <span class="split-editor__count" id="galleryActiveCount"></span>
                                 </h4>
-                                <div class="player-layout-save-row">
+                                <div class="split-editor__save-row">
                                     <button type="button" id="gallerySaveBtn" class="btn" hidden>💾 Save gallery</button>
                                 </div>
                             </div>
-                            <div class="player-layout-panel-body">
-                                <p class="hint player-layout-hint" id="galleryEditorHint">Select a gallery from the pool, then click edit to change its content order.</p>
-                                <ol class="playlist-editor player-layout-list gallery-active-list" id="galleryActiveList" aria-label="Gallery order">
-                                    <li class="player-layout-empty">No gallery selected.</li>
+                            <div class="split-editor__body">
+                                <p class="hint split-editor__hint" id="galleryEditorHint">Select a gallery from the pool, then click edit to change its content order.</p>
+                                <ol class="split-editor__track-list split-editor__list gallery-active-list" id="galleryActiveList" aria-label="Gallery order">
+                                    <li class="editor-empty">No gallery selected.</li>
                                 </ol>
                             </div>
                         </div>
@@ -2042,19 +2046,19 @@ if ($tab === 'analytics') {
                 <h3>📄 Pages</h3>
 
                 <div class="split-editor page-editor-layout" id="pageEditorLayout">
-                    <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel page-editor-left-panel">
+                    <div class="split-editor__col split-editor__col--pool">
+                        <div class="split-editor__panel page-editor-left-panel">
                             <div id="pagePoolView">
-                                <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Available content</h4>
-                                    <div class="player-layout-pool-head-slot player-layout-pool-actions">
-                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddPageBtn" aria-expanded="false" aria-label="Add page" title="Add page">
-                                            <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
+                                <div class="split-editor__header split-editor__header--pool">
+                                    <h4 class="split-editor__title">Available content</h4>
+                                    <div class="split-editor__pool-head-slot split-editor__pool-actions">
+                                        <button type="button" class="split-editor__pool-action page-editor-add-btn" id="toggleAddPageBtn" aria-expanded="false" aria-label="Add page" title="Add page">
+                                            <span class="split-editor__pool-action-icon" aria-hidden="true">＋</span>
                                             <span>Add page</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
+                                <div class="split-editor__body registry-panel-body">
                                     <div class="add-page-panel" id="addPagePanel" hidden>
                                         <form id="addPageForm" class="add-page-form">
                                             <label class="add-page-field">
@@ -2067,22 +2071,22 @@ if ($tab === 'analytics') {
                                             </div>
                                         </form>
                                     </div>
-                                    <p id="pageRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list registry-list" id="pagePoolList" aria-label="Available content"></ol>
+                                    <p id="pageRegistryStatus" class="status-text registry-panel-status"></p>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="pagePoolList" aria-label="Available content"></ol>
                                 </div>
                             </div>
 
                             <div id="pageEditorView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head page-editor-view-head content-editor-view-head">
+                                <div class="split-editor__header page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="pageEditorBackBtn" title="Back to page list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120" placeholder="Page name" aria-label="Page name">
                                     </div>
                                 </div>
-                                <div class="player-layout-panel-body page-editor-view-body">
+                                <div class="split-editor__body page-editor-view-body">
                                     <section class="content-editor-section">
                                         <div class="content-editor-section-head">
-                                            <h4 class="player-layout-col-title">Base info</h4>
+                                            <h4 class="split-editor__title">Base info</h4>
                                         </div>
                                         <div class="content-editor-section-body">
                                             <div class="page-editor-meta">
@@ -2113,7 +2117,7 @@ if ($tab === 'analytics') {
                                     </section>
                                     <section class="content-editor-section page-editor-section--builder">
                                         <div class="content-editor-section-head page-editor-panel-head">
-                                            <h4 class="player-layout-col-title">Page builder</h4>
+                                            <h4 class="split-editor__title">Page builder</h4>
                                             <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
                                             <div class="page-editor-toolbar">
                                                 <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
@@ -2135,15 +2139,15 @@ if ($tab === 'analytics') {
                         </div>
                     </div>
 
-                    <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel page-editor-preview-panel">
-                            <div class="player-layout-col-head player-layout-col-head--active">
-                                <h4 class="player-layout-col-title">Live preview</h4>
-                                <div class="player-layout-save-row">
+                    <div class="split-editor__col split-editor__col--active">
+                        <div class="split-editor__panel page-editor-preview-panel">
+                            <div class="split-editor__header split-editor__header--active">
+                                <h4 class="split-editor__title">Live preview</h4>
+                                <div class="split-editor__save-row">
                                     <button id="pageSaveBtn" class="btn" hidden>💾 Save changes</button>
                                 </div>
                             </div>
-                            <div class="player-layout-panel-body page-editor-preview-body">
+                            <div class="split-editor__body page-editor-preview-body">
                                 <div class="page-editor-preview-frame" id="pageEditorPreview">
                                     <p class="page-editor-empty">Loading preview…</p>
                                 </div>
@@ -2195,21 +2199,21 @@ if ($tab === 'analytics') {
                  data-initial-brand="<?php echo htmlspecialchars($contentBrand, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎨 Branding</h3>
 
-                <div class="split-editor brand-editor-layout playlist-editor-layout" id="brandEditorLayout">
-                    <div class="player-layout-col player-layout-col--pool">
-                        <div class="player-layout-panel content-editor-left-panel">
+                <div class="split-editor brand-editor-layout split-editor--pools" id="brandEditorLayout">
+                    <div class="split-editor__col split-editor__col--pool">
+                        <div class="split-editor__panel content-editor-left-panel">
                             <div id="brandPoolView">
-                                <div class="player-layout-col-head player-layout-col-head--pool">
-                                    <h4 class="player-layout-col-title">Available content</h4>
+                                <div class="split-editor__header split-editor__header--pool">
+                                    <h4 class="split-editor__title">Available content</h4>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body">
-                                    <p id="brandRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list registry-list brand-pool-list" id="brandPoolList" aria-label="Brands"></ol>
+                                <div class="split-editor__body registry-panel-body">
+                                    <p id="brandRegistryStatus" class="status-text registry-panel-status"></p>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list brand-pool-list" id="brandPoolList" aria-label="Brands"></ol>
                                 </div>
                             </div>
 
                             <div id="brandEditorView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head page-editor-view-head brand-editor-view-head content-editor-view-head">
+                                <div class="split-editor__header page-editor-view-head brand-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="brandEditorBackBtn" title="Back to brand list">← Back</button>
                                     <div class="brand-editor-head-name content-editor-head-name">
                                         <input type="text" class="brand-editor-name-input content-editor-name-input" id="brandSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
@@ -2217,7 +2221,7 @@ if ($tab === 'analytics') {
                                     </div>
                                     <span class="status-text brand-editor-name-status content-editor-name-status" id="brandSettingsStatus"></span>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body brand-editor-view-body">
+                                <div class="split-editor__body registry-panel-body brand-editor-view-body">
                                     <div class="brand-editor-form" id="brandEditorForm">
                                         <p class="brand-editor-locked-note">Loading brand…</p>
                                     </div>
@@ -2226,16 +2230,16 @@ if ($tab === 'analytics') {
                         </div>
                     </div>
 
-                    <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel brand-editor-preview-panel">
-                            <div class="player-layout-col-head player-layout-col-head--active">
-                                <h4 class="player-layout-col-title">Live preview</h4>
-                                <div class="player-layout-save-row brand-editor-actions">
+                    <div class="split-editor__col split-editor__col--active">
+                        <div class="split-editor__panel brand-editor-preview-panel">
+                            <div class="split-editor__header split-editor__header--active">
+                                <h4 class="split-editor__title">Live preview</h4>
+                                <div class="split-editor__save-row brand-editor-actions">
                                     <button type="button" id="brandSetActiveBtn" class="btn" hidden>★ Set as base</button>
                                     <button type="button" id="brandSaveBtn" class="btn" hidden>💾 Save brand</button>
                                 </div>
                             </div>
-                            <div class="player-layout-panel-body brand-editor-preview-body">
+                            <div class="split-editor__body brand-editor-preview-body">
                                 <div class="brand-editor-preview-frame" id="brandEditorPreview">
                                     <p class="brand-editor-empty">No brand selected.</p>
                                 </div>
@@ -2298,6 +2302,18 @@ if ($tab === 'analytics') {
                     <div class="page-unsaved-actions">
                         <button type="button" class="btn btn-danger" id="brandDeleteConfirmBtn">Delete brand</button>
                         <button type="button" class="btn" id="brandDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="contentUnsavedModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="contentUnsavedModalTitle">
+                    <h3 id="contentUnsavedModalTitle">Unsaved changes</h3>
+                    <p class="card-note" id="contentUnsavedModalMessage">You have unsaved changes. What would you like to do?</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-primary" id="contentUnsavedSaveBtn">Save &amp; continue</button>
+                        <button type="button" class="btn btn-danger-outline" id="contentUnsavedDiscardBtn">Leave without saving</button>
+                        <button type="button" class="btn" id="contentUnsavedCancelBtn">Keep editing</button>
                     </div>
                 </div>
             </div>
@@ -3400,6 +3416,7 @@ if ($tab === 'analytics') {
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
     <?php if ($tab === 'content'): ?>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>
+    <script src="biblioteca/editor-unsaved-modal.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-unsaved-modal.js'); ?>"></script>
     <script src="biblioteca/editor-lifecycle.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-lifecycle.js'); ?>"></script>
     <script src="biblioteca/editor-drag-reorder.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-drag-reorder.js'); ?>"></script>
     <script src="biblioteca/editor-range-selection.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-range-selection.js'); ?>"></script>

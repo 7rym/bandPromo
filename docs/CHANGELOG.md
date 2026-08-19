@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 23:00 - Admin editor refactor complete (build 425): Phase 3 `page-editor.css` leftover (`release-*` → `campaign-*`, `#campaignEditorLayout`); remove dead `bandpromoReleasesCatalog` fallback; Phases 3–4 + campaign autosave fix shipped.
+
+2026-08-19 22:50 - Campaign settings autosave revert fix: `manage-campaign.php` PATCH returned `releases` but the editor only refreshed `data.campaigns`, so blur-save re-synced stale titles; editor now accepts both keys and PHP emits `campaigns` alias.
+
+2026-08-19 22:45 - Admin editor Phase 4: shared `editor-unsaved-modal.js` + `#contentUnsavedModal` for Catalogue/Playlist/Gallery/Branding leave/switch prompts; Catalogue gets `bandpromoContentSaveUi` (`#campaignSaveBtn`) with settings dirty state + inline auto-save status; Gallery/Branding settings auto-save gains `settingsSaveQueued`; manual gallery/brand saves show success toasts.
+
+2026-08-19 22:15 - Admin editor Phase 3 finish: rename remaining `player-layout-*` panel chrome to `split-editor__*`, `playlist-editor` list container to `split-editor__track-list`, `page-pool-panel-body`/`page-pool-status` to `registry-panel-*`, list empty/remove/lock helpers to `editor-empty`/`editor-remove-btn`/`editor-row--active`; drop dead `.container-pool-layout` CSS.
+
 2026-08-19 22:00 - Editor/picker sort: shared `editor-sort.js`; available track pools sort A–Z by artist/title (not master filename or release grouping); campaign/playlist/association container pools sort by title; associated campaign tracks keep manual document order.
 
 2026-08-19 21:50 - Campaign track save hotfix: `save-campaign-tracks.php` accepts `?campaign=` (was defaulting to invisible `primary` so drops never stuck); reject primary bucket saves; `manage-campaign.php` and `get-campaign-preview-section.php` accept `campaign` query param to match the editor.

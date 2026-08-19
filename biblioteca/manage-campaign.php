@@ -33,10 +33,12 @@ try {
             'data' => ['title' => (string) ($entry['title'] ?? '')],
         ]);
 
+        $registry = bandpromo_campaign_admin_registry_entries($root);
         echo json_encode([
             'ok' => true,
             'release' => $entry,
-            'releases' => bandpromo_campaign_admin_registry_entries($root),
+            'releases' => $registry,
+            'campaigns' => $registry,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
@@ -73,10 +75,12 @@ try {
 
         $buildState = bandpromo_mark_build_required('release_metadata_changed');
 
+        $registry = bandpromo_campaign_admin_registry_entries($root);
         $response = [
             'ok' => true,
             'release' => $entry,
-            'releases' => bandpromo_campaign_admin_registry_entries($root),
+            'releases' => $registry,
+            'campaigns' => $registry,
             'build_required' => true,
             'build_required_state' => $buildState,
         ];
@@ -113,12 +117,14 @@ try {
             ],
         ]);
 
+        $registry = bandpromo_campaign_admin_registry_entries($root);
         echo json_encode([
             'ok' => true,
             'deleted' => $releaseId,
             'mode' => $mode,
             'purge' => $result,
-            'releases' => bandpromo_campaign_admin_registry_entries($root),
+            'releases' => $registry,
+            'campaigns' => $registry,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }

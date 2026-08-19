@@ -85,9 +85,11 @@ Create four new files under `biblioteca/`:
 
 **Migration:** Wire Gallery and Playlist editors first (closest clones, most duplication). Then Catalogue, Pages, Branding in follow-up commits.
 
-### Phase 3 — CSS rename (stale naming)
+### Phase 3 — CSS rename (stale naming) ✓
 
-Rename the three overloaded prefixes using find-and-replace across `admin.css`, `admin.php`, all `.js` files:
+Rename complete including `page-editor.css` `release-*` → `campaign-*` selectors and `#campaignEditorLayout` layout rules (Phase 3 leftover, build 425).
+
+### Phase 4 — Unify save UX ✓
 
 - `playlist-editor-row` (used by all editors) becomes **`editor-row`**
 - `playlist-editor-row-selected` / `-pending` / `-focus` become `editor-row--selected` / `--pending` / `--focus`
@@ -103,12 +105,14 @@ Remove dead classes: `container-pool-layout`, `container-registry-list`, `galler
 
 Editor-specific prefixes stay: `playlist-track-*`, `gallery-thumb-*`, `campaign-preview-*`, `brand-editor-*` (already renamed in Phase 1).
 
-### Phase 4 — Unify save UX
+### Phase 4 — Unify save UX ✓
 
 - Add `bandpromoContentSaveUi` to the Catalogue editor (currently the only editor without it)
 - Adopt the Pages-style unsaved-changes modal everywhere, replacing `window.confirm()` in Playlist, Gallery, Branding, Catalogue
 - Standardise feedback: toast for manual saves, inline status text for auto-saved settings
 - Add save queueing (`settingsSaveQueued` flag) to Gallery and Branding settings auto-save (Catalogue and Playlist already have it)
+
+**Shipped:** `editor-unsaved-modal.js`, `#contentUnsavedModal`, `#campaignSaveBtn`, wired in `campaign-editor.js`, `admin.js` (playlist/gallery), `brand-editor.js`.
 
 ## What NOT to change
 

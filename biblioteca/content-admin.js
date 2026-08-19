@@ -271,8 +271,8 @@
         }
 
         function renderLockedRow(item, position) {
-            return `<li class="editor-row player-layout-row-locked" data-tab-key="${escapeHtml(item.key)}">
-                <span class="player-layout-lock" title="Always on" aria-hidden="true">🔒</span>
+            return `<li class="editor-row editor-row--locked" data-tab-key="${escapeHtml(item.key)}">
+                <span class="editor-lock-badge" title="Always on" aria-hidden="true">🔒</span>
                 <span class="playlist-track-num">${position}</span>
                 <span class="playlist-track-info">
                     <strong>${escapeHtml(itemTitle(item))}</strong>
@@ -312,7 +312,7 @@
 
         function getActiveRows() {
             if (!activeList) return [];
-            return Array.from(activeList.querySelectorAll('.player-layout-row-active[draggable="true"]'));
+            return Array.from(activeList.querySelectorAll('.editor-row--active[draggable="true"]'));
         }
 
         function syncAvailableSelectionUi() {
@@ -421,14 +421,14 @@
 
         function renderActiveRow(item, position) {
             const selectedClass = selectedActive.has(item.key) ? ' editor-row--selected' : '';
-            return `<li class="editor-row player-layout-row-active${selectedClass}" draggable="true" data-tab-key="${escapeHtml(item.key)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}" aria-selected="${selectedActive.has(item.key) ? 'true' : 'false'}">
+            return `<li class="editor-row editor-row--active${selectedClass}" draggable="true" data-tab-key="${escapeHtml(item.key)}" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}" aria-selected="${selectedActive.has(item.key) ? 'true' : 'false'}">
                 <span class="editor-drag-handle" title="Drag to reorder">⠿</span>
                 <span class="playlist-track-num">${position}</span>
                 <span class="playlist-track-info">
                     <strong>${escapeHtml(itemTitle(item))}</strong>
                     <span class="playlist-track-meta">${escapeHtml(itemTabMeta(item))}</span>
                 </span>
-                <button type="button" class="player-layout-remove-btn" title="Move to Available content" aria-label="Remove from player">✕</button>
+                <button type="button" class="editor-remove-btn" title="Move to Available content" aria-label="Remove from player">✕</button>
             </li>`;
         }
 
@@ -454,7 +454,7 @@
             if (availableList) {
                 availableList.innerHTML = availableItems.length
                     ? availableItems.map(renderAvailableRow).join('')
-                    : '<li class="player-layout-empty">All available content is already in the player layout. Use ✕ on the right to move items back here.</li>';
+                    : '<li class="editor-empty">All available content is already in the player layout. Use ✕ on the right to move items back here.</li>';
             }
             updateCounts();
             saveUi?.reconcile();
@@ -569,10 +569,10 @@
             let optionalIndex = 0;
             for (let i = 0; i < placeholderIndex; i += 1) {
                 const child = children[i];
-                if (child.classList.contains('player-layout-row-locked')) {
+                if (child.classList.contains('editor-row--locked')) {
                     continue;
                 }
-                if (!child.classList.contains('player-layout-row-active')) {
+                if (!child.classList.contains('editor-row--active')) {
                     continue;
                 }
                 const key = child.dataset.tabKey || '';
@@ -765,7 +765,7 @@
         });
 
         activeList?.addEventListener('click', (event) => {
-            const button = event.target.closest('.player-layout-remove-btn');
+            const button = event.target.closest('.editor-remove-btn');
             if (button && activeList.contains(button)) {
                 const row = button.closest('.editor-row');
                 if (!row) return;
@@ -775,7 +775,7 @@
                 return;
             }
             if (suppressNextClick) return;
-            const row = event.target.closest('.player-layout-row-active[draggable="true"]');
+            const row = event.target.closest('.editor-row--active[draggable="true"]');
             if (!row || !activeList.contains(row)) return;
             handleActiveSelection(row, event);
         });

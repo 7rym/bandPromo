@@ -8197,9 +8197,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const saved = await saveGallerySettings();
                             if (!saved) return false;
                         }
+                        const modal = window.bandpromoEditorUnsavedModal;
+                        if (modal && typeof modal.confirmLeave === 'function') {
+                            const result = await modal.confirmLeave({
+                                isDirty: () => saveBtn.classList.contains('btn-amber'),
+                                message: 'This gallery has unsaved content changes. What would you like to do?',
+                                fallbackMessage: 'You have unsaved gallery changes. Leave edit mode without saving?',
+                                save: () => saveGalleryContent(),
+                                discard: () => {
+                                    void loadGalleryPreview({ preserveSavedState: true });
+                                },
+                            });
+                            return result === 'proceed';
+                        }
                         if (saveBtn.classList.contains('btn-amber')) {
-                            const proceed = window.confirm('You have unsaved gallery changes. Leave edit mode without saving?');
-                            if (!proceed) return false;
+                            return window.confirm('You have unsaved gallery changes. Leave edit mode without saving?');
                         }
                         return true;
                     },
@@ -8216,6 +8228,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const gallerySettingsStatus = document.getElementById('gallerySettingsStatus');
                 let gallerySettingsBaseline = { title: '' };
                 let gallerySettingsSaving = false;
+                let gallerySettingsSaveQueued = false;
 
                 function galleryEntry(galleryId) {
                     return galleries.find((entry) => entry && entry.id === galleryId) || null;
@@ -8254,6 +8267,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 async function saveGallerySettings({ silent = false } = {}) {
                     if (gallerySettingsSaving) {
+                        gallerySettingsSaveQueued = true;
                         return true;
                     }
                     if (!(gallerySettingsTitle instanceof HTMLInputElement)) {
@@ -8305,7 +8319,53 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return false;
                     } finally {
                         gallerySettingsSaving = false;
+                        if (gallerySettingsSaveQueued) {
+                            gallerySettingsSaveQueued = false;
+                            saveGallerySettings({ silent: true }).catch(() => {});
+                        }
                     }
+                }
+
+                async function saveGalleryContent() {
+                    syncFromDOM();
+                    saveUi?.markSaving();
+                    try {
+                        const resp = await fetch(`/biblioteca/save-gallery.php?gallery=${encodeURIComponent(selectedGalleryId)}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(activeItems),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            saveUi?.markSaved();
+                            return true;
+                        }
+                        saveUi?.markFailed();
+                        return false;
+                    } catch (e) {
+                        saveUi?.markFailed();
+                        return false;
+                    }
+                }
+
+                async function confirmGalleryContentLeave() {
+                    const modal = window.bandpromoEditorUnsavedModal;
+                    if (!saveBtn.classList.contains('btn-amber')) {
+                        return true;
+                    }
+                    if (!modal || typeof modal.confirmLeave !== 'function') {
+                        return window.confirm('You have unsaved gallery changes. Switch galleries without saving?');
+                    }
+                    const result = await modal.confirmLeave({
+                        isDirty: () => saveBtn.classList.contains('btn-amber'),
+                        message: 'This gallery has unsaved content changes. What would you like to do?',
+                        fallbackMessage: 'You have unsaved gallery changes. Switch galleries without saving?',
+                        save: () => saveGalleryContent(),
+                        discard: () => {
+                            void loadGalleryPreview({ preserveSavedState: true });
+                        },
+                    });
+                    return result === 'proceed';
                 }
 
                 function closeGalleryDeleteModal() {
@@ -8429,7 +8489,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             saveUi?.setBaseline();
                         }
                     } catch (e) {
-                        activeEl.innerHTML = '<li class="player-layout-empty text-error">Could not load gallery: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        activeEl.innerHTML = '<li class="editor-empty text-error">Could not load gallery: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
@@ -8447,8 +8507,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                         }
                         if (saveBtn.classList.contains('btn-amber')) {
-                            const proceed = window.confirm('You have unsaved gallery changes. Switch galleries without saving?');
-                            if (!proceed) return;
+                            const leaveOk = await confirmGalleryContentLeave();
+                            if (!leaveOk) return;
                         }
                     }
                     selectedGalleryId = galleryId;
@@ -8466,8 +8526,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     if (saveBtn.classList.contains('btn-amber')) {
-                        const proceed = window.confirm('You have unsaved gallery changes. Switch galleries without saving?');
-                        if (!proceed) return;
+                        const leaveOk = await confirmGalleryContentLeave();
+                        if (!leaveOk) return;
                     }
                     selectedGalleryId = galleryId;
                     syncGalleryUrl(galleryId, false);
@@ -8792,7 +8852,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function renderGalleryLists() {
                     if (!selectedGalleryId) {
-                        activeEl.innerHTML = '<li class="player-layout-empty">No gallery selected.</li>';
+                        activeEl.innerHTML = '<li class="editor-empty">No gallery selected.</li>';
                         if (countBadge) countBadge.textContent = '';
                         saveUi?.reconcile();
                         return;
@@ -8808,8 +8868,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pruneActiveSelection();
                     if (!activeItems.length) {
                         activeEl.innerHTML = isEditing
-                            ? '<li class="player-layout-empty">Use Browse catalogue to add photos and videos.</li>'
-                            : '<li class="player-layout-empty">This gallery has no content yet. Click edit to add photos and videos.</li>';
+                            ? '<li class="editor-empty">Use Browse catalogue to add photos and videos.</li>'
+                            : '<li class="editor-empty">This gallery has no content yet. Click edit to add photos and videos.</li>';
                         if (countBadge) countBadge.textContent = '';
                         saveUi?.reconcile();
                         return;
@@ -8846,7 +8906,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 <input class="gallery-field-name" type="text" value="${bandpromoAdminEscapeHtml(item.name || '')}" placeholder="Name" aria-label="Name" draggable="false">
                                 <input class="gallery-field-alt" type="text" value="${bandpromoAdminEscapeHtml(item.alt || '')}" placeholder="Alt text" aria-label="Alt text" draggable="false">
                             </div>
-                            <button type="button" class="player-layout-remove-btn gallery-remove-btn" title="Move to Available content" aria-label="Remove from gallery">✕</button>
+                            <button type="button" class="editor-remove-btn gallery-remove-btn" title="Move to Available content" aria-label="Remove from gallery">✕</button>
                         </li>`;
                     }).join('');
 
@@ -9135,20 +9195,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (availableEl) bindDragList(availableEl);
 
                 saveBtn.addEventListener('click', async () => {
-                    syncFromDOM();
                     saveUi?.markSaving();
                     try {
-                        const resp = await fetch(`/biblioteca/save-gallery.php?gallery=${encodeURIComponent(selectedGalleryId)}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(activeItems),
-                        });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            saveUi?.markSaved();
-                        } else {
-                            saveUi?.markFailed();
-                            throw new Error(data.error || 'Unknown error');
+                        const saved = await saveGalleryContent();
+                        if (saved) {
+                            showAdminToast('Gallery saved.', 'success');
                         }
                     } catch (e) {
                         saveUi?.markFailed();
@@ -9258,7 +9309,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 loadGalleryRegistry()
                     .catch((e) => {
                         if (poolList) {
-                            poolList.innerHTML = '<li class="player-layout-empty text-error">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                            poolList.innerHTML = '<li class="editor-empty text-error">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                         }
                     })
                     .finally(async () => {
@@ -9338,9 +9389,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const saved = await savePlaylistSettings();
                             if (!saved) return false;
                         }
+                        const modal = window.bandpromoEditorUnsavedModal;
+                        if (modal && typeof modal.confirmLeave === 'function') {
+                            const result = await modal.confirmLeave({
+                                isDirty: () => saveBtn.classList.contains('btn-amber'),
+                                message: 'This playlist has unsaved track changes. What would you like to do?',
+                                fallbackMessage: 'You have unsaved playlist changes. Leave edit mode without saving?',
+                                save: () => savePlaylistContent(),
+                                discard: () => {
+                                    void loadPlaylistPreview({ preserveSavedState: true });
+                                },
+                            });
+                            return result === 'proceed';
+                        }
                         if (saveBtn.classList.contains('btn-amber')) {
-                            const proceed = window.confirm('You have unsaved playlist changes. Leave edit mode without saving?');
-                            if (!proceed) return false;
+                            return window.confirm('You have unsaved playlist changes. Leave edit mode without saving?');
                         }
                         return true;
                     },
@@ -9845,6 +9908,65 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                async function savePlaylistContent() {
+                    syncActiveOrderFromDOM();
+                    const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
+                    if (!order.length) {
+                        showAdminToast('Add at least one track before saving the playlist.', 'error');
+                        return false;
+                    }
+                    saveUi?.markSaving();
+                    try {
+                        const resp = await fetch('/biblioteca/save-playlist-order.php' + playlistQueryString(), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(order),
+                        });
+                        const data = await resp.json();
+                        if (!data.ok) {
+                            saveUi?.markFailed();
+                            return false;
+                        }
+                        if (typeof data.build_required === 'boolean' && typeof setBuildRequiredNudge === 'function') {
+                            const state = data.build_required_state || {};
+                            setBuildRequiredNudge(
+                                data.build_required === true,
+                                state.reasons || [],
+                                state.action || 'none',
+                                state.tasks || []
+                            );
+                        } else if (typeof refreshBuildRequiredState === 'function') {
+                            refreshBuildRequiredState({ full: true });
+                        }
+                        await loadPlaylistPreview({ preserveSavedState: true });
+                        saveUi?.markSaved();
+                        return true;
+                    } catch (e) {
+                        saveUi?.markFailed();
+                        return false;
+                    }
+                }
+
+                async function confirmPlaylistContentLeave() {
+                    const modal = window.bandpromoEditorUnsavedModal;
+                    if (!saveBtn.classList.contains('btn-amber')) {
+                        return true;
+                    }
+                    if (!modal || typeof modal.confirmLeave !== 'function') {
+                        return window.confirm('You have unsaved playlist changes. Switch playlists without saving?');
+                    }
+                    const result = await modal.confirmLeave({
+                        isDirty: () => saveBtn.classList.contains('btn-amber'),
+                        message: 'This playlist has unsaved track changes. What would you like to do?',
+                        fallbackMessage: 'You have unsaved playlist changes. Switch playlists without saving?',
+                        save: () => savePlaylistContent(),
+                        discard: () => {
+                            void loadPlaylistPreview({ preserveSavedState: true });
+                        },
+                    });
+                    return result === 'proceed';
+                }
+
                 function closePlaylistDeleteModal() {
                     pendingPlaylistDeleteId = '';
                     if (playlistDeleteModal) {
@@ -10083,8 +10205,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                         }
                         if (saveBtn.classList.contains('btn-amber')) {
-                            const proceed = window.confirm('You have unsaved playlist changes. Switch playlists without saving?');
-                            if (!proceed) return;
+                            const leaveOk = await confirmPlaylistContentLeave();
+                            if (!leaveOk) return;
                         }
                     }
                     selectedPlaylistId = playlistId;
@@ -10101,8 +10223,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     if (saveBtn.classList.contains('btn-amber')) {
-                        const proceed = window.confirm('You have unsaved playlist changes. Switch playlists without saving?');
-                        if (!proceed) return;
+                        const leaveOk = await confirmPlaylistContentLeave();
+                        if (!leaveOk) return;
                     }
                     selectedPlaylistId = playlistId;
                     syncPlaylistUrl(playlistId, false);
@@ -10510,9 +10632,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? `<span class="playlist-track-num">${options.position}</span>`
                         : '';
                     const removeMarkup = options.showRemove
-                        ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from playlist">✕</button>'
+                        ? '<button type="button" class="editor-remove-btn" title="Move to Available tracks" aria-label="Remove from playlist">✕</button>'
                         : '';
-                    const rowClass = options.activeRow ? 'editor-row player-layout-row-active' : 'editor-row';
+                    const rowClass = options.activeRow ? 'editor-row editor-row--active' : 'editor-row';
                     const readonlyClass = !isEditing ? ' editor-row--readonly' : '';
                     const draggable = isEditing && track.deliveryReady !== false ? 'true' : 'false';
                     const dragTitle = !isEditing
@@ -10538,15 +10660,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pruneActiveSelection();
 
                     if (!selectedPlaylistId) {
-                        activeEl.innerHTML = '<li class="player-layout-empty">No playlist selected.</li>';
+                        activeEl.innerHTML = '<li class="editor-empty">No playlist selected.</li>';
                         if (countBadge) countBadge.textContent = '';
                         return;
                     }
 
                     if (!activeTracks.length) {
                         activeEl.innerHTML = isEditing
-                            ? '<li class="player-layout-empty">Drag tracks here from Available content.</li>'
-                            : '<li class="player-layout-empty">This playlist has no tracks yet. Click edit to add tracks.</li>';
+                            ? '<li class="editor-empty">Drag tracks here from Available content.</li>'
+                            : '<li class="editor-empty">This playlist has no tracks yet. Click edit to add tracks.</li>';
                     } else {
                         activeEl.innerHTML = activeTracks.map((track, index) => renderTrackRow(track, {
                             showPosition: true,
@@ -10569,7 +10691,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const emptyMessage = activeTracks.length
                             ? 'All delivery-ready tracks are already in your playlist. Use ✕ on the right to move tracks back here.'
                             : 'No delivery-ready tracks in the pool yet. Upload audio under Files, or check Notifications for background delivery.';
-                        availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
+                        availableEl.innerHTML = `<li class="editor-empty">${emptyMessage}</li>`;
                     } else {
                         availableEl.innerHTML = availableTracks.map((track) => renderTrackRow(track, {
                             showPosition: false,
@@ -10900,7 +11022,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
 
                 activeEl.addEventListener('click', (event) => {
-                    const button = event.target.closest('.player-layout-remove-btn');
+                    const button = event.target.closest('.editor-remove-btn');
                     if (button && activeEl.contains(button)) {
                         const row = button.closest('.editor-row');
                         if (!row) return;
@@ -10956,7 +11078,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         renderLists();
                     } catch (e) {
-                        availableEl.innerHTML = '<li class="player-layout-empty text-error">Could not refresh available tracks: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        availableEl.innerHTML = '<li class="editor-empty text-error">Could not refresh available tracks: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
@@ -10977,7 +11099,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     } catch (e) {
                         activeEl.innerHTML = '';
-                        availableEl.innerHTML = '<li class="player-layout-empty text-error">Could not load playlist preview: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                        availableEl.innerHTML = '<li class="editor-empty text-error">Could not load playlist preview: ' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                     }
                 }
 
@@ -11036,7 +11158,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 loadPlaylistRegistry()
                     .catch((e) => {
                         if (poolList) {
-                            poolList.innerHTML = '<li class="player-layout-empty text-error">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
+                            poolList.innerHTML = '<li class="editor-empty text-error">' + bandpromoAdminEscapeHtml(e.message) + '</li>';
                         }
                     })
                     .finally(async () => {

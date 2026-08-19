@@ -2,47 +2,32 @@
 
 ## Resume point
 
-Admin editor refactor — **Phase 3 cleanup done locally**; smoke-test editors, then Phase 4 (save UX) or push checkpoint.
+**Admin editor refactor (Phases 1–4) is complete and published.** Next session: **admin legacy compat strip** (see plan below).
 
-## What's done
+## Shipped (build 425+)
 
-### Phase 3 — Legacy class cleanup (local, not pushed)
+- **Phase 3** — Panel chrome renames + `page-editor.css` campaign selector migration (`release-*` → `campaign-*`, `#campaignEditorLayout`).
+- **Phase 4** — Shared unsaved modal, Catalogue save UI, Gallery/Branding save queue, save toasts.
+- **Hotfix** — Campaign settings autosave no longer reverts title (`campaigns` vs `releases` API response).
 
-- Removed dual-alias class emission in JS/HTML; canonical names only: `editor-row`, `editor-row--*`, `editor-drag-handle`, `editor-placeholder`, `registry-row`, `registry-list`, `registry-btn--*`, `editor-card`, `split-editor`.
-- CSS updated to match (admin.css, page-editor.css).
-- Intentionally retained for a later pass: `player-layout-*` panel chrome, `page-pool-panel-body`, `page-pool-status`, `playlist-editor` list container class.
+Latest published release: check `VERSION` after checkpoint.
 
-### Phase 2 — Shared JS modules + migration (committed, local)
+## Next session — Legacy compat strip
 
-- Shared modules: `editor-lifecycle.js`, `editor-drag-reorder.js`, `editor-range-selection.js`, `editor-registry-list.js`.
-- Wired into Gallery, Playlist (admin.js), Campaign, Pages, Brand editors.
-- Init guards on Campaign/Pages/Brand editors (duplicate load fix).
-- PHP/API fixes for campaign/brand query params and response keys.
+Work through in order (see audit in prior session transcript):
 
-### Phase 3 — Additive CSS/JS alias rollout (committed, local, not pushed)
+1. **Safe deletes** — drop `data.releases` read path in JS once PHP is canonical-only; remove duplicate `releases` JSON keys from manage/duplicate campaign endpoints.
+2. **Fix migration gaps** (bugs, not compat):
+   - `manage-brand.php`: accept `?brand=`, return `brands` / `active_brand_id`.
+   - `list-media.php`: accept `?campaign=` (admin.js already sends it).
+   - `admin.php`: alias `cntab=themes` → `branding`.
+3. **Canonical internal links** — `admin-welcome-state.php`, `demo-catalog-state.php` → `cntab=campaign&campaign=`.
+4. **Remove URL/query aliases** — `?release=`, `?theme=`, `cntab=release` in `admin.php` + PHP API dual-read (after one release on build 425).
+5. **Remove JSON aliases** — `themes`/`active_theme_id` on get-brands, etc.
+6. **Keep indefinitely** — `data/releases/` storage path, `release_id` data fields, `data/themes/` migration, `system_managed` stub until fleet clean.
 
-- Dual class emission (`playlist-editor-row` + `editor-row`, `page-pool-*` + `registry-*`, etc.).
-- Parallel CSS in `admin.css` / `page-editor.css`.
-- Bidirectional registry button class expansion in `editor-registry-list.js`.
-- Inline style cleanup in content-editor HTML/JS → semantic classes in `admin.css`.
-
-Latest local commit: inline style cleanup checkpoint (`v0.8.32 build 417`). **Three commits ahead of origin/main.**
-
-## What's next
-
-### Phase 3 — Real cleanup (start here)
-
-Remove legacy class names and selectors now that dual aliases are in place:
-
-1. Drop legacy classes from JS/HTML emitters (`playlist-editor-row`, `page-pool-*`, `content-editor-card`, `player-layout-editor`, etc.).
-2. Remove parallel legacy CSS selectors; keep `editor-*`, `registry-*`, `split-editor`, `editor-card` only.
-3. Tighten JS `closest` / `querySelectorAll` to new names only.
-4. Smoke-test Gallery, Playlist, Campaign (tracks + associations), Pages, Brand editors.
-
-### Phase 4 — Unify save UX (deferred)
-
-Add `bandpromoContentSaveUi` to Catalogue; Pages-style unsaved modal everywhere.
+Do **not** rename on-disk `release_id` or `data/releases/` — data model, not admin chrome.
 
 ## Plan document
 
-Full plan: `docs/ADMIN-EDITOR-REFACTOR.md`
+Full refactor history: `docs/ADMIN-EDITOR-REFACTOR.md`

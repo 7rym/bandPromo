@@ -59,6 +59,8 @@
         const campaignAssociationAvailableSection = document.getElementById('campaignAssociationAvailableSection');
         const campaignAssociationAvailableList = document.getElementById('campaignAssociationAvailableList');
         const campaignAssociationAvailableHeading = document.getElementById('campaignAssociationAvailableHeading');
+        const campaignSaveBtn = document.getElementById('campaignSaveBtn');
+        const campaignSettingsPanel = document.getElementById('campaignSettingsPanel');
 
         if (!editorCard || !poolList || !availableEl || !activeEl) {
             return;
@@ -159,6 +161,12 @@
         let campaignSettingsSaving = false;
         let campaignSettingsSaveQueued = false;
         let pendingCampaignCoverPreviewUrl = '';
+        const saveUi = window.bandpromoContentSaveUi?.create(campaignSaveBtn, {
+            saveLabel: '💾 Save campaign',
+            readFingerprint() {
+                return JSON.stringify(readCampaignSettingsFromForm());
+            },
+        }) || null;
         let siteSharing = {
             siteName: 'bandPromo',
             siteUrl: '',
@@ -185,11 +193,12 @@
             root: editorCard,
             poolView: poolView,
             editorView: tracksPoolView,
-            saveBtn: null,
+            saveBtn: campaignSaveBtn,
             cntab: 'campaign',
             entityParam: 'campaign',
             onShowPool: function () {
                 isEditing = false;
+                saveUi?.reset();
                 editorCard.classList.add('campaign-editor-is-preview');
                 if (campaignAvailableSection) {
                     campaignAvailableSection.hidden = true;
@@ -210,16 +219,15 @@
                 selectedCampaignId = campaignId;
                 syncCampaignEditorMode();
                 syncCampaignSettingsPanel(campaignId);
+                saveUi?.setBaseline();
                 renderCampaignPoolList();
                 updateCampaignEditorHint();
                 updateCampaignCoverPanel();
             },
             onBeforeClose: async function () {
-                if (campaignSettingsDirty()) {
-                    const saved = await saveCampaignSettings();
-                    if (!saved) {
-                        return false;
-                    }
+                const leaveOk = await confirmCampaignSettingsLeave();
+                if (!leaveOk) {
+                    return false;
                 }
                 await flushMembershipSaves();
                 return true;
@@ -1497,13 +1505,13 @@
                 ? `<span class="playlist-track-meta">${escapeHtml(item.publish_date)}</span>`
                 : '';
             const removeMarkup = showRemove
-                ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
+                ? '<button type="button" class="editor-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
             const dragHandle = draggable
                 ? '<span class="editor-drag-handle" title="Drag into campaign">⠿</span>'
                 : '';
             const readonlyClass = canEdit ? '' : ' editor-row--readonly';
-            const activeRowClass = showRemove || !draggable ? ' player-layout-row-active' : '';
+            const activeRowClass = showRemove || !draggable ? ' editor-row--active' : '';
             const selectedClass = selected ? ' editor-row--selected' : '';
             return `<li class="editor-row${activeRowClass}${readonlyClass}${selectedClass}" draggable="${draggable ? 'true' : 'false'}" data-id="${id}" data-kind="${escapeHtml(kind)}" data-list="${escapeHtml(listName)}" aria-selected="${selected ? 'true' : 'false'}">
                 ${dragHandle}
@@ -1530,15 +1538,15 @@
             pool.available = available;
 
             if (pool.loadedFor !== selectedCampaignId) {
-                campaignAssociationActiveList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
-                campaignAssociationAvailableList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
+                campaignAssociationActiveList.innerHTML = '<li class="editor-empty">Loading…</li>';
+                campaignAssociationAvailableList.innerHTML = '<li class="editor-empty">Loading…</li>';
                 return;
             }
 
             if (!active.length) {
                 campaignAssociationActiveList.innerHTML = canEdit
-                    ? `<li class="player-layout-empty">Drag ${labels.plural} here from ${labels.available}.</li>`
-                    : `<li class="player-layout-empty">This campaign has no ${labels.plural} yet.</li>`;
+                    ? `<li class="editor-empty">Drag ${labels.plural} here from ${labels.available}.</li>`
+                    : `<li class="editor-empty">This campaign has no ${labels.plural} yet.</li>`;
             } else {
                 campaignAssociationActiveList.innerHTML = active.map((item) => renderAssociationRow(item, {
                     showRemove: canEdit && item.movable !== false,
@@ -1557,7 +1565,7 @@
                         ? `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here; every other ${labels.singular} is already owned by another campaign.`
                         : `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here. Create one in Content → ${contentTab}, or unassign one from another campaign.`)
                     : `${labels.associated} are preview-only while this campaign is locked.`;
-                campaignAssociationAvailableList.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
+                campaignAssociationAvailableList.innerHTML = `<li class="editor-empty">${emptyMessage}</li>`;
             } else {
                 campaignAssociationAvailableList.innerHTML = available.map((item) => renderAssociationRow(item, {
                     showRemove: false,
@@ -1647,10 +1655,10 @@
                 renderAssociationLists();
             } catch (error) {
                 if (campaignAssociationActiveList) {
-                    campaignAssociationActiveList.innerHTML = `<li class="player-layout-empty text-error">${escapeHtml(error.message || 'Could not load associations')}</li>`;
+                    campaignAssociationActiveList.innerHTML = `<li class="editor-empty text-error">${escapeHtml(error.message || 'Could not load associations')}</li>`;
                 }
                 if (campaignAssociationAvailableList) {
-                    campaignAssociationAvailableList.innerHTML = '<li class="player-layout-empty"></li>';
+                    campaignAssociationAvailableList.innerHTML = '<li class="editor-empty"></li>';
                 }
             }
         }
@@ -2035,6 +2043,30 @@
             return window.bandpromoEditorSort.sortItemsByTitle(list, 'title');
         }
 
+        function campaignsListFromResponse(data, fallback) {
+            if (Array.isArray(data?.campaigns)) {
+                return data.campaigns;
+            }
+            if (Array.isArray(data?.releases)) {
+                return data.releases;
+            }
+            return fallback;
+        }
+
+        function mergeCampaignsFromResponse(data, current) {
+            const list = campaignsListFromResponse(data, null);
+            if (list) {
+                return sortCampaignEntries(list);
+            }
+            const updated = data?.release;
+            if (updated && typeof updated === 'object' && updated.id) {
+                const id = String(updated.id);
+                const rest = (current || []).filter((entry) => String(entry?.id || '') !== id);
+                return sortCampaignEntries([updated, ...rest]);
+            }
+            return current;
+        }
+
         function syncCampaignUrl(campaignId, editing = isEditing) {
             lifecycle.syncUrl(campaignId, editing);
 
@@ -2265,7 +2297,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings),
                 });
-                campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : campaigns);
+                campaigns = mergeCampaignsFromResponse(data, campaigns);
                 const savedPoster = String(data.release?.poster_asset_id || settings.poster_asset_id || '').trim();
                 const savedPreview = String(data.release?.poster_preview_url || '').trim();
                 if (savedPreview) {
@@ -2277,6 +2309,12 @@
                 renderCampaignPoolList();
                 updateCampaignEditorHint();
                 renderLists();
+                saveUi?.markSaved();
+                if (silent && campaignSettingsStatus) {
+                    campaignSettingsStatus.textContent = 'Saved.';
+                } else if (!silent) {
+                    showCampaignToast('Campaign saved.', 'success');
+                }
                 return true;
             } catch (error) {
                 if (!silent) {
@@ -2290,6 +2328,24 @@
                     saveCampaignSettings({ silent: true }).catch(() => {});
                 }
             }
+        }
+
+        async function confirmCampaignSettingsLeave() {
+            const modal = window.bandpromoEditorUnsavedModal;
+            if (!campaignSettingsDirty()) {
+                return true;
+            }
+            if (!modal || typeof modal.confirmLeave !== 'function') {
+                return saveCampaignSettings();
+            }
+            const result = await modal.confirmLeave({
+                isDirty: () => campaignSettingsDirty(),
+                message: 'This campaign has unsaved settings. What would you like to do?',
+                fallbackMessage: 'You have unsaved campaign settings. Leave without saving?',
+                save: () => saveCampaignSettings(),
+                discard: () => syncCampaignSettingsPanel(selectedCampaignId),
+            });
+            return result === 'proceed';
         }
 
         function closeCampaignDeleteModal() {
@@ -2359,7 +2415,7 @@
             }
             const registry = window.bandpromoRegistryList;
             if (!registry?.render || !registry?.row || !registry?.actionButton) {
-                poolList.innerHTML = '<li class="player-layout-empty">Campaign list unavailable.</li>';
+                poolList.innerHTML = '<li class="editor-empty">Campaign list unavailable.</li>';
                 return;
             }
 
@@ -2466,7 +2522,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(campaignPatchPayload(entry, locked)),
                 });
-                campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : campaigns);
+                campaigns = mergeCampaignsFromResponse(data, campaigns);
                 renderCampaignPoolList();
                 if (campaignId === selectedCampaignId) {
                     syncCampaignSettingsPanel(campaignId);
@@ -2500,18 +2556,12 @@
                 const list = await window.loadReleasesCatalog();
                 if (Array.isArray(list) && list.length) {
                     data = { campaigns: list };
-                } else if (Array.isArray(window.bandpromoReleasesCatalog) && window.bandpromoReleasesCatalog.length) {
-                    data = { campaigns: window.bandpromoReleasesCatalog };
                 }
-            } else if (Array.isArray(window.bandpromoReleasesCatalog) && window.bandpromoReleasesCatalog.length) {
-                data = {
-                    campaigns: window.bandpromoReleasesCatalog,
-                };
             }
             if (!data) {
                 data = await fetchJson('/biblioteca/get-campaigns.php');
             }
-            campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : []);
+            campaigns = sortCampaignEntries(campaignsListFromResponse(data, []));
             if (!campaignEntry(selectedCampaignId)) {
                 selectedCampaignId = campaigns[0]?.id || '';
             }
@@ -2533,11 +2583,9 @@
                 return;
             }
             if (isEditing && campaignId !== selectedCampaignId) {
-                if (campaignSettingsDirty()) {
-                    const saved = await saveCampaignSettings();
-                    if (!saved) {
-                        return;
-                    }
+                const leaveOk = await confirmCampaignSettingsLeave();
+                if (!leaveOk) {
+                    return;
                 }
                 await flushMembershipSaves();
             }
@@ -2607,7 +2655,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ release_id: campaignId }),
             });
-            campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : campaigns);
+            campaigns = mergeCampaignsFromResponse(data, campaigns);
             renderCampaignPoolList();
             const newId = String(data.release_id || '').trim();
             showCampaignToast(data.message || 'Campaign duplicated.');
@@ -2626,7 +2674,7 @@
                 `/biblioteca/manage-campaign.php?campaign=${encodeURIComponent(campaignId)}&mode=${encodeURIComponent(deleteMode)}`,
                 { method: 'DELETE' }
             );
-            campaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
+            campaigns = sortCampaignEntries(campaignsListFromResponse(data, []));
             const purge = data.purge && typeof data.purge === 'object' ? data.purge : null;
             if (deleteMode === 'purge' && purge) {
                 const assetCount = Array.isArray(purge.deleted_assets) ? purge.deleted_assets.length : 0;
@@ -2738,9 +2786,9 @@
                 ? `<span class="playlist-track-num">${options.position}</span>`
                 : '';
             const removeMarkup = options.showRemove
-                ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from campaign">✕</button>'
+                ? '<button type="button" class="editor-remove-btn" title="Move to Available tracks" aria-label="Remove from campaign">✕</button>'
                 : '';
-            const rowClass = options.activeRow ? 'editor-row player-layout-row-active' : 'editor-row';
+            const rowClass = options.activeRow ? 'editor-row editor-row--active' : 'editor-row';
             const readonlyClass = !canEditTracks ? ' editor-row--readonly' : '';
             const draggable = canEditTracks && track.deliveryReady !== false ? 'true' : 'false';
             const dragTitle = !canEditTracks
@@ -2772,7 +2820,7 @@
             const file = escapeHtml(track.file || '');
             const pendingClass = track.deliveryReady === false ? ' editor-row--pending' : '';
             const removeMarkup = canEditTracks
-                ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
+                ? '<button type="button" class="editor-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
 
             return `<li class="editor-row campaign-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
@@ -2793,14 +2841,14 @@
             const canEditTracks = campaignTrackEditingEnabled(entry);
 
             if (!selectedCampaignId) {
-                activeEl.innerHTML = '<li class="player-layout-empty">No campaign selected.</li>';
+                activeEl.innerHTML = '<li class="editor-empty">No campaign selected.</li>';
                 return;
             }
 
             if (!activeTracks.length) {
                 activeEl.innerHTML = canEditTracks
-                    ? '<li class="player-layout-empty">Drag tracks here from Available tracks.</li>'
-                    : '<li class="player-layout-empty">This campaign has no tracks yet.</li>';
+                    ? '<li class="editor-empty">Drag tracks here from Available tracks.</li>'
+                    : '<li class="editor-empty">This campaign has no tracks yet.</li>';
             } else {
                 activeEl.innerHTML = activeTracks
                     .map((track) => renderAssociatedTrackRow(track, canEditTracks))
@@ -2822,7 +2870,7 @@
                         ? 'No unassigned tracks to add. Orphans would appear here; every other track is already owned by another campaign.'
                         : 'No unassigned tracks to add. Orphans would appear here. Upload audio in Files → Audio, or unassign a track from another campaign.')
                     : 'Track membership is preview-only while this campaign is locked.';
-                availableEl.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
+                availableEl.innerHTML = `<li class="editor-empty">${emptyMessage}</li>`;
             } else {
                 availableTracks = sortAvailableTracks(availableTracks);
                 availableEl.innerHTML = availableTracks.map((track) => renderTrackRow(track, {
@@ -3214,7 +3262,7 @@
                 applyPreviewData(data);
             } catch (error) {
                 activeEl.innerHTML = '';
-                availableEl.innerHTML = `<li class="player-layout-empty text-error">Could not load campaign preview: ${escapeHtml(error.message)}</li>`;
+                availableEl.innerHTML = `<li class="editor-empty text-error">Could not load campaign preview: ${escapeHtml(error.message)}</li>`;
             }
         }
 
@@ -3330,6 +3378,23 @@
             requestCloseEditor();
         });
 
+        campaignSaveBtn?.addEventListener('click', async () => {
+            saveUi?.markSaving();
+            const saved = await saveCampaignSettings({ silent: false });
+            if (saved) {
+                saveUi?.markSaved();
+            } else {
+                saveUi?.markFailed();
+            }
+        });
+
+        campaignSettingsPanel?.addEventListener('input', () => {
+            saveUi?.reconcile();
+        });
+        campaignSettingsPanel?.addEventListener('change', () => {
+            saveUi?.reconcile();
+        });
+
         campaignSettingsTitle?.addEventListener('blur', () => {
             saveCampaignSettings();
         });
@@ -3429,22 +3494,7 @@
                 });
                 const created = (data.release && typeof data.release === 'object') ? data.release : null;
                 const newId = String(created?.id || '').trim();
-                if (Array.isArray(data.campaigns) && data.campaigns.length) {
-                    campaigns = sortCampaignEntries(data.campaigns);
-                } else if (created && newId) {
-                    const without = campaigns.filter((entry) => String(entry?.id || '') !== newId);
-                    campaigns = sortCampaignEntries([created, ...without]);
-                }
-                if (typeof window.loadReleasesCatalog === 'function') {
-                    try {
-                        const catalog = await window.loadReleasesCatalog({ force: true });
-                        if (Array.isArray(catalog) && catalog.length) {
-                            campaigns = sortCampaignEntries(catalog);
-                        }
-                    } catch (_error) {
-                        // Local list from create response is enough to open the editor.
-                    }
-                }
+                campaigns = mergeCampaignsFromResponse(data, campaigns);
                 if (created && newId && !campaignEntry(newId)) {
                     campaigns = sortCampaignEntries([created, ...campaigns.filter((entry) => String(entry?.id || '') !== newId)]);
                 }
@@ -3483,7 +3533,7 @@
 
         activeEl.addEventListener('click', (event) => {
             const button = event.target instanceof HTMLElement
-                ? event.target.closest('.player-layout-remove-btn')
+                ? event.target.closest('.editor-remove-btn')
                 : null;
             if (button && activeEl.contains(button)) {
                 const row = button.closest('.editor-row');
@@ -3561,7 +3611,7 @@
         if (campaignAssociationActiveList) {
             campaignAssociationActiveList.addEventListener('click', (event) => {
                 const button = event.target instanceof HTMLElement
-                    ? event.target.closest('.player-layout-remove-btn')
+                    ? event.target.closest('.editor-remove-btn')
                     : null;
                 if (!button || !campaignAssociationActiveList.contains(button)) {
                     return;
@@ -3590,7 +3640,7 @@
         loadSiteSharingContext()
             .then(() => loadCampaignRegistry())
             .catch((error) => {
-                poolList.innerHTML = `<li class="player-layout-empty text-error">${escapeHtml(error.message)}</li>`;
+                poolList.innerHTML = `<li class="editor-empty text-error">${escapeHtml(error.message)}</li>`;
             })
             .finally(async () => {
                 if (startInEdit) {

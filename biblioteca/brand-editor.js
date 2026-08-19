@@ -79,6 +79,7 @@
         let isEditing = false;
         let brandSettingsBaseline = { title: '' };
         let brandSettingsSaving = false;
+        let brandSettingsSaveQueued = false;
         let pendingBrandDeleteId = '';
         const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
             saveLabel: '💾 Save brand',
@@ -106,7 +107,7 @@
             const extra = extraClass ? ` ${extraClass}` : '';
             return `<div class="content-editor-section brand-editor-section${extra}">
                 <div class="content-editor-section-head">
-                    <h4 class="player-layout-col-title">${escapeHtml(title)}</h4>
+                    <h4 class="split-editor__title">${escapeHtml(title)}</h4>
                 </div>
                 <div class="content-editor-section-body">${innerHtml}</div>
             </div>`;
@@ -187,11 +188,23 @@
                         return false;
                     }
                 }
+                const modal = window.bandpromoEditorUnsavedModal;
+                if (modal && typeof modal.confirmLeave === 'function') {
+                    const result = await modal.confirmLeave({
+                        isDirty: () => hasUnsavedChanges(),
+                        message: 'This brand has unsaved changes. What would you like to do?',
+                        fallbackMessage: 'You have unsaved brand changes. Leave edit mode without saving?',
+                        save: () => saveBrandDocument(),
+                        discard: () => {
+                            editorDocument = cloneDocument(previewDocument);
+                            renderForm();
+                            saveUi?.setBaseline();
+                        },
+                    });
+                    return result === 'proceed';
+                }
                 if (hasUnsavedChanges()) {
-                    const proceed = window.confirm('You have unsaved brand changes. Leave edit mode without saving?');
-                    if (!proceed) {
-                        return false;
-                    }
+                    return window.confirm('You have unsaved brand changes. Leave edit mode without saving?');
                 }
                 return true;
             },
@@ -397,7 +410,11 @@
         }
 
         async function saveBrandSettings({ silent = false } = {}) {
-            if (brandSettingsSaving || !editorDocument || !brandMayEdit(editorDocument)) {
+            if (brandSettingsSaving) {
+                brandSettingsSaveQueued = true;
+                return true;
+            }
+            if (!editorDocument || !brandMayEdit(editorDocument)) {
                 return true;
             }
             if (!(titleInput instanceof HTMLInputElement)) {
@@ -450,7 +467,80 @@
                 return false;
             } finally {
                 brandSettingsSaving = false;
+                if (brandSettingsSaveQueued) {
+                    brandSettingsSaveQueued = false;
+                    saveBrandSettings({ silent: true }).catch(() => {});
+                }
             }
+        }
+
+        async function saveBrandDocument() {
+            if (!editorDocument) {
+                return false;
+            }
+            if (!brandMayEdit(editorDocument)) {
+                notifyBrandError('This brand is locked. Duplicate it to customise, or unlock on localhost for PCF source edits.');
+                return false;
+            }
+            collectFormIntoDocument();
+            const title = brandTitleValue();
+            if (!title) {
+                if (settingsStatus) {
+                    settingsStatus.textContent = 'Brand name is required.';
+                }
+                notifyBrandError('Brand name is required.');
+                return false;
+            }
+            editorDocument.title = title;
+            try {
+                saveUi?.markSaving();
+                const data = await fetchJson('/biblioteca/save-brand.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                    body: JSON.stringify(editorDocument),
+                });
+                editorDocument = data.document || editorDocument;
+                previewDocument = cloneDocument(editorDocument);
+                renderPreview(previewDocument);
+                renderForm();
+                const entry = brands.find((item) => item.id === editorDocument.id);
+                if (entry) {
+                    entry.title = editorDocument.title;
+                }
+                renderPoolList();
+                saveUi?.markSaved();
+                brandSettingsBaseline = { title: editorDocument.title };
+                if (settingsStatus) {
+                    settingsStatus.textContent = '';
+                }
+                return true;
+            } catch (error) {
+                saveUi?.markFailed();
+                notifyBrandError(error.message || 'Could not save brand');
+                return false;
+            }
+        }
+
+        async function confirmBrandContentLeave() {
+            const modal = window.bandpromoEditorUnsavedModal;
+            if (!hasUnsavedChanges()) {
+                return true;
+            }
+            if (!modal || typeof modal.confirmLeave !== 'function') {
+                return window.confirm('You have unsaved brand changes. Switch brands without saving?');
+            }
+            const result = await modal.confirmLeave({
+                isDirty: () => hasUnsavedChanges(),
+                message: 'This brand has unsaved changes. What would you like to do?',
+                fallbackMessage: 'You have unsaved brand changes. Switch brands without saving?',
+                save: () => saveBrandDocument(),
+                discard: () => {
+                    editorDocument = cloneDocument(previewDocument);
+                    renderForm();
+                    saveUi?.setBaseline();
+                },
+            });
+            return result === 'proceed';
         }
 
         function applyFontPresetSelection(kind, presetKey) {
@@ -1136,8 +1226,8 @@
                     }
                 }
                 if (hasUnsavedChanges()) {
-                    const proceed = window.confirm('You have unsaved brand changes. Switch brands without saving?');
-                    if (!proceed) return;
+                    const leaveOk = await confirmBrandContentLeave();
+                    if (!leaveOk) return;
                 }
             }
             selectedBrandId = brandId;
@@ -1159,8 +1249,8 @@
                 return;
             }
             if (hasUnsavedChanges()) {
-                const proceed = window.confirm('You have unsaved brand changes. Switch brands without saving?');
-                if (!proceed) return;
+                const leaveOk = await confirmBrandContentLeave();
+                if (!leaveOk) return;
             }
             selectedBrandId = brandId;
             syncBrandUrl(brandId, false);
@@ -1345,48 +1435,9 @@
         });
 
         saveBtn?.addEventListener('click', async () => {
-            if (!editorDocument) return;
-            if (!brandMayEdit(editorDocument)) {
-                notifyBrandError('This brand is locked. Duplicate it to customise, or unlock on localhost for PCF source edits.');
-                return;
-            }
-            collectFormIntoDocument();
-            const title = brandTitleValue();
-            if (!title) {
-                if (settingsStatus) {
-                    settingsStatus.textContent = 'Brand name is required.';
-                }
-                notifyBrandError('Brand name is required.');
-                return;
-            }
-            editorDocument.title = title;
-            try {
-                saveBtn.disabled = true;
-                saveUi?.markSaving();
-                const data = await fetchJson('/biblioteca/save-brand.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                    body: JSON.stringify(editorDocument),
-                });
-                editorDocument = data.document || editorDocument;
-                previewDocument = cloneDocument(editorDocument);
-                renderPreview(previewDocument);
-                renderForm();
-                const entry = brands.find((item) => item.id === editorDocument.id);
-                if (entry) {
-                    entry.title = editorDocument.title;
-                }
-                renderPoolList();
-                saveUi?.markSaved();
-                brandSettingsBaseline = { title: editorDocument.title };
-                if (settingsStatus) {
-                    settingsStatus.textContent = '';
-                }
-            } catch (error) {
-                saveUi?.markFailed();
-                notifyBrandError(error.message || 'Could not save brand');
-            } finally {
-                saveBtn.disabled = false;
+            const saved = await saveBrandDocument();
+            if (saved && typeof window.bandpromoShowAdminToast === 'function') {
+                window.bandpromoShowAdminToast('Brand saved.', 'success');
             }
         });
 
@@ -1446,7 +1497,7 @@
 
         loadRegistry()
             .catch((error) => {
-                poolList.innerHTML = `<li class="player-layout-empty text-error">${escapeHtml(error.message)}</li>`;
+                poolList.innerHTML = `<li class="editor-empty text-error">${escapeHtml(error.message)}</li>`;
             })
             .finally(async () => {
                 if (startInEdit) {

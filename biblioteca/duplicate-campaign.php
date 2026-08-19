@@ -51,6 +51,7 @@ try {
         ],
     ]);
 
+    $registry = bandpromo_campaign_admin_registry_entries($root);
     echo json_encode([
         'ok' => true,
         'release_id' => $result['release_id'],
@@ -59,7 +60,8 @@ try {
         'playlists' => $result['playlists'],
         'galleries' => $result['galleries'],
         'pages' => $result['pages'],
-        'releases' => bandpromo_campaign_admin_registry_entries($root),
+        'releases' => $registry,
+        'campaigns' => $registry,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);

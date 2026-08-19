@@ -24,16 +24,16 @@
     min-height: 0;
 }
 
-.page-pool-panel-body {
+.registry-panel-body {
     flex: 1 1 auto;
     min-height: 0;
 }
 
-.page-pool-panel-body .add-page-panel[hidden] {
+.registry-panel-body .add-page-panel[hidden] {
     display: none;
 }
 
-.page-pool-panel-body .add-page-panel:not([hidden]) {
+.registry-panel-body .add-page-panel:not([hidden]) {
     flex: 0 0 auto;
     margin-bottom: 0;
 }
@@ -102,7 +102,7 @@
     border-radius: 9px 9px 0 0;
 }
 
-.content-editor-section-head .player-layout-col-title {
+.content-editor-section-head .split-editor__title {
     margin: 0;
 }
 
@@ -144,7 +144,7 @@
     flex: 0 0 auto;
 }
 
-.release-editor-header-title {
+.campaign-editor-header-title {
     margin: 0;
     color: var(--text);
     font-size: 15px;
@@ -177,14 +177,14 @@
     cursor: pointer;
 }
 
-.release-pool-row .pool-container-ref,
+.campaign-pool-row .pool-container-ref,
 .playlist-pool-row .pool-container-ref {
     color: var(--fg);
     font-weight: 600;
 }
 
 /* Pool row icon tools: canonical styles live in admin.css
-   (.icon-btn--pool + .page-pool-*-btn aliases). */
+   (.icon-btn--pool + legacy pool button aliases). */
 
 .registry-row-actions {
     display: inline-flex;
@@ -221,19 +221,19 @@
     overflow: auto;
 }
 
-.release-cover-panel {
+.campaign-cover-panel {
     flex: 0 0 auto;
 }
 
-.release-cover-panel[hidden] {
+.campaign-cover-panel[hidden] {
     display: none !important;
 }
 
-.release-cover-layout {
+.campaign-cover-layout {
     margin-bottom: 4px;
 }
 
-.release-cover-meta {
+.campaign-cover-meta {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -241,18 +241,18 @@
     justify-content: center;
 }
 
-.release-cover-heading {
+.campaign-cover-heading {
     margin: 0;
     font-size: 14px;
 }
 
-.release-cover-actions {
+.campaign-cover-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
-.release-hub-panel {
+.campaign-hub-panel {
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid color-mix(in srgb, var(--text-muted, #888) 35%, transparent);
@@ -261,16 +261,16 @@
     gap: 8px;
 }
 
-.release-hub-panel[hidden] {
+.campaign-hub-panel[hidden] {
     display: none !important;
 }
 
-.release-hub-heading {
+.campaign-hub-heading {
     margin: 0;
     font-size: 14px;
 }
 
-.release-hub-children {
+.campaign-hub-children {
     margin: 0;
     padding-left: 1.2em;
     display: flex;
@@ -278,14 +278,14 @@
     gap: 4px;
 }
 
-.release-hub-actions {
+.campaign-hub-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
 }
 
-.release-editor-active-body {
+.campaign-editor-active-body {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -293,20 +293,20 @@
 }
 
 /* Release editor: stack active + available lists by content height (no overlap). */
-#playlistEditorLayout .player-layout-col--active .player-layout-panel {
+#playlistEditorLayout .split-editor__col--active .split-editor__panel {
     min-height: 0;
     overflow: visible;
 }
 
-#playlistEditorLayout .player-layout-col--active .player-layout-panel-body,
-#playlistEditorLayout .playlist-editor-active-body,
+#playlistEditorLayout .split-editor__col--active .split-editor__body,
+#playlistEditorLayout .split-editor__active-body,
 #playlistEditorLayout .content-pool-section {
     flex: 0 0 auto;
     min-height: 0;
     overflow: visible;
 }
 
-#playlistEditorLayout .player-layout-col--active .player-layout-list,
+#playlistEditorLayout .split-editor__col--active .split-editor__list,
 #playlistEditorLayout #playlistAvailableList {
     flex: 0 0 auto;
     max-height: none;
@@ -314,93 +314,93 @@
     min-height: 0;
 }
 
-.playlist-editor-active-body {
+.split-editor__active-body {
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-height: 0;
 }
 
-#releaseEditorLayout .player-layout-col--active .player-layout-panel {
+#campaignEditorLayout .split-editor__col--active .split-editor__panel {
     min-height: 0;
     overflow: visible;
 }
 
-#releaseEditorLayout .player-layout-col--active .player-layout-panel-body,
-#releaseEditorLayout .release-editor-active-body,
-#releaseEditorLayout .content-pool-section {
+#campaignEditorLayout .split-editor__col--active .split-editor__body,
+#campaignEditorLayout .campaign-editor-active-body,
+#campaignEditorLayout .content-pool-section {
     flex: 0 0 auto;
     min-height: 0;
     overflow: visible;
 }
 
-#releaseEditorLayout .player-layout-col--active .player-layout-list,
-#releaseEditorLayout #releaseAvailableList {
+#campaignEditorLayout .split-editor__col--active .split-editor__list,
+#campaignEditorLayout #campaignAvailableList {
     flex: 0 0 auto;
     max-height: none;
     overflow: visible;
     min-height: 0;
 }
 
-#releaseEditorLayout .content-pool-list {
+#campaignEditorLayout .content-pool-list {
     max-height: none;
     min-height: 0;
     overflow: visible;
 }
 
-#releaseEditorLayout .editor-row,
+#campaignEditorLayout .editor-row,
 #playlistEditorLayout .editor-row {
     align-items: flex-start;
     gap: 8px;
 }
 
-#releaseEditorLayout .playlist-track-duration,
+#campaignEditorLayout .playlist-track-duration,
 #playlistEditorLayout .playlist-track-duration {
     margin-top: 2px;
 }
 
-#releaseEditorLayout .editor-drag-handle,
-#releaseEditorLayout .playlist-track-num,
-#releaseEditorLayout .player-layout-remove-btn,
+#campaignEditorLayout .editor-drag-handle,
+#campaignEditorLayout .playlist-track-num,
+#campaignEditorLayout .editor-remove-btn,
 #playlistEditorLayout .editor-drag-handle,
 #playlistEditorLayout .playlist-track-num,
-#playlistEditorLayout .player-layout-remove-btn {
+#playlistEditorLayout .editor-remove-btn {
     margin-top: 2px;
 }
 
-#releaseEditorLayout .playlist-track-num,
+#campaignEditorLayout .playlist-track-num,
 #playlistEditorLayout .playlist-track-num {
     min-width: 18px;
     text-align: left;
 }
 
-#releaseEditorLayout .playlist-track-info strong,
-#releaseEditorLayout .playlist-track-meta {
+#campaignEditorLayout .playlist-track-info strong,
+#campaignEditorLayout .playlist-track-meta {
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
     word-break: break-word;
 }
 
-.release-streaming-fields {
+.campaign-streaming-fields {
     gap: 10px;
 }
 
-.release-enjoy-fields {
+.campaign-enjoy-fields {
     gap: 8px;
 }
 
-.release-enjoy-heading {
+.campaign-enjoy-heading {
     margin-bottom: 0;
 }
 
-.release-enjoy-hint {
+.campaign-enjoy-hint {
     flex: 1 1 100%;
     margin: 0 0 4px;
     font-size: 12px;
 }
 
-.release-streaming-grid {
+.campaign-streaming-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
@@ -408,18 +408,18 @@
     width: 100%;
 }
 
-.release-streaming-grid .playlist-settings-field {
+.campaign-streaming-grid .playlist-settings-field {
     flex: 1 1 auto;
     min-width: 0;
 }
 
 @media (max-width: 900px) {
-    .release-streaming-grid {
+    .campaign-streaming-grid {
         grid-template-columns: 1fr;
     }
 }
 
-.release-streaming-field {
+.campaign-streaming-field {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -428,13 +428,13 @@
     color: var(--muted);
 }
 
-.release-streaming-field input {
+.campaign-streaming-field input {
     font-size: 14px;
     width: 100%;
     box-sizing: border-box;
 }
 
-.release-social-inline {
+.campaign-social-inline {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -444,29 +444,29 @@
     margin-top: 2px;
 }
 
-.release-social-inline-label {
+.campaign-social-inline-label {
     color: var(--muted);
 }
 
-.release-social-inline-links a {
+.campaign-social-inline-links a {
     color: var(--accent);
 }
 
-.release-social-inline-sep {
+.campaign-social-inline-sep {
     color: var(--border);
 }
 
-.release-social-import-list {
+.campaign-social-import-list {
     margin: 0;
     padding-left: 18px;
     font-size: 13px;
 }
 
-.release-social-import-list a {
+.campaign-social-import-list a {
     color: var(--accent);
 }
 
-.playlist-editor-layout {
+.split-editor--pools {
     margin-top: 0;
 }
 
@@ -506,15 +506,15 @@
 }
 
 .editor-row--readonly .editor-drag-handle,
-.editor-row--readonly .player-layout-remove-btn {
+.editor-row--readonly .editor-remove-btn {
     visibility: hidden;
 }
 
-.page-pool-status:empty {
+.registry-panel-status:empty {
     display: none;
 }
 
-.page-pool-status:not(:empty) {
+.registry-panel-status:not(:empty) {
     margin-bottom: 8px;
     min-height: 1.2em;
 }
@@ -527,7 +527,7 @@
 }
 
 /* Live preview grows with the page; the window scrolls (same as the block column). */
-#pageEditorLayout .player-layout-col--active {
+#pageEditorLayout .split-editor__col--active {
     position: static;
     max-height: none;
     align-self: stretch;
@@ -540,9 +540,9 @@
     overflow: visible;
 }
 
-#pageEditorLayout .page-editor-preview-panel > .player-layout-col-head,
-#themeEditorLayout .theme-editor-preview-panel > .player-layout-col-head,
-#playlistEditorLayout .player-layout-col--active > .player-layout-panel > .player-layout-col-head {
+#pageEditorLayout .page-editor-preview-panel > .split-editor__header,
+#themeEditorLayout .theme-editor-preview-panel > .split-editor__header,
+#playlistEditorLayout .split-editor__col--active > .split-editor__panel > .split-editor__header {
     position: sticky;
     top: 0;
     z-index: 21;
@@ -1443,20 +1443,20 @@
     }
 }
 
-.release-catalog-meta-fields {
+.campaign-catalog-meta-fields {
     display: grid;
     grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
     gap: 10px 12px;
     align-items: start;
 }
 
-.release-catalog-meta-field--date,
-.release-catalog-meta-field--id {
+.campaign-catalog-meta-field--date,
+.campaign-catalog-meta-field--id {
     flex: unset;
     min-width: 0;
 }
 
-.release-editor-form-row {
+.campaign-editor-form-row {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: 110px minmax(0, 1fr);
@@ -1464,32 +1464,32 @@
     gap: 10px;
 }
 
-.release-editor-form-label {
+.campaign-editor-form-label {
     color: var(--muted);
     font-size: 12px;
 }
 
-.release-editor-title-control {
+.campaign-editor-title-control {
     display: flex;
     align-items: center;
     gap: 10px;
     min-width: 0;
 }
 
-.release-editor-title-control .content-editor-name-input {
+.campaign-editor-title-control .content-editor-name-input {
     width: min(100%, 28rem);
     max-width: 28rem;
 }
 
-.release-editor-form-row .date-input-shell {
+.campaign-editor-form-row .date-input-shell {
     width: min(100%, 16rem);
 }
 
-.release-editor-form-row select {
+.campaign-editor-form-row select {
     width: min(100%, 28rem);
 }
 
-.release-editor-field-stack {
+.campaign-editor-field-stack {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -1497,64 +1497,64 @@
     min-width: 0;
 }
 
-.release-editor-field-stack textarea {
+.campaign-editor-field-stack textarea {
     width: 100%;
     box-sizing: border-box;
 }
 
-.release-editor-form-row--textarea {
+.campaign-editor-form-row--textarea {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
 }
 
-.release-editor-form-row--textarea .release-editor-field-stack {
+.campaign-editor-form-row--textarea .campaign-editor-field-stack {
     width: 100%;
     max-width: none;
 }
 
-.release-editor-section-tabs {
+.campaign-editor-section-tabs {
     grid-column: 1 / -1;
     margin: 2px 0 0;
 }
 
-.release-editor-section-tabs--header {
+.campaign-editor-section-tabs--header {
     margin: 10px 12px 0;
 }
 
-.release-editor-section-panel {
+.campaign-editor-section-panel {
     grid-column: 1 / -1;
     min-width: 0;
     padding-top: 2px;
 }
 
-.release-editor-section-panel[hidden] {
+.campaign-editor-section-panel[hidden] {
     display: none !important;
 }
 
-.release-editor-helper-title {
+.campaign-editor-helper-title {
     margin: 0 0 4px;
     font-size: 14px;
     font-weight: 600;
     color: var(--text);
 }
 
-.release-editor-section-panel > .hint {
+.campaign-editor-section-panel > .hint {
     margin: 0;
 }
 
-.release-editor-section-panel > .hint + .hint {
+.campaign-editor-section-panel > .hint + .hint {
     margin-top: 6px;
 }
 
-#releaseEditorCard[data-release-editor-section]:not([data-release-editor-section="base"]) #releaseCoverPanel,
-#releaseEditorCard[data-release-editor-section]:not([data-release-editor-section="tracks"]) #releaseActiveList,
-#releaseEditorCard[data-release-editor-section]:not([data-release-editor-section="tracks"]) #releaseAvailableSection {
+#campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="base"]) #campaignCoverPanel,
+#campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="tracks"]) #campaignActiveList,
+#campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="tracks"]) #campaignAvailableSection {
     display: none !important;
 }
 
-.release-associated-tracks {
+.campaign-associated-tracks {
     max-height: 460px;
     overflow-y: auto;
     padding-right: 2px;
@@ -1562,7 +1562,7 @@
 }
 
 /* Flat preview-style rows for Associated tracks only (not association pools). */
-#releaseActiveList > .release-associated-track-row.editor-row {
+#campaignActiveList > .editor-row {
     padding: 0.45rem 0.25rem;
     border: 0;
     border-bottom: 1px solid color-mix(in srgb, var(--text-muted, #888) 18%, transparent);
@@ -1572,28 +1572,28 @@
     user-select: text;
 }
 
-#releaseActiveList > .release-associated-track-row.editor-row:last-child {
+#campaignActiveList > .editor-row:last-child {
     border-bottom: 0;
 }
 
-.release-associated-tracks.is-drop-target {
+.campaign-associated-tracks.is-drop-target {
     background: rgba(98, 179, 255, 0.06);
     box-shadow: inset 0 0 0 1px rgba(98, 179, 255, 0.45);
 }
 
-.release-catalog-meta-hint {
+.campaign-catalog-meta-hint {
     grid-column: 1 / -1;
     margin: 0;
     font-size: 12px;
 }
 
-.release-epk-fields {
+.campaign-epk-fields {
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.release-epk-heading {
+.campaign-epk-heading {
     flex: 1 1 100%;
     margin: 0;
     font-size: 13px;
@@ -1601,13 +1601,13 @@
     color: var(--text);
 }
 
-.release-epk-hint {
+.campaign-epk-hint {
     flex: 1 1 100%;
     margin: 0;
     font-size: 12px;
 }
 
-.release-short-description-note {
+.campaign-short-description-note {
     text-align: right;
     font-size: 12px;
     color: var(--muted);
@@ -1697,7 +1697,7 @@
         grid-template-columns: 1fr;
     }
 
-    #pageEditorLayout .player-layout-col--active {
+    #pageEditorLayout .split-editor__col--active {
         position: static;
         max-height: none;
     }
@@ -1719,7 +1719,7 @@
         order: -1;
     }
 
-    #pageEditorLayout .player-layout-col--active {
+    #pageEditorLayout .split-editor__col--active {
         position: static;
         max-height: none;
     }
