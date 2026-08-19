@@ -1633,11 +1633,102 @@ function bandpromo_brand_css_variables(array $document): array
     return $vars;
 }
 
+function bandpromo_brand_render_css_for_document(array $document): string
+{
+    $vars = bandpromo_brand_css_variables($document);
+    if ($vars === []) {
+        return '';
+    }
+
+    $rules = [];
+    foreach ($vars as $key => $value) {
+        if ($key === 'font-family') {
+            $rules[] = 'font-family:' . $value;
+            continue;
+        }
+        $rules[] = $key . ':' . $value;
+    }
+
+    $fontBase = bandpromo_brand_token_value($document, 'typography.font_family_base');
+    if ($fontBase !== '') {
+        $rules[] = '--brand-font-body:' . $fontBase;
+    }
+    $fontHeading = bandpromo_brand_token_value($document, 'typography.font_family_heading');
+    $rules[] = '--brand-font-heading:' . ($fontHeading !== '' ? $fontHeading : 'var(--brand-font-body)');
+
+    if ($rules === []) {
+        return '';
+    }
+
+    return '<style id="bandpromo-theme-vars">:root{' . implode(';', $rules) . ';}</style>' . "\n";
+}
+
+function bandpromo_brand_render_css_for_id(string $root, string $brandId): string
+{
+    bandpromo_brand_ensure_seeded($root);
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    if ($brandId === '' || !is_file(bandpromo_brand_document_path($root, $brandId))) {
+        try {
+            return bandpromo_brand_render_css_for_document(bandpromo_brand_load_active_document($root));
+        } catch (Throwable $throwable) {
+            return '';
+        }
+    }
+
+    try {
+        return bandpromo_brand_render_css_for_document(bandpromo_brand_load_document($root, $brandId));
+    } catch (Throwable $throwable) {
+        return '';
+    }
+}
+
+/**
+ * Resolve one shell slot URL from the active brand (asset_ids → delivery).
+ * Empty when unset or unresolvable — callers must not invent /media/special fallbacks.
+ */
+function bandpromo_brand_resolve_active_shell_slot(string $root, string $slotKey): string
+{
+    try {
+        return trim(bandpromo_brand_resolve_shell_slot_url(
+            $root,
+            bandpromo_brand_load_active_document($root),
+            $slotKey
+        ));
+    } catch (Throwable $throwable) {
+        return '';
+    }
+}
+
+/**
+ * Resolve player visual shell URLs for a brand document (logo + still/living backgrounds).
+ * Empty string when a slot is unset or unresolvable — caller falls back per-slot.
+ *
+ * @return array{logo:string,background_image:string,background_video:string}
+ */
+function bandpromo_brand_player_shell_assets(string $root, array $document): array
+{
+    $slots = ['logo', 'background_image', 'background_video'];
+    $out = [
+        'logo' => '',
+        'background_image' => '',
+        'background_video' => '',
+    ];
+
+    foreach ($slots as $slot) {
+        $resolved = trim(bandpromo_brand_resolve_shell_slot_url($root, $document, $slot));
+        if ($resolved !== '') {
+            $out[$slot] = $resolved;
+        }
+    }
+
+    return $out;
+}
+
 /**
  * Build player-facing brand style snippets keyed by brand id.
  *
  * @param list<string> $brandIds
- * @return array<string, array{id: string, title: string, css_variables: array<string, string>}>
+ * @return array<string, array{id: string, title: string, css_variables: array<string, string>, assets?: array<string, string>}>
  */
 function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): array
 {
@@ -1656,6 +1747,7 @@ function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): a
                 'id' => $brandId,
                 'title' => (string) ($document['title'] ?? $brandId),
                 'css_variables' => bandpromo_brand_css_variables($document),
+                'assets' => bandpromo_brand_player_shell_assets($root, $document),
             ];
         } catch (Throwable $throwable) {
             continue;
