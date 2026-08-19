@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 12:42 - Phase 2 shared JS modules created: `editor-lifecycle.js`, `editor-drag-reorder.js`, `editor-range-selection.js`, `editor-registry-list.js`. Script tags added to `admin.php`. Migration of individual editors to use shared modules is next.
+
 2026-08-19 12:27 - Phase 1 terminology rename complete: `release`→`campaign` (~14 PHP files renamed, ~96 function defs + ~350 call sites, all JS/CSS/HTML IDs), `theme`→`brand` (~8 PHP files renamed, ~65 function defs + call sites, all JS/CSS). UK English sweep (`customize`→`customise`). Backwards-compat URL param aliases added. Fixed pre-existing duplicate `bandpromo_brand_active_id` function definition.
 
 2026-08-19 11:23 - Created admin editor refactor plan (`docs/ADMIN-EDITOR-REFACTOR.md`): four-phase approach covering terminology rename (release→campaign, theme→brand — filenames, PHP functions, action params, JS identifiers, URL params, CSS classes), UK English sweep, shared JS module extraction, CSS class rename, and save UX unification. Fixed `session-start.ps1` PowerShell stderr handling for git.

@@ -3400,6 +3400,10 @@ if ($tab === 'analytics') {
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
     <?php if ($tab === 'content'): ?>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>
+    <script src="biblioteca/editor-lifecycle.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-lifecycle.js'); ?>"></script>
+    <script src="biblioteca/editor-drag-reorder.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-drag-reorder.js'); ?>"></script>
+    <script src="biblioteca/editor-range-selection.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-range-selection.js'); ?>"></script>
+    <script src="biblioteca/editor-registry-list.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-registry-list.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'branding'): ?>
     <script src="biblioteca/brand-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/brand-preview.js'); ?>"></script>

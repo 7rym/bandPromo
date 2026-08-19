@@ -1,54 +1,50 @@
-# Session handoff — resume here
+# Session Handoff
 
-_Paused: 2026-08-18 after checkpoint **v0.8.29 build 409**._
+## Resume point
 
-## Exact resume point
+Admin editor refactor — Phase 2 migration.
 
-**Do not wipe, replace, or “re-seed” local `data/`, `media/`, or `log/`.** `log/` holds analytics and admin-audit test data. This Google Drive folder is the operator working copy.
+## What's done
 
-Fresh-install tests always run on **https://bandpromo.site** (Vanilla). The other remote test sites are **Twisted Chronicles** and **HITZ**. Never this working copy.
+### Phase 1 — Terminology rename (committed, not pushed)
 
-**Next work:** Gallery **multi-select picker** as the primary membership flow (policy locked; Available drag-and-drop is still what ships). Do not reopen Grid / List / Carousel / Animated unless a bug appears.
+- **release→campaign**: ~14 PHP files renamed, ~96 function defs + ~350 call sites, all JS/CSS/HTML IDs updated. Backwards-compat URL aliases in `admin.php`.
+- **theme→brand**: ~8 PHP files renamed, ~65 function defs + call sites, all JS/CSS renamed.
+- **UK English**: `customize`→`customise` in 3 files.
+- Fixed pre-existing duplicate `bandpromo_brand_active_id` function.
+- Exclusions preserved: `release-package.php` (app updates), `release_date` fields, `theme-preview-*` CSS (preview rendering), config keys like `release.identity.*`.
 
-| Item | Value |
-|------|--------|
-| Git | `main` — last checkpoint **v0.8.29 build 409** |
-| App tester package | Published tag **`v0.8.29-build-409`** (confirm Site update on bandpromo.site) |
-| Demo package | Durable tag **`demo-content`** — `bandPromo-demo.pcf` (SHA256 `3b24420a1e52e58723093e2bbd873876ac0d4db5758f185c412395e557bcbd35`) |
-| Local runtime | Operator working copy — **never wipe** |
+### Phase 2 — Shared JS modules (created, not yet wired)
 
-## Next
+Four new files under `biblioteca/`:
+- `editor-lifecycle.js` — `window.bandpromoEditorLifecycle.create()` factory for pool/edit view toggling, URL sync, close gating
+- `editor-drag-reorder.js` — `window.bandpromoDragReorder.bind()` for drag-and-drop list reorder
+- `editor-range-selection.js` — `window.bandpromoRangeSelection.create()` for shift-click/ctrl-click multi-select
+- `editor-registry-list.js` — `window.bandpromoRegistryList.render()` + `.row()` + `.actionButton()` for pool list rendering
 
-1. Confirm **Site update** on bandpromo.site offers build 409 and that a fresh Vanilla install imports the new Demo PCF.
-2. Gallery membership: searchable multi-select picker + ordered list ([TODO.md](TODO.md) Visual naming + gallery pickers).
-3. **Deferred (v0.9 candidate):** code layout refactor — [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md). Content AI wizards remain defined, not built.
+Script tags added to `admin.php` inside the `<?php if ($tab === 'content'): ?>` block.
 
-## Shipped in build 409 (do not redo)
+## What's next
 
-- Campaign handoff is **PCF** / **`.pcf`** in operator copy, export filenames, and current docs. Never describe it as a ZIP. Import still accepts legacy `.prp`.
-- Demo content published as `bandPromo-demo.pcf` on durable `demo-content` (setup prefers `.pcf`, falls back to `.prp`).
-- Playlist editor **Base info**; **★ Set as default** matches Branding **★ Set as base**.
-- House style **UK English**; operator copy uses **catalogue** / **colour**.
-- Campaign editor helpers, Pages/Branding/Playlist `--border2` chrome, gallery **Animated** (legacy Parallax migrates here).
+### Phase 2 — Migration (editors → shared modules)
 
-## Shipped in build 408 (do not redo)
+Wire each editor to use the shared modules, then delete the duplicated local code. Order:
+1. **Gallery editor** (admin.js) — closest to the shared pattern, good proof of concept
+2. **Playlist editor** (admin.js) — very similar to gallery
+3. **Campaign editor** (campaign-editor.js) — has extra tab-link patching and association sections
+4. **Pages editor** (page-editor.js) — simplest lifecycle, no range selection
+5. **Brand editor** (brand-editor.js) — has saveUi integration
 
-- Page **Video** blocks (Audio/Loop chips, Width/Flow including Full row).
-- Gallery page blocks: **Grid** (native ratios, Max across), **List** rows, **Carousel** (snap, peek, dots, optional in-view autorotate + Speed).
-- Page editor chrome: sticky Page builder / Live preview, `--border2` headers, Page building blocks, removed redundant field labels.
-- Video delivery keeps soundtrack by default; living shell/cover stays silent.
-- `/play/{playlist}/…` path deep links work on php -S (not only `?playlist=`).
-- Admin main tabs remember the last used sub-tab.
+For each migration: replace local lifecycle, drag-reorder, range-selection, and pool-list rendering with shared module calls, smoke test, then delete the old code.
 
-## Shipped in build 407 (do not redo)
+### Phase 3 — CSS rename
 
-- Admin header **Open player** links to `/play/` (was Open site).
-- Hide demo catalogue no longer treats demo-owned track covers / posters as external blockers. Real blockers name the track, playlist, gallery, page, or campaign to fix.
+`playlist-editor-row` → `editor-row`, `player-layout-*` → `split-editor*`, `page-pool-*` → `registry-*`. Remove dead classes.
 
-## Constraints
+### Phase 4 — Unify save UX
 
-- Windows + PowerShell. Python **3.6.9** floor.
-- Repository-authored copy is **UK English**.
-- Unqualified “checkpoint” = bump + commit + push + GitHub Release.
-- Unqualified “fresh install” = **bandpromo.site only**. Never delete local `data/` / `media/` / `log/`.
-- Browser automation: do not hang on long waits — ask the operator.
+Add `bandpromoContentSaveUi` to Catalogue, adopt Pages-style unsaved modal everywhere, standardise save feedback.
+
+## Plan document
+
+Full plan: `docs/ADMIN-EDITOR-REFACTOR.md`
