@@ -2,13 +2,15 @@
 
 ## Resume point
 
-Admin editor refactor — **Phase 3 real cleanup** (remove legacy class names after additive alias rollout).
+Admin editor refactor — **Phase 3 cleanup done locally**; smoke-test editors, then Phase 4 (save UX) or push checkpoint.
 
 ## What's done
 
-### Phase 1 — Terminology rename (committed)
+### Phase 3 — Legacy class cleanup (local, not pushed)
 
-- release→campaign, theme→brand, UK English pass. Backwards-compat URL/API aliases retained where needed.
+- Removed dual-alias class emission in JS/HTML; canonical names only: `editor-row`, `editor-row--*`, `editor-drag-handle`, `editor-placeholder`, `registry-row`, `registry-list`, `registry-btn--*`, `editor-card`, `split-editor`.
+- CSS updated to match (admin.css, page-editor.css).
+- Intentionally retained for a later pass: `player-layout-*` panel chrome, `page-pool-panel-body`, `page-pool-status`, `playlist-editor` list container class.
 
 ### Phase 2 — Shared JS modules + migration (committed, local)
 

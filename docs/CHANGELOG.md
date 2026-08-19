@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-08-19 20:17 - Session handoff updated for Phase 3 real cleanup: additive CSS/JS alias rollout and inline-style cleanup are checkpoint-complete locally (build 417); next step is removing legacy class names/selectors across content editors.
+2026-08-19 20:25 - Phase 3 legacy class cleanup: removed dual-alias emitters/selectors for content editors (`playlist-editor-row`→`editor-row`, `page-pool-*`→`registry-*`, `content-editor-card`→`editor-card`, `player-layout-editor`→`split-editor`, drag/placeholder/focus state classes). JS, admin.php, admin.css, and page-editor.css now use canonical names only; `page-pool-panel-body`/`page-pool-status` layout helpers retained pending a later registry-panel rename.
 
 2026-08-19 20:45 - Inline-style cleanup pass (Content editor scope): replaced hardcoded inline error/status/display spacing styles in `campaign-editor.js`, `brand-editor.js`, `admin.js`, and Content-tab `admin.php` blocks with semantic classes in `admin.css` (`admin-centred-note*`, `upload-status-*`, `gallery-error-*`, campaign delete mode/layout helpers). Remaining inline styles in these files are now data-driven dynamic values (CSS vars/backgrounds/progress) rather than fixed presentation constants.
 

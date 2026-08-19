@@ -1418,7 +1418,7 @@
                 return [];
             }
             return Array.from(
-                listEl.querySelectorAll(`.playlist-editor-row[data-kind="${kind}"]`)
+                listEl.querySelectorAll(`.editor-row[data-kind="${kind}"]`)
             );
         }
 
@@ -1450,14 +1450,12 @@
             getAssociationRows(kind, 'available').forEach((row) => {
                 const id = String(row.dataset.id || '');
                 const selected = range.getSelected('available').has(id);
-                row.classList.toggle('playlist-editor-row-selected', selected);
                 row.classList.toggle('editor-row--selected', selected);
                 row.setAttribute('aria-selected', selected ? 'true' : 'false');
             });
             getAssociationRows(kind, 'active').forEach((row) => {
                 const id = String(row.dataset.id || '');
                 const selected = range.getSelected('active').has(id);
-                row.classList.toggle('playlist-editor-row-selected', selected);
                 row.classList.toggle('editor-row--selected', selected);
                 row.setAttribute('aria-selected', selected ? 'true' : 'false');
             });
@@ -1517,12 +1515,12 @@
                 ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
             const dragHandle = draggable
-                ? '<span class="playlist-drag-handle editor-drag-handle" title="Drag into campaign">⠿</span>'
+                ? '<span class="editor-drag-handle" title="Drag into campaign">⠿</span>'
                 : '';
-            const readonlyClass = canEdit ? '' : ' playlist-editor-row-readonly editor-row--readonly';
+            const readonlyClass = canEdit ? '' : ' editor-row--readonly';
             const activeRowClass = showRemove || !draggable ? ' player-layout-row-active' : '';
-            const selectedClass = selected ? ' playlist-editor-row-selected editor-row--selected' : '';
-            return `<li class="playlist-editor-row editor-row${activeRowClass}${readonlyClass}${selectedClass}" draggable="${draggable ? 'true' : 'false'}" data-id="${id}" data-kind="${escapeHtml(kind)}" data-list="${escapeHtml(listName)}" aria-selected="${selected ? 'true' : 'false'}">
+            const selectedClass = selected ? ' editor-row--selected' : '';
+            return `<li class="editor-row${activeRowClass}${readonlyClass}${selectedClass}" draggable="${draggable ? 'true' : 'false'}" data-id="${id}" data-kind="${escapeHtml(kind)}" data-list="${escapeHtml(listName)}" aria-selected="${selected ? 'true' : 'false'}">
                 ${dragHandle}
                 <span class="playlist-track-info">
                     <strong>${title}</strong>
@@ -1805,7 +1803,7 @@
                     return;
                 }
                 const row = event.target instanceof HTMLElement
-                    ? event.target.closest('.playlist-editor-row, .editor-row')
+                    ? event.target.closest('.editor-row')
                     : null;
                 if (!row || !listEl.contains(row) || row.getAttribute('draggable') !== 'true') {
                     return;
@@ -2405,10 +2403,10 @@
 
                     if (campaignMayChangeLock(entry)) {
                         actions.push(
-                            `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn registry-btn--lock${entry.locked ? ' page-pool-lock-btn--active registry-btn--lock-active icon-btn--active' : ''}" data-campaign-id="${escapedId}" title="${entry.locked ? 'Unlock campaign (allow track edits)' : 'Lock campaign (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${escapeHtml(title)}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
+                            `<button type="button" class="icon-btn icon-btn--pool registry-btn--lock${entry.locked ? ' registry-btn--lock-active icon-btn--active' : ''}" data-campaign-id="${escapedId}" title="${entry.locked ? 'Unlock campaign (allow track edits)' : 'Lock campaign (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${escapeHtml(title)}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
                         );
                     } else if (entry.locked) {
-                        actions.push('<span class="page-pool-lock-badge" title="Locked platform demo">🔒</span>');
+                        actions.push('<span class="registry-lock-badge" title="Locked platform demo">🔒</span>');
                     }
 
                     if (id && id !== 'primary') {
@@ -2416,7 +2414,7 @@
                             registry.actionButton({
                                 icon: '📦',
                                 title: 'Export campaign file (.pcf)',
-                                className: 'page-pool-export-btn',
+                                className: 'registry-btn--export',
                                 dataAttribute: `data-campaign-id="${escapedId}"`,
                             })
                         );
@@ -2706,18 +2704,17 @@
         }
 
         function getAvailableRows() {
-            return Array.from(availableEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
+            return Array.from(availableEl.querySelectorAll('.editor-row[draggable="true"]'));
         }
 
         function getActiveRows() {
-            return Array.from(activeEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
+            return Array.from(activeEl.querySelectorAll('.editor-row[draggable="true"]'));
         }
 
         function syncAvailableSelectionUi() {
             getAvailableRows().forEach((row) => {
                 const file = String(row.dataset.file || '');
                 const selected = rangeSelection.getSelected('available').has(file);
-                row.classList.toggle('playlist-editor-row-selected', selected);
                 row.classList.toggle('editor-row--selected', selected);
                 row.setAttribute('aria-selected', selected ? 'true' : 'false');
             });
@@ -2727,7 +2724,6 @@
             getActiveRows().forEach((row) => {
                 const file = String(row.dataset.file || '');
                 const selected = rangeSelection.getSelected('active').has(file);
-                row.classList.toggle('playlist-editor-row-selected', selected);
                 row.classList.toggle('editor-row--selected', selected);
                 row.setAttribute('aria-selected', selected ? 'true' : 'false');
             });
@@ -2762,17 +2758,17 @@
             const meta = escapeHtml(trackMeta(track));
             const duration = track.deliveryReady === false ? '' : formatCampaignDuration(track.duration);
             const file = escapeHtml(track.file || '');
-            const selectedClass = options.selected ? ' playlist-editor-row-selected editor-row--selected' : '';
-            const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending editor-row--pending' : '';
-            const demoClass = track.origin === 'bundled-placeholder' ? ' playlist-editor-row-demo editor-row--demo' : '';
+            const selectedClass = options.selected ? ' editor-row--selected' : '';
+            const pendingClass = track.deliveryReady === false ? ' editor-row--pending' : '';
+            const demoClass = track.origin === 'bundled-placeholder' ? ' editor-row--demo' : '';
             const positionMarkup = options.showPosition
                 ? `<span class="playlist-track-num">${options.position}</span>`
                 : '';
             const removeMarkup = options.showRemove
                 ? '<button type="button" class="player-layout-remove-btn" title="Move to Available tracks" aria-label="Remove from campaign">✕</button>'
                 : '';
-            const rowClass = options.activeRow ? 'playlist-editor-row editor-row player-layout-row-active' : 'playlist-editor-row editor-row';
-            const readonlyClass = !canEditTracks ? ' playlist-editor-row-readonly editor-row--readonly' : '';
+            const rowClass = options.activeRow ? 'editor-row player-layout-row-active' : 'editor-row';
+            const readonlyClass = !canEditTracks ? ' editor-row--readonly' : '';
             const draggable = canEditTracks && track.deliveryReady !== false ? 'true' : 'false';
             const dragTitle = !canEditTracks
                 ? (entry?.locked ? 'Locked campaign — unlock to edit' : 'Preview only')
@@ -2782,7 +2778,7 @@
 
             return `<li class="${rowClass}${pendingClass}${demoClass}${selectedClass}${readonlyClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
                 ${positionMarkup}
-                <span class="playlist-drag-handle editor-drag-handle" title="${dragTitle}">⠿</span>
+                <span class="editor-drag-handle" title="${dragTitle}">⠿</span>
                 <span class="playlist-track-info">
                     <strong>${title}</strong>
                     <span class="playlist-track-meta">${meta}</span>
@@ -2819,12 +2815,12 @@
             const artist = escapeHtml(String(track.artist || '').trim() || 'Unknown artist');
             const duration = track.deliveryReady === false ? '' : formatCampaignDuration(track.duration);
             const file = escapeHtml(track.file || '');
-            const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending editor-row--pending' : '';
+            const pendingClass = track.deliveryReady === false ? ' editor-row--pending' : '';
             const removeMarkup = canEditTracks
                 ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
 
-            return `<li class="playlist-editor-row editor-row campaign-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
+            return `<li class="editor-row campaign-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
                 <span class="campaign-preview-track-copy">
                     <span class="campaign-preview-track-artist">${artist}</span>
                     <strong class="campaign-preview-track-title">${title}</strong>
@@ -2964,7 +2960,7 @@
         function ensurePlaceholder() {
             if (!dragPlaceholder) {
                 dragPlaceholder = document.createElement('li');
-                dragPlaceholder.className = 'playlist-editor-placeholder editor-placeholder';
+                dragPlaceholder.className = 'editor-placeholder';
             }
             return dragPlaceholder;
         }
@@ -2973,7 +2969,7 @@
             if (!listEl) {
                 return [];
             }
-            return Array.from(listEl.querySelectorAll('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]'));
+            return Array.from(listEl.querySelectorAll('.editor-row[draggable="true"]'));
         }
 
         function listNameForElement(listEl) {
@@ -3000,7 +2996,7 @@
             let index = 0;
             for (let i = 0; i < placeholderIndex; i += 1) {
                 const child = children[i];
-                if (!(child.classList.contains('playlist-editor-row') || child.classList.contains('editor-row'))) {
+                if (!child.classList.contains('editor-row')) {
                     continue;
                 }
                 const file = String(child.dataset.file || '');
@@ -3022,7 +3018,7 @@
             let index = 0;
             for (let i = 0; i < placeholderIndex; i += 1) {
                 const child = children[i];
-                if (!(child.classList.contains('playlist-editor-row') || child.classList.contains('editor-row'))) {
+                if (!child.classList.contains('editor-row')) {
                     continue;
                 }
                 const file = String(child.dataset.file || '');
@@ -3136,7 +3132,7 @@
         function bindDragList(listEl) {
             listEl.addEventListener('dragstart', (event) => {
                 const row = event.target instanceof HTMLElement
-                    ? event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]')
+                    ? event.target.closest('.editor-row[draggable="true"]')
                     : null;
                 if (!row || !listEl.contains(row)) {
                     return;
@@ -3295,7 +3291,7 @@
 
         poolList.addEventListener('click', (event) => {
             const lockBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-lock-btn, .registry-btn--lock')
+                ? event.target.closest('.registry-btn--lock')
                 : null;
             if (lockBtn) {
                 event.preventDefault();
@@ -3310,7 +3306,7 @@
             }
 
             const deleteBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-delete-btn, .registry-btn--delete')
+                ? event.target.closest('.registry-btn--delete')
                 : null;
             if (deleteBtn) {
                 event.preventDefault();
@@ -3321,7 +3317,7 @@
             }
 
             const duplicateBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-duplicate-btn, .registry-btn--duplicate')
+                ? event.target.closest('.registry-btn--duplicate')
                 : null;
             if (duplicateBtn) {
                 event.preventDefault();
@@ -3334,7 +3330,7 @@
             }
 
             const exportBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-export-btn')
+                ? event.target.closest('.registry-btn--export')
                 : null;
             if (exportBtn) {
                 event.preventDefault();
@@ -3347,7 +3343,7 @@
             }
 
             const editBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-edit-btn, .registry-btn--edit')
+                ? event.target.closest('.registry-btn--edit')
                 : null;
             if (editBtn) {
                 event.preventDefault();
@@ -3517,7 +3513,7 @@
                 return;
             }
             const row = event.target instanceof HTMLElement
-                ? event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]')
+                ? event.target.closest('.editor-row[draggable="true"]')
                 : null;
             if (!row || !availableEl.contains(row)) {
                 return;
@@ -3530,7 +3526,7 @@
                 ? event.target.closest('.player-layout-remove-btn')
                 : null;
             if (button && activeEl.contains(button)) {
-                const row = button.closest('.playlist-editor-row, .editor-row');
+                const row = button.closest('.editor-row');
                 if (!row) {
                     return;
                 }
@@ -3545,7 +3541,7 @@
                 return;
             }
             const row = event.target instanceof HTMLElement
-                ? event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]')
+                ? event.target.closest('.editor-row[draggable="true"]')
                 : null;
             if (!row || !activeEl.contains(row)) {
                 return;
@@ -3568,7 +3564,7 @@
                     return;
                 }
                 const row = event.target instanceof HTMLElement
-                    ? event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]')
+                    ? event.target.closest('.editor-row[draggable="true"]')
                     : null;
                 if (!row || !campaignAssociationAvailableList.contains(row)) {
                     return;
@@ -3586,7 +3582,7 @@
             campaignAssociationAvailableList.addEventListener('dblclick', (event) => {
                 const kind = currentAssociationKind();
                 const row = event.target instanceof HTMLElement
-                    ? event.target.closest('.playlist-editor-row[draggable="true"], .editor-row[draggable="true"]')
+                    ? event.target.closest('.editor-row[draggable="true"]')
                     : null;
                 const id = String(row?.dataset.id || '').trim();
                 if (!kind || !id) {
@@ -3611,7 +3607,7 @@
                     return;
                 }
                 const kind = currentAssociationKind();
-                const row = button.closest('.playlist-editor-row, .editor-row');
+                const row = button.closest('.editor-row');
                 const id = String(row?.dataset.id || '').trim();
                 if (!kind || !id) {
                     return;

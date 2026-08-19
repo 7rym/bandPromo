@@ -964,7 +964,7 @@
                     );
                     if (brandCanDelete(entry)) {
                         actions.push(
-                            `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn registry-btn--delete" data-brand-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${escapeHtml(label)}">🗑️</button>`
+                            `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger registry-btn--delete" data-brand-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${escapeHtml(label)}">🗑️</button>`
                         );
                     }
                     return window.bandpromoRegistryList.row({
@@ -1175,7 +1175,7 @@
 
         poolList.addEventListener('click', (event) => {
             const deleteBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-delete-btn, .registry-btn--delete')
+                ? event.target.closest('.registry-btn--delete')
                 : null;
             if (deleteBtn) {
                 event.preventDefault();
@@ -1186,7 +1186,7 @@
             }
 
             const editBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-edit-btn, .registry-btn--edit')
+                ? event.target.closest('.registry-btn--edit')
                 : null;
             if (editBtn) {
                 event.preventDefault();
@@ -1197,7 +1197,7 @@
             }
 
             const rowDuplicateBtn = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-duplicate-btn, .registry-btn--duplicate')
+                ? event.target.closest('.registry-btn--duplicate')
                 : null;
             if (rowDuplicateBtn) {
                 event.preventDefault();
@@ -1208,7 +1208,7 @@
             }
 
             const row = event.target instanceof HTMLElement
-                ? event.target.closest('.page-pool-row')
+                ? event.target.closest('.registry-row')
                 : null;
             if (!row || !poolList.contains(row)) return;
             const brandId = row.getAttribute('data-brand-id') || '';

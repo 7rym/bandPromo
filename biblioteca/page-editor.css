@@ -173,8 +173,7 @@
     flex: 0 0 auto;
 }
 
-.page-pool-list .page-pool-row,
-.page-pool-list .registry-row {
+.registry-list .registry-row {
     cursor: pointer;
 }
 
@@ -187,7 +186,6 @@
 /* Pool row icon tools: canonical styles live in admin.css
    (.icon-btn--pool + .page-pool-*-btn aliases). */
 
-.page-pool-row-actions,
 .registry-row-actions {
     display: inline-flex;
     align-items: center;
@@ -350,8 +348,8 @@
     overflow: visible;
 }
 
-#releaseEditorLayout .playlist-editor-row,
-#playlistEditorLayout .playlist-editor-row {
+#releaseEditorLayout .editor-row,
+#playlistEditorLayout .editor-row {
     align-items: flex-start;
     gap: 8px;
 }
@@ -361,10 +359,10 @@
     margin-top: 2px;
 }
 
-#releaseEditorLayout .playlist-drag-handle,
+#releaseEditorLayout .editor-drag-handle,
 #releaseEditorLayout .playlist-track-num,
 #releaseEditorLayout .player-layout-remove-btn,
-#playlistEditorLayout .playlist-drag-handle,
+#playlistEditorLayout .editor-drag-handle,
 #playlistEditorLayout .playlist-track-num,
 #playlistEditorLayout .player-layout-remove-btn {
     margin-top: 2px;
@@ -503,12 +501,12 @@
     cursor: pointer;
 }
 
-.playlist-pool-row.playlist-editor-row {
+.playlist-pool-row.editor-row {
     cursor: pointer;
 }
 
-.playlist-editor-row-readonly .playlist-drag-handle,
-.playlist-editor-row-readonly .player-layout-remove-btn {
+.editor-row--readonly .editor-drag-handle,
+.editor-row--readonly .player-layout-remove-btn {
     visibility: hidden;
 }
 
@@ -1564,7 +1562,7 @@
 }
 
 /* Flat preview-style rows for Associated tracks only (not association pools). */
-#releaseActiveList > .release-associated-track-row.playlist-editor-row {
+#releaseActiveList > .release-associated-track-row.editor-row {
     padding: 0.45rem 0.25rem;
     border: 0;
     border-bottom: 1px solid color-mix(in srgb, var(--text-muted, #888) 18%, transparent);
@@ -1574,7 +1572,7 @@
     user-select: text;
 }
 
-#releaseActiveList > .release-associated-track-row.playlist-editor-row:last-child {
+#releaseActiveList > .release-associated-track-row.editor-row:last-child {
     border-bottom: 0;
 }
 
