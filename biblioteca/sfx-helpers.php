@@ -597,8 +597,8 @@ function bandpromo_asset_register_sfx(
         $assetBrandId = trim((string) ($asset['brand_id'] ?? ''));
         if ($assetBrandId !== '') {
             try {
-                require_once __DIR__ . '/theme-storage.php';
-                bandpromo_theme_add_assets_to_library($root, $assetBrandId, [(string) ($asset['id'] ?? '')]);
+                require_once __DIR__ . '/brand-storage.php';
+                bandpromo_brand_add_assets_to_library($root, $assetBrandId, [(string) ($asset['id'] ?? '')]);
             } catch (Throwable $throwable) {
                 // Non-fatal; asset remains registered.
             }
@@ -664,8 +664,8 @@ function bandpromo_asset_register_sfx(
     $assetBrandId = trim((string) ($asset['brand_id'] ?? $brandId));
     if ($assetBrandId !== '') {
         try {
-            require_once __DIR__ . '/theme-storage.php';
-            bandpromo_theme_add_assets_to_library($root, $assetBrandId, [(string) ($asset['id'] ?? $id)]);
+            require_once __DIR__ . '/brand-storage.php';
+            bandpromo_brand_add_assets_to_library($root, $assetBrandId, [(string) ($asset['id'] ?? $id)]);
         } catch (Throwable $throwable) {
             // Listing still works once the operator adds the asset to a Brand library.
         }
@@ -683,7 +683,7 @@ function bandpromo_sfx_migrate_from_special(string $root): array
 {
     require_once __DIR__ . '/media-library-state.php';
     require_once __DIR__ . '/asset-registry.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     $result = ['copied' => 0, 'rewritten' => 0];
     bandpromo_sfx_ensure_tier_dirs($root);
@@ -726,7 +726,7 @@ function bandpromo_sfx_migrate_from_special(string $root): array
     }
 
     try {
-        $registry = bandpromo_theme_load_registry($root);
+        $registry = bandpromo_brand_load_registry($root);
         foreach ($registry['brands'] ?? [] as $brandMeta) {
             if (!is_array($brandMeta)) {
                 continue;
@@ -736,7 +736,7 @@ function bandpromo_sfx_migrate_from_special(string $root): array
                 continue;
             }
             try {
-                $document = bandpromo_theme_load_document($root, $brandId);
+                $document = bandpromo_brand_load_document($root, $brandId);
             } catch (Throwable $throwable) {
                 continue;
             }
@@ -756,7 +756,7 @@ function bandpromo_sfx_migrate_from_special(string $root): array
             }
             if ($changed) {
                 $document['assets'] = $assets;
-                bandpromo_theme_write_document($root, $document);
+                bandpromo_brand_write_document($root, $document);
             }
         }
     } catch (Throwable $throwable) {

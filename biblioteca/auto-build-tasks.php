@@ -976,19 +976,19 @@ function bandpromo_run_audio_source_delivery_and_refresh(array $filenames): arra
 function bandpromo_list_missing_bundled_demo_audio_delivery(string $root): array
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
     require_once __DIR__ . '/publish-status-helpers.php';
 
     $missing = [];
 
     try {
-        bandpromo_release_ensure_demo_release($root);
-        $release = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+        bandpromo_campaign_ensure_demo_campaign($root);
+        $release = bandpromo_campaign_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
         foreach ($release['tracks'] as $track) {
             if (!is_array($track)) {
                 continue;
             }
-            $masterFile = bandpromo_release_track_master_filename($root, (string) ($track['asset_id'] ?? ''));
+            $masterFile = bandpromo_campaign_track_master_filename($root, (string) ($track['asset_id'] ?? ''));
             if ($masterFile === '') {
                 continue;
             }

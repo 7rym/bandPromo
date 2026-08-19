@@ -8,21 +8,21 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/release-package.php';
-require_once __DIR__ . '/release-storage.php';
-require_once __DIR__ . '/theme-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
+require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/gallery-storage.php';
 require_once __DIR__ . '/page-storage.php';
-require_once __DIR__ . '/release-ownership-helpers.php';
+require_once __DIR__ . '/campaign-ownership-helpers.php';
 
-const BANDPROMO_RELEASE_CAMPAIGN_EXPORT_VERSION = 1;
-const BANDPROMO_DEMO_RELEASE_MARKER = 'data/demo-release-package.json';
-const BANDPROMO_DEMO_RELEASE_WORKDIR = '.bandpromo-demo-release-package';
+const BANDPROMO_CAMPAIGN_EXPORT_VERSION = 1;
+const BANDPROMO_DEMO_CAMPAIGN_MARKER = 'data/demo-release-package.json';
+const BANDPROMO_DEMO_CAMPAIGN_WORKDIR = '.bandpromo-demo-release-package';
 
 /**
  * @return array{release_export_version: int, release_id: string, title: string, paths: list<string>}
  */
-function bandpromo_release_campaign_read_manifest(string $packageDir): array
+function bandpromo_campaign_read_manifest(string $packageDir): array
 {
     $manifestPath = $packageDir . DIRECTORY_SEPARATOR . 'release-package-manifest.json';
     if (!is_file($manifestPath)) {
@@ -33,20 +33,20 @@ function bandpromo_release_campaign_read_manifest(string $packageDir): array
         throw new RuntimeException('Release package manifest is not valid JSON.');
     }
     $version = (int) ($decoded['release_export_version'] ?? 0);
-    if ($version !== BANDPROMO_RELEASE_CAMPAIGN_EXPORT_VERSION) {
+    if ($version !== BANDPROMO_CAMPAIGN_EXPORT_VERSION) {
         throw new RuntimeException(
             'Incompatible release package version ' . $version
-            . ' (supported: ' . BANDPROMO_RELEASE_CAMPAIGN_EXPORT_VERSION . '). Upgrade bandPromo, then retry.'
+            . ' (supported: ' . BANDPROMO_CAMPAIGN_EXPORT_VERSION . '). Upgrade bandPromo, then retry.'
         );
     }
-    $releaseId = bandpromo_release_normalize_id((string) ($decoded['release_id'] ?? ''));
+    $releaseId = bandpromo_campaign_normalize_id((string) ($decoded['release_id'] ?? ''));
     if ($releaseId === '') {
         throw new RuntimeException('Release package manifest is missing release_id.');
     }
     $paths = [];
     if (isset($decoded['paths']) && is_array($decoded['paths'])) {
         foreach ($decoded['paths'] as $path) {
-            $relative = bandpromo_release_campaign_normalize_relative_path((string) $path);
+            $relative = bandpromo_campaign_normalize_relative_path((string) $path);
             if ($relative !== '') {
                 $paths[] = $relative;
             }
@@ -61,7 +61,7 @@ function bandpromo_release_campaign_read_manifest(string $packageDir): array
     ];
 }
 
-function bandpromo_release_campaign_normalize_relative_path(string $path): string
+function bandpromo_campaign_normalize_relative_path(string $path): string
 {
     $path = str_replace('\\', '/', trim($path));
     $path = ltrim($path, '/');
@@ -96,19 +96,19 @@ function bandpromo_release_campaign_normalize_relative_path(string $path): strin
     return '';
 }
 
-function bandpromo_release_campaign_is_allowed_entry(string $relativePath): bool
+function bandpromo_campaign_is_allowed_entry(string $relativePath): bool
 {
-    return bandpromo_release_campaign_normalize_relative_path($relativePath) !== '';
+    return bandpromo_campaign_normalize_relative_path($relativePath) !== '';
 }
 
 /**
  * Demo/campaign import may claim the install base brand only on first run.
  * Routine full builds must not reset an operator-chosen base brand (e.g. HITZ).
  */
-function bandpromo_release_campaign_should_claim_active_brand(string $root): bool
+function bandpromo_campaign_should_claim_active_brand(string $root): bool
 {
     require_once __DIR__ . '/config-loader.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     $config = bandpromo_load_runtime_config_raw($root . '/web-config.json');
     $active = bandpromo_brand_canonical_id((string) bandpromo_config_get_path(
@@ -129,21 +129,21 @@ function bandpromo_release_campaign_should_claim_active_brand(string $root): boo
  * } $options collision: refuse|overwrite|skip|allocate (skip-existing → skip)
  * @return array{ok: bool, release_id: string, message: string, imported_files: int, ownership: array, collision?: string}
  */
-function bandpromo_release_campaign_import_from_directory(string $root, string $packageDir, array $options = []): array
+function bandpromo_campaign_import_from_directory(string $root, string $packageDir, array $options = []): array
 {
     $packageDir = rtrim($packageDir, "\\/");
-    $manifest = bandpromo_release_campaign_read_manifest($packageDir);
+    $manifest = bandpromo_campaign_read_manifest($packageDir);
     $mode = strtolower(trim((string) ($options['mode'] ?? 'operator')));
     $allowDemoOverwrite = !empty($options['allow_demo_overwrite']) || $mode === 'demo' || $mode === 'setup';
     $setActiveBrand = array_key_exists('set_active_brand', $options)
         ? !empty($options['set_active_brand'])
         : ($mode === 'demo' || $mode === 'setup');
-    if ($setActiveBrand && !bandpromo_release_campaign_should_claim_active_brand($root)) {
+    if ($setActiveBrand && !bandpromo_campaign_should_claim_active_brand($root)) {
         $setActiveBrand = false;
     }
 
     $sourceReleaseId = $manifest['release_id'];
-    $collision = bandpromo_release_campaign_normalize_collision((string) ($options['collision'] ?? ''));
+    $collision = bandpromo_campaign_normalize_collision((string) ($options['collision'] ?? ''));
     // System/demo/setup always overwrites so delivery can rebuild with stable IDs.
     if ($allowDemoOverwrite && ($collision === '' || $mode === 'demo' || $mode === 'setup')) {
         $collision = 'overwrite';
@@ -152,7 +152,7 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         $collision = 'refuse';
     }
 
-    $exists = bandpromo_release_campaign_release_exists($root, $sourceReleaseId);
+    $exists = bandpromo_campaign_release_exists($root, $sourceReleaseId);
     $targetReleaseId = $sourceReleaseId;
     if ($exists) {
         if ($sourceReleaseId === BANDPROMO_RELEASE_DEMO_ID && !$allowDemoOverwrite && $collision === 'overwrite') {
@@ -176,7 +176,7 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
             ];
         }
         if ($collision === 'allocate') {
-            $targetReleaseId = bandpromo_release_campaign_allocate_id(
+            $targetReleaseId = bandpromo_campaign_allocate_id(
                 $root,
                 $manifest['title'] !== '' ? $manifest['title'] : $sourceReleaseId
             );
@@ -196,7 +196,7 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         }
         $absolute = $fileInfo->getPathname();
         $relative = str_replace('\\', '/', substr($absolute, strlen($packageDir) + 1));
-        $relative = bandpromo_release_campaign_normalize_relative_path($relative);
+        $relative = bandpromo_campaign_normalize_relative_path($relative);
         if ($relative === '' || $relative === 'release-package-manifest.json') {
             continue;
         }
@@ -236,11 +236,11 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
                 throw new RuntimeException('Invalid JSON in release package: ' . $relative);
             }
             if ($destinationRelative === 'data/assets/registry.json') {
-                bandpromo_release_campaign_merge_asset_registry($root, $decoded);
+                bandpromo_campaign_merge_asset_registry($root, $decoded);
                 $imported++;
                 continue;
             }
-            $decoded = bandpromo_release_campaign_remap_document($decoded, $destinationRelative, $sourceReleaseId, $targetReleaseId);
+            $decoded = bandpromo_campaign_remap_document($decoded, $destinationRelative, $sourceReleaseId, $targetReleaseId);
             if (!bandpromo_json_write_file($destination, $decoded)) {
                 throw new RuntimeException('Could not write imported JSON: ' . $destinationRelative);
             }
@@ -252,8 +252,8 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
         $imported++;
     }
 
-    bandpromo_release_campaign_ensure_registry_entries($root, $targetReleaseId);
-    $ownership = bandpromo_release_ownership_migrate($root);
+    bandpromo_campaign_ensure_registry_entries($root, $targetReleaseId);
+    $ownership = bandpromo_campaign_ownership_migrate($root);
 
     // Heal gallery asset_ids from delivery src paths (older PRPs shipped empty asset_id).
     $galleryDir = bandpromo_gallery_storage_root($root);
@@ -269,7 +269,7 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
             if (trim((string) ($decoded['release_id'] ?? '')) !== $targetReleaseId) {
                 continue;
             }
-            $healed = bandpromo_release_campaign_heal_gallery_entries($decoded);
+            $healed = bandpromo_campaign_heal_gallery_entries($decoded);
             if ($healed !== $decoded) {
                 try {
                     bandpromo_gallery_write_document($root, $healed);
@@ -282,10 +282,10 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
 
     if ($setActiveBrand) {
         try {
-            $releaseDoc = bandpromo_release_load_document($root, $targetReleaseId);
+            $releaseDoc = bandpromo_campaign_load_document($root, $targetReleaseId);
             $brandId = trim((string) ($releaseDoc['brand_id'] ?? ''));
             if ($brandId !== '') {
-                bandpromo_theme_set_active_id($root, $brandId);
+                bandpromo_brand_set_active_id($root, $brandId);
             }
         } catch (Throwable $throwable) {
             // Best-effort base brand pointer.
@@ -401,7 +401,7 @@ function bandpromo_release_campaign_import_from_directory(string $root, string $
     ];
 }
 
-function bandpromo_release_campaign_normalize_collision(string $value): string
+function bandpromo_campaign_normalize_collision(string $value): string
 {
     $value = strtolower(trim($value));
     if ($value === 'skip-existing') {
@@ -414,17 +414,17 @@ function bandpromo_release_campaign_normalize_collision(string $value): string
     return '';
 }
 
-function bandpromo_release_campaign_release_exists(string $root, string $releaseId): bool
+function bandpromo_campaign_release_exists(string $root, string $releaseId): bool
 {
-    $releaseId = bandpromo_release_normalize_id($releaseId);
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
 
-    return $releaseId !== '' && is_file(bandpromo_release_document_path($root, $releaseId));
+    return $releaseId !== '' && is_file(bandpromo_campaign_document_path($root, $releaseId));
 }
 
 /**
  * Install FAQ is system-owned and never travels in a PRP.
  */
-function bandpromo_release_campaign_page_is_portable(string $pageId): bool
+function bandpromo_campaign_page_is_portable(string $pageId): bool
 {
     require_once __DIR__ . '/page-registry.php';
 
@@ -439,7 +439,7 @@ function bandpromo_release_campaign_page_is_portable(string $pageId): bool
 /**
  * Resolve an asset id from a media path or bare ast_* / filename reference.
  */
-function bandpromo_release_campaign_asset_id_from_media_ref(string $ref): string
+function bandpromo_campaign_asset_id_from_media_ref(string $ref): string
 {
     require_once __DIR__ . '/asset-registry.php';
 
@@ -468,7 +468,7 @@ function bandpromo_release_campaign_asset_id_from_media_ref(string $ref): string
  * @param array<string, mixed> $document
  * @return array<string, mixed>
  */
-function bandpromo_release_campaign_heal_gallery_entries(array $document): array
+function bandpromo_campaign_heal_gallery_entries(array $document): array
 {
     if (!isset($document['entries']) || !is_array($document['entries'])) {
         return $document;
@@ -482,7 +482,7 @@ function bandpromo_release_campaign_heal_gallery_entries(array $document): array
         if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
             continue;
         }
-        $fromSrc = bandpromo_release_campaign_asset_id_from_media_ref((string) ($entry['src'] ?? ''));
+        $fromSrc = bandpromo_campaign_asset_id_from_media_ref((string) ($entry['src'] ?? ''));
         if ($fromSrc !== '') {
             $document['entries'][$index]['asset_id'] = $fromSrc;
         }
@@ -491,7 +491,7 @@ function bandpromo_release_campaign_heal_gallery_entries(array $document): array
     return $document;
 }
 
-function bandpromo_release_campaign_bandpromo_version(string $root): string
+function bandpromo_campaign_bandpromo_version(string $root): string
 {
     $path = $root . DIRECTORY_SEPARATOR . 'VERSION';
     if (!is_file($path)) {
@@ -508,7 +508,7 @@ function bandpromo_release_campaign_bandpromo_version(string $root): string
  * @param array<string, mixed> $asset
  * @return array<string, mixed>
  */
-function bandpromo_release_campaign_strip_delivery_from_asset(array $asset): array
+function bandpromo_campaign_strip_delivery_from_asset(array $asset): array
 {
     unset($asset['delivery']);
     $asset['delivery'] = [];
@@ -519,7 +519,7 @@ function bandpromo_release_campaign_strip_delivery_from_asset(array $asset): arr
 /**
  * @return array<string, mixed>
  */
-function bandpromo_release_campaign_remap_document(
+function bandpromo_campaign_remap_document(
     array $document,
     string $destinationRelative,
     string $sourceReleaseId,
@@ -552,15 +552,15 @@ function bandpromo_release_campaign_remap_document(
     return $document;
 }
 
-function bandpromo_release_campaign_allocate_id(string $root, string $title): string
+function bandpromo_campaign_allocate_id(string $root, string $title): string
 {
-    $base = bandpromo_release_normalize_id(preg_replace('/[^a-z0-9]+/i', '-', strtolower(trim($title))) ?: 'imported-release');
+    $base = bandpromo_campaign_normalize_id(preg_replace('/[^a-z0-9]+/i', '-', strtolower(trim($title))) ?: 'imported-release');
     if ($base === '') {
         $base = 'imported-release';
     }
     $candidate = $base;
     $suffix = 2;
-    while (is_file(bandpromo_release_document_path($root, $candidate))) {
+    while (is_file(bandpromo_campaign_document_path($root, $candidate))) {
         $candidate = $base . '-' . $suffix;
         $suffix++;
         if ($suffix > 99) {
@@ -576,7 +576,7 @@ function bandpromo_release_campaign_allocate_id(string $root, string $title): st
  *
  * @param array<string, mixed> $incoming
  */
-function bandpromo_release_campaign_merge_asset_registry(string $root, array $incoming): int
+function bandpromo_campaign_merge_asset_registry(string $root, array $incoming): int
 {
     require_once __DIR__ . '/asset-registry.php';
 
@@ -598,7 +598,7 @@ function bandpromo_release_campaign_merge_asset_registry(string $root, array $in
             continue;
         }
         // PRP rows are masters-only; keep host-local delivery when the asset already exists.
-        $normalized = bandpromo_release_campaign_strip_delivery_from_asset($normalized);
+        $normalized = bandpromo_campaign_strip_delivery_from_asset($normalized);
         $existing = $registry['assets'][$assetId] ?? null;
         if (is_array($existing)) {
             $delivery = is_array($existing['delivery'] ?? null) ? $existing['delivery'] : [];
@@ -624,11 +624,11 @@ function bandpromo_release_campaign_merge_asset_registry(string $root, array $in
  *
  * @return list<string>
  */
-function bandpromo_release_campaign_collect_asset_ids(string $root, string $releaseId): array
+function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): array
 {
     require_once __DIR__ . '/asset-registry.php';
 
-    $releaseId = bandpromo_release_normalize_id($releaseId);
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
     $ids = [];
     $add = static function (string $id) use (&$ids): void {
         $id = trim($id);
@@ -638,7 +638,7 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
     };
 
     try {
-        $release = bandpromo_release_load_document($root, $releaseId);
+        $release = bandpromo_campaign_load_document($root, $releaseId);
     } catch (Throwable $throwable) {
         return [];
     }
@@ -654,7 +654,7 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
     $brandId = trim((string) ($release['brand_id'] ?? ''));
     if ($brandId !== '') {
         try {
-            $brand = bandpromo_theme_load_document($root, $brandId);
+            $brand = bandpromo_brand_load_document($root, $brandId);
             foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
                 $add((string) $slotId);
             }
@@ -733,14 +733,14 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
             }
             $assetId = trim((string) ($row['asset_id'] ?? ''));
             if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
-                $assetId = bandpromo_release_campaign_asset_id_from_media_ref((string) ($row['src'] ?? ''));
+                $assetId = bandpromo_campaign_asset_id_from_media_ref((string) ($row['src'] ?? ''));
             }
             $add($assetId);
         }
     }
 
     foreach (bandpromo_page_registry_ids($root) as $pageId) {
-        if (!bandpromo_release_campaign_page_is_portable($pageId)) {
+        if (!bandpromo_campaign_page_is_portable($pageId)) {
             continue;
         }
         try {
@@ -781,7 +781,7 @@ function bandpromo_release_campaign_collect_asset_ids(string $root, string $rele
  *
  * @return array{ok: bool, path: string, release_id: string, files: int, asset_ids: list<string>}
  */
-function bandpromo_release_campaign_export_to_zip(string $root, string $releaseId, string $zipPath): array
+function bandpromo_campaign_export_to_zip(string $root, string $releaseId, string $zipPath): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
@@ -790,8 +790,8 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
         throw new RuntimeException('This host cannot export campaign files.');
     }
 
-    $releaseId = bandpromo_release_normalize_id($releaseId);
-    $release = bandpromo_release_load_document($root, $releaseId);
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
+    $release = bandpromo_campaign_load_document($root, $releaseId);
 
     // Persist gallery asset_ids from delivery src paths before collecting masters.
     foreach (bandpromo_gallery_registry_entries($root) as $entry) {
@@ -807,7 +807,7 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
         if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
             continue;
         }
-        $healed = bandpromo_release_campaign_heal_gallery_entries($doc);
+        $healed = bandpromo_campaign_heal_gallery_entries($doc);
         if ($healed !== $doc) {
             try {
                 bandpromo_gallery_write_document($root, $healed);
@@ -817,10 +817,10 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
         }
     }
 
-    $assetIds = bandpromo_release_campaign_collect_asset_ids($root, $releaseId);
+    $assetIds = bandpromo_campaign_collect_asset_ids($root, $releaseId);
     $paths = [];
     $addPath = static function (string $relative) use (&$paths, $root): void {
-        $relative = bandpromo_release_campaign_normalize_relative_path($relative);
+        $relative = bandpromo_campaign_normalize_relative_path($relative);
         if ($relative === '') {
             return;
         }
@@ -865,7 +865,7 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
         }
     }
     foreach (bandpromo_page_registry_ids($root) as $pageId) {
-        if (!bandpromo_release_campaign_page_is_portable($pageId)) {
+        if (!bandpromo_campaign_page_is_portable($pageId)) {
             continue;
         }
         try {
@@ -885,7 +885,7 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
         if (!is_array($asset)) {
             continue;
         }
-        $subsetAssets[$assetId] = bandpromo_release_campaign_strip_delivery_from_asset($asset);
+        $subsetAssets[$assetId] = bandpromo_campaign_strip_delivery_from_asset($asset);
         $kind = (string) ($asset['kind'] ?? '');
         if ($kind === 'audio') {
             $master = basename((string) ($asset['master_filename'] ?? ''));
@@ -948,12 +948,12 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
     $paths['data/assets/registry.json'] = $subsetPath;
 
     $manifest = [
-        'release_export_version' => BANDPROMO_RELEASE_CAMPAIGN_EXPORT_VERSION,
+        'release_export_version' => BANDPROMO_CAMPAIGN_EXPORT_VERSION,
         'format' => 'pcf',
         'release_id' => $releaseId,
         'title' => (string) ($release['title'] ?? $releaseId),
         'platform_demo' => $releaseId === BANDPROMO_RELEASE_DEMO_ID,
-        'bandpromo_version' => bandpromo_release_campaign_bandpromo_version($root),
+        'bandpromo_version' => bandpromo_campaign_bandpromo_version($root),
         'paths' => array_keys($paths),
         'asset_ids' => $assetIds,
         'exported_at' => gmdate('c'),
@@ -982,22 +982,22 @@ function bandpromo_release_campaign_export_to_zip(string $root, string $releaseI
     ];
 }
 
-function bandpromo_release_campaign_ensure_registry_entries(string $root, string $releaseId): void
+function bandpromo_campaign_ensure_registry_entries(string $root, string $releaseId): void
 {
-    bandpromo_release_ensure_seeded($root);
-    bandpromo_theme_ensure_seeded($root);
+    bandpromo_campaign_ensure_seeded($root);
+    bandpromo_brand_ensure_seeded($root);
     bandpromo_playlist_ensure_seeded($root);
     bandpromo_gallery_ensure_seeded($root);
     require_once __DIR__ . '/page-registry.php';
     bandpromo_page_ensure_system_pages($root);
 
-    $releaseId = bandpromo_release_normalize_id($releaseId);
-    if ($releaseId === '' || !is_file(bandpromo_release_document_path($root, $releaseId))) {
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
+    if ($releaseId === '' || !is_file(bandpromo_campaign_document_path($root, $releaseId))) {
         return;
     }
 
-    $document = bandpromo_release_load_document($root, $releaseId);
-    $registry = bandpromo_release_load_registry($root);
+    $document = bandpromo_campaign_load_document($root, $releaseId);
+    $registry = bandpromo_campaign_load_registry($root);
     $found = false;
     foreach ($registry['releases'] as $index => $entry) {
         if (!is_array($entry)) {
@@ -1019,7 +1019,7 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
             'system' => $releaseId === BANDPROMO_RELEASE_DEMO_ID,
         ];
     }
-    bandpromo_release_write_registry($root, $registry);
+    bandpromo_campaign_write_registry($root, $registry);
 
     // Import copies container JSON files; they stay invisible until registry entries exist.
     $playlistRegistry = bandpromo_playlist_load_registry($root);
@@ -1072,11 +1072,11 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
         bandpromo_playlist_write_registry($root, $playlistRegistry);
     }
 
-    $rawRelease = bandpromo_json_read_array_file(bandpromo_release_document_path($root, $releaseId));
+    $rawRelease = bandpromo_json_read_array_file(bandpromo_campaign_document_path($root, $releaseId));
     $brandId = bandpromo_brand_canonical_id((string) ((is_array($rawRelease) ? $rawRelease['brand_id'] : null) ?? ''));
-    if ($brandId !== '' && is_file(bandpromo_theme_document_path($root, $brandId))) {
-        $brandRegistry = bandpromo_theme_load_registry($root);
-        $listKey = bandpromo_theme_registry_list_key($brandRegistry);
+    if ($brandId !== '' && is_file(bandpromo_brand_document_path($root, $brandId))) {
+        $brandRegistry = bandpromo_brand_load_registry($root);
+        $listKey = bandpromo_brand_registry_list_key($brandRegistry);
         $knownBrands = [];
         $maxBrandOrder = 0;
         foreach ($brandRegistry[$listKey] as $entry) {
@@ -1091,7 +1091,7 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
         }
         if (!isset($knownBrands[$brandId])) {
             try {
-                $brandDoc = bandpromo_theme_load_document($root, $brandId);
+                $brandDoc = bandpromo_brand_load_document($root, $brandId);
             } catch (Throwable $throwable) {
                 $brandDoc = ['title' => $brandId, 'system' => false, 'locked' => false];
             }
@@ -1102,7 +1102,7 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
                 'locked' => !empty($brandDoc['locked']),
                 'sort_order' => $maxBrandOrder + 10,
             ];
-            bandpromo_theme_write_registry($root, $brandRegistry);
+            bandpromo_brand_write_registry($root, $brandRegistry);
         }
     }
 
@@ -1183,7 +1183,7 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
             }
             $pageId = bandpromo_page_normalize_id((string) ($decoded['id'] ?? pathinfo($pagePath, PATHINFO_FILENAME)));
             if ($pageId === ''
-                || !bandpromo_release_campaign_page_is_portable($pageId)
+                || !bandpromo_campaign_page_is_portable($pageId)
                 || isset($knownPages[$pageId])
             ) {
                 continue;
@@ -1216,7 +1216,7 @@ function bandpromo_release_campaign_ensure_registry_entries(string $root, string
 /**
  * @return array{ok: bool, release_id: string, message: string, imported_files: int, ownership: array}
  */
-function bandpromo_release_campaign_import_from_zip(string $root, string $zipPath, array $options = []): array
+function bandpromo_campaign_import_from_zip(string $root, string $zipPath, array $options = []): array
 {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('This host cannot import campaign files.');
@@ -1225,7 +1225,7 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
         throw new RuntimeException('Campaign file is missing.');
     }
 
-    $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_DEMO_RELEASE_WORKDIR . DIRECTORY_SEPARATOR . 'import-' . bin2hex(random_bytes(4));
+    $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_DEMO_CAMPAIGN_WORKDIR . DIRECTORY_SEPARATOR . 'import-' . bin2hex(random_bytes(4));
     bandpromo_release_rrmdir($workDir);
     bandpromo_release_ensure_dir($workDir);
 
@@ -1254,7 +1254,7 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
             if ($name === '' || str_ends_with($name, '/')) {
                 continue;
             }
-            if (str_contains($name, '..') || !bandpromo_release_campaign_is_allowed_entry($name)) {
+            if (str_contains($name, '..') || !bandpromo_campaign_is_allowed_entry($name)) {
                 continue;
             }
             $allowedNames[] = $rawName;
@@ -1278,7 +1278,7 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
     }
 
     try {
-        return bandpromo_release_campaign_import_from_directory($root, $workDir, $options);
+        return bandpromo_campaign_import_from_directory($root, $workDir, $options);
     } finally {
         bandpromo_release_rrmdir($workDir);
     }
@@ -1289,10 +1289,10 @@ function bandpromo_release_campaign_import_from_zip(string $root, string $zipPat
  *
  * @return array{ok: bool, release_id: string, message: string, imported_files: int, ownership: array}
  */
-function bandpromo_release_campaign_seed_demo_from_templates(string $root): array
+function bandpromo_campaign_seed_demo_from_templates(string $root): array
 {
-    bandpromo_release_ownership_migrate($root);
-    bandpromo_release_enforce_platform_demo_lock($root);
+    bandpromo_campaign_ownership_migrate($root);
+    bandpromo_campaign_enforce_platform_demo_lock($root);
 
     return [
         'ok' => is_file($root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases'
@@ -1304,9 +1304,9 @@ function bandpromo_release_campaign_seed_demo_from_templates(string $root): arra
     ];
 }
 
-function bandpromo_release_campaign_demo_marker_path(string $root): string
+function bandpromo_campaign_demo_marker_path(string $root): string
 {
-    return $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, BANDPROMO_DEMO_RELEASE_MARKER);
+    return $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, BANDPROMO_DEMO_CAMPAIGN_MARKER);
 }
 
 /**
@@ -1327,28 +1327,28 @@ function bandpromo_release_campaign_demo_marker_path(string $root): string
  *   message: string
  * }
  */
-function bandpromo_release_campaign_duplicate(string $root, string $sourceReleaseId, string $title = ''): array
+function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, string $title = ''): array
 {
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     require_once __DIR__ . '/brand-storage.php';
     require_once __DIR__ . '/page-registry.php';
     require_once __DIR__ . '/page-storage.php';
     require_once __DIR__ . '/page-blocks.php';
 
-    $sourceReleaseId = bandpromo_release_normalize_id($sourceReleaseId);
-    if ($sourceReleaseId === '' || $sourceReleaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+    $sourceReleaseId = bandpromo_campaign_normalize_id($sourceReleaseId);
+    if ($sourceReleaseId === '' || $sourceReleaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
         throw new InvalidArgumentException('Cannot duplicate the Primary orphan bucket.');
     }
 
-    $source = bandpromo_release_load_document($root, $sourceReleaseId);
+    $source = bandpromo_campaign_load_document($root, $sourceReleaseId);
     $newTitle = trim($title);
     if ($newTitle === '') {
         $baseTitle = trim((string) ($source['title'] ?? ''));
         $newTitle = $baseTitle !== '' ? $baseTitle . ' copy' : 'Release copy';
     }
 
-    $releaseEntry = bandpromo_release_create($root, $newTitle, '');
-    $newReleaseId = bandpromo_release_normalize_id((string) ($releaseEntry['id'] ?? ''));
+    $releaseEntry = bandpromo_campaign_create($root, $newTitle, '');
+    $newReleaseId = bandpromo_campaign_normalize_id((string) ($releaseEntry['id'] ?? ''));
     if ($newReleaseId === '') {
         throw new RuntimeException('Could not allocate a release id for the duplicate.');
     }
@@ -1356,9 +1356,9 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
     $sourceBrandId = bandpromo_brand_canonical_id((string) ($source['brand_id'] ?? ''));
     $newBrandId = '';
     if ($sourceBrandId !== '') {
-        $sourceBrand = bandpromo_theme_load_document($root, $sourceBrandId);
-        $newBrandId = bandpromo_theme_allocate_duplicate_id($root, $newTitle);
-        $dupBrand = bandpromo_theme_normalize_document([
+        $sourceBrand = bandpromo_brand_load_document($root, $sourceBrandId);
+        $newBrandId = bandpromo_brand_allocate_duplicate_id($root, $newTitle);
+        $dupBrand = bandpromo_brand_normalize_document([
             'id' => $newBrandId,
             'title' => $newTitle,
             'system' => false,
@@ -1373,8 +1373,8 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
                 : [],
             'assets' => is_array($sourceBrand['assets'] ?? null) ? $sourceBrand['assets'] : [],
         ], $newBrandId);
-        bandpromo_json_write_file(bandpromo_theme_document_path($root, $newBrandId), $dupBrand);
-        $registry = bandpromo_theme_load_registry($root);
+        bandpromo_json_write_file(bandpromo_brand_document_path($root, $newBrandId), $dupBrand);
+        $registry = bandpromo_brand_load_registry($root);
         $registry['brands'][] = [
             'id' => $newBrandId,
             'title' => (string) ($dupBrand['title'] ?? $newTitle),
@@ -1382,7 +1382,7 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
             'locked' => false,
             'sort_order' => 50,
         ];
-        bandpromo_theme_write_registry($root, $registry);
+        bandpromo_brand_write_registry($root, $registry);
     }
 
     $dupRelease = $source;
@@ -1392,7 +1392,7 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
     $dupRelease['brand_id'] = $newBrandId !== '' ? $newBrandId : $sourceBrandId;
     $dupRelease['system'] = false;
     $dupRelease['locked'] = false;
-    bandpromo_release_write_document($root, $dupRelease);
+    bandpromo_campaign_write_document($root, $dupRelease);
 
     $galleryMap = [];
     $galleryIds = [];
@@ -1472,7 +1472,7 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
 
     $pageIds = [];
     foreach (bandpromo_page_registry_ids($root) as $pageId) {
-        if (!bandpromo_release_campaign_page_is_portable($pageId)) {
+        if (!bandpromo_campaign_page_is_portable($pageId)) {
             continue;
         }
         try {
@@ -1513,8 +1513,8 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
         $pageIds[] = $newPageId;
     }
 
-    bandpromo_release_campaign_ensure_registry_entries($root, $newReleaseId);
-    bandpromo_release_ownership_migrate($root);
+    bandpromo_campaign_ensure_registry_entries($root, $newReleaseId);
+    bandpromo_campaign_ownership_migrate($root);
 
     return [
         'ok' => true,
@@ -1533,7 +1533,7 @@ function bandpromo_release_campaign_duplicate(string $root, string $sourceReleas
  *
  * @return array{installed: bool, source: string, release_id: string, version?: string, message: string}
  */
-function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL, ?callable $logger = null): array
+function bandpromo_ensure_demo_campaign_package(string $root, string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL, ?callable $logger = null): array
 {
     require_once __DIR__ . '/release-package.php';
 
@@ -1573,7 +1573,7 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
             && trim((string) ($demoPackage['package_url'] ?? '')) !== ''
             && trim((string) ($demoPackage['sha256'] ?? '')) !== ''
         ) {
-            $markerPath = bandpromo_release_campaign_demo_marker_path($root);
+            $markerPath = bandpromo_campaign_demo_marker_path($root);
             $marker = is_file($markerPath) ? bandpromo_json_read_array_file($markerPath) : null;
             $already = is_array($marker) && (string) ($marker['sha256'] ?? '') === (string) $demoPackage['sha256'];
             if ($already) {
@@ -1588,7 +1588,7 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 ];
             }
 
-            $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_DEMO_RELEASE_WORKDIR;
+            $workDir = $root . DIRECTORY_SEPARATOR . BANDPROMO_DEMO_CAMPAIGN_WORKDIR;
             $packageFile = trim((string) ($demoPackage['package_file'] ?? ''));
             if ($packageFile === '') {
                 $packageFile = BANDPROMO_DEMO_PCF_FILENAME;
@@ -1608,12 +1608,12 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 throw new RuntimeException('Demo PCF checksum did not match the published manifest.');
             }
             bandpromo_release_log($logger, '[demo campaign] Importing Demo PCF into this site...');
-            $import = bandpromo_release_campaign_import_from_zip($root, $downloadPath, [
+            $import = bandpromo_campaign_import_from_zip($root, $downloadPath, [
                 'mode' => 'demo',
                 'allow_demo_overwrite' => true,
                 'collision' => 'overwrite',
                 // First install may claim base brand; later package refreshes must not.
-                'set_active_brand' => bandpromo_release_campaign_should_claim_active_brand($root),
+                'set_active_brand' => bandpromo_campaign_should_claim_active_brand($root),
             ]);
             bandpromo_json_write_file($markerPath, [
                 'version' => (string) ($demoPackage['version'] ?? ''),
@@ -1622,10 +1622,10 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
                 'format' => 'pcf',
                 'installed_at' => gmdate('c'),
             ]);
-            bandpromo_release_lock_platform_demo_after_import($root);
+            bandpromo_campaign_lock_platform_demo_after_import($root);
             bandpromo_brand_lock_platform_default_after_import($root);
             require_once __DIR__ . '/demo-catalog-state.php';
-            $importedReleaseId = bandpromo_release_normalize_id((string) ($import['release_id'] ?? BANDPROMO_RELEASE_DEMO_ID));
+            $importedReleaseId = bandpromo_campaign_normalize_id((string) ($import['release_id'] ?? BANDPROMO_RELEASE_DEMO_ID));
             bandpromo_demo_release_ensure_preferences($root, $importedReleaseId !== '' ? $importedReleaseId : BANDPROMO_RELEASE_DEMO_ID);
             bandpromo_demo_release_invalidate_asset_set_cache($root);
             if (!bandpromo_release_rrmdir_best_effort($workDir)) {
@@ -1653,7 +1653,7 @@ function bandpromo_ensure_demo_release_package(string $root, string $manifestUrl
     $demoDoc = $root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases'
         . DIRECTORY_SEPARATOR . BANDPROMO_RELEASE_DEMO_ID . '.json';
     if (is_file($demoDoc)) {
-        bandpromo_release_enforce_platform_demo_lock($root);
+        bandpromo_campaign_enforce_platform_demo_lock($root);
         require_once __DIR__ . '/demo-catalog-state.php';
         bandpromo_demo_release_ensure_preferences($root, BANDPROMO_RELEASE_DEMO_ID);
 

@@ -2486,12 +2486,12 @@ canvas { max-width: 100%; height: auto; }
     width: 34px;
 }
 
-.release-catalog-meta-field--date .date-input-shell.iso-date-field {
+.campaign-catalog-meta-field--date .date-input-shell.iso-date-field {
     max-width: 16rem;
 }
 
 #audioMasterFieldDate,
-#releaseSettingsDate,
+#campaignSettingsDate,
 #playlistSettingsPublishDate {
     color-scheme: dark;
 }
@@ -3127,7 +3127,7 @@ canvas { max-width: 100%; height: auto; }
     --audio-col-check: 1.15rem;
     --audio-col-icon: 1.35rem;
     --audio-col-date: 5.5rem;
-    --audio-col-release: 7rem;
+    --audio-col-campaign: 7rem;
     --audio-col-size: 4.25rem;
     --audio-col-actions: 9.75rem;
     --audio-col-gap: 6px;
@@ -3141,7 +3141,7 @@ canvas { max-width: 100%; height: auto; }
         var(--audio-col-icon)
         minmax(0, 1fr)
         var(--audio-col-date)
-        var(--audio-col-release)
+        var(--audio-col-campaign)
         var(--audio-col-size)
         var(--audio-col-actions);
     gap: var(--audio-col-gap);
@@ -3272,7 +3272,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .media-file-col-sort[data-audio-sort="date"],
-.media-file-col-sort[data-audio-sort="release"],
+.media-file-col-sort[data-audio-sort="campaign"],
 .media-file-col-sort[data-pool-sort="context"],
 .media-file-col-sort--size {
     text-align: right;
@@ -3309,7 +3309,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .media-file-col-date,
-.media-file-col-release,
+.media-file-col-campaign,
 .media-file-col-dims,
 .media-file-col-size,
 #panel-audio .media-file-size {
@@ -3321,14 +3321,14 @@ canvas { max-width: 100%; height: auto; }
     font-variant-numeric: tabular-nums;
 }
 
-.media-file-col-release {
+.media-file-col-campaign {
     color: var(--text-muted, #8a8f98);
 }
 
 @media (max-width: 960px) {
     #panel-audio {
         --audio-col-date: 5rem;
-        --audio-col-release: 6rem;
+        --audio-col-campaign: 6rem;
         --audio-col-actions: 9.25rem;
     }
 }
@@ -3353,9 +3353,9 @@ canvas { max-width: 100%; height: auto; }
     }
 
     #panel-audio .media-file-col-date,
-    #panel-audio .media-file-col-release,
+    #panel-audio .media-file-col-campaign,
     #panel-audio .media-file-col-headers .media-file-col-sort[data-audio-sort="date"],
-    #panel-audio .media-file-col-headers .media-file-col-sort[data-audio-sort="release"] {
+    #panel-audio .media-file-col-headers .media-file-col-sort[data-audio-sort="campaign"] {
         display: none;
     }
 
@@ -3485,7 +3485,7 @@ canvas { max-width: 100%; height: auto; }
     font-weight: 700;
 }
 
-.media-file-release-content {
+.media-file-campaign-content {
     color: var(--text-muted, #8a8f98);
     font-weight: 400;
     margin-left: 0.35em;
@@ -3526,21 +3526,21 @@ canvas { max-width: 100%; height: auto; }
     white-space: nowrap;
 }
 
-.media-file-meta .media-file-release-date {
+.media-file-meta .media-file-campaign-date {
     align-self: center;
     font-weight: 700;
     color: var(--text);
     white-space: nowrap;
 }
 
-.media-file-meta .media-file-release-context {
+.media-file-meta .media-file-campaign-context {
     align-self: center;
     color: var(--text-soft);
     font-size: 0.92rem;
     white-space: nowrap;
 }
 
-.media-file-meta .media-file-release-name {
+.media-file-meta .media-file-campaign-name {
     color: var(--text-soft);
 }
 
@@ -6322,11 +6322,11 @@ canvas { max-width: 100%; height: auto; }
     white-space: nowrap;
 }
 
-.release-editor-is-preview .player-layout-save-row {
+.campaign-editor-is-preview .player-layout-save-row {
     display: none;
 }
 
-.release-editor-card-head {
+.campaign-editor-card-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -6334,7 +6334,7 @@ canvas { max-width: 100%; height: auto; }
     margin: 0 0 4px;
 }
 
-.release-editor-card-head h2 {
+.campaign-editor-card-head h2 {
     margin: 0;
     color: var(--text);
     font-size: 16px;
@@ -6352,27 +6352,27 @@ canvas { max-width: 100%; height: auto; }
     min-height: 72px;
 }
 
-.release-preview-date {
+.campaign-preview-date {
     margin: 0.15rem 0 0;
     color: var(--text-muted, #8a8f98);
     font-size: 0.9rem;
 }
 
-.release-preview-summary {
+.campaign-preview-summary {
     margin: 0.45rem 0 0;
     color: var(--text);
     font-size: 0.92rem;
     line-height: 1.4;
 }
 
-.release-preview-tabs {
+.campaign-preview-tabs {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
     margin-bottom: 0.75rem;
 }
 
-.release-preview-tab {
+.campaign-preview-tab {
     appearance: none;
     border: 1px solid color-mix(in srgb, var(--text-muted, #888) 35%, transparent);
     background: transparent;
@@ -6384,54 +6384,54 @@ canvas { max-width: 100%; height: auto; }
     cursor: pointer;
 }
 
-.release-preview-tab.is-active {
+.campaign-preview-tab.is-active {
     color: var(--text);
     border-color: color-mix(in srgb, var(--text) 45%, transparent);
     background: color-mix(in srgb, var(--surface-mid, #1e1e24) 80%, transparent);
 }
 
-.release-preview-empty {
+.campaign-preview-empty {
     margin: 0;
     color: var(--text-muted, #8a8f98);
     font-size: 0.9rem;
 }
 
-.release-preview-tracks {
+.campaign-preview-tracks {
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-#releaseAssociationActiveList {
+#campaignAssociationActiveList {
     min-height: 4.5rem;
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-#releaseAssociationActiveList:not([hidden]) {
+#campaignAssociationActiveList:not([hidden]) {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
 
-#releaseAssociationActiveList[hidden] {
+#campaignAssociationActiveList[hidden] {
     display: none !important;
 }
 
-#releaseAssociationActiveList.is-drop-target,
-#releaseAssociationAvailableList.is-drop-target {
+#campaignAssociationActiveList.is-drop-target,
+#campaignAssociationAvailableList.is-drop-target {
     outline: 1px dashed rgba(98, 179, 255, 0.65);
     outline-offset: 2px;
     background: rgba(98, 179, 255, 0.08);
     border-radius: 8px;
 }
 
-.playlist-editor-row.release-association-row-dragging {
+.playlist-editor-row.campaign-association-row-dragging {
     opacity: 0.45;
 }
 
-.release-preview-tracks li {
+.campaign-preview-tracks li {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -6440,45 +6440,45 @@ canvas { max-width: 100%; height: auto; }
     border-bottom: 1px solid color-mix(in srgb, var(--text-muted, #888) 18%, transparent);
 }
 
-.release-preview-tracks li:last-child {
+.campaign-preview-tracks li:last-child {
     border-bottom: 0;
 }
 
-.release-preview-track-copy {
+.campaign-preview-track-copy {
     min-width: 0;
     display: flex;
     gap: 0.4rem;
     align-items: baseline;
 }
 
-.release-preview-track-artist {
+.campaign-preview-track-artist {
     color: var(--text-muted, #8a8f98);
     white-space: nowrap;
 }
 
-.release-preview-track-title {
+.campaign-preview-track-title {
     color: var(--text);
 }
 
-.release-editor-is-preview #releaseActiveList,
-.release-editor-is-preview #releaseAssociationActiveList {
+.campaign-editor-is-preview #campaignActiveList,
+.campaign-editor-is-preview #campaignAssociationActiveList {
     display: none !important;
 }
 
-.release-preview-brand {
+.campaign-preview-brand {
     display: grid;
     grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
     gap: 0.85rem;
     align-items: start;
 }
 
-.release-base-brand-preview {
+.campaign-base-brand-preview {
     margin: 0.9rem 0 0.15rem;
     padding-top: 0.85rem;
     border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
 }
 
-.release-base-brand-preview-heading {
+.campaign-base-brand-preview-heading {
     margin: 0 0 0.65rem;
     font-size: 0.82rem;
     font-weight: 600;
@@ -6487,65 +6487,65 @@ canvas { max-width: 100%; height: auto; }
     text-transform: uppercase;
 }
 
-.release-base-brand-preview .release-preview-brand {
+.campaign-base-brand-preview .campaign-preview-brand {
     margin: 0;
 }
 
-.release-long-description-preview {
+.campaign-long-description-preview {
     margin: 0.9rem 0 0.15rem;
     padding-top: 0.85rem;
     border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
 }
 
-.release-long-description-preview-body {
+.campaign-long-description-preview-body {
     font-size: 0.92rem;
     line-height: 1.45;
     color: var(--text, #e8eaed);
 }
 
-.release-long-description-preview-body .player-markdown p {
+.campaign-long-description-preview-body .player-markdown p {
     margin: 0 0 0.75em;
 }
 
-.release-long-description-preview-body .player-markdown p:last-child {
+.campaign-long-description-preview-body .player-markdown p:last-child {
     margin-bottom: 0;
 }
 
-.release-long-description-preview-body .player-markdown h1,
-.release-long-description-preview-body .player-markdown h2,
-.release-long-description-preview-body .player-markdown h3,
-.release-long-description-preview-body .player-markdown h4,
-.release-long-description-preview-body .player-markdown h5,
-.release-long-description-preview-body .player-markdown h6 {
+.campaign-long-description-preview-body .player-markdown h1,
+.campaign-long-description-preview-body .player-markdown h2,
+.campaign-long-description-preview-body .player-markdown h3,
+.campaign-long-description-preview-body .player-markdown h4,
+.campaign-long-description-preview-body .player-markdown h5,
+.campaign-long-description-preview-body .player-markdown h6 {
     margin: 0 0 0.5em;
     color: var(--text, #e8eaed);
 }
 
-.release-long-description-preview-body .player-markdown ul,
-.release-long-description-preview-body .player-markdown ol {
+.campaign-long-description-preview-body .player-markdown ul,
+.campaign-long-description-preview-body .player-markdown ol {
     margin: 0 0 0.75em;
     padding-left: 1.25em;
 }
 
-.release-long-description-preview-body .player-markdown blockquote {
+.campaign-long-description-preview-body .player-markdown blockquote {
     margin: 0 0 0.75em;
     padding-left: 0.75em;
     border-left: 2px solid color-mix(in srgb, var(--text) 25%, transparent);
     color: var(--text-muted, #8a8f98);
 }
 
-.release-long-description-preview-body .player-markdown a {
+.campaign-long-description-preview-body .player-markdown a {
     color: var(--accent, #7dd3fc);
 }
 
-textarea.release-settings-description-autofit {
+textarea.campaign-settings-description-autofit {
     overflow: hidden;
     resize: none;
     min-height: 6.5rem;
     field-sizing: content;
 }
 
-.release-preview-brand-shell {
+.campaign-preview-brand-shell {
     aspect-ratio: 1;
     border-radius: 8px;
     background: #111 center / cover no-repeat;
@@ -6555,61 +6555,61 @@ textarea.release-settings-description-autofit {
     overflow: hidden;
 }
 
-.release-preview-brand-logo {
+.campaign-preview-brand-logo {
     max-width: 70%;
     max-height: 70%;
     object-fit: contain;
 }
 
-.release-preview-brand-title {
+.campaign-preview-brand-title {
     margin: 0 0 0.35rem;
     font-size: 1rem;
 }
 
-.release-preview-brand-mood {
+.campaign-preview-brand-mood {
     margin: 0 0 0.6rem;
     color: var(--text-muted, #8a8f98);
     font-size: 0.88rem;
 }
 
-.release-preview-swatches {
+.campaign-preview-swatches {
     display: flex;
     gap: 0.35rem;
     margin-bottom: 0.75rem;
 }
 
-.release-preview-swatch {
+.campaign-preview-swatch {
     width: 1.1rem;
     height: 1.1rem;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
 }
 
-.release-preview-epk {
+.campaign-preview-epk {
     display: grid;
     grid-template-columns: 8rem minmax(0, 1fr);
     gap: 0.4rem 0.75rem;
     margin: 0;
 }
 
-.release-preview-epk dt {
+.campaign-preview-epk dt {
     margin: 0;
     color: var(--text-muted, #8a8f98);
     font-size: 0.82rem;
 }
 
-.release-preview-epk dd {
+.campaign-preview-epk dd {
     margin: 0;
     font-size: 0.9rem;
     white-space: pre-wrap;
 }
 
 @media (max-width: 700px) {
-    .release-preview-brand {
+    .campaign-preview-brand {
         grid-template-columns: 1fr;
     }
 
-    .release-preview-epk {
+    .campaign-preview-epk {
         grid-template-columns: 1fr;
     }
 }

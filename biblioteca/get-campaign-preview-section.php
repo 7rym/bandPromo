@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
-require_once __DIR__ . '/release-storage.php';
-require_once __DIR__ . '/release-ownership-helpers.php';
+require_once __DIR__ . '/campaign-storage.php';
+require_once __DIR__ . '/campaign-ownership-helpers.php';
 
 bandpromo_enforce_https();
 session_write_close();
@@ -13,7 +13,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? ''));
+$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ''));
 $section = strtolower(trim((string) ($_GET['section'] ?? '')));
 $allowedSections = ['tracks', 'playlists', 'galleries', 'pages', 'branding', 'presskit'];
 
@@ -29,20 +29,20 @@ if (!in_array($section, $allowedSections, true)) {
 }
 
 try {
-    $document = bandpromo_release_load_document($root, $releaseId);
+    $document = bandpromo_campaign_load_document($root, $releaseId);
 
     if ($section === 'tracks') {
-        $data = bandpromo_release_admin_preview_tracks($root, $document);
+        $data = bandpromo_campaign_admin_preview_tracks($root, $document);
     } elseif ($section === 'presskit') {
         $data = [
             'short_description' => (string) ($document['short_description'] ?? ''),
             'description' => (string) ($document['description'] ?? ''),
             'epk' => is_array($document['epk'] ?? null)
-                ? bandpromo_release_normalize_epk($document['epk'])
-                : bandpromo_release_default_epk(),
+                ? bandpromo_campaign_normalize_epk($document['epk'])
+                : bandpromo_campaign_default_epk(),
         ];
     } else {
-        $children = bandpromo_release_ownership_children($root, $releaseId);
+        $children = bandpromo_campaign_ownership_children($root, $releaseId);
         if ($section === 'branding') {
             $data = [
                 'brand_id' => (string) ($children['brand_id'] ?? ''),

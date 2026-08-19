@@ -153,7 +153,7 @@
 
     function renderMarkup(document) {
         if (!document) {
-            return '<p class="theme-editor-empty">No brand selected.</p>';
+            return '<p class="brand-editor-empty">No brand selected.</p>';
         }
 
         return `
@@ -195,7 +195,7 @@
         if (!(container instanceof HTMLElement)) {
             return;
         }
-        const styleId = String(options.styleId || 'bandpromo-shared-theme-preview-style');
+        const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
         const selector = String(options.selector || `#${container.id} .theme-preview-shell-chrome`);
         let style = document?.ownerDocument?.getElementById(styleId)
             || window.document.getElementById(styleId);
@@ -246,16 +246,14 @@
         if (!(root instanceof HTMLElement)) {
             return;
         }
-        root.querySelectorAll('video.theme-preview-shell-video, video.theme-shell-slot-thumb').forEach((video) => {
+        root.querySelectorAll('video.theme-preview-shell-video, video.brand-shell-slot-thumb').forEach((video) => {
             video.muted = true;
             video.loop = true;
             video.playsInline = true;
             const play = () => {
                 const attempt = video.play();
                 if (attempt && typeof attempt.catch === 'function') {
-                    attempt.catch(() => {
-                        // Autoplay can still be blocked; poster/still remains visible.
-                    });
+                    attempt.catch(() => {});
                 }
             };
             if (video.readyState >= 2) {
@@ -265,14 +263,12 @@
             video.addEventListener('canplay', play, { once: true });
             try {
                 video.load();
-            } catch (error) {
-                // Ignore reload failures.
-            }
+            } catch (error) {}
             play();
         });
     }
 
-    window.bandpromoThemePreview = {
+    window.bandpromoBrandPreview = {
         render,
         renderMarkup,
         startVideos: startPreviewVideos,

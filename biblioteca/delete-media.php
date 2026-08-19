@@ -248,7 +248,7 @@ function bandpromo_delete_media_item(
     }
 
     require_once __DIR__ . '/demo-catalog-state.php';
-    $demoAssetSet = bandpromo_demo_release_asset_set($root);
+    $demoAssetSet = bandpromo_demo_campaign_asset_set($root);
     $lockCandidates = array_values(array_unique(array_filter([
         $target . '|' . $safe,
         $target . '|' . $listingName,

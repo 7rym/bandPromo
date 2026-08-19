@@ -13,8 +13,8 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/audio-master-detail-helpers.php';
 require_once __DIR__ . '/asset-registry.php';
-require_once __DIR__ . '/release-storage.php';
-require_once __DIR__ . '/theme-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
+require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/media-delivery-helpers.php';
 require_once __DIR__ . '/auto-build-tasks.php';
@@ -25,7 +25,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
 bandpromo_asset_registry_ensure_migrated($root);
-bandpromo_release_ensure_seeded($root);
+bandpromo_campaign_ensure_seeded($root);
 
 $dirs = [
     'audio'         => bandpromo_media_target_dir('audio'),
@@ -44,7 +44,7 @@ if (!isset($dirs[$target])) {
 }
 
 $includeHidden = isset($_GET['include_hidden']) && $_GET['include_hidden'] === '1';
-$releaseFilter = bandpromo_release_normalize_pool_filter((string) ($_GET['release'] ?? 'all'));
+$releaseFilter = bandpromo_campaign_normalize_pool_filter((string) ($_GET['release'] ?? 'all'));
 $brandFilter = bandpromo_brand_normalize_pool_filter((string) ($_GET['brand'] ?? 'all'));
 $isBrandOwnedPool = in_array($target, ['special', 'sfx'], true);
 
@@ -182,7 +182,7 @@ function bandpromo_audio_metadata_health_for_listing(
  */
 function bandpromo_list_media_attach_brand_labels(string $root, array $entry): array
 {
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     $brandId = trim((string) ($entry['brand_id'] ?? ''));
     $entry['brand_orphan'] = $brandId === '';
     if ($brandId === '') {
@@ -192,7 +192,7 @@ function bandpromo_list_media_attach_brand_labels(string $root, array $entry): a
     }
 
     try {
-        $document = bandpromo_theme_load_document($root, $brandId);
+        $document = bandpromo_brand_load_document($root, $brandId);
         $title = trim((string) ($document['title'] ?? ''));
         $entry['brand_title'] = $title !== '' ? $title : $brandId;
     } catch (Throwable $throwable) {
@@ -208,7 +208,7 @@ function bandpromo_list_media_attach_brand_labels(string $root, array $entry): a
  * @param array<string, mixed> $entry
  * @return array<string, mixed>
  */
-function bandpromo_list_media_attach_release_labels(string $root, array $entry): array
+function bandpromo_list_media_attach_campaign_labels(string $root, array $entry): array
 {
     $releaseId = trim((string) ($entry['release_id'] ?? ''));
     if ($releaseId === '') {
@@ -223,7 +223,7 @@ function bandpromo_list_media_attach_release_labels(string $root, array $entry):
     }
 
     try {
-        $document = bandpromo_release_load_document($root, $releaseId);
+        $document = bandpromo_campaign_load_document($root, $releaseId);
         $entry['release_title'] = trim((string) ($document['title'] ?? ''));
         $entry['release_date'] = trim((string) ($document['release_date'] ?? ''));
     } catch (Throwable $throwable) {
@@ -280,7 +280,7 @@ function bandpromo_list_media_build_entry(
         'size'     => (int) ($indexed['size'] ?? 0),
         'modified' => (int) ($indexed['modified'] ?? 0),
         'origin'   => (string) ($indexed['origin'] ?? bandpromo_media_origin($filename)),
-        'release_id' => bandpromo_release_id_for_media_file($root, $bucket, $filename),
+        'release_id' => bandpromo_campaign_id_for_media_file($root, $bucket, $filename),
         'hidden'   => bandpromo_media_is_effectively_hidden_for_install($bucket, $filename),
         'original_format' => (string) ($indexed['original_format'] ?? strtolower((string) pathinfo($filename, PATHINFO_EXTENSION))),
         'original_filename' => (string) ($indexed['original_filename'] ?? ''),
@@ -374,10 +374,10 @@ function bandpromo_list_media_build_entry(
         }
         $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
         // Optional campaign context only — membership for this pool is brand-owned.
-        $brandReleaseId = bandpromo_release_id_for_brand_owned_asset($root, (string) ($entry['brand_id'] ?? ''));
+        $brandReleaseId = bandpromo_campaign_id_for_brand_owned_asset($root, (string) ($entry['brand_id'] ?? ''));
         if ($brandReleaseId !== '') {
             $entry['release_id'] = $brandReleaseId;
-            $entry = bandpromo_list_media_attach_release_labels($root, $entry);
+            $entry = bandpromo_list_media_attach_campaign_labels($root, $entry);
         }
     }
 
@@ -486,19 +486,19 @@ function bandpromo_list_media_build_entry(
         }
 
         if ($bucket === 'special') {
-            $brandReleaseId = bandpromo_release_id_for_brand_owned_asset($root, (string) ($entry['brand_id'] ?? ''));
+            $brandReleaseId = bandpromo_campaign_id_for_brand_owned_asset($root, (string) ($entry['brand_id'] ?? ''));
             if ($brandReleaseId !== '') {
                 $entry['release_id'] = $brandReleaseId;
-            } elseif (trim((string) ($entry['release_id'] ?? '')) === BANDPROMO_RELEASE_DEFAULT_ID) {
+            } elseif (trim((string) ($entry['release_id'] ?? '')) === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
                 $entry['release_id'] = '';
             }
             $entry = bandpromo_list_media_attach_brand_labels($root, $entry);
             if ($brandReleaseId !== '') {
-                $entry = bandpromo_list_media_attach_release_labels($root, $entry);
+                $entry = bandpromo_list_media_attach_campaign_labels($root, $entry);
             }
         } else {
             // Catalogue is campaign usage (gallery/cover/poster/page plus Brand visual shell those campaigns play), not Brand ownership.
-            $visualMeta = bandpromo_release_visual_listing_meta(
+            $visualMeta = bandpromo_campaign_visual_listing_meta(
                 $root,
                 trim((string) ($entry['asset_id'] ?? '')),
                 (string) ($entry['release_id'] ?? '')
@@ -614,8 +614,8 @@ $selectedBrandLibrary = null;
 $selectedBrandSlotAssignments = [];
 $allBrandLibrary = [];
 if ($isBrandOwnedPool) {
-    bandpromo_theme_ensure_seeded($root);
-    foreach (bandpromo_theme_registry_entries($root) as $brandEntry) {
+    bandpromo_brand_ensure_seeded($root);
+    foreach (bandpromo_brand_registry_entries($root) as $brandEntry) {
         if (!is_array($brandEntry)) {
             continue;
         }
@@ -624,7 +624,7 @@ if ($isBrandOwnedPool) {
             continue;
         }
         try {
-            $brandDocument = bandpromo_theme_load_document($root, $candidateId);
+            $brandDocument = bandpromo_brand_load_document($root, $candidateId);
         } catch (Throwable $throwable) {
             continue;
         }

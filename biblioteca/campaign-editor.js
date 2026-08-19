@@ -1,70 +1,70 @@
 (function () {
-    function initBandpromoReleaseEditor() {
-        const editorCard = document.getElementById('releaseEditorCard');
-        const poolView = document.getElementById('releasePoolView');
-        const tracksPoolView = document.getElementById('releaseTracksPoolView');
-        const poolList = document.getElementById('releasePoolList');
-        const availableEl = document.getElementById('releaseAvailableList');
-        const activeEl = document.getElementById('releaseActiveList');
-        const editorHint = document.getElementById('releaseEditorHint');
-        const backBtn = document.getElementById('releaseEditorBackBtn');
-        const toggleAddReleaseBtn = document.getElementById('toggleAddReleaseBtn');
-        const addReleasePanel = document.getElementById('addReleasePanel');
-        const addReleaseForm = document.getElementById('addReleaseForm');
-        const cancelAddReleaseBtn = document.getElementById('cancelAddReleaseBtn');
-        const releaseRegistryStatus = document.getElementById('releaseRegistryStatus');
-        const releaseDeleteModal = document.getElementById('releaseDeleteModal');
-        const releaseDeleteModalName = document.getElementById('releaseDeleteModalName');
-        const releaseDeleteConfirmBtn = document.getElementById('releaseDeleteConfirmBtn');
-        const releaseDeleteModePurge = document.getElementById('releaseDeleteModePurge');
-        const releaseDeleteModeContainer = document.getElementById('releaseDeleteModeContainer');
-        const releaseDeleteCancelBtn = document.getElementById('releaseDeleteCancelBtn');
-        const releaseSettingsTitle = document.getElementById('releaseSettingsTitle');
-        const releaseSettingsDate = document.getElementById('releaseSettingsDate');
-        const releaseSettingsCatalogId = document.getElementById('releaseSettingsCatalogId');
-        let releaseSettingsBrandId = document.getElementById('releaseSettingsBrandId');
-        const releaseSettingsStatus = document.getElementById('releaseSettingsStatus');
-        let releaseSettingsDescription = document.getElementById('releaseSettingsDescription');
-        const releaseSettingsShortDescription = document.getElementById('releaseSettingsShortDescription');
-        const releaseSettingsShortDescriptionCount = document.getElementById('releaseSettingsShortDescriptionCount');
-        const releaseSettingsPosterAssetId = document.getElementById('releaseSettingsPosterAssetId');
-        const releaseCoverPanel = document.getElementById('releaseCoverPanel');
-        const releaseBaseBrandPreview = document.getElementById('releaseBaseBrandPreview');
-        const releaseBaseBrandPreviewBody = document.getElementById('releaseBaseBrandPreviewBody');
-        const releaseLongDescriptionPreview = document.getElementById('releaseLongDescriptionPreview');
-        const releaseLongDescriptionPreviewBody = document.getElementById('releaseLongDescriptionPreviewBody');
-        const releaseCoverPreviewShell = document.getElementById('releaseCoverPreviewShell');
-        const releaseCoverPreview = document.getElementById('releaseCoverPreview');
-        const releaseCoverPlaceholder = document.getElementById('releaseCoverPlaceholder');
-        const releaseCoverClearBtn = document.getElementById('releaseCoverClearBtn');
-        const releaseCoverOverlayActions = document.getElementById('releaseCoverOverlayActions');
-        const releasePreviewTitle = document.getElementById('releasePreviewTitle');
-        const releasePreviewDate = document.getElementById('releasePreviewDate');
-        const releasePreviewSummary = document.getElementById('releasePreviewSummary');
-        const releaseEditorPreviewHeading = document.getElementById('releaseEditorPreviewHeading');
-        const releaseBrandingLivePreview = document.getElementById('releaseBrandingLivePreview');
-        const releaseBrandingPreview = document.getElementById('releaseBrandingPreview');
-        const releasePresskitLivePreview = document.getElementById('releasePresskitLivePreview');
-        const releaseEditorPresskitPreview = document.getElementById('releaseEditorPresskitPreview');
-        let releaseSettingsCredits = document.getElementById('releaseSettingsCredits');
-        let releaseSettingsPressContact = document.getElementById('releaseSettingsPressContact');
-        let releaseSettingsStreamBandpromo = document.getElementById('releaseSettingsStreamBandpromo');
-        let releaseSettingsStreamBandpromoLabel = document.getElementById('releaseSettingsStreamBandpromoLabel');
-        let releaseSettingsStreamSpotify = document.getElementById('releaseSettingsStreamSpotify');
-        let releaseSettingsStreamApple = document.getElementById('releaseSettingsStreamApple');
-        let releaseSettingsSocialImports = document.getElementById('releaseSettingsSocialImports');
-        let releaseSettingsPressPhotos = document.getElementById('releaseSettingsPressPhotos');
-        const releaseAvailableSection = document.getElementById('releaseAvailableSection');
-        const releaseAssociationActiveList = document.getElementById('releaseAssociationActiveList');
-        const releaseAssociationAvailableSection = document.getElementById('releaseAssociationAvailableSection');
-        const releaseAssociationAvailableList = document.getElementById('releaseAssociationAvailableList');
-        const releaseAssociationAvailableHeading = document.getElementById('releaseAssociationAvailableHeading');
+    function initBandpromoCampaignEditor() {
+        const editorCard = document.getElementById('campaignEditorCard');
+        const poolView = document.getElementById('campaignPoolView');
+        const tracksPoolView = document.getElementById('campaignTracksPoolView');
+        const poolList = document.getElementById('campaignPoolList');
+        const availableEl = document.getElementById('campaignAvailableList');
+        const activeEl = document.getElementById('campaignActiveList');
+        const editorHint = document.getElementById('campaignEditorHint');
+        const backBtn = document.getElementById('campaignEditorBackBtn');
+        const toggleAddCampaignBtn = document.getElementById('toggleAddCampaignBtn');
+        const addCampaignPanel = document.getElementById('addCampaignPanel');
+        const addCampaignForm = document.getElementById('addCampaignForm');
+        const cancelAddCampaignBtn = document.getElementById('cancelAddCampaignBtn');
+        const campaignRegistryStatus = document.getElementById('campaignRegistryStatus');
+        const campaignDeleteModal = document.getElementById('campaignDeleteModal');
+        const campaignDeleteModalName = document.getElementById('campaignDeleteModalName');
+        const campaignDeleteConfirmBtn = document.getElementById('campaignDeleteConfirmBtn');
+        const campaignDeleteModePurge = document.getElementById('campaignDeleteModePurge');
+        const campaignDeleteModeContainer = document.getElementById('campaignDeleteModeContainer');
+        const campaignDeleteCancelBtn = document.getElementById('campaignDeleteCancelBtn');
+        const campaignSettingsTitle = document.getElementById('campaignSettingsTitle');
+        const campaignSettingsDate = document.getElementById('campaignSettingsDate');
+        const campaignSettingsCatalogId = document.getElementById('campaignSettingsCatalogId');
+        let campaignSettingsBrandId = document.getElementById('campaignSettingsBrandId');
+        const campaignSettingsStatus = document.getElementById('campaignSettingsStatus');
+        let campaignSettingsDescription = document.getElementById('campaignSettingsDescription');
+        const campaignSettingsShortDescription = document.getElementById('campaignSettingsShortDescription');
+        const campaignSettingsShortDescriptionCount = document.getElementById('campaignSettingsShortDescriptionCount');
+        const campaignSettingsPosterAssetId = document.getElementById('campaignSettingsPosterAssetId');
+        const campaignCoverPanel = document.getElementById('campaignCoverPanel');
+        const campaignBaseBrandPreview = document.getElementById('campaignBaseBrandPreview');
+        const campaignBaseBrandPreviewBody = document.getElementById('campaignBaseBrandPreviewBody');
+        const campaignLongDescriptionPreview = document.getElementById('campaignLongDescriptionPreview');
+        const campaignLongDescriptionPreviewBody = document.getElementById('campaignLongDescriptionPreviewBody');
+        const campaignCoverPreviewShell = document.getElementById('campaignCoverPreviewShell');
+        const campaignCoverPreview = document.getElementById('campaignCoverPreview');
+        const campaignCoverPlaceholder = document.getElementById('campaignCoverPlaceholder');
+        const campaignCoverClearBtn = document.getElementById('campaignCoverClearBtn');
+        const campaignCoverOverlayActions = document.getElementById('campaignCoverOverlayActions');
+        const campaignPreviewTitle = document.getElementById('campaignPreviewTitle');
+        const campaignPreviewDate = document.getElementById('campaignPreviewDate');
+        const campaignPreviewSummary = document.getElementById('campaignPreviewSummary');
+        const campaignEditorPreviewHeading = document.getElementById('campaignEditorPreviewHeading');
+        const campaignBrandingLivePreview = document.getElementById('campaignBrandingLivePreview');
+        const campaignBrandingPreview = document.getElementById('campaignBrandingPreview');
+        const campaignPresskitLivePreview = document.getElementById('campaignPresskitLivePreview');
+        const campaignEditorPresskitPreview = document.getElementById('campaignEditorPresskitPreview');
+        let campaignSettingsCredits = document.getElementById('campaignSettingsCredits');
+        let campaignSettingsPressContact = document.getElementById('campaignSettingsPressContact');
+        let campaignSettingsStreamBandpromo = document.getElementById('campaignSettingsStreamBandpromo');
+        let campaignSettingsStreamBandpromoLabel = document.getElementById('campaignSettingsStreamBandpromoLabel');
+        let campaignSettingsStreamSpotify = document.getElementById('campaignSettingsStreamSpotify');
+        let campaignSettingsStreamApple = document.getElementById('campaignSettingsStreamApple');
+        let campaignSettingsSocialImports = document.getElementById('campaignSettingsSocialImports');
+        let campaignSettingsPressPhotos = document.getElementById('campaignSettingsPressPhotos');
+        const campaignAvailableSection = document.getElementById('campaignAvailableSection');
+        const campaignAssociationActiveList = document.getElementById('campaignAssociationActiveList');
+        const campaignAssociationAvailableSection = document.getElementById('campaignAssociationAvailableSection');
+        const campaignAssociationAvailableList = document.getElementById('campaignAssociationAvailableList');
+        const campaignAssociationAvailableHeading = document.getElementById('campaignAssociationAvailableHeading');
 
         if (!editorCard || !poolList || !availableEl || !activeEl) {
             return;
         }
 
-        const PROTECTED_RELEASE_IDS = new Set(['primary', 'bandpromo-demo']);
+        const PROTECTED_CAMPAIGN_IDS = new Set(['primary', 'bandpromo-demo']);
         const isLocalDevHost = window.BANDPROMO_LOCAL_DEV === true;
         const ASSOCIATION_KINDS = ['playlists', 'galleries', 'pages'];
         const ASSOCIATION_LABELS = {
@@ -85,7 +85,7 @@
             ? window.bandpromoAdminEscapeHtml
             : localEscapeHtml;
 
-        function showReleaseToast(message, type = 'warning') {
+        function showCampaignToast(message, type = 'warning') {
             const text = String(message || '').replace(/^❌\s*/, '').trim();
             if (!text) {
                 return;
@@ -136,19 +136,19 @@
             return data;
         }
 
-        let releases = [];
-        let selectedReleaseId = String(editorCard.dataset.initialRelease || 'primary');
-        let creatingPlaylistFromRelease = false;
+        let campaigns = [];
+        let selectedCampaignId = String(editorCard.dataset.initialCampaign || 'primary');
+        let creatingPlaylistFromCampaign = false;
         let isEditing = false;
-        let releaseEditorTab = 'base';
-        let releaseBrandingPreviewToken = 0;
-        let releaseBaseBrandPreviewToken = 0;
-        let releaseBrandCatalog = [];
-        let trackEditorLoadedReleaseId = '';
-        let pendingReleaseDeleteId = '';
-        let releaseSettingsSaving = false;
-        let releaseSettingsSaveQueued = false;
-        let pendingReleaseCoverPreviewUrl = '';
+        let campaignEditorTab = 'base';
+        let campaignBrandingPreviewToken = 0;
+        let campaignBaseBrandPreviewToken = 0;
+        let campaignBrandCatalog = [];
+        let trackEditorLoadedCampaignId = '';
+        let pendingCampaignDeleteId = '';
+        let campaignSettingsSaving = false;
+        let campaignSettingsSaveQueued = false;
+        let pendingCampaignCoverPreviewUrl = '';
         let siteSharing = {
             siteName: 'bandPromo',
             siteUrl: '',
@@ -326,17 +326,17 @@
             return '';
         }
 
-        function releaseCoverPreviewUrl(value, entry = null) {
+        function campaignCoverPreviewUrl(value, entry = null) {
             const raw = String(value || '').trim();
             if (!raw) {
-                return pendingReleaseCoverPreviewUrl || '';
+                return pendingCampaignCoverPreviewUrl || '';
             }
 
-            if (pendingReleaseCoverPreviewUrl) {
-                const pendingBase = pendingReleaseCoverPreviewUrl.split('?')[0];
+            if (pendingCampaignCoverPreviewUrl) {
+                const pendingBase = pendingCampaignCoverPreviewUrl.split('?')[0];
                 const rawBase = mediaPreviewUrlFromReference(raw).split('?')[0];
                 if (!rawBase || pendingBase.endsWith(raw.split('/').pop() || '') || rawBase === pendingBase) {
-                    return pendingReleaseCoverPreviewUrl;
+                    return pendingCampaignCoverPreviewUrl;
                 }
             }
 
@@ -351,7 +351,7 @@
                 return entryRef;
             }
 
-            const cached = releaseEntry(selectedReleaseId);
+            const cached = campaignEntry(selectedCampaignId);
             if (cached && String(cached.poster_asset_id || '').trim() === raw) {
                 const cachedUrl = String(cached.poster_preview_url || '').trim();
                 if (cachedUrl) {
@@ -362,44 +362,44 @@
             return mediaPreviewUrlFromReference(raw);
         }
 
-        function updateReleaseCoverPreview() {
-            const entry = releaseEntry(selectedReleaseId);
-            const rawValue = releaseSettingsPosterAssetId instanceof HTMLInputElement
-                ? String(releaseSettingsPosterAssetId.value || '').trim()
+        function updateCampaignCoverPreview() {
+            const entry = campaignEntry(selectedCampaignId);
+            const rawValue = campaignSettingsPosterAssetId instanceof HTMLInputElement
+                ? String(campaignSettingsPosterAssetId.value || '').trim()
                 : '';
-            const previewUrl = releaseCoverPreviewUrl(rawValue, entry);
+            const previewUrl = campaignCoverPreviewUrl(rawValue, entry);
 
-            if (releaseCoverPreview instanceof HTMLImageElement) {
+            if (campaignCoverPreview instanceof HTMLImageElement) {
                 if (previewUrl) {
-                    if (releaseCoverPreview.getAttribute('src') !== previewUrl) {
-                        releaseCoverPreview.src = previewUrl;
+                    if (campaignCoverPreview.getAttribute('src') !== previewUrl) {
+                        campaignCoverPreview.src = previewUrl;
                     }
-                    releaseCoverPreview.style.display = 'block';
+                    campaignCoverPreview.style.display = 'block';
                 } else {
-                    releaseCoverPreview.removeAttribute('src');
-                    releaseCoverPreview.style.display = 'none';
+                    campaignCoverPreview.removeAttribute('src');
+                    campaignCoverPreview.style.display = 'none';
                 }
             }
-            if (releaseCoverPlaceholder) {
-                releaseCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
+            if (campaignCoverPlaceholder) {
+                campaignCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
             }
-            if (releaseCoverPreviewShell instanceof HTMLElement) {
-                releaseCoverPreviewShell.title = previewUrl ? 'Campaign cover' : 'No cover selected';
+            if (campaignCoverPreviewShell instanceof HTMLElement) {
+                campaignCoverPreviewShell.title = previewUrl ? 'Campaign cover' : 'No cover selected';
             }
-            updateReleasePosterLabel();
+            updateCampaignPosterLabel();
         }
 
-        function setReleaseCoverValue(value) {
-            if (!(releaseSettingsPosterAssetId instanceof HTMLInputElement)) {
+        function setCampaignCoverValue(value) {
+            if (!(campaignSettingsPosterAssetId instanceof HTMLInputElement)) {
                 return;
             }
             const next = String(value || '').trim();
-            pendingReleaseCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
-            releaseSettingsPosterAssetId.value = next;
-            releaseSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
+            pendingCampaignCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
+            campaignSettingsPosterAssetId.value = next;
+            campaignSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
-        function releaseTrackCount(entry) {
+        function campaignTrackCount(entry) {
             if (!entry) {
                 return 0;
             }
@@ -423,39 +423,39 @@
             };
         }
 
-        function updateReleaseCreatePlaylistButton() {
-            const button = document.getElementById('releaseCreatePlaylistBtn');
+        function updateCampaignCreatePlaylistButton() {
+            const button = document.getElementById('campaignCreatePlaylistBtn');
             if (!(button instanceof HTMLButtonElement)) {
                 return;
             }
-            const entry = releaseEntry(selectedReleaseId);
-            const hasTracks = releaseTrackCount(entry) > 0;
-            button.disabled = !entry || !hasTracks || creatingPlaylistFromRelease;
-            button.textContent = creatingPlaylistFromRelease
+            const entry = campaignEntry(selectedCampaignId);
+            const hasTracks = campaignTrackCount(entry) > 0;
+            button.disabled = !entry || !hasTracks || creatingPlaylistFromCampaign;
+            button.textContent = creatingPlaylistFromCampaign
                 ? 'Creating playlist…'
                 : 'Create playlist from campaign';
         }
 
-        function hydrateLazyReleaseControls() {
-            releaseSettingsBrandId = document.getElementById('releaseSettingsBrandId');
-            releaseSettingsDescription = document.getElementById('releaseSettingsDescription');
-            releaseSettingsCredits = document.getElementById('releaseSettingsCredits');
-            releaseSettingsPressContact = document.getElementById('releaseSettingsPressContact');
-            releaseSettingsStreamBandpromo = document.getElementById('releaseSettingsStreamBandpromo');
-            releaseSettingsStreamBandpromoLabel = document.getElementById('releaseSettingsStreamBandpromoLabel');
-            releaseSettingsStreamSpotify = document.getElementById('releaseSettingsStreamSpotify');
-            releaseSettingsStreamApple = document.getElementById('releaseSettingsStreamApple');
-            releaseSettingsSocialImports = document.getElementById('releaseSettingsSocialImports');
-            releaseSettingsPressPhotos = document.getElementById('releaseSettingsPressPhotos');
+        function hydrateLazyCampaignControls() {
+            campaignSettingsBrandId = document.getElementById('campaignSettingsBrandId');
+            campaignSettingsDescription = document.getElementById('campaignSettingsDescription');
+            campaignSettingsCredits = document.getElementById('campaignSettingsCredits');
+            campaignSettingsPressContact = document.getElementById('campaignSettingsPressContact');
+            campaignSettingsStreamBandpromo = document.getElementById('campaignSettingsStreamBandpromo');
+            campaignSettingsStreamBandpromoLabel = document.getElementById('campaignSettingsStreamBandpromoLabel');
+            campaignSettingsStreamSpotify = document.getElementById('campaignSettingsStreamSpotify');
+            campaignSettingsStreamApple = document.getElementById('campaignSettingsStreamApple');
+            campaignSettingsSocialImports = document.getElementById('campaignSettingsSocialImports');
+            campaignSettingsPressPhotos = document.getElementById('campaignSettingsPressPhotos');
         }
 
-        function populateReleaseBrandSelect() {
-            if (!(releaseSettingsBrandId instanceof HTMLSelectElement)) {
+        function populateCampaignBrandSelect() {
+            if (!(campaignSettingsBrandId instanceof HTMLSelectElement)) {
                 return;
             }
-            const selected = String(releaseSettingsBrandId.value || releaseEntry(selectedReleaseId)?.brand_id || '');
-            releaseSettingsBrandId.innerHTML = '<option value="">Base brand</option>';
-            releaseBrandCatalog.forEach((brand) => {
+            const selected = String(campaignSettingsBrandId.value || campaignEntry(selectedCampaignId)?.brand_id || '');
+            campaignSettingsBrandId.innerHTML = '<option value="">Base brand</option>';
+            campaignBrandCatalog.forEach((brand) => {
                 const id = String(brand?.id || '').trim();
                 if (!id) {
                     return;
@@ -463,24 +463,24 @@
                 const option = document.createElement('option');
                 option.value = id === 'setup-default' ? 'bandpromo-default' : id;
                 option.textContent = String(brand?.title || id);
-                releaseSettingsBrandId.appendChild(option);
+                campaignSettingsBrandId.appendChild(option);
             });
-            releaseSettingsBrandId.value = selected;
+            campaignSettingsBrandId.value = selected;
         }
 
-        function bindLazyReleaseEditorControls(section) {
+        function bindLazyCampaignEditorControls(section) {
             if (section === 'branding') {
-                if (!(releaseSettingsBrandId instanceof HTMLSelectElement)
-                    || releaseSettingsBrandId.dataset.releaseLazyBound === 'true'
+                if (!(campaignSettingsBrandId instanceof HTMLSelectElement)
+                    || campaignSettingsBrandId.dataset.campaignLazyBound === 'true'
                 ) {
                     return;
                 }
-                releaseSettingsBrandId.addEventListener('change', () => {
-                    refreshReleaseBrandingLivePreview();
-                    refreshReleaseBaseBrandPreview();
-                    saveReleaseSettings();
+                campaignSettingsBrandId.addEventListener('change', () => {
+                    refreshCampaignBrandingLivePreview();
+                    refreshCampaignBaseBrandPreview();
+                    saveCampaignSettings();
                 });
-                releaseSettingsBrandId.dataset.releaseLazyBound = 'true';
+                campaignSettingsBrandId.dataset.campaignLazyBound = 'true';
                 return;
             }
 
@@ -488,36 +488,36 @@
                 return;
             }
             [
-                releaseSettingsDescription,
-                releaseSettingsCredits,
-                releaseSettingsPressContact,
-                releaseSettingsStreamBandpromo,
-                releaseSettingsStreamSpotify,
-                releaseSettingsStreamApple,
-                releaseSettingsPressPhotos,
+                campaignSettingsDescription,
+                campaignSettingsCredits,
+                campaignSettingsPressContact,
+                campaignSettingsStreamBandpromo,
+                campaignSettingsStreamSpotify,
+                campaignSettingsStreamApple,
+                campaignSettingsPressPhotos,
             ].forEach((control) => {
                 if (!(control instanceof HTMLElement)
-                    || control.dataset.releaseLazyBound === 'true'
+                    || control.dataset.campaignLazyBound === 'true'
                 ) {
                     return;
                 }
                 control.addEventListener('input', () => {
-                    renderReleaseEditorPresskitPreview();
+                    renderCampaignEditorPresskitPreview();
                 });
                 control.addEventListener('blur', () => {
-                    saveReleaseSettings();
+                    saveCampaignSettings();
                 });
-                control.dataset.releaseLazyBound = 'true';
+                control.dataset.campaignLazyBound = 'true';
             });
         }
 
-        async function ensureReleaseEditorSection(section) {
+        async function ensureCampaignEditorSection(section) {
             if (section !== 'branding' && section !== 'presskit') {
                 return;
             }
-            const panel = document.querySelector(`[data-release-editor-panel="${section}"]`);
+            const panel = document.querySelector(`[data-campaign-editor-panel="${section}"]`);
             const template = document.getElementById(
-                section === 'branding' ? 'releaseBrandingEditorTemplate' : 'releasePresskitEditorTemplate'
+                section === 'branding' ? 'campaignBrandingEditorTemplate' : 'campaignPresskitEditorTemplate'
             );
             if (!(panel instanceof HTMLElement) || !(template instanceof HTMLTemplateElement)) {
                 return;
@@ -527,84 +527,84 @@
                 panel.dataset.loaded = 'true';
             }
 
-            hydrateLazyReleaseControls();
+            hydrateLazyCampaignControls();
             if (section === 'branding') {
-                populateReleaseBrandSelect();
+                populateCampaignBrandSelect();
             }
-            bindLazyReleaseEditorControls(section);
-            syncReleaseSettingsPanel(selectedReleaseId);
+            bindLazyCampaignEditorControls(section);
+            syncCampaignSettingsPanel(selectedCampaignId);
 
             if (section === 'presskit') {
                 try {
-                    const releaseId = String(selectedReleaseId || '').trim();
+                    const campaignId = String(selectedCampaignId || '').trim();
                     const data = await fetchJson(
-                        `/biblioteca/get-release-preview-section.php?release=${encodeURIComponent(releaseId)}&section=presskit`,
+                        `/biblioteca/get-campaign-preview-section.php?campaign=${encodeURIComponent(campaignId)}&section=presskit`,
                         { cache: 'no-store' }
                     );
-                    const entry = releaseEntry(releaseId);
+                    const entry = campaignEntry(campaignId);
                     const presskit = data.data && typeof data.data === 'object' ? data.data : {};
                     if (entry) {
                         entry.short_description = String(presskit.short_description || '');
                         entry.description = String(presskit.description || '');
                         entry.epk = presskit.epk && typeof presskit.epk === 'object'
                             ? presskit.epk
-                            : defaultReleaseEpk();
+                            : defaultCampaignEpk();
                     }
                 } catch (error) {
-                    showReleaseToast(error.message || 'Could not refresh Press kit editor.', 'error');
+                    showCampaignToast(error.message || 'Could not refresh Press kit editor.', 'error');
                 }
             }
 
-            syncReleaseSettingsPanel(selectedReleaseId);
+            syncCampaignSettingsPanel(selectedCampaignId);
             if (section === 'branding') {
-                refreshReleaseBrandingLivePreview();
+                refreshCampaignBrandingLivePreview();
             } else {
-                renderReleaseEditorPresskitPreview();
+                renderCampaignEditorPresskitPreview();
             }
         }
 
-        function setReleaseEditorTab(tabId) {
+        function setCampaignEditorTab(tabId) {
             const next = String(tabId || 'base').trim() || 'base';
             const allowed = new Set(['base', 'tracks', 'playlists', 'galleries', 'pages']);
-            releaseEditorTab = allowed.has(next) ? next : 'base';
-            editorCard.setAttribute('data-release-editor-section', releaseEditorTab);
+            campaignEditorTab = allowed.has(next) ? next : 'base';
+            editorCard.setAttribute('data-campaign-editor-section', campaignEditorTab);
 
-            document.querySelectorAll('[data-release-editor-tab]').forEach((button) => {
-                const active = String(button.getAttribute('data-release-editor-tab') || '') === releaseEditorTab;
+            document.querySelectorAll('[data-campaign-editor-tab]').forEach((button) => {
+                const active = String(button.getAttribute('data-campaign-editor-tab') || '') === campaignEditorTab;
                 button.classList.toggle('is-active', active);
                 button.setAttribute('aria-selected', active ? 'true' : 'false');
             });
-            document.querySelectorAll('[data-release-editor-panel]').forEach((panel) => {
-                const active = String(panel.getAttribute('data-release-editor-panel') || '') === releaseEditorTab;
+            document.querySelectorAll('[data-campaign-editor-panel]').forEach((panel) => {
+                const active = String(panel.getAttribute('data-campaign-editor-panel') || '') === campaignEditorTab;
                 panel.classList.toggle('is-active', active);
                 panel.hidden = !active;
             });
-            syncReleaseEditorMode();
-            if (releaseEditorTab === 'tracks'
+            syncCampaignEditorMode();
+            if (campaignEditorTab === 'tracks'
                 && isEditing
-                && trackEditorLoadedReleaseId !== selectedReleaseId
+                && trackEditorLoadedCampaignId !== selectedCampaignId
             ) {
-                loadReleasePreview();
+                loadCampaignPreview();
             }
-            if (ASSOCIATION_KINDS.includes(releaseEditorTab) && isEditing) {
-                ensureAssociationEditorLoaded(releaseEditorTab);
+            if (ASSOCIATION_KINDS.includes(campaignEditorTab) && isEditing) {
+                ensureAssociationEditorLoaded(campaignEditorTab);
             }
-            if (releaseEditorTab === 'base' && isEditing) {
-                window.requestAnimationFrame(() => autofitReleaseDescriptionField());
+            if (campaignEditorTab === 'base' && isEditing) {
+                window.requestAnimationFrame(() => autofitCampaignDescriptionField());
             }
         }
 
-        function renderReleaseEditorPresskitPreview() {
-            if (!releaseEditorPresskitPreview) {
+        function renderCampaignEditorPresskitPreview() {
+            if (!campaignEditorPresskitPreview) {
                 return;
             }
-            const entry = releaseEntry(selectedReleaseId);
+            const entry = campaignEntry(selectedCampaignId);
             if (!entry) {
-                releaseEditorPresskitPreview.innerHTML = '<p class="release-preview-empty">No campaign selected.</p>';
+                campaignEditorPresskitPreview.innerHTML = '<p class="campaign-preview-empty">No campaign selected.</p>';
                 return;
             }
-            const metadata = readReleaseMetadataFromForm();
-            releaseEditorPresskitPreview.innerHTML = renderReleasePreviewPressKit({
+            const metadata = readCampaignMetadataFromForm();
+            campaignEditorPresskitPreview.innerHTML = renderCampaignPreviewPressKit({
                 ...entry,
                 short_description: metadata.short_description,
                 description: metadata.description,
@@ -612,96 +612,96 @@
             });
         }
 
-        async function refreshReleaseBrandingLivePreview() {
-            if (!isEditing || releaseEditorTab !== 'branding' || !releaseBrandingPreview) {
+        async function refreshCampaignBrandingLivePreview() {
+            if (!isEditing || campaignEditorTab !== 'branding' || !campaignBrandingPreview) {
                 return;
             }
-            const brandId = releaseSettingsBrandId instanceof HTMLSelectElement
-                ? String(releaseSettingsBrandId.value || '').trim()
+            const brandId = campaignSettingsBrandId instanceof HTMLSelectElement
+                ? String(campaignSettingsBrandId.value || '').trim()
                 : '';
-            const token = ++releaseBrandingPreviewToken;
-            releaseBrandingPreview.innerHTML = '<p class="theme-editor-empty">Loading brand preview…</p>';
+            const token = ++campaignBrandingPreviewToken;
+            campaignBrandingPreview.innerHTML = '<p class="theme-editor-empty">Loading brand preview…</p>';
 
             try {
                 const url = brandId
                     ? `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`
                     : '/biblioteca/get-theme.php';
                 const data = await fetchJson(url, { cache: 'no-store' });
-                if (token !== releaseBrandingPreviewToken
-                    || releaseEditorTab !== 'branding'
+                if (token !== campaignBrandingPreviewToken
+                    || campaignEditorTab !== 'branding'
                     || !isEditing
                 ) {
                     return;
                 }
                 if (window.bandpromoThemePreview?.render) {
-                    window.bandpromoThemePreview.render(releaseBrandingPreview, data.document || null, {
-                        styleId: 'bandpromo-release-brand-preview-style',
-                        selector: '#releaseBrandingPreview .theme-preview-shell-chrome',
+                    window.bandpromoThemePreview.render(campaignBrandingPreview, data.document || null, {
+                        styleId: 'bandpromo-campaign-brand-preview-style',
+                        selector: '#campaignBrandingPreview .theme-preview-shell-chrome',
                     });
                 } else {
-                    releaseBrandingPreview.innerHTML = '<p class="theme-editor-empty">Brand preview is unavailable.</p>';
+                    campaignBrandingPreview.innerHTML = '<p class="theme-editor-empty">Brand preview is unavailable.</p>';
                 }
             } catch (error) {
-                if (token !== releaseBrandingPreviewToken) {
+                if (token !== campaignBrandingPreviewToken) {
                     return;
                 }
-                releaseBrandingPreview.innerHTML = `<p class="theme-editor-empty text-error">${escapeHtml(error.message || 'Could not load brand preview.')}</p>`;
+                campaignBrandingPreview.innerHTML = `<p class="theme-editor-empty text-error">${escapeHtml(error.message || 'Could not load brand preview.')}</p>`;
             }
         }
 
-        function syncReleaseEditorMode() {
+        function syncCampaignEditorMode() {
             if (!isEditing) {
-                if (releaseBrandingLivePreview) {
-                    releaseBrandingLivePreview.hidden = true;
+                if (campaignBrandingLivePreview) {
+                    campaignBrandingLivePreview.hidden = true;
                 }
-                if (releasePresskitLivePreview) {
-                    releasePresskitLivePreview.hidden = true;
+                if (campaignPresskitLivePreview) {
+                    campaignPresskitLivePreview.hidden = true;
                 }
-                if (releaseEditorPreviewHeading) {
-                    releaseEditorPreviewHeading.textContent = 'Preview';
+                if (campaignEditorPreviewHeading) {
+                    campaignEditorPreviewHeading.textContent = 'Preview';
                 }
-                if (releaseAssociationActiveList) {
-                    releaseAssociationActiveList.hidden = true;
+                if (campaignAssociationActiveList) {
+                    campaignAssociationActiveList.hidden = true;
                 }
-                if (releaseAssociationAvailableSection) {
-                    releaseAssociationAvailableSection.hidden = true;
+                if (campaignAssociationAvailableSection) {
+                    campaignAssociationAvailableSection.hidden = true;
                 }
                 return;
             }
-            const baseActive = releaseEditorTab === 'base';
-            const tracksActive = releaseEditorTab === 'tracks';
-            const associationActive = ASSOCIATION_KINDS.includes(releaseEditorTab);
-            const entry = releaseEntry(selectedReleaseId);
+            const baseActive = campaignEditorTab === 'base';
+            const tracksActive = campaignEditorTab === 'tracks';
+            const associationActive = ASSOCIATION_KINDS.includes(campaignEditorTab);
+            const entry = campaignEntry(selectedCampaignId);
 
-            if (releaseCoverPanel) {
-                releaseCoverPanel.hidden = !baseActive || !entry;
+            if (campaignCoverPanel) {
+                campaignCoverPanel.hidden = !baseActive || !entry;
             }
             if (activeEl) {
                 activeEl.hidden = !tracksActive;
             }
-            if (releaseAvailableSection) {
-                releaseAvailableSection.hidden = !tracksActive;
+            if (campaignAvailableSection) {
+                campaignAvailableSection.hidden = !tracksActive;
             }
-            if (releaseAssociationActiveList) {
-                releaseAssociationActiveList.hidden = !associationActive;
+            if (campaignAssociationActiveList) {
+                campaignAssociationActiveList.hidden = !associationActive;
             }
-            if (releaseAssociationAvailableSection) {
-                releaseAssociationAvailableSection.hidden = !associationActive;
+            if (campaignAssociationAvailableSection) {
+                campaignAssociationAvailableSection.hidden = !associationActive;
             }
             if (associationActive) {
-                const labels = ASSOCIATION_LABELS[releaseEditorTab];
-                if (releaseAssociationAvailableHeading && labels) {
-                    releaseAssociationAvailableHeading.textContent = labels.available;
+                const labels = ASSOCIATION_LABELS[campaignEditorTab];
+                if (campaignAssociationAvailableHeading && labels) {
+                    campaignAssociationAvailableHeading.textContent = labels.available;
                 }
-                if (releaseAssociationAvailableList && labels) {
-                    releaseAssociationAvailableList.setAttribute('aria-label', labels.available);
+                if (campaignAssociationAvailableList && labels) {
+                    campaignAssociationAvailableList.setAttribute('aria-label', labels.available);
                 }
-                if (releaseAssociationActiveList && labels) {
-                    releaseAssociationActiveList.setAttribute('aria-label', labels.associated);
+                if (campaignAssociationActiveList && labels) {
+                    campaignAssociationActiveList.setAttribute('aria-label', labels.associated);
                 }
                 renderAssociationLists();
             }
-            if (releaseEditorPreviewHeading) {
+            if (campaignEditorPreviewHeading) {
                 const headings = {
                     base: 'Campaign preview',
                     tracks: 'Associated tracks',
@@ -709,80 +709,80 @@
                     galleries: 'Associated galleries',
                     pages: 'Associated pages',
                 };
-                releaseEditorPreviewHeading.textContent = headings[releaseEditorTab] || 'Preview';
+                campaignEditorPreviewHeading.textContent = headings[campaignEditorTab] || 'Preview';
             }
-            refreshReleaseBaseBrandPreview();
-            refreshReleaseLongDescriptionPreview();
+            refreshCampaignBaseBrandPreview();
+            refreshCampaignLongDescriptionPreview();
         }
 
-        function renderReleasePreviewMeta(entry) {
+        function renderCampaignPreviewMeta(entry) {
             const title = String(entry?.title || 'Campaign').trim() || 'Campaign';
             const date = String(entry?.release_date || '').trim();
             const summary = String(entry?.short_description || '').trim();
-            if (releasePreviewTitle) {
-                releasePreviewTitle.textContent = title;
+            if (campaignPreviewTitle) {
+                campaignPreviewTitle.textContent = title;
             }
-            if (releasePreviewDate) {
-                releasePreviewDate.textContent = date;
-                releasePreviewDate.hidden = date === '';
+            if (campaignPreviewDate) {
+                campaignPreviewDate.textContent = date;
+                campaignPreviewDate.hidden = date === '';
             }
-            if (releasePreviewSummary) {
-                releasePreviewSummary.textContent = summary;
-                releasePreviewSummary.hidden = summary === '';
+            if (campaignPreviewSummary) {
+                campaignPreviewSummary.textContent = summary;
+                campaignPreviewSummary.hidden = summary === '';
             }
         }
 
-        function updateReleaseBasePreviewFromForm() {
-            if (!isEditing || releaseEditorTab !== 'base') {
+        function updateCampaignBasePreviewFromForm() {
+            if (!isEditing || campaignEditorTab !== 'base') {
                 return;
             }
-            const title = releaseSettingsTitle instanceof HTMLInputElement
-                ? String(releaseSettingsTitle.value || '').trim()
+            const title = campaignSettingsTitle instanceof HTMLInputElement
+                ? String(campaignSettingsTitle.value || '').trim()
                 : '';
-            const date = releaseSettingsDate instanceof HTMLInputElement
-                ? String(releaseSettingsDate.value || '').trim()
+            const date = campaignSettingsDate instanceof HTMLInputElement
+                ? String(campaignSettingsDate.value || '').trim()
                 : '';
-            const blurb = releaseSettingsShortDescription instanceof HTMLTextAreaElement
-                ? String(releaseSettingsShortDescription.value || '').trim()
+            const blurb = campaignSettingsShortDescription instanceof HTMLTextAreaElement
+                ? String(campaignSettingsShortDescription.value || '').trim()
                 : '';
 
-            if (releasePreviewTitle) {
-                releasePreviewTitle.textContent = title || 'Campaign';
+            if (campaignPreviewTitle) {
+                campaignPreviewTitle.textContent = title || 'Campaign';
             }
-            if (releasePreviewDate) {
-                releasePreviewDate.textContent = date;
-                releasePreviewDate.hidden = date === '';
+            if (campaignPreviewDate) {
+                campaignPreviewDate.textContent = date;
+                campaignPreviewDate.hidden = date === '';
             }
-            if (releasePreviewSummary) {
-                releasePreviewSummary.textContent = blurb;
-                releasePreviewSummary.hidden = blurb === '';
+            if (campaignPreviewSummary) {
+                campaignPreviewSummary.textContent = blurb;
+                campaignPreviewSummary.hidden = blurb === '';
             }
-            refreshReleaseLongDescriptionPreview();
+            refreshCampaignLongDescriptionPreview();
         }
 
-        function currentLongDescriptionMarkdown(entry = releaseEntry(selectedReleaseId)) {
-            if (isEditing && releaseSettingsDescription instanceof HTMLTextAreaElement) {
-                return String(releaseSettingsDescription.value || '').trim();
+        function currentLongDescriptionMarkdown(entry = campaignEntry(selectedCampaignId)) {
+            if (isEditing && campaignSettingsDescription instanceof HTMLTextAreaElement) {
+                return String(campaignSettingsDescription.value || '').trim();
             }
             return String(entry?.description || '').trim();
         }
 
-        function refreshReleaseLongDescriptionPreview() {
-            if (!releaseLongDescriptionPreview || !releaseLongDescriptionPreviewBody) {
+        function refreshCampaignLongDescriptionPreview() {
+            if (!campaignLongDescriptionPreview || !campaignLongDescriptionPreviewBody) {
                 return;
             }
-            const coverVisible = !!(releaseCoverPanel && !releaseCoverPanel.hidden);
-            const showUnderPreview = coverVisible && (!isEditing || releaseEditorTab === 'base');
+            const coverVisible = !!(campaignCoverPanel && !campaignCoverPanel.hidden);
+            const showUnderPreview = coverVisible && (!isEditing || campaignEditorTab === 'base');
             if (!showUnderPreview) {
-                releaseLongDescriptionPreview.hidden = true;
-                releaseLongDescriptionPreviewBody.innerHTML = '';
+                campaignLongDescriptionPreview.hidden = true;
+                campaignLongDescriptionPreviewBody.innerHTML = '';
                 return;
             }
 
             const markdown = currentLongDescriptionMarkdown();
-            releaseLongDescriptionPreview.hidden = false;
+            campaignLongDescriptionPreview.hidden = false;
             if (!markdown) {
-                releaseLongDescriptionPreviewBody.innerHTML = '<p class="release-preview-empty">No long description yet.</p>';
+                campaignLongDescriptionPreviewBody.innerHTML = '<p class="campaign-preview-empty">No long description yet.</p>';
                 return;
             }
 
@@ -790,19 +790,19 @@
                 ? window.bandpromoPlayerMarkdown.render(markdown)
                 : '';
             if (rendered) {
-                releaseLongDescriptionPreviewBody.innerHTML = rendered;
+                campaignLongDescriptionPreviewBody.innerHTML = rendered;
                 return;
             }
 
-            releaseLongDescriptionPreviewBody.innerHTML = `<p>${escapeHtml(markdown).replace(/\n/g, '<br>')}</p>`;
+            campaignLongDescriptionPreviewBody.innerHTML = `<p>${escapeHtml(markdown).replace(/\n/g, '<br>')}</p>`;
         }
 
-        function renderReleasePreviewBranding(entry) {
+        function renderCampaignPreviewBranding(entry) {
             const children = ownershipChildren(entry);
             const brand = children.brand;
             const brandId = String(children.brand_id || brand?.id || '').trim();
             if (!brandId) {
-                return '<p class="release-preview-empty">No brand linked to this campaign yet.</p>';
+                return '<p class="campaign-preview-empty">No brand linked to this campaign yet.</p>';
             }
             const title = String(brand?.title || brandId).trim() || brandId;
             const mood = String(brand?.mood || '').trim();
@@ -815,7 +815,7 @@
                     if (!color) {
                         return '';
                     }
-                    return `<span class="release-preview-swatch" title="${escapeHtml(key)}" style="background:${escapeHtml(color)}"></span>`;
+                    return `<span class="campaign-preview-swatch" title="${escapeHtml(key)}" style="background:${escapeHtml(color)}"></span>`;
                 })
                 .filter(Boolean)
                 .join('');
@@ -823,14 +823,14 @@
                 ? ` style="background-image:url('${escapeHtml(background)}')"`
                 : '';
             const logoHtml = logo
-                ? `<img class="release-preview-brand-logo" src="${escapeHtml(logo)}" alt="">`
-                : '<span class="release-preview-empty">No logo assigned</span>';
-            return `<div class="release-preview-brand">
-                <div class="release-preview-brand-shell"${shellStyle}>${logoHtml}</div>
-                <div class="release-preview-brand-copy">
-                    <h5 class="release-preview-brand-title">${escapeHtml(title)}</h5>
-                    ${mood ? `<p class="release-preview-brand-mood">${escapeHtml(mood)}</p>` : ''}
-                    ${swatches ? `<div class="release-preview-swatches">${swatches}</div>` : ''}
+                ? `<img class="campaign-preview-brand-logo" src="${escapeHtml(logo)}" alt="">`
+                : '<span class="campaign-preview-empty">No logo assigned</span>';
+            return `<div class="campaign-preview-brand">
+                <div class="campaign-preview-brand-shell"${shellStyle}>${logoHtml}</div>
+                <div class="campaign-preview-brand-copy">
+                    <h5 class="campaign-preview-brand-title">${escapeHtml(title)}</h5>
+                    ${mood ? `<p class="campaign-preview-brand-mood">${escapeHtml(mood)}</p>` : ''}
+                    ${swatches ? `<div class="campaign-preview-swatches">${swatches}</div>` : ''}
                 </div>
             </div>`;
         }
@@ -861,59 +861,59 @@
             };
         }
 
-        function currentBaseBrandId(entry = releaseEntry(selectedReleaseId)) {
-            if (isEditing && releaseSettingsBrandId instanceof HTMLSelectElement) {
-                return String(releaseSettingsBrandId.value || '').trim();
+        function currentBaseBrandId(entry = campaignEntry(selectedCampaignId)) {
+            if (isEditing && campaignSettingsBrandId instanceof HTMLSelectElement) {
+                return String(campaignSettingsBrandId.value || '').trim();
             }
             const children = ownershipChildren(entry);
             return String(children.brand_id || entry?.brand_id || '').trim();
         }
 
-        async function refreshReleaseBaseBrandPreview() {
-            if (!releaseBaseBrandPreview || !releaseBaseBrandPreviewBody) {
+        async function refreshCampaignBaseBrandPreview() {
+            if (!campaignBaseBrandPreview || !campaignBaseBrandPreviewBody) {
                 return;
             }
-            const coverVisible = !!(releaseCoverPanel && !releaseCoverPanel.hidden);
-            const showUnderPreview = coverVisible && (!isEditing || releaseEditorTab === 'base');
+            const coverVisible = !!(campaignCoverPanel && !campaignCoverPanel.hidden);
+            const showUnderPreview = coverVisible && (!isEditing || campaignEditorTab === 'base');
             if (!showUnderPreview) {
-                releaseBaseBrandPreview.hidden = true;
-                releaseBaseBrandPreviewBody.innerHTML = '';
+                campaignBaseBrandPreview.hidden = true;
+                campaignBaseBrandPreviewBody.innerHTML = '';
                 return;
             }
 
-            const entry = releaseEntry(selectedReleaseId);
+            const entry = campaignEntry(selectedCampaignId);
             const brandId = currentBaseBrandId(entry);
             const children = ownershipChildren(entry);
-            const token = ++releaseBaseBrandPreviewToken;
-            releaseBaseBrandPreview.hidden = false;
+            const token = ++campaignBaseBrandPreviewToken;
+            campaignBaseBrandPreview.hidden = false;
 
             if (brandId && children.brand && String(children.brand_id || children.brand.id || '') === brandId) {
-                releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding(entry);
+                campaignBaseBrandPreviewBody.innerHTML = renderCampaignPreviewBranding(entry);
                 return;
             }
 
             if (!brandId && children.brand && !isEditing) {
-                releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding(entry);
+                campaignBaseBrandPreviewBody.innerHTML = renderCampaignPreviewBranding(entry);
                 return;
             }
 
-            releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">Loading brand preview…</p>';
+            campaignBaseBrandPreviewBody.innerHTML = '<p class="campaign-preview-empty">Loading brand preview…</p>';
             try {
                 if (!brandId) {
-                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this campaign yet.</p>';
+                    campaignBaseBrandPreviewBody.innerHTML = '<p class="campaign-preview-empty">No brand linked to this campaign yet.</p>';
                     return;
                 }
                 const url = `/biblioteca/get-theme.php?theme=${encodeURIComponent(brandId)}`;
                 const data = await fetchJson(url, { cache: 'no-store' });
-                if (token !== releaseBaseBrandPreviewToken) {
+                if (token !== campaignBaseBrandPreviewToken) {
                     return;
                 }
                 const brand = brandPreviewModelFromThemeDocument(data.document || null);
                 if (!brand) {
-                    releaseBaseBrandPreviewBody.innerHTML = '<p class="release-preview-empty">No brand linked to this campaign yet.</p>';
+                    campaignBaseBrandPreviewBody.innerHTML = '<p class="campaign-preview-empty">No brand linked to this campaign yet.</p>';
                     return;
                 }
-                releaseBaseBrandPreviewBody.innerHTML = renderReleasePreviewBranding({
+                campaignBaseBrandPreviewBody.innerHTML = renderCampaignPreviewBranding({
                     brand_id: brand.id,
                     ownership_children: {
                         brand_id: brand.id,
@@ -921,15 +921,15 @@
                     },
                 });
             } catch (error) {
-                if (token !== releaseBaseBrandPreviewToken) {
+                if (token !== campaignBaseBrandPreviewToken) {
                     return;
                 }
-                releaseBaseBrandPreviewBody.innerHTML = `<p class="release-preview-empty text-error">${escapeHtml(error.message || 'Could not load brand preview.')}</p>`;
+                campaignBaseBrandPreviewBody.innerHTML = `<p class="campaign-preview-empty text-error">${escapeHtml(error.message || 'Could not load brand preview.')}</p>`;
             }
         }
 
-        function renderReleasePreviewPressKit(entry) {
-            const epk = normalizeReleaseEpk(entry?.epk);
+        function renderCampaignPreviewPressKit(entry) {
+            const epk = normalizeCampaignEpk(entry?.epk);
             const description = String(entry?.description || '').trim();
             const shortDescription = String(entry?.short_description || '').trim();
             const rows = [];
@@ -952,28 +952,28 @@
                 rows.push(['Press photos', `${epk.press_photo_asset_ids.length} asset${epk.press_photo_asset_ids.length === 1 ? '' : 's'}`]);
             }
             if (!rows.length) {
-                return '<p class="release-preview-empty">No press kit content yet. Open edit to fill the EPK.</p>';
+                return '<p class="campaign-preview-empty">No press kit content yet. Open edit to fill the EPK.</p>';
             }
-            return `<dl class="release-preview-epk">${rows.map(([label, value]) => (
+            return `<dl class="campaign-preview-epk">${rows.map(([label, value]) => (
                 `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value).replace(/\n/g, '<br>')}</dd>`
             )).join('')}</dl>`;
         }
 
-        function updateReleaseCoverPanel() {
-            const entry = releaseEntry(selectedReleaseId);
-            if (releaseCoverPanel) {
-                releaseCoverPanel.hidden = !entry || (isEditing && releaseEditorTab !== 'base');
+        function updateCampaignCoverPanel() {
+            const entry = campaignEntry(selectedCampaignId);
+            if (campaignCoverPanel) {
+                campaignCoverPanel.hidden = !entry || (isEditing && campaignEditorTab !== 'base');
             }
-            renderReleasePreviewMeta(entry);
-            if (entry && releaseSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
-                releaseSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
+            renderCampaignPreviewMeta(entry);
+            if (entry && campaignSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
+                campaignSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
             }
             const canEditCover = !!(isEditing && entry && !entry.locked);
-            if (releaseCoverOverlayActions instanceof HTMLElement) {
-                releaseCoverOverlayActions.hidden = !isEditing;
+            if (campaignCoverOverlayActions instanceof HTMLElement) {
+                campaignCoverOverlayActions.hidden = !isEditing;
             }
-            const coverEditButtons = releaseCoverPanel
-                ? releaseCoverPanel.querySelectorAll('.audio-master-cover-overlay-actions button')
+            const coverEditButtons = campaignCoverPanel
+                ? campaignCoverPanel.querySelectorAll('.audio-master-cover-overlay-actions button')
                 : [];
             coverEditButtons.forEach((button) => {
                 if (button instanceof HTMLButtonElement) {
@@ -981,26 +981,26 @@
                 }
             });
             if (activeEl) {
-                activeEl.hidden = !isEditing || releaseEditorTab !== 'tracks';
+                activeEl.hidden = !isEditing || campaignEditorTab !== 'tracks';
             }
-            updateReleaseCreatePlaylistButton();
-            updateReleaseCoverPreview();
-            syncReleaseEditorMode();
-            refreshReleaseBaseBrandPreview();
-            refreshReleaseLongDescriptionPreview();
+            updateCampaignCreatePlaylistButton();
+            updateCampaignCoverPreview();
+            syncCampaignEditorMode();
+            refreshCampaignBaseBrandPreview();
+            refreshCampaignLongDescriptionPreview();
         }
 
-        async function createPlaylistFromRelease() {
-            const entry = releaseEntry(selectedReleaseId);
-            if (!entry || releaseTrackCount(entry) <= 0) {
-                showReleaseToast('Add tracks to the campaign before creating a playlist.');
+        async function createPlaylistFromCampaign() {
+            const entry = campaignEntry(selectedCampaignId);
+            if (!entry || campaignTrackCount(entry) <= 0) {
+                showCampaignToast('Add tracks to the campaign before creating a playlist.');
                 return;
             }
 
-            creatingPlaylistFromRelease = true;
-            updateReleaseCreatePlaylistButton();
+            creatingPlaylistFromCampaign = true;
+            updateCampaignCreatePlaylistButton();
             try {
-                const saved = await saveReleaseSettings({ silent: true });
+                const saved = await saveCampaignSettings({ silent: true });
                 if (!saved) {
                     throw new Error('Save the campaign settings before creating a playlist.');
                 }
@@ -1008,7 +1008,7 @@
                 const data = await fetchJson('/biblioteca/manage-playlist.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ from_release_id: selectedReleaseId }),
+                    body: JSON.stringify({ from_release_id: selectedCampaignId }),
                 });
                 if (!data.ok) {
                     throw new Error(data.error || 'Could not create playlist');
@@ -1017,51 +1017,51 @@
                 if (!playlistId) {
                     throw new Error('Playlist was created but its id is missing.');
                 }
-                window.location.href = `?tab=content&cntab=playlist&playlist=${encodeURIComponent(playlistId)}&edit=1&release=${encodeURIComponent(selectedReleaseId)}`;
+                window.location.href = `?tab=content&cntab=playlist&playlist=${encodeURIComponent(playlistId)}&edit=1&campaign=${encodeURIComponent(selectedCampaignId)}`;
             } catch (error) {
-                showReleaseToast(error.message || 'Could not create playlist', 'error');
-                creatingPlaylistFromRelease = false;
-                updateReleaseCreatePlaylistButton();
+                showCampaignToast(error.message || 'Could not create playlist', 'error');
+                creatingPlaylistFromCampaign = false;
+                updateCampaignCreatePlaylistButton();
             }
         }
 
-        function initReleaseCoverPicker() {
-            if (!releaseCoverPanel) {
+        function initCampaignCoverPicker() {
+            if (!campaignCoverPanel) {
                 return;
             }
 
-            releaseCoverPanel.querySelectorAll('.media-picker-open').forEach((button) => {
+            campaignCoverPanel.querySelectorAll('.media-picker-open').forEach((button) => {
                 button.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     if (typeof window.openMediaPicker !== 'function') {
-                        showReleaseToast('Media picker is not available. Reload the page.');
+                        showCampaignToast('Media picker is not available. Reload the page.');
                         return;
                     }
                     window.openMediaPicker(
-                        button.dataset.field || 'releaseSettingsPosterAssetId',
+                        button.dataset.field || 'campaignSettingsPosterAssetId',
                         button.dataset.title || 'Choose campaign cover',
                         button.dataset.targets || 'illustrations,photos,special'
                     );
                 });
             });
 
-            releaseCoverClearBtn?.addEventListener('click', (event) => {
+            campaignCoverClearBtn?.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                setReleaseCoverValue('');
+                setCampaignCoverValue('');
             });
 
-            window.bandpromoReleaseCoverPicked = function bandpromoReleaseCoverPicked(path) {
+            window.bandpromoCampaignCoverPicked = function bandpromoCampaignCoverPicked(path) {
                 const next = String(path || '').trim();
-                pendingReleaseCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
-                updateReleaseCoverPreview();
+                pendingCampaignCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
+                updateCampaignCoverPreview();
             };
         }
 
-        function updateReleasePosterLabel() {
-            const input = releaseSettingsPosterAssetId;
-            const label = document.getElementById('releaseSettingsPosterAssetId_label');
+        function updateCampaignPosterLabel() {
+            const input = campaignSettingsPosterAssetId;
+            const label = document.getElementById('campaignSettingsPosterAssetId_label');
             if (!(input instanceof HTMLInputElement) || !label) {
                 return;
             }
@@ -1072,8 +1072,8 @@
             label.classList.toggle('empty', !fileName);
         }
 
-        function renderReleaseSocialImports() {
-            if (!releaseSettingsSocialImports) {
+        function renderCampaignSocialImports() {
+            if (!campaignSettingsSocialImports) {
                 return;
             }
             const profiles = [
@@ -1083,21 +1083,21 @@
             ].filter((entry) => entry.url);
 
             if (!profiles.length) {
-                releaseSettingsSocialImports.hidden = true;
-                releaseSettingsSocialImports.innerHTML = '';
+                campaignSettingsSocialImports.hidden = true;
+                campaignSettingsSocialImports.innerHTML = '';
                 return;
             }
 
-            releaseSettingsSocialImports.hidden = false;
-            releaseSettingsSocialImports.innerHTML = `
-                <span class="release-social-inline-label">Social:</span>
-                <span class="release-social-inline-links">${profiles.map((entry, index) => (
-                    `${index > 0 ? '<span class="release-social-inline-sep" aria-hidden="true">·</span>' : ''}<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.label)}</a>`
+            campaignSettingsSocialImports.hidden = false;
+            campaignSettingsSocialImports.innerHTML = `
+                <span class="campaign-social-inline-label">Social:</span>
+                <span class="campaign-social-inline-links">${profiles.map((entry, index) => (
+                    `${index > 0 ? '<span class="campaign-social-inline-sep" aria-hidden="true">·</span>' : ''}<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.label)}</a>`
                 )).join('')}</span>
             `;
         }
 
-        function defaultReleaseEpk() {
+        function defaultCampaignEpk() {
             return {
                 tagline: '',
                 genre: '',
@@ -1108,7 +1108,7 @@
             };
         }
 
-        function defaultReleaseSettingsBaseline() {
+        function defaultCampaignSettingsBaseline() {
             return {
                 title: '',
                 release_date: '',
@@ -1118,13 +1118,13 @@
                 description: '',
                 poster_asset_id: '',
                 brand_id: '',
-                epk: defaultReleaseEpk(),
+                epk: defaultCampaignEpk(),
             };
         }
 
-        let releaseSettingsBaseline = defaultReleaseSettingsBaseline();
+        let campaignSettingsBaseline = defaultCampaignSettingsBaseline();
 
-        function normalizeReleaseEpk(epk) {
+        function normalizeCampaignEpk(epk) {
             const source = epk && typeof epk === 'object' ? epk : {};
             return {
                 tagline: String(source.tagline || '').trim(),
@@ -1143,11 +1143,11 @@
             };
         }
 
-        function autofitReleaseDescriptionField() {
-            if (!(releaseSettingsDescription instanceof HTMLTextAreaElement)) {
+        function autofitCampaignDescriptionField() {
+            if (!(campaignSettingsDescription instanceof HTMLTextAreaElement)) {
                 return;
             }
-            const field = releaseSettingsDescription;
+            const field = campaignSettingsDescription;
             field.style.height = 'auto';
             field.style.height = `${Math.max(field.scrollHeight, 104)}px`;
         }
@@ -1172,24 +1172,24 @@
         }
 
         function readPressPhotoIdsFromForm() {
-            if (!(releaseSettingsPressPhotos instanceof HTMLTextAreaElement)) {
-                return Array.isArray(releaseSettingsBaseline.epk?.press_photo_asset_ids)
-                    ? releaseSettingsBaseline.epk.press_photo_asset_ids.slice()
+            if (!(campaignSettingsPressPhotos instanceof HTMLTextAreaElement)) {
+                return Array.isArray(campaignSettingsBaseline.epk?.press_photo_asset_ids)
+                    ? campaignSettingsBaseline.epk.press_photo_asset_ids.slice()
                     : [];
             }
-            return String(releaseSettingsPressPhotos.value || '')
+            return String(campaignSettingsPressPhotos.value || '')
                 .split(/[,\n]+/)
                 .map((assetId) => assetId.trim())
                 .filter(Boolean);
         }
 
         function readStreamingLinksFromForm() {
-            if (!(releaseSettingsStreamBandpromo instanceof HTMLInputElement)
-                && !(releaseSettingsStreamSpotify instanceof HTMLInputElement)
-                && !(releaseSettingsStreamApple instanceof HTMLInputElement)
+            if (!(campaignSettingsStreamBandpromo instanceof HTMLInputElement)
+                && !(campaignSettingsStreamSpotify instanceof HTMLInputElement)
+                && !(campaignSettingsStreamApple instanceof HTMLInputElement)
             ) {
-                return Array.isArray(releaseSettingsBaseline.epk?.streaming_links)
-                    ? releaseSettingsBaseline.epk.streaming_links.map((link) => ({ ...link }))
+                return Array.isArray(campaignSettingsBaseline.epk?.streaming_links)
+                    ? campaignSettingsBaseline.epk.streaming_links.map((link) => ({ ...link }))
                     : [];
             }
             const links = [];
@@ -1203,84 +1203,84 @@
                 }
             };
 
-            addLink(bandpromoSiteLabel(), releaseSettingsStreamBandpromo);
-            addLink(STREAMING_PRESET_LABELS.spotify, releaseSettingsStreamSpotify);
-            addLink(STREAMING_PRESET_LABELS.apple, releaseSettingsStreamApple);
+            addLink(bandpromoSiteLabel(), campaignSettingsStreamBandpromo);
+            addLink(STREAMING_PRESET_LABELS.spotify, campaignSettingsStreamSpotify);
+            addLink(STREAMING_PRESET_LABELS.apple, campaignSettingsStreamApple);
 
             return links;
         }
 
-        function updateReleaseShortDescriptionCount() {
-            if (!(releaseSettingsShortDescription instanceof HTMLTextAreaElement)
-                || !releaseSettingsShortDescriptionCount) {
+        function updateCampaignShortDescriptionCount() {
+            if (!(campaignSettingsShortDescription instanceof HTMLTextAreaElement)
+                || !campaignSettingsShortDescriptionCount) {
                 return;
             }
-            releaseSettingsShortDescriptionCount.textContent = String(releaseSettingsShortDescription.value.length);
+            campaignSettingsShortDescriptionCount.textContent = String(campaignSettingsShortDescription.value.length);
         }
 
-        function readReleaseMetadataFromForm() {
+        function readCampaignMetadataFromForm() {
             return {
-                short_description: releaseSettingsShortDescription instanceof HTMLTextAreaElement
-                    ? String(releaseSettingsShortDescription.value || '').trim()
+                short_description: campaignSettingsShortDescription instanceof HTMLTextAreaElement
+                    ? String(campaignSettingsShortDescription.value || '').trim()
                     : '',
-                description: releaseSettingsDescription instanceof HTMLTextAreaElement
-                    ? String(releaseSettingsDescription.value || '').trim()
-                    : String(releaseSettingsBaseline.description || '').trim(),
-                poster_asset_id: releaseSettingsPosterAssetId instanceof HTMLInputElement
-                    ? String(releaseSettingsPosterAssetId.value || '').trim()
+                description: campaignSettingsDescription instanceof HTMLTextAreaElement
+                    ? String(campaignSettingsDescription.value || '').trim()
+                    : String(campaignSettingsBaseline.description || '').trim(),
+                poster_asset_id: campaignSettingsPosterAssetId instanceof HTMLInputElement
+                    ? String(campaignSettingsPosterAssetId.value || '').trim()
                     : '',
-                brand_id: releaseSettingsBrandId instanceof HTMLSelectElement
-                    ? String(releaseSettingsBrandId.value || '').trim()
-                    : String(releaseSettingsBaseline.brand_id || '').trim(),
+                brand_id: campaignSettingsBrandId instanceof HTMLSelectElement
+                    ? String(campaignSettingsBrandId.value || '').trim()
+                    : String(campaignSettingsBaseline.brand_id || '').trim(),
                 epk: {
-                    tagline: String(releaseSettingsBaseline.epk?.tagline || '').trim(),
-                    genre: String(releaseSettingsBaseline.epk?.genre || '').trim(),
-                    credits: releaseSettingsCredits instanceof HTMLTextAreaElement
-                        ? String(releaseSettingsCredits.value || '').trim()
-                        : String(releaseSettingsBaseline.epk?.credits || '').trim(),
-                    press_contact: releaseSettingsPressContact instanceof HTMLInputElement
-                        ? String(releaseSettingsPressContact.value || '').trim()
-                        : String(releaseSettingsBaseline.epk?.press_contact || '').trim(),
+                    tagline: String(campaignSettingsBaseline.epk?.tagline || '').trim(),
+                    genre: String(campaignSettingsBaseline.epk?.genre || '').trim(),
+                    credits: campaignSettingsCredits instanceof HTMLTextAreaElement
+                        ? String(campaignSettingsCredits.value || '').trim()
+                        : String(campaignSettingsBaseline.epk?.credits || '').trim(),
+                    press_contact: campaignSettingsPressContact instanceof HTMLInputElement
+                        ? String(campaignSettingsPressContact.value || '').trim()
+                        : String(campaignSettingsBaseline.epk?.press_contact || '').trim(),
                     streaming_links: readStreamingLinksFromForm(),
                     press_photo_asset_ids: readPressPhotoIdsFromForm(),
                 },
             };
         }
 
-        function readReleaseSettingsFromForm() {
-            const entry = releaseEntry(selectedReleaseId);
-            const titleFromInput = releaseSettingsTitle instanceof HTMLInputElement
-                ? String(releaseSettingsTitle.value || '').trim()
+        function readCampaignSettingsFromForm() {
+            const entry = campaignEntry(selectedCampaignId);
+            const titleFromInput = campaignSettingsTitle instanceof HTMLInputElement
+                ? String(campaignSettingsTitle.value || '').trim()
                 : '';
-            const dateFromInput = releaseSettingsDate instanceof HTMLInputElement
-                ? String(releaseSettingsDate.value || '').trim()
+            const dateFromInput = campaignSettingsDate instanceof HTMLInputElement
+                ? String(campaignSettingsDate.value || '').trim()
                 : '';
-            const catalogFromInput = releaseSettingsCatalogId instanceof HTMLInputElement
-                ? String(releaseSettingsCatalogId.value || '').trim()
+            const catalogFromInput = campaignSettingsCatalogId instanceof HTMLInputElement
+                ? String(campaignSettingsCatalogId.value || '').trim()
                 : '';
             const title = titleFromInput || String(entry?.title || '').trim();
-            const releaseDate = dateFromInput || normalizeReleaseDateForInput(entry?.release_date);
+            const campaignDate = dateFromInput || normalizeCampaignDateForInput(entry?.release_date);
             const catalogId = catalogFromInput || String(entry?.catalog_id || '').trim();
 
             return {
                 title,
-                release_date: releaseDate,
+                release_date: campaignDate,
                 catalog_id: catalogId,
                 locked: !!entry?.locked,
-                ...readReleaseMetadataFromForm(),
+                ...readCampaignMetadataFromForm(),
             };
         }
 
-        function setReleaseMetadataDisabled(disabled) {
+        function setCampaignMetadataDisabled(disabled) {
             const controls = [
-                releaseSettingsShortDescription,
-                releaseSettingsDescription,
-                releaseSettingsCredits,
-                releaseSettingsPressContact,
-                releaseSettingsStreamBandpromo,
-                releaseSettingsStreamSpotify,
-                releaseSettingsStreamApple,
-                releaseSettingsPressPhotos,
+                campaignSettingsShortDescription,
+                campaignSettingsDescription,
+                campaignSettingsCredits,
+                campaignSettingsPressContact,
+                campaignSettingsStreamBandpromo,
+                campaignSettingsStreamSpotify,
+                campaignSettingsStreamApple,
+                campaignSettingsPressPhotos,
             ];
             controls.forEach((control) => {
                 if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
@@ -1338,10 +1338,10 @@
         }
 
         function currentAssociationKind() {
-            return ASSOCIATION_KINDS.includes(releaseEditorTab) ? releaseEditorTab : '';
+            return ASSOCIATION_KINDS.includes(campaignEditorTab) ? campaignEditorTab : '';
         }
 
-        function associationEditingEnabled(entry = releaseEntry(selectedReleaseId)) {
+        function associationEditingEnabled(entry = campaignEntry(selectedCampaignId)) {
             return !!(isEditing && entry && !entry.locked);
         }
 
@@ -1375,7 +1375,7 @@
                 ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
             const dragHandle = draggable
-                ? '<span class="playlist-drag-handle" title="Drag into release">⠿</span>'
+                ? '<span class="playlist-drag-handle" title="Drag into campaign">⠿</span>'
                 : '';
             const readonlyClass = canEdit ? '' : ' playlist-editor-row-readonly';
             const activeRowClass = showRemove || !draggable ? ' player-layout-row-active' : '';
@@ -1391,7 +1391,7 @@
 
         function renderAssociationLists() {
             const kind = currentAssociationKind();
-            if (!kind || !releaseAssociationActiveList || !releaseAssociationAvailableList) {
+            if (!kind || !campaignAssociationActiveList || !campaignAssociationAvailableList) {
                 return;
             }
             const labels = ASSOCIATION_LABELS[kind];
@@ -1402,18 +1402,18 @@
             pool.active = active;
             pool.available = available;
 
-            if (pool.loadedFor !== selectedReleaseId) {
-                releaseAssociationActiveList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
-                releaseAssociationAvailableList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
+            if (pool.loadedFor !== selectedCampaignId) {
+                campaignAssociationActiveList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
+                campaignAssociationAvailableList.innerHTML = '<li class="player-layout-empty">Loading…</li>';
                 return;
             }
 
             if (!active.length) {
-                releaseAssociationActiveList.innerHTML = canEdit
+                campaignAssociationActiveList.innerHTML = canEdit
                     ? `<li class="player-layout-empty">Drag ${labels.plural} here from ${labels.available}.</li>`
-                    : `<li class="player-layout-empty">This release has no ${labels.plural} yet.</li>`;
+                    : `<li class="player-layout-empty">This campaign has no ${labels.plural} yet.</li>`;
             } else {
-                releaseAssociationActiveList.innerHTML = active.map((item) => renderAssociationRow(item, {
+                campaignAssociationActiveList.innerHTML = active.map((item) => renderAssociationRow(item, {
                     showRemove: canEdit && item.movable !== false,
                     draggable: false,
                     canEdit,
@@ -1427,9 +1427,9 @@
                         ? `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here; every other ${labels.singular} is already owned by another campaign.`
                         : `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here. Create one in Content → ${contentTab}, or unassign one from another campaign.`)
                     : `${labels.associated} are preview-only while this campaign is locked.`;
-                releaseAssociationAvailableList.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
+                campaignAssociationAvailableList.innerHTML = `<li class="player-layout-empty">${emptyMessage}</li>`;
             } else {
-                releaseAssociationAvailableList.innerHTML = available.map((item) => renderAssociationRow(item, {
+                campaignAssociationAvailableList.innerHTML = available.map((item) => renderAssociationRow(item, {
                     showRemove: false,
                     draggable: canEdit && item.movable !== false,
                     canEdit,
@@ -1443,7 +1443,7 @@
                 return false;
             }
             const pool = associationPools[kind];
-            if (!pool || pool.loadedFor !== selectedReleaseId) {
+            if (!pool || pool.loadedFor !== selectedCampaignId) {
                 return false;
             }
             const idSet = new Set((ids || []).map((id) => String(id || '').trim()).filter(Boolean));
@@ -1463,91 +1463,91 @@
             const target = toList === 'active' ? pool.active : pool.available;
             moving.forEach((item) => {
                 const clone = cloneAssociationItem(item);
-                clone.release_id = toList === 'active' ? selectedReleaseId : '';
+                clone.release_id = toList === 'active' ? selectedCampaignId : '';
                 target.push(clone);
             });
             pool.active = sortAssociationItems(kind, pool.active);
             pool.available = sortAssociationItems(kind, pool.available);
             renderAssociationLists();
-            void persistReleaseAssociations(kind);
+            void persistCampaignAssociations(kind);
             return true;
         }
 
         async function ensureAssociationEditorLoaded(kind) {
-            if (!ASSOCIATION_KINDS.includes(kind) || !selectedReleaseId || !isEditing) {
+            if (!ASSOCIATION_KINDS.includes(kind) || !selectedCampaignId || !isEditing) {
                 return;
             }
             const pool = associationPools[kind];
-            if (pool.loadedFor === selectedReleaseId) {
+            if (pool.loadedFor === selectedCampaignId) {
                 renderAssociationLists();
                 return;
             }
             try {
                 const data = await fetchJson(
-                    `/biblioteca/get-release-associations.php?release=${encodeURIComponent(selectedReleaseId)}&kind=${encodeURIComponent(kind)}`
+                    `/biblioteca/get-campaign-associations.php?campaign=${encodeURIComponent(selectedCampaignId)}&kind=${encodeURIComponent(kind)}`
                 );
-                if (!isEditing || selectedReleaseId !== String(data.release_id || '') || releaseEditorTab !== kind) {
+                if (!isEditing || selectedCampaignId !== String(data.release_id || '') || campaignEditorTab !== kind) {
                     return;
                 }
                 associationPools[kind] = {
                     active: Array.isArray(data.active) ? data.active.map(cloneAssociationItem) : [],
                     available: Array.isArray(data.available) ? data.available.map(cloneAssociationItem) : [],
-                    loadedFor: selectedReleaseId,
+                    loadedFor: selectedCampaignId,
                 };
                 renderAssociationLists();
             } catch (error) {
-                if (releaseAssociationActiveList) {
-                    releaseAssociationActiveList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message || 'Could not load associations')}</li>`;
+                if (campaignAssociationActiveList) {
+                    campaignAssociationActiveList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message || 'Could not load associations')}</li>`;
                 }
-                if (releaseAssociationAvailableList) {
-                    releaseAssociationAvailableList.innerHTML = '<li class="player-layout-empty"></li>';
+                if (campaignAssociationAvailableList) {
+                    campaignAssociationAvailableList.innerHTML = '<li class="player-layout-empty"></li>';
                 }
             }
         }
 
-        async function persistReleaseAssociations(kind) {
+        async function persistCampaignAssociations(kind) {
             if (!ASSOCIATION_KINDS.includes(kind) || !associationEditingEnabled()) {
                 return true;
             }
             const pool = associationPools[kind];
-            if (!pool || pool.loadedFor !== selectedReleaseId) {
+            if (!pool || pool.loadedFor !== selectedCampaignId) {
                 return true;
             }
-            const releaseId = selectedReleaseId;
+            const campaignId = selectedCampaignId;
             const token = ++associationsPersistToken[kind];
             const ids = pool.active.map((item) => String(item.id || '')).filter(Boolean);
             const work = (async () => {
                 try {
                     const data = await fetchJson(
-                        `/biblioteca/save-release-associations.php?release=${encodeURIComponent(releaseId)}`,
+                        `/biblioteca/save-campaign-associations.php?campaign=${encodeURIComponent(campaignId)}`,
                         {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ kind, ids }),
                         }
                     );
-                    if (token !== associationsPersistToken[kind] || releaseId !== selectedReleaseId) {
+                    if (token !== associationsPersistToken[kind] || campaignId !== selectedCampaignId) {
                         return true;
                     }
                     associationPools[kind] = {
                         active: Array.isArray(data.active) ? data.active.map(cloneAssociationItem) : [],
                         available: Array.isArray(data.available) ? data.available.map(cloneAssociationItem) : [],
-                        loadedFor: releaseId,
+                        loadedFor: campaignId,
                     };
-                    const entry = releaseEntry(releaseId);
+                    const entry = campaignEntry(campaignId);
                     if (entry && data.ownership_children && typeof data.ownership_children === 'object') {
                         entry.ownership_children = data.ownership_children;
                     }
                     if (kind === currentAssociationKind()) {
                         renderAssociationLists();
                     }
-                    renderReleasePoolList();
+                    renderCampaignPoolList();
                     return true;
                 } catch (error) {
                     if (token !== associationsPersistToken[kind]) {
                         return false;
                     }
-                    showReleaseToast(error.message || 'Could not save associations', 'error');
+                    showCampaignToast(error.message || 'Could not save associations', 'error');
                     associationPools[kind] = { active: [], available: [], loadedFor: '' };
                     await ensureAssociationEditorLoaded(kind);
                     return false;
@@ -1557,40 +1557,40 @@
             return work;
         }
 
-        async function persistReleaseTracks() {
-            if (!releaseTrackEditingEnabled() || trackEditorLoadedReleaseId !== selectedReleaseId) {
+        async function persistCampaignTracks() {
+            if (!campaignTrackEditingEnabled() || trackEditorLoadedCampaignId !== selectedCampaignId) {
                 return true;
             }
-            const releaseId = selectedReleaseId;
+            const campaignId = selectedCampaignId;
             const token = ++tracksPersistToken;
             const order = activeTracks.map((track) => String(track.file || '')).filter(Boolean);
             const work = (async () => {
                 try {
-                    const data = await fetchJson(`/biblioteca/save-release-tracks.php?release=${encodeURIComponent(releaseId)}`, {
+                    const data = await fetchJson(`/biblioteca/save-campaign-tracks.php?campaign=${encodeURIComponent(campaignId)}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(order),
                     });
-                    if (token !== tracksPersistToken || releaseId !== selectedReleaseId) {
+                    if (token !== tracksPersistToken || campaignId !== selectedCampaignId) {
                         return true;
                     }
-                    const preview = await fetchJson(`/biblioteca/get-release-preview.php?release=${encodeURIComponent(releaseId)}`);
-                    if (token !== tracksPersistToken || releaseId !== selectedReleaseId) {
+                    const preview = await fetchJson(`/biblioteca/get-campaign-preview.php?campaign=${encodeURIComponent(campaignId)}`);
+                    if (token !== tracksPersistToken || campaignId !== selectedCampaignId) {
                         return true;
                     }
                     applyPreviewData(preview);
-                    await loadReleaseRegistry();
+                    await loadCampaignRegistry();
                     if (data.warning) {
-                        showReleaseToast(data.warning, 'warning');
+                        showCampaignToast(data.warning, 'warning');
                     }
                     return true;
                 } catch (error) {
                     if (token !== tracksPersistToken) {
                         return false;
                     }
-                    showReleaseToast(error.message || 'Could not save campaign tracks', 'error');
-                    trackEditorLoadedReleaseId = '';
-                    await loadReleasePreview();
+                    showCampaignToast(error.message || 'Could not save campaign tracks', 'error');
+                    trackEditorLoadedCampaignId = '';
+                    await loadCampaignPreview();
                     return false;
                 }
             })();
@@ -1609,11 +1609,11 @@
             }
 
             function clearAssociationDragUi() {
-                document.querySelectorAll('.release-association-row-dragging').forEach((row) => {
-                    row.classList.remove('release-association-row-dragging');
+                document.querySelectorAll('.campaign-association-row-dragging').forEach((row) => {
+                    row.classList.remove('campaign-association-row-dragging');
                 });
-                releaseAssociationActiveList?.classList.remove('is-drop-target');
-                releaseAssociationAvailableList?.classList.remove('is-drop-target');
+                campaignAssociationActiveList?.classList.remove('is-drop-target');
+                campaignAssociationAvailableList?.classList.remove('is-drop-target');
             }
 
             listEl.addEventListener('dragstart', (event) => {
@@ -1636,7 +1636,7 @@
                 associationDragKind = kind;
                 associationDragSource = listName;
                 associationDragIds = [id];
-                row.classList.add('release-association-row-dragging');
+                row.classList.add('campaign-association-row-dragging');
                 try {
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', id);
@@ -1695,13 +1695,13 @@
             });
         }
 
-        function validateReleaseDate(value) {
+        function validateCampaignDate(value) {
             const trimmed = String(value || '').trim();
             if (trimmed === '') {
-                return 'Campaign date is required.';
+                return 'Release date is required.';
             }
             if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-                return 'Campaign date must use YYYY-MM-DD.';
+                return 'Release date must use YYYY-MM-DD.';
             }
             return '';
         }
@@ -1720,59 +1720,59 @@
                 sourceTier: track.sourceTier,
                 deliveryReady: track.deliveryReady !== false,
                 release_id: String(track.release_id || ''),
-                originReleaseId: String(track.originReleaseId || track.release_id || ''),
+                originCampaignId: String(track.originCampaignId || track.release_id || ''),
             };
         }
 
-        function releaseEntry(releaseId) {
-            return releases.find((entry) => entry && entry.id === releaseId) || null;
+        function campaignEntry(campaignId) {
+            return campaigns.find((entry) => entry && entry.id === campaignId) || null;
         }
 
-        function releaseIsProtected(entryOrId) {
-            const releaseId = typeof entryOrId === 'string'
+        function campaignIsProtected(entryOrId) {
+            const campaignId = typeof entryOrId === 'string'
                 ? entryOrId
                 : String(entryOrId?.id || '');
-            return PROTECTED_RELEASE_IDS.has(releaseId);
+            return PROTECTED_CAMPAIGN_IDS.has(campaignId);
         }
 
-        function releaseIsPlatformDemo(entryOrId) {
+        function campaignIsPlatformDemo(entryOrId) {
             if (typeof entryOrId === 'object' && entryOrId && typeof entryOrId.platform_demo === 'boolean') {
                 return entryOrId.platform_demo;
             }
-            const releaseId = typeof entryOrId === 'string'
+            const campaignId = typeof entryOrId === 'string'
                 ? entryOrId
                 : String(entryOrId?.id || '');
-            return releaseId === 'bandpromo-demo';
+            return campaignId === 'bandpromo-demo';
         }
 
-        function releaseMayChangeLock(entryOrId) {
+        function campaignMayChangeLock(entryOrId) {
             if (typeof entryOrId === 'object' && entryOrId && typeof entryOrId.can_change_lock === 'boolean') {
                 return entryOrId.can_change_lock;
             }
-            if (!releaseIsPlatformDemo(entryOrId)) {
+            if (!campaignIsPlatformDemo(entryOrId)) {
                 return true;
             }
             return isLocalDevHost;
         }
 
-        /** @deprecated Demo is a normal locked release; kept for older call sites. */
-        function releaseIsSystemManaged() {
+        /** @deprecated Demo is a normal locked campaign; kept for older call sites. */
+        function campaignIsSystemManaged() {
             return false;
         }
 
-        function releaseCanDelete(entry) {
-            return !!entry && !releaseIsProtected(entry);
+        function campaignCanDelete(entry) {
+            return !!entry && !campaignIsProtected(entry);
         }
 
-        function releaseCanOpenEditor(entry) {
+        function campaignCanOpenEditor(entry) {
             return !!entry;
         }
 
-        function releaseTrackEditingEnabled(entry = releaseEntry(selectedReleaseId)) {
+        function campaignTrackEditingEnabled(entry = campaignEntry(selectedCampaignId)) {
             return !!(isEditing && entry && !entry.locked);
         }
 
-        function formatReleaseDuration(seconds) {
+        function formatCampaignDuration(seconds) {
             const duration = Math.max(0, Number(seconds) || 0);
             if (!duration) {
                 return '';
@@ -1824,35 +1824,35 @@
                 parts.push(artist);
             }
 
-            const releaseId = String(track.release_id || '').trim();
-            if (releaseId && releaseId !== selectedReleaseId) {
-                const releaseLabel = String(releaseEntry(releaseId)?.title || releaseId).trim();
-                if (releaseLabel) {
-                    parts.push(`on ${releaseLabel}`);
+            const campaignId = String(track.release_id || '').trim();
+            if (campaignId && campaignId !== selectedCampaignId) {
+                const campaignLabel = String(campaignEntry(campaignId)?.title || campaignId).trim();
+                if (campaignLabel) {
+                    parts.push(`on ${campaignLabel}`);
                 }
             }
 
             return parts.join(' · ');
         }
 
-        function releasePoolMetaHtml(entry) {
+        function campaignPoolMetaHtml(entry) {
             if (!entry) {
                 return '';
             }
 
             const trackCount = Number(entry.track_count || 0);
             const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
-            const releaseDate = escapeHtml(String(entry.release_date || '').trim());
+            const campaignDate = escapeHtml(String(entry.release_date || '').trim());
 
             let line = escapeHtml(tracksLabel);
-            if (releaseDate) {
-                line += ` released ${releaseDate}`;
+            if (campaignDate) {
+                line += ` campaignd ${campaignDate}`;
             }
 
             return line;
         }
 
-        function sortReleaseEntries(list) {
+        function sortCampaignEntries(list) {
             return [...list].sort((left, right) => {
                 const leftDate = String(left?.release_date || '');
                 const rightDate = String(right?.release_date || '');
@@ -1868,11 +1868,11 @@
             });
         }
 
-        function syncReleaseUrl(releaseId, editing = isEditing) {
+        function syncCampaignUrl(campaignId, editing = isEditing) {
             const url = new URL(window.location.href);
             url.searchParams.set('tab', 'content');
-            url.searchParams.set('cntab', 'release');
-            url.searchParams.set('release', releaseId);
+            url.searchParams.set('cntab', 'campaign');
+            url.searchParams.set('campaign', campaignId);
             if (editing) {
                 url.searchParams.set('edit', '1');
             } else {
@@ -1881,13 +1881,13 @@
             window.history.replaceState({}, '', url.toString());
 
             // Keep Content → Catalogue tab href in sync (baked at page render otherwise
-            // pins the prior release — often bandpromo-demo — after create/switch).
-            document.querySelectorAll('a.tab-link[href*="cntab=release"]').forEach((link) => {
+            // pins the prior campaign — often bandpromo-demo — after create/switch).
+            document.querySelectorAll('a.tab-link[href*="cntab=campaign"]').forEach((link) => {
                 try {
                     const href = new URL(link.getAttribute('href') || '', window.location.origin);
                     href.searchParams.set('tab', 'content');
-                    href.searchParams.set('cntab', 'release');
-                    href.searchParams.set('release', releaseId);
+                    href.searchParams.set('cntab', 'campaign');
+                    href.searchParams.set('campaign', campaignId);
                     href.searchParams.delete('edit');
                     link.setAttribute('href', `${href.pathname}${href.search}`);
                 } catch (_error) {
@@ -1896,25 +1896,25 @@
             });
         }
 
-        function setAddReleasePanelOpen(open) {
-            if (!addReleasePanel || !toggleAddReleaseBtn) {
+        function setAddCampaignPanelOpen(open) {
+            if (!addCampaignPanel || !toggleAddCampaignBtn) {
                 return;
             }
-            addReleasePanel.hidden = !open;
-            toggleAddReleaseBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            toggleAddReleaseBtn.classList.toggle('active', open);
+            addCampaignPanel.hidden = !open;
+            toggleAddCampaignBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggleAddCampaignBtn.classList.toggle('active', open);
             if (open) {
-                const titleInput = addReleaseForm?.querySelector('input[name="title"]');
+                const titleInput = addCampaignForm?.querySelector('input[name="title"]');
                 if (titleInput instanceof HTMLInputElement) {
                     titleInput.focus();
                 }
-            } else if (releaseRegistryStatus) {
-                releaseRegistryStatus.textContent = '';
-                releaseRegistryStatus.style.color = '';
+            } else if (campaignRegistryStatus) {
+                campaignRegistryStatus.textContent = '';
+                campaignRegistryStatus.style.color = '';
             }
         }
 
-        function normalizeReleaseDateForInput(value) {
+        function normalizeCampaignDateForInput(value) {
             if (typeof window.bandpromoNormalizeIsoDateInput === 'function') {
                 return window.bandpromoNormalizeIsoDateInput(value);
             }
@@ -1928,14 +1928,14 @@
             return '';
         }
 
-        function releaseSettingsDirty() {
-            return JSON.stringify(readReleaseSettingsFromForm()) !== JSON.stringify(releaseSettingsBaseline);
+        function campaignSettingsDirty() {
+            return JSON.stringify(readCampaignSettingsFromForm()) !== JSON.stringify(campaignSettingsBaseline);
         }
 
-        function syncReleaseSettingsPanel(releaseId) {
-            const entry = releaseEntry(releaseId);
-            const title = String(entry?.title || releaseId || '');
-            const releaseDate = normalizeReleaseDateForInput(entry?.release_date);
+        function syncCampaignSettingsPanel(campaignId) {
+            const entry = campaignEntry(campaignId);
+            const title = String(entry?.title || campaignId || '');
+            const campaignDate = normalizeCampaignDateForInput(entry?.release_date);
             const locked = !!entry?.locked;
             const metadataLocked = locked;
             const description = String(entry?.description || '').trim();
@@ -1943,12 +1943,12 @@
             const catalogId = String(entry?.catalog_id || '').trim();
             const posterAssetId = String(entry?.poster_asset_id || '').trim();
             const brandId = String(entry?.brand_id || '').trim();
-            const epk = normalizeReleaseEpk(entry?.epk);
+            const epk = normalizeCampaignEpk(entry?.epk);
             const bandpromoListenUrl = streamingUrlForBandpromo(epk.streaming_links);
 
-            releaseSettingsBaseline = {
+            campaignSettingsBaseline = {
                 title,
-                release_date: releaseDate,
+                release_date: campaignDate,
                 catalog_id: catalogId,
                 locked,
                 short_description: shortDescription,
@@ -1958,72 +1958,72 @@
                 epk,
             };
 
-            if (releaseSettingsStreamBandpromoLabel) {
-                releaseSettingsStreamBandpromoLabel.textContent = bandpromoSiteLabel();
+            if (campaignSettingsStreamBandpromoLabel) {
+                campaignSettingsStreamBandpromoLabel.textContent = bandpromoSiteLabel();
             }
-            renderReleaseSocialImports();
+            renderCampaignSocialImports();
 
-            if (releaseSettingsTitle instanceof HTMLInputElement) {
-                releaseSettingsTitle.value = title;
-                releaseSettingsTitle.disabled = metadataLocked;
+            if (campaignSettingsTitle instanceof HTMLInputElement) {
+                campaignSettingsTitle.value = title;
+                campaignSettingsTitle.disabled = metadataLocked;
             }
-            if (releaseSettingsDate instanceof HTMLInputElement) {
-                releaseSettingsDate.value = releaseDate;
-                releaseSettingsDate.disabled = metadataLocked;
+            if (campaignSettingsDate instanceof HTMLInputElement) {
+                campaignSettingsDate.value = campaignDate;
+                campaignSettingsDate.disabled = metadataLocked;
                 if (typeof window.bandpromoSyncIsoDateField === 'function') {
-                    window.bandpromoSyncIsoDateField(releaseSettingsDate);
+                    window.bandpromoSyncIsoDateField(campaignSettingsDate);
                 }
             }
-            if (releaseSettingsCatalogId instanceof HTMLInputElement) {
-                releaseSettingsCatalogId.value = catalogId;
-                releaseSettingsCatalogId.disabled = metadataLocked;
+            if (campaignSettingsCatalogId instanceof HTMLInputElement) {
+                campaignSettingsCatalogId.value = catalogId;
+                campaignSettingsCatalogId.disabled = metadataLocked;
             }
-            if (releaseSettingsBrandId instanceof HTMLSelectElement) {
-                releaseSettingsBrandId.value = brandId;
-                releaseSettingsBrandId.disabled = metadataLocked;
+            if (campaignSettingsBrandId instanceof HTMLSelectElement) {
+                campaignSettingsBrandId.value = brandId;
+                campaignSettingsBrandId.disabled = metadataLocked;
             }
-            if (releaseSettingsShortDescription instanceof HTMLTextAreaElement) {
-                releaseSettingsShortDescription.value = shortDescription;
-                updateReleaseShortDescriptionCount();
+            if (campaignSettingsShortDescription instanceof HTMLTextAreaElement) {
+                campaignSettingsShortDescription.value = shortDescription;
+                updateCampaignShortDescriptionCount();
             }
-            if (releaseSettingsDescription instanceof HTMLTextAreaElement) {
-                releaseSettingsDescription.value = description;
-                autofitReleaseDescriptionField();
+            if (campaignSettingsDescription instanceof HTMLTextAreaElement) {
+                campaignSettingsDescription.value = description;
+                autofitCampaignDescriptionField();
             }
-            if (releaseSettingsPosterAssetId instanceof HTMLInputElement) {
-                releaseSettingsPosterAssetId.value = posterAssetId;
+            if (campaignSettingsPosterAssetId instanceof HTMLInputElement) {
+                campaignSettingsPosterAssetId.value = posterAssetId;
             }
-            if (releaseSettingsCredits instanceof HTMLTextAreaElement) {
-                releaseSettingsCredits.value = epk.credits;
+            if (campaignSettingsCredits instanceof HTMLTextAreaElement) {
+                campaignSettingsCredits.value = epk.credits;
             }
-            if (releaseSettingsPressContact instanceof HTMLInputElement) {
-                releaseSettingsPressContact.value = resolvePressContact(epk.press_contact);
+            if (campaignSettingsPressContact instanceof HTMLInputElement) {
+                campaignSettingsPressContact.value = resolvePressContact(epk.press_contact);
             }
-            if (releaseSettingsStreamBandpromo instanceof HTMLInputElement) {
-                releaseSettingsStreamBandpromo.value = bandpromoListenUrl;
+            if (campaignSettingsStreamBandpromo instanceof HTMLInputElement) {
+                campaignSettingsStreamBandpromo.value = bandpromoListenUrl;
             }
-            if (releaseSettingsStreamSpotify instanceof HTMLInputElement) {
-                releaseSettingsStreamSpotify.value = streamingUrlForLabel(epk.streaming_links, STREAMING_PRESET_LABELS.spotify);
+            if (campaignSettingsStreamSpotify instanceof HTMLInputElement) {
+                campaignSettingsStreamSpotify.value = streamingUrlForLabel(epk.streaming_links, STREAMING_PRESET_LABELS.spotify);
             }
-            if (releaseSettingsStreamApple instanceof HTMLInputElement) {
-                releaseSettingsStreamApple.value = streamingUrlForLabel(epk.streaming_links, STREAMING_PRESET_LABELS.apple);
+            if (campaignSettingsStreamApple instanceof HTMLInputElement) {
+                campaignSettingsStreamApple.value = streamingUrlForLabel(epk.streaming_links, STREAMING_PRESET_LABELS.apple);
             }
-            if (releaseSettingsPressPhotos instanceof HTMLTextAreaElement) {
-                releaseSettingsPressPhotos.value = epk.press_photo_asset_ids.join(', ');
+            if (campaignSettingsPressPhotos instanceof HTMLTextAreaElement) {
+                campaignSettingsPressPhotos.value = epk.press_photo_asset_ids.join(', ');
             }
 
-            releaseSettingsBaseline = readReleaseSettingsFromForm();
-            releaseSettingsBaseline.locked = locked;
+            campaignSettingsBaseline = readCampaignSettingsFromForm();
+            campaignSettingsBaseline.locked = locked;
 
-            setReleaseMetadataDisabled(metadataLocked);
-            updateReleaseCoverPanel();
-            if (releaseSettingsStatus) {
-                releaseSettingsStatus.textContent = '';
+            setCampaignMetadataDisabled(metadataLocked);
+            updateCampaignCoverPanel();
+            if (campaignSettingsStatus) {
+                campaignSettingsStatus.textContent = '';
             }
         }
 
-        function updateReleaseEditorHint() {
-            const entry = releaseEntry(selectedReleaseId);
+        function updateCampaignEditorHint() {
+            const entry = campaignEntry(selectedCampaignId);
             if (!editorHint) {
                 return;
             }
@@ -2032,7 +2032,7 @@
                 return;
             }
             if (entry?.locked) {
-                editorHint.textContent = releaseIsPlatformDemo(entry) && !releaseMayChangeLock(entry)
+                editorHint.textContent = campaignIsPlatformDemo(entry) && !campaignMayChangeLock(entry)
                     ? 'bandPromo demo is locked. Duplicate it, or unlock on localhost to edit the PCF source.'
                     : 'This campaign is locked. Membership is preview-only until you unlock it from the campaign list.';
                 return;
@@ -2040,35 +2040,35 @@
             editorHint.textContent = 'Use the section tabs to manage tracks and associated playlists, galleries, and pages. Pages associated here appear as optional player tabs (in list order) when this campaign’s playlist is playing. Changes save as you edit.';
         }
 
-        async function saveReleaseSettings({ silent = false } = {}) {
-            if (releaseSettingsSaving) {
-                releaseSettingsSaveQueued = true;
+        async function saveCampaignSettings({ silent = false } = {}) {
+            if (campaignSettingsSaving) {
+                campaignSettingsSaveQueued = true;
                 return true;
             }
-            if (!(releaseSettingsTitle instanceof HTMLInputElement)
-                || !(releaseSettingsDate instanceof HTMLInputElement)) {
+            if (!(campaignSettingsTitle instanceof HTMLInputElement)
+                || !(campaignSettingsDate instanceof HTMLInputElement)) {
                 return true;
             }
 
-            const entry = releaseEntry(selectedReleaseId);
+            const entry = campaignEntry(selectedCampaignId);
             if (!entry || entry.locked) {
                 return true;
             }
 
-            const settings = readReleaseSettingsFromForm();
-            const { title, release_date: releaseDate } = settings;
+            const settings = readCampaignSettingsFromForm();
+            const { title, release_date: campaignDate } = settings;
 
             if (!title) {
                 if (!silent) {
-                    showReleaseToast('Campaign name is required.', 'error');
+                    showCampaignToast('Campaign name is required.', 'error');
                 }
                 return false;
             }
 
-            const dateError = validateReleaseDate(releaseDate);
+            const dateError = validateCampaignDate(campaignDate);
             if (dateError) {
                 if (!silent) {
-                    showReleaseToast(dateError, 'error');
+                    showCampaignToast(dateError, 'error');
                 }
                 return false;
             }
@@ -2079,8 +2079,8 @@
                 if (normalized) {
                     pressContact = normalized;
                     settings.epk.press_contact = normalized;
-                    if (releaseSettingsPressContact instanceof HTMLInputElement) {
-                        releaseSettingsPressContact.value = normalized;
+                    if (campaignSettingsPressContact instanceof HTMLInputElement) {
+                        campaignSettingsPressContact.value = normalized;
                     }
                 }
             }
@@ -2089,107 +2089,107 @@
                 const message = window.bandpromoSiteContactInvalidMessage?.()
                     || 'Press contact must be a valid RFC 5322 address.';
                 if (!silent) {
-                    showReleaseToast(message, 'error');
+                    showCampaignToast(message, 'error');
                 }
                 return false;
             }
 
-            if (!releaseSettingsDirty()) {
+            if (!campaignSettingsDirty()) {
                 return true;
             }
 
-            releaseSettingsSaving = true;
-            releaseSettingsSaveQueued = false;
+            campaignSettingsSaving = true;
+            campaignSettingsSaveQueued = false;
 
             try {
-                const data = await fetchJson(`/biblioteca/manage-release.php?release=${encodeURIComponent(selectedReleaseId)}`, {
+                const data = await fetchJson(`/biblioteca/manage-campaign.php?campaign=${encodeURIComponent(selectedCampaignId)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings),
                 });
-                releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : releases);
+                campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : campaigns);
                 const savedPoster = String(data.release?.poster_asset_id || settings.poster_asset_id || '').trim();
                 const savedPreview = String(data.release?.poster_preview_url || '').trim();
                 if (savedPreview) {
-                    pendingReleaseCoverPreviewUrl = savedPreview;
+                    pendingCampaignCoverPreviewUrl = savedPreview;
                 } else if (savedPoster) {
-                    pendingReleaseCoverPreviewUrl = mediaPreviewUrlFromReference(savedPoster);
+                    pendingCampaignCoverPreviewUrl = mediaPreviewUrlFromReference(savedPoster);
                 }
-                syncReleaseSettingsPanel(selectedReleaseId);
-                renderReleasePoolList();
-                updateReleaseEditorHint();
+                syncCampaignSettingsPanel(selectedCampaignId);
+                renderCampaignPoolList();
+                updateCampaignEditorHint();
                 renderLists();
                 return true;
             } catch (error) {
                 if (!silent) {
-                    showReleaseToast(error.message || 'Could not save campaign settings', 'error');
+                    showCampaignToast(error.message || 'Could not save campaign settings', 'error');
                 }
                 return false;
             } finally {
-                releaseSettingsSaving = false;
-                if (releaseSettingsSaveQueued) {
-                    releaseSettingsSaveQueued = false;
-                    saveReleaseSettings({ silent: true }).catch(() => {});
+                campaignSettingsSaving = false;
+                if (campaignSettingsSaveQueued) {
+                    campaignSettingsSaveQueued = false;
+                    saveCampaignSettings({ silent: true }).catch(() => {});
                 }
             }
         }
 
-        function closeReleaseDeleteModal() {
-            pendingReleaseDeleteId = '';
-            if (releaseDeleteModal) {
-                releaseDeleteModal.style.display = 'none';
-                releaseDeleteModal.setAttribute('aria-hidden', 'true');
+        function closeCampaignDeleteModal() {
+            pendingCampaignDeleteId = '';
+            if (campaignDeleteModal) {
+                campaignDeleteModal.style.display = 'none';
+                campaignDeleteModal.setAttribute('aria-hidden', 'true');
             }
         }
 
-        function selectedReleaseDeleteMode() {
-            if (releaseDeleteModeContainer && releaseDeleteModeContainer.checked) {
+        function selectedCampaignDeleteMode() {
+            if (campaignDeleteModeContainer && campaignDeleteModeContainer.checked) {
                 return 'container';
             }
             return 'purge';
         }
 
-        function syncReleaseDeleteConfirmLabel() {
-            if (!(releaseDeleteConfirmBtn instanceof HTMLButtonElement)) {
+        function syncCampaignDeleteConfirmLabel() {
+            if (!(campaignDeleteConfirmBtn instanceof HTMLButtonElement)) {
                 return;
             }
-            releaseDeleteConfirmBtn.textContent = selectedReleaseDeleteMode() === 'container'
+            campaignDeleteConfirmBtn.textContent = selectedCampaignDeleteMode() === 'container'
                 ? 'Delete campaign only'
                 : 'Delete entire campaign';
         }
 
-        function openReleaseDeleteModal(releaseId) {
-            const entry = releaseEntry(releaseId);
-            if (!entry || !releaseCanDelete(entry)) {
+        function openCampaignDeleteModal(campaignId) {
+            const entry = campaignEntry(campaignId);
+            if (!entry || !campaignCanDelete(entry)) {
                 return;
             }
-            const title = String(entry.title || releaseId);
-            if (!releaseDeleteModal) {
+            const title = String(entry.title || campaignId);
+            if (!campaignDeleteModal) {
                 if (!window.confirm(`Delete entire campaign "${title}"?\n\nRemoves owned brand, playlists, galleries, pages, and unused media. Shared media stays. This cannot be undone.`)) {
                     return;
                 }
-                deleteRelease(releaseId, 'purge').catch((error) => showReleaseToast(error.message || 'Could not delete campaign'));
+                deleteCampaign(campaignId, 'purge').catch((error) => showCampaignToast(error.message || 'Could not delete campaign'));
                 return;
             }
-            pendingReleaseDeleteId = releaseId;
-            if (releaseDeleteModalName) {
-                releaseDeleteModalName.textContent = title;
+            pendingCampaignDeleteId = campaignId;
+            if (campaignDeleteModalName) {
+                campaignDeleteModalName.textContent = title;
             }
-            if (releaseDeleteModePurge) {
-                releaseDeleteModePurge.checked = true;
+            if (campaignDeleteModePurge) {
+                campaignDeleteModePurge.checked = true;
             }
-            if (releaseDeleteModeContainer) {
-                releaseDeleteModeContainer.checked = false;
+            if (campaignDeleteModeContainer) {
+                campaignDeleteModeContainer.checked = false;
             }
-            syncReleaseDeleteConfirmLabel();
-            releaseDeleteModal.style.display = 'flex';
-            releaseDeleteModal.setAttribute('aria-hidden', 'false');
-            releaseDeleteConfirmBtn?.focus();
+            syncCampaignDeleteConfirmLabel();
+            campaignDeleteModal.style.display = 'flex';
+            campaignDeleteModal.setAttribute('aria-hidden', 'false');
+            campaignDeleteConfirmBtn?.focus();
         }
 
         function showPoolView() {
             isEditing = false;
-            editorCard.classList.add('release-editor-is-preview');
+            editorCard.classList.add('campaign-editor-is-preview');
             editorCard.classList.remove('is-editing');
             if (poolView) {
                 poolView.hidden = false;
@@ -2197,72 +2197,72 @@
             if (tracksPoolView) {
                 tracksPoolView.hidden = true;
             }
-            if (releaseAvailableSection) {
-                releaseAvailableSection.hidden = true;
+            if (campaignAvailableSection) {
+                campaignAvailableSection.hidden = true;
             }
-            if (releaseAssociationActiveList) {
-                releaseAssociationActiveList.hidden = true;
+            if (campaignAssociationActiveList) {
+                campaignAssociationActiveList.hidden = true;
             }
-            if (releaseAssociationAvailableSection) {
-                releaseAssociationAvailableSection.hidden = true;
+            if (campaignAssociationAvailableSection) {
+                campaignAssociationAvailableSection.hidden = true;
             }
-            renderReleasePoolList();
-            updateReleaseEditorHint();
-            updateReleaseCoverPanel();
+            renderCampaignPoolList();
+            updateCampaignEditorHint();
+            updateCampaignCoverPanel();
         }
 
-        function showEditView(releaseId) {
+        function showEditView(campaignId) {
             isEditing = true;
-            editorCard.classList.remove('release-editor-is-preview');
+            editorCard.classList.remove('campaign-editor-is-preview');
             editorCard.classList.add('is-editing');
-            selectedReleaseId = releaseId;
+            selectedCampaignId = campaignId;
             if (poolView) {
                 poolView.hidden = true;
             }
             if (tracksPoolView) {
                 tracksPoolView.hidden = false;
             }
-            syncReleaseEditorMode();
-            syncReleaseUrl(releaseId, true);
-            syncReleaseSettingsPanel(releaseId);
-            renderReleasePoolList();
-            updateReleaseEditorHint();
-            updateReleaseCoverPanel();
+            syncCampaignEditorMode();
+            syncCampaignUrl(campaignId, true);
+            syncCampaignSettingsPanel(campaignId);
+            renderCampaignPoolList();
+            updateCampaignEditorHint();
+            updateCampaignCoverPanel();
         }
 
-        function renderReleasePoolList() {
+        function renderCampaignPoolList() {
             if (!poolList) {
                 return;
             }
-            if (!releases.length) {
+            if (!campaigns.length) {
                 poolList.innerHTML = '<li class="player-layout-empty">No campaigns available yet.</li>';
                 return;
             }
-            poolList.innerHTML = releases.map((entry) => {
+            poolList.innerHTML = campaigns.map((entry) => {
                 const id = String(entry.id || '');
-                const selectedClass = id === selectedReleaseId ? ' playlist-editor-row-selected' : '';
+                const selectedClass = id === selectedCampaignId ? ' playlist-editor-row-selected' : '';
                 const title = escapeHtml(entry.title || id);
-                const deleteBtn = releaseCanDelete(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-release-id="${escapeHtml(id)}" title="Delete campaign" aria-label="Delete ${title}">🗑️</button>`
+                const deleteBtn = campaignCanDelete(entry)
+                    ? `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger page-pool-delete-btn" data-campaign-id="${escapeHtml(id)}" title="Delete campaign" aria-label="Delete ${title}">🗑️</button>`
                     : '';
                 const duplicateBtn = id && id !== 'primary'
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-release-id="${escapeHtml(id)}" title="Duplicate campaign (shared media)" aria-label="Duplicate ${title}">⧉</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-duplicate-btn" data-campaign-id="${escapeHtml(id)}" title="Duplicate campaign (shared media)" aria-label="Duplicate ${title}">⧉</button>`
                     : '';
                 const exportBtn = id && id !== 'primary'
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-release-id="${escapeHtml(id)}" title="Export campaign file (.pcf)" aria-label="Export ${title}">📦</button>`
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-export-btn" data-campaign-id="${escapeHtml(id)}" title="Export campaign file (.pcf)" aria-label="Export ${title}">📦</button>`
                     : '';
-                const editBtn = releaseCanOpenEditor(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-release-id="${escapeHtml(id)}" title="Edit campaign" aria-label="Edit ${title}">✏️</button>`
+                const editBtn = campaignCanOpenEditor(entry)
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-edit-btn" data-campaign-id="${escapeHtml(id)}" title="Edit campaign" aria-label="Edit ${title}">✏️</button>`
                     : '';
-                const lockControl = releaseMayChangeLock(entry)
-                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-release-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock campaign (allow track edits)' : 'Lock campaign (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
+                const lockControl = campaignMayChangeLock(entry)
+                    ? `<button type="button" class="icon-btn icon-btn--pool page-pool-lock-btn${entry.locked ? ' page-pool-lock-btn--active icon-btn--active' : ''}" data-campaign-id="${escapeHtml(id)}" title="${entry.locked ? 'Unlock campaign (allow track edits)' : 'Lock campaign (freeze track membership)'}" aria-label="${entry.locked ? 'Unlock' : 'Lock'} ${title}" aria-pressed="${entry.locked ? 'true' : 'false'}">${entry.locked ? '🔒' : '🔓'}</button>`
                     : (entry.locked
                         ? `<span class="page-pool-lock-badge" title="Locked platform demo">🔒</span>`
                         : '');
-                return `<li class="playlist-editor-row release-pool-row page-pool-row${selectedClass}" data-release-id="${escapeHtml(id)}" aria-selected="${id === selectedReleaseId ? 'true' : 'false'}">
+                return `<li class="playlist-editor-row campaign-pool-row page-pool-row${selectedClass}" data-campaign-id="${escapeHtml(id)}" aria-selected="${id === selectedCampaignId ? 'true' : 'false'}">
                     <span class="playlist-track-info">
                         <strong>💿 ${title}</strong>
-                        <span class="playlist-track-meta">${releasePoolMetaHtml(entry)}</span>
+                        <span class="playlist-track-meta">${campaignPoolMetaHtml(entry)}</span>
                     </span>
                     <span class="page-pool-row-actions">
                         ${lockControl}
@@ -2275,8 +2275,8 @@
             }).join('');
         }
 
-        function releasePatchPayload(entry, locked) {
-            const epk = normalizeReleaseEpk(entry?.epk);
+        function campaignPatchPayload(entry, locked) {
+            const epk = normalizeCampaignEpk(entry?.epk);
             return {
                 title: String(entry?.title || '').trim(),
                 release_date: String(entry?.release_date || '').trim(),
@@ -2290,32 +2290,32 @@
             };
         }
 
-        async function toggleReleaseLock(releaseId, locked) {
-            const entry = releaseEntry(releaseId);
-            if (!entry || !releaseMayChangeLock(entry)) {
+        async function toggleCampaignLock(campaignId, locked) {
+            const entry = campaignEntry(campaignId);
+            if (!entry || !campaignMayChangeLock(entry)) {
                 return false;
             }
 
-            if (locked && isEditing && releaseId === selectedReleaseId) {
+            if (locked && isEditing && campaignId === selectedCampaignId) {
                 await flushMembershipSaves();
             }
 
             try {
-                const data = await fetchJson(`/biblioteca/manage-release.php?release=${encodeURIComponent(releaseId)}`, {
+                const data = await fetchJson(`/biblioteca/manage-campaign.php?campaign=${encodeURIComponent(campaignId)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(releasePatchPayload(entry, locked)),
+                    body: JSON.stringify(campaignPatchPayload(entry, locked)),
                 });
-                releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : releases);
-                renderReleasePoolList();
-                if (releaseId === selectedReleaseId) {
-                    syncReleaseSettingsPanel(releaseId);
-                    updateReleaseEditorHint();
+                campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : campaigns);
+                renderCampaignPoolList();
+                if (campaignId === selectedCampaignId) {
+                    syncCampaignSettingsPanel(campaignId);
+                    updateCampaignEditorHint();
                     renderLists();
                 }
                 return true;
             } catch (error) {
-                showReleaseToast(error.message || 'Could not update release lock');
+                showCampaignToast(error.message || 'Could not update campaign lock');
                 return false;
             }
         }
@@ -2323,155 +2323,155 @@
         async function loadBrandCatalog() {
             try {
                 const data = await fetchJson('/biblioteca/get-themes.php');
-                releaseBrandCatalog = Array.isArray(data.themes) ? data.themes : [];
-                populateReleaseBrandSelect();
+                campaignBrandCatalog = Array.isArray(data.themes) ? data.themes : [];
+                populateCampaignBrandSelect();
             } catch (error) {
                 // Brand picker is optional until data/brands is seeded.
-                releaseBrandCatalog = [];
+                campaignBrandCatalog = [];
             }
         }
 
-        async function loadReleaseRegistry() {
+        async function loadCampaignRegistry() {
             await loadBrandCatalog();
             let data;
             if (typeof window.loadReleasesCatalog === 'function') {
                 const list = await window.loadReleasesCatalog();
                 data = {
-                    releases: Array.isArray(list) ? list : (window.bandpromoReleasesCatalog || []),
+                    campaigns: Array.isArray(list) ? list : (window.bandpromoReleasesCatalog || []),
                 };
             } else if (Array.isArray(window.bandpromoReleasesCatalog) && window.bandpromoReleasesCatalog.length) {
                 data = {
-                    releases: window.bandpromoReleasesCatalog,
+                    campaigns: window.bandpromoReleasesCatalog,
                 };
             } else {
-                data = await fetchJson('/biblioteca/get-releases.php');
+                data = await fetchJson('/biblioteca/get-campaigns.php');
             }
-            releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : []);
-            if (!releaseEntry(selectedReleaseId)) {
-                selectedReleaseId = releases[0]?.id || '';
+            campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : []);
+            if (!campaignEntry(selectedCampaignId)) {
+                selectedCampaignId = campaigns[0]?.id || '';
             }
-            renderReleasePoolList();
+            renderCampaignPoolList();
         }
 
         async function requestCloseEditor() {
-            if (releaseSettingsDirty()) {
-                const saved = await saveReleaseSettings();
+            if (campaignSettingsDirty()) {
+                const saved = await saveCampaignSettings();
                 if (!saved) {
                     return false;
                 }
             }
             await flushMembershipSaves();
             showPoolView();
-            syncReleaseUrl(selectedReleaseId, false);
-            await loadReleasePreview();
+            syncCampaignUrl(selectedCampaignId, false);
+            await loadCampaignPreview();
             return true;
         }
 
-        async function openReleaseEditor(releaseId) {
-            if (!releaseId) {
-                showReleaseToast('Missing release id.', 'error');
+        async function openCampaignEditor(campaignId) {
+            if (!campaignId) {
+                showCampaignToast('Missing campaign id.', 'error');
                 return;
             }
-            const entry = releaseEntry(releaseId);
+            const entry = campaignEntry(campaignId);
             if (!entry) {
-                showReleaseToast(`Could not open release “${releaseId}” — it is not in the catalogue yet. Refresh and try again.`, 'error');
+                showCampaignToast(`Could not open campaign “${campaignId}” — it is not in the catalogue yet. Refresh and try again.`, 'error');
                 return;
             }
-            if (isEditing && releaseId !== selectedReleaseId) {
-                if (releaseSettingsDirty()) {
-                    const saved = await saveReleaseSettings();
+            if (isEditing && campaignId !== selectedCampaignId) {
+                if (campaignSettingsDirty()) {
+                    const saved = await saveCampaignSettings();
                     if (!saved) {
                         return;
                     }
                 }
                 await flushMembershipSaves();
             }
-            if (!releaseCanOpenEditor(entry)) {
-                selectedReleaseId = releaseId;
+            if (!campaignCanOpenEditor(entry)) {
+                selectedCampaignId = campaignId;
                 showPoolView();
-                syncReleaseUrl(releaseId, false);
-                await loadReleasePreview();
+                syncCampaignUrl(campaignId, false);
+                await loadCampaignPreview();
                 return;
             }
-            selectedReleaseId = releaseId;
-            trackEditorLoadedReleaseId = '';
+            selectedCampaignId = campaignId;
+            trackEditorLoadedCampaignId = '';
             resetAssociationPools();
-            showEditView(releaseId);
+            showEditView(campaignId);
         }
 
-        async function selectReleaseForPreview(releaseId) {
-            if (!releaseId || (releaseId === selectedReleaseId && !isEditing)) {
+        async function selectCampaignForPreview(campaignId) {
+            if (!campaignId || (campaignId === selectedCampaignId && !isEditing)) {
                 return;
             }
             if (isEditing) {
-                await openReleaseEditor(releaseId);
+                await openCampaignEditor(campaignId);
                 return;
             }
-            selectedReleaseId = releaseId;
-            syncReleaseUrl(releaseId, false);
-            renderReleasePoolList();
-            await loadReleasePreview();
+            selectedCampaignId = campaignId;
+            syncCampaignUrl(campaignId, false);
+            renderCampaignPoolList();
+            await loadCampaignPreview();
         }
 
-        async function exportReleasePackage(releaseId) {
-            const entry = releaseEntry(releaseId);
-            if (!entry || releaseId === 'primary') {
+        async function exportCampaignPackage(campaignId) {
+            const entry = campaignEntry(campaignId);
+            if (!entry || campaignId === 'primary') {
                 return;
             }
-            const sourceTitle = String(entry.title || releaseId).trim() || releaseId;
-            showReleaseToast(`Queueing PCF export for "${sourceTitle}"…`);
+            const sourceTitle = String(entry.title || campaignId).trim() || campaignId;
+            showCampaignToast(`Queueing PCF export for "${sourceTitle}"…`);
             const csrfToken = typeof refreshAdminCsrfToken === 'function'
                 ? await refreshAdminCsrfToken()
                 : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
-            const data = await fetchJson('/biblioteca/export-release-package.php', {
+            const data = await fetchJson('/biblioteca/export-campaign-package.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    release_id: releaseId,
+                    release_id: campaignId,
                     csrf_token: csrfToken,
                 }),
             });
             const message = data.message || 'PCF export queued.';
-            showReleaseToast(message);
+            showCampaignToast(message);
             if (window.confirm(`${message}\n\nOpen System → Backup, export & import to watch progress / download?`)) {
                 window.location.href = String(data.jobs_url || '?tab=system&stab=backup');
             }
         }
 
-        async function duplicateReleaseCampaign(releaseId) {
-            const entry = releaseEntry(releaseId);
-            if (!entry || releaseId === 'primary') {
+        async function duplicateCampaignCampaign(campaignId) {
+            const entry = campaignEntry(campaignId);
+            if (!entry || campaignId === 'primary') {
                 return;
             }
-            const sourceTitle = String(entry.title || releaseId).trim() || releaseId;
+            const sourceTitle = String(entry.title || campaignId).trim() || campaignId;
             if (!window.confirm(`Duplicate "${sourceTitle}" as a new campaign?\n\nNew containers; shared media files.`)) {
                 return;
             }
-            const data = await fetchJson('/biblioteca/duplicate-release-campaign.php', {
+            const data = await fetchJson('/biblioteca/duplicate-campaign.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ release_id: releaseId }),
+                body: JSON.stringify({ release_id: campaignId }),
             });
-            releases = sortReleaseEntries(Array.isArray(data.releases) ? data.releases : releases);
-            renderReleasePoolList();
+            campaigns = sortCampaignEntries(Array.isArray(data.campaigns) ? data.campaigns : campaigns);
+            renderCampaignPoolList();
             const newId = String(data.release_id || '').trim();
-            showReleaseToast(data.message || 'Campaign duplicated.');
+            showCampaignToast(data.message || 'Campaign duplicated.');
             if (newId) {
-                await openReleaseEditor(newId);
+                await openCampaignEditor(newId);
             }
         }
 
-        async function deleteRelease(releaseId, mode = 'purge') {
-            const entry = releaseEntry(releaseId);
-            if (!entry || !releaseCanDelete(entry)) {
+        async function deleteCampaign(campaignId, mode = 'purge') {
+            const entry = campaignEntry(campaignId);
+            if (!entry || !campaignCanDelete(entry)) {
                 return;
             }
             const deleteMode = mode === 'container' ? 'container' : 'purge';
             const data = await fetchJson(
-                `/biblioteca/manage-release.php?release=${encodeURIComponent(releaseId)}&mode=${encodeURIComponent(deleteMode)}`,
+                `/biblioteca/manage-campaign.php?campaign=${encodeURIComponent(campaignId)}&mode=${encodeURIComponent(deleteMode)}`,
                 { method: 'DELETE' }
             );
-            releases = Array.isArray(data.releases) ? data.releases : [];
+            campaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
             const purge = data.purge && typeof data.purge === 'object' ? data.purge : null;
             if (deleteMode === 'purge' && purge) {
                 const assetCount = Array.isArray(purge.deleted_assets) ? purge.deleted_assets.length : 0;
@@ -2481,17 +2481,17 @@
                     detail += `, ${kept} shared kept`;
                 }
                 detail += ').';
-                showReleaseToast(detail);
+                showCampaignToast(detail);
             } else {
-                showReleaseToast('Release removed. Media stayed in Files.');
+                showCampaignToast('Campaign removed. Media stayed in Files.');
             }
-            if (selectedReleaseId === releaseId) {
-                selectedReleaseId = releases[0]?.id || 'primary';
+            if (selectedCampaignId === campaignId) {
+                selectedCampaignId = campaigns[0]?.id || 'primary';
                 showPoolView();
-                syncReleaseUrl(selectedReleaseId, false);
-                await loadReleasePreview();
+                syncCampaignUrl(selectedCampaignId, false);
+                await loadCampaignPreview();
             } else {
-                renderReleasePoolList();
+                renderCampaignPoolList();
             }
         }
 
@@ -2648,11 +2648,11 @@
         }
 
         function renderTrackRow(track, options) {
-            const entry = releaseEntry(selectedReleaseId);
-            const canEditTracks = releaseTrackEditingEnabled(entry);
+            const entry = campaignEntry(selectedCampaignId);
+            const canEditTracks = campaignTrackEditingEnabled(entry);
             const title = escapeHtml(displayTrackTitle(track));
             const meta = escapeHtml(trackMeta(track));
-            const duration = track.deliveryReady === false ? '' : formatReleaseDuration(track.duration);
+            const duration = track.deliveryReady === false ? '' : formatCampaignDuration(track.duration);
             const file = escapeHtml(track.file || '');
             const selectedClass = options.selected ? ' playlist-editor-row-selected' : '';
             const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending' : '';
@@ -2667,10 +2667,10 @@
             const readonlyClass = !canEditTracks ? ' playlist-editor-row-readonly' : '';
             const draggable = canEditTracks && track.deliveryReady !== false ? 'true' : 'false';
             const dragTitle = !canEditTracks
-                ? (entry?.locked ? 'Locked release — unlock to edit' : 'Preview only')
+                ? (entry?.locked ? 'Locked campaign — unlock to edit' : 'Preview only')
                 : (track.deliveryReady === false
                     ? 'Delivery file not ready yet'
-                    : (options.activeRow ? 'Drag to reorder' : 'Drag into release'));
+                    : (options.activeRow ? 'Drag to reorder' : 'Drag into campaign'));
 
             return `<li class="${rowClass}${pendingClass}${demoClass}${selectedClass}${readonlyClass}" draggable="${draggable}" data-file="${file}" aria-selected="${options.selected ? 'true' : 'false'}">
                 ${positionMarkup}
@@ -2709,17 +2709,17 @@
         function renderAssociatedTrackRow(track, canEditTracks) {
             const title = escapeHtml(displayTrackTitle(track));
             const artist = escapeHtml(String(track.artist || '').trim() || 'Unknown artist');
-            const duration = track.deliveryReady === false ? '' : formatReleaseDuration(track.duration);
+            const duration = track.deliveryReady === false ? '' : formatCampaignDuration(track.duration);
             const file = escapeHtml(track.file || '');
             const pendingClass = track.deliveryReady === false ? ' playlist-editor-row-pending' : '';
             const removeMarkup = canEditTracks
                 ? '<button type="button" class="player-layout-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
                 : '';
 
-            return `<li class="playlist-editor-row release-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
-                <span class="release-preview-track-copy">
-                    <span class="release-preview-track-artist">${artist}</span>
-                    <strong class="release-preview-track-title">${title}</strong>
+            return `<li class="playlist-editor-row campaign-associated-track-row${pendingClass}" draggable="false" data-file="${file}">
+                <span class="campaign-preview-track-copy">
+                    <span class="campaign-preview-track-artist">${artist}</span>
+                    <strong class="campaign-preview-track-title">${title}</strong>
                 </span>
                 <span class="playlist-track-duration">${duration}</span>
                 ${removeMarkup}
@@ -2730,10 +2730,10 @@
             pruneAvailableSelection();
             pruneActiveSelection();
 
-            const entry = releaseEntry(selectedReleaseId);
-            const canEditTracks = releaseTrackEditingEnabled(entry);
+            const entry = campaignEntry(selectedCampaignId);
+            const canEditTracks = campaignTrackEditingEnabled(entry);
 
-            if (!selectedReleaseId) {
+            if (!selectedCampaignId) {
                 activeEl.innerHTML = '<li class="player-layout-empty">No campaign selected.</li>';
                 return;
             }
@@ -2741,7 +2741,7 @@
             if (!activeTracks.length) {
                 activeEl.innerHTML = canEditTracks
                     ? '<li class="player-layout-empty">Drag tracks here from Available tracks.</li>'
-                    : '<li class="player-layout-empty">This release has no tracks yet.</li>';
+                    : '<li class="player-layout-empty">This campaign has no tracks yet.</li>';
             } else {
                 activeTracks = sortAssociatedTracks(activeTracks);
                 activeEl.innerHTML = activeTracks
@@ -2750,11 +2750,11 @@
             }
 
             if (activeEl) {
-                activeEl.hidden = !isEditing || releaseEditorTab !== 'tracks';
+                activeEl.hidden = !isEditing || campaignEditorTab !== 'tracks';
             }
 
             if (!isEditing) {
-                updateReleaseCoverPanel();
+                updateCampaignCoverPanel();
                 return;
             }
 
@@ -2825,9 +2825,9 @@
             const movedClones = moving.map((track) => {
                 const clone = cloneTrack(track);
                 if (toList === 'active') {
-                    clone.release_id = selectedReleaseId;
+                    clone.release_id = selectedCampaignId;
                 } else {
-                    clone.release_id = String(clone.originReleaseId || clone.release_id || '');
+                    clone.release_id = String(clone.originCampaignId || clone.release_id || '');
                 }
                 return clone;
             });
@@ -2847,7 +2847,7 @@
 
             activeTracks = sortAssociatedTracks(activeTracks);
             renderLists();
-            void persistReleaseTracks();
+            void persistCampaignTracks();
             return true;
         }
 
@@ -3108,7 +3108,7 @@
         }
 
         function applyPreviewData(data) {
-            const entry = releaseEntry(selectedReleaseId);
+            const entry = campaignEntry(selectedCampaignId);
             if (entry) {
                 if (typeof data.locked === 'boolean') {
                     entry.locked = data.locked;
@@ -3117,70 +3117,70 @@
 
             activeTracks = Array.isArray(data.activeTracks) ? data.activeTracks.map(cloneTrack) : [];
             availableTracks = Array.isArray(data.availableTracks) ? data.availableTracks.map(cloneTrack) : [];
-            trackEditorLoadedReleaseId = selectedReleaseId;
+            trackEditorLoadedCampaignId = selectedCampaignId;
 
-            renderReleasePoolList();
-            syncReleaseSettingsPanel(selectedReleaseId);
-            updateReleaseEditorHint();
+            renderCampaignPoolList();
+            syncCampaignSettingsPanel(selectedCampaignId);
+            updateCampaignEditorHint();
             renderLists();
-            updateReleaseCoverPanel();
+            updateCampaignCoverPanel();
         }
 
         function applyRegistryPreview() {
-            const entry = releaseEntry(selectedReleaseId);
+            const entry = campaignEntry(selectedCampaignId);
             activeTracks = Array.isArray(entry?.preview_tracks)
                 ? entry.preview_tracks.map(cloneTrack)
                 : [];
             availableTracks = [];
 
-            renderReleasePoolList();
+            renderCampaignPoolList();
             renderLists();
         }
 
-        async function loadReleasePreview() {
+        async function loadCampaignPreview() {
             if (!isEditing) {
                 applyRegistryPreview();
                 return;
             }
 
             try {
-                const data = await fetchJson(`/biblioteca/get-release-preview.php?release=${encodeURIComponent(selectedReleaseId)}`);
+                const data = await fetchJson(`/biblioteca/get-campaign-preview.php?campaign=${encodeURIComponent(selectedCampaignId)}`);
                 applyPreviewData(data);
             } catch (error) {
                 activeEl.innerHTML = '';
-                availableEl.innerHTML = `<li class="player-layout-empty" style="color:#f87171">Could not load release preview: ${escapeHtml(error.message)}</li>`;
+                availableEl.innerHTML = `<li class="player-layout-empty" style="color:#f87171">Could not load campaign preview: ${escapeHtml(error.message)}</li>`;
             }
         }
 
-        releaseDeleteCancelBtn?.addEventListener('click', closeReleaseDeleteModal);
-        releaseDeleteModePurge?.addEventListener('change', syncReleaseDeleteConfirmLabel);
-        releaseDeleteModeContainer?.addEventListener('change', syncReleaseDeleteConfirmLabel);
-        releaseDeleteModal?.addEventListener('click', (event) => {
-            if (event.target === releaseDeleteModal) {
-                closeReleaseDeleteModal();
+        campaignDeleteCancelBtn?.addEventListener('click', closeCampaignDeleteModal);
+        campaignDeleteModePurge?.addEventListener('change', syncCampaignDeleteConfirmLabel);
+        campaignDeleteModeContainer?.addEventListener('change', syncCampaignDeleteConfirmLabel);
+        campaignDeleteModal?.addEventListener('click', (event) => {
+            if (event.target === campaignDeleteModal) {
+                closeCampaignDeleteModal();
             }
         });
-        releaseDeleteConfirmBtn?.addEventListener('click', async () => {
-            const releaseId = pendingReleaseDeleteId;
-            if (!releaseId) {
+        campaignDeleteConfirmBtn?.addEventListener('click', async () => {
+            const campaignId = pendingCampaignDeleteId;
+            if (!campaignId) {
                 return;
             }
-            const mode = selectedReleaseDeleteMode();
-            closeReleaseDeleteModal();
+            const mode = selectedCampaignDeleteMode();
+            closeCampaignDeleteModal();
             try {
-                releaseDeleteConfirmBtn.disabled = true;
-                await deleteRelease(releaseId, mode);
+                campaignDeleteConfirmBtn.disabled = true;
+                await deleteCampaign(campaignId, mode);
             } catch (error) {
-                showReleaseToast(error.message || 'Could not delete campaign');
+                showCampaignToast(error.message || 'Could not delete campaign');
             } finally {
-                releaseDeleteConfirmBtn.disabled = false;
+                campaignDeleteConfirmBtn.disabled = false;
             }
         });
         document.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape' || !releaseDeleteModal || releaseDeleteModal.style.display !== 'flex') {
+            if (event.key !== 'Escape' || !campaignDeleteModal || campaignDeleteModal.style.display !== 'flex') {
                 return;
             }
-            closeReleaseDeleteModal();
+            closeCampaignDeleteModal();
         });
 
         poolList.addEventListener('click', (event) => {
@@ -3190,12 +3190,12 @@
             if (lockBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const releaseId = lockBtn.getAttribute('data-release-id') || '';
-                const entry = releaseEntry(releaseId);
+                const campaignId = lockBtn.getAttribute('data-campaign-id') || '';
+                const entry = campaignEntry(campaignId);
                 if (!entry) {
                     return;
                 }
-                toggleReleaseLock(releaseId, !entry.locked);
+                toggleCampaignLock(campaignId, !entry.locked);
                 return;
             }
 
@@ -3205,8 +3205,8 @@
             if (deleteBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const releaseId = deleteBtn.getAttribute('data-release-id') || '';
-                openReleaseDeleteModal(releaseId);
+                const campaignId = deleteBtn.getAttribute('data-campaign-id') || '';
+                openCampaignDeleteModal(campaignId);
                 return;
             }
 
@@ -3216,9 +3216,9 @@
             if (duplicateBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const releaseId = duplicateBtn.getAttribute('data-release-id') || '';
-                duplicateReleaseCampaign(releaseId).catch((error) => {
-                    showReleaseToast(error.message || 'Could not duplicate campaign', 'error');
+                const campaignId = duplicateBtn.getAttribute('data-campaign-id') || '';
+                duplicateCampaignCampaign(campaignId).catch((error) => {
+                    showCampaignToast(error.message || 'Could not duplicate campaign', 'error');
                 });
                 return;
             }
@@ -3229,9 +3229,9 @@
             if (exportBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const releaseId = exportBtn.getAttribute('data-release-id') || '';
-                exportReleasePackage(releaseId).catch((error) => {
-                    showReleaseToast(error.message || 'Could not export package', 'error');
+                const campaignId = exportBtn.getAttribute('data-campaign-id') || '';
+                exportCampaignPackage(campaignId).catch((error) => {
+                    showCampaignToast(error.message || 'Could not export package', 'error');
                 });
                 return;
             }
@@ -3242,162 +3242,162 @@
             if (editBtn) {
                 event.preventDefault();
                 event.stopPropagation();
-                const releaseId = editBtn.getAttribute('data-release-id') || '';
-                openReleaseEditor(releaseId);
+                const campaignId = editBtn.getAttribute('data-campaign-id') || '';
+                openCampaignEditor(campaignId);
                 return;
             }
 
             const row = event.target instanceof HTMLElement
-                ? event.target.closest('.release-pool-row')
+                ? event.target.closest('.campaign-pool-row')
                 : null;
             if (!row || !poolList.contains(row)) {
                 return;
             }
-            const releaseId = row.getAttribute('data-release-id') || '';
-            if (!releaseId) {
+            const campaignId = row.getAttribute('data-campaign-id') || '';
+            if (!campaignId) {
                 return;
             }
-            selectReleaseForPreview(releaseId);
+            selectCampaignForPreview(campaignId);
         });
 
         backBtn?.addEventListener('click', () => {
             requestCloseEditor();
         });
 
-        releaseSettingsTitle?.addEventListener('blur', () => {
-            saveReleaseSettings();
+        campaignSettingsTitle?.addEventListener('blur', () => {
+            saveCampaignSettings();
         });
-        releaseSettingsTitle?.addEventListener('input', () => {
-            updateReleaseBasePreviewFromForm();
+        campaignSettingsTitle?.addEventListener('input', () => {
+            updateCampaignBasePreviewFromForm();
         });
-        releaseSettingsDate?.addEventListener('blur', () => {
-            saveReleaseSettings();
+        campaignSettingsDate?.addEventListener('blur', () => {
+            saveCampaignSettings();
         });
-        releaseSettingsDate?.addEventListener('input', () => {
-            updateReleaseBasePreviewFromForm();
+        campaignSettingsDate?.addEventListener('input', () => {
+            updateCampaignBasePreviewFromForm();
         });
-        releaseSettingsDate?.addEventListener('change', () => {
-            saveReleaseSettings();
+        campaignSettingsDate?.addEventListener('change', () => {
+            saveCampaignSettings();
         });
-        releaseSettingsCatalogId?.addEventListener('blur', () => {
-            saveReleaseSettings();
+        campaignSettingsCatalogId?.addEventListener('blur', () => {
+            saveCampaignSettings();
         });
-        releaseSettingsBrandId?.addEventListener('change', () => {
-            refreshReleaseBaseBrandPreview();
-            saveReleaseSettings();
+        campaignSettingsBrandId?.addEventListener('change', () => {
+            refreshCampaignBaseBrandPreview();
+            saveCampaignSettings();
         });
-        releaseSettingsPosterAssetId?.addEventListener('input', () => {
-            const raw = String(releaseSettingsPosterAssetId.value || '').trim();
+        campaignSettingsPosterAssetId?.addEventListener('input', () => {
+            const raw = String(campaignSettingsPosterAssetId.value || '').trim();
             if (!raw) {
-                pendingReleaseCoverPreviewUrl = '';
+                pendingCampaignCoverPreviewUrl = '';
             } else if (raw.startsWith('/media/') || /^https?:\/\//i.test(raw)) {
-                pendingReleaseCoverPreviewUrl = mediaPreviewUrlFromReference(raw);
+                pendingCampaignCoverPreviewUrl = mediaPreviewUrlFromReference(raw);
             }
-            updateReleaseCoverPreview();
-            saveReleaseSettings();
+            updateCampaignCoverPreview();
+            saveCampaignSettings();
         });
-        releaseSettingsShortDescription?.addEventListener('input', () => {
-            updateReleaseShortDescriptionCount();
-            updateReleaseBasePreviewFromForm();
+        campaignSettingsShortDescription?.addEventListener('input', () => {
+            updateCampaignShortDescriptionCount();
+            updateCampaignBasePreviewFromForm();
         });
-        releaseSettingsDescription?.addEventListener('input', () => {
-            autofitReleaseDescriptionField();
-            updateReleaseBasePreviewFromForm();
+        campaignSettingsDescription?.addEventListener('input', () => {
+            autofitCampaignDescriptionField();
+            updateCampaignBasePreviewFromForm();
         });
         [
-            releaseSettingsShortDescription,
-            releaseSettingsDescription,
-            releaseSettingsCredits,
-            releaseSettingsPressContact,
-            releaseSettingsStreamBandpromo,
-            releaseSettingsStreamSpotify,
-            releaseSettingsStreamApple,
-            releaseSettingsPressPhotos,
+            campaignSettingsShortDescription,
+            campaignSettingsDescription,
+            campaignSettingsCredits,
+            campaignSettingsPressContact,
+            campaignSettingsStreamBandpromo,
+            campaignSettingsStreamSpotify,
+            campaignSettingsStreamApple,
+            campaignSettingsPressPhotos,
         ].forEach((control) => {
             control?.addEventListener('blur', () => {
-                saveReleaseSettings();
+                saveCampaignSettings();
             });
         });
-        releaseSettingsTitle?.addEventListener('keydown', (event) => {
+        campaignSettingsTitle?.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                releaseSettingsTitle.blur();
+                campaignSettingsTitle.blur();
             }
         });
-        releaseSettingsDate?.addEventListener('keydown', (event) => {
+        campaignSettingsDate?.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                releaseSettingsDate.blur();
+                campaignSettingsDate.blur();
             }
         });
 
-        toggleAddReleaseBtn?.addEventListener('click', () => {
-            setAddReleasePanelOpen(addReleasePanel?.hidden !== false);
+        toggleAddCampaignBtn?.addEventListener('click', () => {
+            setAddCampaignPanelOpen(addCampaignPanel?.hidden !== false);
         });
 
-        cancelAddReleaseBtn?.addEventListener('click', () => {
-            addReleaseForm?.reset();
-            setAddReleasePanelOpen(false);
+        cancelAddCampaignBtn?.addEventListener('click', () => {
+            addCampaignForm?.reset();
+            setAddCampaignPanelOpen(false);
         });
 
-        addReleaseForm?.addEventListener('submit', async (event) => {
+        addCampaignForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const formData = new FormData(addReleaseForm);
+            const formData = new FormData(addCampaignForm);
             const title = String(formData.get('title') || '').trim();
             if (!title) {
-                if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = 'Campaign name is required.';
-                    releaseRegistryStatus.style.color = '#f87171';
+                if (campaignRegistryStatus) {
+                    campaignRegistryStatus.textContent = 'Campaign name is required.';
+                    campaignRegistryStatus.style.color = '#f87171';
                 }
                 return;
             }
             try {
-                if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = 'Creating campaign…';
-                    releaseRegistryStatus.style.color = '';
+                if (campaignRegistryStatus) {
+                    campaignRegistryStatus.textContent = 'Creating campaign…';
+                    campaignRegistryStatus.style.color = '';
                 }
-                const data = await fetchJson('/biblioteca/manage-release.php', {
+                const data = await fetchJson('/biblioteca/manage-campaign.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
                     body: JSON.stringify({ title }),
                 });
                 const created = (data.release && typeof data.release === 'object') ? data.release : null;
                 const newId = String(created?.id || '').trim();
-                if (Array.isArray(data.releases) && data.releases.length) {
-                    releases = sortReleaseEntries(data.releases);
+                if (Array.isArray(data.campaigns) && data.campaigns.length) {
+                    campaigns = sortCampaignEntries(data.campaigns);
                 } else if (created && newId) {
-                    const without = releases.filter((entry) => String(entry?.id || '') !== newId);
-                    releases = sortReleaseEntries([created, ...without]);
+                    const without = campaigns.filter((entry) => String(entry?.id || '') !== newId);
+                    campaigns = sortCampaignEntries([created, ...without]);
                 }
                 if (typeof window.loadReleasesCatalog === 'function') {
                     try {
                         const catalog = await window.loadReleasesCatalog({ force: true });
                         if (Array.isArray(catalog) && catalog.length) {
-                            releases = sortReleaseEntries(catalog);
+                            campaigns = sortCampaignEntries(catalog);
                         }
                     } catch (_error) {
                         // Local list from create response is enough to open the editor.
                     }
                 }
-                if (created && newId && !releaseEntry(newId)) {
-                    releases = sortReleaseEntries([created, ...releases.filter((entry) => String(entry?.id || '') !== newId)]);
+                if (created && newId && !campaignEntry(newId)) {
+                    campaigns = sortCampaignEntries([created, ...campaigns.filter((entry) => String(entry?.id || '') !== newId)]);
                 }
-                addReleaseForm.reset();
-                setAddReleasePanelOpen(false);
-                if (!newId || !releaseEntry(newId)) {
-                    showReleaseToast('Campaign was created but could not be opened. Refresh the catalogue and select it from the pool.', 'error');
-                    renderReleasePoolList();
+                addCampaignForm.reset();
+                setAddCampaignPanelOpen(false);
+                if (!newId || !campaignEntry(newId)) {
+                    showCampaignToast('Campaign was created but could not be opened. Refresh the catalogue and select it from the pool.', 'error');
+                    renderCampaignPoolList();
                     return;
                 }
-                await openReleaseEditor(newId);
-                if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = `Created “${String(created?.title || newId)}”.`;
-                    releaseRegistryStatus.style.color = '';
+                await openCampaignEditor(newId);
+                if (campaignRegistryStatus) {
+                    campaignRegistryStatus.textContent = `Created “${String(created?.title || newId)}”.`;
+                    campaignRegistryStatus.style.color = '';
                 }
             } catch (error) {
-                if (releaseRegistryStatus) {
-                    releaseRegistryStatus.textContent = '❌ ' + (error.message || 'Could not create campaign');
-                    releaseRegistryStatus.style.color = '#f87171';
+                if (campaignRegistryStatus) {
+                    campaignRegistryStatus.textContent = '❌ ' + (error.message || 'Could not create campaign');
+                    campaignRegistryStatus.style.color = '#f87171';
                 }
             }
         });
@@ -3445,11 +3445,11 @@
 
         bindDragList(activeEl);
         bindDragList(availableEl);
-        bindAssociationDragList(releaseAssociationAvailableList, 'available');
-        bindAssociationDragList(releaseAssociationActiveList, 'active');
+        bindAssociationDragList(campaignAssociationAvailableList, 'available');
+        bindAssociationDragList(campaignAssociationActiveList, 'active');
 
-        if (releaseAssociationAvailableList) {
-            releaseAssociationAvailableList.addEventListener('dblclick', (event) => {
+        if (campaignAssociationAvailableList) {
+            campaignAssociationAvailableList.addEventListener('dblclick', (event) => {
                 const kind = currentAssociationKind();
                 const row = event.target instanceof HTMLElement
                     ? event.target.closest('.playlist-editor-row[draggable="true"]')
@@ -3462,12 +3462,12 @@
             });
         }
 
-        if (releaseAssociationActiveList) {
-            releaseAssociationActiveList.addEventListener('click', (event) => {
+        if (campaignAssociationActiveList) {
+            campaignAssociationActiveList.addEventListener('click', (event) => {
                 const button = event.target instanceof HTMLElement
                     ? event.target.closest('.player-layout-remove-btn')
                     : null;
-                if (!button || !releaseAssociationActiveList.contains(button)) {
+                if (!button || !campaignAssociationActiveList.contains(button)) {
                     return;
                 }
                 const kind = currentAssociationKind();
@@ -3480,39 +3480,39 @@
             });
         }
 
-        initReleaseCoverPicker();
+        initCampaignCoverPicker();
 
-        document.querySelectorAll('[data-release-editor-tab]').forEach((button) => {
+        document.querySelectorAll('[data-campaign-editor-tab]').forEach((button) => {
             button.addEventListener('click', () => {
-                setReleaseEditorTab(String(button.getAttribute('data-release-editor-tab') || 'base'));
+                setCampaignEditorTab(String(button.getAttribute('data-campaign-editor-tab') || 'base'));
             });
         });
-        setReleaseEditorTab(releaseEditorTab);
+        setCampaignEditorTab(campaignEditorTab);
 
         const urlParams = new URLSearchParams(window.location.search);
         const startInEdit = urlParams.get('edit') === '1';
 
         loadSiteSharingContext()
-            .then(() => loadReleaseRegistry())
+            .then(() => loadCampaignRegistry())
             .catch((error) => {
                 poolList.innerHTML = `<li class="player-layout-empty" style="color:#f87171">${escapeHtml(error.message)}</li>`;
             })
             .finally(async () => {
                 if (startInEdit) {
-                    await openReleaseEditor(selectedReleaseId);
+                    await openCampaignEditor(selectedCampaignId);
                 } else {
                     showPoolView();
-                    syncReleaseUrl(selectedReleaseId, false);
-                    await loadReleasePreview();
+                    syncCampaignUrl(selectedCampaignId, false);
+                    await loadCampaignPreview();
                 }
             });
     }
 
-    window.initBandpromoReleaseEditor = initBandpromoReleaseEditor;
+    window.initBandpromoCampaignEditor = initBandpromoCampaignEditor;
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initBandpromoReleaseEditor);
+        document.addEventListener('DOMContentLoaded', initBandpromoCampaignEditor);
     } else {
-        initBandpromoReleaseEditor();
+        initBandpromoCampaignEditor();
     }
 })();

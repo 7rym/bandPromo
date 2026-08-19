@@ -8,11 +8,11 @@
 
 require_once __DIR__ . '/page-storage.php';
 require_once __DIR__ . '/asset-registry.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/gallery-storage.php';
-require_once __DIR__ . '/theme-storage.php';
-require_once __DIR__ . '/release-ownership-helpers.php';
+require_once __DIR__ . '/brand-storage.php';
+require_once __DIR__ . '/campaign-ownership-helpers.php';
 
 function bandpromo_template_map(): array {
     $root = dirname(__DIR__);
@@ -121,11 +121,11 @@ function bandpromo_ensure_runtime_files_seeded(): array {
 
     try {
         bandpromo_asset_registry_ensure_migrated($root, true);
-        bandpromo_release_ensure_seeded($root);
+        bandpromo_campaign_ensure_seeded($root);
         bandpromo_playlist_ensure_seeded($root);
         bandpromo_gallery_ensure_seeded($root);
-        bandpromo_theme_ensure_seeded($root);
-        bandpromo_release_ownership_migrate($root);
+        bandpromo_brand_ensure_seeded($root);
+        bandpromo_campaign_ownership_migrate($root);
     } catch (Throwable $throwable) {
         $errors[] = $throwable->getMessage();
     }

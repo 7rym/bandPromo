@@ -293,7 +293,7 @@ function bandpromo_media_prune_generated_visual_artifacts(string $root): int
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     $removed = 0;
     $pruneIds = [];
@@ -333,8 +333,8 @@ function bandpromo_media_prune_generated_visual_artifacts(string $root): int
     if ($pruneIds !== []) {
         $drop = array_fill_keys($pruneIds, true);
         try {
-            bandpromo_theme_ensure_seeded($root);
-            foreach (bandpromo_theme_registry_entries($root) as $entry) {
+            bandpromo_brand_ensure_seeded($root);
+            foreach (bandpromo_brand_registry_entries($root) as $entry) {
                 if (!is_array($entry)) {
                     continue;
                 }
@@ -343,7 +343,7 @@ function bandpromo_media_prune_generated_visual_artifacts(string $root): int
                     continue;
                 }
                 try {
-                    $document = bandpromo_theme_load_document($root, $brandId);
+                    $document = bandpromo_brand_load_document($root, $brandId);
                 } catch (Throwable $throwable) {
                     continue;
                 }
@@ -362,7 +362,7 @@ function bandpromo_media_prune_generated_visual_artifacts(string $root): int
                     continue;
                 }
                 $document['library_asset_ids'] = $next;
-                bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+                bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
             }
         } catch (Throwable $throwable) {
             // Best-effort library cleanup.
@@ -484,7 +484,7 @@ function bandpromo_media_is_effectively_hidden_for_install(string $target, strin
 
     // Hide only campaign media owned by the install's protected demo release.
     // Filename prefixes are display provenance only — not a hide policy.
-    return bandpromo_demo_release_owns_media_file($root, $target, $filename);
+    return bandpromo_demo_campaign_owns_media_file($root, $target, $filename);
 }
 
 /**

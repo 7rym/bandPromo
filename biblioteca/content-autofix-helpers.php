@@ -7,7 +7,7 @@ require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/page-storage.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 function bandpromo_content_autofix_step_result(string $id, string $label, array $details = []): array
 {
@@ -285,28 +285,28 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
     return $step;
 }
 
-function bandpromo_release_sync_primary_audio_assets(string $root): void
+function bandpromo_campaign_sync_primary_audio_assets(string $root): void
 {
-    bandpromo_release_repair_catalog_release_ids($root);
+    bandpromo_campaign_repair_catalog_release_ids($root);
 }
 
-function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): array
+function bandpromo_content_autofix_sync_campaigns(string $root, bool $dryRun): array
 {
     $step = bandpromo_content_autofix_step_result('release_membership', 'Repair catalogue release links on audio assets');
     if ($dryRun) {
         $registry = bandpromo_asset_load_registry($root);
-        $membershipIndex = bandpromo_release_asset_membership_index($root);
+        $membershipIndex = bandpromo_campaign_asset_membership_index($root);
         $staleCount = 0;
         $missingMembershipIds = 0;
         foreach ($registry['assets'] as $assetId => $asset) {
             if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
                 continue;
             }
-            $assignedReleaseId = bandpromo_release_normalize_id(trim((string) ($asset['release_id'] ?? '')));
+            $assignedReleaseId = bandpromo_campaign_normalize_id(trim((string) ($asset['release_id'] ?? '')));
             $memberships = $membershipIndex[(string) $assetId] ?? [];
             $documentReleaseId = '';
             if (count($memberships) === 1) {
-                $documentReleaseId = bandpromo_release_normalize_id((string) ($memberships[0]['release_id'] ?? ''));
+                $documentReleaseId = bandpromo_campaign_normalize_id((string) ($memberships[0]['release_id'] ?? ''));
             }
             if ($documentReleaseId === '') {
                 if ($assignedReleaseId !== '') {
@@ -318,13 +318,13 @@ function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): ar
                 $staleCount++;
             }
         }
-        foreach (bandpromo_release_registry_entries($root) as $entry) {
-            $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
+        foreach (bandpromo_campaign_registry_entries($root) as $entry) {
+            $releaseId = bandpromo_campaign_normalize_id((string) ($entry['id'] ?? ''));
             if ($releaseId === '') {
                 continue;
             }
             try {
-                $document = bandpromo_release_load_document($root, $releaseId);
+                $document = bandpromo_campaign_load_document($root, $releaseId);
             } catch (Throwable $throwable) {
                 continue;
             }
@@ -347,10 +347,10 @@ function bandpromo_content_autofix_sync_releases(string $root, bool $dryRun): ar
         return $step;
     }
 
-    $membershipRepair = bandpromo_release_repair_stale_membership_asset_ids($root);
+    $membershipRepair = bandpromo_campaign_repair_stale_membership_asset_ids($root);
     require_once __DIR__ . '/playlist-storage.php';
     $playlistRepair = bandpromo_playlist_repair_stale_track_asset_ids($root, $membershipRepair['remaps'] ?? []);
-    $repaired = bandpromo_release_repair_catalog_release_ids($root);
+    $repaired = bandpromo_campaign_repair_catalog_release_ids($root);
     $step['changed'] = (int) ($membershipRepair['rebound'] ?? 0)
         + (int) ($playlistRepair['changed'] ?? 0)
         + ($repaired > 0 ? $repaired : 0);
@@ -475,28 +475,28 @@ function bandpromo_content_autofix_refresh_validation(string $root, bool $dryRun
  */
 function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryRun): array
 {
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     require_once __DIR__ . '/asset-registry.php';
 
     $step = bandpromo_content_autofix_step_result('brand_asset_ids', 'Backfill brand shell asset_ids');
-    bandpromo_theme_ensure_seeded($root);
+    bandpromo_brand_ensure_seeded($root);
 
-    foreach (bandpromo_theme_registry_entries($root) as $entry) {
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
         $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
         if ($brandId === '') {
             continue;
         }
         try {
-            $document = bandpromo_theme_load_document($root, $brandId);
+            $document = bandpromo_brand_load_document($root, $brandId);
         } catch (Throwable $throwable) {
             $step['errors'][] = $brandId . ': ' . $throwable->getMessage();
             continue;
         }
 
-        $assetIds = bandpromo_theme_normalize_asset_ids(
+        $assetIds = bandpromo_brand_normalize_asset_ids(
             is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : []
         );
-        $assets = bandpromo_theme_normalize_assets(
+        $assets = bandpromo_brand_normalize_assets(
             is_array($document['assets'] ?? null) ? $document['assets'] : []
         );
         $changed = false;
@@ -511,7 +511,7 @@ function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryR
             if ($path === '') {
                 continue;
             }
-            $found = bandpromo_theme_lookup_asset_id_for_path($root, $path);
+            $found = bandpromo_brand_lookup_asset_id_for_path($root, $path);
             if ($found === '') {
                 continue;
             }
@@ -530,12 +530,12 @@ function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryR
         }
 
         $document['asset_ids'] = $assetIds;
-        $materialized = bandpromo_theme_materialize_asset_urls($root, $document);
+        $materialized = bandpromo_brand_materialize_asset_urls($root, $document);
         $document = $materialized['document'];
         if (!$dryRun) {
-            bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
+            bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
             if (bandpromo_brand_active_id($root) === $brandId) {
-                bandpromo_theme_sync_assets_to_config($root, $document);
+                bandpromo_brand_sync_assets_to_config($root, $document);
             }
         }
     }
@@ -549,7 +549,7 @@ function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryR
 function bandpromo_content_autofix_sync_gallery_asset_ids(string $root, bool $dryRun): array
 {
     require_once __DIR__ . '/gallery-storage.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     require_once __DIR__ . '/asset-registry.php';
 
     $step = bandpromo_content_autofix_step_result('gallery_asset_ids', 'Backfill gallery entry asset_ids');
@@ -582,7 +582,7 @@ function bandpromo_content_autofix_sync_gallery_asset_ids(string $root, bool $dr
             if ($src === '') {
                 continue;
             }
-            $found = bandpromo_theme_lookup_asset_id_for_path($root, $src);
+            $found = bandpromo_brand_lookup_asset_id_for_path($root, $src);
             if ($found === '' && bandpromo_asset_is_asset_id($src)) {
                 $found = $src;
             }
@@ -620,7 +620,7 @@ function bandpromo_content_autofix_sync_gallery_asset_ids(string $root, bool $dr
  */
 function bandpromo_content_autofix_sync_page_asset_ids(string $root, bool $dryRun): array
 {
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/page-blocks.php';
 
@@ -664,7 +664,7 @@ function bandpromo_content_autofix_sync_page_asset_ids(string $root, bool $dryRu
             if ($src === '') {
                 continue;
             }
-            $found = bandpromo_theme_lookup_asset_id_for_path($root, $src);
+            $found = bandpromo_brand_lookup_asset_id_for_path($root, $src);
             if ($found === '') {
                 $basename = basename(parse_url($src, PHP_URL_PATH) ?: $src);
                 $asset = bandpromo_asset_lookup_by_original_filename($root, $basename);
@@ -979,10 +979,10 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
 
     try {
         bandpromo_asset_registry_ensure_migrated($root, true);
-        bandpromo_release_ensure_seeded($root);
+        bandpromo_campaign_ensure_seeded($root);
         bandpromo_playlist_ensure_seeded($root);
         bandpromo_gallery_ensure_seeded($root);
-        bandpromo_theme_ensure_seeded($root);
+        bandpromo_brand_ensure_seeded($root);
         bandpromo_page_seed_all_if_missing($root);
         if ($dryRun) {
             $pending = bandpromo_list_uncatalogued_audio_originals($root);
@@ -1027,7 +1027,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'bandpromo_content_autofix_heal_visual_display',
         'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
-        'bandpromo_content_autofix_sync_releases',
+        'bandpromo_content_autofix_sync_campaigns',
         'bandpromo_content_autofix_sync_audio_display',
         'bandpromo_content_autofix_sync_brand_asset_ids',
         'bandpromo_content_autofix_sync_gallery_asset_ids',

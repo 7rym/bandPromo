@@ -381,17 +381,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
     const SUBTAB_KEYS = {
         analytics: { key: 'atab', allowed: ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'log'] },
         files: { key: 'fpanel', allowed: ['audio', 'visual', 'sfx', 'special'] },
-        content: { key: 'cntab', allowed: ['release', 'playlist', 'gallery', 'pages', 'themes'] },
+        content: { key: 'cntab', allowed: ['campaign', 'playlist', 'gallery', 'pages', 'branding'] },
         settings: { key: 'ctab', allowed: ['basics', 'support', 'sharing'] },
         system: { key: 'stab', allowed: ['deliverables', 'audit', 'backup', 'security'] },
         docs: { key: 'doc_scope', allowed: ['operator', 'developer', 'all'] },
     };
     const SUBTAB_ALIASES = {
         fpanel: { photos: 'visual', video: 'visual', illustrations: 'visual' },
-        cntab: { bio: 'pages', player: 'release' },
+        cntab: { bio: 'pages', player: 'campaign' },
         stab: { publish: 'deliverables', status: 'deliverables', activity: 'backup' },
         atab: { quality: 'dashboard' },
-        ctab: { theme: 'basics' },
+        ctab: { brand: 'basics' },
     };
 
     function readMemory() {
@@ -540,7 +540,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 : (new URLSearchParams(window.location.search).get('tab') || 'welcome');
             const adminContentSubTab = typeof adminContentTab === 'string'
                 ? adminContentTab
-                : (new URLSearchParams(window.location.search).get('cntab') || 'release');
+                : (new URLSearchParams(window.location.search).get('cntab') || 'campaign');
             const adminFilesTabActive = adminPrimaryTab === 'files';
             const adminContentTabActive = adminPrimaryTab === 'content';
 
@@ -590,7 +590,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
-            let poolReleaseFilter = 'all';
+            let poolCampaignFilter = 'all';
             let poolBrandFilter = 'all';
             let poolNameFilters = {
                 audio: '',
@@ -598,11 +598,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 special: '',
                 sfx: '',
             };
-            let releasesCatalog = [];
-            const releaseFilterListeners = [];
-            function registerReleaseFilterListener(listener) {
+            let campaignsCatalog = [];
+            const campaignFilterListeners = [];
+            function registerCampaignFilterListener(listener) {
                 if (typeof listener === 'function') {
-                    releaseFilterListeners.push(listener);
+                    campaignFilterListeners.push(listener);
                 }
             }
             let poolTypeFilters = {
@@ -1484,7 +1484,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const installed = packageUpdate.installed_version || 'unknown';
-                const remote = packageUpdate.remote_version || 'a newer release';
+                const remote = packageUpdate.remote_version || 'a newer campaign';
 
                 return {
                     severity: 'package-update',
@@ -1941,7 +1941,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     ['cover', 'C'],
                     ['artist', 'A'],
                     ['title', 'T'],
-                    ['release', 'R'],
+                    ['campaign', 'R'],
                     ['description', 'D'],
                     ['lyrics', 'L'],
                 ];
@@ -2170,12 +2170,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 brandFilterCatalogPromise = (async () => {
                     try {
-                        const response = await fetch('/biblioteca/get-themes.php', { credentials: 'same-origin' });
+                        const response = await fetch('/biblioteca/get-brands.php', { credentials: 'same-origin' });
                         const data = await response.json();
                         if (!response.ok || !data || data.ok === false) {
                             throw new Error((data && data.error) || 'Could not load brands');
                         }
-                        brandFilterCatalog = Array.isArray(data.themes) ? data.themes : [];
+                        brandFilterCatalog = Array.isArray(data.brands) ? data.brands : [];
                     } catch (error) {
                         brandFilterCatalog = [];
                     }
@@ -2314,9 +2314,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function formatAudioListRowLabel(mediaFile) {
                 const body = formatAudioListRowBody(mediaFile);
-                const releaseContext = formatAudioReleaseContextPlain(mediaFile);
-                if (releaseContext !== '') {
-                    return `${body} ${releaseContext}`;
+                const campaignContext = formatAudioCampaignContextPlain(mediaFile);
+                if (campaignContext !== '') {
+                    return `${body} ${campaignContext}`;
                 }
 
                 return body;
@@ -2386,47 +2386,47 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '';
                 }
 
-                return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(brandTitle)}</span>`;
+                return `<span class="media-file-campaign-content">${bandpromoAdminEscapeHtml(brandTitle)}</span>`;
             }
 
-            function formatAudioReleaseContextMarkup(file) {
+            function formatAudioCampaignContextMarkup(file) {
                 if (file?.release_orphan === true) {
-                    return '<span class="media-file-release-content">Orphan</span>';
+                    return '<span class="media-file-campaign-content">Orphan</span>';
                 }
 
                 const trackDate = audioListPublishDate(file);
-                const releaseTitle = String(file?.release_title || '').trim();
-                if (trackDate === '' && releaseTitle === '') {
+                const campaignTitle = String(file?.release_title || '').trim();
+                if (trackDate === '' && campaignTitle === '') {
                     return '';
                 }
 
-                if (trackDate !== '' && releaseTitle !== '') {
-                    return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(trackDate)} · ${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                if (trackDate !== '' && campaignTitle !== '') {
+                    return `<span class="media-file-campaign-content">${bandpromoAdminEscapeHtml(trackDate)} · ${bandpromoAdminEscapeHtml(campaignTitle)}</span>`;
                 }
 
-                if (releaseTitle !== '') {
-                    return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(releaseTitle)}</span>`;
+                if (campaignTitle !== '') {
+                    return `<span class="media-file-campaign-content">${bandpromoAdminEscapeHtml(campaignTitle)}</span>`;
                 }
 
-                return `<span class="media-file-release-content">${bandpromoAdminEscapeHtml(trackDate)}</span>`;
+                return `<span class="media-file-campaign-content">${bandpromoAdminEscapeHtml(trackDate)}</span>`;
             }
 
-            function formatAudioReleaseContextPlain(file) {
+            function formatAudioCampaignContextPlain(file) {
                 if (file?.release_orphan === true) {
-                    const releaseTitle = String(file?.release_title || '').trim();
-                    if (releaseTitle !== '' && file?.on_release === true) {
-                        return `Orphan on ${releaseTitle}`;
+                    const campaignTitle = String(file?.release_title || '').trim();
+                    if (campaignTitle !== '' && file?.on_release === true) {
+                        return `Orphan on ${campaignTitle}`;
                     }
                     return 'Orphan';
                 }
 
                 const trackDate = audioListPublishDate(file);
-                const releaseTitle = String(file?.release_title || '').trim();
-                if (trackDate !== '' && releaseTitle !== '') {
-                    return `${trackDate} on ${releaseTitle}`;
+                const campaignTitle = String(file?.release_title || '').trim();
+                if (trackDate !== '' && campaignTitle !== '') {
+                    return `${trackDate} on ${campaignTitle}`;
                 }
-                if (releaseTitle !== '') {
-                    return releaseTitle;
+                if (campaignTitle !== '') {
+                    return campaignTitle;
                 }
                 return trackDate;
             }
@@ -2440,7 +2440,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return String(file?.release_date || '').trim();
             }
 
-            function audioListReleaseLabel(file) {
+            function audioListCampaignLabel(file) {
                 if (file?.release_orphan === true) {
                     return 'Orphan';
                 }
@@ -2480,9 +2480,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (key === 'date') {
                     leftValue = audioListPublishDate(left);
                     rightValue = audioListPublishDate(right);
-                } else if (key === 'release') {
-                    leftValue = audioListReleaseLabel(left);
-                    rightValue = audioListReleaseLabel(right);
+                } else if (key === 'campaign') {
+                    leftValue = audioListCampaignLabel(left);
+                    rightValue = audioListCampaignLabel(right);
                 } else {
                     leftValue = formatAudioListRowBody(left);
                     rightValue = formatAudioListRowBody(right);
@@ -2528,7 +2528,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function setAudioListSort(nextKey) {
                 const key = String(nextKey || '').trim();
-                if (!['track', 'date', 'release', 'size'].includes(key)) {
+                if (!['track', 'date', 'campaign', 'size'].includes(key)) {
                     return;
                 }
                 if (audioListSort.key === key) {
@@ -2539,7 +2539,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 } else {
                     audioListSort = {
                         key,
-                        dir: key === 'track' || key === 'release' ? 'asc' : 'desc',
+                        dir: key === 'track' || key === 'campaign' ? 'asc' : 'desc',
                     };
                 }
                 syncAudioListSortHeaders();
@@ -2790,13 +2790,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return `<span class="media-file-col media-file-col-date">${date !== '' ? bandpromoAdminEscapeHtml(date) : '—'}</span>`;
             }
 
-            function buildAudioReleaseCell(file) {
+            function buildAudioCampaignCell(file) {
                 const source = audioFileForDisplay(file);
-                const label = audioListReleaseLabel(source);
+                const label = audioListCampaignLabel(source);
                 if (label === '') {
-                    return '<span class="media-file-col media-file-col-release">—</span>';
+                    return '<span class="media-file-col media-file-col-campaign">—</span>';
                 }
-                return `<span class="media-file-col media-file-col-release" title="${bandpromoAdminEscapeHtml(label)}">${bandpromoAdminEscapeHtml(label)}</span>`;
+                return `<span class="media-file-col media-file-col-campaign" title="${bandpromoAdminEscapeHtml(label)}">${bandpromoAdminEscapeHtml(label)}</span>`;
             }
 
             async function fetchAudioMasterDetailData(filename) {
@@ -3137,9 +3137,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         params.set('brand', brand);
                     }
                 } else {
-                    const release = String(options.release || poolReleaseFilter || 'all').trim();
-                    if (release && release !== 'all') {
-                        params.set('release', release);
+                    const campaign = String(options.campaign || poolCampaignFilter || 'all').trim();
+                    if (campaign && campaign !== 'all') {
+                        params.set('campaign', campaign);
                     }
                 }
 
@@ -3151,13 +3151,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return '/biblioteca/list-media.php?' + params.toString();
             }
 
-            function releaseFilterOptionsHtml() {
+            function campaignFilterOptionsHtml() {
                 const options = [
                     '<option value="all">All campaigns</option>',
                     '<option value="orphans">Orphans</option>',
                 ];
-                const releases = Array.isArray(releasesCatalog) ? releasesCatalog.slice() : [];
-                releases.sort((left, right) => {
+                const campaigns = Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [];
+                campaigns.sort((left, right) => {
                     const leftDate = String(left?.release_date || '');
                     const rightDate = String(right?.release_date || '');
                     if (leftDate !== rightDate) {
@@ -3169,38 +3169,38 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         { sensitivity: 'base' }
                     );
                 });
-                releases.forEach((release) => {
-                    const id = String(release?.id || '').trim();
+                campaigns.forEach((entry) => {
+                    const id = String(entry?.id || '').trim();
                     if (!id) {
                         return;
                     }
-                    const title = String(release?.title || id).trim() || id;
-                    const date = String(release?.release_date || '').trim();
+                    const title = String(entry?.title || id).trim() || id;
+                    const date = String(entry?.release_date || '').trim();
                     const label = date !== '' ? `${date} · ${title}` : title;
                     options.push(`<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(label)}</option>`);
                 });
                 return options.join('');
             }
 
-            function normalizePoolReleaseFilter(value) {
+            function normalizePoolCampaignFilter(value) {
                 const next = String(value || 'all').trim() || 'all';
                 if (next === 'all' || next === 'orphans') {
                     return next;
                 }
                 // Legacy aggregate option — treat as all and let operators pick a release.
-                if (next === 'releases') {
+                if (next === 'campaigns') {
                     return 'all';
                 }
                 return next;
             }
 
-            function populateReleaseFilterSelects() {
-                document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
-                    const current = normalizePoolReleaseFilter(select.value || poolReleaseFilter || 'all');
-                    select.innerHTML = releaseFilterOptionsHtml();
+            function populateCampaignFilterSelects() {
+                document.querySelectorAll('[data-media-campaign-filter], [data-pool-campaign-filter]').forEach((select) => {
+                    const current = normalizePoolCampaignFilter(select.value || poolCampaignFilter || 'all');
+                    select.innerHTML = campaignFilterOptionsHtml();
                     const known = current === 'all'
                         || current === 'orphans'
-                        || releasesCatalog.some((release) => String(release?.id || '') === current);
+                        || campaignsCatalog.some((entry) => String(entry?.id || '') === current);
                     const allowed = known ? current : 'all';
                     select.value = allowed;
                     if (select.value !== allowed) {
@@ -3209,11 +3209,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            function syncReleaseFilterUi() {
-                document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
-                    const value = normalizePoolReleaseFilter(poolReleaseFilter);
+            function syncCampaignFilterUi() {
+                document.querySelectorAll('[data-media-campaign-filter], [data-pool-campaign-filter]').forEach((select) => {
+                    const value = normalizePoolCampaignFilter(poolCampaignFilter);
                     if (![...select.options].some((option) => option.value === value)) {
-                        populateReleaseFilterSelects();
+                        populateCampaignFilterSelects();
                     }
                     select.value = value;
                     if (select.value !== value) {
@@ -3222,37 +3222,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            let releasesCatalogPromise = null;
+            let campaignsCatalogPromise = null;
 
-            async function loadReleasesCatalog(options = {}) {
+            async function loadCampaignsCatalog(options = {}) {
                 const force = options.force === true;
-                if (!force && Array.isArray(releasesCatalog) && releasesCatalog.length > 0 && !releasesCatalogPromise) {
-                    populateReleaseFilterSelects();
-                    syncReleaseFilterUi();
-                    return releasesCatalog;
+                if (!force && Array.isArray(campaignsCatalog) && campaignsCatalog.length > 0 && !campaignsCatalogPromise) {
+                    populateCampaignFilterSelects();
+                    syncCampaignFilterUi();
+                    return campaignsCatalog;
                 }
-                if (!force && releasesCatalogPromise) {
-                    return releasesCatalogPromise;
+                if (!force && campaignsCatalogPromise) {
+                    return campaignsCatalogPromise;
                 }
-                releasesCatalogPromise = (async () => {
-                    const resp = await fetch('/biblioteca/get-releases.php', { credentials: 'same-origin' });
+                campaignsCatalogPromise = (async () => {
+                    const resp = await fetch('/biblioteca/get-campaigns.php', { credentials: 'same-origin' });
                     const data = await resp.json();
                     if (!resp.ok || !data || data.ok !== true) {
                         throw new Error(data?.error || 'Could not load campaigns');
                     }
-                    releasesCatalog = Array.isArray(data.releases) ? data.releases : [];
-                    window.bandpromoReleasesCatalog = releasesCatalog;
-                    populateReleaseFilterSelects();
-                    syncReleaseFilterUi();
-                    return releasesCatalog;
+                    campaignsCatalog = Array.isArray(data.campaigns) ? data.campaigns : [];
+                    window.bandpromoCampaignsCatalog = campaignsCatalog;
+                    populateCampaignFilterSelects();
+                    syncCampaignFilterUi();
+                    return campaignsCatalog;
                 })();
                 try {
-                    return await releasesCatalogPromise;
+                    return await campaignsCatalogPromise;
                 } finally {
-                    releasesCatalogPromise = null;
+                    campaignsCatalogPromise = null;
                 }
             }
-            window.loadReleasesCatalog = loadReleasesCatalog;
+            window.loadCampaignsCatalog = loadCampaignsCatalog;
 
             async function fetchMediaFiles(type, options = {}) {
                 const resp = await fetch(mediaListUrl(type, options));
@@ -4358,7 +4358,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     'visual,sfx',
                     {
                         brandFilter: 'all',
-                        releaseFilter: 'all',
+                        campaignFilter: 'all',
                         multiSelect: true,
                         ownedAssetIds: currentBrandLibraryAssetIdSet(),
                         async onSelectMany(selections) {
@@ -4489,7 +4489,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             <span class="visual-pool-type-badge">${typeLabel}</span>
                         </button>
                         ${titleHtml}
-                        <span class="media-file-col media-file-col-release visual-pool-card-context" title="${bandpromoAdminEscapeHtml(contextLabel || '—')}">${contextCell}</span>
+                        <span class="media-file-col media-file-col-campaign visual-pool-card-context" title="${bandpromoAdminEscapeHtml(contextLabel || '—')}">${contextCell}</span>
                         ${dimsCell}
                         <span class="media-file-col media-file-col-size media-file-size visual-pool-card-size">${bandpromoAdminEscapeHtml(sizeLabel)}</span>
                         <div class="visual-pool-card-actions media-file-actions">
@@ -4644,7 +4644,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     : (String(file.brand_title || '').trim() || 'Linked brand'))
                                 : (file.release_orphan === true
                                     ? 'Orphan'
-                                    : (visualCatalogueTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>') || 'Linked release'))],
+                                    : (visualCatalogueTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>') || 'Linked campaign'))],
                     );
                 }
                 detailRows.push(
@@ -4993,7 +4993,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? `<span class="media-file-name-wrap"><span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span><span class="media-file-meta">${formatMediaReferenceBadges(type, f)}</span></span>`
                                 : `<span class="media-file-name">${bandpromoAdminEscapeHtml(display.name || f.name)}</span>`;
                         const dateCell = type === 'audio' ? buildAudioDateCell(displaySource) : '';
-                        const releaseCell = type === 'audio' ? buildAudioReleaseCell(displaySource) : '';
+                        const campaignCell = type === 'audio' ? buildAudioCampaignCell(displaySource) : '';
                         const sizeCell = type === 'audio'
                             ? `<span class="media-file-col media-file-col-size media-file-size">${fmtSize(display.size)}</span>`
                             : `<span class="media-file-size">${fmtSize(display.size)}</span>`;
@@ -5013,7 +5013,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ${thumb}
                                 ${nameCell}
                                 ${dateCell}
-                                ${releaseCell}
+                                ${campaignCell}
                                 ${sizeCell}
                                 <span class="media-file-actions">${listenAction}${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeKey}')">🗑️</button></span>
                             </div>
@@ -5208,14 +5208,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            function setPoolReleaseFilter(nextValue) {
-                poolReleaseFilter = normalizePoolReleaseFilter(nextValue);
-                syncReleaseFilterUi();
+            function setPoolCampaignFilter(nextValue) {
+                poolCampaignFilter = normalizePoolCampaignFilter(nextValue);
+                syncCampaignFilterUi();
 
                 if (activeMediaPanel) {
                     loadMediaList(activeMediaPanel);
                 }
-                releaseFilterListeners.forEach((listener) => listener());
+                campaignFilterListeners.forEach((listener) => listener());
             }
 
             function setPoolNameFilter(panelType, nextValue) {
@@ -5229,9 +5229,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             }
 
-            document.querySelectorAll('[data-media-release-filter], [data-pool-release-filter]').forEach((select) => {
+            document.querySelectorAll('[data-media-campaign-filter], [data-pool-campaign-filter]').forEach((select) => {
                 select.addEventListener('change', () => {
-                    setPoolReleaseFilter(String(select.value || 'all'));
+                    setPoolCampaignFilter(String(select.value || 'all'));
                 });
             });
 
@@ -5259,21 +5259,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             });
             syncPoolListSortHeaders();
 
-            syncReleaseFilterUi();
+            syncCampaignFilterUi();
             syncBrandFilterUi();
             syncMediaReferenceFilterUi();
             syncPoolViewUi();
             if (adminFilesTabActive || adminContentTabActive) {
                 Promise.all([
-                    loadReleasesCatalog().catch(() => {
-                        populateReleaseFilterSelects();
+                    loadCampaignsCatalog().catch(() => {
+                        populateCampaignFilterSelects();
                     }),
                     ensureBrandFilterCatalog().catch(() => {
                         populateBrandFilterSelects();
                     }),
                 ]);
             } else {
-                populateReleaseFilterSelects();
+                populateCampaignFilterSelects();
                 populateBrandFilterSelects();
             }
 
@@ -5377,7 +5377,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function syncMediaPickerOwnershipFilters(target) {
                 const usesBrand = target === 'special' || target === 'sfx';
                 const fixedScope = mediaPickerHasFixedBrandScope();
-                document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="release"]').forEach((el) => {
+                document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="campaign"]').forEach((el) => {
                     el.hidden = usesBrand || fixedScope;
                 });
                 document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="brand"]').forEach((el) => {
@@ -5389,14 +5389,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!mediaPickerState) {
                     return;
                 }
-                const releaseSelect = document.querySelector('#mediaPickerToolbar [data-picker-release-filter]');
-                if (releaseSelect) {
-                    releaseSelect.innerHTML = releaseFilterOptionsHtml();
-                    const value = normalizePoolReleaseFilter(mediaPickerState.releaseFilter || 'all');
-                    releaseSelect.value = value;
-                    if (releaseSelect.value !== value) {
-                        releaseSelect.value = 'all';
-                        mediaPickerState.releaseFilter = 'all';
+                const campaignSelect = document.querySelector('#mediaPickerToolbar [data-picker-campaign-filter]');
+                if (campaignSelect) {
+                    campaignSelect.innerHTML = campaignFilterOptionsHtml();
+                    const value = normalizePoolCampaignFilter(mediaPickerState.campaignFilter || 'all');
+                    campaignSelect.value = value;
+                    if (campaignSelect.value !== value) {
+                        campaignSelect.value = 'all';
+                        mediaPickerState.campaignFilter = 'all';
                     }
                 }
                 const brandSelect = document.querySelector('#mediaPickerToolbar [data-picker-brand-filter]');
@@ -5424,7 +5424,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (target === 'special' || target === 'sfx') {
                         await ensureBrandFilterCatalog();
                     } else {
-                        await loadReleasesCatalog();
+                        await loadCampaignsCatalog();
                     }
                     syncMediaPickerFilterSelects();
                     // Match Files pools: never re-include per-file soft-hidden rows.
@@ -5436,7 +5436,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let files = await fetchMediaFiles(target, {
                         includeHidden: false,
                         brand: pickerBrand || undefined,
-                        release: mediaPickerState.releaseFilter || undefined,
+                        release: mediaPickerState.campaignFilter || undefined,
                     });
                     if (target === 'visual' && Array.isArray(mediaPickerState.visualBuckets) && mediaPickerState.visualBuckets.length) {
                         const allowed = new Set(mediaPickerState.visualBuckets);
@@ -5696,7 +5696,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     acceptKinds: normalizePickerAcceptKinds(opts.acceptKinds),
                     brandId: String(opts.brandId || '').trim(),
                     brandFilter: normalizePoolBrandFilter(opts.brandFilter || 'all'),
-                    releaseFilter: normalizePoolReleaseFilter(opts.releaseFilter || 'all'),
+                    campaignFilter: normalizePoolCampaignFilter(opts.campaignFilter || 'all'),
                     onSelect: typeof opts.onSelect === 'function' ? opts.onSelect : null,
                     onSelectMany: typeof opts.onSelectMany === 'function' ? opts.onSelectMany : null,
                     multiSelect: opts.multiSelect === true,
@@ -5719,7 +5719,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (pickerSearchEl) {
                     pickerSearchEl.value = '';
                 }
-                populateReleaseFilterSelects();
+                populateCampaignFilterSelects();
                 populateBrandFilterSelects();
                 syncMediaPickerFilterSelects();
                 pickerModal.style.display = 'flex';
@@ -5830,13 +5830,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            const mediaPickerReleaseFilter = document.querySelector('#mediaPickerToolbar [data-picker-release-filter]');
-            if (mediaPickerReleaseFilter) {
-                mediaPickerReleaseFilter.addEventListener('change', () => {
+            const mediaPickerCampaignFilter = document.querySelector('#mediaPickerToolbar [data-picker-campaign-filter]');
+            if (mediaPickerCampaignFilter) {
+                mediaPickerCampaignFilter.addEventListener('change', () => {
                     if (!mediaPickerState) {
                         return;
                     }
-                    mediaPickerState.releaseFilter = normalizePoolReleaseFilter(mediaPickerReleaseFilter.value || 'all');
+                    mediaPickerState.campaignFilter = normalizePoolCampaignFilter(mediaPickerCampaignFilter.value || 'all');
                     renderMediaPickerList(mediaPickerState.activeTarget);
                 });
             }
@@ -5907,10 +5907,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         } else if (mediaPickerState.fieldId === 'audioMasterFieldLivingCoverPath') {
                             applyAudioMasterLivingCoverSelection(selectedAssetId || selectedPath);
                         } else if (
-                            String(mediaPickerState.fieldId || '').startsWith('theme_asset_')
+                            String(mediaPickerState.fieldId || '').startsWith('brand_asset_')
                             && typeof window.bandpromoShellMediaPicked === 'function'
                         ) {
-                            const shellKey = String(mediaPickerState.fieldId).slice('theme_asset_'.length);
+                            const shellKey = String(mediaPickerState.fieldId).slice('brand_asset_'.length);
                             const acceptKinds = Array.isArray(mediaPickerState.acceptKinds)
                                 ? mediaPickerState.acceptKinds
                                 : [];
@@ -5930,9 +5930,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (mediaPickerState.fieldId === 'audioMasterFieldCoverPath') {
                                 syncAudioMasterCoverUi(activeAudioMasterDetail || {});
                             }
-                            if (mediaPickerState.fieldId === 'releaseSettingsPosterAssetId'
-                                && typeof window.bandpromoReleaseCoverPicked === 'function') {
-                                window.bandpromoReleaseCoverPicked(selectedPath);
+                            if (mediaPickerState.fieldId === 'campaignSettingsPosterAssetId'
+                                && typeof window.bandpromoCampaignCoverPicked === 'function') {
+                                window.bandpromoCampaignCoverPicked(selectedPath);
                             }
                             if (mediaPickerState.fieldId === 'playlistSettingsPosterAssetId'
                                 && typeof window.bandpromoPlaylistCoverPicked === 'function') {
@@ -6052,7 +6052,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const audioMasterTitle = document.getElementById('audioMasterTitle');
             const audioMasterStatus = document.getElementById('audioMasterStatus');
             const audioMasterFormat = document.getElementById('audioMasterFormat');
-            const audioMasterReleaseName = document.getElementById('audioMasterReleaseName');
+            const audioMasterCampaignName = document.getElementById('audioMasterCampaignName');
             const audioMasterDuration = document.getElementById('audioMasterDuration');
             const audioMasterBitrate = document.getElementById('audioMasterBitrate');
             const audioMasterSampleRate = document.getElementById('audioMasterSampleRate');
@@ -6108,7 +6108,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 lyrics: document.getElementById('audioMasterFieldLyrics'),
             };
 
-            function audioMasterReleaseDisplayName(detail) {
+            function audioMasterCampaignDisplayName(detail) {
                 return String(
                     (detail && detail.release_title)
                     || (detail && detail.album)
@@ -6135,7 +6135,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 audioMasterCoverMode = mode === 'set' || mode === 'clear' ? mode : 'preserve';
                 if (audioMasterCoverPath) {
                     audioMasterCoverPath.dataset.emptyLabel = audioMasterCoverMode === 'clear'
-                        ? 'Configured release cover will be used after save'
+                        ? 'Configured campaign cover will be used after save'
                         : 'No new cover selected';
                 }
             }
@@ -6619,7 +6619,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function buildAudioMasterHeading(detail) {
                 const artist = String(detail && detail.artist || '').trim();
                 const title = String(audioMasterTitlePartsFromDetail(detail || {}).title || '').trim();
-                const release = audioMasterReleaseDisplayName(detail);
+                const campaign = audioMasterCampaignDisplayName(detail);
 
                 if (artist && title) {
                     return `${artist} · ${title}`;
@@ -6627,8 +6627,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (title) {
                     return title;
                 }
-                if (release) {
-                    return `Track details · ${release}`;
+                if (campaign) {
+                    return `Track details · ${campaign}`;
                 }
                 return 'Track details';
             }
@@ -6675,7 +6675,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         cover: { label: 'Cover', state: hasCover ? 'good' : 'required' },
                         artist: { label: 'Artist', state: hasText(detail && detail.artist) ? 'good' : 'required' },
                         title: { label: 'Title', state: hasText(detail && detail.title) ? 'good' : 'required' },
-                        release: { label: 'Release', state: hasText(audioMasterReleaseDisplayName(detail)) ? 'good' : 'improvable' },
+                        campaign: { label: 'Campaign', state: hasText(audioMasterCampaignDisplayName(detail)) ? 'good' : 'improvable' },
                         track: { label: 'Track', state: hasTrack ? 'good' : (totalTracks > 1 ? 'required' : 'improvable') },
                         description: { label: 'Description', state: hasText(detail && detail.comment) ? 'good' : 'improvable' },
                         lyrics: { label: 'Lyrics', state: hasText(detail && detail.lyrics) ? 'good' : 'improvable' },
@@ -6720,7 +6720,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 } else if (data.embedded_cover_present) {
                     coverParts.push('Artwork is already embedded in the track');
                 } else {
-                    coverParts.push('The release cover is currently being used');
+                    coverParts.push('The campaign cover is currently being used');
                 }
 
                 if (audioMasterCoverPreviewShell) {
@@ -6799,8 +6799,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function setAudioMasterSummary(detail) {
                 activeAudioMasterDetail = detail || {};
-                if (audioMasterReleaseName) {
-                    audioMasterReleaseName.textContent = audioMasterReleaseDisplayName(detail) || '—';
+                if (audioMasterCampaignName) {
+                    audioMasterCampaignName.textContent = audioMasterCampaignDisplayName(detail) || '—';
                 }
                 if (audioMasterFormat) audioMasterFormat.textContent = String(detail.format || '—').toUpperCase();
                 if (audioMasterDuration) audioMasterDuration.textContent = detail.duration_seconds ? formatDuration(detail.duration_seconds) : '—';
@@ -7369,8 +7369,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (summary.playlist_tracks) parts.push(`${summary.playlist_tracks} playlist entr${summary.playlist_tracks === 1 ? 'y' : 'ies'}`);
                 if (summary.playlist_covers) parts.push(`${summary.playlist_covers} playlist cover reference${summary.playlist_covers === 1 ? '' : 's'}`);
                 if (summary.gallery_items) parts.push(`${summary.gallery_items} gallery item${summary.gallery_items === 1 ? '' : 's'}`);
-                if (summary.theme_assets) parts.push(`${summary.theme_assets} theme setting reference${summary.theme_assets === 1 ? '' : 's'}`);
-                if (summary.release_fallbacks) parts.push(`${summary.release_fallbacks} release fallback reference${summary.release_fallbacks === 1 ? '' : 's'}`);
+                if (summary.theme_assets) parts.push(`${summary.theme_assets} brand setting reference${summary.theme_assets === 1 ? '' : 's'}`);
+                if (summary.release_fallbacks) parts.push(`${summary.release_fallbacks} campaign fallback reference${summary.release_fallbacks === 1 ? '' : 's'}`);
                 return parts;
             }
 
@@ -7612,8 +7612,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const extras = buildMediaReferenceDeleteExtraHint(data, deleteFiles, deleteTarget);
                             if (!total) {
                                 const base = deleteFiles.length > 1
-                                    ? 'These deletions are immediate and cannot be undone. No playlist, gallery, or theme references will be changed.'
-                                    : 'This cannot be undone. No playlist, gallery, or theme references will be changed.';
+                                    ? 'These deletions are immediate and cannot be undone. No playlist, gallery, or brand references will be changed.'
+                                    : 'This cannot be undone. No playlist, gallery, or brand references will be changed.';
                                 deleteHintEl.innerHTML = extras.length
                                     ? `${base}<br>${extras.map((line) => bandpromoAdminEscapeHtml(line)).join('<br>')}`
                                     : base;
@@ -9298,7 +9298,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                registerReleaseFilterListener(reloadGalleryPool);
+                registerCampaignFilterListener(reloadGalleryPool);
 
                 
                 
@@ -9320,7 +9320,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             'Add to gallery',
                             'visual',
                             {
-                                releaseFilter: 'all',
+                                campaignFilter: 'all',
                                 multiSelect: true,
                                 ownedAssetIds: ownedIds,
                                 hint: 'Select photos and videos to add to this gallery. Items already in the gallery are hidden.',
@@ -9389,7 +9389,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let defaultPlaylistId = 'bandpromo-demo';
                 let isEditing = false;
                 let pendingPlaylistDeleteId = '';
-                const releaseFilterId = String(new URLSearchParams(window.location.search).get('release') || '').trim();
+                const campaignFilterId = String(new URLSearchParams(window.location.search).get('campaign') || '').trim();
 
                 const playlistDeleteModal = document.getElementById('playlistDeleteModal');
                 const playlistDeleteModalName = document.getElementById('playlistDeleteModalName');
@@ -9951,7 +9951,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         playlistEditorHeadBadges.innerHTML = '';
                         return;
                     }
-                    playlistEditorHeadBadges.innerHTML = '<span class="theme-editor-badge theme-editor-badge--active">Default</span>';
+                    playlistEditorHeadBadges.innerHTML = '<span class="brand-editor-badge brand-editor-badge--active">Default</span>';
                 }
 
                 function updatePlaylistDefaultButton() {
@@ -9984,18 +9984,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const trackCount = Number(entry.track_count || 0);
                     const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
                     const publishDate = String(entry.publish_date || '').trim();
-                    const releaseTitle = String(entry.release_title || '').trim();
+                    const campaignTitle = String(entry.release_title || '').trim();
                     const packageLabel = String(entry.package_type_label || '').trim();
                     const parts = [];
 
-                    if (publishDate && releaseTitle) {
+                    if (publishDate && campaignTitle) {
                         parts.push(
-                            `Published ${bandpromoAdminEscapeHtml(publishDate)} from the campaign "${bandpromoAdminEscapeHtml(releaseTitle)}"`
+                            `Published ${bandpromoAdminEscapeHtml(publishDate)} from the campaign "${bandpromoAdminEscapeHtml(campaignTitle)}"`
                         );
                     } else if (publishDate) {
                         parts.push(`Published ${bandpromoAdminEscapeHtml(publishDate)}`);
-                    } else if (releaseTitle) {
-                        parts.push(`From the campaign "${bandpromoAdminEscapeHtml(releaseTitle)}"`);
+                    } else if (campaignTitle) {
+                        parts.push(`From the campaign "${bandpromoAdminEscapeHtml(campaignTitle)}"`);
                     }
 
                     parts.push(`(${bandpromoAdminEscapeHtml(tracksLabel)})`);
@@ -10075,11 +10075,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function renderPlaylistPoolList() {
                     if (!poolList) return;
-                    const visible = releaseFilterId
-                        ? playlists.filter((entry) => String(entry.release_id || '').trim() === releaseFilterId)
+                    const visible = campaignFilterId
+                        ? playlists.filter((entry) => String(entry.release_id || '').trim() === campaignFilterId)
                         : playlists;
                     if (!visible.length) {
-                        poolList.innerHTML = releaseFilterId
+                        poolList.innerHTML = campaignFilterId
                             ? '<li class="player-layout-empty">No playlists for this campaign yet.</li>'
                             : '<li class="player-layout-empty">No playlists available yet.</li>';
                         return;
@@ -10126,8 +10126,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             playlistPackageTypeDefaults = nextDefaults;
                         }
                     }
-                    if (releaseFilterId) {
-                        const scoped = playlists.filter((entry) => String(entry.release_id || '').trim() === releaseFilterId);
+                    if (campaignFilterId) {
+                        const scoped = playlists.filter((entry) => String(entry.release_id || '').trim() === campaignFilterId);
                         defaultPlaylistId = String(scoped[0]?.id || playlists[0]?.id || 'bandpromo-demo');
                     } else {
                         defaultPlaylistId = String(
@@ -10426,8 +10426,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function playlistPreviewParams(extraParams) {
                     const params = new URLSearchParams(extraParams || {});
-                    if (poolReleaseFilter && poolReleaseFilter !== 'all') {
-                        params.set('release', poolReleaseFilter);
+                    if (poolCampaignFilter && poolCampaignFilter !== 'all') {
+                        params.set('campaign', poolCampaignFilter);
                     }
                     return params;
                 }
@@ -10519,9 +10519,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (track.deliveryReady === false) {
                         return 'Preparing delivery file — wait a moment and refresh the pool';
                     }
-                    const releaseTitle = String(track.release_title || '').trim();
-                    if (releaseTitle) {
-                        return `from the campaign ${releaseTitle}`;
+                    const campaignTitle = String(track.release_title || '').trim();
+                    if (campaignTitle) {
+                        return `from the campaign ${campaignTitle}`;
                     }
                     return '';
                 }
@@ -11176,7 +11176,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 });
 
-                registerReleaseFilterListener(reloadPlaylistPool);
+                registerCampaignFilterListener(reloadPlaylistPool);
 
                 initPlaylistCoverPicker();
 
@@ -11479,7 +11479,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     `;
 
                     if (tiles.length) {
-                        const coreTileIds = new Set(['releases', 'playlists', 'tracks']);
+                        const coreTileIds = new Set(['campaigns', 'playlists', 'tracks']);
                         const visibleTiles = tiles.filter((tile) => {
                             const value = Number(tile.value || 0);
                             return value > 0 || coreTileIds.has(String(tile.id || ''));
@@ -11540,13 +11540,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     case 'missing_artist_tag':
                         return { severity: 'fix-before-publish', action: 'Add the artist name' };
                     case 'missing_album_tag':
-                        return { severity: 'recommended-fix', action: 'Add a release name in song metadata (your catalogue release until a Releases editor ships)' };
+                        return { severity: 'recommended-fix', action: 'Add a campaign name in song metadata (your catalogue release until a Releases editor ships)' };
                     case 'missing_track_number':
                         return {
                             severity: totalTracks > 1 ? 'fix-before-publish' : 'recommended-fix',
                             action: totalTracks > 1
-                                ? 'Set the track number in song metadata so multi-track releases keep the right order'
-                                : 'Set the track number in song metadata if this song belongs to a numbered release',
+                                ? 'Set the track number in song metadata so multi-track campaigns keep the right order'
+                                : 'Set the track number in song metadata if this song belongs to a numbered campaign',
                         };
                     case 'missing_lyrics':
                         return { severity: 'recommended-fix', action: 'Add lyrics if you want them to show on the site' };
@@ -12971,20 +12971,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
-                const releasePackageExportSelect = document.getElementById('releasePackageExportSelect');
-                const releasePackageExportBtn = document.getElementById('releasePackageExportBtn');
-                const releasePackageExportStatus = document.getElementById('releasePackageExportStatus');
+                const campaignPackageExportSelect = document.getElementById('campaignPackageExportSelect');
+                const campaignPackageExportBtn = document.getElementById('campaignPackageExportBtn');
+                const campaignPackageExportStatus = document.getElementById('campaignPackageExportStatus');
 
-                async function loadReleasePackageExportOptions() {
-                    if (!(releasePackageExportSelect instanceof HTMLSelectElement)) {
+                async function loadCampaignPackageExportOptions() {
+                    if (!(campaignPackageExportSelect instanceof HTMLSelectElement)) {
                         return;
                     }
                     try {
-                        let releases = [];
-                        if (typeof loadReleasesCatalog === 'function') {
-                            releases = await loadReleasesCatalog();
+                        let campaigns = [];
+                        if (typeof loadCampaignsCatalog === 'function') {
+                            campaigns = await loadCampaignsCatalog();
                         } else {
-                            const response = await fetch('/biblioteca/get-releases.php', {
+                            const response = await fetch('/biblioteca/get-campaigns.php', {
                                 credentials: 'same-origin',
                                 cache: 'no-store',
                             });
@@ -12992,56 +12992,56 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (!response.ok || data.ok === false) {
                                 throw new Error(data.error || 'Could not load campaigns');
                             }
-                            releases = Array.isArray(data.releases) ? data.releases : [];
+                            campaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
                         }
-                        const options = (Array.isArray(releases) ? releases : [])
+                        const options = (Array.isArray(campaigns) ? campaigns : [])
                             .filter((entry) => String(entry?.id || '') !== 'primary')
                             .map((entry) => {
                                 const id = String(entry.id || '').trim();
                                 const title = String(entry.title || id).trim() || id;
                                 return `<option value="${id.replace(/"/g, '&quot;')}">${title.replace(/</g, '&lt;')}</option>`;
                             });
-                        releasePackageExportSelect.innerHTML = options.length
+                        campaignPackageExportSelect.innerHTML = options.length
                             ? options.join('')
                             : '<option value="">No exportable campaigns</option>';
                     } catch (error) {
-                        releasePackageExportSelect.innerHTML = '<option value="">Could not load campaigns</option>';
-                        if (releasePackageExportStatus) {
-                            releasePackageExportStatus.textContent = error.message || 'Could not load campaigns';
-                            releasePackageExportStatus.classList.add('is-error');
+                        campaignPackageExportSelect.innerHTML = '<option value="">Could not load campaigns</option>';
+                        if (campaignPackageExportStatus) {
+                            campaignPackageExportStatus.textContent = error.message || 'Could not load campaigns';
+                            campaignPackageExportStatus.classList.add('is-error');
                         }
                     }
                 }
 
-                async function exportReleasePackageFromBackup() {
-                    if (!(releasePackageExportSelect instanceof HTMLSelectElement)) {
+                async function exportCampaignPackageFromBackup() {
+                    if (!(campaignPackageExportSelect instanceof HTMLSelectElement)) {
                         return;
                     }
-                    const releaseId = String(releasePackageExportSelect.value || '').trim();
-                    if (!releaseId) {
-                        if (releasePackageExportStatus) {
-                            releasePackageExportStatus.textContent = 'Choose a release campaign first.';
-                            releasePackageExportStatus.classList.add('is-error');
+                    const campaignId = String(campaignPackageExportSelect.value || '').trim();
+                    if (!campaignId) {
+                        if (campaignPackageExportStatus) {
+                            campaignPackageExportStatus.textContent = 'Choose a campaign first.';
+                            campaignPackageExportStatus.classList.add('is-error');
                         }
                         return;
                     }
-                    if (releasePackageExportStatus) {
-                        releasePackageExportStatus.textContent = 'Queueing PCF export…';
-                        releasePackageExportStatus.classList.remove('is-error');
+                    if (campaignPackageExportStatus) {
+                        campaignPackageExportStatus.textContent = 'Queueing PCF export…';
+                        campaignPackageExportStatus.classList.remove('is-error');
                     }
-                    if (releasePackageExportBtn instanceof HTMLButtonElement) {
-                        releasePackageExportBtn.disabled = true;
+                    if (campaignPackageExportBtn instanceof HTMLButtonElement) {
+                        campaignPackageExportBtn.disabled = true;
                     }
                     try {
                         const csrfToken = typeof refreshAdminCsrfToken === 'function'
                             ? await refreshAdminCsrfToken()
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
-                        const response = await fetch('/biblioteca/export-release-package.php', {
+                        const response = await fetch('/biblioteca/export-campaign-package.php', {
                             method: 'POST',
                             credentials: 'same-origin',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                release_id: releaseId,
+                                release_id: campaignId,
                                 csrf_token: csrfToken,
                             }),
                         });
@@ -13050,8 +13050,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             throw new Error(data.error || 'Could not queue PCF export');
                         }
                         const message = data.message || 'PCF export queued.';
-                        if (releasePackageExportStatus) {
-                            releasePackageExportStatus.textContent = message;
+                        if (campaignPackageExportStatus) {
+                            campaignPackageExportStatus.textContent = message;
                         }
                         if (jobsStatus) {
                             jobsStatus.textContent = 'Building in background. This list refreshes automatically.';
@@ -13061,53 +13061,53 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await refreshBackupJobs();
                         }
                     } catch (error) {
-                        if (releasePackageExportStatus) {
-                            releasePackageExportStatus.textContent = error.message || 'Export failed';
-                            releasePackageExportStatus.classList.add('is-error');
+                        if (campaignPackageExportStatus) {
+                            campaignPackageExportStatus.textContent = error.message || 'Export failed';
+                            campaignPackageExportStatus.classList.add('is-error');
                         }
                     } finally {
-                        if (releasePackageExportBtn instanceof HTMLButtonElement) {
-                            releasePackageExportBtn.disabled = false;
+                        if (campaignPackageExportBtn instanceof HTMLButtonElement) {
+                            campaignPackageExportBtn.disabled = false;
                         }
                     }
                 }
 
-                if (releasePackageExportSelect instanceof HTMLSelectElement) {
-                    loadReleasePackageExportOptions().catch(() => {});
+                if (campaignPackageExportSelect instanceof HTMLSelectElement) {
+                    loadCampaignPackageExportOptions().catch(() => {});
                 }
-                if (releasePackageExportBtn) {
-                    releasePackageExportBtn.addEventListener('click', () => {
-                        exportReleasePackageFromBackup().catch(() => {});
+                if (campaignPackageExportBtn) {
+                    campaignPackageExportBtn.addEventListener('click', () => {
+                        exportCampaignPackageFromBackup().catch(() => {});
                     });
                 }
 
-                const releasePackageImportInput = document.getElementById('releasePackageImportInput');
-                const releasePackageImportBtn = document.getElementById('releasePackageImportBtn');
-                const releasePackageImportStatus = document.getElementById('releasePackageImportStatus');
-                const releasePackageImportFilename = document.getElementById('releasePackageImportFilename');
+                const campaignPackageImportInput = document.getElementById('campaignPackageImportInput');
+                const campaignPackageImportBtn = document.getElementById('campaignPackageImportBtn');
+                const campaignPackageImportStatus = document.getElementById('campaignPackageImportStatus');
+                const campaignPackageImportFilename = document.getElementById('campaignPackageImportFilename');
 
-                function selectedReleasePackageCollision() {
-                    const checked = document.querySelector('input[name="releasePackageImportCollision"]:checked');
+                function selectedCampaignPackageCollision() {
+                    const checked = document.querySelector('input[name="campaignPackageImportCollision"]:checked');
                     if (checked instanceof HTMLInputElement) {
                         return String(checked.value || 'refuse');
                     }
                     return 'refuse';
                 }
 
-                if (releasePackageImportInput instanceof HTMLInputElement) {
-                    releasePackageImportInput.addEventListener('change', () => {
-                        const file = releasePackageImportInput.files && releasePackageImportInput.files[0];
-                        if (releasePackageImportFilename) {
-                            releasePackageImportFilename.textContent = file ? file.name : '';
+                if (campaignPackageImportInput instanceof HTMLInputElement) {
+                    campaignPackageImportInput.addEventListener('change', () => {
+                        const file = campaignPackageImportInput.files && campaignPackageImportInput.files[0];
+                        if (campaignPackageImportFilename) {
+                            campaignPackageImportFilename.textContent = file ? file.name : '';
                         }
-                        if (releasePackageImportStatus) {
-                            releasePackageImportStatus.textContent = '';
-                            releasePackageImportStatus.classList.remove('is-error');
+                        if (campaignPackageImportStatus) {
+                            campaignPackageImportStatus.textContent = '';
+                            campaignPackageImportStatus.classList.remove('is-error');
                         }
                     });
                 }
 
-                async function parseReleaseImportResponse(response) {
+                async function parseCampaignImportResponse(response) {
                     const rawText = await response.text();
                     let data = {};
                     try {
@@ -13134,7 +13134,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return data;
                 }
 
-                async function importReleasePackageChunked(file, collision, csrfToken, onProgress) {
+                async function importCampaignPackageChunked(file, collision, csrfToken, onProgress) {
                     const chunkSize = 2 * 1024 * 1024; // same as Files uploads
                     const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
                     const uploadId = `prp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -13156,12 +13156,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (i === totalChunks - 1 && onProgress) {
                             onProgress(1, true);
                         }
-                        const response = await fetch('/biblioteca/import-release-package.php', {
+                        const response = await fetch('/biblioteca/import-campaign-package.php', {
                             method: 'POST',
                             credentials: 'same-origin',
                             body: formData,
                         });
-                        lastData = await parseReleaseImportResponse(response);
+                        lastData = await parseCampaignImportResponse(response);
                         if (onProgress && i < totalChunks - 1) {
                             onProgress((i + 1) / totalChunks, false);
                         }
@@ -13172,45 +13172,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return lastData;
                 }
 
-                async function importReleasePackage() {
-                    if (!(releasePackageImportInput instanceof HTMLInputElement) || !releasePackageImportInput.files?.length) {
-                        if (releasePackageImportStatus) {
-                            releasePackageImportStatus.textContent = 'Choose a .pcf first.';
-                            releasePackageImportStatus.classList.add('is-error');
+                async function importCampaignPackage() {
+                    if (!(campaignPackageImportInput instanceof HTMLInputElement) || !campaignPackageImportInput.files?.length) {
+                        if (campaignPackageImportStatus) {
+                            campaignPackageImportStatus.textContent = 'Choose a .pcf first.';
+                            campaignPackageImportStatus.classList.add('is-error');
                         }
                         return;
                     }
-                    const file = releasePackageImportInput.files[0];
-                    if (releasePackageImportStatus) {
-                        releasePackageImportStatus.textContent = 'Uploading…';
-                        releasePackageImportStatus.classList.remove('is-error');
+                    const file = campaignPackageImportInput.files[0];
+                    if (campaignPackageImportStatus) {
+                        campaignPackageImportStatus.textContent = 'Uploading…';
+                        campaignPackageImportStatus.classList.remove('is-error');
                     }
-                    if (releasePackageImportBtn instanceof HTMLButtonElement) {
-                        releasePackageImportBtn.disabled = true;
+                    if (campaignPackageImportBtn instanceof HTMLButtonElement) {
+                        campaignPackageImportBtn.disabled = true;
                     }
                     try {
                         const csrfToken = typeof refreshAdminCsrfToken === 'function'
                             ? await refreshAdminCsrfToken()
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
-                        const collision = selectedReleasePackageCollision();
-                        const data = await importReleasePackageChunked(file, collision, csrfToken, (progress, finishing) => {
-                            if (!releasePackageImportStatus) {
+                        const collision = selectedCampaignPackageCollision();
+                        const data = await importCampaignPackageChunked(file, collision, csrfToken, (progress, finishing) => {
+                            if (!campaignPackageImportStatus) {
                                 return;
                             }
                             if (finishing) {
-                                releasePackageImportStatus.textContent = 'Uploading complete — importing…';
+                                campaignPackageImportStatus.textContent = 'Uploading complete — importing…';
                                 return;
                             }
-                            releasePackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
+                            campaignPackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
                         });
-                        const releaseId = String(data.release_id || '').trim();
-                        let message = data.message || 'Release package imported.';
+                        const campaignId = String(data.release_id || '').trim();
+                        let message = data.message || 'Campaign package imported.';
                         if (data.deliverables_started) {
                             // Server already queued the background rebuild during import.
                         } else if (data.queue_deliverables) {
                             try {
-                                if (releasePackageImportStatus) {
-                                    releasePackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
+                                if (campaignPackageImportStatus) {
+                                    campaignPackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
                                 }
                                 const buildResp = await fetch('/biblioteca/build.php', {
                                     method: 'POST',
@@ -13234,31 +13234,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 message = `${message} Open System → Deliverables and rebuild when ready.`;
                             }
                         }
-                        if (releasePackageImportStatus) {
-                            releasePackageImportStatus.textContent = message;
+                        if (campaignPackageImportStatus) {
+                            campaignPackageImportStatus.textContent = message;
                         }
-                        if (releaseId && window.confirm(`${message}\n\nOpen it in Content → Catalogue?`)) {
-                            window.location.href = `?tab=content&cntab=release&release=${encodeURIComponent(releaseId)}&edit=1`;
+                        if (campaignId && window.confirm(`${message}\n\nOpen it in Content → Catalogue?`)) {
+                            window.location.href = `?tab=content&cntab=campaign&campaign=${encodeURIComponent(campaignId)}&edit=1`;
                         }
                     } catch (error) {
-                        if (releasePackageImportStatus) {
+                        if (campaignPackageImportStatus) {
                             let message = error && error.message ? String(error.message) : 'Import failed';
                             if (/failed to fetch|networkerror|load failed/i.test(message)) {
                                 message = 'Upload interrupted before the server finished. Retry the import; large packages use 2 MB chunks like Files uploads.';
                             }
-                            releasePackageImportStatus.textContent = message;
-                            releasePackageImportStatus.classList.add('is-error');
+                            campaignPackageImportStatus.textContent = message;
+                            campaignPackageImportStatus.classList.add('is-error');
                         }
                     } finally {
-                        if (releasePackageImportBtn instanceof HTMLButtonElement) {
-                            releasePackageImportBtn.disabled = false;
+                        if (campaignPackageImportBtn instanceof HTMLButtonElement) {
+                            campaignPackageImportBtn.disabled = false;
                         }
                     }
                 }
 
-                if (releasePackageImportBtn) {
-                    releasePackageImportBtn.addEventListener('click', () => {
-                        importReleasePackage().catch(() => {});
+                if (campaignPackageImportBtn) {
+                    campaignPackageImportBtn.addEventListener('click', () => {
+                        importCampaignPackage().catch(() => {});
                     });
                 }
             })();

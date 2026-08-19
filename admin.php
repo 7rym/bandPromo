@@ -18,7 +18,7 @@ require_once 'biblioteca/page-registry.php';
 require_once 'biblioteca/player-modules.php';
 require_once 'biblioteca/admin-welcome-state.php';
 require_once 'biblioteca/demo-catalog-state.php';
-require_once 'biblioteca/theme-storage.php';
+require_once 'biblioteca/brand-storage.php';
 require_once 'biblioteca/playlist-storage.php';
 require_once 'biblioteca/gallery-storage.php';
 require_once 'biblioteca/player-markdown.php';
@@ -77,11 +77,11 @@ if ($siteUrl === '' || $configuredHost === 'example.com') {
     $siteUrl = rtrim((string) get_config('site.url', ''), '/');
     $configuredHost = strtolower((string) (parse_url($siteUrl, PHP_URL_HOST) ?: ''));
 }
-$defaultThemeStatus = bandpromo_admin_get_default_theme_status(__DIR__);
-bandpromo_demo_release_ensure_preferences(__DIR__);
+$defaultBrandStatus = bandpromo_admin_get_default_theme_status(__DIR__);
+bandpromo_demo_campaign_ensure_preferences(__DIR__);
 $demoCatalogShouldSuggestHide = bandpromo_demo_catalog_should_suggest_hide(__DIR__);
 $demoCatalogVisible = bandpromo_demo_catalog_is_visible(__DIR__);
-$demoReleaseId = bandpromo_demo_release_id(__DIR__);
+$demoCampaignId = bandpromo_demo_campaign_id(__DIR__);
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
 if ($requestHostNoPort === 'localhost') {
@@ -515,28 +515,35 @@ if ($editablePages === []) {
     $editablePages = bandpromo_page_admin_pages_map(__DIR__);
 }
 
-// Content sub-tab
-$contentTab = $_GET['cntab'] ?? 'release';
+// Content sub-tab — backwards-compat aliases for old 'release' URLs
+if (isset($_GET['cntab']) && $_GET['cntab'] === 'release') $_GET['cntab'] = 'campaign';
+if (!isset($_GET['campaign']) && isset($_GET['release'])) $_GET['campaign'] = $_GET['release'];
+if (!isset($_GET['brand']) && isset($_GET['theme'])) $_GET['brand'] = $_GET['theme'];
+
+$contentTab = $_GET['cntab'] ?? 'campaign';
 if ($contentTab === 'bio') {
     $contentTab = 'pages';
 }
-if (!in_array($contentTab, ['release', 'playlist', 'gallery', 'pages', 'themes'], true)) {
+if ($contentTab === 'branding') {
+    $contentTab = 'branding';
+}
+if (!in_array($contentTab, ['campaign', 'playlist', 'gallery', 'pages', 'branding'], true)) {
     if ($contentTab === 'player') {
-        header('Location: /admin.php?tab=content&cntab=release');
+        header('Location: /admin.php?tab=content&cntab=campaign');
         exit;
     }
-    $contentTab = 'release';
+    $contentTab = 'campaign';
 }
 
 $pageTabEntries = bandpromo_page_admin_tab_entries(__DIR__);
 if ($tab === 'content') {
-    $contentTheme = isset($_GET['theme']) ? bandpromo_theme_normalize_id((string) $_GET['theme']) : '';
-    if ($contentTheme === '') {
+    $contentBrand = isset($_GET['brand']) ? bandpromo_brand_normalize_id((string) $_GET['brand']) : '';
+    if ($contentBrand === '') {
         try {
-            bandpromo_theme_ensure_seeded(__DIR__);
-            $contentTheme = bandpromo_theme_active_id(__DIR__);
+            bandpromo_brand_ensure_seeded(__DIR__);
+            $contentBrand = bandpromo_brand_active_id(__DIR__);
         } catch (Throwable $throwable) {
-            $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
+            $contentBrand = BANDPROMO_BRAND_DEFAULT_ID;
         }
     }
     $contentPlaylist = isset($_GET['playlist']) ? bandpromo_playlist_normalize_id((string) $_GET['playlist']) : '';
@@ -551,16 +558,16 @@ if ($tab === 'content') {
             $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
         }
     }
-    $contentRelease = isset($_GET['release']) ? bandpromo_release_normalize_id((string) $_GET['release']) : '';
-    if ($contentRelease !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentRelease)) {
-        $contentRelease = '';
+    $contentCampaign = isset($_GET['campaign']) ? bandpromo_campaign_normalize_id((string) $_GET['campaign']) : '';
+    if ($contentCampaign !== '' && !bandpromo_demo_catalog_entity_is_visible(__DIR__, $contentCampaign)) {
+        $contentCampaign = '';
     }
-    if ($contentRelease === '' || $contentRelease === BANDPROMO_RELEASE_DEFAULT_ID) {
+    if ($contentCampaign === '' || $contentCampaign === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
         try {
-            bandpromo_release_ensure_seeded(__DIR__);
-            $contentRelease = bandpromo_release_default_admin_content_id(__DIR__);
+            bandpromo_campaign_ensure_seeded(__DIR__);
+            $contentCampaign = bandpromo_campaign_default_admin_content_id(__DIR__);
         } catch (Throwable $throwable) {
-            $contentRelease = '';
+            $contentCampaign = '';
         }
     }
     $contentGallery = isset($_GET['gallery']) ? bandpromo_gallery_normalize_id((string) $_GET['gallery']) : '';
@@ -583,9 +590,9 @@ if ($tab === 'content') {
         $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
     }
 } else {
-    $contentTheme = BANDPROMO_THEME_DEFAULT_ID;
+    $contentBrand = BANDPROMO_BRAND_DEFAULT_ID;
     $contentPlaylist = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_PLAYLIST_DEMO_ID : '';
-    $contentRelease = '';
+    $contentCampaign = '';
     $contentGallery = bandpromo_demo_catalog_is_visible(__DIR__) ? BANDPROMO_GALLERY_DEMO_ID : '';
     $contentPage = array_key_exists('faq', $editablePages) ? 'faq' : (array_key_first($editablePages) ?: 'faq');
 }
@@ -595,7 +602,7 @@ $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
 // Settings sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
 if ($tab === 'settings' && $configTab === 'theme') {
-    header('Location: /admin.php?tab=content&cntab=themes');
+    header('Location: /admin.php?tab=content&cntab=branding');
     exit;
 }
 if (!in_array($configTab, ['basics', 'support', 'sharing'], true)) {
@@ -684,18 +691,18 @@ if ($tab === 'analytics') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
-    <?php echo bandpromo_theme_render_css(__DIR__); ?>
+    <?php echo bandpromo_brand_render_css(__DIR__); ?>
     <?php if ($tab === 'analytics'): ?>
     <script src="vendor/chart.js/chart.umd.min.js?v=<?php echo filemtime(__DIR__ . '/vendor/chart.js/chart.umd.min.js'); ?>"></script>
     <?php endif; ?>
-    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'campaign', 'playlist', 'gallery', 'branding'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-content.css'); ?>">
     <?php endif; ?>
-    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'release', 'playlist', 'gallery', 'themes'], true)): ?>
+    <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'campaign', 'playlist', 'gallery', 'branding'], true)): ?>
     <link rel="stylesheet" href="biblioteca/page-editor.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.css'); ?>">
     <?php endif; ?>
-    <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
-    <link rel="stylesheet" href="biblioteca/theme-editor.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-editor.css'); ?>">
+    <?php if ($tab === 'content' && $contentTab === 'branding'): ?>
+    <link rel="stylesheet" href="biblioteca/brand-editor.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/brand-editor.css'); ?>">
     <?php endif; ?>
     <script src="biblioteca/lightbox.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/lightbox.js'); ?>"></script>
 </head>
@@ -1206,7 +1213,7 @@ if ($tab === 'analytics') {
                     <div class="audio-pool-toolbar-main">
                         <label class="media-filter-label">
                             <span class="visually-hidden">Filter by campaign</span>
-                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by campaign">
+                            <select class="media-filter-select" data-media-campaign-filter aria-label="Filter by campaign">
                                 <option value="all">All campaigns</option>
                                 <option value="orphans">Orphans</option>
                             </select>
@@ -1229,7 +1236,7 @@ if ($tab === 'analytics') {
                     </div>
                     <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
                     <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
-                    <button type="button" class="media-file-col-sort" data-audio-sort="release" aria-pressed="false">Campaign</button>
+                    <button type="button" class="media-file-col-sort" data-audio-sort="campaign" aria-pressed="false">Campaign</button>
                     <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
                     <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
@@ -1255,7 +1262,7 @@ if ($tab === 'analytics') {
                         </div>
                         <label class="media-filter-label">
                             <span class="visually-hidden">Filter by campaign</span>
-                            <select class="media-filter-select" data-media-release-filter aria-label="Filter by campaign">
+                            <select class="media-filter-select" data-media-campaign-filter aria-label="Filter by campaign">
                                 <option value="all">All campaigns</option>
                                 <option value="orphans">Orphans</option>
                             </select>
@@ -1486,11 +1493,11 @@ if ($tab === 'analytics') {
             <div class="tabs sub-tabs">
                 <?php
                 $cntTabs = [
-                    'release'  => ['💿', 'Catalogue'],
+                    'campaign'  => ['💿', 'Catalogue'],
                     'playlist' => ['🎵', 'Playlists'],
                     'gallery'  => ['🖼️', 'Galleries'],
                     'pages'    => ['📝', 'Pages'],
-                    'themes'   => ['🎨', 'Branding'],
+                    'branding' => ['🎨', 'Branding'],
                 ];
                 foreach ($cntTabs as $ct => [$emoji, $label]):
                     $active = $ct === $contentTab ? 'active' : '';
@@ -1498,14 +1505,14 @@ if ($tab === 'analytics') {
                     if ($ct === 'pages') {
                         $url .= '&page=' . urlencode($contentPage);
                     }
-                    if ($ct === 'themes') {
-                        $url .= '&theme=' . urlencode($contentTheme);
+                    if ($ct === 'branding') {
+                        $url .= '&brand=' . urlencode($contentBrand);
                     }
                     if ($ct === 'playlist') {
                         $url .= '&playlist=' . urlencode($contentPlaylist);
                     }
-                    if ($ct === 'release') {
-                        $url .= '&release=' . urlencode($contentRelease);
+                    if ($ct === 'campaign') {
+                        $url .= '&campaign=' . urlencode($contentCampaign);
                     }
                     if ($ct === 'gallery') {
                         $url .= '&gallery=' . urlencode($contentGallery);
@@ -1518,7 +1525,7 @@ if ($tab === 'analytics') {
                 <button class="help-toggle-btn collapsed" id="helpBtn-content" onclick="toggleHelp('content')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-content">
-                <?php if ($contentTab === 'release'): ?>
+                <?php if ($contentTab === 'campaign'): ?>
                     <ul>
                         <li>A Campaign is the umbrella for one body of work. It owns master media assets like audio, images, and videos.</li>
                         <li>Assign your audio assets and containers — branding, playlists, galleries, pages, and more — to the campaign.</li>
@@ -1542,7 +1549,7 @@ if ($tab === 'analytics') {
                         <li>Associate pages on Catalogue → Campaign editor → Pages; that order is the player tab order for playlists in that campaign. Playlist and Lyrics stay fixed.</li>
                         <li>FAQ is the login help lightbox. It is install-owned, not a campaign page, and is not packed in a .pcf.</li>
                     </ul>
-                <?php elseif ($contentTab === 'themes'): ?>
+                <?php elseif ($contentTab === 'branding'): ?>
                     <ul>
                         <li><strong>Base</strong> is the site-wide brand: login chrome, logo, backgrounds, welcome sounds, and player chrome (playlist selector, cover reflection, Beggars banquet).</li>
                         <li>A <strong>campaign brand</strong> (set on the Catalogue campaign) can override player colours and fonts while that campaign’s playlist is playing. Tracks do not carry a brand. Shell media still follow Base until per-campaign shell override ships.</li>
@@ -1552,10 +1559,10 @@ if ($tab === 'analytics') {
             </div>
 
             <?php
-            $poolReleaseFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
+            $poolCampaignFilterHtml = '<div class="player-layout-pool-head-slot player-layout-pool-filters">'
                 . '<label class="media-filter-label player-layout-pool-filter-label">'
                 . '<span class="visually-hidden">Filter by campaign</span>'
-                . '<select class="media-filter-select player-layout-pool-filter" data-pool-release-filter aria-label="Filter by campaign">'
+                . '<select class="media-filter-select player-layout-pool-filter" data-pool-campaign-filter aria-label="Filter by campaign">'
                 . '<option value="all">All campaigns</option>'
                 . '<option value="orphans">Orphans</option>'
                 . '</select>'
@@ -1564,116 +1571,116 @@ if ($tab === 'analytics') {
             $poolHeadSpacerHtml = '<div class="player-layout-pool-head-slot" aria-hidden="true"></div>';
             ?>
 
-            <!-- ── RELEASE ──────────────────────────────────────────────── -->
-            <?php if ($contentTab === 'release'): ?>
-            <div class="card content-editor-card" id="releaseEditorCard"
-                 data-initial-release="<?php echo htmlspecialchars($contentRelease, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="release-editor-card-head">
+            <!-- ── CAMPAIGN ──────────────────────────────────────────────── -->
+            <?php if ($contentTab === 'campaign'): ?>
+            <div class="card content-editor-card" id="campaignEditorCard"
+                 data-initial-campaign="<?php echo htmlspecialchars($contentCampaign, ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="campaign-editor-card-head">
                     <h2>💿 Catalogue</h2>
                 </div>
 
-                <div class="player-layout-editor playlist-editor-layout" id="releaseEditorLayout">
+                <div class="player-layout-editor playlist-editor-layout" id="campaignEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
-                            <div id="releasePoolView">
+                            <div id="campaignPoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
                                     <h4 class="player-layout-col-title">Campaigns</h4>
                                     <div class="player-layout-pool-head-slot player-layout-pool-actions">
-                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddReleaseBtn" aria-expanded="false" aria-label="Add campaign" title="Add campaign">
+                                        <button type="button" class="player-layout-pool-action page-editor-add-btn" id="toggleAddCampaignBtn" aria-expanded="false" aria-label="Add campaign" title="Add campaign">
                                             <span class="player-layout-pool-action-icon" aria-hidden="true">＋</span>
                                             <span>Add campaign</span>
                                         </button>
                                     </div>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
-                                    <div class="add-page-panel" id="addReleasePanel" hidden>
-                                        <form id="addReleaseForm" class="add-page-form">
+                                    <div class="add-page-panel" id="addCampaignPanel" hidden>
+                                        <form id="addCampaignForm" class="add-page-form">
                                             <label class="add-page-field">
                                                 <span>Campaign name</span>
                                                 <input type="text" name="title" placeholder="Summer EP" required>
                                             </label>
                                             <div class="add-page-actions">
                                                 <button type="submit" class="btn btn-primary">Create campaign</button>
-                                                <button type="button" class="btn" id="cancelAddReleaseBtn">Cancel</button>
+                                                <button type="button" class="btn" id="cancelAddCampaignBtn">Cancel</button>
                                             </div>
                                         </form>
                                     </div>
-                                    <p id="releaseRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="releasePoolList" aria-label="Campaigns"></ol>
+                                    <p id="campaignRegistryStatus" class="status-text page-pool-status"></p>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list" id="campaignPoolList" aria-label="Campaigns"></ol>
                                 </div>
                             </div>
 
-                            <div id="releaseTracksPoolView" class="page-editor-view" hidden>
+                            <div id="campaignTracksPoolView" class="page-editor-view" hidden>
                                 <div class="player-layout-col-head player-layout-col-head--pool page-editor-view-head content-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="releaseEditorBackBtn" title="Back to catalogue">← Back</button>
-                                    <h3 class="release-editor-header-title">Campaign editor</h3>
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="campaignEditorBackBtn" title="Back to catalogue">← Back</button>
+                                    <h3 class="campaign-editor-header-title">Campaign editor</h3>
                                 </div>
-                                <div class="release-preview-tabs release-editor-section-tabs release-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
-                                    <button type="button" class="release-preview-tab is-active" role="tab" aria-selected="true" data-release-editor-tab="base">Base info</button>
-                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="tracks">Tracks</button>
-                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="playlists">Playlists</button>
-                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="galleries">Galleries</button>
-                                    <button type="button" class="release-preview-tab" role="tab" aria-selected="false" data-release-editor-tab="pages">Pages</button>
+                                <div class="campaign-preview-tabs campaign-editor-section-tabs campaign-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
+                                    <button type="button" class="campaign-preview-tab is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
+                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
+                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
+                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
+                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
-                                    <div class="playlist-settings-panel" id="releaseSettingsPanel">
-                                        <div class="release-editor-section-panel is-active" data-release-editor-panel="base" role="tabpanel">
-                                        <div class="playlist-settings-fields release-catalog-meta-fields">
-                                            <label class="playlist-settings-field release-editor-form-row release-editor-form-row--title">
-                                                <span class="release-editor-form-label">Title</span>
-                                                <span class="release-editor-title-control">
-                                                    <input type="text" class="content-editor-name-input" id="releaseSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
+                                    <div class="playlist-settings-panel" id="campaignSettingsPanel">
+                                        <div class="campaign-editor-section-panel is-active" data-campaign-editor-panel="base" role="tabpanel">
+                                        <div class="playlist-settings-fields campaign-catalog-meta-fields">
+                                            <label class="playlist-settings-field campaign-editor-form-row campaign-editor-form-row--title">
+                                                <span class="campaign-editor-form-label">Title</span>
+                                                <span class="campaign-editor-title-control">
+                                                    <input type="text" class="content-editor-name-input" id="campaignSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
                                                 </span>
                                             </label>
-                                            <label class="playlist-settings-field release-catalog-meta-field--date release-editor-form-row">
-                                                <span class="release-editor-form-label">Campaign date</span>
-                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'releaseSettingsDate', [
+                                            <label class="playlist-settings-field campaign-catalog-meta-field--date campaign-editor-form-row">
+                                                <span class="campaign-editor-form-label">Campaign date</span>
+                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'campaignSettingsDate', [
                                                     'variant' => 'form',
                                                     'required' => true,
                                                     'allow_year_only' => true,
                                                 ]); ?>
                                             </label>
-                                            <label class="playlist-settings-field release-editor-form-row">
-                                                <span class="release-editor-form-label">Press contact</span>
-                                                <input type="text" id="releaseSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
+                                            <label class="playlist-settings-field campaign-editor-form-row">
+                                                <span class="campaign-editor-form-label">Press contact</span>
+                                                <input type="text" id="campaignSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
                                             </label>
-                                            <label class="playlist-settings-field release-editor-form-row">
-                                                <span class="release-editor-form-label">Branding</span>
-                                                <select id="releaseSettingsBrandId" aria-label="Campaign brand">
+                                            <label class="playlist-settings-field campaign-editor-form-row">
+                                                <span class="campaign-editor-form-label">Branding</span>
+                                                <select id="campaignSettingsBrandId" aria-label="Campaign brand">
                                                     <option value="">Base brand</option>
                                                 </select>
                                             </label>
-                                            <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
-                                                <span class="release-editor-form-label">Blurb</span>
-                                                <span class="release-editor-field-stack">
-                                                    <textarea id="releaseSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
-                                                    <span class="field-note release-short-description-note"><span id="releaseSettingsShortDescriptionCount">0</span>/300 characters</span>
+                                            <label class="playlist-settings-field campaign-editor-form-row campaign-editor-form-row--textarea">
+                                                <span class="campaign-editor-form-label">Blurb</span>
+                                                <span class="campaign-editor-field-stack">
+                                                    <textarea id="campaignSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
+                                                    <span class="field-note campaign-short-description-note"><span id="campaignSettingsShortDescriptionCount">0</span>/300 characters</span>
                                                 </span>
                                             </label>
-                                            <label class="playlist-settings-field release-editor-form-row release-editor-form-row--textarea">
-                                                <span class="release-editor-form-label">Long description <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
-                                                <span class="release-editor-field-stack">
-                                                    <textarea id="releaseSettingsDescription" class="release-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
+                                            <label class="playlist-settings-field campaign-editor-form-row campaign-editor-form-row--textarea">
+                                                <span class="campaign-editor-form-label">Long description <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
+                                                <span class="campaign-editor-field-stack">
+                                                    <textarea id="campaignSettingsDescription" class="campaign-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
                                                 </span>
                                             </label>
                                             </div>
                                         </div>
-                                        <div class="release-editor-section-panel" data-release-editor-panel="tracks" role="tabpanel" hidden>
-                                            <p class="release-editor-helper-title">Add the tracks that should be owned by this campaign</p>
+                                        <div class="campaign-editor-section-panel" data-campaign-editor-panel="tracks" role="tabpanel" hidden>
+                                            <p class="campaign-editor-helper-title">Add the tracks that should be owned by this campaign</p>
                                             <p class="hint">This campaign is the catalogue home for those masters. Playlists pick tracks from this pool and set their own play order — they never own the files. Unassigned tracks stay orphans in Files until you add them here.</p>
                                         </div>
-                                        <div class="release-editor-section-panel" data-release-editor-panel="playlists" role="tabpanel" hidden>
-                                            <p class="release-editor-helper-title">Associate the playlists this campaign should play</p>
+                                        <div class="campaign-editor-section-panel" data-campaign-editor-panel="playlists" role="tabpanel" hidden>
+                                            <p class="campaign-editor-helper-title">Associate the playlists this campaign should play</p>
                                             <p class="hint">During a campaign you can ship several playlists, the way a release often meant a single, an EP, and an album at once. A playlist is a virtual container: an ordered bunch of tracks from this campaign’s pool.</p>
                                             <p class="hint">Examples: the album in original order; a radio-edit / B-side single package; a tour set. A show or podcast series works the same way — each track is an episode in that series.</p>
                                         </div>
-                                        <div class="release-editor-section-panel" data-release-editor-panel="galleries" role="tabpanel" hidden>
-                                            <p class="release-editor-helper-title">Associate the galleries this campaign should own</p>
+                                        <div class="campaign-editor-section-panel" data-campaign-editor-panel="galleries" role="tabpanel" hidden>
+                                            <p class="campaign-editor-helper-title">Associate the galleries this campaign should own</p>
                                             <p class="hint">A gallery is a visual set (photos, stills, video) that reuses Files → Visual assets — it does not own those files. Associating it here makes this campaign the catalogue home.</p>
                                             <p class="hint">Galleries are page building blocks. Add a Gallery block on a campaign page (Pages) and choose how it is presented: Grid, List, Carousel, or Animated.</p>
                                         </div>
-                                        <div class="release-editor-section-panel" data-release-editor-panel="pages" role="tabpanel" hidden>
-                                            <p class="release-editor-helper-title">Associate the pages this campaign should show</p>
+                                        <div class="campaign-editor-section-panel" data-campaign-editor-panel="pages" role="tabpanel" hidden>
+                                            <p class="campaign-editor-helper-title">Associate the pages this campaign should show</p>
                                             <p class="hint">Pages are campaign-owned layouts built from Text, Picture, Video, List, and Gallery blocks. Use them for biographies, tour info, merch, and other campaign stories.</p>
                                             <p class="hint">Order here is the player tab order when this campaign’s playlist is playing. Playlist and Lyrics stay fixed.</p>
                                         </div>
@@ -1686,59 +1693,59 @@ if ($tab === 'analytics') {
                     <div class="player-layout-col player-layout-col--active">
                         <div class="player-layout-panel">
                             <div class="player-layout-col-head player-layout-col-head--active">
-                                <h3 class="player-layout-col-title" id="releaseEditorPreviewHeading">Preview</h3>
+                                <h3 class="player-layout-col-title" id="campaignEditorPreviewHeading">Preview</h3>
                             </div>
-                            <div class="player-layout-panel-body release-editor-active-body">
-                                <div id="releaseCoverPanel" class="release-cover-panel" hidden>
-                                    <input type="hidden" id="releaseSettingsPosterAssetId" data-empty-label="No cover selected">
-                                    <span id="releaseSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
-                                    <div class="audio-master-cover-layout release-cover-layout">
+                            <div class="player-layout-panel-body campaign-editor-active-body">
+                                <div id="campaignCoverPanel" class="campaign-cover-panel" hidden>
+                                    <input type="hidden" id="campaignSettingsPosterAssetId" data-empty-label="No cover selected">
+                                    <span id="campaignSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
+                                    <div class="audio-master-cover-layout campaign-cover-layout">
                                         <div class="audio-master-cover-preview-shell">
-                                            <div class="audio-master-cover-preview" id="releaseCoverPreviewShell">
-                                                <div class="audio-master-cover-overlay-actions" id="releaseCoverOverlayActions">
-                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="releaseSettingsPosterAssetId" data-title="Choose campaign cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose campaign cover">✎</button>
-                                                    <button type="button" class="icon-btn audio-master-cover-action" id="releaseCoverClearBtn" title="Clear cover" aria-label="Clear cover">↺</button>
+                                            <div class="audio-master-cover-preview" id="campaignCoverPreviewShell">
+                                                <div class="audio-master-cover-overlay-actions" id="campaignCoverOverlayActions">
+                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="campaignSettingsPosterAssetId" data-title="Choose campaign cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose campaign cover">✎</button>
+                                                    <button type="button" class="icon-btn audio-master-cover-action" id="campaignCoverClearBtn" title="Clear cover" aria-label="Clear cover">↺</button>
                                                 </div>
-                                                <img id="releaseCoverPreview" alt="Campaign cover preview" style="display:none;">
-                                                <span id="releaseCoverPlaceholder">No cover selected</span>
+                                                <img id="campaignCoverPreview" alt="Campaign cover preview" style="display:none;">
+                                                <span id="campaignCoverPlaceholder">No cover selected</span>
                                             </div>
                                         </div>
-                                        <div class="release-cover-meta">
-                                            <h4 class="release-cover-heading" id="releasePreviewTitle">Campaign</h4>
-                                            <p class="release-preview-date" id="releasePreviewDate"></p>
-                                            <p class="release-preview-summary" id="releasePreviewSummary"></p>
+                                        <div class="campaign-cover-meta">
+                                            <h4 class="campaign-cover-heading" id="campaignPreviewTitle">Campaign</h4>
+                                            <p class="campaign-preview-date" id="campaignPreviewDate"></p>
+                                            <p class="campaign-preview-summary" id="campaignPreviewSummary"></p>
                                         </div>
                                     </div>
-                                    <div id="releaseBaseBrandPreview" class="release-base-brand-preview" hidden>
-                                        <h5 class="release-base-brand-preview-heading">Brand preview</h5>
-                                        <div id="releaseBaseBrandPreviewBody" class="release-base-brand-preview-body"></div>
+                                    <div id="campaignBaseBrandPreview" class="campaign-base-brand-preview" hidden>
+                                        <h5 class="campaign-base-brand-preview-heading">Brand preview</h5>
+                                        <div id="campaignBaseBrandPreviewBody" class="campaign-base-brand-preview-body"></div>
                                     </div>
-                                    <div id="releaseLongDescriptionPreview" class="release-long-description-preview" hidden>
-                                        <h5 class="release-base-brand-preview-heading">Long description preview</h5>
-                                        <div id="releaseLongDescriptionPreviewBody" class="release-long-description-preview-body"></div>
+                                    <div id="campaignLongDescriptionPreview" class="campaign-long-description-preview" hidden>
+                                        <h5 class="campaign-base-brand-preview-heading">Long description preview</h5>
+                                        <div id="campaignLongDescriptionPreviewBody" class="campaign-long-description-preview-body"></div>
                                     </div>
                                 </div>
-                                <ul class="release-preview-tracks release-associated-tracks" id="releaseActiveList" aria-label="Associated tracks" hidden>
+                                <ul class="campaign-preview-tracks campaign-associated-tracks" id="campaignActiveList" aria-label="Associated tracks" hidden>
                                     <li class="player-layout-empty">No campaign selected.</li>
                                 </ul>
-                                <ol class="playlist-editor player-layout-list release-associated-tracks" id="releaseAssociationActiveList" aria-label="Associated items" hidden>
+                                <ol class="playlist-editor player-layout-list campaign-associated-tracks" id="campaignAssociationActiveList" aria-label="Associated items" hidden>
                                     <li class="player-layout-empty">No campaign selected.</li>
                                 </ol>
-                                <div id="releaseAvailableSection" class="content-pool-section" hidden>
+                                <div id="campaignAvailableSection" class="content-pool-section" hidden>
                                     <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
-                                        <h4 class="player-layout-col-title" id="releaseAvailableHeading">Available tracks</h4>
+                                        <h4 class="player-layout-col-title" id="campaignAvailableHeading">Available tracks</h4>
                                         <?php echo $poolHeadSpacerHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="releaseAvailableList" aria-label="Available tracks">
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="campaignAvailableList" aria-label="Available tracks">
                                         <li class="player-layout-empty">Loading tracks…</li>
                                     </ol>
                                 </div>
-                                <div id="releaseAssociationAvailableSection" class="content-pool-section" hidden>
+                                <div id="campaignAssociationAvailableSection" class="content-pool-section" hidden>
                                     <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
-                                        <h4 class="player-layout-col-title" id="releaseAssociationAvailableHeading">Available playlists</h4>
+                                        <h4 class="player-layout-col-title" id="campaignAssociationAvailableHeading">Available playlists</h4>
                                         <?php echo $poolHeadSpacerHtml; ?>
                                     </div>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="releaseAssociationAvailableList" aria-label="Available items">
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="campaignAssociationAvailableList" aria-label="Available items">
                                         <li class="player-layout-empty">Loading…</li>
                                     </ol>
                                 </div>
@@ -1790,7 +1797,7 @@ if ($tab === 'analytics') {
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
-                                        <span class="theme-editor-head-badges" id="playlistEditorHeadBadges"></span>
+                                        <span class="brand-editor-head-badges" id="playlistEditorHeadBadges"></span>
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="playlistSettingsStatus"></span>
                                 </div>
@@ -1836,12 +1843,12 @@ if ($tab === 'analytics') {
                                                 <label class="page-meta-field">
                                                     <span>Slug</span>
                                                     <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
-                                                    <p class="hint release-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>
+                                                    <p class="hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>
                                                 </label>
                                                 <label class="page-meta-field page-meta-field--wide">
                                                     <span>Short description</span>
                                                     <textarea id="playlistSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
-                                                    <div class="field-note release-short-description-note"><span id="playlistSettingsShortDescriptionCount">0</span>/300 characters</div>
+                                                    <div class="field-note campaign-short-description-note"><span id="playlistSettingsShortDescriptionCount">0</span>/300 characters</div>
                                                 </label>
                                                 <label class="page-meta-field page-meta-field--wide">
                                                     <span>Description</span>
@@ -1862,16 +1869,16 @@ if ($tab === 'analytics') {
                                 <h4 class="player-layout-col-title">
                                     Playlist <span class="player-layout-count" id="playlistActiveCount"></span>
                                 </h4>
-                                <div class="player-layout-save-row theme-editor-actions">
+                                <div class="player-layout-save-row brand-editor-actions">
                                     <button type="button" id="playlistSetDefaultBtn" class="btn" hidden title="Open this playlist first on the player">★ Set as default</button>
                                     <button type="button" id="playlistSaveBtn" class="btn" hidden>💾 Save playlist</button>
                                 </div>
                             </div>
                             <div class="player-layout-panel-body playlist-editor-active-body">
-                                <div id="playlistCoverPanel" class="release-cover-panel" hidden>
+                                <div id="playlistCoverPanel" class="campaign-cover-panel" hidden>
                                     <input type="hidden" id="playlistSettingsPosterAssetId" data-empty-label="No cover selected">
                                     <span id="playlistSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
-                                    <div class="audio-master-cover-layout release-cover-layout">
+                                    <div class="audio-master-cover-layout campaign-cover-layout">
                                         <div class="audio-master-cover-preview-shell">
                                             <div class="audio-master-cover-preview" id="playlistCoverPreviewShell">
                                                 <div class="audio-master-cover-overlay-actions" id="playlistCoverOverlayActions">
@@ -1882,8 +1889,8 @@ if ($tab === 'analytics') {
                                                 <span id="playlistCoverPlaceholder">No cover selected</span>
                                             </div>
                                         </div>
-                                        <div class="release-cover-meta">
-                                            <h4 class="release-cover-heading">Playlist cover</h4>
+                                        <div class="campaign-cover-meta">
+                                            <h4 class="campaign-cover-heading">Playlist cover</h4>
                                             <p class="hint">Artwork shown on the player playlist view and share cards.</p>
                                         </div>
                                     </div>
@@ -1895,7 +1902,7 @@ if ($tab === 'analytics') {
                                 <div id="playlistAvailableSection" class="content-pool-section" hidden>
                                     <div class="player-layout-col-head player-layout-col-head--pool content-pool-head">
                                         <h4 class="player-layout-col-title">Available content</h4>
-                                        <?php echo $poolReleaseFilterHtml; ?>
+                                        <?php echo $poolCampaignFilterHtml; ?>
                                     </div>
                                     <ol class="playlist-editor player-layout-list player-layout-pool-list content-pool-list" id="playlistAvailableList" aria-label="Available tracks">
                                         <li class="player-layout-empty">Loading tracks…</li>
@@ -2086,7 +2093,7 @@ if ($tab === 'analytics') {
                                                 <label class="page-meta-field page-meta-field--wide">
                                                     <span>Short description</span>
                                                     <textarea id="pageSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
-                                                    <div class="field-note release-short-description-note"><span id="pageSettingsShortDescriptionCount">0</span>/300 characters</div>
+                                                    <div class="field-note campaign-short-description-note"><span id="pageSettingsShortDescriptionCount">0</span>/300 characters</div>
                                                 </label>
                                                 <label class="page-meta-field page-meta-field--wide">
                                                     <span>Description</span>
@@ -2183,36 +2190,36 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
-            <?php elseif ($contentTab === 'themes'): ?>
-            <div class="card content-editor-card" id="themeEditorRoot"
-                 data-initial-theme="<?php echo htmlspecialchars($contentTheme, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php elseif ($contentTab === 'branding'): ?>
+            <div class="card content-editor-card" id="brandEditorRoot"
+                 data-initial-brand="<?php echo htmlspecialchars($contentBrand, ENT_QUOTES, 'UTF-8'); ?>">
                 <h3>🎨 Branding</h3>
 
-                <div class="player-layout-editor theme-editor-layout playlist-editor-layout" id="themeEditorLayout">
+                <div class="player-layout-editor brand-editor-layout playlist-editor-layout" id="brandEditorLayout">
                     <div class="player-layout-col player-layout-col--pool">
                         <div class="player-layout-panel content-editor-left-panel">
-                            <div id="themePoolView">
+                            <div id="brandPoolView">
                                 <div class="player-layout-col-head player-layout-col-head--pool">
                                     <h4 class="player-layout-col-title">Available content</h4>
                                 </div>
                                 <div class="player-layout-panel-body page-pool-panel-body">
-                                    <p id="themeRegistryStatus" class="status-text page-pool-status"></p>
-                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list theme-pool-list" id="themePoolList" aria-label="Brands"></ol>
+                                    <p id="brandRegistryStatus" class="status-text page-pool-status"></p>
+                                    <ol class="playlist-editor player-layout-list player-layout-pool-list page-pool-list brand-pool-list" id="brandPoolList" aria-label="Brands"></ol>
                                 </div>
                             </div>
 
-                            <div id="themeEditorView" class="page-editor-view" hidden>
-                                <div class="player-layout-col-head page-editor-view-head theme-editor-view-head content-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="themeEditorBackBtn" title="Back to brand list">← Back</button>
-                                    <div class="theme-editor-head-name content-editor-head-name">
-                                        <input type="text" class="theme-editor-name-input content-editor-name-input" id="themeSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
-                                        <span class="theme-editor-head-badges" id="themeEditorHeadBadges"></span>
+                            <div id="brandEditorView" class="page-editor-view" hidden>
+                                <div class="player-layout-col-head page-editor-view-head brand-editor-view-head content-editor-view-head">
+                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="brandEditorBackBtn" title="Back to brand list">← Back</button>
+                                    <div class="brand-editor-head-name content-editor-head-name">
+                                        <input type="text" class="brand-editor-name-input content-editor-name-input" id="brandSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
+                                        <span class="brand-editor-head-badges" id="brandEditorHeadBadges"></span>
                                     </div>
-                                    <span class="status-text theme-editor-name-status content-editor-name-status" id="themeSettingsStatus"></span>
+                                    <span class="status-text brand-editor-name-status content-editor-name-status" id="brandSettingsStatus"></span>
                                 </div>
-                                <div class="player-layout-panel-body page-pool-panel-body theme-editor-view-body">
-                                    <div class="theme-editor-form" id="themeEditorForm">
-                                        <p class="theme-editor-locked-note">Loading brand…</p>
+                                <div class="player-layout-panel-body page-pool-panel-body brand-editor-view-body">
+                                    <div class="brand-editor-form" id="brandEditorForm">
+                                        <p class="brand-editor-locked-note">Loading brand…</p>
                                     </div>
                                 </div>
                             </div>
@@ -2220,17 +2227,17 @@ if ($tab === 'analytics') {
                     </div>
 
                     <div class="player-layout-col player-layout-col--active">
-                        <div class="player-layout-panel theme-editor-preview-panel">
+                        <div class="player-layout-panel brand-editor-preview-panel">
                             <div class="player-layout-col-head player-layout-col-head--active">
                                 <h4 class="player-layout-col-title">Live preview</h4>
-                                <div class="player-layout-save-row theme-editor-actions">
-                                    <button type="button" id="themeSetActiveBtn" class="btn" hidden>★ Set as base</button>
-                                    <button type="button" id="themeSaveBtn" class="btn" hidden>💾 Save brand</button>
+                                <div class="player-layout-save-row brand-editor-actions">
+                                    <button type="button" id="brandSetActiveBtn" class="btn" hidden>★ Set as base</button>
+                                    <button type="button" id="brandSaveBtn" class="btn" hidden>💾 Save brand</button>
                                 </div>
                             </div>
-                            <div class="player-layout-panel-body theme-editor-preview-body">
-                                <div class="theme-editor-preview-frame" id="themeEditorPreview">
-                                    <p class="theme-editor-empty">No theme selected.</p>
+                            <div class="player-layout-panel-body brand-editor-preview-body">
+                                <div class="brand-editor-preview-frame" id="brandEditorPreview">
+                                    <p class="brand-editor-empty">No brand selected.</p>
                                 </div>
                             </div>
                         </div>
@@ -2240,24 +2247,24 @@ if ($tab === 'analytics') {
 
             <?php endif; ?>
 
-            <div class="modal-overlay" id="releaseDeleteModal" style="display:none;" aria-hidden="true">
-                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="releaseDeleteModalTitle">
-                    <h3 id="releaseDeleteModalTitle">Delete campaign?</h3>
-                    <p class="card-note">You are about to permanently delete <strong id="releaseDeleteModalName"></strong>. This cannot be undone.</p>
-                    <fieldset class="release-delete-mode-fieldset" style="border:0;padding:0;margin:0.75rem 0 1rem;">
+            <div class="modal-overlay" id="campaignDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="campaignDeleteModalTitle">
+                    <h3 id="campaignDeleteModalTitle">Delete campaign?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="campaignDeleteModalName"></strong>. This cannot be undone.</p>
+                    <fieldset class="campaign-delete-mode-fieldset" style="border:0;padding:0;margin:0.75rem 0 1rem;">
                         <legend class="sr-only">Delete mode</legend>
-                        <label class="release-delete-mode-option" style="display:block;margin:0.5rem 0;">
-                            <input type="radio" name="releaseDeleteMode" id="releaseDeleteModePurge" value="purge" checked>
+                        <label class="campaign-delete-mode-option" style="display:block;margin:0.5rem 0;">
+                            <input type="radio" name="campaignDeleteMode" id="campaignDeleteModePurge" value="purge" checked>
                             <strong>Entire campaign</strong> — remove owned brand, playlists, galleries, pages, and media that nothing else uses.
                         </label>
-                        <label class="release-delete-mode-option" style="display:block;margin:0.5rem 0;">
-                            <input type="radio" name="releaseDeleteMode" id="releaseDeleteModeContainer" value="container">
+                        <label class="campaign-delete-mode-option" style="display:block;margin:0.5rem 0;">
+                            <input type="radio" name="campaignDeleteMode" id="campaignDeleteModeContainer" value="container">
                             <strong>Campaign only</strong> — keep tracks and media in Files; only remove this catalogue entry.
                         </label>
                     </fieldset>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-danger" id="releaseDeleteConfirmBtn">Delete entire campaign</button>
-                        <button type="button" class="btn" id="releaseDeleteCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="campaignDeleteConfirmBtn">Delete entire campaign</button>
+                        <button type="button" class="btn" id="campaignDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -2284,13 +2291,13 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
-            <div class="modal-overlay" id="themeDeleteModal" style="display:none;" aria-hidden="true">
-                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="themeDeleteModalTitle">
-                    <h3 id="themeDeleteModalTitle">Delete theme?</h3>
-                    <p class="card-note">You are about to permanently delete <strong id="themeDeleteModalName"></strong>. Its color and typography settings will be lost. This cannot be undone.</p>
+            <div class="modal-overlay" id="brandDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="brandDeleteModalTitle">
+                    <h3 id="brandDeleteModalTitle">Delete brand?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="brandDeleteModalName"></strong>. Its color and typography settings will be lost. This cannot be undone.</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-danger" id="themeDeleteConfirmBtn">Delete theme</button>
-                        <button type="button" class="btn" id="themeDeleteCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="brandDeleteConfirmBtn">Delete brand</button>
+                        <button type="button" class="btn" id="brandDeleteCancelBtn">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -2319,11 +2326,11 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalogue</strong> below to hide or restore the shipped bandPromo demo release and its campaign media (Brand assets / Sound effects stay visible).
+                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalogue</strong> below to hide or restore the shipped bandPromo demo campaign and its media (Brand assets / Sound effects stay visible).
                 <?php elseif ($configTab === 'support'): ?>
                     Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
-                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> on the base brand.
+                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=branding">Content → Branding</a> on the base brand.
                 <?php endif; ?>
             </div>
 
@@ -2348,7 +2355,7 @@ if ($tab === 'analytics') {
             <div class="card">
                 <h3>⚙️ Site Basics</h3>
                 <p class="card-note">
-                    Edit the everyday public site details here without touching theme media paths or sharing settings. Contact uses RFC 5322 format (for example <code>7rym &lt;7rym@7rym.net&gt;</code>), is suggested from author + URL until you change it, and is canonicalized on save for future mail features.
+                    Edit the everyday public site details here without touching brand media paths or sharing settings. Contact uses RFC 5322 format (for example <code>7rym &lt;7rym@7rym.net&gt;</code>), is suggested from author + URL until you change it, and is canonicalized on save for future mail features.
                 </p>
                 <input type="hidden" id="cfg_site_language" value="en">
                 <input type="hidden" id="cfg_site_email_auto" value="<?php echo $cfgSiteEmailAuto ? '1' : '0'; ?>">
@@ -2411,7 +2418,7 @@ if ($tab === 'analytics') {
             <div class="card">
                 <h3>🎭 Demo catalogue</h3>
                 <p class="card-note">
-                    Hide is available after you have an operator-created release with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> release and its campaign playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
+                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
                     <input type="checkbox" id="cfgDemoCatalogVisible"<?php echo $demoCatalogVisible ? ' checked' : ''; ?>>
@@ -2535,7 +2542,7 @@ if ($tab === 'analytics') {
                         <div class="asset-picker-control" id="soc_share_image_picker">
                             <span id="soc_share_image_label" class="asset-picker-value<?php echo $ogImage === '' ? ' empty' : ''; ?>"><?php echo htmlspecialchars($ogImageLabel); ?></span>
                         </div>
-                        <div class="field-note">Poster / share cover is edited under <a href="?tab=content&amp;cntab=themes">Content → Branding</a> (base brand Shell media). Saving that brand updates the image used in these previews.</div>
+                        <div class="field-note">Poster / share cover is edited under <a href="?tab=content&amp;cntab=branding">Content → Branding</a> (base brand Shell media). Saving that brand updates the image used in these previews.</div>
                     </div>
                     <div class="form-group social-form-full">
                         <label for="soc_keywords">Keywords <span class="hint">(SEO meta keywords)</span></label>
@@ -2824,7 +2831,7 @@ if ($tab === 'analytics') {
             </div>
 
             <div class="backup-action-grid prp-action-grid">
-            <div class="card site-backup-card prp-panel" id="releasePackageExportCard">
+            <div class="card site-backup-card prp-panel" id="campaignPackageExportCard">
                 <h3>💿 Export .pcf</h3>
                 <p class="card-note backup-builder-note">
                     Queue one campaign (masters, brand, playlists, galleries, pages). Download from Jobs when Ready.
@@ -2833,17 +2840,17 @@ if ($tab === 'analytics') {
                 <p class="empty-msg">This host cannot export campaign files.</p>
                 <?php else: ?>
                 <div class="prp-panel-toolbar">
-                    <label class="visually-hidden" for="releasePackageExportSelect">Campaign</label>
-                    <select id="releasePackageExportSelect" class="backup-export-panel-select" aria-label="Campaign to export">
+                    <label class="visually-hidden" for="campaignPackageExportSelect">Campaign</label>
+                    <select id="campaignPackageExportSelect" class="backup-export-panel-select" aria-label="Campaign to export">
                         <option value="">Loading campaigns…</option>
                     </select>
-                    <button type="button" class="btn" id="releasePackageExportBtn">📦 Queue export</button>
+                    <button type="button" class="btn" id="campaignPackageExportBtn">📦 Queue export</button>
                 </div>
-                <p id="releasePackageExportStatus" class="status-text backup-export-panel-status"></p>
+                <p id="campaignPackageExportStatus" class="status-text backup-export-panel-status"></p>
                 <?php endif; ?>
             </div>
 
-            <div class="card site-backup-card prp-panel" id="releasePackageImportCard">
+            <div class="card site-backup-card prp-panel" id="campaignPackageImportCard">
                 <h3>💿 Import .pcf</h3>
                 <p class="card-note backup-builder-note">
                     Upload a <code>.pcf</code>. IDs are kept unless you choose AsNew.
@@ -2852,35 +2859,35 @@ if ($tab === 'analytics') {
                 <p class="empty-msg">This host cannot import campaign files.</p>
                 <?php else: ?>
                 <div class="prp-panel-toolbar">
-                    <label class="btn btn-secondary site-backup-import-file-label" for="releasePackageImportInput">
+                    <label class="btn btn-secondary site-backup-import-file-label" for="campaignPackageImportInput">
                         Choose .pcf…
                     </label>
-                    <input type="file" id="releasePackageImportInput" accept=".pcf,.prp" hidden>
-                    <span id="releasePackageImportFilename" class="site-backup-import-filename text-muted"></span>
-                    <button type="button" class="btn" id="releasePackageImportBtn">📥 Import</button>
+                    <input type="file" id="campaignPackageImportInput" accept=".pcf,.prp" hidden>
+                    <span id="campaignPackageImportFilename" class="site-backup-import-filename text-muted"></span>
+                    <button type="button" class="btn" id="campaignPackageImportBtn">📥 Import</button>
                 </div>
                 <div class="prp-collision-row">
-                    <span id="releasePackageImportCollisionLabel">If it exists</span>
-                    <div class="visual-filter-chip-group prp-collision-group" role="radiogroup" aria-labelledby="releasePackageImportCollisionLabel">
+                    <span id="campaignPackageImportCollisionLabel">If it exists</span>
+                    <div class="visual-filter-chip-group prp-collision-group" role="radiogroup" aria-labelledby="campaignPackageImportCollisionLabel">
                         <label class="visual-filter-chip prp-collision-chip" title="Keep local and report the conflict">
-                            <input type="radio" name="releasePackageImportCollision" value="refuse" checked>
+                            <input type="radio" name="campaignPackageImportCollision" value="refuse" checked>
                             <span>Refuse</span>
                         </label>
                         <label class="visual-filter-chip prp-collision-chip" title="Replace the local campaign">
-                            <input type="radio" name="releasePackageImportCollision" value="overwrite">
+                            <input type="radio" name="campaignPackageImportCollision" value="overwrite">
                             <span>Overwrite</span>
                         </label>
                         <label class="visual-filter-chip prp-collision-chip" title="Leave existing ids unchanged">
-                            <input type="radio" name="releasePackageImportCollision" value="skip">
+                            <input type="radio" name="campaignPackageImportCollision" value="skip">
                             <span>Skip</span>
                         </label>
                         <label class="visual-filter-chip prp-collision-chip" title="Import with a new campaign id">
-                            <input type="radio" name="releasePackageImportCollision" value="allocate">
+                            <input type="radio" name="campaignPackageImportCollision" value="allocate">
                             <span>AsNew</span>
                         </label>
                     </div>
                 </div>
-                <p id="releasePackageImportStatus" class="status-text backup-export-panel-status"></p>
+                <p id="campaignPackageImportStatus" class="status-text backup-export-panel-status"></p>
                 <?php endif; ?>
             </div>
             </div>
@@ -3150,7 +3157,7 @@ if ($tab === 'analytics') {
                                 <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
                                     <div class="audio-master-cover-overlay-actions">
                                         <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose cover">✎</button>
-                                        <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use release cover" aria-label="Use release cover">↺</button>
+                                        <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use campaign cover" aria-label="Use campaign cover">↺</button>
                                     </div>
                                     <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
                                     <span id="audioMasterCoverPlaceholder" class="audio-master-cover-placeholder">No cover</span>
@@ -3171,16 +3178,16 @@ if ($tab === 'analytics') {
                             </div>
                         </div>
                     </div>
-                    <div class="audio-master-hero-meta release-cover-meta">
+                    <div class="audio-master-hero-meta campaign-cover-meta">
                         <p class="field-note audio-master-cover-duo-status" id="audioMasterLivingCoverStatus"></p>
-                        <p class="audio-master-summary-caption release-preview-date">Master audio asset</p>
+                        <p class="audio-master-summary-caption campaign-preview-date">Master audio asset</p>
                         <div class="audio-master-listen-bar" id="audioMasterListenBar" hidden>
                             <audio id="audioMasterListenPlayer" class="audio-master-listen-player" controls preload="metadata" controlsList="nodownload" title="Listen to this track"></audio>
                         </div>
                         <div class="audio-master-summary audio-master-summary-compact" id="audioMasterSummary">
-                            <div class="audio-master-stat audio-master-stat-compact audio-master-stat-release">
-                                <span class="audio-master-stat-label">In release</span>
-                                <strong id="audioMasterReleaseName">—</strong>
+                            <div class="audio-master-stat audio-master-stat-compact audio-master-stat-campaign">
+                                <span class="audio-master-stat-label">In campaign</span>
+                                <strong id="audioMasterCampaignName">—</strong>
                             </div>
                             <div class="audio-master-stat audio-master-stat-compact">
                                 <span class="audio-master-stat-label">Duration</span>
@@ -3354,7 +3361,7 @@ if ($tab === 'analytics') {
         const adminTimeAxisLabel = <?php echo json_encode(bandpromo_admin_time_axis_label()); ?>;
         const adminOperatorTimezone = <?php echo json_encode(bandpromo_admin_timezone()); ?>;
         window.bandpromoDemoCatalogVisible = <?php echo json_encode((bool) $demoCatalogVisible); ?>;
-        window.bandpromoDemoReleaseId = <?php echo json_encode((string) $demoReleaseId); ?>;
+        window.bandpromoDemoCampaignId = <?php echo json_encode((string) $demoCampaignId); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
         window.BANDPROMO_SITE_SHARING = <?php
             $sharePlaylistId = (string) ($contentPlaylist ?? '');
@@ -3394,20 +3401,20 @@ if ($tab === 'analytics') {
     <?php if ($tab === 'content'): ?>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>
     <?php endif; ?>
-    <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
-    <script src="biblioteca/theme-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-preview.js'); ?>"></script>
+    <?php if ($tab === 'content' && $contentTab === 'branding'): ?>
+    <script src="biblioteca/brand-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/brand-preview.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="biblioteca/page-gallery.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-gallery.js'); ?>"></script>
     <script src="biblioteca/page-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/page-editor.js'); ?>"></script>
     <?php endif; ?>
-    <?php if ($tab === 'content' && $contentTab === 'release'): ?>
+    <?php if ($tab === 'content' && $contentTab === 'campaign'): ?>
     <script src="biblioteca/player-markdown.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/player-markdown.js'); ?>"></script>
     <script src="biblioteca/iso-date.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/iso-date.js'); ?>"></script>
-    <script src="biblioteca/release-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/release-editor.js'); ?>"></script>
+    <script src="biblioteca/campaign-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/campaign-editor.js'); ?>"></script>
     <?php endif; ?>
-    <?php if ($tab === 'content' && $contentTab === 'themes'): ?>
-    <script src="biblioteca/theme-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/theme-editor.js'); ?>"></script>
+    <?php if ($tab === 'content' && $contentTab === 'branding'): ?>
+    <script src="biblioteca/brand-editor.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/brand-editor.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>
     <script src="biblioteca/content-admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-admin.js'); ?>"></script>
@@ -3421,9 +3428,9 @@ if ($tab === 'analytics') {
                 <p class="card-note" id="mediaPickerHint">Pick an uploaded asset. Storage paths stay hidden.</p>
                 <div id="mediaPickerTabs" class="tabs media-picker-tabs"></div>
                 <div class="media-picker-toolbar" id="mediaPickerToolbar">
-                    <label class="media-filter-label" data-picker-filter="release">
+                    <label class="media-filter-label" data-picker-filter="campaign">
                         <span class="media-filter-label-text">Campaign</span>
-                        <select class="media-filter-select" data-picker-release-filter aria-label="Filter by campaign">
+                        <select class="media-filter-select" data-picker-campaign-filter aria-label="Filter by campaign">
                             <option value="all">All campaigns</option>
                             <option value="orphans">Orphans</option>
                         </select>

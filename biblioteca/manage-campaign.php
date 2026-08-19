@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/build-required.php';
 
@@ -24,7 +24,7 @@ try {
 
         $title = (string) ($payload['title'] ?? '');
         $preferredId = (string) ($payload['id'] ?? '');
-        $entry = bandpromo_release_create($root, $title, $preferredId);
+        $entry = bandpromo_campaign_create($root, $title, $preferredId);
 
         bandpromo_admin_audit_log('release_created', [
             'target_type' => 'release',
@@ -36,7 +36,7 @@ try {
         echo json_encode([
             'ok' => true,
             'release' => $entry,
-            'releases' => bandpromo_release_admin_registry_entries($root),
+            'releases' => bandpromo_campaign_admin_registry_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
@@ -48,12 +48,12 @@ try {
             throw new InvalidArgumentException('Invalid JSON payload.');
         }
 
-        $releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? ($payload['id'] ?? '')));
+        $releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ($payload['id'] ?? '')));
         if ($releaseId === '') {
             throw new InvalidArgumentException('Campaign id is required.');
         }
 
-        $entry = bandpromo_release_update_details($root, $releaseId, $payload);
+        $entry = bandpromo_campaign_update_details($root, $releaseId, $payload);
 
         bandpromo_admin_audit_log('release_updated', [
             'target_type' => 'release',
@@ -76,7 +76,7 @@ try {
         $response = [
             'ok' => true,
             'release' => $entry,
-            'releases' => bandpromo_release_admin_registry_entries($root),
+            'releases' => bandpromo_campaign_admin_registry_entries($root),
             'build_required' => true,
             'build_required_state' => $buildState,
         ];
@@ -86,7 +86,7 @@ try {
     }
 
     if ($method === 'DELETE') {
-        $releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? ''));
+        $releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ''));
         if ($releaseId === '') {
             throw new InvalidArgumentException('Campaign id is required.');
         }
@@ -96,7 +96,7 @@ try {
             $mode = 'container';
         }
 
-        $result = bandpromo_release_delete_with_mode($root, $releaseId, $mode);
+        $result = bandpromo_campaign_delete_with_mode($root, $releaseId, $mode);
 
         bandpromo_admin_audit_log('release_deleted', [
             'target_type' => 'release',
@@ -118,7 +118,7 @@ try {
             'deleted' => $releaseId,
             'mode' => $mode,
             'purge' => $result,
-            'releases' => bandpromo_release_admin_registry_entries($root),
+            'releases' => bandpromo_campaign_admin_registry_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }

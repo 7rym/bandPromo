@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/playlist-storage.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 session_write_close();
 
@@ -21,9 +21,9 @@ try {
             throw new InvalidArgumentException('Invalid JSON payload.');
         }
 
-        $fromReleaseId = bandpromo_release_normalize_id((string) ($payload['from_release_id'] ?? ''));
+        $fromReleaseId = bandpromo_campaign_normalize_id((string) ($payload['from_release_id'] ?? ''));
         if ($fromReleaseId !== '') {
-            $entry = bandpromo_playlist_create_from_release($root, $fromReleaseId);
+            $entry = bandpromo_playlist_create_from_campaign($root, $fromReleaseId);
 
             bandpromo_admin_audit_log('playlist_created', [
                 'target_type' => 'playlist',

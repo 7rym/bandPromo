@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/playlist-storage.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 bandpromo_enforce_https();
 
 require_once __DIR__ . '/admin-api-guard.php';
@@ -14,15 +14,15 @@ $playlistId = bandpromo_playlist_resolve_id($root, (string) ($_GET['playlist'] ?
 
 try {
     bandpromo_playlist_ensure_seeded($root);
-    bandpromo_release_ensure_seeded($root);
+    bandpromo_campaign_ensure_seeded($root);
 } catch (Throwable $throwable) {
     http_response_code(500);
     echo json_encode(['error' => $throwable->getMessage()]);
     exit;
 }
 
-$poolByFile = bandpromo_release_pool_map_canonical($root, []);
-$poolByFile = bandpromo_playlist_enrich_pool_release_ids($root, $poolByFile);
+$poolByFile = bandpromo_campaign_pool_map_canonical($root, []);
+$poolByFile = bandpromo_playlist_enrich_pool_campaign_ids($root, $poolByFile);
 $poolByFile = bandpromo_playlist_enrich_pool_delivery_ready($root, $poolByFile);
 
 $meta = [

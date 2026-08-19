@@ -4,8 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/admin-audit.php';
-require_once __DIR__ . '/release-campaign-package.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-package.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 bandpromo_enforce_https();
 session_write_close();
@@ -27,7 +27,7 @@ if (!is_array($decoded)) {
 }
 
 $root = dirname(__DIR__);
-$sourceReleaseId = bandpromo_release_normalize_id((string) ($decoded['release_id'] ?? ''));
+$sourceReleaseId = bandpromo_campaign_normalize_id((string) ($decoded['release_id'] ?? ''));
 $title = trim((string) ($decoded['title'] ?? ''));
 if ($sourceReleaseId === '') {
     http_response_code(400);
@@ -36,7 +36,7 @@ if ($sourceReleaseId === '') {
 }
 
 try {
-    $result = bandpromo_release_campaign_duplicate($root, $sourceReleaseId, $title);
+    $result = bandpromo_campaign_duplicate($root, $sourceReleaseId, $title);
 
     bandpromo_admin_audit_log('release_campaign_duplicated', [
         'target_type' => 'release',
@@ -59,7 +59,7 @@ try {
         'playlists' => $result['playlists'],
         'galleries' => $result['galleries'],
         'pages' => $result['pages'],
-        'releases' => bandpromo_release_admin_registry_entries($root),
+        'releases' => bandpromo_campaign_admin_registry_entries($root),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);

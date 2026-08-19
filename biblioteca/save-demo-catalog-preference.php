@@ -25,7 +25,7 @@ if (!is_array($body) || !array_key_exists('visible', $body)) {
 }
 
 $root = dirname(__DIR__);
-bandpromo_demo_release_ensure_preferences($root);
+bandpromo_demo_campaign_ensure_preferences($root);
 $visible = (bool) $body['visible'];
 $hiding = !$visible;
 
@@ -35,21 +35,21 @@ if ($hiding) {
         echo json_encode([
             'ok' => false,
             'error' => 'Hide the demo catalogue after you have a release with a track on a playlist.',
-            'demo_release_id' => bandpromo_demo_release_id($root),
+            'demo_release_id' => bandpromo_demo_campaign_id($root),
             'demo_catalog_visible' => true,
             'demo_release_hidden' => false,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
 
-    $blockers = bandpromo_demo_release_hide_blockers($root);
+    $blockers = bandpromo_demo_campaign_hide_blockers($root);
     if ($blockers !== []) {
         http_response_code(409);
         echo json_encode([
             'ok' => false,
             'error' => 'Cannot hide the demo catalogue while your own campaigns still use demo media. Replace those assignments first.',
             'hide_blockers' => $blockers,
-            'demo_release_id' => bandpromo_demo_release_id($root),
+            'demo_release_id' => bandpromo_demo_campaign_id($root),
             'demo_catalog_visible' => true,
             'demo_release_hidden' => false,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -69,7 +69,7 @@ bandpromo_admin_audit_log($visible ? 'demo_catalog_shown' : 'demo_catalog_hidden
     'data' => [
         'visible' => $visible,
         'demo_release_hidden' => !$visible,
-        'demo_release_id' => bandpromo_demo_release_id($root),
+        'demo_release_id' => bandpromo_demo_campaign_id($root),
     ],
 ]);
 
@@ -77,5 +77,5 @@ echo json_encode([
     'ok' => true,
     'demo_catalog_visible' => $visible,
     'demo_release_hidden' => !$visible,
-    'demo_release_id' => bandpromo_demo_release_id($root),
+    'demo_release_id' => bandpromo_demo_campaign_id($root),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

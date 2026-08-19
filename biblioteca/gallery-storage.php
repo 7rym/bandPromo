@@ -226,7 +226,7 @@ function bandpromo_gallery_visible_in_admin_catalog(string $root, array $entry):
         $owner = '';
     }
 
-    return bandpromo_demo_release_container_is_visible($root, $owner, $galleryId);
+    return bandpromo_demo_campaign_container_is_visible($root, $owner, $galleryId);
 }
 
 function bandpromo_gallery_admin_registry_entries(string $root): array
@@ -674,11 +674,11 @@ function bandpromo_gallery_set_release_id(string $root, string $galleryId, strin
         throw new InvalidArgumentException('Gallery id is required.');
     }
     if (bandpromo_gallery_is_protected_id($galleryId)) {
-        require_once __DIR__ . '/release-storage.php';
+        require_once __DIR__ . '/campaign-storage.php';
         // Protected demo gallery: reassignment only when the platform demo is unlocked
         // (localhost may unlock for PRP source edits).
         try {
-            $demoRelease = bandpromo_release_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
+            $demoRelease = bandpromo_campaign_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
             if (!empty($demoRelease['locked'])) {
                 throw new InvalidArgumentException('The bandPromo demo gallery cannot be reassigned while the demo release is locked.');
             }
@@ -687,7 +687,7 @@ function bandpromo_gallery_set_release_id(string $root, string $galleryId, strin
         } catch (Throwable $throwable) {
             throw new InvalidArgumentException('The bandPromo demo gallery cannot be reassigned.');
         }
-        if (!bandpromo_release_may_change_lock(BANDPROMO_RELEASE_DEMO_ID)) {
+        if (!bandpromo_campaign_may_change_lock(BANDPROMO_RELEASE_DEMO_ID)) {
             throw new InvalidArgumentException('The bandPromo demo gallery can only be reassigned on localhost.');
         }
     }

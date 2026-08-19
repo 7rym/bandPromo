@@ -10,7 +10,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
-require_once $root . '/biblioteca/release-storage.php';
+require_once $root . '/biblioteca/campaign-storage.php';
 
 $dryRun = in_array('--dry-run', $argv, true);
 $newId = 'winter-party';
@@ -20,6 +20,6 @@ foreach ($argv as $arg) {
     }
 }
 
-$result = bandpromo_release_migrate_campaign_off_primary($root, $newId, $dryRun);
+$result = bandpromo_campaign_migrate_campaign_off_primary($root, $newId, $dryRun);
 echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
 exit(!empty($result['ok']) ? 0 : 1);

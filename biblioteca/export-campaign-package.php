@@ -8,7 +8,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/site-backup-portability.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -35,7 +35,7 @@ if (!validate_csrf_token($csrfToken)) {
 }
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_release_normalize_id((string) ($decoded['release_id'] ?? ''));
+$releaseId = bandpromo_campaign_normalize_id((string) ($decoded['release_id'] ?? ''));
 $actor = trim((string) ($_SESSION['username'] ?? ''));
 
 if ($releaseId === '') {

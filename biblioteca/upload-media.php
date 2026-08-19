@@ -22,7 +22,7 @@ require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/build-catalog-helpers.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/asset-registry.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 /**
  * Fill registry display after a successful audio master prepare.

@@ -8,7 +8,7 @@ require_once __DIR__ . '/page-storage.php';
 require_once __DIR__ . '/page-registry.php';
 require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/demo-catalog-state.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 function bandpromo_admin_default_theme_display_version(?string $rawVersion): string
 {
@@ -41,11 +41,11 @@ function bandpromo_admin_demo_content_installed(string $root): bool
         return true;
     }
 
-    $demoId = bandpromo_demo_release_id($root);
+    $demoId = bandpromo_demo_campaign_id($root);
     if ($demoId === '') {
         $demoId = BANDPROMO_RELEASE_DEMO_ID;
     }
-    if ($demoId !== '' && is_file(bandpromo_release_document_path($root, $demoId))) {
+    if ($demoId !== '' && is_file(bandpromo_campaign_document_path($root, $demoId))) {
         return true;
     }
 

@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
-require_once __DIR__ . '/release-storage.php';
-require_once __DIR__ . '/release-ownership-helpers.php';
+require_once __DIR__ . '/campaign-storage.php';
+require_once __DIR__ . '/campaign-ownership-helpers.php';
 require_once __DIR__ . '/build-required.php';
 
 session_write_close();
@@ -26,7 +26,7 @@ if (!is_array($payload)) {
 }
 
 $root = dirname(__DIR__);
-$releaseId = bandpromo_release_normalize_id((string) ($_GET['release'] ?? ($payload['release_id'] ?? '')));
+$releaseId = bandpromo_campaign_normalize_id((string) ($_GET['release'] ?? ($payload['release_id'] ?? '')));
 $kind = strtolower(trim((string) ($payload['kind'] ?? $_GET['kind'] ?? '')));
 $activeIds = $payload['ids'] ?? $payload['active'] ?? [];
 if (!is_array($activeIds)) {
@@ -36,9 +36,9 @@ if (!is_array($activeIds)) {
 }
 
 try {
-    bandpromo_release_ensure_seeded($root);
-    $saved = bandpromo_release_save_associations($root, $releaseId, $kind, $activeIds);
-    $kind = bandpromo_release_association_normalize_kind($kind);
+    bandpromo_campaign_ensure_seeded($root);
+    $saved = bandpromo_campaign_save_associations($root, $releaseId, $kind, $activeIds);
+    $kind = bandpromo_campaign_association_normalize_kind($kind);
 
     bandpromo_admin_audit_log('release_associations_saved', [
         'target_type' => 'release',
@@ -60,7 +60,7 @@ try {
         'active' => $saved['active'],
         'available' => $saved['available'],
         'changed' => (int) ($saved['changed'] ?? 0),
-        'ownership_children' => bandpromo_release_ownership_children($root, $releaseId),
+        'ownership_children' => bandpromo_campaign_ownership_children($root, $releaseId),
         'build_required' => true,
         'build_required_state' => $buildState,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

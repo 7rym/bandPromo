@@ -15,8 +15,8 @@ bandpromo_enforce_https();
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/admin-audit.php';
-require_once __DIR__ . '/release-campaign-package.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-package.php';
+require_once __DIR__ . '/campaign-storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -50,7 +50,7 @@ register_shutdown_function(static function () use (&$importCompleted): void {
 /**
  * @return never
  */
-function bandpromo_release_import_json_exit(array $payload, int $status = 200): void
+function bandpromo_campaign_import_json_exit(array $payload, int $status = 200): void
 {
     $GLOBALS['importCompleted'] = true;
     if ($status !== 200) {
@@ -60,7 +60,7 @@ function bandpromo_release_import_json_exit(array $payload, int $status = 200): 
     exit;
 }
 
-function bandpromo_release_import_normalize_collision(string $collision): string
+function bandpromo_campaign_import_normalize_collision(string $collision): string
 {
     $collision = strtolower(trim($collision));
     if ($collision === 'skip-existing') {
@@ -86,9 +86,9 @@ function bandpromo_release_import_normalize_collision(string $collision): string
  *   build_required_state?: mixed
  * }
  */
-function bandpromo_release_import_run(string $root, string $zipPath, string $originalName, string $collision): array
+function bandpromo_campaign_import_run(string $root, string $zipPath, string $originalName, string $collision): array
 {
-    $result = bandpromo_release_campaign_import_from_zip($root, $zipPath, [
+    $result = bandpromo_campaign_import_from_zip($root, $zipPath, [
         'mode' => 'operator',
         'allow_demo_overwrite' => false,
         'set_active_brand' => false,
@@ -114,7 +114,7 @@ function bandpromo_release_import_run(string $root, string $zipPath, string $ori
         'message' => (string) ($result['message'] ?? 'Release package imported.'),
         'imported_files' => (int) ($result['imported_files'] ?? 0),
         'collision' => (string) ($result['collision'] ?? $collision),
-        'releases' => bandpromo_release_admin_registry_entries($root),
+        'releases' => bandpromo_campaign_admin_registry_entries($root),
     ];
     if (!empty($result['build_required'])) {
         $payload['build_required'] = true;
@@ -138,7 +138,7 @@ function bandpromo_release_import_run(string $root, string $zipPath, string $ori
     return $payload;
 }
 
-function bandpromo_release_import_cleanup_parts(string $tmpDir, string $uploadId, int $totalChunks): void
+function bandpromo_campaign_import_cleanup_parts(string $tmpDir, string $uploadId, int $totalChunks): void
 {
     for ($i = 0; $i < $totalChunks; $i++) {
         $partPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $i;
@@ -152,7 +152,7 @@ function bandpromo_release_import_cleanup_parts(string $tmpDir, string $uploadId
  * Stage PRP chunks under the install's data/upload_tmp (durable, inside open_basedir).
  * Fall back to sys temp only when the install path is not writable.
  */
-function bandpromo_release_import_chunk_staging_dir(string $root): string
+function bandpromo_campaign_import_chunk_staging_dir(string $root): string
 {
     $preferred = rtrim($root, "\\/") . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'upload_tmp';
     if (!is_dir($preferred) && !mkdir($preferred, 0750, true) && !is_dir($preferred)) {
@@ -171,7 +171,7 @@ function bandpromo_release_import_chunk_staging_dir(string $root): string
     return $dir;
 }
 
-function bandpromo_release_import_zip_open_error(string $zipPath): string
+function bandpromo_campaign_import_zip_open_error(string $zipPath): string
 {
     $size = is_file($zipPath) ? (int) filesize($zipPath) : 0;
     $header = '';
@@ -206,14 +206,14 @@ function bandpromo_release_import_zip_open_error(string $zipPath): string
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    bandpromo_release_import_json_exit(['ok' => false, 'error' => 'POST required.'], 405);
+    bandpromo_campaign_import_json_exit(['ok' => false, 'error' => 'POST required.'], 405);
 }
 
 $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
 if ($contentLength > 0 && empty($_POST) && empty($_FILES)) {
     $postMax = (string) ini_get('post_max_size');
     $uploadMax = (string) ini_get('upload_max_filesize');
-    bandpromo_release_import_json_exit([
+    bandpromo_campaign_import_json_exit([
         'ok' => false,
         'error' => 'Package is larger than this host allows (post_max_size='
             . $postMax . ', upload_max_filesize=' . $uploadMax
@@ -223,14 +223,14 @@ if ($contentLength > 0 && empty($_POST) && empty($_FILES)) {
 
 $csrfToken = trim((string) ($_POST['csrf_token'] ?? ''));
 if (!validate_csrf_token($csrfToken)) {
-    bandpromo_release_import_json_exit([
+    bandpromo_campaign_import_json_exit([
         'ok' => false,
         'error' => 'Session expired or invalid request token. Refresh admin and try again.',
     ], 403);
 }
 
 $root = dirname(__DIR__);
-$collision = bandpromo_release_import_normalize_collision((string) ($_POST['collision'] ?? 'refuse'));
+$collision = bandpromo_campaign_import_normalize_collision((string) ($_POST['collision'] ?? 'refuse'));
 
 // ─── Chunked upload mode (2 MB parts from admin, same as Files) ───────────────
 if (isset($_POST['chunk_index'], $_POST['filename'])) {
@@ -242,42 +242,42 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     $expectedSize = (int) ($_POST['file_size'] ?? 0);
 
     if ($filename === '' || !bandpromo_pcf_is_campaign_file_extension($extension)) {
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => bandpromo_pcf_operator_extension_error(),
         ], 400);
     }
     if ($uploadId === '' || strlen($uploadId) < 8 || strlen($uploadId) > 80) {
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => 'Missing or invalid upload_id for chunked import.',
         ], 400);
     }
     if ($totalChunks < 1 || $totalChunks > 100000 || $chunkIndex < 0 || $chunkIndex >= $totalChunks) {
-        bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Invalid chunk index.'], 400);
+        bandpromo_campaign_import_json_exit(['ok' => false, 'error' => 'Invalid chunk index.'], 400);
     }
     if (empty($_FILES['chunk']) || (int) ($_FILES['chunk']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
         $code = (int) ($_FILES['chunk']['error'] ?? UPLOAD_ERR_NO_FILE);
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => 'Chunk upload error: ' . $code,
         ], 400);
     }
 
     try {
-        $tmpDir = bandpromo_release_import_chunk_staging_dir($root);
+        $tmpDir = bandpromo_campaign_import_chunk_staging_dir($root);
     } catch (Throwable $throwable) {
-        bandpromo_release_import_json_exit(['ok' => false, 'error' => $throwable->getMessage()], 500);
+        bandpromo_campaign_import_json_exit(['ok' => false, 'error' => $throwable->getMessage()], 500);
     }
 
     $chunkPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $chunkIndex;
     if (!move_uploaded_file((string) $_FILES['chunk']['tmp_name'], $chunkPath)) {
-        bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Could not save chunk.'], 500);
+        bandpromo_campaign_import_json_exit(['ok' => false, 'error' => 'Could not save chunk.'], 500);
     }
 
     // Only the final chunk assembles — avoids races if an earlier part is retried.
     if ($chunkIndex !== $totalChunks - 1) {
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_json_exit([
             'ok' => true,
             'status' => 'partial',
             'received' => $chunkIndex + 1,
@@ -298,8 +298,8 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     }
 
     if ($partsPresent < $totalChunks) {
-        bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => 'Upload finished but chunks are incomplete ('
                 . $partsPresent . '/' . $totalChunks . '). Retry the import.',
@@ -307,8 +307,8 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     }
 
     if ($expectedSize > 0 && $partsBytes !== $expectedSize) {
-        bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => 'Assembled size mismatch (got '
                 . $partsBytes . ' bytes, expected ' . $expectedSize
@@ -320,8 +320,8 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     $assembledPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.assembled.' . $extension;
     $out = fopen($assembledPath, 'wb');
     if ($out === false) {
-        bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Could not assemble package.'], 500);
+        bandpromo_campaign_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
+        bandpromo_campaign_import_json_exit(['ok' => false, 'error' => 'Could not assemble package.'], 500);
     }
     try {
         for ($i = 0; $i < $totalChunks; $i++) {
@@ -340,8 +340,8 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     } catch (Throwable $assembleError) {
         fclose($out);
         @unlink($assembledPath);
-        bandpromo_release_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_cleanup_parts($tmpDir, $uploadId, $totalChunks);
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => $assembleError->getMessage(),
         ], 500);
@@ -351,26 +351,26 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
     $assembledSize = (int) filesize($assembledPath);
     if ($expectedSize > 0 && $assembledSize !== $expectedSize) {
         @unlink($assembledPath);
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => 'Assembled package size mismatch (got '
                 . $assembledSize . ' bytes, expected ' . $expectedSize . '). Retry the import.',
         ], 400);
     }
 
-    $openError = bandpromo_release_import_zip_open_error($assembledPath);
+    $openError = bandpromo_campaign_import_zip_open_error($assembledPath);
     if ($openError !== '') {
         @unlink($assembledPath);
-        bandpromo_release_import_json_exit(['ok' => false, 'error' => $openError], 400);
+        bandpromo_campaign_import_json_exit(['ok' => false, 'error' => $openError], 400);
     }
 
     try {
-        $payload = bandpromo_release_import_run($root, $assembledPath, $filename, $collision);
+        $payload = bandpromo_campaign_import_run($root, $assembledPath, $filename, $collision);
         @unlink($assembledPath);
-        bandpromo_release_import_json_exit($payload);
+        bandpromo_campaign_import_json_exit($payload);
     } catch (Throwable $throwable) {
         @unlink($assembledPath);
-        bandpromo_release_import_json_exit([
+        bandpromo_campaign_import_json_exit([
             'ok' => false,
             'error' => $throwable->getMessage(),
         ], 400);
@@ -380,7 +380,7 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
 // ─── Single-file mode (small packages / scripts) ──────────────────────────────
 $file = $_FILES['package'] ?? null;
 if (!is_array($file)) {
-    bandpromo_release_import_json_exit([
+    bandpromo_campaign_import_json_exit([
         'ok' => false,
         'error' => 'Upload a Portable Campaign File (.pcf), or use chunked upload fields.',
     ], 400);
@@ -400,18 +400,18 @@ if ($uploadError !== UPLOAD_ERR_OK) {
         UPLOAD_ERR_EXTENSION => 'A PHP extension blocked the upload.',
         default => 'Upload failed (error code ' . $uploadError . ').',
     };
-    bandpromo_release_import_json_exit(['ok' => false, 'error' => $error], 400);
+    bandpromo_campaign_import_json_exit(['ok' => false, 'error' => $error], 400);
 }
 
 $tmpName = (string) ($file['tmp_name'] ?? '');
 $originalName = (string) ($file['name'] ?? 'package.pcf');
 if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-    bandpromo_release_import_json_exit(['ok' => false, 'error' => 'Invalid upload.'], 400);
+    bandpromo_campaign_import_json_exit(['ok' => false, 'error' => 'Invalid upload.'], 400);
 }
 
 $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 if (!bandpromo_pcf_is_campaign_file_extension($extension)) {
-    bandpromo_release_import_json_exit([
+    bandpromo_campaign_import_json_exit([
         'ok' => false,
         'error' => bandpromo_pcf_operator_extension_error(),
     ], 400);
@@ -420,10 +420,10 @@ if (!bandpromo_pcf_is_campaign_file_extension($extension)) {
 @set_time_limit(0);
 
 try {
-    $payload = bandpromo_release_import_run($root, $tmpName, $originalName, $collision);
-    bandpromo_release_import_json_exit($payload);
+    $payload = bandpromo_campaign_import_run($root, $tmpName, $originalName, $collision);
+    bandpromo_campaign_import_json_exit($payload);
 } catch (Throwable $throwable) {
-    bandpromo_release_import_json_exit([
+    bandpromo_campaign_import_json_exit([
         'ok' => false,
         'error' => $throwable->getMessage(),
     ], 400);

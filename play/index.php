@@ -63,7 +63,7 @@ if (!is_array($siteCfg)) {
 
 require_once '../biblioteca/config-loader.php';
 
-$deepLinkReleaseSlug = strtolower(trim((string) ($playerRoute['release'] ?? '')));
+$deepLinkCampaignSlug = strtolower(trim((string) ($playerRoute['release'] ?? '')));
 $deepLinkTrackSlug = strtolower(trim((string) ($playerRoute['track'] ?? '')));
 $playlistCatalog = bandpromo_playlist_player_catalog_entries($playerRoot, $operatorBypass);
 $activePlaylistSlug = bandpromo_playlist_public_slug($playerRoot, $activePlaylistId);
@@ -135,12 +135,12 @@ try {
     $playlistTracks = [];
 }
 
-// Resolve deep-linked track for page title and per-release branding.
+// Resolve deep-linked track for page title and per-campaign branding.
 $song = null;
 if ($deepLinkTrackSlug !== '') {
     $trackIndex = bandpromo_playlist_resolve_player_track_index(
         $playlistTracks,
-        $deepLinkReleaseSlug,
+        $deepLinkCampaignSlug,
         $deepLinkTrackSlug
     );
     if ($trackIndex >= 0 && isset($playlistTracks[$trackIndex])) {
@@ -261,7 +261,7 @@ if ($supportUrl !== '') {
     $themeColorMeta = '#121212';
     try {
         $brandDocForMeta = bandpromo_brand_load_document($playerRoot, $playerBrandId);
-        $bgToken = trim((string) bandpromo_theme_token_value($brandDocForMeta, 'color.background'));
+        $bgToken = trim((string) bandpromo_brand_token_value($brandDocForMeta, 'color.background'));
         if ($bgToken !== '') {
             $themeColorMeta = $bgToken;
         }
@@ -424,8 +424,8 @@ if ($supportUrl !== '') {
             <?php
             require_once dirname(__DIR__) . '/biblioteca/player-modules.php';
             $playerRoot = dirname(__DIR__);
-            $playerReleaseId = bandpromo_playlist_effective_release_id($playerRoot, $activePlaylistId);
-            $playerTabs = bandpromo_player_content_tabs($playerRoot, $operatorBypass, $playerReleaseId);
+            $playerCampaignId = bandpromo_playlist_effective_campaign_id($playerRoot, $activePlaylistId);
+            $playerTabs = bandpromo_player_content_tabs($playerRoot, $operatorBypass, $playerCampaignId);
             $defaultPlayerView = bandpromo_player_default_view();
             $hasDefaultView = false;
             foreach ($playerTabs as $playerTab) {
@@ -570,7 +570,7 @@ if ($supportUrl !== '') {
         window.BANDPROMO_PLAYER_TABS = <?php echo json_encode($playerTabs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEFAULT_PLAYER_VIEW = <?php echo json_encode($defaultPlayerView, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_ID = <?php echo json_encode($activePlaylistId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-        window.BANDPROMO_PLAYLIST_RELEASE_ID = <?php echo json_encode($playerReleaseId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_PLAYLIST_RELEASE_ID = <?php echo json_encode($playerCampaignId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_LYRICS_LABEL = <?php
             $lyricsModuleLabel = 'Lyrics';
             try {
@@ -587,7 +587,7 @@ if ($supportUrl !== '') {
         window.BANDPROMO_PLAYLIST_SLUG = <?php echo json_encode($activePlaylistSlug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_CATALOG = <?php echo json_encode($playlistCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEEP_LINK = <?php echo json_encode([
-            'release' => $deepLinkReleaseSlug,
+            'release' => $deepLinkCampaignSlug,
             'track' => $deepLinkTrackSlug,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo') + <?php echo json_encode($playerBuiltAt !== '' ? '&_=' . substr(sha1($playerBuiltAt), 0, 8) : ''); ?>;

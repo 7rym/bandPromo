@@ -43,7 +43,7 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
 {
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/asset-registry.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     $src = bandpromo_gallery_normalize_src_path($src);
     $ref = trim($src);
@@ -54,7 +54,7 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
         $assetId = basename($ref);
     } elseif ($src !== '') {
         // Delivery URLs end in card.jpg — recover ast_* from the path segment.
-        $assetId = bandpromo_theme_lookup_asset_id_for_path($root_dir, $src);
+        $assetId = bandpromo_brand_lookup_asset_id_for_path($root_dir, $src);
     }
 
     if ($assetId !== '') {
@@ -115,7 +115,7 @@ function bandpromo_gallery_resolve_image_src(string $root_dir, string $src): str
 function bandpromo_gallery_normalize_items(string $root_dir, array $items): array {
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/asset-registry.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     foreach ($items as $index => $item) {
         if (!is_array($item)) {
@@ -128,7 +128,7 @@ function bandpromo_gallery_normalize_items(string $root_dir, array $items): arra
             $assetId = '';
         }
         if ($assetId === '') {
-            $assetId = bandpromo_theme_lookup_asset_id_for_path(
+            $assetId = bandpromo_brand_lookup_asset_id_for_path(
                 $root_dir,
                 (string) ($item['src'] ?? '')
             );

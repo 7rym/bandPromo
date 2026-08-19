@@ -1565,7 +1565,7 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
             </div>
             <div class="mini-step">
               <strong>3. Make it yours</strong>
-              bandPromo prepares the starter material so you can finish setup and begin customizing your own installation.
+              bandPromo prepares the starter material so you can finish setup and begin customising your own installation.
             </div>
           </div>
         </div>
@@ -1586,7 +1586,7 @@ $isSetupComplete = bandpromo_bootstrap_is_setup_complete($root);
             </div>
             <div class="mini-step">
               <strong>3. Make it yours</strong>
-              Finish setup and begin customizing your installation.
+              Finish setup and begin customising your installation.
             </div>
           </div>
         </div>

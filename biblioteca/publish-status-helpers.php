@@ -192,7 +192,7 @@ function bandpromo_delivery_count_visible_media(string $root, string $target): i
 
 function bandpromo_delivery_inventory_counts_compute(string $root): array
 {
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
     require_once __DIR__ . '/playlist-storage.php';
     require_once __DIR__ . '/gallery-storage.php';
     require_once __DIR__ . '/page-registry.php';
@@ -205,20 +205,20 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
     $releasesWithTracks = 0;
     $catalogTrackIds = [];
     $catalogTrackReadyIds = [];
-    foreach (bandpromo_release_registry_entries($root) as $entry) {
+    foreach (bandpromo_campaign_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
         }
 
-        $releaseId = bandpromo_release_normalize_id((string) ($entry['id'] ?? ''));
-        if ($releaseId === '' || !bandpromo_release_visible_in_admin_catalog($root, $entry)) {
+        $releaseId = bandpromo_campaign_normalize_id((string) ($entry['id'] ?? ''));
+        if ($releaseId === '' || !bandpromo_campaign_visible_in_admin_catalog($root, $entry)) {
             continue;
         }
 
         $releases++;
         $trackCount = 0;
         try {
-            $document = bandpromo_release_load_document($root, $releaseId);
+            $document = bandpromo_campaign_load_document($root, $releaseId);
             $tracks = is_array($document['tracks'] ?? null) ? $document['tracks'] : [];
             $trackCount = count($tracks);
             foreach ($tracks as $track) {

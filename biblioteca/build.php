@@ -10,7 +10,7 @@ require_once __DIR__ . '/admin-api-guard.php';
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/release-package.php';
-require_once __DIR__ . '/release-campaign-package.php';
+require_once __DIR__ . '/campaign-package.php';
 require_once __DIR__ . '/publish-preflight-helpers.php';
 require_once __DIR__ . '/build-lock.php';
 require_once __DIR__ . '/build-launcher.php';
@@ -182,7 +182,7 @@ if ($ensureDemo) {
             "[setup] Preparing Demo PCF download/import (progress appears below)...\n",
             FILE_APPEND
         );
-        $debug['demo_release_package'] = bandpromo_ensure_demo_release_package(
+        $debug['demo_release_package'] = bandpromo_ensure_demo_campaign_package(
             $root_dir,
             BANDPROMO_RELEASE_MANIFEST_URL,
             static function (string $message) use ($log_file): void {
@@ -194,7 +194,7 @@ if ($ensureDemo) {
         if (is_array($debug['demo_release_package'])) {
             $ensuredReleaseId = (string) ($debug['demo_release_package']['release_id'] ?? '');
         }
-        bandpromo_demo_release_ensure_preferences($root_dir, $ensuredReleaseId);
+        bandpromo_demo_campaign_ensure_preferences($root_dir, $ensuredReleaseId);
         try {
             $debug['install_icons'] = bandpromo_ensure_install_icons(
                 $root_dir,
@@ -221,7 +221,7 @@ if ($ensureDemo) {
     }
 } else {
     require_once __DIR__ . '/demo-catalog-state.php';
-    bandpromo_demo_release_ensure_preferences($root_dir);
+    bandpromo_demo_campaign_ensure_preferences($root_dir);
     file_put_contents(
         $log_file,
         "[setup] Skipping Demo PCF ensure (Publish uses content already on this host).\n",
@@ -230,9 +230,9 @@ if ($ensureDemo) {
 }
 
 try {
-    require_once __DIR__ . '/theme-storage.php';
-    bandpromo_theme_ensure_seeded($root_dir);
-    $healNotes = bandpromo_theme_heal_install_shell_media($root_dir);
+    require_once __DIR__ . '/brand-storage.php';
+    bandpromo_brand_ensure_seeded($root_dir);
+    $healNotes = bandpromo_brand_heal_install_shell_media($root_dir);
     foreach ($healNotes as $note) {
         file_put_contents($log_file, '[shell media] ' . $note . "\n", FILE_APPEND);
     }

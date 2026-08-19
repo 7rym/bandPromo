@@ -187,7 +187,7 @@ function bandpromo_media_reference_visual_alias_keys(string $root, string $ref):
 function bandpromo_media_reference_listing_asset_id(string $root, string $ref): string
 {
     require_once __DIR__ . '/asset-registry.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     $ref = trim($ref);
     if ($ref === '') {
@@ -200,7 +200,7 @@ function bandpromo_media_reference_listing_asset_id(string $root, string $ref): 
     }
 
     if (strpos(str_replace('\\', '/', $ref), '/media/') !== false) {
-        $fromPath = bandpromo_theme_lookup_asset_id_for_path($root, $ref);
+        $fromPath = bandpromo_brand_lookup_asset_id_for_path($root, $ref);
         if ($fromPath !== '') {
             return $fromPath;
         }
@@ -248,7 +248,7 @@ function bandpromo_media_reference_usage_lookup_keys(string $root, string $ref):
 function bandpromo_media_reference_gallery_item_asset_id(string $root, array $item): string
 {
     require_once __DIR__ . '/asset-registry.php';
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
 
     $assetId = trim((string) ($item['asset_id'] ?? ''));
     if ($assetId !== '') {
@@ -266,7 +266,7 @@ function bandpromo_media_reference_gallery_item_asset_id(string $root, array $it
         return '';
     }
 
-    return bandpromo_theme_lookup_asset_id_for_path($root, $src);
+    return bandpromo_brand_lookup_asset_id_for_path($root, $src);
 }
 
 /**
@@ -569,7 +569,7 @@ function bandpromo_media_reference_build_brand_slot_index(string $root): array
         return $cache[$root];
     }
 
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     require_once __DIR__ . '/asset-registry.php';
 
     $kindMap = [
@@ -609,8 +609,8 @@ function bandpromo_media_reference_build_brand_slot_index(string $root): array
     };
 
     try {
-        bandpromo_theme_ensure_seeded($root);
-        foreach (bandpromo_theme_registry_entries($root) as $registryEntry) {
+        bandpromo_brand_ensure_seeded($root);
+        foreach (bandpromo_brand_registry_entries($root) as $registryEntry) {
             if (!is_array($registryEntry)) {
                 continue;
             }
@@ -619,7 +619,7 @@ function bandpromo_media_reference_build_brand_slot_index(string $root): array
                 continue;
             }
             try {
-                $document = bandpromo_theme_load_document($root, $brandId);
+                $document = bandpromo_brand_load_document($root, $brandId);
             } catch (Throwable $throwable) {
                 continue;
             }
@@ -630,7 +630,7 @@ function bandpromo_media_reference_build_brand_slot_index(string $root): array
                 $slotAssetId = trim((string) ($assetIds[$slotKey] ?? ''));
                 $path = trim((string) ($assets[$slotKey] ?? ''));
                 if ($slotAssetId === '' && $path !== '') {
-                    $slotAssetId = bandpromo_theme_lookup_asset_id_for_path($root, $path);
+                    $slotAssetId = bandpromo_brand_lookup_asset_id_for_path($root, $path);
                 }
                 if ($slotAssetId === '' && $path === '') {
                     continue;
@@ -752,11 +752,11 @@ function bandpromo_media_reference_collect_brand_library_references(string $root
         return [];
     }
 
-    require_once __DIR__ . '/theme-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
     $references = [];
     try {
-        bandpromo_theme_ensure_seeded($root);
-        foreach (bandpromo_theme_registry_entries($root) as $registryEntry) {
+        bandpromo_brand_ensure_seeded($root);
+        foreach (bandpromo_brand_registry_entries($root) as $registryEntry) {
             if (!is_array($registryEntry)) {
                 continue;
             }
@@ -764,7 +764,7 @@ function bandpromo_media_reference_collect_brand_library_references(string $root
             if ($brandId === '') {
                 continue;
             }
-            $document = bandpromo_theme_load_document($root, $brandId);
+            $document = bandpromo_brand_load_document($root, $brandId);
             $library = is_array($document['library_asset_ids'] ?? null)
                 ? $document['library_asset_ids']
                 : [];
@@ -1064,7 +1064,7 @@ function bandpromo_media_reference_poster_candidate_filenames(string $root, stri
         return [];
     }
 
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
     require_once __DIR__ . '/asset-registry.php';
 
     if (preg_match('#^/media/#', $reference) === 1) {
@@ -1078,7 +1078,7 @@ function bandpromo_media_reference_poster_candidate_filenames(string $root, stri
         $asset = bandpromo_asset_lookup_by_id($root, $reference);
     }
 
-    return bandpromo_release_poster_filename_candidates($reference, is_array($asset) ? $asset : null);
+    return bandpromo_campaign_poster_filename_candidates($reference, is_array($asset) ? $asset : null);
 }
 
 /**
@@ -1091,7 +1091,7 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
         return [];
     }
 
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
     require_once __DIR__ . '/playlist-storage.php';
 
     $references = [];
@@ -1115,17 +1115,17 @@ function bandpromo_media_reference_collect_poster_references(string $root, strin
     };
 
     try {
-        bandpromo_release_ensure_seeded($root);
-        foreach (bandpromo_release_registry_entries($root) as $registryEntry) {
+        bandpromo_campaign_ensure_seeded($root);
+        foreach (bandpromo_campaign_registry_entries($root) as $registryEntry) {
             if (!is_array($registryEntry)) {
                 continue;
             }
-            $releaseId = bandpromo_release_normalize_id((string) ($registryEntry['id'] ?? ''));
+            $releaseId = bandpromo_campaign_normalize_id((string) ($registryEntry['id'] ?? ''));
             if ($releaseId === '') {
                 continue;
             }
             try {
-                $document = bandpromo_release_load_document($root, $releaseId);
+                $document = bandpromo_campaign_load_document($root, $releaseId);
             } catch (Throwable $throwable) {
                 continue;
             }

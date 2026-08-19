@@ -433,14 +433,14 @@ function bandpromo_site_backup_enqueue(string $root, array $components, string $
  */
 function bandpromo_site_backup_enqueue_prp(string $root, string $releaseId, string $actor): array
 {
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
 
-    $releaseId = bandpromo_release_normalize_id($releaseId);
-    if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
+    if ($releaseId === '' || $releaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
         throw new InvalidArgumentException('Choose a release campaign to export (Primary cannot be exported).');
     }
 
-    $document = bandpromo_release_load_document($root, $releaseId);
+    $document = bandpromo_campaign_load_document($root, $releaseId);
     $title = trim((string) ($document['title'] ?? $releaseId));
     if ($title === '') {
         $title = $releaseId;
@@ -490,7 +490,7 @@ function bandpromo_site_backup_acquire_build_lock(string $root)
     return $handle;
 }
 
-function bandpromo_site_backup_release_build_lock($handle): void
+function bandpromo_site_backup_campaign_build_lock($handle): void
 {
     if (!is_resource($handle)) {
         return;
@@ -537,7 +537,7 @@ function bandpromo_site_backup_process_pending(string $root): bool
 
         return true;
     } finally {
-        bandpromo_site_backup_release_build_lock($lock);
+        bandpromo_site_backup_campaign_build_lock($lock);
     }
 }
 
@@ -595,8 +595,8 @@ function bandpromo_site_backup_run_job(string $root, string $jobId): array
 
 function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
 {
-    require_once __DIR__ . '/release-campaign-package.php';
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-package.php';
+    require_once __DIR__ . '/campaign-storage.php';
 
     $job = bandpromo_site_backup_read_job($root, $jobId);
     if ($job === null) {
@@ -611,7 +611,7 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
     @set_time_limit(0);
     ignore_user_abort(true);
 
-    $releaseId = bandpromo_release_normalize_id((string) ($job['release_id'] ?? ''));
+    $releaseId = bandpromo_campaign_normalize_id((string) ($job['release_id'] ?? ''));
     $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
 
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
@@ -623,7 +623,7 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
         if ($releaseId === '') {
             throw new RuntimeException('PCF export job is missing release_id.');
         }
-        bandpromo_release_campaign_export_to_zip($root, $releaseId, $zipPath);
+        bandpromo_campaign_export_to_zip($root, $releaseId, $zipPath);
         $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
         $job['completed_at_utc'] = gmdate('c');
         $job['size_bytes'] = is_file($zipPath) ? (int) filesize($zipPath) : 0;
@@ -1050,7 +1050,7 @@ function bandpromo_site_backup_dispatch_job(string $root, string $jobId): void
     try {
         bandpromo_site_backup_run_job($root, $jobId);
     } finally {
-        bandpromo_site_backup_release_build_lock($lock);
+        bandpromo_site_backup_campaign_build_lock($lock);
     }
 }
 

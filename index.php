@@ -227,7 +227,7 @@ try {
         try {
             $loginBrandDoc = bandpromo_brand_load_active_document(__DIR__);
             foreach (array_keys($activeBrandShell) as $slot) {
-                $resolved = trim(bandpromo_theme_resolve_shell_slot_url(__DIR__, $loginBrandDoc, $slot));
+                $resolved = trim(bandpromo_brand_resolve_shell_slot_url(__DIR__, $loginBrandDoc, $slot));
                 if ($resolved !== '') {
                     $activeBrandShell[$slot] = $resolved;
                 }

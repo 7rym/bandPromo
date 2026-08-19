@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config-loader.php';
 require_once __DIR__ . '/page-registry.php';
-require_once __DIR__ . '/theme-storage.php';
+require_once __DIR__ . '/brand-storage.php';
 
 function bandpromo_player_module_defaults(): array {
     return [
@@ -76,10 +76,10 @@ function bandpromo_player_default_optional_tab_keys(string $root): array {
 function bandpromo_player_release_optional_tab_keys(string $root, string $releaseId): array
 {
     require_once __DIR__ . '/page-storage.php';
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
 
-    $releaseId = bandpromo_release_normalize_id($releaseId);
-    if ($releaseId === '' || $releaseId === BANDPROMO_RELEASE_DEFAULT_ID) {
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
+    if ($releaseId === '' || $releaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
         return [];
     }
 
@@ -100,7 +100,7 @@ function bandpromo_player_release_optional_tab_keys(string $root, string $releas
         } catch (Throwable $throwable) {
             continue;
         }
-        $owner = bandpromo_release_normalize_id(trim((string) ($doc['release_id'] ?? '')));
+        $owner = bandpromo_campaign_normalize_id(trim((string) ($doc['release_id'] ?? '')));
         if ($owner !== $releaseId) {
             continue;
         }
@@ -257,8 +257,8 @@ function bandpromo_player_playlist_selector_mode(?array $config = null): string
     // Prefer Base brand document; fall back to legacy web-config once for migration, then hard default.
     try {
         $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
-        if (function_exists('bandpromo_theme_load_active_document')) {
-            $document = bandpromo_theme_load_active_document($root);
+        if (function_exists('bandpromo_brand_load_active_document')) {
+            $document = bandpromo_brand_load_active_document($root);
             if (is_array($document)) {
                 $fromBrand = $document['player']['playlist_selector'] ?? null;
                 if ($fromBrand !== null && trim((string) $fromBrand) !== '') {
@@ -287,9 +287,9 @@ function bandpromo_player_beggars_banquet_enabled(): bool
 {
     try {
         $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
-        if (function_exists('bandpromo_theme_load_active_document')) {
-            require_once __DIR__ . '/theme-storage.php';
-            $document = bandpromo_theme_load_active_document($root);
+        if (function_exists('bandpromo_brand_load_active_document')) {
+            require_once __DIR__ . '/brand-storage.php';
+            $document = bandpromo_brand_load_active_document($root);
             if (is_array($document)) {
                 $player = is_array($document['player'] ?? null) ? $document['player'] : [];
                 if (array_key_exists('beggars_banquet', $player)) {
@@ -312,9 +312,9 @@ function bandpromo_player_cover_reflection_enabled(): bool
 {
     try {
         $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
-        if (function_exists('bandpromo_theme_load_active_document')) {
-            require_once __DIR__ . '/theme-storage.php';
-            $document = bandpromo_theme_load_active_document($root);
+        if (function_exists('bandpromo_brand_load_active_document')) {
+            require_once __DIR__ . '/brand-storage.php';
+            $document = bandpromo_brand_load_active_document($root);
             if (is_array($document)) {
                 $player = is_array($document['player'] ?? null) ? $document['player'] : [];
                 if (array_key_exists('cover_reflection', $player)) {
@@ -331,8 +331,8 @@ function bandpromo_player_cover_reflection_enabled(): bool
 
 function bandpromo_player_normalize_playlist_selector_mode(mixed $value): string
 {
-    if (function_exists('bandpromo_theme_normalize_playlist_selector_mode')) {
-        return bandpromo_theme_normalize_playlist_selector_mode($value);
+    if (function_exists('bandpromo_brand_normalize_playlist_selector_mode')) {
+        return bandpromo_brand_normalize_playlist_selector_mode($value);
     }
 
     $mode = strtolower(trim((string) $value));

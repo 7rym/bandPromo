@@ -573,8 +573,8 @@ function bandpromo_package_relocate_legacy_visual_intake(string $root): array
  */
 function bandpromo_package_refresh_demo_prp_if_needed(string $root): array
 {
-    require_once __DIR__ . '/release-campaign-package.php';
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-package.php';
+    require_once __DIR__ . '/campaign-storage.php';
 
     try {
         if (bandpromo_is_local_dev_host()) {

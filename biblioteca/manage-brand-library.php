@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/admin-audit.php';
-require_once __DIR__ . '/theme-storage.php';
+require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/asset-registry.php';
 
 bandpromo_enforce_https();
@@ -26,7 +26,7 @@ if (!is_array($decoded)) {
 }
 
 try {
-    bandpromo_theme_ensure_seeded($root);
+    bandpromo_brand_ensure_seeded($root);
     $brandId = bandpromo_brand_canonical_id((string) ($decoded['brand_id'] ?? ''));
     $action = strtolower(trim((string) ($decoded['action'] ?? '')));
     $assetIds = [];
@@ -47,7 +47,7 @@ try {
         throw new InvalidArgumentException('brand_id, asset_id(s), and add/remove action are required.');
     }
 
-    $document = bandpromo_theme_load_document($root, $brandId);
+    $document = bandpromo_brand_load_document($root, $brandId);
     if (!bandpromo_brand_may_edit_document($document)) {
         throw new RuntimeException('This brand is locked. Duplicate it or unlock it on localhost before changing its library.');
     }
@@ -77,8 +77,8 @@ try {
     }
 
     $document['library_asset_ids'] = array_keys($library);
-    bandpromo_theme_write_document($root, $document, ['allow_locked' => true]);
-    $document = bandpromo_theme_load_document($root, $brandId);
+    bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
+    $document = bandpromo_brand_load_document($root, $brandId);
 
     bandpromo_admin_audit_log('brand_library_' . $action, [
         'target_type' => 'brand',

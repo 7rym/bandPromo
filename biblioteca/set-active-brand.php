@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/admin-audit.php';
-require_once __DIR__ . '/theme-storage.php';
+require_once __DIR__ . '/brand-storage.php';
 
 bandpromo_enforce_https();
 session_write_close();
@@ -26,22 +26,26 @@ if (!is_array($decoded)) {
     exit;
 }
 
-$sourceId = bandpromo_theme_normalize_id((string) ($decoded['source_id'] ?? BANDPROMO_THEME_DEFAULT_ID));
-$newId = bandpromo_theme_normalize_id((string) ($decoded['new_id'] ?? ''));
-$title = trim((string) ($decoded['title'] ?? ''));
+$themeId = bandpromo_brand_normalize_id((string) ($decoded['theme_id'] ?? ''));
 
 try {
-    bandpromo_theme_ensure_seeded($root);
-    $document = bandpromo_theme_duplicate($root, $sourceId, $newId, $title);
+    bandpromo_brand_ensure_seeded($root);
+    if ($themeId === '') {
+        throw new InvalidArgumentException('theme_id is required.');
+    }
 
-    bandpromo_admin_audit_log('theme_duplicated', [
+    bandpromo_brand_set_active_id($root, $themeId);
+
+    bandpromo_admin_audit_log('theme_activated', [
         'target_type' => 'theme',
-        'target_id' => 'data/themes/' . $newId . '.json',
+        'target_id' => $themeId,
         'status' => 'ok',
-        'data' => ['source_id' => $sourceId],
     ]);
 
-    echo json_encode(['ok' => true, 'document' => $document]);
+    echo json_encode([
+        'ok' => true,
+        'active_theme_id' => $themeId,
+    ]);
 } catch (Throwable $throwable) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => $throwable->getMessage()]);

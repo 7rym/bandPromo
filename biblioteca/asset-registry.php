@@ -342,7 +342,7 @@ function bandpromo_asset_active_brand_id(string $root): string
     }
 
     try {
-        require_once __DIR__ . '/theme-storage.php';
+        require_once __DIR__ . '/brand-storage.php';
         $resolved[$root] = bandpromo_brand_active_id($root);
     } catch (Throwable $throwable) {
         $resolved[$root] = 'bandpromo-default';
@@ -2314,7 +2314,7 @@ function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
 {
     require_once __DIR__ . '/audio-master-helpers.php';
     require_once __DIR__ . '/build-required.php';
-    require_once __DIR__ . '/release-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
 
     $result = [
         'fixed' => [],
@@ -2350,7 +2350,7 @@ function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
     }
 
     if ($result['changed'] > 0) {
-        bandpromo_release_repair_catalog_release_ids($root);
+        bandpromo_campaign_repair_catalog_campaign_ids($root);
         bandpromo_mark_build_required('media_audio_upload');
     }
 

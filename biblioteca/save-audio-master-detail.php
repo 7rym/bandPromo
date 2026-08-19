@@ -5,7 +5,7 @@ require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/light-build-tasks.php';
 require_once __DIR__ . '/audio-master-detail-helpers.php';
-require_once __DIR__ . '/release-storage.php';
+require_once __DIR__ . '/campaign-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
 bandpromo_enforce_https();
 
@@ -127,7 +127,7 @@ session_write_close();
 $root = dirname(__DIR__);
 
 try {
-    bandpromo_release_assert_master_editable($root, $filename);
+    bandpromo_campaign_assert_master_editable($root, $filename);
 } catch (RuntimeException $exception) {
     http_response_code(409);
     echo json_encode(['error' => $exception->getMessage()]);
@@ -152,7 +152,7 @@ if ($existing_tracknumber === '') {
 if ($normalized_fields['tracknumber'] === '') {
     $normalized_fields['tracknumber'] = $existing_tracknumber !== ''
         ? $existing_tracknumber
-        : bandpromo_release_find_track_number_for_master($root, $filename);
+        : bandpromo_campaign_find_track_number_for_master($root, $filename);
 }
 
 $existing_living_cover = bandpromo_living_cover_normalize_video_filename((string) ($current_detail['living_cover'] ?? ''));
@@ -176,7 +176,7 @@ foreach ($allowed_keys as $key) {
 }
 // Client still saves a combined Title [Version] master tag; normalize current
 // title the same way so separate display.version does not look like a change.
-$current_fields['title'] = bandpromo_release_combine_audio_title_parts(
+$current_fields['title'] = bandpromo_campaign_combine_audio_title_parts(
     (string) ($current_detail['title'] ?? ''),
     (string) ($current_detail['version'] ?? '')
 );

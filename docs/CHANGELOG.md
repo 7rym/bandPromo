@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-19 12:27 - Phase 1 terminology rename complete: `release`→`campaign` (~14 PHP files renamed, ~96 function defs + ~350 call sites, all JS/CSS/HTML IDs), `theme`→`brand` (~8 PHP files renamed, ~65 function defs + call sites, all JS/CSS). UK English sweep (`customize`→`customise`). Backwards-compat URL param aliases added. Fixed pre-existing duplicate `bandpromo_brand_active_id` function definition.
+
 2026-08-19 11:23 - Created admin editor refactor plan (`docs/ADMIN-EDITOR-REFACTOR.md`): four-phase approach covering terminology rename (release→campaign, theme→brand — filenames, PHP functions, action params, JS identifiers, URL params, CSS classes), UK English sweep, shared JS module extraction, CSS class rename, and save UX unification. Fixed `session-start.ps1` PowerShell stderr handling for git.
 
 2026-08-19 10:27 - Gallery editor: removed the Available media list and drag-and-drop flow. Replaced with a helper panel explaining the new workflow. **Browse catalogue** is now the sole way to add media; Gallery order keeps reorder, inline edit, and remove.
