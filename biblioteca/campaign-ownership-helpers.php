@@ -650,7 +650,7 @@ function bandpromo_campaign_save_associations(string $root, string $releaseId, s
             throw new InvalidArgumentException('Cannot move protected container "' . $id . '".');
         }
         if ($kind === 'playlists') {
-            bandpromo_playlist_set_release_id($root, $id, $releaseId);
+            bandpromo_playlist_set_campaign_id($root, $id, $releaseId);
         } elseif ($kind === 'galleries') {
             bandpromo_gallery_set_release_id($root, $id, $releaseId);
         } else {
@@ -667,7 +667,7 @@ function bandpromo_campaign_save_associations(string $root, string $releaseId, s
             throw new InvalidArgumentException('Cannot remove protected container "' . $id . '" from this campaign.');
         }
         if ($kind === 'playlists') {
-            bandpromo_playlist_set_release_id($root, $id, '');
+            bandpromo_playlist_set_campaign_id($root, $id, '');
         } elseif ($kind === 'galleries') {
             bandpromo_gallery_set_release_id($root, $id, '');
         } else {

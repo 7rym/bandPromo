@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-20 09:30 - Clearer Stage 5 playlist build log: explain part 1 validates one selected playlist (with selection reason) and part 2 publishes player payloads for every playlist; stage label updated to match.
+
+2026-08-20 09:25 - Playlist association hotfix: campaign save associations called removed `bandpromo_playlist_set_release_id()`; use `bandpromo_playlist_set_campaign_id()` so Catalogue → Playlists drag-and-drop works again.
+
 2026-08-20 09:22 - Session handoff: HITZ brand-delete fix shipped as build 427; residual legacy strip still queued.
 
 2026-08-20 09:20 - Brand delete/rename hotfix: `manage-brand.php` accepts `?brand=` (editor was sending brand; PHP only read theme → “Theme id is required”); responses include `brands` / `active_brand_id` with theme aliases kept. `list-media.php` accepts `?campaign=` for Files pool filter.

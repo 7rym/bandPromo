@@ -87,10 +87,16 @@ def publish_date_sort_value(publish_date):
         return 0
 
 
-def resolve_build_playlist_id():
+def resolve_build_playlist_selection():
+    """
+    Choose one playlist as the Stage 5 validation/report working set.
+
+    Returns (playlist_id, reason). This does not decide which playlists are
+    published for the player — publish_player_playlist_payloads() handles all.
+    """
     env_id = normalize_playlist_id(os.environ.get('BANDPROMO_PLAYLIST_ID', ''))
     if env_id:
-        return env_id
+        return env_id, 'BANDPROMO_PLAYLIST_ID environment override'
 
     now = int(datetime.now(timezone.utc).strftime('%Y%m%d'))
     candidates = []
@@ -101,18 +107,35 @@ def resolve_build_playlist_id():
         publish_value = publish_date_sort_value(entry.get('publish_date'))
         if publish_value <= 0 or publish_value > now:
             continue
-        candidates.append((publish_value, playlist_id))
+        candidates.append((publish_value, playlist_id, entry.get('publish_date')))
 
     if candidates:
         candidates.sort(reverse=True)
-        return candidates[0][1]
+        publish_value, playlist_id, publish_date = candidates[0]
+        return (
+            playlist_id,
+            'most recent publish date among registry playlists (%s)' % (
+                str(publish_date or '').strip() or str(publish_value),
+            ),
+        )
 
     for entry in load_playlist_registry():
         playlist_id = normalize_playlist_id(entry.get('id'))
         if playlist_id:
-            return playlist_id
+            return (
+                playlist_id,
+                'first playlist in the registry (no dated publish candidates)',
+            )
 
-    return BANDPROMO_PLAYLIST_DEMO_ID
+    return (
+        BANDPROMO_PLAYLIST_DEMO_ID,
+        'fallback demo playlist id (registry empty or unreadable)',
+    )
+
+
+def resolve_build_playlist_id():
+    playlist_id, _reason = resolve_build_playlist_selection()
+    return playlist_id
 
 
 def playlist_document_path(playlist_id):
@@ -1559,15 +1582,29 @@ def generate_playlist():
     VISUAL_ORIG_DIR.mkdir(parents=True, exist_ok=True)
     VALIDATION_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+    print('This playlist stage does two things:')
+    print('  1) Validate metadata/covers for one selected playlist (report below).')
+    print('  2) Publish static player payloads for every playlist on this install.')
+    print('')
+
     # Collect playlist work items from the playlist document when available.
     unsupported_files = []
     hidden_bundled_files = []
     work_items = []
-    document_order = load_playlist_document_master_order()
+    build_playlist_id, selection_reason = resolve_build_playlist_selection()
+    document_order = load_playlist_document_master_order(build_playlist_id)
 
     if document_order:
-        build_playlist_id = resolve_build_playlist_id()
-        print(f"Using playlist document order for {build_playlist_id} ({len(document_order)} track(s))...")
+        print('--- Part 1/2: playlist validation report ---')
+        print(
+            'Selected validation playlist: %s (%s track(s)).'
+            % (build_playlist_id, len(document_order))
+        )
+        print('Selection reason: %s.' % selection_reason)
+        print(
+            'This track list is only for the validation report. '
+            'Other playlists are published in part 2.'
+        )
         for playlist_file in document_order:
             working_path = resolve_audio_working_path(playlist_file)
             if not working_path.exists() or not working_path.is_file():
@@ -1579,6 +1616,12 @@ def generate_playlist():
                 'source_label': playlist_file,
             })
     else:
+        print('--- Part 1/2: playlist validation report ---')
+        print(
+            'No playlist document order for %s; scanning audio masters instead.'
+            % build_playlist_id
+        )
+        print('Selection reason: %s.' % selection_reason)
         files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
         files.sort(key=lambda f: (get_track_number(str(f)), f.name.lower()))
 
@@ -1633,9 +1676,12 @@ def generate_playlist():
                 "No playable playlist tracks found "
                 "(checked playlist document masters and media/audio/master)."
             )
+        print('')
+        print('Skipping validation track walk; continuing to publish all player playlists.')
+        publish_player_playlist_payloads()
         return
 
-    print(f"Found {len(work_items)} playlist track(s). Generating playlist...")
+    print(f"Validating {len(work_items)} track(s) for report {VALIDATION_FILE.name}...")
     if hidden_bundled_files:
         print(f"ℹ️  Hidden bundled demo tracks skipped: {', '.join(file.name for file in hidden_bundled_files)}")
     if unsupported_files:
@@ -1763,6 +1809,8 @@ def generate_playlist():
     if metadata_warning_count:
         print(f"⚠️  Metadata warnings found for {metadata_warning_count} track(s).")
         print(f"   Validation report saved to {VALIDATION_FILE}")
+    else:
+        print('✓ Validation report written to %s' % VALIDATION_FILE)
     if unsupported_files:
         print(f"⚠️  Unsupported source files were skipped. Current supported source formats: {', '.join(ext.upper().lstrip('.') for ext in SUPPORTED_EXTENSIONS)}")
 
@@ -1777,6 +1825,7 @@ def generate_playlist():
     for cover in sorted(set(cover_refs)):
         ensure_visual_image_delivery_for_cover(cover)
 
+    print('')
     publish_player_playlist_payloads()
 
 
@@ -1791,7 +1840,11 @@ def publish_player_playlist_payloads():
         print('❌ Could not resolve PHP CLI for player playlist publish.')
         sys.exit(1)
 
-    print('Publishing static player playlist payloads...')
+    print('--- Part 2/2: publish player payloads for all playlists ---')
+    print(
+        'Writing static player JSON for every playlist in the registry '
+        '(not only the validation playlist from part 1)...'
+    )
     try:
         result = subprocess.run(
             [php, str(script)],
@@ -1817,7 +1870,7 @@ def publish_player_playlist_payloads():
         print('❌ Player playlist publish failed.')
         sys.exit(1)
 
-    print('✓ Player playlist payloads published.')
+    print('✓ Player playlist payloads published for all playlists.')
 
 
 def generate_validation_scan():

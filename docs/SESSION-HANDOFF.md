@@ -2,11 +2,15 @@
 
 ## Resume point
 
-Published **brand delete hotfix** (build 427): `manage-brand.php` accepts `?brand=`. HITZ can delete “the Retroscopy hour copy” after Site update.
+Published **playlist association + Stage 5 log clarity** (build after 428): HITZ can DnD playlists again; build log explains validation vs publish-all.
 
-Next: remaining legacy compat strip, or further HITZ triage.
+Next: remaining legacy compat strip, or further HITZ triage (covers / duplicate cleanup).
 
 ## Operator notes (HITZ feedback)
+
+### Playlist DnD “undefined function bandpromo_playlist_set_release_id”
+
+Fixed: associations call `bandpromo_playlist_set_campaign_id()`. Site update, then Catalogue → campaign → Playlists → drag Available → Associated.
 
 ### Brand delete “Theme id is required”
 
@@ -22,11 +26,15 @@ Likely from **Duplicate campaign**. Safe cleanup:
 
 ### Cleaning House playlist associations
 
-Build 426: Loading fixed; primary / Default-release containers appear in Available.
+Build 426+: Loading fixed; primary / Default-release containers appear in Available. DnD needs the association setter fix above.
 
 ### Missing covers / visual registry
 
 Repair catalogue / Content autofix, then rebuild.
+
+### Stage 5 playlist build log
+
+Part 1 validates one selected playlist (selection reason logged). Part 2 publishes player payloads for every playlist — not only the listed tracks.
 
 ## Next session — Legacy compat strip
 
