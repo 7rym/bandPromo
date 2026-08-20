@@ -2,34 +2,38 @@
 
 ## Resume point
 
-Published **HITZ association Loading hotfix** (claim playlists stuck on Default release / primary). Next: **admin legacy compat strip** (unchanged plan below), or further HITZ triage.
+Published **brand delete hotfix** (build 427): `manage-brand.php` accepts `?brand=`. HITZ can delete “the Retroscopy hour copy” after Site update.
+
+Next: remaining legacy compat strip, or further HITZ triage.
 
 ## Operator notes (HITZ feedback)
+
+### Brand delete “Theme id is required”
+
+Fixed in build 427. Site update, then delete the copy brand again.
 
 ### Duplicate Retroscopy hour
 
 Likely from **Duplicate campaign**. Safe cleanup:
 
-1. Catalogue → open the **copy** campaign (title often ends in “copy”) → Delete → **Campaign only** if you only want the catalogue entry gone and media to stay in Files; or **Entire campaign** to also remove owned brand / playlists / galleries / pages created by that duplicate (shared media files are kept).
-2. Then delete leftover **copy** brand / gallery / page rows under Branding / Galleries / Pages if they remain.
-3. Do **not** delete the original Retroscopy hour campaign if that is still the live one.
+1. Catalogue → open the **copy** campaign → Delete → **Campaign only** or **Entire campaign** as needed.
+2. Branding → delete **the Retroscopy hour copy** (needs build 427+).
+3. Clean leftover copy gallery/page rows if any.
 
-### Cleaning House playlist not in campaign associations
+### Cleaning House playlist associations
 
-Playlist meta showed **from the campaign "Default release"** (`primary`). Available pool previously hid primary-owned containers. Hotfix offers them in Available so the operator can drag Cleaning House onto the Cleaning House campaign. After associate: brand shell and player campaign context follow that campaign.
+Build 426: Loading fixed; primary / Default-release containers appear in Available.
 
-### Missing covers / “Not registered in the visual asset registry”
+### Missing covers / visual registry
 
-Extracted track covers sitting in Visual without registry rows. Operator: **System → Status → Repair catalogue** (or Content autofix), then refresh site files / rebuild so delivery thumbs appear. Re-pick covers in Audio master if needed.
+Repair catalogue / Content autofix, then rebuild.
 
 ## Next session — Legacy compat strip
 
-1. Drop `data.releases` read path in JS once PHP is canonical-only; remove duplicate `releases` JSON keys from manage/duplicate campaign endpoints.
-2. Fix migration gaps: `manage-brand.php` `?brand=`, `list-media.php` `?campaign=`, `admin.php` `cntab=themes` → branding.
-3. Canonical Welcome/demo links.
-4. Remove URL/query aliases after testers on current build.
-5. Remove JSON `themes` aliases.
-6. Keep: `data/releases/` path, `release_id` fields, `data/themes/` migration.
+1. Drop dual JSON keys where JS is canonical-only.
+2. `admin.php` `cntab=themes` → branding; Welcome/demo canonical links.
+3. Remove URL/query aliases after testers settle on current builds.
+4. Keep: `data/releases/` path, `release_id` fields, `data/themes/` migration.
 
 ## Plan document
 
