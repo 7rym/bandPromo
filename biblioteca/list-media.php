@@ -44,7 +44,7 @@ if (!isset($dirs[$target])) {
 }
 
 $includeHidden = isset($_GET['include_hidden']) && $_GET['include_hidden'] === '1';
-$releaseFilter = bandpromo_campaign_normalize_pool_filter((string) ($_GET['release'] ?? 'all'));
+$releaseFilter = bandpromo_campaign_normalize_pool_filter((string) ($_GET['campaign'] ?? $_GET['release'] ?? 'all'));
 $brandFilter = bandpromo_brand_normalize_pool_filter((string) ($_GET['brand'] ?? 'all'));
 $isBrandOwnedPool = in_array($target, ['special', 'sfx'], true);
 

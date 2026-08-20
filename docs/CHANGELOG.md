@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-20 09:20 - Brand delete/rename hotfix: `manage-brand.php` accepts `?brand=` (editor was sending brand; PHP only read theme → “Theme id is required”); responses include `brands` / `active_brand_id` with theme aliases kept. `list-media.php` accepts `?campaign=` for Files pool filter.
+
 2026-08-20 09:15 - HITZ hotfix: campaign association pools no longer stick on Loading (ID compare / script order); Available playlists/galleries/pages include containers stuck on invisible `primary` / Default release so Cleaning House can claim them; `editor-sort.js` loads before Content editors.
 
 2026-08-19 23:00 - Admin editor refactor complete (build 425): Phase 3 `page-editor.css` leftover (`release-*` → `campaign-*`, `#campaignEditorLayout`); remove dead `bandpromoReleasesCatalog` fallback; Phases 3–4 + campaign autosave fix shipped.

@@ -20,48 +20,59 @@ try {
             throw new InvalidArgumentException('Invalid JSON payload.');
         }
 
-        $themeId = bandpromo_brand_normalize_id((string) ($_GET['theme'] ?? ($payload['id'] ?? '')));
-        if ($themeId === '') {
-            throw new InvalidArgumentException('Theme id is required.');
+        $brandId = bandpromo_brand_normalize_id((string) (
+            $_GET['brand']
+            ?? $_GET['theme']
+            ?? ($payload['id'] ?? '')
+        ));
+        if ($brandId === '') {
+            throw new InvalidArgumentException('Brand id is required.');
         }
 
         $title = (string) ($payload['title'] ?? '');
-        $entry = bandpromo_brand_update_title($root, $themeId, $title);
+        $entry = bandpromo_brand_update_title($root, $brandId, $title);
+        $registry = bandpromo_brand_registry_entries($root);
 
         bandpromo_admin_audit_log('theme_updated', [
             'target_type' => 'theme',
-            'target_id' => $themeId,
+            'target_id' => $brandId,
             'status' => 'ok',
             'data' => ['title' => (string) ($entry['title'] ?? '')],
         ]);
 
         echo json_encode([
             'ok' => true,
+            'brand' => $entry,
+            'brands' => $registry,
             'theme' => $entry,
-            'themes' => bandpromo_brand_registry_entries($root),
+            'themes' => $registry,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
 
     if ($method === 'DELETE') {
-        $themeId = bandpromo_brand_normalize_id((string) ($_GET['theme'] ?? ''));
-        if ($themeId === '') {
-            throw new InvalidArgumentException('Theme id is required.');
+        $brandId = bandpromo_brand_normalize_id((string) ($_GET['brand'] ?? $_GET['theme'] ?? ''));
+        if ($brandId === '') {
+            throw new InvalidArgumentException('Brand id is required.');
         }
 
-        bandpromo_brand_delete($root, $themeId);
+        bandpromo_brand_delete($root, $brandId);
+        $registry = bandpromo_brand_registry_entries($root);
+        $activeId = bandpromo_brand_active_id($root);
 
         bandpromo_admin_audit_log('theme_deleted', [
             'target_type' => 'theme',
-            'target_id' => $themeId,
+            'target_id' => $brandId,
             'status' => 'ok',
         ]);
 
         echo json_encode([
             'ok' => true,
-            'deleted' => $themeId,
-            'themes' => bandpromo_brand_registry_entries($root),
-            'active_theme_id' => bandpromo_brand_active_id($root),
+            'deleted' => $brandId,
+            'brands' => $registry,
+            'active_brand_id' => $activeId,
+            'themes' => $registry,
+            'active_theme_id' => $activeId,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
