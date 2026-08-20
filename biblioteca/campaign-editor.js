@@ -2159,7 +2159,11 @@
             const shortDescription = String(entry?.short_description || '').trim();
             const catalogId = String(entry?.catalog_id || '').trim();
             const posterAssetId = String(entry?.poster_asset_id || '').trim();
-            const brandId = String(entry?.brand_id || '').trim();
+            const brandId = String(
+                entry?.brand_id
+                || ownershipChildren(entry).brand_id
+                || ''
+            ).trim();
             const epk = normalizeCampaignEpk(entry?.epk);
             const bandpromoListenUrl = streamingUrlForBandpromo(epk.streaming_links);
 

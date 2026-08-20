@@ -199,6 +199,8 @@ function bandpromo_campaign_normalize_brand_id(?string $root, mixed $value): str
 
 function bandpromo_campaign_effective_brand_id(string $root, string $releaseId): string
 {
+    require_once __DIR__ . '/brand-storage.php';
+
     $releaseId = bandpromo_campaign_normalize_id($releaseId);
     if ($releaseId !== '') {
         try {
@@ -208,7 +210,31 @@ function bandpromo_campaign_effective_brand_id(string $root, string $releaseId):
                 return $brandId;
             }
         } catch (Throwable $throwable) {
-            // Fall back to install base brand.
+            // Fall through to ownership inference / install Base.
+        }
+
+        // Same inference as ownership_children: a brand whose release_id points here.
+        try {
+            bandpromo_brand_ensure_seeded($root);
+            foreach (bandpromo_brand_registry_entries($root) as $meta) {
+                if (!is_array($meta)) {
+                    continue;
+                }
+                $id = bandpromo_brand_canonical_id((string) ($meta['id'] ?? ''));
+                if ($id === '') {
+                    continue;
+                }
+                try {
+                    $brand = bandpromo_brand_load_document($root, $id);
+                } catch (Throwable $throwable) {
+                    continue;
+                }
+                if (trim((string) ($brand['release_id'] ?? '')) === $releaseId) {
+                    return $id;
+                }
+            }
+        } catch (Throwable $throwable) {
+            // Fall through to install Base.
         }
     }
 
@@ -1648,6 +1674,13 @@ function bandpromo_campaign_admin_registry_entry(string $root, array $registryEn
         $entry['preview_tracks'] = bandpromo_campaign_admin_preview_tracks($root, $document);
         require_once __DIR__ . '/campaign-ownership-helpers.php';
         $entry['ownership_children'] = bandpromo_campaign_ownership_children($root, $releaseId);
+        // Prefer durable campaign.brand_id; fall back to ownership inference for the editor select.
+        if (trim((string) ($entry['brand_id'] ?? '')) === '') {
+            $inferredBrandId = trim((string) ($entry['ownership_children']['brand_id'] ?? ''));
+            if ($inferredBrandId !== '') {
+                $entry['brand_id'] = $inferredBrandId;
+            }
+        }
     } catch (Throwable $throwable) {
         // Keep registry-only fields when the document is missing.
     }
@@ -2913,7 +2946,52 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
         $document['poster_asset_id'] = bandpromo_campaign_normalize_poster_asset_id($root, $fields['poster_asset_id']);
     }
     if (array_key_exists('brand_id', $fields)) {
+        $previousBrandId = bandpromo_campaign_normalize_brand_id($root, $document['brand_id'] ?? '');
         $document['brand_id'] = bandpromo_campaign_normalize_brand_id($root, $fields['brand_id']);
+        $nextBrandId = (string) ($document['brand_id'] ?? '');
+
+        // Keep brand.release_id aligned so ownership inference and player shell stay in sync.
+        if ($nextBrandId !== '') {
+            try {
+                $brandDocument = bandpromo_brand_load_document($root, $nextBrandId);
+                if (trim((string) ($brandDocument['release_id'] ?? '')) !== $releaseId) {
+                    $brandDocument['release_id'] = $releaseId;
+                    bandpromo_brand_write_document($root, $brandDocument, ['allow_locked' => true]);
+                }
+            } catch (Throwable $throwable) {
+                // Brand document may be missing; campaign pointer still saved.
+            }
+        }
+
+        if ($previousBrandId !== $nextBrandId) {
+            require_once __DIR__ . '/playlist-storage.php';
+            if ($nextBrandId !== '') {
+                bandpromo_playlist_refresh_brand_styles_for_brand($root, $nextBrandId);
+            }
+            // Republish owned playlists so SSR/player payloads pick up the new brand shell.
+            foreach (bandpromo_playlist_registry_entries($root) as $playlistEntry) {
+                if (!is_array($playlistEntry)) {
+                    continue;
+                }
+                $playlistId = bandpromo_playlist_normalize_id((string) ($playlistEntry['id'] ?? ''));
+                if ($playlistId === '') {
+                    continue;
+                }
+                try {
+                    $playlistDocument = bandpromo_playlist_load_document($root, $playlistId);
+                } catch (Throwable $throwable) {
+                    continue;
+                }
+                if (trim((string) ($playlistDocument['release_id'] ?? '')) !== $releaseId) {
+                    continue;
+                }
+                try {
+                    bandpromo_playlist_publish_player_payload($root, $playlistId);
+                } catch (Throwable $throwable) {
+                    // Leave build-required; operator can Publish manually.
+                }
+            }
+        }
     }
     if (array_key_exists('epk', $fields)) {
         $pressContact = bandpromo_site_contact_sanitize_input((string) (($fields['epk']['press_contact'] ?? '') ?: ''));

@@ -2,7 +2,7 @@
 
 ## Resume point
 
-Published **v0.8.32 build 430** (pending session-end): Stage 5 publish-only + living-background brand inheritance fix.
+Published **v0.8.32 build 431** (pending session-end): player shell brand binding — Cleaning House no longer keeps Retroscopy/Base logo/living when campaign brand is set.
 
 Next: legacy compat strip; HITZ covers / duplicate cleanup after Site update.
 
@@ -32,15 +32,11 @@ Build 426+: Loading fixed; primary / Default-release containers appear in Availa
 
 Repair catalogue / Content autofix, then rebuild.
 
-### Wrong living background
+### Wrong living background / Retroscopy shell on Cleaning House
 
-Fixed in build 430: empty playlist-brand living slot no longer keeps Base living video; stale `assets[]` cleared; sticky previous-playlist shell fixed.
+Admin Branding can be correct while `/play` showed Retroscopy shell. Fixed in build 431: effective brand inference, campaign brand save republishes owned playlists, association republishes payloads, player stops inheriting Active shell when playlist brand differs.
 
-Also check:
-
-1. Catalogue → campaign → Branding: brand is set (not blank “Base brand”)
-2. Content → Branding → that brand → Living background is the intended file
-3. Duplicate campaigns copy the source living video — change the copy brand’s living slot separately
+After Site update: Catalogue → Cleaning House → Branding → re-save once → hard-refresh `/play` on that playlist.
 
 ### Stage 5 playlist build
 

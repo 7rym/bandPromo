@@ -651,6 +651,11 @@ function bandpromo_campaign_save_associations(string $root, string $releaseId, s
         }
         if ($kind === 'playlists') {
             bandpromo_playlist_set_campaign_id($root, $id, $releaseId);
+            try {
+                bandpromo_playlist_publish_player_payload($root, $id);
+            } catch (Throwable $throwable) {
+                // Association saved; publish may need a manual rebuild if masters are incomplete.
+            }
         } elseif ($kind === 'galleries') {
             bandpromo_gallery_set_release_id($root, $id, $releaseId);
         } else {
@@ -668,6 +673,11 @@ function bandpromo_campaign_save_associations(string $root, string $releaseId, s
         }
         if ($kind === 'playlists') {
             bandpromo_playlist_set_campaign_id($root, $id, '');
+            try {
+                bandpromo_playlist_publish_player_payload($root, $id);
+            } catch (Throwable $throwable) {
+                // Association cleared; publish may need a manual rebuild.
+            }
         } elseif ($kind === 'galleries') {
             bandpromo_gallery_set_release_id($root, $id, '');
         } else {

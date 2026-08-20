@@ -1602,7 +1602,7 @@ function applyPlaylistBrand(brandId) {
         return;
     }
     window.BANDPROMO_PLAYLIST_BRAND_ID = resolvedBrandId;
-    const brand = brandStylesById[resolvedBrandId];
+    const brand = resolveBrandStyleEntry(resolvedBrandId);
     if (!brand || typeof brand !== 'object') {
         // Do not keep the previous playlist's living background when styles are missing.
         applyPlaylistShellMedia({
@@ -1640,6 +1640,32 @@ function applyPlaylistBrand(brandId) {
     applyPlaylistShellMedia(brand);
 }
 
+function resolveBrandStyleEntry(brandId) {
+    const id = String(brandId || '').trim();
+    if (!id) {
+        return null;
+    }
+    if (brandStylesById[id] && typeof brandStylesById[id] === 'object') {
+        return brandStylesById[id];
+    }
+    const lower = id.toLowerCase();
+    const entries = Object.entries(brandStylesById || {});
+    for (let i = 0; i < entries.length; i += 1) {
+        const key = String(entries[i][0] || '');
+        const style = entries[i][1];
+        if (!style || typeof style !== 'object') {
+            continue;
+        }
+        if (key.toLowerCase() === lower) {
+            return style;
+        }
+        if (String(style.id || '').trim().toLowerCase() === lower) {
+            return style;
+        }
+    }
+    return null;
+}
+
 function installShellBaseline() {
     const baseline = window.BANDPROMO_INSTALL_SHELL_MEDIA;
     if (baseline && typeof baseline === 'object') {
@@ -1660,12 +1686,18 @@ function installShellBaseline() {
 function applyPlaylistShellMedia(brand) {
     const assets = (brand && brand.assets && typeof brand.assets === 'object') ? brand.assets : {};
     const baseline = installShellBaseline();
+    const playlistBrandId = String(window.BANDPROMO_PLAYLIST_BRAND_ID || '').trim().toLowerCase();
+    const activeBrandId = String(window.BANDPROMO_ACTIVE_BRAND_ID || '').trim().toLowerCase();
+    // Only inherit install/Base shell when this playlist uses the Base brand (or none).
+    const allowInstallFallback = playlistBrandId === '' || playlistBrandId === activeBrandId;
+
     const next = {
-        logo: String(assets.logo || '').trim() || baseline.logo,
-        background_image: String(assets.background_image || '').trim() || baseline.background_image,
+        logo: String(assets.logo || '').trim() || (allowInstallFallback ? baseline.logo : ''),
+        background_image: String(assets.background_image || '').trim()
+            || (allowInstallFallback ? baseline.background_image : ''),
         background_video: Object.prototype.hasOwnProperty.call(assets, 'background_video')
             ? String(assets.background_video || '').trim()
-            : String(baseline.background_video || '').trim(),
+            : (allowInstallFallback ? String(baseline.background_video || '').trim() : ''),
     };
 
     const previousMedia = Object.assign({}, (window.appConfig && window.appConfig.media) || {});
@@ -1673,12 +1705,14 @@ function applyPlaylistShellMedia(brand) {
     window.appConfig.media = Object.assign({}, previousMedia, next);
 
     const logoImg = document.querySelector('.content-logo-img');
-    if (logoImg && next.logo) {
-        if (logoImg.getAttribute('src') !== next.logo) {
-            logoImg.setAttribute('src', next.logo);
-        }
-        if (brand && brand.title) {
-            logoImg.setAttribute('alt', String(brand.title));
+    if (logoImg) {
+        if (next.logo) {
+            if (logoImg.getAttribute('src') !== next.logo) {
+                logoImg.setAttribute('src', next.logo);
+            }
+            if (brand && brand.title) {
+                logoImg.setAttribute('alt', String(brand.title));
+            }
         }
     }
 
@@ -1692,7 +1726,8 @@ function applyPlaylistShellMedia(brand) {
     }
 
     const mediaChanged = String(previousMedia.background_video || '').trim() !== next.background_video
-        || String(previousMedia.background_image || '').trim() !== next.background_image;
+        || String(previousMedia.background_image || '').trim() !== next.background_image
+        || String(previousMedia.logo || '').trim() !== next.logo;
     if (window.bandpromoShellBackground && typeof window.bandpromoShellBackground.updateBackground === 'function') {
         window.bandpromoShellBackground.updateBackground({ force: mediaChanged });
     }
