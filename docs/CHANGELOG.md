@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-20 10:55 - Fix track cover replacement reverting to the old image: request-scoped master inspect cache no longer rewrites `display.cover` during post-save playlist republish; sparse display refresh keeps an existing registry cover; player enrich prefers registry cover over a stale playlist payload cover.
+
 2026-08-20 10:15 - Player shell brand binding: campaign effective brand now matches ownership inference; saving a campaign brand republishes owned playlists and syncs brand.release_id; playlist association republishes player payloads; player no longer falls back to install/Base logo/living when the playlist brand differs from Active.
 
 2026-08-20 09:55 - Living background brand fix: do not keep install/Base living video when the playlist brand has an empty living slot; clear stale brand `assets[]` URLs when `asset_ids` are empty/unresolvable; player no longer keeps the previous playlist’s living background when brand styles are missing.

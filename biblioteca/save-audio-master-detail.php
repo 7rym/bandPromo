@@ -250,6 +250,10 @@ if (!$result['ok'] || !is_array($data) || empty($data['ok'])) {
     exit;
 }
 
+bandpromo_campaign_inspect_master_metadata_invalidate(
+    bandpromo_audio_master_canonical_filename($root, $filename) ?: $filename
+);
+
 $cover_result = ['ok' => true];
 if ($cover_mode === 'set') {
     $cover_result = bandpromo_audio_master_apply_cover_selection($root, $filename, $cover_path);
@@ -262,6 +266,11 @@ if (!($cover_result['ok'] ?? false)) {
     echo json_encode(['error' => (string) ($cover_result['error'] ?? 'Could not save track cover')]);
     exit;
 }
+
+// Cover/tag writes change what inspect reports; drop any earlier probe in this request.
+bandpromo_campaign_inspect_master_metadata_invalidate(
+    bandpromo_audio_master_canonical_filename($root, $filename) ?: $filename
+);
 
 $updatedSidecarCover = array_key_exists('sidecar_cover', $cover_result)
     ? (string) ($cover_result['sidecar_cover'] ?? '')

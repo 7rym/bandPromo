@@ -2002,9 +2002,9 @@ function bandpromo_playlist_enrich_tracks_for_player(
             }
         }
 
-        $coverCandidate = trim((string) ($track['cover'] ?? ''));
+        $coverCandidate = trim((string) ($display['cover'] ?? ''));
         if ($coverCandidate === '') {
-            $coverCandidate = trim((string) ($display['cover'] ?? ''));
+            $coverCandidate = trim((string) ($track['cover'] ?? ''));
         }
         $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, $coverCandidate);
         if ($coverRef !== '') {
@@ -2277,9 +2277,9 @@ function bandpromo_playlist_load_player_response(
         $tracks[$index]['text_role'] = $display['text_role'];
         $tracks[$index]['notes_label'] = $display['text_role'] === 'notes' ? $display['notes_label'] : '';
 
-        $coverCandidate = trim((string) ($track['cover'] ?? ''));
+        $coverCandidate = trim((string) ($display['cover'] ?? ''));
         if ($coverCandidate === '') {
-            $coverCandidate = trim((string) ($display['cover'] ?? ''));
+            $coverCandidate = trim((string) ($track['cover'] ?? ''));
         }
         $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, $coverCandidate);
         if ($coverRef !== '') {

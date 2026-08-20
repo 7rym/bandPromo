@@ -1914,9 +1914,35 @@ function bandpromo_campaign_track_title_looks_messy(string $title, string $maste
     return false;
 }
 
-function bandpromo_campaign_inspect_master_metadata(string $root, string $masterFile): array
+/**
+ * @return array<string, array>
+ */
+function &bandpromo_campaign_inspect_master_metadata_cache(): array
 {
     static $cache = [];
+
+    return $cache;
+}
+
+/**
+ * Drop cached Python inspect rows after master tags/cover change in this request.
+ * Stale sidecar_cover here was writing old track covers back during playlist republish.
+ */
+function bandpromo_campaign_inspect_master_metadata_invalidate(?string $masterFile = null): void
+{
+    $cache = &bandpromo_campaign_inspect_master_metadata_cache();
+    if ($masterFile === null || trim($masterFile) === '') {
+        $cache = [];
+
+        return;
+    }
+
+    unset($cache[basename(trim($masterFile))]);
+}
+
+function bandpromo_campaign_inspect_master_metadata(string $root, string $masterFile): array
+{
+    $cache = &bandpromo_campaign_inspect_master_metadata_cache();
 
     $masterFile = basename(trim($masterFile));
     if ($masterFile === '') {
@@ -2019,6 +2045,9 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
     $rawTitle = trim((string) ($inspect['title'] ?? ''));
     $labels = bandpromo_campaign_resolve_track_display_labels($rawTitle, $artist, $releaseTitle);
     $preserve = bandpromo_asset_read_audio_display(['display' => $preserveDisplay]);
+    $inspectCover = bandpromo_asset_normalize_media_ref(
+        (string) ($inspect['sidecar_cover'] ?? $inspect['cover'] ?? '')
+    );
 
     return [
         'title' => $labels['title'],
@@ -2039,7 +2068,8 @@ function bandpromo_asset_build_audio_display_from_inspect(array $inspect, string
         'text_role' => $preserve['text_role'],
         'notes_label' => $preserve['notes_label'],
         'living_cover' => bandpromo_living_cover_normalize_video_filename((string) ($inspect['living_cover'] ?? '')),
-        'cover' => bandpromo_asset_normalize_media_ref((string) ($inspect['sidecar_cover'] ?? $inspect['cover'] ?? '')),
+        // Empty inspect sidecar must not wipe an operator-assigned registry cover.
+        'cover' => $inspectCover !== '' ? $inspectCover : (string) ($preserve['cover'] ?? ''),
         'synced_at' => gmdate('c'),
      ];
 }
@@ -2140,6 +2170,13 @@ function bandpromo_asset_refresh_audio_display(string $root, string $masterFile,
     $display = bandpromo_asset_build_audio_display_from_inspect($inspect, $releaseTitle, $existingDisplay);
     if (trim((string) ($display['title'] ?? '')) === '') {
         return false;
+    }
+
+    // Sparse refresh fills empty lyrics/comment/cover — never replace an existing cover
+    // with a stale inspect sidecar from earlier in the same PHP request.
+    $existingCover = bandpromo_asset_normalize_media_ref((string) ($existingDisplay['cover'] ?? ''));
+    if ($existingCover !== '') {
+        $display['cover'] = $existingCover;
     }
 
     bandpromo_asset_update_entry($root, (string) $asset['id'], ['display' => $display]);

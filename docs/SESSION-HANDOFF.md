@@ -2,11 +2,23 @@
 
 ## Resume point
 
-Published **v0.8.32 build 431** (pending session-end): player shell brand binding — Cleaning House no longer keeps Retroscopy/Base logo/living when campaign brand is set.
+HITZ: **track cover replace reverts to old art** — root cause found and fixed locally (not published yet).
 
-Next: legacy compat strip; HITZ covers / duplicate cleanup after Site update.
+After save, playlist republish ran a sparse `refresh_audio_display` (often because Description/comment is empty). That reused a **stale request-scoped Python inspect cache** whose `sidecar_cover` was still the previous Visual id, and wrote it back over the new `display.cover`. Player enrich also preferred the stored playlist track `cover` over the live registry assignment.
+
+Fix (pending Site update): invalidate inspect cache after metadata/cover save; sparse refresh never replaces an existing registry cover; player enrich prefers registry `display.cover`.
+
+Also still open: Cleaning House playlist association (`release_id=primary` → Active Retroscopy shell) — associate playlist on HITZ.
+
+Published **v0.8.32 build 431** (shell binding). Cover fix needs a new publish.
+
+Next: checkpoint/publish cover fix; HITZ associate Cleaning House playlist; legacy compat strip.
 
 ## Operator notes (HITZ feedback)
+
+### Track cover replace — old image returns
+
+Fixed locally (pending publish): stale inspect cache during post-save republish was restoring the previous cover. After Site update, re-assign the cover once on an affected track and confirm it sticks on reopen + `/play`.
 
 ### Playlist DnD “undefined function bandpromo_playlist_set_release_id”
 
@@ -28,6 +40,8 @@ Likely from **Duplicate campaign**. Safe cleanup:
 
 Build 426+: Loading fixed; primary / Default-release containers appear in Available. DnD needs build 429+.
 
+Playlist still reported on `release_id=primary` with empty Associated — drag Cleaning House into Associated after Site update.
+
 ### Missing covers / visual registry
 
 Repair catalogue / Content autofix, then rebuild.
@@ -36,7 +50,7 @@ Repair catalogue / Content autofix, then rebuild.
 
 Admin Branding can be correct while `/play` showed Retroscopy shell. Fixed in build 431: effective brand inference, campaign brand save republishes owned playlists, association republishes payloads, player stops inheriting Active shell when playlist brand differs.
 
-After Site update: Catalogue → Cleaning House → Branding → re-save once → hard-refresh `/play` on that playlist.
+After Site update: Catalogue → Cleaning House → Branding → re-save once → hard-refresh `/play` on that playlist. **Also associate the playlist** (see above) or shell still falls through to Active.
 
 ### Stage 5 playlist build
 
