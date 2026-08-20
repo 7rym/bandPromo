@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-20 09:15 - HITZ hotfix: campaign association pools no longer stick on Loading (ID compare / script order); Available playlists/galleries/pages include containers stuck on invisible `primary` / Default release so Cleaning House can claim them; `editor-sort.js` loads before Content editors.
+
 2026-08-19 23:00 - Admin editor refactor complete (build 425): Phase 3 `page-editor.css` leftover (`release-*` → `campaign-*`, `#campaignEditorLayout`); remove dead `bandpromoReleasesCatalog` fallback; Phases 3–4 + campaign autosave fix shipped.
 
 2026-08-19 22:50 - Campaign settings autosave revert fix: `manage-campaign.php` PATCH returned `releases` but the editor only refreshed `data.campaigns`, so blur-save re-synced stale titles; editor now accepts both keys and PHP emits `campaigns` alias.

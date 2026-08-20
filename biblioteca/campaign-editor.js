@@ -1495,7 +1495,15 @@
 
         function sortAssociationItems(kind, items) {
             const rows = (Array.isArray(items) ? items : []).map(cloneAssociationItem).filter((item) => item.id);
-            return window.bandpromoEditorSort.sortItemsByTitle(rows, 'title');
+            if (window.bandpromoEditorSort && typeof window.bandpromoEditorSort.sortItemsByTitle === 'function') {
+                return window.bandpromoEditorSort.sortItemsByTitle(rows, 'title');
+            }
+            return rows.slice().sort((left, right) =>
+                String(left.title || left.id || '').localeCompare(String(right.title || right.id || ''), undefined, {
+                    sensitivity: 'base',
+                    numeric: true,
+                })
+            );
         }
 
         function renderAssociationRow(item, { showRemove = false, draggable = false, canEdit = false, kind = '', listName = 'available', selected = false } = {}) {
@@ -1562,8 +1570,8 @@
                 const contentTab = labels.plural.charAt(0).toUpperCase() + labels.plural.slice(1);
                 const emptyMessage = canEdit
                     ? (active.length
-                        ? `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here; every other ${labels.singular} is already owned by another campaign.`
-                        : `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} would appear here. Create one in Content → ${contentTab}, or unassign one from another campaign.`)
+                        ? `No unassigned ${labels.plural} to add. Unassigned ${labels.plural} (or ones stuck on Default release) appear here; every other ${labels.singular} is already owned by another campaign.`
+                        : `No unassigned ${labels.plural} to add. Create one in Content → ${contentTab}, or unassign one from another campaign. Playlists stuck on Default release also appear here.`)
                     : `${labels.associated} are preview-only while this campaign is locked.`;
                 campaignAssociationAvailableList.innerHTML = `<li class="editor-empty">${emptyMessage}</li>`;
             } else {
@@ -1634,26 +1642,45 @@
             if (!ASSOCIATION_KINDS.includes(kind) || !selectedCampaignId || !isEditing) {
                 return;
             }
+            const requestCampaignId = selectedCampaignId;
             const pool = associationPools[kind];
-            if (pool.loadedFor === selectedCampaignId) {
-                renderAssociationLists();
+            if (pool.loadedFor === requestCampaignId) {
+                if (campaignEditorTab === kind) {
+                    renderAssociationLists();
+                }
                 return;
             }
             try {
                 const data = await fetchJson(
-                    `/biblioteca/get-campaign-associations.php?campaign=${encodeURIComponent(selectedCampaignId)}&kind=${encodeURIComponent(kind)}`
+                    `/biblioteca/get-campaign-associations.php?campaign=${encodeURIComponent(requestCampaignId)}&kind=${encodeURIComponent(kind)}`
                 );
-                const responseCampaignId = String(data.campaign_id || data.release_id || '');
-                if (!isEditing || selectedCampaignId !== responseCampaignId || campaignEditorTab !== kind) {
+                if (!isEditing || selectedCampaignId !== requestCampaignId) {
+                    return;
+                }
+                const responseCampaignId = String(data.campaign_id || data.release_id || '').trim().toLowerCase();
+                const selectedNorm = String(requestCampaignId || '').trim().toLowerCase();
+                // Server normalises ids; reject only when the response is clearly for another campaign.
+                if (responseCampaignId !== '' && responseCampaignId !== selectedNorm) {
+                    if (campaignEditorTab === kind) {
+                        campaignAssociationActiveList.innerHTML = '<li class="editor-empty text-error">Could not load associations for this campaign.</li>';
+                        if (campaignAssociationAvailableList) {
+                            campaignAssociationAvailableList.innerHTML = '<li class="editor-empty"></li>';
+                        }
+                    }
                     return;
                 }
                 associationPools[kind] = {
                     active: Array.isArray(data.active) ? data.active.map(cloneAssociationItem) : [],
                     available: Array.isArray(data.available) ? data.available.map(cloneAssociationItem) : [],
-                    loadedFor: selectedCampaignId,
+                    loadedFor: requestCampaignId,
                 };
-                renderAssociationLists();
+                if (campaignEditorTab === kind) {
+                    renderAssociationLists();
+                }
             } catch (error) {
+                if (!isEditing || selectedCampaignId !== requestCampaignId || campaignEditorTab !== kind) {
+                    return;
+                }
                 if (campaignAssociationActiveList) {
                     campaignAssociationActiveList.innerHTML = `<li class="editor-empty text-error">${escapeHtml(error.message || 'Could not load associations')}</li>`;
                 }

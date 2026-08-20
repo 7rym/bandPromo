@@ -3415,6 +3415,7 @@ if ($tab === 'analytics') {
     <script src="biblioteca/site-contact.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/site-contact.js'); ?>"></script>
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
     <?php if ($tab === 'content'): ?>
+    <script src="biblioteca/editor-sort.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-sort.js'); ?>"></script>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>
     <script src="biblioteca/editor-unsaved-modal.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-unsaved-modal.js'); ?>"></script>
     <script src="biblioteca/editor-lifecycle.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-lifecycle.js'); ?>"></script>
@@ -3479,7 +3480,9 @@ if ($tab === 'analytics') {
     </div>
 
     <script src="biblioteca/iso-date.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/iso-date.js'); ?>"></script>
+    <?php if ($tab !== 'content'): ?>
     <script src="biblioteca/editor-sort.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-sort.js'); ?>"></script>
+    <?php endif; ?>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
 
     <!-- Admin media preview lightbox -->

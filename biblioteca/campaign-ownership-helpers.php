@@ -459,7 +459,11 @@ function bandpromo_campaign_association_pools(string $root, string $releaseId, s
             );
             if ($owner === $releaseId) {
                 $active[] = $item;
-            } elseif ($owner === '' && $item['movable']) {
+            } elseif (
+                $item['movable']
+                && ($owner === '' || $owner === BANDPROMO_CAMPAIGN_DEFAULT_ID)
+            ) {
+                // Unassigned or stuck on invisible primary / Default release — offer for association.
                 $available[] = $item;
             }
         }
@@ -503,7 +507,10 @@ function bandpromo_campaign_association_pools(string $root, string $releaseId, s
             );
             if ($owner === $releaseId) {
                 $active[] = $item;
-            } elseif ($owner === '' && $item['movable']) {
+            } elseif (
+                $item['movable']
+                && ($owner === '' || $owner === BANDPROMO_CAMPAIGN_DEFAULT_ID)
+            ) {
                 $available[] = $item;
             }
         }
@@ -547,7 +554,10 @@ function bandpromo_campaign_association_pools(string $root, string $releaseId, s
             $item['show_in_player'] = !empty($meta['show_in_player']);
             if ($owner === $releaseId) {
                 $active[] = $item;
-            } elseif ($owner === '' && $item['movable']) {
+            } elseif (
+                $item['movable']
+                && ($owner === '' || $owner === BANDPROMO_CAMPAIGN_DEFAULT_ID)
+            ) {
                 $available[] = $item;
             }
         }
