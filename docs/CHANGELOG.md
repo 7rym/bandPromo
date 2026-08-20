@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-20 09:55 - Living background brand fix: do not keep install/Base living video when the playlist brand has an empty living slot; clear stale brand `assets[]` URLs when `asset_ids` are empty/unresolvable; player no longer keeps the previous playlist’s living background when brand styles are missing.
+
+2026-08-20 09:45 - Shrink Stage 5 / `makePlaylists.py` full build to publish-only (all player playlist payloads). Drop the expensive one-playlist audio validation walk from publish; `validation-only` / playlist-scan still refreshes `data/validation/playlist-validation.json` after metadata saves.
+
 2026-08-20 09:30 - Clearer Stage 5 playlist build log: explain part 1 validates one selected playlist (with selection reason) and part 2 publishes player payloads for every playlist; stage label updated to match.
 
 2026-08-20 09:25 - Playlist association hotfix: campaign save associations called removed `bandpromo_playlist_set_release_id()`; use `bandpromo_playlist_set_campaign_id()` so Catalogue → Playlists drag-and-drop works again.

@@ -1573,258 +1573,16 @@ def parse_audio_file(filename):
     return info
 
 def generate_playlist():
-    playlist = []
-    validation_entries = []
+    """Full publish path: write player payloads for every playlist.
 
-    # Originals are optional after PRP import (masters-only). Keep the folder for uploads.
-    AUDIO_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-    AUDIO_MASTER_DIR.mkdir(parents=True, exist_ok=True)
-    VISUAL_ORIG_DIR.mkdir(parents=True, exist_ok=True)
-    VALIDATION_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    print('This playlist stage does two things:')
-    print('  1) Validate metadata/covers for one selected playlist (report below).')
-    print('  2) Publish static player payloads for every playlist on this install.')
-    print('')
-
-    # Collect playlist work items from the playlist document when available.
-    unsupported_files = []
-    hidden_bundled_files = []
-    work_items = []
-    build_playlist_id, selection_reason = resolve_build_playlist_selection()
-    document_order = load_playlist_document_master_order(build_playlist_id)
-
-    if document_order:
-        print('--- Part 1/2: playlist validation report ---')
-        print(
-            'Selected validation playlist: %s (%s track(s)).'
-            % (build_playlist_id, len(document_order))
-        )
-        print('Selection reason: %s.' % selection_reason)
-        print(
-            'This track list is only for the validation report. '
-            'Other playlists are published in part 2.'
-        )
-        for playlist_file in document_order:
-            working_path = resolve_audio_working_path(playlist_file)
-            if not working_path.exists() or not working_path.is_file():
-                print(f"⚠️  Skipping missing playlist track: {playlist_file}")
-                continue
-            work_items.append({
-                'playlist_file': playlist_file,
-                'working_path': working_path,
-                'source_label': playlist_file,
-            })
-    else:
-        print('--- Part 1/2: playlist validation report ---')
-        print(
-            'No playlist document order for %s; scanning audio masters instead.'
-            % build_playlist_id
-        )
-        print('Selection reason: %s.' % selection_reason)
-        files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
-        files.sort(key=lambda f: (get_track_number(str(f)), f.name.lower()))
-
-        ORDER_FILE = ROOT_DIR / 'data' / 'playlist-order.json'
-        saved_order = []
-        if ORDER_FILE.exists():
-            try:
-                with open(str(ORDER_FILE), 'r', encoding='utf-8') as _f:
-                    saved_order = json.load(_f)
-            except Exception as _e:
-                print(f"⚠️  Could not read playlist order file, using default sort: {_e}")
-                saved_order = []
-
-        if saved_order and isinstance(saved_order, list):
-            saved_set = {str(name) for name in saved_order}
-            expanded_set = set(saved_set)
-            for name in saved_set:
-                expanded_set.add(resolve_playlist_file_name(name))
-            files = [
-                f for f in files
-                if f.name in expanded_set or resolve_playlist_file_name(f.name) in expanded_set
-            ]
-            order_index = {}
-            for index, name in enumerate(saved_order):
-                order_index[str(name)] = index
-                canonical = resolve_playlist_file_name(name)
-                if canonical:
-                    order_index[canonical] = index
-            files.sort(key=lambda f: (
-                order_index.get(f.name, order_index.get(resolve_playlist_file_name(f.name), len(saved_order))),
-                get_track_number(str(f)),
-                f.name.lower(),
-            ))
-
-        for filepath in files:
-            work_items.append({
-                'playlist_file': resolve_playlist_file_name(filepath.name),
-                'working_path': resolve_audio_working_path(filepath.name),
-                'source_label': filepath.name,
-            })
-
-    if not work_items:
-        if unsupported_files:
-            unsupported_names = ', '.join(file.name for file in unsupported_files)
-            print(f"❌ No supported source audio found in {AUDIO_ORIG_DIR}")
-            print(f"   Unsupported audio files present: {unsupported_names}")
-            print("   Current supported source formats: FLAC and MP3")
-        elif hidden_bundled_files:
-            print(f"No playable source audio remains after hiding bundled demo tracks in {AUDIO_ORIG_DIR}")
-        else:
-            print(
-                "No playable playlist tracks found "
-                "(checked playlist document masters and media/audio/master)."
-            )
-        print('')
-        print('Skipping validation track walk; continuing to publish all player playlists.')
-        publish_player_playlist_payloads()
-        return
-
-    print(f"Validating {len(work_items)} track(s) for report {VALIDATION_FILE.name}...")
-    if hidden_bundled_files:
-        print(f"ℹ️  Hidden bundled demo tracks skipped: {', '.join(file.name for file in hidden_bundled_files)}")
-    if unsupported_files:
-        print(f"⚠️  Skipping unsupported audio source files: {', '.join(file.name for file in unsupported_files)}")
-
-    for item in work_items:
-        playlist_file = item['playlist_file']
-        working_path = item['working_path']
-        source_label = item['source_label']
-        info = parse_audio_file(str(working_path))
-        metadata_warnings = build_metadata_warnings(source_label, info)
-        
-        # Ensure cover is just the filename, not full path
-        cover_file = info['cover']
-        if cover_file:
-            cover_file = os.path.basename(cover_file)
-        else:
-            cover_file = ""
-        
-        entry = {
-            "file": playlist_file,
-            "title": info['title'],
-            "artist": info['artist'],
-            "album": info['album'],
-            "duration": info['duration'],
-            "lyrics": info['lyrics'],
-            "description": info['description'],
-            "cover": cover_file,
-            "living_cover": info.get('living_cover') or '',
-        }
-        playlist.append(entry)
-        validation_entries.append({
-            'file': playlist_file,
-            'title': info['title'],
-            'cover': cover_file,
-            'coverSource': info.get('cover_source', 'missing'),
-            'sourceTier': 'master' if working_path.parent == AUDIO_MASTER_DIR else 'original',
-            'warnings': metadata_warnings,
-        })
-
-        cover_source = info.get('cover_source', 'missing')
-        if cover_file:
-            if cover_source == 'configured':
-                record_cover_asset(
-                    cover_file,
-                    'release-fallback',
-                    'build-configured',
-                    linked_config='media.cover',
-                )
-            elif cover_source == 'assigned':
-                record_cover_asset(
-                    cover_file,
-                    'track-cover',
-                    'operator-assigned',
-                    linked_audio=playlist_file,
-                )
-            elif cover_source == 'embedded':
-                record_cover_asset(
-                    cover_file,
-                    'track-cover',
-                    'build-extracted',
-                    linked_audio=playlist_file,
-                )
-            elif cover_source == 'sidecar':
-                record_cover_asset(
-                    cover_file,
-                    'track-cover',
-                    'build-sidecar-copy',
-                    linked_audio=playlist_file,
-                )
-
-        disp_track = str(info['track']) if info['track'] != 999 else "-"
-        warning_suffix = f" [metadata warnings: {', '.join(metadata_warnings)}]" if metadata_warnings else ''
-        print(f"Track {disp_track}: {info['title']}{warning_suffix}")
-
-    # Player playlists are published into data/playlists/{id}.json at build time.
-    # Runtime player endpoints read that static payload only.
-
-    # Write/update data/playlist-order.json so future builds preserve current order
-    try:
-        ORDER_FILE = ROOT_DIR / 'data' / 'playlist-order.json'
-        ORDER_FILE.parent.mkdir(parents=True, exist_ok=True)
-        order_filenames = [entry['file'] for entry in playlist]
-        with open(str(ORDER_FILE), 'w', encoding='utf-8') as f:
-            json.dump(order_filenames, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"⚠️  Could not write playlist order file: {e}")
-
-    metadata_warning_count = sum(1 for entry in validation_entries if entry['warnings'])
-    validation_report = {
-        'supportedExtensions': list(SUPPORTED_EXTENSIONS),
-        'unsupportedSourceFiles': [file.name for file in unsupported_files],
-        'hiddenBundledSourceFiles': [file.name for file in hidden_bundled_files],
-        'summary': {
-            'totalTracks': len(validation_entries),
-            'tracksWithWarnings': metadata_warning_count,
-            'tracksWithoutWarnings': len(validation_entries) - metadata_warning_count,
-        },
-        'tracks': validation_entries,
-    }
-    write_validation_report(validation_report)
-
-    cleanup_stale_configured_release_covers(None)
-
-    # Drop legacy stem-named cover copies when registry already points at a pool file.
-    try:
-        php = resolve_php_cli()
-        prune_result = subprocess.run(
-            [php, str(SCRIPT_DIR / 'prune_cover_sidecars.php')],
-            cwd=str(ROOT_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            check=False,
-        )
-        if prune_result.returncode == 0:
-            pruned_count = int((prune_result.stdout or '0').strip() or '0')
-            if pruned_count > 0:
-                print(f"🧹 Pruned {pruned_count} redundant stem cover sidecar(s).")
-        elif prune_result.stderr:
-            print(f"⚠️  Cover sidecar prune skipped: {prune_result.stderr.strip().splitlines()[-1]}")
-    except Exception as e:
-        print(f"⚠️  Cover sidecar prune skipped: {e}")
-
-    if metadata_warning_count:
-        print(f"⚠️  Metadata warnings found for {metadata_warning_count} track(s).")
-        print(f"   Validation report saved to {VALIDATION_FILE}")
-    else:
-        print('✓ Validation report written to %s' % VALIDATION_FILE)
-    if unsupported_files:
-        print(f"⚠️  Unsupported source files were skipped. Current supported source formats: {', '.join(ext.upper().lstrip('.') for ext in SUPPORTED_EXTENSIONS)}")
-
-    # Catch covers extracted after the earlier optimizeMedia stage (or missing variants).
-    cover_refs = []
-    for track in playlist:
-        if not isinstance(track, dict):
-            continue
-        cover = normalize_asset_id_ref(track.get('cover'))
-        if cover:
-            cover_refs.append(cover)
-    for cover in sorted(set(cover_refs)):
-        ensure_visual_image_delivery_for_cover(cover)
-
+    Does not re-scan audio for the validation report — that belongs to
+    BANDPROMO_PLAYLIST_SCAN_MODE=validation-only (metadata saves / playlist-scan).
+    """
+    print('Playlist stage (publish): writing static player payloads for every playlist.')
+    print(
+        'Skipping the audio metadata/cover validation walk on full build '
+        '(validation-only / playlist-scan still refreshes data/validation/playlist-validation.json).'
+    )
     print('')
     publish_player_playlist_payloads()
 
@@ -1840,11 +1598,7 @@ def publish_player_playlist_payloads():
         print('❌ Could not resolve PHP CLI for player playlist publish.')
         sys.exit(1)
 
-    print('--- Part 2/2: publish player payloads for all playlists ---')
-    print(
-        'Writing static player JSON for every playlist in the registry '
-        '(not only the validation playlist from part 1)...'
-    )
+    print('Publishing static player JSON for every playlist in the registry...')
     try:
         result = subprocess.run(
             [php, str(script)],
@@ -1874,10 +1628,10 @@ def publish_player_playlist_payloads():
 
 
 def generate_validation_scan():
-    """Refresh playlist validation for all visible source files."""
-    if not AUDIO_ORIG_DIR.exists():
-        print(f"❌ Original audio directory not found at {AUDIO_ORIG_DIR}")
-        return
+    """Refresh playlist validation for all visible source/master audio files."""
+    AUDIO_ORIG_DIR.mkdir(parents=True, exist_ok=True)
+    AUDIO_MASTER_DIR.mkdir(parents=True, exist_ok=True)
+    VALIDATION_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     files, unsupported_files, hidden_bundled_files = collect_audio_source_files()
     files.sort(key=lambda f: (get_track_number(str(f)), f.name.lower()))
@@ -1890,10 +1644,16 @@ def generate_validation_scan():
         elif hidden_bundled_files:
             print(f"No playable source audio remains after hiding bundled demo tracks in {AUDIO_ORIG_DIR}")
         else:
-            print(f"No supported audio files found in {AUDIO_ORIG_DIR}")
+            print(
+                "No supported audio files found "
+                "(checked media/audio/master and the asset registry)."
+            )
         return
 
-    print(f"Validation scan for {len(files)} source file(s)...")
+    print(
+        'Playlist scan (validation-only): refreshing %s for %s source file(s)...'
+        % (VALIDATION_FILE.name, len(files))
+    )
     if hidden_bundled_files:
         print(f"ℹ️  Hidden bundled demo tracks skipped: {', '.join(file.name for file in hidden_bundled_files)}")
     if unsupported_files:

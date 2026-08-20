@@ -956,6 +956,7 @@ function bandpromo_brand_lookup_asset_id_for_path(string $root, string $webPath)
 
 /**
  * Refresh assets[] URLs from asset_ids when resolution succeeds (keeps dual-read in sync).
+ * Empty asset_ids clear orphan path leftovers so a cleared living background cannot stick.
  *
  * @return array{document: array, changed: bool}
  */
@@ -971,13 +972,35 @@ function bandpromo_brand_materialize_asset_urls(string $root, array $document): 
 
     foreach ($assetIds as $key => $assetId) {
         if ($assetId === '') {
-            continue;
+            $path = trim((string) ($assets[$key] ?? ''));
+            if ($path === '') {
+                continue;
+            }
+            $lookedUp = bandpromo_brand_lookup_asset_id_for_path($root, $path);
+            if ($lookedUp !== '') {
+                $assetIds[$key] = $lookedUp;
+                $assetId = $lookedUp;
+                $changed = true;
+            } else {
+                // Stale delivery URL with no registry match — drop it.
+                $assets[$key] = '';
+                $changed = true;
+                continue;
+            }
         }
+
         $resolved = bandpromo_brand_resolve_shell_slot_url($root, [
             'asset_ids' => $assetIds,
             'assets' => $assets,
         ], $key);
-        if ($resolved === '' || $resolved === ($assets[$key] ?? '')) {
+        if ($resolved === '') {
+            if (($assets[$key] ?? '') !== '') {
+                $assets[$key] = '';
+                $changed = true;
+            }
+            continue;
+        }
+        if ($resolved === ($assets[$key] ?? '')) {
             continue;
         }
         $assets[$key] = $resolved;

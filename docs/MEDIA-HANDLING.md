@@ -1310,7 +1310,9 @@ See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) § Tagless audio delive
 
 ## Current validation output
 
-Playlist generation writes `data/validation/playlist-validation.json` with:
+The lightweight `playlist-scan` path (`BANDPROMO_PLAYLIST_SCAN_MODE=validation-only`) writes `data/validation/playlist-validation.json`. Full publish runs of `makePlaylists.py` only publish player payloads and do not rebuild that report.
+
+The validation report includes:
 
 - supported source extensions
 - skipped unsupported source files

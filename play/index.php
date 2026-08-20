@@ -313,8 +313,15 @@ if ($supportUrl !== '') {
             : $playerBrandTitle;
         $resolvedShell = bandpromo_brand_player_shell_assets($playerRoot, $playerBrandDoc);
         foreach (['logo', 'background_image', 'background_video'] as $shellSlot) {
-            if (($resolvedShell[$shellSlot] ?? '') !== '') {
-                $playerShellMedia[$shellSlot] = $resolvedShell[$shellSlot];
+            $resolved = trim((string) ($resolvedShell[$shellSlot] ?? ''));
+            if ($resolved !== '') {
+                $playerShellMedia[$shellSlot] = $resolved;
+                continue;
+            }
+            // Empty living on the playlist brand must not keep the install/Base living video.
+            // Logo/still may still inherit the install baseline when the brand slot is empty.
+            if ($shellSlot === 'background_video') {
+                $playerShellMedia[$shellSlot] = '';
             }
         }
     } catch (Throwable $throwable) {

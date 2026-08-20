@@ -2,15 +2,15 @@
 
 ## Resume point
 
-Published **playlist association + Stage 5 log clarity** (build after 428): HITZ can DnD playlists again; build log explains validation vs publish-all.
+Published **v0.8.32 build 430** (pending session-end): Stage 5 publish-only + living-background brand inheritance fix.
 
-Next: remaining legacy compat strip, or further HITZ triage (covers / duplicate cleanup).
+Next: legacy compat strip; HITZ covers / duplicate cleanup after Site update.
 
 ## Operator notes (HITZ feedback)
 
 ### Playlist DnD “undefined function bandpromo_playlist_set_release_id”
 
-Fixed: associations call `bandpromo_playlist_set_campaign_id()`. Site update, then Catalogue → campaign → Playlists → drag Available → Associated.
+Fixed in build 429: associations call `bandpromo_playlist_set_campaign_id()`. Site update, then Catalogue → campaign → Playlists → drag Available → Associated.
 
 ### Brand delete “Theme id is required”
 
@@ -26,15 +26,25 @@ Likely from **Duplicate campaign**. Safe cleanup:
 
 ### Cleaning House playlist associations
 
-Build 426+: Loading fixed; primary / Default-release containers appear in Available. DnD needs the association setter fix above.
+Build 426+: Loading fixed; primary / Default-release containers appear in Available. DnD needs build 429+.
 
 ### Missing covers / visual registry
 
 Repair catalogue / Content autofix, then rebuild.
 
-### Stage 5 playlist build log
+### Wrong living background
 
-Part 1 validates one selected playlist (selection reason logged). Part 2 publishes player payloads for every playlist — not only the listed tracks.
+Fixed in build 430: empty playlist-brand living slot no longer keeps Base living video; stale `assets[]` cleared; sticky previous-playlist shell fixed.
+
+Also check:
+
+1. Catalogue → campaign → Branding: brand is set (not blank “Base brand”)
+2. Content → Branding → that brand → Living background is the intended file
+3. Duplicate campaigns copy the source living video — change the copy brand’s living slot separately
+
+### Stage 5 playlist build
+
+Full build publishes player payloads for every playlist only. Metadata/cover validation is the separate `playlist-scan` / `validation-only` path (runs after audio metadata saves), not part of the heavy publish walk.
 
 ## Next session — Legacy compat strip
 

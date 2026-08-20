@@ -1604,6 +1604,14 @@ function applyPlaylistBrand(brandId) {
     window.BANDPROMO_PLAYLIST_BRAND_ID = resolvedBrandId;
     const brand = brandStylesById[resolvedBrandId];
     if (!brand || typeof brand !== 'object') {
+        // Do not keep the previous playlist's living background when styles are missing.
+        applyPlaylistShellMedia({
+            assets: {
+                logo: '',
+                background_image: '',
+                background_video: '',
+            },
+        });
         return;
     }
 

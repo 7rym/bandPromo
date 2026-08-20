@@ -63,7 +63,7 @@
     },
     {
       "id": "playlist-artifacts",
-      "label": "Validate one playlist report, then publish player payloads for all playlists",
+      "label": "Publish player playlist payloads for all playlists",
       "group": "artifacts",
       "script": "makePlaylists.py",
       "skippable": true

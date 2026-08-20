@@ -597,7 +597,7 @@ Markdown support is **display-only**. Audio identity for listeners is registry +
 
 - Admin save → `audioMasterMetadata.py` writes UTF-8 text to **master** tags.
 - Publish / audio delivery → `optimizeMedia.py` produces tagless delivery MP3s (strip ID3/APEv2 after copy or transcode).
-- Build → `makePlaylists.py` reads **master** tags (and registry display) into the player payload.
+- Build → `makePlaylists.py` publishes player playlist payloads (PHP) from registry + playlist documents; the separate `playlist-scan` / validation-only path refreshes the operator validation report from masters.
 
 No ID3/APIC on delivery. See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) (tagless audio delivery).
 
