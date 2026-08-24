@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-24 20:15 - Repair catalogue: Copy log button for the Repair log panel; validation refresh uses playlist-scan validation-only mode so Apply no longer fails with “Could not resolve PHP CLI for player playlist publish” on shared hosts.
+
 2026-08-24 16:10 - Repair catalogue writes a live log to `log/catalog-repair.log` (step start/finish, errors, PHP timeout/abort). Developer Repair log panel polls it during Preview/Apply so host timeouts show the last step instead of a blank failure.
 
 2026-08-24 16:00 - Repair catalogue Apply no longer remuxes every visual master to write tags (that killed shared-host requests after Preview listed dozens of heals). Apply invents missing title/date in the registry in PHP; video tag write stays on single-asset save. Timeout errors keep the last Preview list instead of a blank “Catalogue repair failed”.

@@ -11834,6 +11834,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const applyBtn = document.getElementById('contentAutofixApplyBtn');
                 const logEl = document.getElementById('contentAutofixLog');
                 const logCard = document.getElementById('catalog-repair-log-card');
+                const logCopyBtn = document.getElementById('contentAutofixLogCopyBtn');
                 if (!statusEl || !previewBtn || !applyBtn) {
                     return;
                 }
@@ -11848,6 +11849,50 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const text = String(content || '').trim();
                     logEl.textContent = text !== '' ? text : 'No repair log yet.';
                     logEl.scrollTop = logEl.scrollHeight;
+                }
+
+                async function copyAutofixLog() {
+                    if (!logEl || !logCopyBtn) {
+                        return;
+                    }
+                    const text = String(logEl.textContent || '').trim();
+                    if (text === '' || text === 'No repair log yet.') {
+                        logCopyBtn.textContent = 'Nothing to copy';
+                        setTimeout(() => {
+                            logCopyBtn.textContent = 'Copy log';
+                        }, 1500);
+                        return;
+                    }
+                    const label = logCopyBtn.textContent;
+                    try {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            await navigator.clipboard.writeText(text);
+                        } else {
+                            const area = document.createElement('textarea');
+                            area.value = text;
+                            area.setAttribute('readonly', '');
+                            area.style.position = 'fixed';
+                            area.style.left = '-9999px';
+                            document.body.appendChild(area);
+                            area.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(area);
+                        }
+                        logCopyBtn.textContent = 'Copied';
+                    } catch (error) {
+                        logCopyBtn.textContent = 'Copy failed';
+                    }
+                    setTimeout(() => {
+                        logCopyBtn.textContent = label || 'Copy log';
+                    }, 1500);
+                }
+
+                if (logCopyBtn) {
+                    logCopyBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        copyAutofixLog();
+                    });
                 }
 
                 async function refreshAutofixLog() {

@@ -2662,6 +2662,9 @@ if ($tab === 'analytics') {
                 <details id="catalog-repair-log-card" class="card deliverables-log-card" style="margin-top:0.75rem">
                     <summary class="deliverables-log-summary">
                         <span>Repair log</span>
+                        <span class="build-log-meta">
+                            <button type="button" id="contentAutofixLogCopyBtn" class="btn">Copy log</button>
+                        </span>
                     </summary>
                     <pre id="contentAutofixLog" class="build-log">No repair log yet.</pre>
                 </details>

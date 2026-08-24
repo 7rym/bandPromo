@@ -2,14 +2,11 @@
 
 ## Resume point
 
-Local (not yet checkpointed):
+Local (not yet checkpointed): Repair log **Copy log** button; validation refresh uses validation-only `makePlaylists` (fixes PHP CLI error on bandpromo.site / HITZ Apply).
 
-1. Repair catalogue Apply invents visual title/date in PHP (no bulk remux) — fixes HITZ timeout from build 435.
-2. Repair catalogue live log (`log/catalog-repair.log` + Repair log panel) — step trail survives host timeouts.
+Last published: **v0.8.35 build 436**.
 
-After publish: Site update HITZ, open Repair log, Preview/Apply once.
-
-Last published: **v0.8.35 build 435**.
+After next publish: Site update, Apply should finish without the PHP CLI playlist-publish error; use Copy log when sharing failures.
 
 ## Plan document
 

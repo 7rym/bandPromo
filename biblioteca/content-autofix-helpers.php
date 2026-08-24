@@ -675,7 +675,11 @@ function bandpromo_content_autofix_refresh_validation(string $root, bool $dryRun
         return $step;
     }
 
-    $result = bandpromo_run_light_task('scripts/makePlaylists.py');
+    // Validation-only: refresh data/validation/playlist-validation.json.
+    // Full makePlaylists publish needs a PHP CLI and is for Refresh site files / build.
+    $result = bandpromo_run_light_task('scripts/makePlaylists.py', [
+        'BANDPROMO_PLAYLIST_SCAN_MODE' => 'validation-only',
+    ]);
     if (empty($result['ok'])) {
         $output = trim((string) ($result['output'] ?? ''));
         $step['errors'][] = $output !== '' ? $output : 'Playlist validation refresh failed';
