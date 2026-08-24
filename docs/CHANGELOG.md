@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-24 12:15 - Repair catalogue Preview is honest: playlist links compare campaign_id (not stripped release_id), visual prepare no longer nags about missing originals when masters exist, ghost campaign tracks are dropped on Apply, orphan delivery deletes only count when the folder is actually gone, and every zero-change step shows “already up to date”. Status copy no longer warns that a healthy install can stay dirty.
+
+2026-08-24 11:50 - Content autofix visual heal invents missing title (from original filename) and captured_at (from master mtime) when embeds are empty, writes them into registry display and master tags, and Preview no longer treats empty description alone as a change. Dual-write config Preview only counts a change when web-config actually drifts.
+
 2026-08-24 11:30 - Hide bandPromo demo campaign (unused-only): Settings checkbox flipped from Show catalogue to Hide campaign; hide no longer refuses when operator containers still use demo media — those assets stay visible with a soft warning; unused demo Audio/Visual leave Files/pickers; unused demo Brand shell hides when no Brand references it. Files → Brand assets pool respects the same filter.
 
 2026-08-24 11:05 - Remove redundant Files → Audio **R** (Release/Campaign) health chip; campaign membership stays in the Campaign column. Badges are C/A/T/D/L only.

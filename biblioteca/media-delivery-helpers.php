@@ -574,9 +574,8 @@ function bandpromo_visual_delivery_ready(string $root, string $assetId, array $r
     return true;
 }
 
-function bandpromo_visual_delivery_delete_for_asset(string $root, string $assetId): void
+function bandpromo_visual_delivery_rmdir_tree(string $dir): void
 {
-    $dir = bandpromo_visual_delivery_dir($root, $assetId);
     if ($dir === '' || !is_dir($dir)) {
         return;
     }
@@ -585,12 +584,26 @@ function bandpromo_visual_delivery_delete_for_asset(string $root, string $assetI
         if ($entry === '.' || $entry === '..') {
             continue;
         }
-        $path = $dir . '/' . $entry;
-        if (is_file($path)) {
-            @unlink($path);
+        $path = $dir . DIRECTORY_SEPARATOR . $entry;
+        if (is_dir($path) && !is_link($path)) {
+            bandpromo_visual_delivery_rmdir_tree($path);
+            continue;
         }
+        @chmod($path, 0666);
+        @unlink($path);
     }
+    @chmod($dir, 0777);
     @rmdir($dir);
+}
+
+function bandpromo_visual_delivery_delete_for_asset(string $root, string $assetId): void
+{
+    $dir = bandpromo_visual_delivery_dir($root, $assetId);
+    if ($dir === '' || !is_dir($dir)) {
+        return;
+    }
+
+    bandpromo_visual_delivery_rmdir_tree($dir);
 }
 
 /**
@@ -621,7 +634,7 @@ function bandpromo_visual_delivery_prune_orphans(string $root, bool $dryRun = fa
         if ($entry === '.' || $entry === '..') {
             continue;
         }
-        $path = $deliveryRoot . '/' . $entry;
+        $path = $deliveryRoot . DIRECTORY_SEPARATOR . $entry;
         if (!is_dir($path)) {
             continue;
         }
@@ -634,9 +647,13 @@ function bandpromo_visual_delivery_prune_orphans(string $root, bool $dryRun = fa
             $kept++;
             continue;
         }
-        $deleted[] = $entry;
-        if (!$dryRun) {
-            bandpromo_visual_delivery_delete_for_asset($root, $entry);
+        if ($dryRun) {
+            $deleted[] = $entry;
+            continue;
+        }
+        bandpromo_visual_delivery_delete_for_asset($root, $entry);
+        if (!is_dir($path)) {
+            $deleted[] = $entry;
         }
     }
 

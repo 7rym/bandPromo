@@ -11851,15 +11851,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     steps.forEach((step) => {
                         const item = document.createElement('li');
                         const changed = Number(step.changed || 0);
-                        const skipped = Number(step.skipped || 0);
                         const errors = Array.isArray(step.errors) ? step.errors.length : 0;
                         const suffix = errors > 0
                             ? ` · ${errors} error${errors === 1 ? '' : 's'}`
                             : changed > 0
                                 ? ` · ${changed} change${changed === 1 ? '' : 's'}`
-                                : skipped > 0
-                                    ? ' · already up to date'
-                                    : '';
+                                : ' · already up to date';
                         item.textContent = `${step.label || step.id || 'Step'}${suffix}`;
                         reportEl.appendChild(item);
                     });

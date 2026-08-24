@@ -2651,7 +2651,7 @@ if ($tab === 'analytics') {
                     <span class="role-badge role-developer">developer</span>
                 </div>
                 <p class="card-note">
-                    Internal recovery for registry links, master filenames, and leftover metadata. A healthy demo install can still list housekeeping that is not an operator problem. Preview first. Apply only when you know a catalogue link is wrong.
+                    Recovers registry links, master filenames, and missing visual tags. Preview should go quiet after Apply when the catalogue is healthy. Apply when Preview still lists changes.
                 </p>
                 <div class="publish-actions-toolbar">
                     <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>

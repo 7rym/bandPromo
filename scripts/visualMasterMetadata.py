@@ -584,8 +584,45 @@ def action_read(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {'ok': True, 'asset_id': asset_id, 'display': display}
 
 
+def invent_title_from_asset(asset: Dict[str, Any]) -> str:
+    """Human title when embeds and registry title are empty — prefer original stem, not ULID."""
+    for field in ('original_filename', 'master_filename'):
+        raw = str(asset.get(field) or '').strip()
+        if not raw:
+            continue
+        stem = Path(raw).stem.strip()
+        if not stem:
+            continue
+        # ast_{ULID} masters are not useful titles.
+        if re.match(r'^ast_[0-9A-HJKMNP-TV-Z]{26}$', stem, re.IGNORECASE):
+            continue
+        cleaned = re.sub(r'[_\-]+', ' ', stem).strip()
+        if cleaned:
+            return cleaned
+    media_type = str(asset.get('media_type') or '').strip().lower()
+    if media_type == 'video':
+        return 'Untitled video'
+    return 'Untitled image'
+
+
+def invent_captured_at_from_path(path: Path) -> str:
+    try:
+        stamp = path.stat().st_mtime
+    except OSError:
+        return ''
+    try:
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(stamp, tz=timezone.utc).strftime('%Y-%m-%d')
+    except Exception:
+        return ''
+
+
 def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Fill empty registry display fields from master embeds. Does not overwrite non-empty fields.
+    """Fill empty registry display fields from master embeds, then invent sensible defaults.
+
+    Does not overwrite non-empty fields. Invented title comes from the original filename
+    stem; invented captured_at comes from the master file mtime. When display changes,
+    the same values are written into master tags (XMP / Matroska) when the format supports it.
 
     Also stamps master_width / master_height from the on-disk master when missing or stale.
     """
@@ -594,6 +631,7 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
     limit_id = str(payload.get('asset_id') or '').strip()
     healed = []
     stamped = []
+    written = []
     for asset_id, asset in assets.items():
         if not isinstance(asset, dict) or str(asset.get('kind') or '') != 'visual':
             continue
@@ -627,11 +665,33 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
         if not merged.get('keywords') and embedded.get('keywords'):
             merged['keywords'] = embedded['keywords']
             display_changed = True
+        if not merged.get('title'):
+            invented_title = invent_title_from_asset(asset)
+            if invented_title:
+                merged['title'] = invented_title
+                display_changed = True
+        if not merged.get('captured_at'):
+            invented_captured = invent_captured_at_from_path(path)
+            if invented_captured:
+                merged['captured_at'] = invented_captured
+                display_changed = True
         if not display_changed and not dims_changed:
             continue
         if display_changed:
+            from datetime import datetime, timezone
+            merged['synced_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
             assets[asset_id]['display'] = merged
             healed.append(asset_id)
+            # Persist invented/healed fields into master tags when the format supports it.
+            try:
+                if media_type == 'video' or ext in VIDEO_EXTS:
+                    write_video_display(path, merged)
+                    written.append(asset_id)
+                elif ext in STILL_EXTS:
+                    write_still_display(path, merged)
+                    written.append(asset_id)
+            except Exception:
+                pass
         if dims_changed:
             assets[asset_id]['master_width'] = dim_w
             assets[asset_id]['master_height'] = dim_h
@@ -648,6 +708,8 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
         'ok': True,
         'healed': healed,
         'count': len(healed),
+        'tags_written': written,
+        'tags_written_count': len(written),
         'stamped_dimensions': stamped,
         'stamped_count': len(stamped),
     }

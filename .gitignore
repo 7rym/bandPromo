@@ -101,3 +101,6 @@ build/
 # Generated build artifacts
 play/playlist.json
 play/playlist-validation.json
+
+# Accidental Windows env-var expansion dump (never track)
+/%SystemDrive%/

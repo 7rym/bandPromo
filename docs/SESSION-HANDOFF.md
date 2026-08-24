@@ -2,13 +2,16 @@
 
 ## Resume point
 
-Published (or pending publish this session): **v0.8.35 build 434** — unused-only demo hide + R chip removal on top of build 433 gap-closing / track-editor tag fixes.
+Local (not yet checkpointed): Repair catalogue Preview honesty + invent visual tags.
 
-After Site update on HITZ / Spandexual:
+Verified locally:
 
-1. Confirm Settings shows **Hide bandPromo demo campaign**.
-2. With hide ON: unused demo Visual/Audio gone from Files/pickers; in-use demo media still listed; unused demo Brand shell hidden; shell still used by any Brand stays visible.
-3. Run Content autofix once (heals `campaign_id` + orphan visual delivery GC from 433).
+1. Repair catalogue Preview **TOTAL=0** after Apply.
+2. **Site status** independently recounts clean: 24/24 stream-ready, 3 campaigns, no checks, `build_required` false → **All clear** is justified (not the same false-positive class as Repair catalogue was).
+
+Last published: **v0.8.35 build 434**.
+
+Next: checkpoint when ready; Site update HITZ / Spandexual for demo hide + autofix honesty.
 
 ## Plan document
 

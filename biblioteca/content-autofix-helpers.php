@@ -250,11 +250,11 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
             }
 
             $assetId = (string) ($asset['id'] ?? '');
-            $releaseId = trim((string) ($asset['release_id'] ?? ''));
+            $campaignId = bandpromo_document_campaign_id($asset);
 
             $currentAssetId = trim((string) ($entry['asset_id'] ?? ''));
-            $currentReleaseId = trim((string) ($entry['release_id'] ?? ''));
-            if ($currentAssetId === $assetId && $currentReleaseId === $releaseId) {
+            $currentCampaignId = bandpromo_document_campaign_id($entry);
+            if ($currentAssetId === $assetId && $currentCampaignId === $campaignId) {
                 $step['skipped']++;
                 continue;
             }
@@ -265,13 +265,13 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
                 'playlist' => $playlistId,
                 'file' => $poolFile,
                 'asset_id' => $assetId,
-                'release_id' => $releaseId,
+                'campaign_id' => $campaignId,
             ];
 
             if (!$dryRun) {
                 $entries[$index]['master_file'] = $poolFile;
                 $entries[$index]['asset_id'] = $assetId;
-                $entries[$index]['release_id'] = $releaseId;
+                $entries[$index] = bandpromo_document_with_campaign_id($entries[$index], $campaignId);
             }
         }
 
@@ -302,6 +302,8 @@ function bandpromo_content_autofix_orphan_visual_delivery(string $root, bool $dr
             'kept' => (int) ($result['kept'] ?? 0),
             'sample' => array_slice($deleted, 0, 8),
         ];
+    } else {
+        $step['skipped'] = 1;
     }
 
     return $step;
@@ -411,6 +413,7 @@ function bandpromo_content_autofix_sync_campaigns(string $root, bool $dryRun): a
     $playlistRepair = bandpromo_playlist_repair_stale_track_asset_ids($root, $membershipRepair['remaps'] ?? []);
     $repaired = bandpromo_campaign_repair_catalog_release_ids($root);
     $step['changed'] = (int) ($membershipRepair['rebound'] ?? 0)
+        + (int) ($membershipRepair['dropped'] ?? 0)
         + (int) ($playlistRepair['changed'] ?? 0)
         + ($repaired > 0 ? $repaired : 0);
     if (($membershipRepair['rebound'] ?? 0) > 0) {
@@ -419,8 +422,11 @@ function bandpromo_content_autofix_sync_campaigns(string $root, bool $dryRun): a
             'releases' => $membershipRepair['releases'] ?? [],
         ];
     }
-    if (($membershipRepair['unresolved'] ?? 0) > 0) {
-        $step['items'][] = ['unresolved_membership_asset_ids' => (int) $membershipRepair['unresolved']];
+    if (($membershipRepair['dropped'] ?? 0) > 0) {
+        $step['items'][] = [
+            'dropped_missing_membership_asset_ids' => (int) $membershipRepair['dropped'],
+            'releases' => $membershipRepair['releases'] ?? [],
+        ];
     }
     if (($playlistRepair['changed'] ?? 0) > 0) {
         $step['items'][] = [
@@ -447,6 +453,15 @@ function bandpromo_content_autofix_sync_config_scope(string $root, bool $dryRun)
     $decoded = bandpromo_json_read_array_file($configPath);
     if (!is_array($decoded)) {
         $step['errors'][] = 'web-config.json is invalid';
+        return $step;
+    }
+
+    $before = json_encode($decoded);
+    $probe = $decoded;
+    bandpromo_sync_scoped_config_fields($probe, ['site', 'social', 'media']);
+    $after = json_encode($probe);
+    if ($before === $after) {
+        $step['skipped'] = 1;
         return $step;
     }
 
@@ -487,6 +502,8 @@ function bandpromo_content_autofix_sync_audio_display(string $root, bool $dryRun
         $step['changed'] = $pending;
         if ($pending > 0) {
             $step['items'][] = ['pending' => $pending];
+        } else {
+            $step['skipped'] = 1;
         }
 
         return $step;
@@ -920,7 +937,7 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
 }
 
 /**
- * Heal empty visual display from embedded IPTC/XMP (stills) or Matroska tags (video).
+ * Heal empty visual display from embeds, inventing title/captured_at when needed and writing tags.
  */
 function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRun): array
 {
@@ -928,7 +945,7 @@ function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRu
 
     $step = bandpromo_content_autofix_step_result(
         'visual_display_heal',
-        'Heal empty visual display fields from master IPTC/XMP or Matroska tags'
+        'Heal empty visual display (embeds, then invent title/date and write master tags)'
     );
 
     if ($dryRun) {
@@ -939,13 +956,17 @@ function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRu
                 continue;
             }
             $display = bandpromo_asset_read_visual_display($asset);
-            if ($display['title'] === '' || $display['description'] === '' || $display['captured_at'] === '') {
+            // Title and captured_at are invented on apply when embeds are empty.
+            // Empty description alone is optional and must not keep Preview noisy.
+            if ($display['title'] === '' || $display['captured_at'] === '') {
                 $pending++;
             }
         }
         $step['changed'] = $pending;
         if ($pending > 0) {
             $step['items'][] = ['pending' => $pending];
+        } else {
+            $step['skipped'] = 1;
         }
 
         return $step;
@@ -1006,7 +1027,9 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
             || !bandpromo_asset_is_asset_id((string) pathinfo($currentMaster, PATHINFO_FILENAME))
             || ($mediaType === 'video' && strtolower(trim((string) ($asset['master_format'] ?? ''))) !== 'mkv');
 
-        if (!$needsMaster && !$needsOriginal && !$needsCanonical) {
+        // Original is provenance/download only after materialize. Missing originals with a
+        // healthy master are not repairable here (Apply cannot invent an original from a remux).
+        if (!$needsMaster && !$needsCanonical) {
             $step['skipped']++;
             continue;
         }
@@ -1127,9 +1150,11 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'errors' => $errors,
         'has_warnings' => $errors !== [],
         'message' => $dryRun
-            ? 'Preview complete. These are internal housekeeping tasks. A healthy demo install can still list leftover metadata fills — apply only if you know a catalogue link is wrong.'
+            ? ($changedTotal > 0
+                ? 'Preview complete. Apply will perform the listed repairs. Preview again afterwards — a healthy catalogue should then show everything up to date.'
+                : 'Preview complete. Catalogue looks healthy — nothing to repair.')
             : ($changedTotal > 0
-                ? 'Catalogue repair finished. bandPromo will refresh delivery files automatically when needed.'
+                ? 'Catalogue repair finished. Preview again to confirm everything is up to date. bandPromo will refresh delivery files automatically when needed.'
                 : 'Catalogue already matches the current registry and container links.'),
     ];
 }

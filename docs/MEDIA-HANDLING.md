@@ -682,7 +682,7 @@ Image master:
 - corrected canonical source for future delivery generation
 - may normalize filename, orientation, metadata, or embedded descriptive fields
 - should preserve alpha/transparency and source capabilities when that matters for future outputs
-- **Metadata (locked):** keep camera **EXIF** as read-only provenance (`DateTimeOriginal` / GPS → registry `captured_at`). Write operator **title / description / keywords** as **IPTC Core via XMP** on the master only (not into EXIF editorial fields). Autofix heals empty registry `display` from embedded IPTC/XMP + EXIF dates. Formats in scope: JPG/JPEG, PNG, WebP. Registry `master_width` / `master_height` are the master pixel size (Files list Dimensions); delivery variant sizes stay on `delivery.variants`.
+- **Metadata (locked):** keep camera **EXIF** as read-only provenance (`DateTimeOriginal` / GPS → registry `captured_at`). Write operator **title / description / keywords** as **IPTC Core via XMP** on the master only (not into EXIF editorial fields). Autofix heals empty registry `display` from embedded IPTC/XMP + EXIF dates; when still empty it invents **title** from the original filename stem (else Untitled) and **captured_at** from master mtime, then writes those into registry and master tags. Description stays optional (never invented). Formats in scope: JPG/JPEG, PNG, WebP. Registry `master_width` / `master_height` are the master pixel size (Files list Dimensions); delivery variant sizes stay on `delivery.variants`.
 
 Video master:
 

@@ -4056,16 +4056,18 @@ function bandpromo_campaign_resolve_replacement_audio_asset_id(
 }
 
 /**
- * Rebind release track asset_ids that point at deleted registry entries onto live audio
+ * Rebind campaign track asset_ids that point at deleted registry entries onto live audio
  * assets with the same embedded artist/title (common after re-upload/re-register).
+ * Tracks with no live replacement and no registry asset are dropped.
  *
- * @return array{rebound:int, unresolved:int, remaps: array<string,string>, releases: list<string>}
+ * @return array{rebound:int, dropped:int, unresolved:int, remaps: array<string,string>, releases: list<string>}
  */
 function bandpromo_campaign_repair_stale_membership_asset_ids(string $root): array
 {
     $identityIndex = bandpromo_campaign_live_audio_identity_index($root);
     $remaps = [];
     $rebound = 0;
+    $dropped = 0;
     $unresolved = 0;
     $touchedReleases = [];
 
@@ -4112,6 +4114,9 @@ function bandpromo_campaign_repair_stale_membership_asset_ids(string $root): arr
             if ($replacement === '') {
                 if (!bandpromo_asset_is_asset_id($oldId) || bandpromo_asset_lookup_by_id($root, $oldId) === null) {
                     $unresolved++;
+                    $dropped++;
+                    $changed = true;
+                    continue;
                 }
                 $normalized = bandpromo_campaign_normalize_track_entry($track);
                 if ($normalized !== null && !isset($seen[$normalized['asset_id']])) {
@@ -4146,6 +4151,7 @@ function bandpromo_campaign_repair_stale_membership_asset_ids(string $root): arr
 
     return [
         'rebound' => $rebound,
+        'dropped' => $dropped,
         'unresolved' => $unresolved,
         'remaps' => $remaps,
         'releases' => $touchedReleases,
