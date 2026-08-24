@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-20 14:00 - Track editor tags: Files → Audio health badges (C/A/T/R/D/L) read registry display and Campaign membership again (stale playlist-validation no longer paints false red Artist/Title; R looks up `campaign` not album/`release`). Save writes master tags when on-disk tags lag behind registry so Artist/Title/Version round-trip correctly; save response prefers the submitted artist/title/version.
+
+2026-08-20 12:20 - Close remaining gaps: playlist ownership treats `primary` as unowned and infers from tracks; player brand falls back to Base not Active; canonical `campaign_id` (migrate-and-drop `release_id`) with `data/campaigns/` storage; orphan Visual delivery GC in Content autofix; `cntab=themes` → branding.
+
 2026-08-20 10:55 - Fix track cover replacement reverting to the old image: request-scoped master inspect cache no longer rewrites `display.cover` during post-save playlist republish; sparse display refresh keeps an existing registry cover; player enrich prefers registry cover over a stale playlist payload cover.
 
 2026-08-20 10:15 - Player shell brand binding: campaign effective brand now matches ownership inference; saving a campaign brand republishes owned playlists and syncs brand.release_id; playlist association republishes player payloads; player no longer falls back to install/Base logo/living when the playlist brand differs from Active.

@@ -285,6 +285,28 @@ function bandpromo_content_autofix_sync_playlist_entries(string $root, bool $dry
     return $step;
 }
 
+function bandpromo_content_autofix_orphan_visual_delivery(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'orphan_visual_delivery',
+        'Orphan Visual delivery folders with no registry asset'
+    );
+    $result = bandpromo_visual_delivery_prune_orphans($root, $dryRun);
+    $deleted = is_array($result['deleted'] ?? null) ? $result['deleted'] : [];
+    $step['changed'] = count($deleted);
+    if ($deleted !== []) {
+        $step['items'][] = [
+            'deleted_count' => count($deleted),
+            'kept' => (int) ($result['kept'] ?? 0),
+            'sample' => array_slice($deleted, 0, 8),
+        ];
+    }
+
+    return $step;
+}
+
 function bandpromo_campaign_sync_primary_audio_assets(string $root): void
 {
     bandpromo_campaign_repair_catalog_release_ids($root);
@@ -1063,6 +1085,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         'bandpromo_content_autofix_materialize_visual_masters',
         'bandpromo_content_autofix_heal_visual_display',
         'bandpromo_content_autofix_orphan_primary_uploads',
+        'bandpromo_content_autofix_orphan_visual_delivery',
         'bandpromo_content_autofix_normalize_playlist_kind',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_campaigns',

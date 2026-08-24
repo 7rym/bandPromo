@@ -908,11 +908,14 @@ function bandpromo_page_normalize_document(array $input, string $expectedId): ar
     }
 
     $document['blocks'] = $blocks;
-    $releaseId = trim((string) ($input['release_id'] ?? $document['release_id'] ?? ''));
-    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        $releaseId = '';
+    $campaignId = function_exists('bandpromo_document_campaign_id')
+        ? bandpromo_document_campaign_id(array_merge($document, is_array($input) ? $input : []))
+        : trim((string) ($input['campaign_id'] ?? $input['release_id'] ?? $document['campaign_id'] ?? $document['release_id'] ?? ''));
+    if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        $campaignId = '';
     }
-    $document['release_id'] = $releaseId;
+    unset($document['release_id']);
+    $document['campaign_id'] = $campaignId;
     if (array_key_exists('short_description', $input)) {
         $document['short_description'] = bandpromo_page_normalize_text((string) $input['short_description'], 300);
     }

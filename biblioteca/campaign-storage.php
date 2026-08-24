@@ -9,13 +9,68 @@ require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/living-cover-helpers.php';
 
 const BANDPROMO_RELEASE_REGISTRY_VERSION = 1;
-/** Default operator release slot id (legacy on-disk name: primary). */
+/** Invisible orphan/upload bucket id (legacy on-disk name: primary). */
 const BANDPROMO_CAMPAIGN_DEFAULT_ID = 'primary';
 const BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo';
 
-function bandpromo_campaign_storage_root(string $root): string
+/**
+ * Owning campaign id from a document or entry (canonical campaign_id, legacy release_id).
+ */
+function bandpromo_document_campaign_id(array $doc): string
+{
+    $id = trim((string) ($doc['campaign_id'] ?? ''));
+    if ($id === '') {
+        $id = trim((string) ($doc['release_id'] ?? ''));
+    }
+
+    return bandpromo_campaign_normalize_id($id);
+}
+
+/**
+ * True when the id is empty or the invisible primary orphan bucket (not a real campaign).
+ */
+function bandpromo_campaign_id_is_unowned(string $campaignId): bool
+{
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+
+    return $campaignId === '' || $campaignId === BANDPROMO_CAMPAIGN_DEFAULT_ID;
+}
+
+/**
+ * Set canonical campaign_id and drop legacy release_id from a document/entry array.
+ *
+ * @return array<string, mixed>
+ */
+function bandpromo_document_with_campaign_id(array $doc, string $campaignId): array
+{
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    unset($doc['release_id']);
+    if ($campaignId === '') {
+        unset($doc['campaign_id']);
+    } else {
+        $doc['campaign_id'] = $campaignId;
+    }
+
+    return $doc;
+}
+
+function bandpromo_campaign_storage_legacy_root(string $root): string
 {
     return $root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases';
+}
+
+function bandpromo_campaign_storage_root(string $root): string
+{
+    $canonical = $root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'campaigns';
+    $legacy = bandpromo_campaign_storage_legacy_root($root);
+    if (is_dir($canonical)) {
+        return $canonical;
+    }
+    if (is_dir($legacy)) {
+        return $legacy;
+    }
+
+    return $canonical;
 }
 
 function bandpromo_campaign_registry_path(string $root): string
@@ -30,11 +85,26 @@ function bandpromo_campaign_document_path(string $root, string $releaseId): stri
     return bandpromo_campaign_storage_root($root) . DIRECTORY_SEPARATOR . $releaseId . '.json';
 }
 
+/**
+ * Ensure data/campaigns exists; one-shot rename from data/releases when needed.
+ */
 function bandpromo_campaign_registry_ensure_dir(string $root): void
 {
+    $canonical = $root . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'campaigns';
+    $legacy = bandpromo_campaign_storage_legacy_root($root);
+    if (!is_dir($canonical) && is_dir($legacy)) {
+        $dataDir = $root . DIRECTORY_SEPARATOR . 'data';
+        if (!is_dir($dataDir) && !mkdir($dataDir, 0750, true) && !is_dir($dataDir)) {
+            throw new RuntimeException('Could not create data directory for campaigns.');
+        }
+        if (!@rename($legacy, $canonical)) {
+            // Fall through: keep reading legacy until rename succeeds on a later pass.
+        }
+    }
+
     $dir = bandpromo_campaign_storage_root($root);
     if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
-        throw new RuntimeException('Could not create data/releases directory.');
+        throw new RuntimeException('Could not create data/campaigns directory.');
     }
 }
 
@@ -202,7 +272,7 @@ function bandpromo_campaign_effective_brand_id(string $root, string $releaseId):
     require_once __DIR__ . '/brand-storage.php';
 
     $releaseId = bandpromo_campaign_normalize_id($releaseId);
-    if ($releaseId !== '') {
+    if ($releaseId !== '' && !bandpromo_campaign_id_is_unowned($releaseId)) {
         try {
             $document = bandpromo_campaign_load_document($root, $releaseId);
             $brandId = bandpromo_campaign_normalize_brand_id($root, $document['brand_id'] ?? '');
@@ -213,7 +283,7 @@ function bandpromo_campaign_effective_brand_id(string $root, string $releaseId):
             // Fall through to ownership inference / install Base.
         }
 
-        // Same inference as ownership_children: a brand whose release_id points here.
+        // Same inference as ownership_children: a brand whose campaign_id points here.
         try {
             bandpromo_brand_ensure_seeded($root);
             foreach (bandpromo_brand_registry_entries($root) as $meta) {
@@ -229,7 +299,7 @@ function bandpromo_campaign_effective_brand_id(string $root, string $releaseId):
                 } catch (Throwable $throwable) {
                     continue;
                 }
-                if (trim((string) ($brand['release_id'] ?? '')) === $releaseId) {
+                if (bandpromo_document_campaign_id($brand) === $releaseId) {
                     return $id;
                 }
             }
@@ -238,7 +308,7 @@ function bandpromo_campaign_effective_brand_id(string $root, string $releaseId):
         }
     }
 
-    return bandpromo_brand_active_id($root);
+    return BANDPROMO_BRAND_DEFAULT_ID;
 }
 
 function bandpromo_campaign_normalize_poster_asset_id(?string $root, mixed $value): string
@@ -2987,12 +3057,12 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
         $document['brand_id'] = bandpromo_campaign_normalize_brand_id($root, $fields['brand_id']);
         $nextBrandId = (string) ($document['brand_id'] ?? '');
 
-        // Keep brand.release_id aligned so ownership inference and player shell stay in sync.
+        // Keep brand.campaign_id aligned so ownership inference and player shell stay in sync.
         if ($nextBrandId !== '') {
             try {
                 $brandDocument = bandpromo_brand_load_document($root, $nextBrandId);
-                if (trim((string) ($brandDocument['release_id'] ?? '')) !== $releaseId) {
-                    $brandDocument['release_id'] = $releaseId;
+                if (bandpromo_document_campaign_id($brandDocument) !== $releaseId) {
+                    $brandDocument = bandpromo_document_with_campaign_id($brandDocument, $releaseId);
                     bandpromo_brand_write_document($root, $brandDocument, ['allow_locked' => true]);
                 }
             } catch (Throwable $throwable) {
@@ -3019,7 +3089,7 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
                 } catch (Throwable $throwable) {
                     continue;
                 }
-                if (trim((string) ($playlistDocument['release_id'] ?? '')) !== $releaseId) {
+                if (bandpromo_document_campaign_id($playlistDocument) !== $releaseId) {
                     continue;
                 }
                 try {

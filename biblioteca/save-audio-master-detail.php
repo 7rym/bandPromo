@@ -182,7 +182,28 @@ $current_fields['title'] = bandpromo_campaign_combine_audio_title_parts(
 );
 $current_fields['living_cover'] = $existing_living_cover;
 
-$metadata_changed = $current_fields !== $normalized_fields;
+$registry_changed = $current_fields !== $normalized_fields;
+// Registry can already show Artist/Title while master tags are still empty (upload
+// inferred display, editor never forced a tag write). Compare on-disk tags when the
+// form matches registry so Save still embeds the values.
+$tags_out_of_sync = false;
+if (!$registry_changed) {
+    $canonical_for_inspect = bandpromo_audio_master_canonical_filename($root, $filename);
+    if ($canonical_for_inspect === '') {
+        $canonical_for_inspect = $filename;
+    }
+    $on_disk_inspect = bandpromo_campaign_inspect_master_metadata($root, $canonical_for_inspect);
+    $on_disk_fields = [];
+    foreach ($allowed_keys as $key) {
+        $on_disk_fields[$key] = trim((string) ($on_disk_inspect[$key] ?? ''));
+    }
+    $on_disk_fields['album'] = $normalized_fields['album'];
+    $on_disk_fields['living_cover'] = bandpromo_living_cover_normalize_video_filename(
+        (string) ($on_disk_inspect['living_cover'] ?? '')
+    );
+    $tags_out_of_sync = $on_disk_fields !== $normalized_fields;
+}
+$metadata_changed = $registry_changed || $tags_out_of_sync;
 $sidecar_cover = trim((string) ($current_detail['sidecar_cover'] ?? ''));
 $cover_changed = ($cover_mode === 'clear' && $sidecar_cover !== '') || $cover_mode === 'set';
 $current_text_role = bandpromo_asset_normalize_text_role((string) ($current_detail['text_role'] ?? 'lyrics'));
@@ -346,6 +367,13 @@ if ($listenerReady && empty($republish['errors'])) {
 
 $data = bandpromo_audio_master_enrich_detail($root, $filename, $data);
 // Prefer freshly saved fields in the response (registry is authoritative after sync).
+$saved_title_parts = bandpromo_campaign_split_audio_title_parts($normalized_fields['title']);
+$data['artist'] = $normalized_fields['artist'];
+$data['title'] = trim((string) ($saved_title_parts['title'] ?? '')) !== ''
+    ? trim((string) $saved_title_parts['title'])
+    : $normalized_fields['title'];
+$data['version'] = trim((string) ($saved_title_parts['version'] ?? ''));
+$data['album'] = $normalized_fields['album'];
 $data['date'] = $normalized_fields['date'];
 $data['tracknumber'] = $normalized_fields['tracknumber'];
 $data['bpm'] = $normalized_fields['bpm'];

@@ -1230,9 +1230,11 @@ function bandpromo_brand_normalize_document(array $input, ?string $expectedId = 
         $system = true;
     }
 
-    $releaseId = trim((string) ($input['release_id'] ?? ''));
-    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        $releaseId = '';
+    $campaignId = function_exists('bandpromo_document_campaign_id')
+        ? bandpromo_document_campaign_id($input)
+        : bandpromo_brand_canonical_id(trim((string) ($input['campaign_id'] ?? $input['release_id'] ?? '')));
+    if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        $campaignId = '';
     }
 
     $assetIds = bandpromo_brand_normalize_asset_ids(
@@ -1251,7 +1253,7 @@ function bandpromo_brand_normalize_document(array $input, ?string $expectedId = 
         'title' => $title,
         'system' => $system,
         'locked' => $locked,
-        'release_id' => $releaseId,
+        'campaign_id' => $campaignId,
         'mood' => bandpromo_brand_normalize_narrative_field(
             $input['mood'] ?? $input['description'] ?? '',
             500

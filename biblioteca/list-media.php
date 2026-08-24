@@ -67,12 +67,12 @@ $videoDeliveryRunning = ($target === 'video' || $isVisualPool)
 function bandpromo_default_audio_metadata_health(): array {
     return [
         'inspected' => false,
-        'source' => 'latest_build_validation',
+        'source' => 'asset-registry',
         'fields' => [
             'cover' => ['label' => 'Cover', 'state' => 'unknown'],
             'artist' => ['label' => 'Artist', 'state' => 'unknown'],
             'title' => ['label' => 'Title', 'state' => 'unknown'],
-            'release' => ['label' => 'Release', 'state' => 'unknown'],
+            'campaign' => ['label' => 'Campaign', 'state' => 'unknown'],
             'description' => ['label' => 'Description', 'state' => 'unknown'],
             'lyrics' => ['label' => 'Lyrics', 'state' => 'unknown'],
         ],
@@ -108,6 +108,9 @@ function bandpromo_load_audio_validation_map(string $root): array {
         $display = bandpromo_asset_read_audio_display($asset);
         $has_description = trim((string) ($display['comment'] ?? '')) !== '';
 
+        // Kept for publish/preflight consumers. Files → Audio badges use registry display
+        // (see bandpromo_audio_metadata_health_for_listing) so stale scan rows cannot
+        // contradict the track editor.
         $default[$file] = [
             'inspected' => true,
             'source' => 'latest_build_validation',
@@ -120,7 +123,7 @@ function bandpromo_load_audio_validation_map(string $root): array {
                 'cover' => ['label' => 'Cover', 'state' => isset($warning_set['missing_cover_art']) ? 'required' : 'good'],
                 'artist' => ['label' => 'Artist', 'state' => isset($warning_set['missing_artist_tag']) ? 'required' : 'good'],
                 'title' => ['label' => 'Title', 'state' => isset($warning_set['missing_title_tag']) ? 'required' : 'good'],
-                'release' => ['label' => 'Release', 'state' => isset($warning_set['missing_album_tag']) ? 'improvable' : 'good'],
+                'campaign' => ['label' => 'Campaign', 'state' => isset($warning_set['missing_album_tag']) ? 'improvable' : 'good'],
                 'description' => ['label' => 'Description', 'state' => $has_description ? 'good' : 'improvable'],
                 'lyrics' => ['label' => (
                     bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')) === 'notes'
@@ -142,28 +145,29 @@ function bandpromo_audio_metadata_health_for_listing(
     array $validation_map,
     array $listingContext = []
 ): array {
-    if (isset($validation_map[$filename])) {
-        return $validation_map[$filename];
-    }
-
     $masterLookup = bandpromo_asset_lookup_by_master_filename($root, $filename)
         ?? bandpromo_asset_lookup_by_original_filename($root, $filename);
     if ($masterLookup === null) {
         return bandpromo_default_audio_metadata_health();
     }
 
+    // Files → Audio badges follow registry display (MEDIA-HANDLING), not a stale
+    // playlist-validation scan that can lag behind the track editor.
     $label = bandpromo_audio_display_label_for_listing($root, $filename, $validation_map, $listingContext);
     $display = bandpromo_asset_read_audio_display($masterLookup);
+    $hasCampaign = trim((string) ($label['release_id'] ?? '')) !== ''
+        || trim((string) ($label['release_title'] ?? '')) !== ''
+        || !empty($label['on_release']);
 
     return [
         'inspected' => true,
         'source' => 'asset-registry',
         'display_title' => (string) ($label['display_title'] ?? ''),
         'fields' => [
-            'cover' => ['label' => 'Cover', 'state' => trim((string) ($display['cover'] ?? '')) !== '' ? 'good' : 'unknown'],
+            'cover' => ['label' => 'Cover', 'state' => trim((string) ($display['cover'] ?? '')) !== '' ? 'good' : 'required'],
             'artist' => ['label' => 'Artist', 'state' => $display['artist'] !== '' ? 'good' : 'required'],
             'title' => ['label' => 'Title', 'state' => $display['title'] !== '' ? 'good' : 'required'],
-            'release' => ['label' => 'Release', 'state' => $display['album'] !== '' ? 'good' : 'improvable'],
+            'campaign' => ['label' => 'Campaign', 'state' => $hasCampaign ? 'good' : 'improvable'],
             'description' => ['label' => 'Description', 'state' => $display['comment'] !== '' ? 'good' : 'improvable'],
             'lyrics' => ['label' => (
                 bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')) === 'notes'

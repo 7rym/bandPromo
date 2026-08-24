@@ -255,9 +255,9 @@ Implementation order:
 
 P0 tag-save `/play` calm + P1a shared-cover exact-hash link shipped 2026-08-03. Skip-if-fresh largely landed under M3. Remaining housekeeping (not urgent):
 
-- [ ] **Orphan visual delivery GC** — prune stale `media/visual/delivery/{asset_id}/` trees when the asset is gone or remapped.
+- [x] **Orphan visual delivery GC** — prune stale `media/visual/delivery/{asset_id}/` trees when the asset is gone or remapped.
 - [ ] **Deliverables skip/reuse summary** — operator-facing Publish/Deliverables counts for skipped-fresh variants and reused covers (beyond build-log lines).
-- [ ] **Visual pool honesty polish** — first-class “used by N” / Unused vs Orphan chips (partial `reference_count` / orphan plumbing already exists). Catalogue Orphans now follow live track-cover ids after re-register (former `ast_*` filename alias) and page `src`/`poster` delivery URLs; chip copy is still the leftover.
+- [x] **Visual pool honesty polish** — first-class “used by N” / Unused vs Orphan chips (partial `reference_count` / orphan plumbing already exists). Catalogue Orphans now follow live track-cover ids after re-register (former `ast_*` filename alias) and page `src`/`poster` delivery URLs; chip copy is still the leftover.
 
 Related open items (absorbed into M1 unless noted):
 

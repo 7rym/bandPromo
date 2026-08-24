@@ -592,3 +592,58 @@ function bandpromo_visual_delivery_delete_for_asset(string $root, string $assetI
     }
     @rmdir($dir);
 }
+
+/**
+ * Remove media/visual/delivery/{ast_*}/ trees with no matching visual registry asset.
+ *
+ * @return array{ok:bool,deleted:list<string>,kept:int,dry_run:bool}
+ */
+function bandpromo_visual_delivery_prune_orphans(string $root, bool $dryRun = false): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $deliveryRoot = bandpromo_visual_delivery_root($root);
+    $deleted = [];
+    $kept = 0;
+    if (!is_dir($deliveryRoot)) {
+        return [
+            'ok' => true,
+            'deleted' => [],
+            'kept' => 0,
+            'dry_run' => $dryRun,
+        ];
+    }
+
+    $registry = bandpromo_asset_load_registry($root);
+    $assets = is_array($registry['assets'] ?? null) ? $registry['assets'] : [];
+
+    foreach (scandir($deliveryRoot) ?: [] as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+        $path = $deliveryRoot . '/' . $entry;
+        if (!is_dir($path)) {
+            continue;
+        }
+        if (!bandpromo_asset_is_asset_id($entry)) {
+            continue;
+        }
+        $asset = is_array($assets[$entry] ?? null) ? $assets[$entry] : null;
+        $isVisual = is_array($asset) && ($asset['kind'] ?? '') === 'visual';
+        if ($isVisual) {
+            $kept++;
+            continue;
+        }
+        $deleted[] = $entry;
+        if (!$dryRun) {
+            bandpromo_visual_delivery_delete_for_asset($root, $entry);
+        }
+    }
+
+    return [
+        'ok' => true,
+        'deleted' => $deleted,
+        'kept' => $kept,
+        'dry_run' => $dryRun,
+    ];
+}

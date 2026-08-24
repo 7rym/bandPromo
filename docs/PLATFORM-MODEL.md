@@ -234,7 +234,7 @@ flowchart TB
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
-Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Docs and code still say **release** for storage (`release_id`, PCF). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
+Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Ownership key is **`campaign_id`** (legacy `release_id` is migrate-and-delete on load/save). On-disk campaign documents live under **`data/campaigns/`** (legacy `data/releases/` renamed on ensure). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
 
 ## Asset identity and filenames
 

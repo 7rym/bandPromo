@@ -73,6 +73,7 @@ function bandpromo_campaign_normalize_relative_path(string $path): string
         return '';
     }
     $allowedPrefixes = [
+        'data/campaigns/',
         'data/releases/',
         'data/brands/',
         'data/themes/',
@@ -202,8 +203,12 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
         }
 
         $destinationRelative = $relative;
-        if ($remapRelease && str_starts_with($relative, 'data/releases/' . $sourceReleaseId . '.json')) {
-            $destinationRelative = 'data/releases/' . $targetReleaseId . '.json';
+        if ($remapRelease) {
+            if (str_starts_with($relative, 'data/campaigns/' . $sourceReleaseId . '.json')
+                || str_starts_with($relative, 'data/releases/' . $sourceReleaseId . '.json')
+            ) {
+                $destinationRelative = 'data/campaigns/' . $targetReleaseId . '.json';
+            }
         }
 
         // Operator imports must not silently overwrite locked demo identity/containers.
@@ -525,7 +530,9 @@ function bandpromo_campaign_remap_document(
     string $sourceReleaseId,
     string $targetReleaseId
 ): array {
-    if (str_starts_with($destinationRelative, 'data/releases/')) {
+    if (str_starts_with($destinationRelative, 'data/campaigns/')
+        || str_starts_with($destinationRelative, 'data/releases/')
+    ) {
         $document['id'] = $targetReleaseId;
         $document['slug'] = $targetReleaseId;
         if (trim((string) ($document['title'] ?? '')) === '' || $document['title'] === 'bandPromo demo') {
@@ -830,6 +837,7 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
         }
     };
 
+    $addPath('data/campaigns/' . $releaseId . '.json');
     $addPath('data/releases/' . $releaseId . '.json');
     $brandId = bandpromo_brand_canonical_id((string) ($release['brand_id'] ?? ''));
     if ($brandId !== '') {

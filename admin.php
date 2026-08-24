@@ -515,17 +515,15 @@ if ($editablePages === []) {
     $editablePages = bandpromo_page_admin_pages_map(__DIR__);
 }
 
-// Content sub-tab — backwards-compat aliases for old 'release' URLs
+// Content sub-tab — one-shot aliases for old URLs
 if (isset($_GET['cntab']) && $_GET['cntab'] === 'release') $_GET['cntab'] = 'campaign';
+if (isset($_GET['cntab']) && $_GET['cntab'] === 'themes') $_GET['cntab'] = 'branding';
 if (!isset($_GET['campaign']) && isset($_GET['release'])) $_GET['campaign'] = $_GET['release'];
 if (!isset($_GET['brand']) && isset($_GET['theme'])) $_GET['brand'] = $_GET['theme'];
 
 $contentTab = $_GET['cntab'] ?? 'campaign';
 if ($contentTab === 'bio') {
     $contentTab = 'pages';
-}
-if ($contentTab === 'branding') {
-    $contentTab = 'branding';
 }
 if (!in_array($contentTab, ['campaign', 'playlist', 'gallery', 'pages', 'branding'], true)) {
     if ($contentTab === 'player') {

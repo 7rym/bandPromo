@@ -109,9 +109,11 @@ function bandpromo_gallery_normalize_document(array $input, ?string $expectedId 
         }
     }
 
-    $releaseId = trim((string) ($input['release_id'] ?? ''));
-    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        $releaseId = '';
+    $campaignId = function_exists('bandpromo_document_campaign_id')
+        ? bandpromo_document_campaign_id($input)
+        : bandpromo_campaign_normalize_id(trim((string) ($input['campaign_id'] ?? $input['release_id'] ?? '')));
+    if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        $campaignId = '';
     }
 
     return [
@@ -119,7 +121,7 @@ function bandpromo_gallery_normalize_document(array $input, ?string $expectedId 
         'id' => $id,
         'title' => $title,
         'kind' => $kind,
-        'release_id' => $releaseId,
+        'campaign_id' => $campaignId,
         'entries' => $entries,
     ];
 }
@@ -146,7 +148,7 @@ function bandpromo_gallery_default_document(): array
         'id' => BANDPROMO_GALLERY_DEMO_ID,
         'title' => 'bandPromo demo',
         'kind' => 'system',
-        'release_id' => '',
+        'campaign_id' => '',
         'entries' => [],
     ];
 }
@@ -667,16 +669,16 @@ function bandpromo_gallery_create(string $root, string $title, string $preferred
     return bandpromo_gallery_registry_entry($root, $id) ?? [];
 }
 
-function bandpromo_gallery_set_release_id(string $root, string $galleryId, string $releaseId): void
+function bandpromo_gallery_set_campaign_id(string $root, string $galleryId, string $campaignId): void
 {
     $galleryId = bandpromo_gallery_normalize_id($galleryId);
     if ($galleryId === '') {
         throw new InvalidArgumentException('Gallery id is required.');
     }
+    require_once __DIR__ . '/campaign-storage.php';
     if (bandpromo_gallery_is_protected_id($galleryId)) {
-        require_once __DIR__ . '/campaign-storage.php';
         // Protected demo gallery: reassignment only when the platform demo is unlocked
-        // (localhost may unlock for PRP source edits).
+        // (localhost may unlock for PCF source edits).
         try {
             $demoRelease = bandpromo_campaign_load_document($root, BANDPROMO_RELEASE_DEMO_ID);
             if (!empty($demoRelease['locked'])) {
@@ -692,14 +694,20 @@ function bandpromo_gallery_set_release_id(string $root, string $galleryId, strin
         }
     }
 
-    $releaseId = trim($releaseId);
-    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        throw new InvalidArgumentException('Invalid release id.');
+    $campaignId = trim($campaignId);
+    if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        throw new InvalidArgumentException('Invalid campaign id.');
     }
 
     $document = bandpromo_gallery_load_document($root, $galleryId);
-    $document['release_id'] = $releaseId;
+    $document = bandpromo_document_with_campaign_id($document, $campaignId);
     bandpromo_gallery_write_document($root, $document);
+}
+
+/** @deprecated Use bandpromo_gallery_set_campaign_id */
+function bandpromo_gallery_set_release_id(string $root, string $galleryId, string $releaseId): void
+{
+    bandpromo_gallery_set_campaign_id($root, $galleryId, $releaseId);
 }
 
 function bandpromo_gallery_update_details(string $root, string $galleryId, string $title): array

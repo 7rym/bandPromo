@@ -79,21 +79,28 @@ function bandpromo_page_save_document(string $root, array $document): array {
     ];
 }
 
-function bandpromo_page_set_release_id(string $root, string $pageId, string $releaseId): void
+function bandpromo_page_set_campaign_id(string $root, string $pageId, string $campaignId): void
 {
     $pageId = bandpromo_page_normalize_id($pageId);
     if ($pageId === '' || !bandpromo_page_is_allowed_id($pageId, $root)) {
         throw new InvalidArgumentException('Unknown page.');
     }
 
-    $releaseId = trim($releaseId);
-    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        throw new InvalidArgumentException('Invalid release id.');
+    require_once __DIR__ . '/campaign-storage.php';
+    $campaignId = trim($campaignId);
+    if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        throw new InvalidArgumentException('Invalid campaign id.');
     }
 
     $document = bandpromo_page_load_document($root, $pageId);
-    $document['release_id'] = $releaseId;
+    $document = bandpromo_document_with_campaign_id($document, $campaignId);
     bandpromo_page_save_document($root, $document);
+}
+
+/** @deprecated Use bandpromo_page_set_campaign_id */
+function bandpromo_page_set_release_id(string $root, string $pageId, string $releaseId): void
+{
+    bandpromo_page_set_campaign_id($root, $pageId, $releaseId);
 }
 
 function bandpromo_page_template_path(string $root, string $pageId): string {

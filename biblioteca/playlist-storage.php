@@ -137,7 +137,8 @@ function bandpromo_playlist_document_path(string $root, string $playlistId): str
 }
 
 /**
- * Owning release for a playlist (explicit release_id, else inferred from track membership).
+ * Owning campaign for a playlist (explicit campaign_id, else inferred from track membership).
+ * Empty and primary (orphan bucket) both trigger inference.
  */
 function bandpromo_playlist_effective_campaign_id(string $root, string $playlistId): string
 {
@@ -147,34 +148,37 @@ function bandpromo_playlist_effective_campaign_id(string $root, string $playlist
     }
 
     try {
+        require_once __DIR__ . '/campaign-storage.php';
+        require_once __DIR__ . '/campaign-ownership-helpers.php';
         $document = bandpromo_playlist_load_document($root, $playlistId);
-        $releaseId = bandpromo_campaign_normalize_id(trim((string) ($document['release_id'] ?? '')));
-        if ($releaseId === '') {
-            require_once __DIR__ . '/campaign-ownership-helpers.php';
-            $releaseId = bandpromo_campaign_normalize_id(
+        $campaignId = bandpromo_document_campaign_id($document);
+        if (bandpromo_campaign_id_is_unowned($campaignId)) {
+            $campaignId = bandpromo_campaign_normalize_id(
                 bandpromo_campaign_ownership_infer_from_playlist_entries($root, $document)
             );
         }
+        if (bandpromo_campaign_id_is_unowned($campaignId)) {
+            return '';
+        }
 
-        return $releaseId;
+        return $campaignId;
     } catch (Throwable $throwable) {
         return '';
     }
 }
 
 /**
- * Player brand for a playlist: owning release’s brand, else install Base.
- * When playlist.release_id is empty but all entries share one release, use that
- * release (heals orphan ownership so release brand_id reaches /play).
+ * Player brand for a playlist: owning campaign’s brand, else install Base (never Active).
  */
 function bandpromo_playlist_effective_brand_id(string $root, string $playlistId): string
 {
-    $releaseId = bandpromo_playlist_effective_campaign_id($root, $playlistId);
-    if ($releaseId !== '') {
-        return bandpromo_campaign_effective_brand_id($root, $releaseId);
+    require_once __DIR__ . '/brand-storage.php';
+    $campaignId = bandpromo_playlist_effective_campaign_id($root, $playlistId);
+    if ($campaignId !== '') {
+        return bandpromo_campaign_effective_brand_id($root, $campaignId);
     }
 
-    return bandpromo_brand_active_id($root);
+    return BANDPROMO_BRAND_DEFAULT_ID;
 }
 
 function bandpromo_playlist_validation_report_path(string $root): ?string
@@ -603,13 +607,20 @@ function bandpromo_playlist_normalize_entry(array $entry): ?array
         $assetId = '';
     }
 
-    $releaseId = trim((string) ($entry['release_id'] ?? ''));
+    $campaignId = '';
+    if (function_exists('bandpromo_document_campaign_id')) {
+        $campaignId = bandpromo_document_campaign_id($entry);
+    } else {
+        $campaignId = trim((string) ($entry['campaign_id'] ?? $entry['release_id'] ?? ''));
+    }
 
-    return [
+    $out = [
         'master_file' => $masterFile,
         'asset_id' => $assetId,
-        'release_id' => $releaseId,
+        'campaign_id' => $campaignId,
     ];
+
+    return $out;
 }
 
 function bandpromo_playlist_normalize_stored_track(array $track): ?array
@@ -925,17 +936,21 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
         }
     }
 
-    $releaseId = trim((string) ($input['release_id'] ?? ''));
-    if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        $releaseId = '';
+    $campaignId = bandpromo_document_campaign_id($input);
+    if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        $campaignId = '';
     }
-    if ($releaseId === '' && $root !== null && $entries !== []) {
+    if (bandpromo_campaign_id_is_unowned($campaignId) && $root !== null && $entries !== []) {
         require_once __DIR__ . '/campaign-ownership-helpers.php';
         $inferred = bandpromo_campaign_ownership_infer_from_playlist_entries($root, [
             'entries' => $entries,
         ]);
-        if ($inferred !== '' && preg_match('/^[a-z][a-z0-9-]{0,47}$/', $inferred)) {
-            $releaseId = $inferred;
+        if ($inferred !== '' && preg_match('/^[a-z][a-z0-9-]{0,47}$/', $inferred)
+            && !bandpromo_campaign_id_is_unowned($inferred)
+        ) {
+            $campaignId = $inferred;
+        } else {
+            $campaignId = '';
         }
     }
 
@@ -955,7 +970,7 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
         'package_type' => $packageType,
         'play_order' => $playOrder,
         'publish_date' => $publishDate,
-        'release_id' => $releaseId,
+        'campaign_id' => $campaignId,
         'description' => bandpromo_campaign_normalize_text_field($input['description'] ?? '', 4000),
         'short_description' => bandpromo_campaign_normalize_text_field($input['short_description'] ?? '', 300),
         'poster_asset_id' => $root !== null
@@ -2120,6 +2135,20 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         ];
     }
 
+    // Heal primary/empty ownership onto the unanimous track campaign before materialize.
+    require_once __DIR__ . '/campaign-storage.php';
+    require_once __DIR__ . '/campaign-ownership-helpers.php';
+    $owned = bandpromo_document_campaign_id($document);
+    if (bandpromo_campaign_id_is_unowned($owned)) {
+        $inferred = bandpromo_campaign_normalize_id(
+            bandpromo_campaign_ownership_infer_from_playlist_entries($root, $document)
+        );
+        if ($inferred !== '' && !bandpromo_campaign_id_is_unowned($inferred)) {
+            $document = bandpromo_document_with_campaign_id($document, $inferred);
+            bandpromo_playlist_write_document($root, $document);
+        }
+    }
+
     // Refresh sparse registry display from master tags before PHP fallback materialization.
     foreach ($entries as $entry) {
         if (!is_array($entry)) {
@@ -2967,7 +2996,7 @@ function bandpromo_playlist_create_from_campaign(string $root, string $releaseId
         $entries[] = [
             'master_file' => $masterFile,
             'asset_id' => $assetId,
-            'release_id' => $releaseId,
+            'campaign_id' => $releaseId,
         ];
     }
 
@@ -2994,12 +3023,12 @@ function bandpromo_playlist_create_from_campaign(string $root, string $releaseId
         'description' => (string) ($document['description'] ?? ''),
         'short_description' => (string) ($document['short_description'] ?? ''),
         'poster_asset_id' => (string) ($document['poster_asset_id'] ?? ''),
-        'release_id' => $releaseId,
+        'campaign_id' => $releaseId,
     ]);
 
     $playlistDocument = bandpromo_playlist_load_document($root, $playlistId);
     $playlistDocument['entries'] = $entries;
-    $playlistDocument['release_id'] = $releaseId;
+    $playlistDocument = bandpromo_document_with_campaign_id($playlistDocument, $releaseId);
     $playlistDocument = bandpromo_playlist_clear_player_payload_fields($playlistDocument);
     bandpromo_playlist_write_document($root, $playlistDocument);
 
@@ -3021,13 +3050,14 @@ function bandpromo_playlist_set_campaign_id(string $root, string $playlistId, st
         throw new InvalidArgumentException('The bandPromo demo playlist cannot be reassigned.');
     }
 
+    require_once __DIR__ . '/campaign-storage.php';
     $releaseId = trim($releaseId);
     if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
         throw new InvalidArgumentException('Invalid campaign id.');
     }
 
     $document = bandpromo_playlist_load_document($root, $playlistId);
-    $document['release_id'] = $releaseId;
+    $document = bandpromo_document_with_campaign_id($document, $releaseId);
     $document = bandpromo_playlist_clear_player_payload_fields($document);
     bandpromo_playlist_write_document($root, $document);
 }
@@ -3082,12 +3112,14 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, arr
     if (array_key_exists('poster_asset_id', $fields)) {
         $document['poster_asset_id'] = bandpromo_campaign_normalize_poster_asset_id($root, $fields['poster_asset_id']);
     }
-    if (array_key_exists('release_id', $fields)) {
-        $releaseId = trim((string) $fields['release_id']);
-        if ($releaseId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-            $releaseId = '';
+    if (array_key_exists('campaign_id', $fields) || array_key_exists('release_id', $fields)) {
+        $campaignId = array_key_exists('campaign_id', $fields)
+            ? trim((string) $fields['campaign_id'])
+            : trim((string) $fields['release_id']);
+        if ($campaignId !== '' && !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+            $campaignId = '';
         }
-        $document['release_id'] = $releaseId;
+        $document = bandpromo_document_with_campaign_id($document, $campaignId);
     }
     $packageTypeChanged = false;
     if (array_key_exists('package_type', $fields)) {

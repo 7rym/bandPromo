@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Install-level demo release policy.
  *
  * Prefs live in data/install-preferences.json (not web-config.json):
- * - demo_release_id: protected fallback release from first PRP import
+ * - demo_campaign_id: protected demo campaign from first PCF import (legacy key: demo_release_id)
  * - demo_release_hidden: operator hide toggle
  *
  * Compat: demo_catalog_visible is kept as the inverse of demo_release_hidden
@@ -23,31 +23,32 @@ function bandpromo_demo_catalog_preferences_path(string $root): string
 function bandpromo_demo_catalog_default_preferences(): array
 {
     return [
-        'demo_release_id' => '',
+        'demo_campaign_id' => '',
         'demo_release_hidden' => false,
         'demo_catalog_visible' => true,
     ];
 }
 
 /**
- * @return array{demo_release_id:string,demo_release_hidden:bool,demo_catalog_visible:bool}
+ * @return array{demo_campaign_id:string,demo_release_hidden:bool,demo_catalog_visible:bool}
  */
 function bandpromo_demo_catalog_normalize_preferences(array $decoded): array
 {
     $prefs = bandpromo_demo_catalog_default_preferences();
 
-    $releaseId = '';
-    if (array_key_exists('demo_release_id', $decoded)) {
-        $releaseId = strtolower(trim((string) $decoded['demo_release_id']));
+    $campaignId = '';
+    if (array_key_exists('demo_campaign_id', $decoded)) {
+        $campaignId = strtolower(trim((string) $decoded['demo_campaign_id']));
+    } elseif (array_key_exists('demo_release_id', $decoded)) {
+        $campaignId = strtolower(trim((string) $decoded['demo_release_id']));
     }
-    if ($releaseId !== '' && preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId)) {
-        $prefs['demo_release_id'] = $releaseId;
+    if ($campaignId !== '' && preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId)) {
+        $prefs['demo_campaign_id'] = $campaignId;
     }
 
     if (array_key_exists('demo_release_hidden', $decoded)) {
         $prefs['demo_release_hidden'] = (bool) $decoded['demo_release_hidden'];
     } elseif (array_key_exists('demo_catalog_visible', $decoded)) {
-        // Migrate legacy visible flag → hidden.
         $prefs['demo_release_hidden'] = !(bool) $decoded['demo_catalog_visible'];
     }
 
@@ -102,14 +103,18 @@ function bandpromo_demo_catalog_save_preferences(string $root, array $preference
         $merged['demo_release_hidden'] = !$merged['demo_catalog_visible'];
     }
 
-    if (array_key_exists('demo_release_id', $preferences)) {
-        $releaseId = strtolower(trim((string) $preferences['demo_release_id']));
-        $merged['demo_release_id'] = ($releaseId !== '' && preg_match('/^[a-z][a-z0-9-]{0,47}$/', $releaseId))
-            ? $releaseId
+    if (array_key_exists('demo_campaign_id', $preferences) || array_key_exists('demo_release_id', $preferences)) {
+        $rawId = array_key_exists('demo_campaign_id', $preferences)
+            ? $preferences['demo_campaign_id']
+            : $preferences['demo_release_id'];
+        $campaignId = strtolower(trim((string) $rawId));
+        $merged['demo_campaign_id'] = ($campaignId !== '' && preg_match('/^[a-z][a-z0-9-]{0,47}$/', $campaignId))
+            ? $campaignId
             : '';
     }
 
     $payload = bandpromo_demo_catalog_normalize_preferences($merged);
+    unset($payload['demo_release_id']);
     $payload['updated_at_utc'] = gmdate('c');
 
     $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -153,9 +158,9 @@ function bandpromo_demo_campaign_derive_id(string $root): string
 }
 
 /**
- * Ensure prefs have a durable demo_release_id (derive + persist when missing).
+ * Ensure prefs have a durable demo_campaign_id (derive + persist when missing).
  *
- * @return array{demo_release_id:string,demo_release_hidden:bool,demo_catalog_visible:bool}
+ * @return array{demo_campaign_id:string,demo_release_hidden:bool,demo_catalog_visible:bool}
  */
 function bandpromo_demo_campaign_ensure_preferences(string $root, string $preferredReleaseId = ''): array
 {
@@ -165,18 +170,18 @@ function bandpromo_demo_campaign_ensure_preferences(string $root, string $prefer
         $preferredReleaseId = '';
     }
 
-    $releaseId = (string) ($prefs['demo_release_id'] ?? '');
-    if ($releaseId === '') {
-        $releaseId = $preferredReleaseId !== '' ? $preferredReleaseId : bandpromo_demo_campaign_derive_id($root);
-        if ($releaseId !== '') {
+    $campaignId = (string) ($prefs['demo_campaign_id'] ?? '');
+    if ($campaignId === '') {
+        $campaignId = $preferredReleaseId !== '' ? $preferredReleaseId : bandpromo_demo_campaign_derive_id($root);
+        if ($campaignId !== '') {
             bandpromo_demo_catalog_save_preferences($root, [
-                'demo_release_id' => $releaseId,
+                'demo_campaign_id' => $campaignId,
                 'demo_release_hidden' => !empty($prefs['demo_release_hidden']),
             ]);
             $prefs = bandpromo_demo_catalog_load_preferences($root);
         }
-    } elseif ($preferredReleaseId !== '' && $releaseId !== $preferredReleaseId) {
-        // First successful PRP import wins; do not overwrite an already-persisted id.
+    } elseif ($preferredReleaseId !== '' && $campaignId !== $preferredReleaseId) {
+        // First successful PCF import wins; do not overwrite an already-persisted id.
     }
 
     return $prefs;
@@ -186,7 +191,7 @@ function bandpromo_demo_campaign_id(string $root): string
 {
     $prefs = bandpromo_demo_campaign_ensure_preferences($root);
 
-    return (string) ($prefs['demo_release_id'] ?? '');
+    return (string) ($prefs['demo_campaign_id'] ?? $prefs['demo_release_id'] ?? '');
 }
 
 function bandpromo_demo_campaign_is_hidden(string $root): bool

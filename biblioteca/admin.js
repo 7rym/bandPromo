@@ -1947,9 +1947,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 ];
 
                 return order.map(([key, shortLabel]) => {
-                    const field = fields[key] || {};
-                    const label = String(field.label || key || '').trim();
+                    // Legacy list-media rows used `release` for the R badge.
+                    const field = fields[key] || (key === 'campaign' ? (fields.release || {}) : {});
+                    const label = String(field.label || (key === 'campaign' ? 'Campaign' : key) || '').trim();
                     const state = String(field.state || 'unknown').toLowerCase();
+                    const fromSavedMaster = source === 'audio_master_detail' || source === 'asset-registry';
                     const statusClass = state === 'good'
                         ? 'status-ok'
                         : state === 'required'
@@ -1958,12 +1960,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? 'status-warning'
                                 : 'status-neutral';
                     const stateLabel = state === 'good'
-                        ? (source === 'audio_master_detail' ? 'ready in saved master metadata' : 'good in the latest build check')
+                        ? (fromSavedMaster ? 'ready in saved master metadata' : 'good in the latest build check')
                         : state === 'required'
-                            ? (source === 'audio_master_detail' ? 'missing required data in saved master metadata' : 'missing required data in the latest build check')
+                            ? (fromSavedMaster ? 'missing required data in saved master metadata' : 'missing required data in the latest build check')
                             : state === 'improvable'
-                                ? (source === 'audio_master_detail' ? 'could be improved in saved master metadata' : 'could be improved in the latest build check')
-                                : (source === 'audio_master_detail' ? 'not checked in saved master metadata' : 'not checked in the latest build');
+                                ? (fromSavedMaster ? 'could be improved in saved master metadata' : 'could be improved in the latest build check')
+                                : (fromSavedMaster ? 'not checked in saved master metadata' : 'not checked in the latest build');
                     const title = `${label}: ${stateLabel}`;
                     return `<span class="badge audit-status-badge ${statusClass} media-file-badge media-file-field-badge" title="${bandpromoAdminEscapeHtml(title)}" aria-label="${bandpromoAdminEscapeHtml(title)}">${bandpromoAdminEscapeHtml(shortLabel)}</span>`;
                 }).join(' ');

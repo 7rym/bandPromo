@@ -295,7 +295,7 @@ function bandpromo_admin_build_post_setup_suggestions(string $root): array
     if (!bandpromo_admin_install_has_operator_brand($root)) {
         $suggestions[] = [
             'label' => 'Duplicate the demo brand',
-            'href' => '?tab=content&cntab=themes',
+            'href' => '?tab=content&cntab=branding',
             'severity' => 'nonblocking',
             'description' => 'Base brand is still the locked bandPromo Default. Duplicate it in Content → Branding when you want an editable shell of your own.',
         ];
@@ -304,7 +304,7 @@ function bandpromo_admin_build_post_setup_suggestions(string $root): array
     if (!bandpromo_demo_catalog_install_has_operator_content($root)) {
         $suggestions[] = [
             'label' => 'Add your own catalogue',
-            'href' => '?tab=content&cntab=release',
+            'href' => '?tab=content&cntab=campaign',
             'severity' => 'nonblocking',
             'description' => 'Create a campaign with at least one track and a playlist that plays it when you are ready to move beyond the demo catalogue.',
         ];
