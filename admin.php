@@ -2659,6 +2659,12 @@ if ($tab === 'analytics') {
                 </div>
                 <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
                 <ul id="contentAutofixReport" class="welcome-list" hidden></ul>
+                <details id="catalog-repair-log-card" class="card deliverables-log-card" style="margin-top:0.75rem">
+                    <summary class="deliverables-log-summary">
+                        <span>Repair log</span>
+                    </summary>
+                    <pre id="contentAutofixLog" class="build-log">No repair log yet.</pre>
+                </details>
             </div>
             <?php endif; ?>
 

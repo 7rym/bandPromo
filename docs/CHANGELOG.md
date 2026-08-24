@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-24 16:10 - Repair catalogue writes a live log to `log/catalog-repair.log` (step start/finish, errors, PHP timeout/abort). Developer Repair log panel polls it during Preview/Apply so host timeouts show the last step instead of a blank failure.
+
+2026-08-24 16:00 - Repair catalogue Apply no longer remuxes every visual master to write tags (that killed shared-host requests after Preview listed dozens of heals). Apply invents missing title/date in the registry in PHP; video tag write stays on single-asset save. Timeout errors keep the last Preview list instead of a blank “Catalogue repair failed”.
+
 2026-08-24 12:15 - Repair catalogue Preview is honest: playlist links compare campaign_id (not stripped release_id), visual prepare no longer nags about missing originals when masters exist, ghost campaign tracks are dropped on Apply, orphan delivery deletes only count when the folder is actually gone, and every zero-change step shows “already up to date”. Status copy no longer warns that a healthy install can stay dirty.
 
 2026-08-24 11:50 - Content autofix visual heal invents missing title (from original filename) and captured_at (from master mtime) when embeds are empty, writes them into registry display and master tags, and Preview no longer treats empty description alone as a change. Dual-write config Preview only counts a change when web-config actually drifts.

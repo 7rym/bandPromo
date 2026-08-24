@@ -21,6 +21,146 @@ function bandpromo_content_autofix_step_result(string $id, string $label, array 
     ], $details);
 }
 
+function bandpromo_content_autofix_log_path(string $root): string
+{
+    return rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'log' . DIRECTORY_SEPARATOR . 'catalog-repair.log';
+}
+
+/**
+ * @return array{running:bool,mode:string,source:string,step:string,started_unix:float}
+ */
+function &bandpromo_content_autofix_log_state(): array
+{
+    static $state = [
+        'running' => false,
+        'mode' => '',
+        'source' => '',
+        'step' => '',
+        'started_unix' => 0.0,
+    ];
+
+    return $state;
+}
+
+function bandpromo_content_autofix_log_write(string $root, string $line): void
+{
+    $dir = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'log';
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        return;
+    }
+    $stamp = gmdate('H:i:s');
+    @file_put_contents(
+        bandpromo_content_autofix_log_path($root),
+        $stamp . ' ' . rtrim($line) . "\n",
+        FILE_APPEND | LOCK_EX
+    );
+}
+
+function bandpromo_content_autofix_log_begin(string $root, bool $dryRun, string $source = 'manual'): void
+{
+    $state = &bandpromo_content_autofix_log_state();
+    $state['running'] = true;
+    $state['mode'] = $dryRun ? 'preview' : 'apply';
+    $state['source'] = $source !== '' ? $source : 'manual';
+    $state['step'] = 'start';
+    $state['started_unix'] = microtime(true);
+
+    $path = bandpromo_content_autofix_log_path($root);
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        return;
+    }
+    @file_put_contents($path, '');
+
+    $maxTime = (string) ini_get('max_execution_time');
+    $memory = (string) ini_get('memory_limit');
+    bandpromo_content_autofix_log_write($root, '==== Repair catalogue — ' . ($dryRun ? 'Preview' : 'Apply') . ' ====');
+    bandpromo_content_autofix_log_write($root, 'Started: ' . gmdate('Y-m-d H:i:s') . ' UTC');
+    bandpromo_content_autofix_log_write($root, 'Source: ' . $state['source']);
+    bandpromo_content_autofix_log_write($root, 'PHP max_execution_time: ' . ($maxTime !== '' ? $maxTime : 'unknown'));
+    bandpromo_content_autofix_log_write($root, 'PHP memory_limit: ' . ($memory !== '' ? $memory : 'unknown'));
+
+    register_shutdown_function(static function () use ($root): void {
+        $state = &bandpromo_content_autofix_log_state();
+        if (empty($state['running'])) {
+            return;
+        }
+        $last = error_get_last();
+        $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+        if (is_array($last) && in_array((int) ($last['type'] ?? 0), $fatalTypes, true)) {
+            $msg = trim((string) ($last['message'] ?? 'fatal error'));
+            $file = basename((string) ($last['file'] ?? ''));
+            $line = (int) ($last['line'] ?? 0);
+            bandpromo_content_autofix_log_write(
+                $root,
+                '!!!! aborted during ' . ($state['step'] ?: 'unknown')
+                . ' — ' . $msg
+                . ($file !== '' ? ' (' . $file . ':' . $line . ')' : '')
+            );
+        } else {
+            bandpromo_content_autofix_log_write(
+                $root,
+                '!!!! request ended during ' . ($state['step'] ?: 'unknown')
+                . ' (no PHP fatal recorded — often a host timeout or killed process)'
+            );
+        }
+        $state['running'] = false;
+    });
+}
+
+function bandpromo_content_autofix_log_step_start(string $root, string $id, string $label): void
+{
+    $state = &bandpromo_content_autofix_log_state();
+    $state['step'] = $id;
+    bandpromo_content_autofix_log_write($root, '> start ' . $id . ' — ' . $label);
+}
+
+function bandpromo_content_autofix_log_step_finish(string $root, array $step, float $elapsedMs): void
+{
+    $id = (string) ($step['id'] ?? 'step');
+    $changed = (int) ($step['changed'] ?? 0);
+    $skipped = (int) ($step['skipped'] ?? 0);
+    $errorCount = count($step['errors'] ?? []);
+    $itemCount = count($step['items'] ?? []);
+    bandpromo_content_autofix_log_write(
+        $root,
+        '< done ' . $id
+        . ' changed=' . $changed
+        . ' skipped=' . $skipped
+        . ' errors=' . $errorCount
+        . ' items=' . $itemCount
+        . ' ' . (int) round($elapsedMs) . 'ms'
+    );
+    if (!empty($step['errors']) && is_array($step['errors'])) {
+        foreach (array_slice($step['errors'], 0, 8) as $error) {
+            bandpromo_content_autofix_log_write($root, '  ERROR ' . $id . ': ' . (string) $error);
+        }
+    }
+}
+
+function bandpromo_content_autofix_log_finish(string $root, array $report): void
+{
+    $state = &bandpromo_content_autofix_log_state();
+    $elapsed = '';
+    if (!empty($state['started_unix'])) {
+        $elapsed = ' elapsed=' . number_format(microtime(true) - (float) $state['started_unix'], 2) . 's';
+    }
+    $changed = (int) ($report['changed_total'] ?? 0);
+    $errorCount = count($report['errors'] ?? []);
+    $ok = !empty($report['ok']) && $errorCount === 0;
+    bandpromo_content_autofix_log_write(
+        $root,
+        '==== finished '
+        . ($ok ? 'ok' : 'with errors')
+        . ' changed_total=' . $changed
+        . ' errors=' . $errorCount
+        . $elapsed
+        . ' ===='
+    );
+    $state['running'] = false;
+    $state['step'] = '';
+}
+
 /**
  * One-shot original→master repair for operator Content autofix / Publish recovery.
  * Do not wire new runtime original-directory scans into hot paths (list/play/login).
@@ -937,15 +1077,14 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
 }
 
 /**
- * Heal empty visual display from embeds, inventing title/captured_at when needed and writing tags.
+ * Heal empty visual display by inventing title/captured_at in the registry.
+ * Bulk Apply does not remux video masters (that timed out shared-host requests).
  */
 function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRun): array
 {
-    require_once __DIR__ . '/light-build-tasks.php';
-
     $step = bandpromo_content_autofix_step_result(
         'visual_display_heal',
-        'Heal empty visual display (embeds, then invent title/date and write master tags)'
+        'Heal empty visual display (invent title/date in the registry)'
     );
 
     if ($dryRun) {
@@ -972,18 +1111,14 @@ function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRu
         return $step;
     }
 
-    $result = bandpromo_run_light_json_task('scripts/visualMasterMetadata.py', [
-        'action' => 'heal_empty',
-    ]);
-    $data = is_array($result['data'] ?? null) ? $result['data'] : [];
-    if (empty($result['ok']) || empty($data['ok'])) {
-        $step['errors'][] = (string) ($data['error'] ?? $result['error'] ?? 'Visual display heal failed');
+    require_once __DIR__ . '/visual-master-helpers.php';
 
-        return $step;
+    $healed = bandpromo_visual_invent_empty_registry_displays($root);
+    $step['changed'] = count($healed);
+    $step['items'] = $healed;
+    if ($healed === []) {
+        $step['skipped'] = 1;
     }
-
-    $step['changed'] = (int) ($data['count'] ?? 0);
-    $step['items'] = is_array($data['healed'] ?? null) ? $data['healed'] : [];
 
     return $step;
 }
@@ -1053,13 +1188,16 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
     return $step;
 }
 
-function bandpromo_content_autofix_run(string $root, bool $dryRun = false): array
+function bandpromo_content_autofix_run(string $root, bool $dryRun = false, string $source = 'manual'): array
 {
     $steps = [];
     $errors = [];
     $changedTotal = 0;
+    bandpromo_content_autofix_log_begin($root, $dryRun, $source);
 
     try {
+        bandpromo_content_autofix_log_step_start($root, 'seed_containers', 'Seed platform containers');
+        $seedStarted = microtime(true);
         bandpromo_asset_registry_ensure_migrated($root, true);
         bandpromo_campaign_ensure_seeded($root);
         bandpromo_playlist_ensure_seeded($root);
@@ -1093,13 +1231,19 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
                 }
             }
         }
-        $steps[] = bandpromo_content_autofix_step_result('seed_containers', 'Seed platform containers', [
+        $seedStep = bandpromo_content_autofix_step_result('seed_containers', 'Seed platform containers', [
             'changed' => 0,
             'skipped' => 1,
             'items' => ['assets', 'releases', 'playlists', 'galleries', 'themes', 'pages'],
         ]);
+        $steps[] = $seedStep;
+        bandpromo_content_autofix_log_step_finish($root, $seedStep, (microtime(true) - $seedStarted) * 1000);
+        if (isset($reconcile) && !empty($reconcile['failed'])) {
+            bandpromo_content_autofix_log_write($root, '  auto_register failures=' . count($reconcile['failed']));
+        }
     } catch (Throwable $throwable) {
         $errors[] = $throwable->getMessage();
+        bandpromo_content_autofix_log_write($root, '  ERROR seed_containers: ' . $throwable->getMessage());
     }
 
     $pipeline = [
@@ -1122,6 +1266,9 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
     ];
 
     foreach ($pipeline as $callable) {
+        $stepId = (string) preg_replace('/^bandpromo_content_autofix_/', '', $callable);
+        bandpromo_content_autofix_log_step_start($root, $stepId, $callable);
+        $started = microtime(true);
         try {
             $step = $callable($root, $dryRun);
             $steps[] = $step;
@@ -1131,8 +1278,10 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
                     $errors[] = (string) $error;
                 }
             }
+            bandpromo_content_autofix_log_step_finish($root, $step, (microtime(true) - $started) * 1000);
         } catch (Throwable $throwable) {
             $errors[] = $throwable->getMessage();
+            bandpromo_content_autofix_log_write($root, '  ERROR ' . $stepId . ': ' . $throwable->getMessage());
         }
     }
 
@@ -1141,7 +1290,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
         bandpromo_mark_build_required('content_autofix');
     }
 
-    return [
+    $report = [
         'ok' => true,
         'dry_run' => $dryRun,
         'changed_total' => $changedTotal,
@@ -1157,4 +1306,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false): arra
                 ? 'Catalogue repair finished. Preview again to confirm everything is up to date. bandPromo will refresh delivery files automatically when needed.'
                 : 'Catalogue already matches the current registry and container links.'),
     ];
+    bandpromo_content_autofix_log_finish($root, $report);
+
+    return $report;
 }

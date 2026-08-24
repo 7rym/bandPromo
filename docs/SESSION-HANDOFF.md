@@ -2,16 +2,14 @@
 
 ## Resume point
 
-Local (not yet checkpointed): Repair catalogue Preview honesty + invent visual tags.
+Local (not yet checkpointed):
 
-Verified locally:
+1. Repair catalogue Apply invents visual title/date in PHP (no bulk remux) — fixes HITZ timeout from build 435.
+2. Repair catalogue live log (`log/catalog-repair.log` + Repair log panel) — step trail survives host timeouts.
 
-1. Repair catalogue Preview **TOTAL=0** after Apply.
-2. **Site status** independently recounts clean: 24/24 stream-ready, 3 campaigns, no checks, `build_required` false → **All clear** is justified (not the same false-positive class as Repair catalogue was).
+After publish: Site update HITZ, open Repair log, Preview/Apply once.
 
-Last published: **v0.8.35 build 434**.
-
-Next: checkpoint when ready; Site update HITZ / Spandexual for demo hide + autofix honesty.
+Last published: **v0.8.35 build 435**.
 
 ## Plan document
 

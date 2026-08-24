@@ -604,6 +604,94 @@ function bandpromo_visual_ensure_tiers_for_asset(string $root, string $assetId):
 }
 
 /**
+ * Invent a human title from the original filename stem (not ast_{ULID}).
+ */
+function bandpromo_visual_invent_title_from_asset(array $asset): string
+{
+    foreach (['original_filename', 'master_filename'] as $field) {
+        $raw = basename(trim((string) ($asset[$field] ?? '')));
+        if ($raw === '') {
+            continue;
+        }
+        $stem = pathinfo($raw, PATHINFO_FILENAME);
+        $stem = is_string($stem) ? trim($stem) : '';
+        if ($stem === '' || bandpromo_asset_is_asset_id($stem)) {
+            continue;
+        }
+        $cleaned = trim((string) preg_replace('/[_\-]+/', ' ', $stem));
+        if ($cleaned !== '') {
+            return $cleaned;
+        }
+    }
+
+    return strtolower(trim((string) ($asset['media_type'] ?? ''))) === 'video'
+        ? 'Untitled video'
+        : 'Untitled image';
+}
+
+function bandpromo_visual_invent_captured_at_from_path(string $path): string
+{
+    if ($path === '' || !is_file($path)) {
+        return '';
+    }
+    $mtime = @filemtime($path);
+    if ($mtime === false || $mtime < 1) {
+        return '';
+    }
+
+    return gmdate('Y-m-d', $mtime);
+}
+
+/**
+ * Fill empty registry title/captured_at without touching master bytes.
+ * Bulk Apply uses this so shared-host PHP does not remux every video via ffmpeg.
+ *
+ * @return list<string> Healed asset ids
+ */
+function bandpromo_visual_invent_empty_registry_displays(string $root): array
+{
+    $registry = bandpromo_asset_load_registry($root);
+    $assets = is_array($registry['assets'] ?? null) ? $registry['assets'] : [];
+    $healed = [];
+    $now = gmdate('Y-m-d\TH:i:s\Z');
+
+    foreach ($assets as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $display = bandpromo_asset_read_visual_display($asset);
+        $changed = false;
+        if ($display['title'] === '') {
+            $display['title'] = bandpromo_visual_invent_title_from_asset($asset);
+            $changed = true;
+        }
+        if ($display['captured_at'] === '') {
+            $path = bandpromo_visual_working_path($root, $asset);
+            $invented = bandpromo_visual_invent_captured_at_from_path($path);
+            if ($invented !== '') {
+                $display['captured_at'] = $invented;
+                $changed = true;
+            }
+        }
+        if (!$changed) {
+            continue;
+        }
+        $display['synced_at'] = $now;
+        $assets[$assetId]['display'] = $display;
+        $healed[] = (string) $assetId;
+    }
+
+    if ($healed === []) {
+        return [];
+    }
+
+    $registry['assets'] = $assets;
+    bandpromo_asset_write_registry($root, $registry);
+
+    return $healed;
+}
+
+/**
  * Best-effort: fill empty display fields from the visual master embeds for one asset.
  */
 function bandpromo_visual_heal_empty_display_for_asset(string $root, string $assetId): void

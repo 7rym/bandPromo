@@ -87,7 +87,7 @@ function bandpromo_catalog_repair_should_run(string $root, array $reconcileResul
         return false;
     }
 
-    $preview = bandpromo_content_autofix_run($root, true);
+    $preview = bandpromo_content_autofix_run($root, true, 'background-preview');
     bandpromo_catalog_repair_save_state($root, array_merge($state, [
         'last_preview_at' => time(),
         'last_preview_changed_total' => (int) ($preview['changed_total'] ?? 0),
@@ -124,7 +124,7 @@ function bandpromo_catalog_repair_maybe_run(string $root, array $reconcileResult
     @file_put_contents($lockPath, (string) time());
 
     try {
-        $report = bandpromo_content_autofix_run($root, false);
+        $report = bandpromo_content_autofix_run($root, false, 'background');
         $changedTotal = (int) ($report['changed_total'] ?? 0);
         $errors = is_array($report['errors'] ?? null) ? $report['errors'] : [];
 

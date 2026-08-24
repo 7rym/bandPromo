@@ -643,19 +643,29 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
             continue
         media_type = str(asset.get('media_type') or '').strip().lower()
         ext = path.suffix.lower()
-        dim_w, dim_h = read_master_pixel_size(path, media_type)
         recorded_w = int(asset.get('master_width') or 0)
         recorded_h = int(asset.get('master_height') or 0)
+        if (
+            current.get('title')
+            and current.get('captured_at')
+            and recorded_w > 0
+            and recorded_h > 0
+        ):
+            continue
+        dim_w, dim_h = (0, 0)
+        if recorded_w < 1 or recorded_h < 1:
+            dim_w, dim_h = read_master_pixel_size(path, media_type)
         dims_changed = dim_w > 0 and dim_h > 0 and (recorded_w != dim_w or recorded_h != dim_h)
-        try:
-            if media_type == 'video' or ext in VIDEO_EXTS:
-                embedded = read_video_display(path)
-            elif ext in STILL_EXTS:
-                embedded = read_still_display(path)
-            else:
+        embedded = normalize_display({})
+        needs_embed = (not current.get('title')) or (not current.get('captured_at'))
+        if needs_embed:
+            try:
+                if media_type == 'video' or ext in VIDEO_EXTS:
+                    embedded = read_video_display(path)
+                elif ext in STILL_EXTS:
+                    embedded = read_still_display(path)
+            except Exception:
                 embedded = normalize_display({})
-        except Exception:
-            embedded = normalize_display({})
         merged = dict(current)
         display_changed = False
         for key in ('title', 'description', 'captured_at'):
@@ -682,16 +692,20 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
             merged['synced_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
             assets[asset_id]['display'] = merged
             healed.append(asset_id)
-            # Persist invented/healed fields into master tags when the format supports it.
-            try:
-                if media_type == 'video' or ext in VIDEO_EXTS:
-                    write_video_display(path, merged)
-                    written.append(asset_id)
-                elif ext in STILL_EXTS:
-                    write_still_display(path, merged)
-                    written.append(asset_id)
-            except Exception:
-                pass
+            # Single-asset heal may write tags. Bulk heal never remuxes video (ffmpeg
+            # copy of every master blows shared-host PHP request limits).
+            write_tags = bool(limit_id) or ext in STILL_EXTS
+            if write_tags:
+                try:
+                    if media_type == 'video' or ext in VIDEO_EXTS:
+                        if limit_id:
+                            write_video_display(path, merged)
+                            written.append(asset_id)
+                    elif ext in STILL_EXTS:
+                        write_still_display(path, merged)
+                        written.append(asset_id)
+                except Exception:
+                    pass
         if dims_changed:
             assets[asset_id]['master_width'] = dim_w
             assets[asset_id]['master_height'] = dim_h

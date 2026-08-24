@@ -23,6 +23,11 @@ if (!is_array($body)) {
 $dryRun = !empty($body['dry_run']);
 $root = dirname(__DIR__);
 
+if (!$dryRun) {
+    @set_time_limit(120);
+    ignore_user_abort(true);
+}
+
 try {
     $report = bandpromo_content_autofix_run($root, $dryRun);
 
@@ -39,6 +44,9 @@ try {
 
     echo json_encode($report, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
+    bandpromo_content_autofix_log_write($root, '!!!! exception: ' . $throwable->getMessage());
+    $state = &bandpromo_content_autofix_log_state();
+    $state['running'] = false;
     http_response_code(500);
     echo json_encode([
         'ok' => false,

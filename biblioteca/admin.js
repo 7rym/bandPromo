@@ -11832,11 +11832,63 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const reportEl = document.getElementById('contentAutofixReport');
                 const previewBtn = document.getElementById('contentAutofixPreviewBtn');
                 const applyBtn = document.getElementById('contentAutofixApplyBtn');
+                const logEl = document.getElementById('contentAutofixLog');
+                const logCard = document.getElementById('catalog-repair-log-card');
                 if (!statusEl || !previewBtn || !applyBtn) {
                     return;
                 }
 
                 let latestPreview = null;
+                let logPollTimer = null;
+
+                function renderAutofixLog(content) {
+                    if (!logEl) {
+                        return;
+                    }
+                    const text = String(content || '').trim();
+                    logEl.textContent = text !== '' ? text : 'No repair log yet.';
+                    logEl.scrollTop = logEl.scrollHeight;
+                }
+
+                async function refreshAutofixLog() {
+                    if (!logEl) {
+                        return null;
+                    }
+                    try {
+                        const resp = await fetch('/biblioteca/get-catalog-repair-log.php', {
+                            credentials: 'same-origin',
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || data.error) {
+                            return null;
+                        }
+                        renderAutofixLog(data.content || '');
+                        return data;
+                    } catch (error) {
+                        return null;
+                    }
+                }
+
+                function stopAutofixLogPoll() {
+                    if (logPollTimer) {
+                        clearInterval(logPollTimer);
+                        logPollTimer = null;
+                    }
+                }
+
+                function startAutofixLogPoll() {
+                    if (!logEl) {
+                        return;
+                    }
+                    stopAutofixLogPoll();
+                    if (logCard) {
+                        logCard.open = true;
+                    }
+                    refreshAutofixLog();
+                    logPollTimer = setInterval(() => {
+                        refreshAutofixLog();
+                    }, 800);
+                }
 
                 function renderAutofixReport(report) {
                     if (!reportEl) {
@@ -11871,6 +11923,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (reportEl) {
                         reportEl.hidden = true;
                     }
+                    startAutofixLogPoll();
                     try {
                         const resp = await fetch('/biblioteca/content-autofix.php', {
                             method: 'POST',
@@ -11890,8 +11943,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await refreshBuildRequiredState({ full: true });
                         }
                     } catch (error) {
-                        statusEl.textContent = error.message || 'Catalogue repair failed';
+                        const raw = String(error && error.message ? error.message : '');
+                        const timedOut = raw === '' || /failed to fetch|networkerror|unexpected end of json/i.test(raw);
+                        statusEl.textContent = timedOut
+                            ? 'The host stopped the repair before it finished. Open the Repair log to see the last step, then Preview again.'
+                            : (raw || 'Catalogue repair failed');
+                        if (reportEl && latestPreview) {
+                            renderAutofixReport(latestPreview);
+                        }
+                        if (logCard) {
+                            logCard.open = true;
+                        }
                     } finally {
+                        stopAutofixLogPoll();
+                        await refreshAutofixLog();
                         previewBtn.disabled = false;
                         applyBtn.disabled = false;
                     }
@@ -11904,6 +11969,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     runContentAutofix(false);
                 });
+                refreshAutofixLog();
             })();
 
             (function initPackageUpdater() {
