@@ -47,36 +47,39 @@ Containers reference assets; assets point at files. Operators edit containers an
 | **Shell** | Site must never break | Player chrome (Playlist + Lyrics + release page tabs), login, install fallbacks (`bandPromo_logo.png`, etc.) |
 | **Starter campaign** | First-run "it works" | `bandPromo-demo.pcf` imported at setup → normal release + owned containers/assets |
 
-Operators inherit the starter campaign, may **hide** it ("Hide demo catalogue") or **duplicate** it as a template, and replace it with their own containers. That is different from authoring the platform demo.
+Operators inherit the starter campaign, may **hide** it ("Hide bandPromo demo campaign") or **duplicate** it as a template, and replace it with their own containers. That is different from authoring the platform demo.
 
-### Demo release policy (install preference)
+### Demo campaign policy (install preference)
 
-The **first PCF imported at setup** becomes this install’s protected fallback release. Operators may still label it “bandPromo demo”; policy keys off the **internal release id** (PCF keeps `bandpromo-demo`).
+The **first PCF imported at setup** becomes this install’s protected fallback campaign. Operators may still label it “bandPromo demo”; policy keys off the **internal campaign id** (PCF keeps `bandpromo-demo`; prefs also accept legacy `demo_release_id`).
 
 | Preference | Storage | Meaning |
 |------------|---------|---------|
-| `demo_release_id` | `data/install-preferences.json` | Protected demo release id (from first PCF import; derived from installed `platform_demo` / `bandpromo-demo` on upgrade if missing) |
-| `demo_release_hidden` | same file | Operator hide toggle (`true` = hidden). Legacy `demo_catalog_visible` is the inverse, kept for API/UI compat |
+| `demo_campaign_id` / `demo_release_id` | `data/install-preferences.json` | Protected demo campaign id (from first PCF import; derived from installed `platform_demo` / `bandpromo-demo` on upgrade if missing) |
+| `demo_release_hidden` | same file | Operator hide toggle (`true` = hidden). Settings checkbox is **Hide bandPromo demo campaign**. Legacy `demo_catalog_visible` is the inverse, kept for API compat |
 
-**Lock:** the demo release stays locked for operators. **Localhost only** may unlock, edit, and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
+**Lock:** the demo campaign stays locked for operators. **Localhost only** may unlock, edit, and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
 
-**Hide:** operators may hide **only** that demo release’s **campaign** content (owned playlists / pages / galleries and their associated Audio/Visual pool media, including files that also sit in the demo Brand library). Hide is offered only after the install has **operator catalogue**: an operator-created release that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **blocked** if any demo-owned campaign asset is still referenced by a **non-demo** container/release — the API returns structured `hide_blockers` (what/where). Do not silently keep shared assets while hiding, and do not hide shared assets without that warning. Files → Visual omits those campaign files; Brand shell slots (logo / poster / still / living) stay in the Visual warehouse and list the Brand rather than the hidden campaign. Files → Brand assets / Sound effects stay listable (the shell library you duplicate). If the operator later deletes that catalogue so the gate no longer passes, **show the demo catalogue again** (`demo_release_hidden=false`).
+**Hide (unused-only):** operators may hide that demo campaign’s containers (playlists / pages / galleries) and **unused** workspace media. Hide is offered only after the install has **operator catalogue**: an operator-created campaign that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **always allowed** once that gate passes — shared use no longer refuses the preference. Instead:
 
-**Brand shell out of hide scope:** Files → Brand assets and Sound effects stay listable even when the demo campaign is hidden (operators duplicate brand; branding is secondary). There is no per-file soft-hide of demo shell media — hide is release-level only.
+- Demo Audio/Visual still referenced by a **non-demo** container stay **visible** in Files and pickers (`kept_visible` inventory / soft warning).
+- Unused demo campaign media (including demo Brand library members) are omitted from Files → Audio / Visual and pickers.
+- Demo Brand shell (Brand assets / Sound effects, logo / poster / still / living slots) stay visible while **any** Brand still references them, and hide when that is no longer true. Operator-uploaded brand media is untouched.
+- If the operator later deletes that catalogue so the gate no longer passes, **show the demo campaign again** (`demo_release_hidden=false`).
 
-**Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses release ownership + the prefs above.
+**Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses campaign ownership + the prefs above.
 
-**Upgrade safety:** if prefs are missing, derive `demo_release_id` from the installed platform demo release, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the Demo PCF is present. After **Site update**, when the published Demo PCF SHA differs from the install marker, the locked platform demo is refreshed (overwrite); hide preference is preserved; unlocked localhost authoring skips the refresh.
+**Upgrade safety:** if prefs are missing, derive `demo_campaign_id` from the installed platform demo campaign, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the Demo PCF is present. After **Site update**, when the published Demo PCF SHA differs from the install marker, the locked platform demo is refreshed (overwrite); hide preference is preserved; unlocked localhost authoring skips the refresh.
 
-**Rule — no special demo content handling:** Once the release owns containers and assets, demo media/containers are not a second content system. Do not add heal/force/`bandPromo_*` → demo-release forks, parallel seed packs, or association exceptions “because demo.” Legitimate demo surfaces only: setup PCF import, lock (operators) / localhost unlock + export, hide, duplicate. `/media` is git-ignored; masters travel in PCF / campaign files.
+**Rule — no special demo content handling:** Once the campaign owns containers and assets, demo media/containers are not a second content system. Do not add heal/force/`bandPromo_*` → demo-campaign forks, parallel seed packs, or association exceptions “because demo.” Legitimate demo surfaces only: setup PCF import, lock (operators) / localhost unlock + export, hide, duplicate. `/media` is git-ignored; masters travel in PCF / campaign files.
 
 ### Inside operator ownership: default slot vs real catalogue
 
 | Slot | Id today | What it is |
 |------|----------|------------|
-| **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real release. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
-| **Operator catalogue** | Any id they create (or import via PCF) | Real releases, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
-| **Platform demo** | `bandpromo-demo` (persisted as `demo_release_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to campaign containers + owned media only; brand shell stays visible. Hide blocked while non-demo containers still reference demo campaign assets. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
+| **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real campaign. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
+| **Operator catalogue** | Any id they create (or import via PCF) | Real campaigns, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
+| **Platform demo** | `bandpromo-demo` (persisted as `demo_campaign_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to demo containers + unused demo workspace media; in-use demo media and brand-referenced shell stay visible. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
 
 ### Asset provenance (orthogonal to actor)
 
@@ -147,7 +150,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Shell media under Files → Brand assets / Sound effects stays listable while brands reference it (not folded into Hide demo catalogue). |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo shell media under Files → Brand assets / Sound effects stays listable while any Brand references it; unused demo shell hides with **Hide bandPromo demo campaign**. |
 
 Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 

@@ -72,7 +72,6 @@ function bandpromo_default_audio_metadata_health(): array {
             'cover' => ['label' => 'Cover', 'state' => 'unknown'],
             'artist' => ['label' => 'Artist', 'state' => 'unknown'],
             'title' => ['label' => 'Title', 'state' => 'unknown'],
-            'campaign' => ['label' => 'Campaign', 'state' => 'unknown'],
             'description' => ['label' => 'Description', 'state' => 'unknown'],
             'lyrics' => ['label' => 'Lyrics', 'state' => 'unknown'],
         ],
@@ -123,7 +122,6 @@ function bandpromo_load_audio_validation_map(string $root): array {
                 'cover' => ['label' => 'Cover', 'state' => isset($warning_set['missing_cover_art']) ? 'required' : 'good'],
                 'artist' => ['label' => 'Artist', 'state' => isset($warning_set['missing_artist_tag']) ? 'required' : 'good'],
                 'title' => ['label' => 'Title', 'state' => isset($warning_set['missing_title_tag']) ? 'required' : 'good'],
-                'campaign' => ['label' => 'Campaign', 'state' => isset($warning_set['missing_album_tag']) ? 'improvable' : 'good'],
                 'description' => ['label' => 'Description', 'state' => $has_description ? 'good' : 'improvable'],
                 'lyrics' => ['label' => (
                     bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')) === 'notes'
@@ -153,11 +151,9 @@ function bandpromo_audio_metadata_health_for_listing(
 
     // Files → Audio badges follow registry display (MEDIA-HANDLING), not a stale
     // playlist-validation scan that can lag behind the track editor.
+    // Campaign membership is the Campaign column — not a C/A/T/D/L health chip.
     $label = bandpromo_audio_display_label_for_listing($root, $filename, $validation_map, $listingContext);
     $display = bandpromo_asset_read_audio_display($masterLookup);
-    $hasCampaign = trim((string) ($label['release_id'] ?? '')) !== ''
-        || trim((string) ($label['release_title'] ?? '')) !== ''
-        || !empty($label['on_release']);
 
     return [
         'inspected' => true,
@@ -167,7 +163,6 @@ function bandpromo_audio_metadata_health_for_listing(
             'cover' => ['label' => 'Cover', 'state' => trim((string) ($display['cover'] ?? '')) !== '' ? 'good' : 'required'],
             'artist' => ['label' => 'Artist', 'state' => $display['artist'] !== '' ? 'good' : 'required'],
             'title' => ['label' => 'Title', 'state' => $display['title'] !== '' ? 'good' : 'required'],
-            'campaign' => ['label' => 'Campaign', 'state' => $hasCampaign ? 'good' : 'improvable'],
             'description' => ['label' => 'Description', 'state' => $display['comment'] !== '' ? 'good' : 'improvable'],
             'lyrics' => ['label' => (
                 bandpromo_asset_normalize_text_role((string) ($display['text_role'] ?? 'lyrics')) === 'notes'
@@ -676,7 +671,7 @@ if ($target === 'special') {
 }
 
 foreach ($allFiles as $entry) {
-    if (!empty($entry['hidden']) && !$includeHidden && !$isBrandOwnedPool) {
+    if (!empty($entry['hidden']) && !$includeHidden) {
         continue;
     }
 

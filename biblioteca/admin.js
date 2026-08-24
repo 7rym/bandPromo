@@ -1937,19 +1937,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const health = file.audio_metadata_health || {};
                 const fields = health.fields || {};
                 const source = String(health.source || 'latest_build_validation').toLowerCase();
+                // Campaign/Release membership is the Campaign column — not a health chip.
                 const order = [
                     ['cover', 'C'],
                     ['artist', 'A'],
                     ['title', 'T'],
-                    ['campaign', 'R'],
                     ['description', 'D'],
                     ['lyrics', 'L'],
                 ];
 
                 return order.map(([key, shortLabel]) => {
-                    // Legacy list-media rows used `release` for the R badge.
-                    const field = fields[key] || (key === 'campaign' ? (fields.release || {}) : {});
-                    const label = String(field.label || (key === 'campaign' ? 'Campaign' : key) || '').trim();
+                    const field = fields[key] || {};
+                    const label = String(field.label || key || '').trim();
                     const state = String(field.state || 'unknown').toLowerCase();
                     const fromSavedMaster = source === 'audio_master_detail' || source === 'asset-registry';
                     const statusClass = state === 'good'
@@ -5421,7 +5420,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     syncMediaPickerFilterSelects();
                     // Match Files pools: never re-include per-file soft-hidden rows.
-                    // Demo catalogue visibility is release-level (list-media ownership filter),
+                    // Demo campaign hide is release-level (list-media effective-hide filter).
                     // not a signal to show install-local hidden map entries.
                     const pickerBrand = mediaPickerHasFixedBrandScope()
                         ? mediaPickerState.brandId
@@ -6668,7 +6667,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         cover: { label: 'Cover', state: hasCover ? 'good' : 'required' },
                         artist: { label: 'Artist', state: hasText(detail && detail.artist) ? 'good' : 'required' },
                         title: { label: 'Title', state: hasText(detail && detail.title) ? 'good' : 'required' },
-                        campaign: { label: 'Campaign', state: hasText(audioMasterCampaignDisplayName(detail)) ? 'good' : 'improvable' },
                         track: { label: 'Track', state: hasTrack ? 'good' : (totalTracks > 1 ? 'required' : 'improvable') },
                         description: { label: 'Description', state: hasText(detail && detail.comment) ? 'good' : 'improvable' },
                         lyrics: { label: 'Lyrics', state: hasText(detail && detail.lyrics) ? 'good' : 'improvable' },
@@ -8011,7 +8009,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            async function saveDemoCatalogVisible(visible, statusEl) {
+            async function saveDemoCatalogHidden(hidden, statusEl) {
                 if (statusEl) {
                     statusEl.textContent = 'Saving…';
                     statusEl.style.color = '#aaa';
@@ -8020,31 +8018,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const resp = await fetch('/biblioteca/save-demo-catalog-preference.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ visible: !!visible }),
+                        body: JSON.stringify({ hidden: !!hidden }),
                     });
                     const data = await resp.json();
                     if (data.ok) {
                         if (statusEl) {
-                            statusEl.textContent = visible ? '✅ Demo catalogue shown' : '✅ Demo catalogue hidden';
+                            const warning = String(data.warning || '').trim();
+                            statusEl.textContent = hidden
+                                ? (warning !== '' ? '✅ Demo campaign hidden. ' + warning : '✅ Demo campaign hidden')
+                                : '✅ Demo campaign shown';
                             statusEl.style.color = 'var(--success, #4ade80)';
                         }
                         return true;
                     }
                     if (statusEl) {
-                        let message = data.error || 'Save failed';
-                        const blockers = Array.isArray(data.hide_blockers) ? data.hide_blockers : [];
-                        if (blockers.length > 0) {
-                            const preview = blockers.slice(0, 4).map((item) => {
-                                if (item && item.detail) {
-                                    return String(item.detail);
-                                }
-                                const where = item.label || item.container_id || item.kind || 'your catalogue';
-                                return 'Still used on ' + where + '.';
-                            }).join(' ');
-                            const more = blockers.length > 4 ? ' (+' + (blockers.length - 4) + ' more)' : '';
-                            message += ' ' + preview + more;
-                        }
-                        statusEl.textContent = '❌ ' + message;
+                        statusEl.textContent = '❌ ' + (data.error || 'Save failed');
                         statusEl.style.color = '#f55';
                     }
                     return false;
@@ -8055,6 +8043,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     return false;
                 }
+            }
+
+            // Legacy name kept for any external callers.
+            async function saveDemoCatalogVisible(visible, statusEl) {
+                return saveDemoCatalogHidden(!visible, statusEl);
             }
 
             const cfgOperatorTimeSaveBtn = document.getElementById('cfgOperatorTimeSaveBtn');
@@ -8118,16 +8111,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            const cfgDemoCatalogVisible = document.getElementById('cfgDemoCatalogVisible');
+            const cfgDemoCatalogHidden = document.getElementById('cfgDemoCatalogHidden');
             const cfgDemoCatalogStatus = document.getElementById('cfgDemoCatalogStatus');
-            if (cfgDemoCatalogVisible) {
-                cfgDemoCatalogVisible.addEventListener('change', async () => {
-                    const desired = cfgDemoCatalogVisible.checked;
-                    const saved = await saveDemoCatalogVisible(desired, cfgDemoCatalogStatus);
+            if (cfgDemoCatalogHidden) {
+                cfgDemoCatalogHidden.addEventListener('change', async () => {
+                    const desired = cfgDemoCatalogHidden.checked;
+                    const saved = await saveDemoCatalogHidden(desired, cfgDemoCatalogStatus);
                     if (saved) {
                         window.setTimeout(() => window.location.reload(), 600);
                     } else {
-                        cfgDemoCatalogVisible.checked = !desired;
+                        cfgDemoCatalogHidden.checked = !desired;
                     }
                 });
             }
@@ -8136,7 +8129,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const demoCatalogHideStatus = document.getElementById('demoCatalogHideStatus');
             if (demoCatalogHideBtn) {
                 demoCatalogHideBtn.addEventListener('click', async () => {
-                    const saved = await saveDemoCatalogVisible(false, demoCatalogHideStatus);
+                    const saved = await saveDemoCatalogHidden(true, demoCatalogHideStatus);
                     if (saved) {
                         window.setTimeout(() => window.location.reload(), 600);
                     }

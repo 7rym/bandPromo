@@ -81,6 +81,7 @@ $defaultBrandStatus = bandpromo_admin_get_default_theme_status(__DIR__);
 bandpromo_demo_campaign_ensure_preferences(__DIR__);
 $demoCatalogShouldSuggestHide = bandpromo_demo_catalog_should_suggest_hide(__DIR__);
 $demoCatalogVisible = bandpromo_demo_catalog_is_visible(__DIR__);
+$demoCatalogHidden = !$demoCatalogVisible;
 $demoCampaignId = bandpromo_demo_campaign_id(__DIR__);
 $requestHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
 $requestHostNoPort = preg_replace('/:\\d+$/', '', $requestHost);
@@ -791,12 +792,12 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
-                <h2>🎭 bandPromo demo catalogue</h2>
+                <h2>🎭 bandPromo demo campaign</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalogue, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its unused media from the player, content editors, Files, and pickers. Demo assets still used by your catalogue or by any Brand stay visible. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalogue</button>
+                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo campaign</button>
                     <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
                     <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
@@ -878,12 +879,12 @@ if ($tab === 'analytics') {
 
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
-                <h2>🎭 bandPromo demo catalogue</h2>
+                <h2>🎭 bandPromo demo campaign</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media from the player and content editors. Brand assets and Sound effects stay visible. Demo files stay on disk and continue to build normally. If you later delete that catalogue, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its unused media from the player, content editors, Files, and pickers. Demo assets still used by your catalogue or by any Brand stay visible. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo catalogue</button>
+                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo campaign</button>
                     <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
                     <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
@@ -2340,7 +2341,7 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo catalogue</strong> below to hide or restore the shipped bandPromo demo campaign and its media (Brand assets / Sound effects stay visible).
+                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo campaign</strong> below to hide unused shipped demo media from your workspace (assets still used by your catalogue or any Brand stay visible).
                 <?php elseif ($configTab === 'support'): ?>
                     Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
@@ -2430,13 +2431,13 @@ if ($tab === 'analytics') {
             </div>
 
             <div class="card">
-                <h3>🎭 Demo catalogue</h3>
+                <h3>🎭 Demo campaign</h3>
                 <p class="card-note">
-                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and owned Audio/Visual media are removed from the player, content editors, and media pickers. Brand assets and Sound effects stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
+                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its unused playlists, galleries, pages, and Audio/Visual media leave the player, content editors, Files pools, and pickers. Demo assets still used by your catalogue stay visible. Demo Brand shell assets stay visible while any Brand uses them, and hide when that is no longer true. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
-                    <input type="checkbox" id="cfgDemoCatalogVisible"<?php echo $demoCatalogVisible ? ' checked' : ''; ?>>
-                    <span>Show bandPromo demo catalogue</span>
+                    <input type="checkbox" id="cfgDemoCatalogHidden"<?php echo !empty($demoCatalogHidden) ? ' checked' : ''; ?>>
+                    <span>Hide bandPromo demo campaign</span>
                 </label>
                 <div class="card-actions">
                     <span id="cfgDemoCatalogStatus" class="status-text"></span>
@@ -3375,6 +3376,7 @@ if ($tab === 'analytics') {
         const adminTimeAxisLabel = <?php echo json_encode(bandpromo_admin_time_axis_label()); ?>;
         const adminOperatorTimezone = <?php echo json_encode(bandpromo_admin_timezone()); ?>;
         window.bandpromoDemoCatalogVisible = <?php echo json_encode((bool) $demoCatalogVisible); ?>;
+        window.bandpromoDemoCatalogHidden = <?php echo json_encode((bool) $demoCatalogHidden); ?>;
         window.bandpromoDemoCampaignId = <?php echo json_encode((string) $demoCampaignId); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
         window.BANDPROMO_SITE_SHARING = <?php

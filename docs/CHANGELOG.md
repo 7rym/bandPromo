@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-08-20 14:00 - Track editor tags: Files → Audio health badges (C/A/T/R/D/L) read registry display and Campaign membership again (stale playlist-validation no longer paints false red Artist/Title; R looks up `campaign` not album/`release`). Save writes master tags when on-disk tags lag behind registry so Artist/Title/Version round-trip correctly; save response prefers the submitted artist/title/version.
+2026-08-24 11:30 - Hide bandPromo demo campaign (unused-only): Settings checkbox flipped from Show catalogue to Hide campaign; hide no longer refuses when operator containers still use demo media — those assets stay visible with a soft warning; unused demo Audio/Visual leave Files/pickers; unused demo Brand shell hides when no Brand references it. Files → Brand assets pool respects the same filter.
+
+2026-08-24 11:05 - Remove redundant Files → Audio **R** (Release/Campaign) health chip; campaign membership stays in the Campaign column. Badges are C/A/T/D/L only.
+
+2026-08-20 14:00 - Track editor tags: Files → Audio health badges (C/A/T/D/L) read registry display again (stale playlist-validation no longer paints false red Artist/Title). Save writes master tags when on-disk tags lag behind registry so Artist/Title/Version round-trip correctly; save response prefers the submitted artist/title/version.
 
 2026-08-20 12:20 - Close remaining gaps: playlist ownership treats `primary` as unowned and infers from tracks; player brand falls back to Base not Active; canonical `campaign_id` (migrate-and-drop `release_id`) with `data/campaigns/` storage; orphan Visual delivery GC in Content autofix; `cntab=themes` → branding.
 

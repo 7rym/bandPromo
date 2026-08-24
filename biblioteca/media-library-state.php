@@ -470,21 +470,10 @@ function bandpromo_media_is_effectively_hidden_for_install(string $target, strin
         return true;
     }
 
-    // Brand shell pools stay listable regardless of demo hide (operators duplicate brand).
-    if ($target === 'special' || $target === 'sfx') {
-        return false;
-    }
-
     $root = dirname(__DIR__);
     require_once __DIR__ . '/demo-catalog-state.php';
 
-    if (bandpromo_demo_catalog_is_visible($root)) {
-        return false;
-    }
-
-    // Hide only campaign media owned by the install's protected demo release.
-    // Filename prefixes are display provenance only — not a hide policy.
-    return bandpromo_demo_campaign_owns_media_file($root, $target, $filename);
+    return bandpromo_demo_workspace_media_should_hide($root, $target, $filename);
 }
 
 /**

@@ -749,13 +749,14 @@ The current `bandPromo_*` naming convention may be used as a temporary implement
 
 ### Admin visibility rule
 
-**Campaign demo media** (Audio / Visual pools owned by the install’s protected demo release — see `demo_release_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide demo catalogue**. When the demo release is hidden, those owned campaign files stay out of Files → Visual and pickers, even if they are also members of the demo Brand library. Brand shell slots (logo, poster, still, living) stay in Visual and list the Brand rather than the hidden campaign. Files → Brand assets / Sound effects stay listable — they are the shell library, not the hidden campaign. Filename prefixes such as `bandPromo_*` are **not** the hide gate.
+**Campaign demo media** (Audio / Visual pools owned by the install’s protected demo campaign — see `demo_campaign_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide bandPromo demo campaign**. When the demo campaign is hidden:
 
-**Hide blockers:** if a demo-owned campaign asset is still referenced by a non-demo playlist, gallery, page, or release, hide is refused and the operator is shown what/where.
+- Unused demo campaign files leave Files → Audio / Visual and pickers (including demo Brand library members).
+- Demo assets still referenced by a non-demo playlist, gallery, page, or campaign stay visible (`kept_visible` soft warning on save).
+- Demo Brand shell (Files → Brand assets / Sound effects, and logo / poster / still / living slots) stay visible while **any** Brand references them, and hide when unused. Operator-uploaded brand media is untouched.
+- Filename prefixes such as `bandPromo_*` are **not** the hide gate.
 
-**Brand shell media** (Files → Brand assets / Sound effects: logo, poster, still/living backgrounds, welcome/logged-in SFX) stays visible while brands still reference it. Do not auto-hide those files just because the operator uploaded other Brand assets, and do not fold them into “Hide demo catalogue.” Per-file soft-hide is retired.
-
-**Locked demo delete:** deleting campaign media that belongs to the locked demo release is denied until the demo release is unlocked on localhost.
+**Locked demo delete:** deleting campaign media that belongs to the locked demo campaign is denied until the demo campaign is unlocked on localhost.
 
 Generated social crops (`*_facebook` / `*_twitter`) remain provenance-marked and are not treated as operator uploads.
 
@@ -766,14 +767,14 @@ Deleting media from Admin is a real delete (unlink), subject to:
 - locked demo campaign ownership guards
 - in-use / multi-reference detach requirements
 
-Demo catalogue visibility is **release-level only** (`demo_release_hidden`). Do not soft-hide individual files (including Brand assets / Sound effects or legacy `bandPromo_*` names) as a substitute for that toggle. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
+Demo campaign visibility is **preference-level** (`demo_release_hidden`) with **unused-only** Files filtering. Do not use filename-prefix (`bandPromo_*`) soft-hide as a substitute. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
 
 ### Recommended first implementation shape
 
 Per-install soft-hide maps for bundled placeholders are retired. Prefer:
 
-- release ownership + lock for campaign demo media
-- `demo_release_hidden` for operator hide of that campaign
+- campaign ownership + lock for demo media
+- `demo_release_hidden` for operator hide of that campaign (unused-only workspace filter)
 - registry `origin` for provenance badges (not hide/delete policy)
 
 That keeps Files pools and media pickers consistent without a second hide system.
@@ -1185,7 +1186,7 @@ Playlist reorder must not rename files or rewrite embedded track numbers. Releas
 
 Files → Audio **orphan** means the asset is not on any release document (not “unprocessed”). After re-upload/re-register under a new `ast_*` id, Content autofix sync-releases rebinds stale release tracks and playlist `entries` onto the live registry row by artist/title identity (including common suffixes such as `FINAL` / `NEWER WIP`). Leftover master files for deleted ids may remain on disk until cleaned separately.
 
-Registry `display{}` is what Files → Audio titles and the metadata health badges (C/A/T/R/D/L) read. Upload and Content autofix fill it from master tags; full Publish preflight also fills **incomplete** rows only (does not overwrite complete operator-saved display). A media rebuild alone does not invent titles when `display` is empty and tags were never copied into the registry.
+Registry `display{}` is what Files → Audio titles and the metadata health badges (C/A/T/D/L) read. Campaign membership is the Campaign column, not a health chip. Upload and Content autofix fill it from master tags; full Publish preflight also fills **incomplete** rows only (does not overwrite complete operator-saved display). A media rebuild alone does not invent titles when `display` is empty and tags were never copied into the registry.
 
 When re-upload leaves rich tags on unregistered leftover masters, Publish/autofix can copy empty description/lyrics/cover onto the matching live asset (and rewrite those tags onto the live master).
 

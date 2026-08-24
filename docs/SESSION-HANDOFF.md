@@ -2,18 +2,14 @@
 
 ## Resume point
 
-Local checkpoint done: **v0.8.35 build 433** (`6a38947`) — not pushed/published yet.
+Published (or pending publish this session): **v0.8.35 build 434** — unused-only demo hide + R chip removal on top of build 433 gap-closing / track-editor tag fixes.
 
-Includes:
+After Site update on HITZ / Spandexual:
 
-1. **primary → Active shell fix** + Base brand fallback; publish heals `campaign_id`.
-2. **`campaign_id` canonical** (migrate-and-drop `release_id`; `data/campaigns/`).
-3. **Orphan visual delivery GC** in Content autofix.
-4. **Legacy aliases:** `cntab=themes` → branding.
-5. **Track editor tags/badges:** registry-based C/A/T/R/D/L; save writes lagging master tags; response prefers artist/title/version.
-
-Next: push + publish release package; Site update on HITZ (and Spandexual if needed); Content autofix once; optionally re-save remaster tracks so empty master tags get embedded.
+1. Confirm Settings shows **Hide bandPromo demo campaign**.
+2. With hide ON: unused demo Visual/Audio gone from Files/pickers; in-use demo media still listed; unused demo Brand shell hidden; shell still used by any Brand stays visible.
+3. Run Content autofix once (heals `campaign_id` + orphan visual delivery GC from 433).
 
 ## Plan document
 
-`docs/ADMIN-EDITOR-REFACTOR.md` + Cursor plan `close_remaining_gaps`.
+`docs/ADMIN-EDITOR-REFACTOR.md` + Cursor plan `demo_hide_unused`.
