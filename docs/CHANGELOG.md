@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-31 20:20 - Hotfix **v0.8.36 build 439**: hide bandPromo demo campaign also omits demo Pages and non-Base demo Brands (Branding + PBF export); shell media only stays for Base / non-demo brand refs.
+
+2026-08-31 20:15 - Hide bandPromo demo campaign: also omit demo-owned Pages and non-Base demo Brands (Branding + PBF export); shell media only stays when Base / non-demo brands still reference it. Aligns PORTABILITY with unused-only hide.
+
+2026-08-31 19:55 - Fleet: build 438 live on bandpromo.site, hitz.no, spandexualtension.com. Twisted Chronicles paused (reinstall at v0.9). Spandexual Tension takes the traditional band / release-sequence persona; USE-CASES/TODO/ROADMAP/AGENTS updated.
+
+2026-08-31 15:00 - Checkpoint **v0.8.36 build 438**: transfer integrity library, PBF export/import, Backup Jobs UX (delete confirm, clearer queue toasts, native download fix), developer-only Audit/Security, v0.8 exit gate + OPERATOR-MESSAGING docs.
+
 2026-08-31 14:25 - Jobs download: start native browser save on click (async blob save was silently blocked); clearer queued toasts name export type and Jobs location.
 
 2026-08-31 14:15 - Lock v0.8 exit gate and v0.9 deferrals in TODO/ROADMAP/USE-CASES/SESSION-HANDOFF: Campaign navigator mandatory before new testers; OMP + Content AI → v0.9; new OPERATOR-MESSAGING.md. Developer-only System → Audit/Security (UI redirect + security-sanity API guard).

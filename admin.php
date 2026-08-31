@@ -2437,7 +2437,7 @@ if ($tab === 'analytics') {
             <div class="card">
                 <h3>🎭 Demo campaign</h3>
                 <p class="card-note">
-                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its unused playlists, galleries, pages, and Audio/Visual media leave the player, content editors, Files pools, and pickers. Demo assets still used by your catalogue stay visible. Demo Brand shell assets stay visible while any Brand uses them, and hide when that is no longer true. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
+                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and unused Audio/Visual media leave the player, content editors, Files pools, and pickers. Demo Brands leave Branding and brand export unless that brand is still your Base brand. Demo Brand shell assets stay visible only while your Base brand (or another non-demo brand) still uses them. Demo assets still used by your catalogue stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
                     <input type="checkbox" id="cfgDemoCatalogHidden"<?php echo !empty($demoCatalogHidden) ? ' checked' : ''; ?>>

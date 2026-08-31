@@ -84,7 +84,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ## Planned (see ROADMAP.md for timing)
 
-These are **directional** — betatesters should check [ROADMAP.md](ROADMAP.md) → **Beta tester expectations** and [USE-CASES.md](USE-CASES.md) for shipped vs coming, matched to Vanilla / Twisted Chronicles / HITZ installs.
+These are **directional** — betatesters should check [ROADMAP.md](ROADMAP.md) → **Beta tester expectations** and [USE-CASES.md](USE-CASES.md) for shipped vs coming, matched to Vanilla / Spandexual Tension / HITZ installs (Twisted Chronicles paused until v0.9).
 
 ### v0.8 beta (active)
 

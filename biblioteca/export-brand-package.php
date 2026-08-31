@@ -9,6 +9,7 @@ require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/site-backup-portability.php';
 require_once __DIR__ . '/brand-storage.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -41,6 +42,15 @@ $actor = trim((string) ($_SESSION['username'] ?? ''));
 if ($brandId === '') {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'brand_id is required.']);
+    exit;
+}
+
+if (!bandpromo_demo_brand_visible_in_admin($root, $brandId)) {
+    http_response_code(400);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'That demo brand is hidden with the bandPromo demo campaign.',
+    ]);
     exit;
 }
 

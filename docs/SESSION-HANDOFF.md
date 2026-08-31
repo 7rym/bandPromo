@@ -2,36 +2,26 @@
 
 ## Resume point
 
-**Decisions locked in docs (2026-08-31).** Next: cheap fixes done (developer-only Audit/Security); **checkpoint + publish** transfer integrity + backup UX when ready.
+**Demo hide gaps (local, unpublished):** Pages + non-Base demo Brands were still listed when “Hide bandPromo demo campaign” was on (HITZ report). Fixed: filter Pages/Branding/PBF export; shell media only stays for Base / non-demo brand refs.
 
-### Shipped locally (unpublished — build still 437)
+### Active fleet (build 438)
 
-- Transfer integrity library (`http-stream.php`, `chunked-upload.php`; verified Jobs download; chunked uploads; `file_digests`).
-- Backup Jobs: delete confirmation modal; job feedback via toasts (not inline status line).
-- System → Audit + Security: **developer role only** (UI + API guard).
+| Host | Persona |
+|------|---------|
+| bandpromo.site | Vanilla — demo only |
+| hitz.no | HITZ — short + long-form |
+| spandexualtension.com | Band / traditional release sequence |
 
-### v0.8 exit gate (do before v0.9 / new testers)
+Twisted Chronicles paused until v0.9 reinstall.
 
-1. **Player Campaign navigator** — policy lock → implement → validate Vanilla / TC / HITZ.
-2. Fleet sync + PCF/PBF smoke at latest published build.
-3. Favicon/PWA from Branding.
-4. Legacy audit refresh at current baseline.
+### Next
 
-See [TODO.md](TODO.md) → v0.8 exit gate (2026-08-31).
+1. Smoke hide on Spandexual Tension / HITZ after publish.
+2. Checkpoint + publish hotfix for demo hide.
+3. v0.8 exit: Campaign navigator policy lock.
 
-### Deferred to v0.9
-
-- Operator Messaging Platform — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
-- Content AI wizards (policy locked; build later).
-- Access tiers, anonymous entry, community inbox.
-
-### Before checkpoint/publish
-
-Smoke: re-queue PBF export → Jobs size + SHA → verified download → import AsNew.
-
-Last published: **v0.8.35 build 437**. Session **v0.8.36**.
+Last published: **v0.8.36 build 438**.
 
 ## Plan documents
 
-- Transfer Integrity Library (shipped locally).
-- Operator Messaging Platform — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) (v0.9; docs only).
+- [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) — v0.9 messaging (docs only).

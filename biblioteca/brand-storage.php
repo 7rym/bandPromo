@@ -1492,6 +1492,31 @@ function bandpromo_brand_registry_entries(string $root): array
         $entries[$index]['can_change_lock'] = bandpromo_brand_may_change_lock($canonical);
     }
 
+    return array_values(array_filter($entries, static function ($entry): bool {
+        return is_array($entry);
+    }));
+}
+
+/**
+ * Operator-facing brand list (Branding pool, PBF export). Hides demo brands when demo campaign is hidden.
+ */
+function bandpromo_brand_admin_registry_entries(string $root): array
+{
+    require_once __DIR__ . '/demo-catalog-state.php';
+    $entries = [];
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $brandId = trim((string) ($entry['id'] ?? ''));
+        if ($brandId === '' || !bandpromo_demo_brand_visible_in_admin($root, $brandId)) {
+            continue;
+        }
+        $entries[] = $entry;
+    }
+
+    return $entries;
+}
     return $entries;
 }
 

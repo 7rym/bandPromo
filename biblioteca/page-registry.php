@@ -476,7 +476,13 @@ function bandpromo_page_update_registry_entry(string $root, string $pageId, arra
 }
 
 function bandpromo_page_admin_tab_entries(string $root): array {
+    require_once __DIR__ . '/demo-catalog-state.php';
     $entries = bandpromo_page_registry_entries($root);
+    $entries = array_values(array_filter($entries, static function (array $entry) use ($root): bool {
+        $pageId = (string) ($entry['id'] ?? '');
+
+        return bandpromo_demo_page_visible_in_admin($root, $pageId);
+    }));
     usort($entries, static function (array $a, array $b): int {
         if (($a['id'] ?? '') === BANDPROMO_PAGE_REQUIRED_ID) {
             return -1;
@@ -492,11 +498,16 @@ function bandpromo_page_admin_tab_entries(string $root): array {
 }
 
 function bandpromo_page_admin_pages_map(string $root): array {
+    require_once __DIR__ . '/demo-catalog-state.php';
     $map = [];
     foreach (bandpromo_page_registry_entries($root) as $entry) {
+        $pageId = (string) ($entry['id'] ?? '');
+        if ($pageId === '' || !bandpromo_demo_page_visible_in_admin($root, $pageId)) {
+            continue;
+        }
         $surface = (string) ($entry['surface'] ?? 'player');
-        $map[$entry['id']] = [
-            'emoji' => $entry['id'] === 'faq' ? '❓' : '📝',
+        $map[$pageId] = [
+            'emoji' => $pageId === 'faq' ? '❓' : '📝',
             'label' => (string) ($entry['label'] ?? $entry['title']),
             'title' => (string) ($entry['title'] ?? $entry['label']),
             'description' => '',

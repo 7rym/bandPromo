@@ -14,7 +14,7 @@ $root = dirname(__DIR__);
 
 try {
     bandpromo_brand_ensure_seeded($root);
-    $brands = bandpromo_brand_registry_entries($root);
+    $brands = bandpromo_brand_admin_registry_entries($root);
     $activeId = bandpromo_brand_active_id($root);
 
     echo json_encode([

@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/brand-storage.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 bandpromo_enforce_https();
 session_write_close();
@@ -15,6 +16,9 @@ $brandId = bandpromo_brand_normalize_id((string) ($_GET['brand'] ?? $_GET['theme
 
 try {
     bandpromo_brand_ensure_seeded($root);
+    if (!bandpromo_demo_brand_visible_in_admin($root, $brandId)) {
+        throw new InvalidArgumentException('That demo brand is hidden with the bandPromo demo campaign.');
+    }
     $document = bandpromo_brand_load_document($root, $brandId);
     $activeBrandId = bandpromo_brand_active_id($root);
 

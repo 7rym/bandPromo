@@ -579,7 +579,8 @@ function bandpromo_demo_campaign_owns_media_file(
 }
 
 /**
- * True when any brand document references this asset in slots or library.
+ * True when any brand that still counts while demo is hidden references this asset.
+ * Demo-owned brands (and the locked platform default when it is not Base) do not keep shell media visible.
  */
 function bandpromo_demo_asset_referenced_by_any_brand(string $root, string $assetId): bool
 {
@@ -594,7 +595,7 @@ function bandpromo_demo_asset_referenced_by_any_brand(string $root, string $asse
             continue;
         }
         $brandId = trim((string) ($entry['id'] ?? ''));
-        if ($brandId === '') {
+        if ($brandId === '' || !bandpromo_demo_brand_keeps_shell_visible($root, $brandId)) {
             continue;
         }
         try {
@@ -615,6 +616,90 @@ function bandpromo_demo_asset_referenced_by_any_brand(string $root, string $asse
     }
 
     return false;
+}
+
+/**
+ * Whether a brand should still surface (and keep shell media visible) while the demo campaign is hidden.
+ * Base brand always stays. Platform default and demo-owned brands hide when they are not Base.
+ */
+function bandpromo_demo_brand_keeps_shell_visible(string $root, string $brandId): bool
+{
+    require_once __DIR__ . '/brand-storage.php';
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    if ($brandId === '') {
+        return false;
+    }
+
+    if (!bandpromo_demo_campaign_is_hidden($root)) {
+        return true;
+    }
+
+    $baseId = bandpromo_brand_active_canonical_id($root);
+    if ($brandId === $baseId) {
+        return true;
+    }
+
+    if ($brandId === BANDPROMO_BRAND_DEFAULT_ID) {
+        return false;
+    }
+
+    $demoId = bandpromo_demo_campaign_id($root);
+    if ($demoId === '') {
+        return true;
+    }
+
+    try {
+        $document = bandpromo_brand_load_document($root, $brandId);
+    } catch (Throwable $throwable) {
+        return true;
+    }
+
+    require_once __DIR__ . '/campaign-storage.php';
+    $owner = bandpromo_document_campaign_id($document);
+
+    return $owner === '' || $owner !== $demoId;
+}
+
+/**
+ * Admin Branding / PBF export: omit hidden demo brands (Base always kept).
+ */
+function bandpromo_demo_brand_visible_in_admin(string $root, string $brandId): bool
+{
+    return bandpromo_demo_brand_keeps_shell_visible($root, $brandId);
+}
+
+/**
+ * Admin Pages pool: FAQ always stays; demo-owned pages hide with the demo campaign.
+ */
+function bandpromo_demo_page_visible_in_admin(string $root, string $pageId): bool
+{
+    require_once __DIR__ . '/page-registry.php';
+    require_once __DIR__ . '/page-storage.php';
+
+    $pageId = bandpromo_page_normalize_id($pageId);
+    if ($pageId === '' || $pageId === BANDPROMO_PAGE_REQUIRED_ID) {
+        return true;
+    }
+
+    if (!bandpromo_demo_campaign_is_hidden($root)) {
+        return true;
+    }
+
+    $owner = '';
+    try {
+        $document = bandpromo_page_load_document($root, $pageId);
+        require_once __DIR__ . '/campaign-storage.php';
+        $owner = bandpromo_document_campaign_id($document);
+    } catch (Throwable $throwable) {
+        $owner = '';
+    }
+
+    // Classic Demo PCF pages without a healed campaign_id still hide with the demo.
+    if ($owner === '' && in_array($pageId, ['bio', 'gallery'], true)) {
+        $owner = bandpromo_demo_campaign_id($root);
+    }
+
+    return bandpromo_demo_campaign_container_is_visible($root, $owner, $pageId);
 }
 
 /**

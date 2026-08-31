@@ -21,7 +21,7 @@ Rules for this file:
 
 **v0.8 exit gate (2026-08-31 — lock order):** see [v0.8 exit gate](#v0-8-exit-gate-2026-08-31) below. **Do not expand the tester pool or open v0.9 until these ship.** Player **Campaign navigator** is mandatory before new testers — navigation must not change a week after onboarding.
 
-**Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
+**Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); round-trips on Spandexual Tension / HITZ (Twisted Chronicles deferred to v0.9). See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
@@ -237,7 +237,7 @@ Implementation order:
 
 ### Visual naming + gallery pickers (v0.8) — policy locked 2026-08-07
 
-See [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [ADMIN-UI.md](ADMIN-UI.md), [USE-CASES.md](USE-CASES.md) → Twisted Chronicles tour galleries.
+See [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [ADMIN-UI.md](ADMIN-UI.md), [USE-CASES.md](USE-CASES.md) → Spandexual Tension tour galleries.
 
 Policy — **locked**:
 
@@ -283,7 +283,7 @@ Policy — **lock before implementation**:
 Implementation order (after policy lock):
 
 - [ ] **Player Campaign navigator** — selector + filtered playlist list; preserve deep-link and idle behaviour.
-- [ ] **Docs** — PLATFORM-MODEL / USE-CASES HITZ + Twisted Chronicles player stories.
+- [ ] **Docs** — PLATFORM-MODEL / USE-CASES HITZ + Spandexual Tension player stories.
 
 ### Brand export / import (v0.8)
 
@@ -405,7 +405,7 @@ Policy lock **2026-08-18** (rename from PRP / `.prp`) — see [PORTABILITY.md](P
 - [x] **Duplicate + multi-ref delete guard** — `duplicate-release-campaign.php`; Files delete refuses in-use without detach.
 - [x] **Import collision UI**; system demo overwrite.
 - [x] **Ship `bandPromo-demo.pcf`** — `prepare_demo_content_package.py` writes `.pcf` (legacy GitHub asset may still be `.prp` until the next demo publish).
-- [ ] **Validate** — local → bandpromo.site fresh → Winter Party / Retroscopy roundtrip → HITZ → TC.
+- [ ] **Validate** — local → bandpromo.site fresh → Spandexual Tension / HITZ round-trips (Twisted Chronicles deferred to v0.9 reinstall).
 
 **Follow-ups (not blocking PCF schema, priority after validate):**
 
@@ -427,16 +427,18 @@ Legacy checklist (superseded wording kept for history):
 
 **Do not open v0.9 or welcome new testers until this checklist is done.** Order matters.
 
-Closed-beta fleet: **Vanilla** (**https://bandpromo.site**), **Twisted Chronicles**, **HITZ** — [USE-CASES.md](USE-CASES.md). This Google Drive working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
+**Active fleet (2026-08-31):** **Vanilla** (**https://bandpromo.site**), **Spandexual Tension** (**https://spandexualtension.com** — traditional band / release sequence), **HITZ** (**https://hitz.no**) — all on **v0.8.36 build 438**. [USE-CASES.md](USE-CASES.md).
+
+**Paused:** **Twisted Chronicles** (**https://twistedchronicles.eu**) — too old for Site update; reinstall and rejoin at **v0.9**. This Google Drive working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
 
 1. **Player Campaign navigator (mandatory)**
    - [ ] Lock policy — [Player Campaign navigator](#player-campaign-navigator-hitz-feedback--2026-08-26) (polarity, chrome, single-campaign collapse, defaults, page tabs + deep links).
    - [ ] Implement selector + campaign-scoped playlist list; brand shell and page tabs follow selected/playing campaign.
-   - [ ] Validate on all three personas (Vanilla single-campaign, TC band, HITZ multi-campaign).
+   - [ ] Validate on active personas (Vanilla demo, Spandexual Tension band, HITZ multi-campaign).
 
 2. **Portability proof at latest build**
-   - [ ] Fleet sync — all 3 remote sites on same published GitHub Release (last confirmed build 332; re-sync required).
-   - [ ] PCF round-trip smoke — local → bandpromo.site → Winter Party / Retroscopy → HITZ → TC ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)).
+   - [x] Fleet sync — active sites on same published GitHub Release (**build 438**, 2026-08-31: bandpromo.site, hitz.no, spandexualtension.com). Twisted Chronicles deferred to v0.9 reinstall.
+   - [ ] PCF round-trip smoke — local → bandpromo.site → Spandexual Tension / HITZ ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)).
 
 3. **Operator chrome**
    - [ ] **Favicon + PWA icons from Branding** — required; no manual RealFaviconGenerator dependency ([Brand section](#brand-replaces-theme)).
@@ -594,7 +596,7 @@ Deferred to v0.9 (implement after v0.8 definitions are stable):
 
 Deferred to v1+:
 
-- [ ] **Release-contextual player page tabs** — Content → Player keeps optional **global** pages; pages associated to the current track’s release append to the nav (Playlists | Lyrics first). FAQ stays login/global. Idle/first-load context decided at implementation. Policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md) Twisted Chronicles.
+- [ ] **Release-contextual player page tabs** — Content → Player keeps optional **global** pages; pages associated to the current track’s release append to the nav (Playlists | Lyrics first). FAQ stays login/global. Idle/first-load context decided at implementation. Policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md) Spandexual Tension.
 - [x] **Per-track text panel role (Lyrics ↔ Notes)** — one shell panel and one master Lyrics field; registry `display.text_role` (`lyrics`|`notes`) + optional `notes_label` (default player label **Tracklist**); renames the locked nav while that track plays. Dual fields / timed cues deferred.
 - [x] **Brand shell override runtime** — login applies base brand shell assets; player applies release-brand logo + still/living backgrounds on playlist select (CSS tokens already did); Welcome/Logged-in SFX stay Base/login; system-owned scrim over busy backgrounds.
 - [ ] **Brand typography v2** — web/display font slots per brand.

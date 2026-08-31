@@ -131,7 +131,7 @@ Use `prerelease=false` for closed-beta tester packages unless you intentionally 
 
 The bootstrap installer and admin **Site update** both rely on the published `release-manifest.json` asset and the immutable package URLs declared there. Mutable branch snapshots are acceptable for ad-hoc developer testing, but they are no longer part of the normal operator install path.
 
-**Fresh-install tests** always run on **https://bandpromo.site** (Vanilla: empty install + setup / Site update). The other two remote test sites are **Twisted Chronicles** and **HITZ**. Never delete local `data/`, `media/`, `log/` (analytics/audit test data), or `backups/` in this Google Drive working copy.
+**Fresh-install tests** always run on **https://bandpromo.site** (Vanilla: empty install + setup / Site update). The other active remote test sites are **Spandexual Tension** and **HITZ**. **Twisted Chronicles** rejoins via reinstall at v0.9. Never delete local `data/`, `media/`, `log/` (analytics/audit test data), or `backups/` in this Google Drive working copy.
 
 Local PHP built-in server must allow large PCF uploads: `scripts/start-dev-server.ps1` sets `upload_max_filesize=512M` / `post_max_size=520M`. Hosted installs use `biblioteca/templates/runtime/user.ini` (same ceilings). Backup/PCF background jobs must still run when `fastcgi_finish_request()` is missing.
 

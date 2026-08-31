@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/page-registry.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 session_write_close();
 
@@ -35,7 +36,7 @@ try {
         echo json_encode([
             'ok' => true,
             'page' => $entry,
-            'pages' => bandpromo_page_registry_entries($root),
+            'pages' => bandpromo_page_admin_tab_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
@@ -44,6 +45,9 @@ try {
         $pageId = bandpromo_page_normalize_id((string) ($_GET['page'] ?? ''));
         if ($pageId === '') {
             throw new InvalidArgumentException('Page id is required.');
+        }
+        if (!bandpromo_demo_page_visible_in_admin($root, $pageId)) {
+            throw new InvalidArgumentException('That demo page is hidden with the bandPromo demo campaign.');
         }
 
         bandpromo_page_delete_page($root, $pageId);
@@ -57,7 +61,7 @@ try {
         echo json_encode([
             'ok' => true,
             'deleted' => $pageId,
-            'pages' => bandpromo_page_registry_entries($root),
+            'pages' => bandpromo_page_admin_tab_entries($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }

@@ -6,7 +6,7 @@ Status: **policy updated** (2026-07-22 — operator mental model, closed-beta us
 
 Companion policy docs:
 
-- [USE-CASES.md](USE-CASES.md) — closed-beta personas (Vanilla, Twisted Chronicles, HITZ)
+- [USE-CASES.md](USE-CASES.md) — closed-beta personas (Vanilla, Spandexual Tension, HITZ; Twisted Chronicles paused until v0.9)
 - [ACCESS-MODEL.md](ACCESS-MODEL.md) — tiers, login, FAQ, shared links, VIP overrides
 - [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — protected delivery, PWA, cast scope
 - [PORTABILITY.md](PORTABILITY.md) — full backup vs data export/import, moved-site repair
@@ -64,7 +64,8 @@ The **first PCF imported at setup** becomes this install’s protected fallback 
 
 - Demo Audio/Visual still referenced by a **non-demo** container stay **visible** in Files and pickers (`kept_visible` inventory / soft warning).
 - Unused demo campaign media (including demo Brand library members) are omitted from Files → Audio / Visual and pickers.
-- Demo Brand shell (Brand assets / Sound effects, logo / poster / still / living slots) stay visible while **any** Brand still references them, and hide when that is no longer true. Operator-uploaded brand media is untouched.
+- Demo Brand documents (including locked `bandpromo-default` when it is not Base) leave Branding and PBF export when hidden. Demo Brand shell assets (Brand assets / Sound effects) stay visible while the **Base** brand or another non-demo brand still references them, and hide when that is no longer true. Operator-uploaded brand media is untouched.
+- Demo pages (e.g. Band Bio / Gallery) leave Content → Pages; FAQ stays (install-owned).
 - If the operator later deletes that catalogue so the gate no longer passes, **show the demo campaign again** (`demo_release_hidden=false`).
 
 **Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses campaign ownership + the prefs above.
@@ -962,7 +963,7 @@ These behaviours come from the old single-playlist / filename-key model and must
 
 ## Related docs
 
-- [USE-CASES.md](USE-CASES.md) — closed-beta personas (Vanilla, Twisted Chronicles, HITZ)
+- [USE-CASES.md](USE-CASES.md) — closed-beta personas (Vanilla, Spandexual Tension, HITZ; Twisted Chronicles paused until v0.9)
 - [ROADMAP.md](ROADMAP.md) — milestone structure and beta expectations
 - [TODO.md](TODO.md) — implementation checklist
 - [ACCESS-MODEL.md](ACCESS-MODEL.md) — access tiers and login

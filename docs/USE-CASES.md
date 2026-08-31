@@ -4,13 +4,15 @@ Real-life personas for closed-beta feedback during development. Not marketing co
 
 Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FEATURES.md](FEATURES.md), [ROADMAP.md](ROADMAP.md) → Beta tester expectations.
 
-Closed-beta fleet today: **three** remote installs — one per persona below. See [TODO.md](TODO.md) → Beta fleet sync. This Google Drive working copy is **never** a wipeable test install. Fresh installs always use **https://bandpromo.site**.
+**Active closed-beta fleet (2026-08-31):** three remote installs on **v0.8.36 build 438** — one per persona below. This Google Drive working copy is **never** a wipeable test install. Fresh installs always use **https://bandpromo.site**.
 
-| Persona | Operator type | Stresses |
-|---------|---------------|----------|
-| **Vanilla** | Fresh demo-content install on **https://bandpromo.site** | Setup, demo catalogue, Site update, baseline UX |
-| **Twisted Chronicles** | Band / traditional campaign | Album + singles under one Campaign; per-campaign Bio/EPK; staggered playlist street dates |
-| **HITZ** | Record label | Artist releases **and** long-form show episodes; Lyrics vs Tracklist on one install |
+| Persona | Host | Operator type | Stresses |
+|---------|------|---------------|----------|
+| **Vanilla** | **https://bandpromo.site** | Demo-only install | Setup, demo catalogue, Site update, baseline UX |
+| **Spandexual Tension** | **https://spandexualtension.com** | Band / traditional release sequence | Singles + album under Campaign umbrellas; Bio/EPK; staggered playlist street dates |
+| **HITZ** | **https://hitz.no** | Record label | Short artist releases **and** long-form show episodes; Lyrics vs Tracklist |
+
+**Paused until v0.9:** **Twisted Chronicles** (**https://twistedchronicles.eu**) — install too old for a safe Site update; tester will **reinstall** and rejoin when v0.9 opens. Until then, Spandexual Tension carries the traditional band / release-sequence persona that Twisted Chronicles previously held.
 
 ---
 
@@ -20,7 +22,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 **Goal:** Prove a clean install feels finished without custom campaign content.
 
-**Content shape:** Seeded demo release, playlist, gallery, brand (`bandpromo-default`), FAQ + demo pages.
+**Content shape:** Seeded demo release, playlist, gallery, brand (`bandpromo-default`), FAQ + demo pages. **Still demo-only** as of build 438.
 
 **Works today:** Setup, Hide demo catalogue, Site update, Publish / Deliverables, Content editors against demo data.
 
@@ -30,9 +32,11 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 ---
 
-## Twisted Chronicles (band campaign)
+## Spandexual Tension (band / traditional release sequence)
 
-**Goal:** Traditional band release plan — singles and album as listening packages under one campaign umbrella, with Bio/EPK and art that belong to that campaign (and change on later campaigns when lineup or story changes).
+**Host:** **https://spandexualtension.com** — active band persona from 2026-08-31 (took over the role formerly exercised on Twisted Chronicles).
+
+**Goal:** Traditional band release plan — singles and album as listening packages under campaign umbrellas, with Bio/EPK and art that belong to that campaign (and change on later campaigns when lineup or story changes).
 
 ### Content shape
 
@@ -68,6 +72,8 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 ## HITZ (label + long-form shows)
 
+**Host:** **https://hitz.no**
+
 **Goal:** Label showcases normal artist releases **and** long-form DJ mixes / radio-style episodes that promote talent and recordings — on one install.
 
 ### Content shape
@@ -92,6 +98,16 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 ---
 
+## Twisted Chronicles (paused — rejoin at v0.9)
+
+**Host:** **https://twistedchronicles.eu**
+
+**Status (2026-08-31):** Install is too far behind for a safe Site update. Operator will **wait and reinstall** when the project opens **v0.9**, then follow the fleet again. Do not treat this host as an active v0.8 validation target.
+
+**Historical role:** Band / traditional campaign persona — now exercised by **Spandexual Tension** for the remainder of v0.8.
+
+---
+
 ## Shared notes for all personas
 
 | Concern | Shipped | Target |
@@ -101,7 +117,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 | FAQ | Required login/global surface | Same (not a campaign Bio) |
 | Gallery in player | Page with gallery blocks | Same (no Gallery module tab) |
 | Tour gallery assemble | Visual titles + multi-select picker (v0.8) | Same |
-| Fan comment/share on gallery assets | — | v0.9+ (keep in Twisted Chronicles story) |
+| Fan comment/share on gallery assets | — | v0.9+ (keep in Spandexual Tension / band tour story) |
 | Brand tokens in player | Playlist → owning release brand → active fallback | **v0.8 exit:** Campaign navigator (campaign → playlists) |
 | Brand shell media in player | Per-release visual shell (logo/still/living); SFX stay Active/login | Same |
 | Lyrics vs Notes panel label | Per-track `text_role` + optional `notes_label` (default Tracklist) | Same |

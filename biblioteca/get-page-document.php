@@ -7,6 +7,7 @@ bandpromo_enforce_https();
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/page-storage.php';
 require_once __DIR__ . '/gallery-storage.php';
+require_once __DIR__ . '/demo-catalog-state.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -16,6 +17,9 @@ $pageKey = isset($_GET['page']) ? bandpromo_page_normalize_id((string) $_GET['pa
 try {
     if (!bandpromo_page_is_allowed_id($pageKey, $root)) {
         throw new InvalidArgumentException('Unknown page.');
+    }
+    if (!bandpromo_demo_page_visible_in_admin($root, $pageKey)) {
+        throw new InvalidArgumentException('That demo page is hidden with the bandPromo demo campaign.');
     }
 
     $document = bandpromo_page_load_document($root, $pageKey);
@@ -40,7 +44,7 @@ try {
         'image_layouts' => bandpromo_page_operator_image_layouts(),
         'picture_styles' => bandpromo_page_operator_picture_styles(),
         'gallery_presets' => BANDPROMO_PAGE_GALLERY_PRESETS,
-        'galleries' => bandpromo_gallery_registry_entries($root),
+        'galleries' => bandpromo_gallery_admin_registry_entries($root),
         'block_types' => BANDPROMO_PAGE_BLOCK_TYPES,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (InvalidArgumentException $exception) {
