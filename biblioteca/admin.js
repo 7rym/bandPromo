@@ -14,6 +14,253 @@ function bandpromoAdminEscapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+/** Shared 2 MB chunk size for Files / PCF / PBF / site-backup uploads. */
+const BANDPROMO_TRANSFER_CHUNK_SIZE = 2 * 1024 * 1024;
+
+/**
+ * Parse JSON (or HTML error page) from a transfer response.
+ * @returns {Promise<object>}
+ */
+async function bandpromoParseTransferResponse(response) {
+    const rawText = await response.text();
+    let data = {};
+    try {
+        data = rawText ? JSON.parse(rawText) : {};
+    } catch (_parseError) {
+        data = {};
+    }
+    if (!response.ok || data.ok === false) {
+        let detail = typeof data.error === 'string' ? data.error.trim() : '';
+        if (!detail) {
+            if (response.status === 413) {
+                detail = 'Server rejected a chunk as too large (HTTP 413). Host body limits must allow at least 2 MB uploads.';
+            } else if (response.status === 502 || response.status === 504) {
+                detail = `Transfer timed out or the proxy closed the connection (HTTP ${response.status}). Raise host timeouts or retry.`;
+            } else {
+                const snippet = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+                detail = snippet
+                    ? `Transfer failed (HTTP ${response.status}): ${snippet}`
+                    : `Transfer failed (HTTP ${response.status || 'unknown'}).`;
+            }
+        }
+        throw new Error(detail);
+    }
+    return data;
+}
+
+/**
+ * Chunked upload against a biblioteca endpoint that speaks the shared contract.
+ * @param {{
+ *   url: string,
+ *   file: File|Blob,
+ *   fields?: Record<string, string|number>,
+ *   csrfToken?: string,
+ *   expectedSha256?: string,
+ *   onProgress?: (ratio: number, finishing: boolean) => void,
+ * }} opts
+ */
+async function bandpromoUploadChunked(opts) {
+    const file = opts.file;
+    const url = String(opts.url || '');
+    if (!file || !url) {
+        throw new Error('Upload requires a file and URL.');
+    }
+    const fields = opts.fields && typeof opts.fields === 'object' ? opts.fields : {};
+    const totalChunks = Math.max(1, Math.ceil(file.size / BANDPROMO_TRANSFER_CHUNK_SIZE));
+    const uploadId = `upl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    let lastData = null;
+    for (let i = 0; i < totalChunks; i++) {
+        const start = i * BANDPROMO_TRANSFER_CHUNK_SIZE;
+        const chunk = file.slice(start, start + BANDPROMO_TRANSFER_CHUNK_SIZE);
+        const formData = new FormData();
+        formData.append('chunk', chunk, file.name || 'upload.bin');
+        formData.append('filename', file.name || 'upload.bin');
+        formData.append('chunk_index', String(i));
+        formData.append('total_chunks', String(totalChunks));
+        formData.append('upload_id', uploadId);
+        formData.append('file_size', String(file.size));
+        if (opts.csrfToken) {
+            formData.append('csrf_token', opts.csrfToken);
+        }
+        if (opts.expectedSha256) {
+            formData.append('expected_sha256', String(opts.expectedSha256).toLowerCase());
+        }
+        Object.keys(fields).forEach((key) => {
+            formData.append(key, String(fields[key]));
+        });
+        if (i === totalChunks - 1 && typeof opts.onProgress === 'function') {
+            opts.onProgress(1, true);
+        }
+        const response = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: formData,
+        });
+        lastData = await bandpromoParseTransferResponse(response);
+        if (typeof opts.onProgress === 'function' && i < totalChunks - 1) {
+            opts.onProgress((i + 1) / totalChunks, false);
+        }
+    }
+    if (!lastData || lastData.status === 'partial') {
+        throw new Error('Upload finished but the server is still missing chunks. Retry the upload.');
+    }
+    return lastData;
+}
+
+/**
+ * SHA-256 hex digest of a Blob/File (Web Crypto).
+ * @param {Blob} blob
+ * @returns {Promise<string>}
+ */
+async function bandpromoSha256Blob(blob) {
+    const buffer = await blob.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+/**
+ * Start a browser download in the same user-gesture turn (required or save is silently blocked).
+ */
+function bandpromoTriggerBrowserDownload(url, filename) {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.setAttribute('download', filename || '');
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+}
+
+/**
+ * Fetch and verify size/SHA-256 without saving (for post-download integrity checks).
+ */
+async function bandpromoVerifyDownloadBlob(opts) {
+    const url = String(opts.url || '');
+    if (!url) {
+        throw new Error('Download URL is required.');
+    }
+    const response = await fetch(url, { credentials: 'same-origin' });
+    if (!response.ok) {
+        let detail = `Download failed (HTTP ${response.status}).`;
+        try {
+            const data = await response.clone().json();
+            if (data && data.error) {
+                detail = String(data.error);
+            }
+        } catch (_e) {
+            // keep status text
+        }
+        throw new Error(detail);
+    }
+    const headerSha = String(response.headers.get('X-Checksum-SHA256') || '').toLowerCase();
+    const blob = await response.blob();
+    const expectedBytes = Number(opts.expectedBytes || 0);
+    if (expectedBytes > 0 && blob.size !== expectedBytes) {
+        throw new Error(
+            `Download incomplete: got ${blob.size} bytes, expected ${expectedBytes}. Retry the download.`
+        );
+    }
+    const expectedSha = String(opts.expectedSha256 || headerSha || '').toLowerCase();
+    if (expectedSha && /^[a-f0-9]{64}$/.test(expectedSha)) {
+        if (!window.crypto || !window.crypto.subtle) {
+            throw new Error('Integrity check needs a secure context (HTTPS). Compare SHA in Jobs manually.');
+        }
+        const actualSha = await bandpromoSha256Blob(blob);
+        if (actualSha !== expectedSha) {
+            throw new Error(
+                'Download integrity check failed (SHA-256 mismatch). Delete the file and retry the download.'
+            );
+        }
+    }
+    return { ok: true, size: blob.size, sha256: expectedSha || '' };
+}
+
+/**
+ * Download via fetch, verify, and save — may be blocked after async work; prefer sync
+ * bandpromoTriggerBrowserDownload from click handlers, then bandpromoVerifyDownloadBlob.
+ * @param {{
+ *   url: string,
+ *   filename: string,
+ *   expectedBytes?: number,
+ *   expectedSha256?: string,
+ * }} opts
+ */
+async function bandpromoDownloadVerified(opts) {
+    const url = String(opts.url || '');
+    const filename = String(opts.filename || 'download.bin');
+    if (!url) {
+        throw new Error('Download URL is required.');
+    }
+    let fileHandle = null;
+    if (typeof window.showSaveFilePicker === 'function') {
+        try {
+            fileHandle = await window.showSaveFilePicker({ suggestedName: filename });
+        } catch (error) {
+            if (error && error.name === 'AbortError') {
+                throw new Error('Download cancelled.');
+            }
+        }
+    }
+    const response = await fetch(url, { credentials: 'same-origin' });
+    if (!response.ok) {
+        let detail = `Download failed (HTTP ${response.status}).`;
+        try {
+            const data = await response.clone().json();
+            if (data && data.error) {
+                detail = String(data.error);
+            }
+        } catch (_e) {
+            // keep status text
+        }
+        throw new Error(detail);
+    }
+    const headerSha = String(response.headers.get('X-Checksum-SHA256') || '').toLowerCase();
+    const blob = await response.blob();
+    const expectedBytes = Number(opts.expectedBytes || 0);
+    if (expectedBytes > 0 && blob.size !== expectedBytes) {
+        throw new Error(
+            `Download incomplete: got ${blob.size} bytes, expected ${expectedBytes}. Retry the download.`
+        );
+    }
+    const expectedSha = String(opts.expectedSha256 || headerSha || '').toLowerCase();
+    if (expectedSha && /^[a-f0-9]{64}$/.test(expectedSha)) {
+        if (!window.crypto || !window.crypto.subtle) {
+            throw new Error('Integrity check needs a secure context (HTTPS). Compare SHA in Jobs manually.');
+        }
+        const actualSha = await bandpromoSha256Blob(blob);
+        if (actualSha !== expectedSha) {
+            throw new Error(
+                'Download integrity check failed (SHA-256 mismatch). Delete the file and retry the download.'
+            );
+        }
+    }
+    if (fileHandle && typeof fileHandle.createWritable === 'function') {
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return { ok: true, size: blob.size, sha256: expectedSha || '' };
+    }
+    if (typeof window.navigator.msSaveOrOpenBlob === 'function') {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+        return { ok: true, size: blob.size, sha256: expectedSha || '' };
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = filename;
+        anchor.rel = 'noopener';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    } finally {
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+    }
+    return { ok: true, size: blob.size, sha256: expectedSha || '' };
+}
+
 // Handle preset date range buttons
 document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
@@ -7701,32 +7948,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
-            const ADMIN_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB per chunk
-
             async function uploadFileChunked(file, target, onProgress) {
-                const totalChunks = Math.ceil(file.size / ADMIN_CHUNK_SIZE);
-                let lastResponse = null;
-                for (let i = 0; i < totalChunks; i++) {
-                    const start = i * ADMIN_CHUNK_SIZE;
-                    const chunk = file.slice(start, start + ADMIN_CHUNK_SIZE);
-                    const fd = new FormData();
-                    fd.append('chunk', chunk, file.name);
-                    fd.append('filename', file.name);
-                    fd.append('chunk_index', i);
-                    fd.append('total_chunks', totalChunks);
-                    fd.append('target', target);
-                    if (i === totalChunks - 1 && onProgress) {
-                        onProgress((i + 1) / totalChunks, true);
-                    }
-                    const resp = await fetch('/biblioteca/upload-media.php', { method: 'POST', body: fd });
-                    const data = await resp.json();
-                    if (!data.ok) throw new Error(data.error || 'Chunk upload failed');
-                    lastResponse = data;
-                    if (onProgress && i < totalChunks - 1) {
-                        onProgress((i + 1) / totalChunks, false);
-                    }
-                }
-                return lastResponse;
+                const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                    ? await refreshAdminCsrfToken()
+                    : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                return bandpromoUploadChunked({
+                    url: '/biblioteca/upload-media.php',
+                    file,
+                    csrfToken,
+                    fields: { target },
+                    onProgress,
+                });
             }
 
             if (modalBtn) {
@@ -12497,14 +12729,64 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             (function initBackupExportTab() {
                 const jobsWrap = document.getElementById('siteBackupJobsWrap');
-                const jobsStatus = document.getElementById('siteBackupJobsStatus');
                 const createBtn = document.getElementById('siteBackupCreateBtn');
                 const createStatus = document.getElementById('siteBackupCreateStatus');
                 const fullCheckbox = document.getElementById('siteBackupComponentFull');
                 const componentInputs = Array.from(document.querySelectorAll('.site-backup-component-input'));
                 const allComponentIds = ['platform', 'data', 'media', 'logs'];
+                const siteBackupDeleteModal = document.getElementById('siteBackupDeleteModal');
+                const siteBackupDeleteModalName = document.getElementById('siteBackupDeleteModalName');
+                const siteBackupDeleteConfirmBtn = document.getElementById('siteBackupDeleteConfirmBtn');
+                const siteBackupDeleteCancelBtn = document.getElementById('siteBackupDeleteCancelBtn');
                 let backupPollTimer = null;
                 let syncingFullCheckbox = false;
+                let pendingBackupDeleteId = '';
+
+                function showJobsToast(message, type) {
+                    if (typeof window.bandpromoShowAdminToast === 'function') {
+                        window.bandpromoShowAdminToast(message, type);
+                    }
+                }
+
+                const jobsWhereHint = 'System → Backup, export & import → Jobs';
+
+                function formatJobsTransferBytes(bytes) {
+                    const n = Number(bytes) || 0;
+                    if (n <= 0) {
+                        return '';
+                    }
+                    if (n >= 1024 * 1024 * 1024) {
+                        return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+                    }
+                    if (n >= 1024 * 1024) {
+                        return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+                    }
+                    if (n >= 1024) {
+                        return `${Math.round(n / 1024)} KB`;
+                    }
+                    return `${n} B`;
+                }
+
+                function showJobsQueuedToast(kind, subjectLabel) {
+                    const subject = String(subjectLabel || '').trim();
+                    const named = subject ? ` for “${subject}”` : '';
+                    let message = '';
+                    switch (kind) {
+                        case 'pcf':
+                            message = `Portable Campaign File (.pcf) export queued${named}. When status is Ready, download it from ${jobsWhereHint}.`;
+                            break;
+                        case 'pbf':
+                            message = `Portable Brand File (.pbf) export queued${named}. When status is Ready, download it from ${jobsWhereHint}.`;
+                            break;
+                        case 'import':
+                            message = `Import queued${named}. Progress and result appear in ${jobsWhereHint}.`;
+                            break;
+                        default:
+                            message = `Site backup queued${named}. When status is Ready, download it from ${jobsWhereHint}.`;
+                            break;
+                    }
+                    showJobsToast(message);
+                }
 
                 function escapeHtml(value) {
                     return bandpromoAdminEscapeHtml(value);
@@ -12591,17 +12873,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>`
                             : '';
                         const downloadHtml = job.download_ready
-                            ? `<a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=${encodeURIComponent(job.id)}">${String(job.type || '') === 'prp' ? '⬇️ Download .pcf' : '⬇️ Download'}</a>`
+                            ? `<button type="button" class="btn btn-secondary site-backup-action-btn site-backup-download-btn" data-backup-id="${escapeHtml(job.id)}" data-filename="${escapeHtml(job.filename || '')}" data-size-bytes="${Number(job.size_bytes || 0)}" data-sha256="${escapeHtml(job.sha256 || '')}">${String(job.type || '') === 'prp' ? '⬇️ Download .pcf' : (String(job.type || '') === 'pbf' ? '⬇️ Download .pbf' : '⬇️ Download')}</button>`
                             : '';
+                        const deleteLabel = String(job.type_label || job.type || 'backup job');
                         const deleteHtml = job.status !== 'building'
-                            ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}">🗑️ Delete</button>`
+                            ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}" data-backup-label="${escapeHtml(deleteLabel)}">🗑️ Delete</button>`
                             : '';
 
                         return `<tr data-backup-id="${escapeHtml(job.id)}">
                             <td>${escapeHtml(job.type_label || job.type || '')}</td>
                             <td><span class="badge audit-status-badge ${meta.className}">${escapeHtml(meta.label)}</span>${noteHtml}${errorHtml}</td>
                             <td class="text-muted nowrap">${escapeHtml(job.created_at_utc || '')}</td>
-                            <td class="nowrap">${escapeHtml(job.size_label || '—')}</td>
+                            <td class="nowrap" title="${escapeHtml(job.sha256 || '')}">${escapeHtml(job.size_label || '—')}${job.sha256 ? `<div class="text-muted" style="font-size:0.75rem;">SHA ${escapeHtml(String(job.sha256).slice(0, 12))}…</div>` : ''}</td>
                             <td class="site-backup-job-actions">${downloadHtml}${deleteHtml}</td>
                         </tr>`;
                     }).join('');
@@ -12699,10 +12982,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (statusEl) {
                             statusEl.textContent = data.message || 'Backup queued.';
                         }
-                        if (jobsStatus) {
-                            jobsStatus.textContent = 'Building in background. This list refreshes automatically.';
-                            jobsStatus.classList.remove('is-error');
-                        }
+                        showJobsQueuedToast('backup');
                         await refreshBackupJobs();
                     } catch (error) {
                         if (statusEl) {
@@ -12716,15 +12996,36 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                async function deleteBackup(jobId) {
-                    const confirmed = window.confirm('Delete this backup archive from the server?');
-                    if (!confirmed) {
+                function closeBackupDeleteModal() {
+                    pendingBackupDeleteId = '';
+                    if (siteBackupDeleteModal) {
+                        siteBackupDeleteModal.style.display = 'none';
+                        siteBackupDeleteModal.setAttribute('aria-hidden', 'true');
+                    }
+                }
+
+                function openBackupDeleteModal(jobId, label) {
+                    if (!jobId) {
                         return;
                     }
-                    if (jobsStatus) {
-                        jobsStatus.textContent = 'Deleting backup…';
-                        jobsStatus.classList.remove('is-error');
+                    const displayLabel = String(label || jobId).trim() || jobId;
+                    if (!siteBackupDeleteModal) {
+                        if (!window.confirm(`Delete "${displayLabel}" from the server? This cannot be undone.`)) {
+                            return;
+                        }
+                        deleteBackup(jobId).catch(() => {});
+                        return;
                     }
+                    pendingBackupDeleteId = jobId;
+                    if (siteBackupDeleteModalName) {
+                        siteBackupDeleteModalName.textContent = displayLabel;
+                    }
+                    siteBackupDeleteModal.style.display = 'flex';
+                    siteBackupDeleteModal.setAttribute('aria-hidden', 'false');
+                    siteBackupDeleteConfirmBtn?.focus();
+                }
+
+                async function deleteBackup(jobId) {
                     try {
                         const csrfToken = await refreshAdminCsrfToken();
                         const resp = await fetch('/biblioteca/delete-site-backup.php', {
@@ -12742,16 +13043,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (!resp.ok || !data || data.ok !== true) {
                             throw new Error((data && data.error) || 'Could not delete backup.');
                         }
-                        if (jobsStatus) {
-                            jobsStatus.textContent = data.message || 'Backup deleted.';
-                        }
+                        showJobsToast(data.message || 'Backup deleted.', 'success');
                         renderBackupJobs(data.jobs || []);
                         syncBackupPolling(data.jobs || []);
                     } catch (error) {
-                        if (jobsStatus) {
-                            jobsStatus.textContent = error.message;
-                            jobsStatus.classList.add('is-error');
-                        }
+                        showJobsToast(error.message, 'error');
                     }
                 }
 
@@ -12759,6 +13055,38 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     jobsWrap.addEventListener('click', (event) => {
                         const target = event.target;
                         if (!(target instanceof HTMLElement)) {
+                            return;
+                        }
+                        const downloadBtn = target.closest('.site-backup-download-btn');
+                        if (downloadBtn instanceof HTMLElement) {
+                            const jobId = downloadBtn.getAttribute('data-backup-id') || '';
+                            const filename = downloadBtn.getAttribute('data-filename') || 'bandpromo-download.bin';
+                            const expectedBytes = Number(downloadBtn.getAttribute('data-size-bytes') || 0);
+                            const expectedSha256 = downloadBtn.getAttribute('data-sha256') || '';
+                            if (!jobId) {
+                                return;
+                            }
+                            const url = `/biblioteca/download-site-backup.php?id=${encodeURIComponent(jobId)}`;
+                            const sizeHint = expectedBytes > 0 ? ` (${formatJobsTransferBytes(expectedBytes)})` : '';
+                            showJobsToast(`Downloading ${filename}${sizeHint}…`, 'info');
+                            bandpromoTriggerBrowserDownload(url, filename);
+                            const verifyMaxBytes = 64 * 1024 * 1024;
+                            if (expectedSha256 && expectedBytes > 0 && expectedBytes <= verifyMaxBytes) {
+                                bandpromoVerifyDownloadBlob({
+                                    url,
+                                    expectedBytes,
+                                    expectedSha256,
+                                }).then(() => {
+                                    showJobsToast('Download integrity verified (SHA-256).', 'success');
+                                }).catch((error) => {
+                                    showJobsToast(error.message || 'Integrity check failed.', 'warning');
+                                });
+                            } else if (expectedSha256) {
+                                showJobsToast(
+                                    `Large archive — compare size${sizeHint} and SHA ${expectedSha256.slice(0, 12)}… in Jobs after download.`,
+                                    'info'
+                                );
+                            }
                             return;
                         }
                         const deleteBtn = target.closest('.site-backup-delete-btn');
@@ -12769,11 +13097,36 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (!jobId) {
                             return;
                         }
-                        deleteBackup(jobId).catch(() => {});
+                        const label = deleteBtn.getAttribute('data-backup-label') || '';
+                        openBackupDeleteModal(jobId, label);
                     });
 
                     refreshBackupJobs().catch(() => {});
                 }
+
+                siteBackupDeleteCancelBtn?.addEventListener('click', closeBackupDeleteModal);
+                siteBackupDeleteModal?.addEventListener('click', (event) => {
+                    if (event.target === siteBackupDeleteModal) {
+                        closeBackupDeleteModal();
+                    }
+                });
+                siteBackupDeleteConfirmBtn?.addEventListener('click', () => {
+                    const jobId = pendingBackupDeleteId;
+                    if (!jobId) {
+                        return;
+                    }
+                    closeBackupDeleteModal();
+                    siteBackupDeleteConfirmBtn.disabled = true;
+                    deleteBackup(jobId).catch(() => {}).finally(() => {
+                        siteBackupDeleteConfirmBtn.disabled = false;
+                    });
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Escape' || !siteBackupDeleteModal || siteBackupDeleteModal.style.display !== 'flex') {
+                        return;
+                    }
+                    closeBackupDeleteModal();
+                });
 
                 if (createBtn) {
                     createBtn.addEventListener('click', () => {
@@ -12891,18 +13244,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     try {
                         const csrfToken = await refreshAdminCsrfToken();
-                        const formData = new FormData();
-                        formData.append('csrf_token', csrfToken);
-                        formData.append('archive', file);
-                        const resp = await fetch('/biblioteca/inspect-site-backup.php', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            body: formData,
-                        });
-                        const data = await resp.json().catch(() => ({}));
-                        if (!resp.ok || !data || data.ok !== true) {
-                            throw new Error((data && data.error) || 'Could not inspect archive.');
+                        if (importStatus) {
+                            importStatus.textContent = 'Uploading archive…';
                         }
+                        const data = await bandpromoUploadChunked({
+                            url: '/biblioteca/inspect-site-backup.php',
+                            file,
+                            csrfToken,
+                            onProgress: (progress, finishing) => {
+                                if (!importStatus) {
+                                    return;
+                                }
+                                if (finishing) {
+                                    importStatus.textContent = 'Upload complete — inspecting…';
+                                    return;
+                                }
+                                importStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
+                            },
+                        });
 
                         importStagingId = String(data.staging_id || '');
                         importAvailableComponents = Array.isArray(data.available_components)
@@ -12918,6 +13277,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 data.bandpromo_version ? `Exported from bandPromo ${data.bandpromo_version}` : '',
                                 data.exported_at_utc ? `Created ${data.exported_at_utc}` : '',
                                 data.size_label ? `Size ${data.size_label}` : '',
+                                data.sha256 ? `SHA-256 ${String(data.sha256).slice(0, 12)}…` : '',
                                 data.same_install
                                     ? 'Matches this install identity.'
                                     : 'From another install (migrate mode recommended).',
@@ -13023,10 +13383,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (importStatus) {
                             importStatus.textContent = data.message || 'Import queued.';
                         }
-                        if (jobsStatus) {
-                            jobsStatus.textContent = 'Import running in background. This list refreshes automatically.';
-                            jobsStatus.classList.remove('is-error');
-                        }
+                        const importName = importFilename ? String(importFilename.textContent || '').trim() : '';
+                        showJobsQueuedToast('import', importName);
                         await refreshBackupJobs();
                     } catch (error) {
                         if (importStatus) {
@@ -13128,10 +13486,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (campaignPackageExportStatus) {
                             campaignPackageExportStatus.textContent = message;
                         }
-                        if (jobsStatus) {
-                            jobsStatus.textContent = 'Building in background. This list refreshes automatically.';
-                            jobsStatus.classList.remove('is-error');
-                        }
+                        const campaignTitle = campaignPackageExportSelect instanceof HTMLSelectElement
+                            ? String(campaignPackageExportSelect.options[campaignPackageExportSelect.selectedIndex]?.text || campaignId).trim()
+                            : campaignId;
+                        showJobsQueuedToast('pcf', campaignTitle);
                         if (typeof refreshBackupJobs === 'function') {
                             await refreshBackupJobs();
                         }
@@ -13210,41 +13568,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 async function importCampaignPackageChunked(file, collision, csrfToken, onProgress) {
-                    const chunkSize = 2 * 1024 * 1024; // same as Files uploads
-                    const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
-                    const uploadId = `prp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-                    let lastData = null;
-                    for (let i = 0; i < totalChunks; i++) {
-                        const start = i * chunkSize;
-                        const chunk = file.slice(start, start + chunkSize);
-                        const formData = new FormData();
-                        formData.append('chunk', chunk, file.name);
-                        formData.append('filename', file.name);
-                        formData.append('chunk_index', String(i));
-                        formData.append('total_chunks', String(totalChunks));
-                        formData.append('upload_id', uploadId);
-                        formData.append('file_size', String(file.size));
-                        formData.append('collision', collision);
-                        if (csrfToken) {
-                            formData.append('csrf_token', csrfToken);
-                        }
-                        if (i === totalChunks - 1 && onProgress) {
-                            onProgress(1, true);
-                        }
-                        const response = await fetch('/biblioteca/import-campaign-package.php', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            body: formData,
-                        });
-                        lastData = await parseCampaignImportResponse(response);
-                        if (onProgress && i < totalChunks - 1) {
-                            onProgress((i + 1) / totalChunks, false);
-                        }
-                    }
-                    if (!lastData || lastData.status === 'partial') {
-                        throw new Error('Upload finished but the server is still missing chunks. Retry the import.');
-                    }
-                    return lastData;
+                    return bandpromoUploadChunked({
+                        url: '/biblioteca/import-campaign-package.php',
+                        file,
+                        csrfToken,
+                        fields: { collision },
+                        onProgress,
+                    });
                 }
 
                 async function importCampaignPackage() {
@@ -13334,6 +13664,250 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (campaignPackageImportBtn) {
                     campaignPackageImportBtn.addEventListener('click', () => {
                         importCampaignPackage().catch(() => {});
+                    });
+                }
+
+                const brandPackageExportSelect = document.getElementById('brandPackageExportSelect');
+                const brandPackageExportBtn = document.getElementById('brandPackageExportBtn');
+                const brandPackageExportStatus = document.getElementById('brandPackageExportStatus');
+
+                async function loadBrandPackageExportOptions() {
+                    if (!(brandPackageExportSelect instanceof HTMLSelectElement)) {
+                        return;
+                    }
+                    brandPackageExportSelect.innerHTML = '<option value="">Loading brands…</option>';
+                    try {
+                        const response = await fetch('/biblioteca/get-brands.php', {
+                            credentials: 'same-origin',
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.ok === false) {
+                            throw new Error(data.error || 'Could not load brands');
+                        }
+                        const brands = Array.isArray(data.brands) ? data.brands : [];
+                        const options = brands
+                            .map((entry) => {
+                                const id = String(entry && entry.id ? entry.id : '').trim();
+                                if (!id) {
+                                    return '';
+                                }
+                                const title = String(entry.title || id).trim() || id;
+                                return `<option value="${escapeHtml(id)}">${escapeHtml(title)}</option>`;
+                            })
+                            .filter(Boolean);
+                        brandPackageExportSelect.innerHTML = options.length
+                            ? options.join('')
+                            : '<option value="">No exportable brands</option>';
+                    } catch (error) {
+                        brandPackageExportSelect.innerHTML = '<option value="">Could not load brands</option>';
+                        if (brandPackageExportStatus) {
+                            brandPackageExportStatus.textContent = error.message || 'Could not load brands';
+                            brandPackageExportStatus.classList.add('is-error');
+                        }
+                    }
+                }
+
+                async function exportBrandPackageFromBackup() {
+                    if (!(brandPackageExportSelect instanceof HTMLSelectElement)) {
+                        return;
+                    }
+                    const brandId = String(brandPackageExportSelect.value || '').trim();
+                    if (!brandId) {
+                        if (brandPackageExportStatus) {
+                            brandPackageExportStatus.textContent = 'Choose a brand first.';
+                            brandPackageExportStatus.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (brandPackageExportStatus) {
+                        brandPackageExportStatus.textContent = 'Queueing PBF export…';
+                        brandPackageExportStatus.classList.remove('is-error');
+                    }
+                    if (brandPackageExportBtn instanceof HTMLButtonElement) {
+                        brandPackageExportBtn.disabled = true;
+                    }
+                    try {
+                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                            ? await refreshAdminCsrfToken()
+                            : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                        const response = await fetch('/biblioteca/export-brand-package.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                brand_id: brandId,
+                                csrf_token: csrfToken,
+                            }),
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.ok === false) {
+                            throw new Error(data.error || 'Could not queue PBF export');
+                        }
+                        const message = data.message || 'PBF export queued.';
+                        if (brandPackageExportStatus) {
+                            brandPackageExportStatus.textContent = message;
+                        }
+                        const brandTitle = brandPackageExportSelect instanceof HTMLSelectElement
+                            ? String(brandPackageExportSelect.options[brandPackageExportSelect.selectedIndex]?.text || brandId).trim()
+                            : brandId;
+                        showJobsQueuedToast('pbf', brandTitle);
+                        if (typeof refreshBackupJobs === 'function') {
+                            await refreshBackupJobs();
+                        }
+                    } catch (error) {
+                        if (brandPackageExportStatus) {
+                            brandPackageExportStatus.textContent = error.message || 'Export failed';
+                            brandPackageExportStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        if (brandPackageExportBtn instanceof HTMLButtonElement) {
+                            brandPackageExportBtn.disabled = false;
+                        }
+                    }
+                }
+
+                if (brandPackageExportSelect instanceof HTMLSelectElement) {
+                    loadBrandPackageExportOptions().catch(() => {});
+                }
+                if (brandPackageExportBtn) {
+                    brandPackageExportBtn.addEventListener('click', () => {
+                        exportBrandPackageFromBackup().catch(() => {});
+                    });
+                }
+
+                const brandPackageImportInput = document.getElementById('brandPackageImportInput');
+                const brandPackageImportBtn = document.getElementById('brandPackageImportBtn');
+                const brandPackageImportStatus = document.getElementById('brandPackageImportStatus');
+                const brandPackageImportFilename = document.getElementById('brandPackageImportFilename');
+
+                function selectedBrandPackageCollision() {
+                    const checked = document.querySelector('input[name="brandPackageImportCollision"]:checked');
+                    if (checked instanceof HTMLInputElement) {
+                        return String(checked.value || 'refuse');
+                    }
+                    return 'refuse';
+                }
+
+                if (brandPackageImportInput instanceof HTMLInputElement) {
+                    brandPackageImportInput.addEventListener('change', () => {
+                        const file = brandPackageImportInput.files && brandPackageImportInput.files[0];
+                        if (brandPackageImportFilename) {
+                            brandPackageImportFilename.textContent = file ? file.name : '';
+                        }
+                        if (brandPackageImportStatus) {
+                            brandPackageImportStatus.textContent = '';
+                            brandPackageImportStatus.classList.remove('is-error');
+                        }
+                    });
+                }
+
+                async function importBrandPackageChunked(file, collision, csrfToken, onProgress) {
+                    return bandpromoUploadChunked({
+                        url: '/biblioteca/import-brand-package.php',
+                        file,
+                        csrfToken,
+                        fields: { collision },
+                        onProgress,
+                    });
+                }
+
+                async function importBrandPackage() {
+                    if (!(brandPackageImportInput instanceof HTMLInputElement) || !brandPackageImportInput.files?.length) {
+                        if (brandPackageImportStatus) {
+                            brandPackageImportStatus.textContent = 'Choose a .pbf first.';
+                            brandPackageImportStatus.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    const file = brandPackageImportInput.files[0];
+                    if (brandPackageImportStatus) {
+                        brandPackageImportStatus.textContent = 'Uploading…';
+                        brandPackageImportStatus.classList.remove('is-error');
+                    }
+                    if (brandPackageImportBtn instanceof HTMLButtonElement) {
+                        brandPackageImportBtn.disabled = true;
+                    }
+                    try {
+                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                            ? await refreshAdminCsrfToken()
+                            : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                        const collision = selectedBrandPackageCollision();
+                        const data = await importBrandPackageChunked(file, collision, csrfToken, (progress, finishing) => {
+                            if (!brandPackageImportStatus) {
+                                return;
+                            }
+                            if (finishing) {
+                                brandPackageImportStatus.textContent = 'Uploading complete — importing…';
+                                return;
+                            }
+                            brandPackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
+                        });
+                        const brandId = String(data.brand_id || '').trim();
+                        let message = data.message || 'Portable Brand File imported.';
+                        if (data.deliverables_started) {
+                            // Server already queued the background rebuild during import.
+                        } else if (data.queue_deliverables) {
+                            try {
+                                if (brandPackageImportStatus) {
+                                    brandPackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
+                                }
+                                const buildResp = await fetch('/biblioteca/build.php', {
+                                    method: 'POST',
+                                    credentials: 'same-origin',
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ mode: 'full', profile: 'deliverables-only' }),
+                                });
+                                const buildData = await buildResp.json().catch(() => ({}));
+                                if (buildResp.ok && buildData && buildData.ok === true) {
+                                    message = `${message} Deliverables rebuild started — watch System → Deliverables.`;
+                                } else {
+                                    const buildError = String(buildData.error || '').trim();
+                                    message = buildError
+                                        ? `${message} Deliverables did not start (${buildError}). Open System → Deliverables and rebuild when ready.`
+                                        : `${message} Open System → Deliverables and rebuild when ready.`;
+                                }
+                            } catch (_buildError) {
+                                message = `${message} Open System → Deliverables and rebuild when ready.`;
+                            }
+                        }
+                        if (typeof data.build_required === 'boolean' && typeof setBuildRequiredNudge === 'function') {
+                            const state = data.build_required_state || {};
+                            setBuildRequiredNudge(
+                                data.build_required === true,
+                                state.reasons || [],
+                                state.action || 'none',
+                                state.tasks || []
+                            );
+                        }
+                        if (brandPackageImportStatus) {
+                            brandPackageImportStatus.textContent = message;
+                        }
+                        if (brandId && window.confirm(`${message}\n\nOpen it in Content → Branding?`)) {
+                            window.location.href = `?tab=content&cntab=branding&brand=${encodeURIComponent(brandId)}`;
+                        }
+                        loadBrandPackageExportOptions().catch(() => {});
+                    } catch (error) {
+                        if (brandPackageImportStatus) {
+                            let message = error && error.message ? String(error.message) : 'Import failed';
+                            if (/failed to fetch|networkerror|load failed/i.test(message)) {
+                                message = 'Upload interrupted before the server finished. Retry the import; large packages use 2 MB chunks like Files uploads.';
+                            }
+                            brandPackageImportStatus.textContent = message;
+                            brandPackageImportStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        if (brandPackageImportBtn instanceof HTMLButtonElement) {
+                            brandPackageImportBtn.disabled = false;
+                        }
+                    }
+                }
+
+                if (brandPackageImportBtn) {
+                    brandPackageImportBtn.addEventListener('click', () => {
+                        importBrandPackage().catch(() => {});
                     });
                 }
             })();

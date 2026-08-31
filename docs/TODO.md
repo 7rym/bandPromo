@@ -17,7 +17,9 @@ Rules for this file:
 
 **v0.8 beta (active) — the management machine** — catalogue, media, brands, containers, delivery scaling, and **Portable Campaign Files (PCF)**. Prepare everything operators need to manage releases and identity before v0.9 access tiers and v2 marketing automation.
 
-**Active gate (2026-08-13):** **original → master → deliverables** for every family — **complete (T0–T7)**. Evidence and checkboxes: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md). Remainders: gallery multi-select picker, `media/special/` fold, content AI wizards.
+**Active gate (2026-08-13):** **original → master → deliverables** for every family — **complete (T0–T7)**. Evidence and checkboxes: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
+
+**v0.8 exit gate (2026-08-31 — lock order):** see [v0.8 exit gate](#v0-8-exit-gate-2026-08-31) below. **Do not expand the tester pool or open v0.9 until these ship.** Player **Campaign navigator** is mandatory before new testers — navigation must not change a week after onboarding.
 
 **Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); Winter Party / Retroscopy round-trips; HITZ then TC. See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
@@ -39,7 +41,8 @@ Rules for this file:
 | 3b | Platform model: multi-playlist/gallery, module blocks, delivery architecture | **Active** |
 | 4 | v0.8 management slice: Brand, Visual pool, role tags, **master-tier completion**, content AI wizards | **Active — primary focus** |
 | 5 | Analytics storage: ActivityStore, SQLite events, rollups, legacy log migration | **Shipped (2026-07-13)** |
-| 6 | Beta fleet sync + legacy/fallback codebase audit | **Gate — after analytics tail + Visual pool (Phases 0b–3)** |
+| 6 | v0.8 exit gate (Campaign navigator, fleet sync, favicon/PWA, legacy refresh) | **Active — see [v0.8 exit gate](#v0-8-exit-gate-2026-08-31)** |
+| 7 | Operator Messaging Platform (toast → inbox, unified confirm) | **v0.9 Phase 1 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)** |
 
 Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first. **Analytics storage implementation** also belongs to **v0.8** so beta installs are not crushed when v0.9 opens access.
 
@@ -249,7 +252,73 @@ Implementation order:
 - [ ] **Schema + Files UX** — normalize/write visual `display`; Files drilldown + picker labels use title first.
 - [x] **Video remux-to-MKV** — materialize masters as MKV; Matroska tag write-through + heal. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
 - [x] **Still IPTC/XMP** — write-through on JPG/PNG/WebP masters; EXIF read for `captured_at`; heal empty display. **Owned by [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md) T5.**
-- [x] **Gallery multi-select picker** — Browse catalogue button opens shared media picker in multi-select mode; DnD remains as secondary flow.
+- [x] **Gallery multi-select picker** — Browse catalogue button opens shared media picker in multi-select mode; DnD remains as secondary flow. *(Operator-confirmed working 2026-08-26.)*
+
+### Admin panel consistency (v0.8)
+
+Operator chrome patterns across Dashboard / Files / Content / Settings / System are **not verified** as one system. Track as a deliberate pass before calling the management UI “done.”
+
+Policy — **lock before implementation**:
+
+- [ ] Lock **shared patterns** — edit headers (inline name + ← Back), amber/green save, pool/result editors, picker chrome, status/empty states, and developer-only cards use one vocabulary and spacing.
+- [ ] Lock **audit surfaces** — Files, Campaign/Playlist/Gallery/Page/Brand editors, System → Status / Repair / Backup, Welcome nudges.
+
+Implementation order:
+
+- [ ] **Consistency audit** — walk every admin tab against [ADMIN-UI.md](ADMIN-UI.md); list drifts (buttons, headers, filters, modals, copy).
+- [ ] **Remediation pass** — fix high-traffic drifts; ticket the rest before v0.9 access UI expands the surface.
+
+### Player Campaign navigator (HITZ feedback — 2026-08-26)
+
+HITZ suggested replacing the player brand-logo control with a **Campaign navigator**: pick campaign first, then the playlist selector shows that campaign’s playlists. Today playlist choice drives campaign context (brand shell + often page tabs via the playing track). Campaign → playlists matches the umbrella model better for multi-campaign installs (labels / many artists).
+
+Policy — **lock before implementation**:
+
+- [ ] Lock **control polarity** — campaign selects the listening scope; playlists are products under that campaign (not the reverse).
+- [ ] Lock **chrome placement** — campaign control vs brand logo (logo remains brand identity; do not silently delete logo unless a dedicated brand home remains).
+- [ ] Lock **single-campaign installs** — hide or collapse navigator when only one public campaign exists.
+- [ ] Lock **defaults** — how ★ default playlist / install pointers interact with last-selected campaign.
+- [ ] Lock **page tabs + brand** — still follow the **playing** campaign (or selected campaign when idle); deep links must land on the right campaign + playlist + track.
+
+Implementation order (after policy lock):
+
+- [ ] **Player Campaign navigator** — selector + filtered playlist list; preserve deep-link and idle behaviour.
+- [ ] **Docs** — PLATFORM-MODEL / USE-CASES HITZ + Twisted Chronicles player stories.
+
+### Brand export / import (v0.8)
+
+Brands travel inside a **Portable Campaign File (PCF / `.pcf`)** with their campaign today. Operators also need **brand-only** handoff (reuse an identity across campaigns/installs without moving tracks).
+
+**Locked (2026-08-30):** **Portable Brand File (PBF / `.pbf`)** — sibling of PCF; do **not** overload `.pcf`. Same product family (Portable *X* File; never call it a ZIP to operators; masters + registry subset; Jobs + collision modes), different unit (one brand + curated library, no campaign tracks/playlists/pages).
+
+Policy:
+
+- [x] Lock **name + extension** — **Portable Brand File** / **`.pbf`**.
+- [x] Lock **unit** — one brand document + its curated library Visual/SFX masters (and registry subset); no campaign tracks/playlists/pages.
+- [x] Lock **operator language** — always say **Portable Brand File (`.pbf`)** on first mention; mirror PCF Export / Import / Jobs UX on the Backup tab.
+- [x] Lock **collision** — import keeps or remaps brand id with Refuse / Overwrite / Skip / AsNew; Base / locked brand rules unchanged; import clears campaign ownership.
+- [x] Lock **surfaces** — Backup tab section parallel to PCF (Branding deep-link after import).
+
+Implementation:
+
+- [x] **Export builder** — brand doc + library masters + registry subset → `.pbf`.
+- [x] **Import merge** — apply into `data/brands/` + asset registry; rebuild deliverables as needed.
+- [x] **Admin UX** — Export / Import PBF controls (same Jobs list pattern as PCF).
+
+### Backup / portability operator copy (v0.8)
+
+System → **Backup, export & import** must lead with full product names and outcome-first backup labels.
+
+Policy:
+
+- [x] Lock **PCF wording** — first mention always **Portable Campaign File (`.pcf`)**; gloss of what travels.
+- [x] Lock **backup wording** — component labels by outcome (site settings, catalogue & config, media library, support logs).
+- [x] Lock **Jobs copy** — “archives stay until you download or delete them” without requiring operators to know `backups/`.
+
+Implementation:
+
+- [x] **Rewrite Backup tab help + card notes** (UK English; PCF full name; outcome-first backup labels).
+- [x] **Align Branding / PBF cards** with the same vocabulary when PBF ships.
 
 ### Delivery smoothness leftovers (deferred 2026-08-04)
 
@@ -354,27 +423,43 @@ Legacy checklist (superseded wording kept for history):
 - [x] **Import flow** — shared setup + admin importer (evolve to PCF-only).
 - [ ] **Ambassador docs** — short operator-facing how-to.
 
-### Beta fleet sync + legacy audit gate (v0.8 exit)
+### v0.8 exit gate (2026-08-31)
 
-**Gate:** do not start this slice until **analytics tail** (rollups, export, retention) and **Visual identity completion M1–M4** (at minimum resolver + masters + freshness + legacy dual-write exit) are shipped. Also complete **Favicon + PWA icons from Branding** (Brand section above) before calling v0.8 closed — operators must not depend on manual icon generators. Goal: every closed-beta install runs the same published build, then the repo gets a deliberate legacy/fallback/hack purge before v0.9 scale work.
+**Do not open v0.9 or welcome new testers until this checklist is done.** Order matters.
 
-Closed-beta fleet today: **3 remote test sites** — **Vanilla** (**https://bandpromo.site**, always the fresh-install host), **Twisted Chronicles** (band campaign), **HITZ** (label + long-form shows). Personas and feedback focus: [USE-CASES.md](USE-CASES.md). This Google Drive working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
+Closed-beta fleet: **Vanilla** (**https://bandpromo.site**), **Twisted Chronicles**, **HITZ** — [USE-CASES.md](USE-CASES.md). This Google Drive working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
 
-Policy — **lock before implementation**:
+1. **Player Campaign navigator (mandatory)**
+   - [ ] Lock policy — [Player Campaign navigator](#player-campaign-navigator-hitz-feedback--2026-08-26) (polarity, chrome, single-campaign collapse, defaults, page tabs + deep links).
+   - [ ] Implement selector + campaign-scoped playlist list; brand shell and page tabs follow selected/playing campaign.
+   - [ ] Validate on all three personas (Vanilla single-campaign, TC band, HITZ multi-campaign).
 
-- [ ] Lock **fleet baseline** — all remote beta sites must report the same published GitHub Release build via Site update before the audit starts; smoke-checklist per site (login, player, Deliverables, Backup & export).
-- [ ] Lock **audit scope** — legacy artifact paths, silent runtime fallbacks, compatibility shims, and “dirty hack” workarounds accumulated during v0.8 migration (not new feature work).
-- [ ] Lock **remediation bar** — remove or fail loud; no new silent template/example fallbacks; keep documented dual-read paths only when migration is explicitly still open.
-- [ ] Lock **deliverable** — findings triaged into fix-now vs defer-with-ticket; remediation checkpoint before v0.9 access-tier implementation.
+2. **Portability proof at latest build**
+   - [ ] Fleet sync — all 3 remote sites on same published GitHub Release (last confirmed build 332; re-sync required).
+   - [ ] PCF round-trip smoke — local → bandpromo.site → Winter Party / Retroscopy → HITZ → TC ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)).
 
-Implementation order:
+3. **Operator chrome**
+   - [ ] **Favicon + PWA icons from Branding** — required; no manual RealFaviconGenerator dependency ([Brand section](#brand-replaces-theme)).
+   - [x] **Developer-only System → Audit + Security** — `admin` role sees Status + Backup only; direct `?stab=audit|security` redirects (2026-08-31).
 
-- [x] **Fleet sync** — bring all 3 remote beta sites to latest published build; record build number, update date, and per-site smoke results. *(Confirmed 2026-07-15: all sites on build 332.)*
-- [x] **Legacy path inventory** — audit code + docs for removed or renamed artifacts (`play/playlist.json`, `data/themes/`, folder-category media paths, stale `theme-*` operator surfaces, validation report fallbacks past migration window). *(2026-07-15: see [LEGACY-AUDIT.md](LEGACY-AUDIT.md).)*
-- [x] **Fallback + hack audit** — grep and manual pass for silent example/template fallbacks, dead compatibility branches, and host-specific hacks; cross-check [BUILD-PIPELINE-AUDIT.md](BUILD-PIPELINE-AUDIT.md) and [AGENTS.md](AGENTS.md) fail-loud rules. *(2026-07-15 remediation pass.)*
-- [x] **Remediation checkpoint** — fix or explicitly ticket each finding; `docs/LEGACY-AUDIT.md` snapshot added 2026-07-15.
+4. **Legacy audit refresh**
+   - [ ] Re-run fallback/hack pass at current baseline (build 437+); update [LEGACY-AUDIT.md](LEGACY-AUDIT.md) snapshot.
 
-### Content AI wizards (v0.8)
+5. **Optional v0.8 polish (ticket if not done)**
+   - [ ] Admin panel consistency audit — [Admin panel consistency](#admin-panel-consistency-v0-8).
+   - [ ] `media/special/` fold.
+   - [ ] Ambassador docs.
+
+**Explicitly deferred to v0.9 (not v0.8 blockers):**
+
+- Operator Messaging Platform (toast → inbox, unified confirm) — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
+- Content AI wizards — policy locked; implementation v0.9+.
+- Access tiers, anonymous entry, page OG runtime.
+- Community inbox and bandPromo support ticketing site (pre-v1).
+
+Prior fleet/legacy work (2026-07-15, build 332): inventory and first remediation pass shipped — see [LEGACY-AUDIT.md](LEGACY-AUDIT.md). **Refresh required** after months of v0.8 work.
+
+### Content AI wizards (v0.9+)
 
 Policy — **locked**:
 

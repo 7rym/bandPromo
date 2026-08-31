@@ -169,38 +169,11 @@ function bandpromo_resolve_download_item(string $root, string $sourceDir, string
 
 function bandpromo_stream_download_file(string $path, string $downloadName): bool
 {
-    // Large masters can take longer than the host's default request timeout,
-    // especially from Google Drive-backed local installs. Stream in bounded
-    // chunks instead of buffering the whole file in PHP or JavaScript.
-    @set_time_limit(0);
-    header('Content-Type: ' . bandpromo_download_content_type($downloadName));
-    header('Content-Length: ' . (string) filesize($path));
-    header('Content-Disposition: attachment; filename="' . rawurlencode($downloadName) . '"; filename*=UTF-8\'\'' . rawurlencode($downloadName));
-    header('Cache-Control: private, no-store, max-age=0');
-    header('X-Content-Type-Options: nosniff');
+    require_once __DIR__ . '/http-stream.php';
 
-    $handle = fopen($path, 'rb');
-    if ($handle === false) {
-        return false;
-    }
-
-    $expectedBytes = (int) filesize($path);
-    $sentBytes = 0;
-    while (!feof($handle)) {
-        $chunk = fread($handle, 1024 * 1024);
-        if ($chunk === false) {
-            break;
-        }
-        $sentBytes += strlen($chunk);
-        echo $chunk;
-        flush();
-        if (connection_aborted()) {
-            break;
-        }
-    }
-    fclose($handle);
-
-    return $sentBytes >= $expectedBytes;
+    return bandpromo_http_stream_file($path, $downloadName, [
+        'exit' => false,
+    ]);
 }
 
 function bandpromo_zip_entry_name(array &$usedNames, string $downloadName): string

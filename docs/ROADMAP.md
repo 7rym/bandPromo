@@ -50,10 +50,10 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Brand containers + semantic player colours (replaces Theme) | Core shipped (Branding editor, release `brand_id`, player tokens); legacy `theme` URLs/APIs remain |
 | Visual pool + role tags + registry-scoped delivery | Phases 0b–2 + **identity completion M1–M6 shipped** 2026-08-04 (`asset_id`, masters, XXH3, register-or-fail, operator titles, campaign export); physical `media/special/` retirement residual |
 
-| Content AI wizards (release + brand canon) | Defined; v0.8 deliverable |
+| Content AI wizards (release + brand canon) | Policy locked; **implementation v0.9+** |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Gallery multi-select picker (Available DnD still ships); physical Brand-assets `media/special/` fold; Content AI wizards remain defined, not built. Page OG/share runtime still v0.9 (storage shipped). Fan comment/share on gallery assets is **v0.9+** (keep in USE-CASES tour story). See [TODO.md](TODO.md).
+**Next focus:** Player **Campaign navigator** (v0.8 exit gate); fleet sync + PCF validation; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -117,18 +117,18 @@ The first brand system does not need arbitrary custom templating. It needs a cle
 
 **System shell vs brand overlay:** v0.8 ships brand **management** and **token overlay** on the stable dark system shell (layout, breakpoints, and behavior stay platform-owned). v1.0 adds **shell asset runtime** so installs can look genuinely different while a broken brand still degrades to default — see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands.
 
-### Content AI wizards (v0.8 — management machine)
+### Content AI wizards (v0.9+ — policy locked in v0.8)
 
-v0.8 ships **content-creation wizards** — operator-triggered helpers that fill **missing container fields** using **release + linked brand** as canon:
+Policy and prompt contract were locked during v0.8. **Implementation deferred to v0.9+** so v0.8 can close on navigation, portability proof, and operator chrome. v0.8 ships the **management machine** without AI fill-in wizards.
 
-- EPK blurbs, page block drafts, descriptions, alt text, metadata suggestions
+- EPK blurbs, page block drafts, descriptions, alt text, metadata suggestions (planned v0.9+)
 - optional image briefs from brand style refs
 - operator-configured external model/API settings
 - outputs are drafts; generated assets enter the Visual pool with `origin: ai-generated` until confirmed
 
 This is **not** the v2+ marketing machine (campaign calendars, scheduled social pushes, multi-post series from an existing catalogue). Those stay v2+.
 
-See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands and [MEDIA-HANDLING.md](MEDIA-HANDLING.md) → upload role tagging.
+See [TODO.md](TODO.md) → Content AI wizards and [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands.
 
 ## Identity strategy
 
@@ -546,8 +546,8 @@ Closed-beta fleet personas (Vanilla demo install, **Twisted Chronicles** band ca
 - **Sharing** cards use container description + poster fields in storage; public OG runtime wiring is **v0.9**.
 
 - **Shipped now:** package updater; Backup & export; Branding; block-based Pages + gallery presets; unified Content editors; upload-time delivery; platform storage/API; SQLite activity store; playlist documents (legacy `play/playlist.json` removed); campaign-associated player page tabs; Brand shell override; Lyrics ↔ Notes; Content → Player layout retired; Demo PCF setup import; Catalogue campaign delete.
-- **In progress in v0.8:** gallery multi-select picker; `media/special/` fold; content AI wizards; PCF campaign handoff polish; playback/delivery architecture polish.
-- **v0.8 exit gate:** sync all **3 remote beta test sites** (Vanilla = **bandpromo.site** / Twisted Chronicles / HITZ) to the latest published build, then audit the codebase for legacy paths, silent fallbacks, compatibility shims, and dirty hacks — remediation checkpoint before v0.9 access-tier work. Fresh installs always use bandpromo.site; never wipe the local Google Drive working copy. See [TODO.md](TODO.md) → Beta fleet sync + legacy audit gate.
+- **In progress in v0.8:** player **Campaign navigator** (**exit gate — ship before new testers**); `media/special/` fold; Admin panel consistency pass; PCF fleet validation at latest build; favicon/PWA from Branding; legacy audit refresh. Brand export/import and gallery multi-select **shipped**. **Deferred to v0.9:** content AI wizards, Operator Messaging Platform ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)), access tiers, page OG runtime.
+- **v0.8 exit gate (2026-08-31):** (1) Campaign navigator policy + ship + validate on Vanilla/TC/HITZ, (2) fleet sync + PCF/PBF smoke at latest published build, (3) favicon/PWA from Branding, (4) developer-only System → Audit/Security, (5) legacy audit refresh. **Do not expand tester pool until complete.** See [TODO.md](TODO.md) → v0.8 exit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists, page OG tags.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
 - **v0.9+:** Chromecast and similar cast/distribution features once playback deliverables are stable.
@@ -848,12 +848,15 @@ For each phase:
 
 Before opening v0.9:
 
+- **v0.8 exit gate complete** — Player Campaign navigator shipped and validated on Vanilla/TC/HITZ; fleet on latest published build with PCF/PBF smoke; favicon/PWA from Branding; legacy audit refreshed; developer-only Audit/Security ([TODO.md](TODO.md) → v0.8 exit gate)
 - v0.8 platform deliverables are stable (multi-playlist/gallery, gallery module blocks, track deep links, delivery architecture)
 - access-tier and login/anonymous specs from v0.8 are complete and reviewed
+- **Operator Messaging Platform** — toast → inbox, unified confirm, operator settings ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) Phase 1 as v0.9 opening sprint)
 - Chromecast/cast architecture is defined against the delivery model
 - multi-release and access-model assumptions are proven enough to continue
 - theme/module direction is stable enough not to be reworked immediately
 - **optional:** review [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) and pick scheduling (v0.9 opening sprint vs incremental vs defer `/admin/` to v1.0 prep)
+- **pre-v1 (not v0.9 blocker):** bandPromo marketing/support site with install-scoped ticketing for operator → bandPromo team messages
 
 Before calling v1.0 releaseable:
 

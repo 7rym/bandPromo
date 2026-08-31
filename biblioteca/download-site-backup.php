@@ -39,10 +39,15 @@ try {
         'job_id' => $jobId,
         'backup_type' => (string) ($normalized['type'] ?? 'full'),
         'size_bytes' => (int) ($normalized['size_bytes'] ?? 0),
+        'sha256' => (string) ($normalized['sha256'] ?? ''),
     ]);
 
     // Streams and exits on success. Do not wrap post-header failures in JSON.
-    bandpromo_site_backup_stream_file($zipPath, $filename);
+    bandpromo_site_backup_stream_file(
+        $zipPath,
+        $filename,
+        (string) ($normalized['sha256'] ?? '')
+    );
 } catch (Throwable $e) {
     if (headers_sent()) {
         exit;

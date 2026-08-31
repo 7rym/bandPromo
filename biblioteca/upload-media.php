@@ -11,6 +11,8 @@
  */
 
 require_once __DIR__ . '/admin-api-guard.php';
+require_once __DIR__ . '/csrf.php';
+require_once __DIR__ . '/chunked-upload.php';
 
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/admin-audit.php';
@@ -408,205 +410,201 @@ function build_reason_for_upload(string $target_hint, string $ext, string $filen
 
 // ─── Chunked upload mode ──────────────────────────────────────────────────────
 if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
-    $chunkIndex  = (int)$_POST['chunk_index'];
-    $totalChunks = (int)$_POST['total_chunks'];
-    $filename    = basename($_POST['filename']);
-    $safeName    = preg_replace('/[^a-zA-Z0-9.\-_]/', '_', $filename);
-    $ext         = strtolower(pathinfo($safeName, PATHINFO_EXTENSION));
-    $target_hint = $_POST['target'] ?? '';
+    $csrfToken = trim((string) ($_POST['csrf_token'] ?? ''));
+    if (!validate_csrf_token($csrfToken)) {
+        http_response_code(403);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Session expired or invalid request token. Refresh admin and try again.',
+        ]);
+        exit;
+    }
 
-    if (!in_array($ext, array_merge($audio_exts, $image_exts, $video_exts))) {
+    try {
+        $meta = bandpromo_chunked_upload_parse_request($_POST);
+    } catch (Throwable $throwable) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => $throwable->getMessage()]);
+        exit;
+    }
+
+    $filename = $meta['filename'];
+    $safeName = preg_replace('/[^a-zA-Z0-9.\-_]/', '_', $filename) ?: 'upload.bin';
+    $ext = strtolower(pathinfo($safeName, PATHINFO_EXTENSION));
+    $target_hint = (string) ($_POST['target'] ?? '');
+
+    if (!in_array($ext, array_merge($audio_exts, $image_exts, $video_exts), true)) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => "Unsupported file type: .$ext"]);
         exit;
     }
 
-    if (empty($_FILES['chunk']) || $_FILES['chunk']['error'] !== UPLOAD_ERR_OK) {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Chunk upload error: ' . ($_FILES['chunk']['error'] ?? 'missing')]);
-        exit;
-    }
-
-    // Save chunk
-    $chunkPath = $tmp_dir . '/' . $safeName . '.part' . $chunkIndex;
-    if (!move_uploaded_file($_FILES['chunk']['tmp_name'], $chunkPath)) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Could not save chunk']);
-        exit;
-    }
-
-    // Check if all chunks are present
-    $partsPresent = 0;
-    for ($i = 0; $i < $totalChunks; $i++) {
-        if (file_exists($tmp_dir . '/' . $safeName . '.part' . $i)) $partsPresent++;
-    }
-
-    if ($partsPresent < $totalChunks) {
-        // Still waiting for more chunks
-        echo json_encode(['ok' => true, 'status' => 'partial', 'received' => $partsPresent, 'total' => $totalChunks]);
-        exit;
-    }
-
-    // All chunks received — assemble
-    @set_time_limit(0);
-    $dest = resolve_upload_destination($root_dir, (string) $target_hint, $ext, $safeName);
-    if ($dest === null) {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => "Unsupported file type: .$ext"]);
-        exit;
-    }
-
-    $replacedExisting = is_file($dest);
-    $out = fopen($dest, 'wb');
-    if (!$out) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Could not create destination file']);
-        exit;
-    }
-    for ($i = 0; $i < $totalChunks; $i++) {
-        $partPath = $tmp_dir . '/' . $safeName . '.part' . $i;
-        $in = fopen($partPath, 'rb');
-        stream_copy_to_stream($in, $out);
-        fclose($in);
-        unlink($partPath);
-    }
-    fclose($out);
-
-    $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safeName, $dest);
-    if (empty($finalized['ok'])) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => $finalized['warning'] ?: 'Could not finalize upload']);
-        exit;
-    }
-
-    $savedName = (string) ($finalized['saved_as'] ?? $safeName);
-    $savedPath = (string) ($finalized['saved_path'] ?? $dest);
-    $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
-    bandpromo_record_cover_upload_if_needed($root_dir, $savedPath, $savedName);
-    $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
-    $master = in_array((string) $target_hint, ['special', 'sfx'], true)
-        ? ['attempted' => false, 'prepared' => false, 'warning' => '']
-        : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
-    if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
-        bandpromo_build_catalog_finalize_audio_upload($root_dir, $savedName);
-    }
-    $displayRefresh = bandpromo_upload_refresh_audio_display($root_dir, $master, $savedName);
-    $videoPoster = bandpromo_is_video_extension($savedExt)
-        ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
-        : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
-    bandpromo_upload_index_operator_file(
-        $root_dir,
-        (string) $target_hint,
-        $savedExt,
-        $savedPath,
-        $savedName
-    );
-    $visualAsset = bandpromo_register_visual_upload_if_needed(
-        $root_dir,
-        (string) $target_hint,
-        $savedExt,
-        $savedName,
-        $savedPath
-    );
-    $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $savedName);
-    $response = [
-        'ok' => true,
-        'status' => 'complete',
-        'saved_as' => $savedName,
-        'replaced' => $replacedExisting,
-    ];
-
-    if (is_array($visualAsset) && !empty($visualAsset['id'])) {
-        $response['asset_id'] = $visualAsset['id'];
-        $response['visual_role'] = $visualAsset['role'] ?? 'unassigned';
-        $response['brand_id'] = $visualAsset['brand_id'] ?? '';
-    }
-    if (is_array($sfxAsset) && !empty($sfxAsset['id'])) {
-        $response['asset_id'] = $sfxAsset['id'];
-        $response['sfx_role'] = 'sfx';
-        $response['brand_id'] = $sfxAsset['brand_id'] ?? '';
-    }
-
-    if (!empty($master['attempted'])) {
-        $response['master_prepared'] = !empty($master['prepared']);
-        if (!empty($master['master_filename'])) {
-            $response['master_filename'] = $master['master_filename'];
+    try {
+        $tmpDir = bandpromo_chunked_upload_staging_dir($root_dir, 'bandpromo-media-upload');
+        $chunkFile = is_array($_FILES['chunk'] ?? null) ? $_FILES['chunk'] : [];
+        $received = bandpromo_chunked_upload_receive($tmpDir, $meta, $chunkFile, $ext);
+        if (($received['status'] ?? '') === 'partial') {
+            echo json_encode($received);
+            exit;
         }
-        if (!empty($master['master_format'])) {
-            $response['master_format'] = $master['master_format'];
+        $assembledPath = (string) ($received['assembled_path'] ?? '');
+        $dest = resolve_upload_destination($root_dir, (string) $target_hint, $ext, $safeName);
+        if ($dest === null) {
+            @unlink($assembledPath);
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => "Unsupported file type: .$ext"]);
+            exit;
         }
-        if (!empty($master['asset_id']) && empty($response['asset_id'])) {
-            $response['asset_id'] = $master['asset_id'];
-        }
-        if (!empty($master['warning'])) {
-            $response['master_warning'] = $master['warning'];
-        }
-    }
 
-    if (!empty($displayRefresh['ok'])) {
-        $response['display'] = $displayRefresh['display'];
-        $response['display_from_tags'] = !empty($displayRefresh['from_tags']);
-        if ($displayRefresh['warning'] !== '') {
-            $response['display_warning'] = $displayRefresh['warning'];
-            if (empty($response['master_warning'])) {
-                $response['master_warning'] = $displayRefresh['warning'];
+        $replacedExisting = is_file($dest);
+        if (!@rename($assembledPath, $dest) && !@copy($assembledPath, $dest)) {
+            @unlink($assembledPath);
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not create destination file']);
+            exit;
+        }
+        @unlink($assembledPath);
+
+        $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safeName, $dest);
+        if (empty($finalized['ok'])) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => $finalized['warning'] ?: 'Could not finalize upload']);
+            exit;
+        }
+
+        $savedName = (string) ($finalized['saved_as'] ?? $safeName);
+        $savedPath = (string) ($finalized['saved_path'] ?? $dest);
+        $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
+        bandpromo_record_cover_upload_if_needed($root_dir, $savedPath, $savedName);
+        $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
+        $master = in_array((string) $target_hint, ['special', 'sfx'], true)
+            ? ['attempted' => false, 'prepared' => false, 'warning' => '']
+            : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
+        if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
+            bandpromo_build_catalog_finalize_audio_upload($root_dir, $savedName);
+        }
+        $displayRefresh = bandpromo_upload_refresh_audio_display($root_dir, $master, $savedName);
+        $videoPoster = bandpromo_is_video_extension($savedExt)
+            ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
+            : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
+        bandpromo_upload_index_operator_file(
+            $root_dir,
+            (string) $target_hint,
+            $savedExt,
+            $savedPath,
+            $savedName
+        );
+        $visualAsset = bandpromo_register_visual_upload_if_needed(
+            $root_dir,
+            (string) $target_hint,
+            $savedExt,
+            $savedName,
+            $savedPath
+        );
+        $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $savedName);
+        $response = [
+            'ok' => true,
+            'status' => 'complete',
+            'saved_as' => $savedName,
+            'replaced' => $replacedExisting,
+        ];
+
+        if (is_array($visualAsset) && !empty($visualAsset['id'])) {
+            $response['asset_id'] = $visualAsset['id'];
+            $response['visual_role'] = $visualAsset['role'] ?? 'unassigned';
+            $response['brand_id'] = $visualAsset['brand_id'] ?? '';
+        }
+        if (is_array($sfxAsset) && !empty($sfxAsset['id'])) {
+            $response['asset_id'] = $sfxAsset['id'];
+            $response['sfx_role'] = 'sfx';
+            $response['brand_id'] = $sfxAsset['brand_id'] ?? '';
+        }
+
+        if (!empty($master['attempted'])) {
+            $response['master_prepared'] = !empty($master['prepared']);
+            if (!empty($master['master_filename'])) {
+                $response['master_filename'] = $master['master_filename'];
+            }
+            if (!empty($master['master_format'])) {
+                $response['master_format'] = $master['master_format'];
+            }
+            if (!empty($master['asset_id']) && empty($response['asset_id'])) {
+                $response['asset_id'] = $master['asset_id'];
+            }
+            if (!empty($master['warning'])) {
+                $response['master_warning'] = $master['warning'];
             }
         }
+
+        if (!empty($displayRefresh['ok'])) {
+            $response['display'] = $displayRefresh['display'];
+            $response['display_from_tags'] = !empty($displayRefresh['from_tags']);
+            if ($displayRefresh['warning'] !== '') {
+                $response['display_warning'] = $displayRefresh['warning'];
+                if (empty($response['master_warning'])) {
+                    $response['master_warning'] = $displayRefresh['warning'];
+                }
+            }
+        }
+
+        if (!empty($videoPoster['attempted'])) {
+            $response['video_poster_generated'] = !empty($videoPoster['generated']);
+            if (!empty($videoPoster['poster'])) {
+                $response['video_poster'] = $videoPoster['poster'];
+            }
+            if (!empty($videoPoster['warning'])) {
+                $response['video_poster_warning'] = $videoPoster['warning'];
+            }
+        }
+
+        if ($reason !== '') {
+            $state = bandpromo_mark_build_required($reason);
+            $auto = bandpromo_run_auto_upload_tasks([$reason], [$savedName], $state);
+            $state = $auto['state'];
+            $response['build_required'] = !empty($state['required']);
+            $response['build_required_state'] = $state;
+            if (!empty($auto['auto_tasks'])) {
+                $response['auto_tasks'] = $auto['auto_tasks'];
+            }
+            if (!empty($auto['delivery_prepared'])) {
+                $response['delivery_prepared'] = $auto['delivery_prepared'];
+            }
+            if (!empty($auto['delivery_missing'])) {
+                $response['delivery_missing'] = $auto['delivery_missing'];
+            }
+            if (!empty($auto['background_tasks'])) {
+                $response['background_tasks'] = $auto['background_tasks'];
+            }
+            if ($auto['warning'] !== '') {
+                $response['warning'] = $auto['warning'];
+                $response['task_output'] = $auto['task_output'];
+            }
+        } else {
+            $response['build_required'] = false;
+        }
+
+        echo json_encode($response);
+
+        bandpromo_admin_audit_log('media_uploaded', [
+            'target_type' => 'media',
+            'target_id' => ($target_hint !== '' ? $target_hint : $savedExt) . '/' . $savedName,
+            'status' => 'ok',
+            'data' => [
+                'mode' => 'chunked',
+                'build_required' => $response['build_required'] ?? false,
+                'reasons' => $reason !== '' ? [$reason] : [],
+                'master_prepared' => $response['master_prepared'] ?? false,
+                'master_warning' => $response['master_warning'] ?? '',
+                'video_poster_generated' => $response['video_poster_generated'] ?? false,
+                'video_poster_warning' => $response['video_poster_warning'] ?? '',
+            ],
+        ]);
+        exit;
+    } catch (Throwable $throwable) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => $throwable->getMessage()]);
+        exit;
     }
-
-    if (!empty($videoPoster['attempted'])) {
-        $response['video_poster_generated'] = !empty($videoPoster['generated']);
-        if (!empty($videoPoster['poster'])) {
-            $response['video_poster'] = $videoPoster['poster'];
-        }
-        if (!empty($videoPoster['warning'])) {
-            $response['video_poster_warning'] = $videoPoster['warning'];
-        }
-    }
-
-    if ($reason !== '') {
-        $state = bandpromo_mark_build_required($reason);
-        $auto = bandpromo_run_auto_upload_tasks([$reason], [$savedName], $state);
-        $state = $auto['state'];
-        $response['build_required'] = !empty($state['required']);
-        $response['build_required_state'] = $state;
-        if (!empty($auto['auto_tasks'])) {
-            $response['auto_tasks'] = $auto['auto_tasks'];
-        }
-        if (!empty($auto['delivery_prepared'])) {
-            $response['delivery_prepared'] = $auto['delivery_prepared'];
-        }
-        if (!empty($auto['delivery_missing'])) {
-            $response['delivery_missing'] = $auto['delivery_missing'];
-        }
-        if (!empty($auto['background_tasks'])) {
-            $response['background_tasks'] = $auto['background_tasks'];
-        }
-        if ($auto['warning'] !== '') {
-            $response['warning'] = $auto['warning'];
-            $response['task_output'] = $auto['task_output'];
-        }
-    } else {
-        $response['build_required'] = false;
-    }
-
-    echo json_encode($response);
-
-    bandpromo_admin_audit_log('media_uploaded', [
-        'target_type' => 'media',
-        'target_id' => ($target_hint !== '' ? $target_hint : $savedExt) . '/' . $savedName,
-        'status' => 'ok',
-        'data' => [
-            'mode' => 'chunked',
-            'build_required' => $response['build_required'] ?? false,
-            'reasons' => $reason !== '' ? [$reason] : [],
-            'master_prepared' => $response['master_prepared'] ?? false,
-            'master_warning' => $response['master_warning'] ?? '',
-            'video_poster_generated' => $response['video_poster_generated'] ?? false,
-            'video_poster_warning' => $response['video_poster_warning'] ?? '',
-        ],
-    ]);
-    exit;
 }
 
 // ─── Standard (small file) upload mode ────────────────────────────────────────

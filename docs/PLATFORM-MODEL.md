@@ -122,6 +122,7 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 | `primary` (release id) | **Invisible orphan/upload bucket** — not an operator-facing campaign |
 | `bandpromo-demo` | **Platform demo campaign** from `bandPromo-demo.pcf` (hideable, read-only) |
 | `.pcf` / PCF | **Portable Campaign File** — one campaign ([PORTABILITY.md](PORTABILITY.md)). Never call it a ZIP in operator copy. Legacy `.prp` import still works. |
+| `.pbf` / PBF | **Portable Brand File** — one brand + curated library ([PORTABILITY.md](PORTABILITY.md)). Never call it a ZIP in operator copy. |
 | `system` (playlist `kind`) | **Site-level playlist** until user playlists exist |
 | `system: true` (brand) | **Platform-shipped** — locked on hosted installs; localhost may edit for PCF source; operators duplicate to customize |
 | `user-upload` (origin) | **Operator upload** (not fan upload) |
@@ -914,7 +915,7 @@ Disabled modules: hide editor entry points; renderer skips block type with admin
 
 - **Access:** [ACCESS-MODEL.md](ACCESS-MODEL.md) — VIP per-release default + per-track override; anonymous sees embargoed tracks locked, not hidden.
 - **Delivery / PWA / cast:** [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — PHP authorizes, static delivery serves bytes; cast scope = full playable/viewable media (v0.9+).
-- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export, and **Portable Campaign Files (PCF / `.pcf`)**.
+- **Backup / export:** [PORTABILITY.md](PORTABILITY.md) — full backup (DR), data export, **Portable Campaign Files (PCF / `.pcf`)**, and **Portable Brand Files (PBF / `.pbf`)**.
 
 ## `web-config.json` target shape (install shell)
 

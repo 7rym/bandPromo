@@ -42,6 +42,10 @@ Do not rename existing code identifiers, CSS properties, JSON keys, file names, 
 
 **Portable Campaign File (PCF):** operator-facing name is always **PCF** or **`.pcf`**. Never tell operators it is a ZIP, that they may rename it to `.zip`, or mention ZipArchive for campaign files. Full site backup remains a ZIP; the application package remains `bandPromo.zip`. Import still accepts legacy `.prp` without advertising it. Internally the file is zip-backed (`ZipArchive`). Prefer `.pcf` on export and on the durable `demo-content` tag; fall back to `.prp` when that is what GitHub still serves.
 
+**Portable Brand File (PBF):** operator-facing name is always **PBF** or **`.pbf`**. Same rules as PCF (never call it a ZIP). Unit is one brand + curated library masters — not a campaign. See [PORTABILITY.md](PORTABILITY.md).
+
+**Transfer integrity:** admin downloads and large uploads go through shared helpers (`http-stream.php`, `chunked-upload.php`, `bandpromoDownloadVerified` / `bandpromoUploadChunked`). Jobs store archive SHA-256; verified download refuses truncated files; PCF/PBF manifests include per-path digests.
+
 `biblioteca/templates/` and runtime user data may use any language.
 
 ### VERSION + push/pull workflow
@@ -107,6 +111,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - [docs/MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)
 - [docs/FEATURES.md](FEATURES.md)
 - [docs/ADMIN-UI.md](ADMIN-UI.md)
+- [docs/OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) (v0.9 messaging plan; policy locked v0.8)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)
 
 ## Project Structure

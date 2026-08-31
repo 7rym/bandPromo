@@ -40,7 +40,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 - **Playlists** under that release: four singles (≈2 tracks each) + one album playlist (≈10 tracks). Street dates stagger (e.g. four weeks apart) via each playlist’s `publish_date`. Album and a single may go public in parallel.
 - **Pages:** Bio/EPK and a page that embeds a **gallery** of art/photos for this campaign — not one eternal site-wide Bio.
 - **Gallery** container(s) associated to the campaign; shown via page gallery blocks (there is no dedicated Gallery player tab).
-- **Tour / concert galleries (operator story):** after each show, batch-upload stills and clips → give each asset a **title**, description, keywords, and capture date → assemble a release-scoped gallery (e.g. `Hamburg Grand Stage 2026-05-17`) via the searchable multi-select picker → embed on a campaign page. Visual naming ships in **v0.8**; the picker is the locked target (Available drag-and-drop still ships).
+- **Tour / concert galleries (operator story):** after each show, batch-upload stills and clips → give each asset a **title**, description, keywords, and capture date → assemble a release-scoped gallery (e.g. `Hamburg Grand Stage 2026-05-17`) via the searchable multi-select picker → embed on a campaign page. Visual naming + gallery multi-select picker ship in **v0.8** (Available drag-and-drop remains secondary).
 - **Audience engagement (same story, later build):** fans comment on and share individual gallery assets to grow community around the tour. Fan accounts / comments / share stay in this use case text; **implementation is v0.9+** (access/engagement foundation) — do not strip them from the scenario.
 - **Branding:** one brand document per release (`release.brand_id`).
 - Later campaigns (e.g. nine months later) are **new Campaigns**, each with their own Bio reflecting lineup/story changes.
@@ -88,6 +88,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 
 - Mixing artist releases and long-form episodes in Catalogue / Files.
 - Brand active vs per-campaign tokens when many artist brands share one install.
+- **Campaign-first player navigation:** **v0.8 exit gate** — select campaign, then see that campaign’s playlists. Must ship before expanding the tester pool. Policy lock then implement ([TODO.md](TODO.md) → Player Campaign navigator).
 
 ---
 
@@ -101,7 +102,7 @@ Closed-beta fleet today: **three** remote installs — one per persona below. Se
 | Gallery in player | Page with gallery blocks | Same (no Gallery module tab) |
 | Tour gallery assemble | Visual titles + multi-select picker (v0.8) | Same |
 | Fan comment/share on gallery assets | — | v0.9+ (keep in Twisted Chronicles story) |
-| Brand tokens in player | Playlist → owning release brand → active fallback | Same |
+| Brand tokens in player | Playlist → owning release brand → active fallback | **v0.8 exit:** Campaign navigator (campaign → playlists) |
 | Brand shell media in player | Per-release visual shell (logo/still/living); SFX stay Active/login | Same |
 | Lyrics vs Notes panel label | Per-track `text_role` + optional `notes_label` (default Tracklist) | Same |
 

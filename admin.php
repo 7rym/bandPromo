@@ -626,6 +626,10 @@ if ($systemTab === 'publish' || $systemTab === 'status') {
 if (!in_array($systemTab, $allowedSystemTabs, true)) {
     $systemTab = 'deliverables';
 }
+if ($tab === 'system' && in_array($systemTab, ['audit', 'security'], true) && $currentUserRole !== 'developer') {
+    header('Location: /admin.php?tab=system&stab=deliverables');
+    exit;
+}
 
 $siteBackupStatus = null;
 $siteBackupJobs = [];
@@ -649,7 +653,7 @@ $auditActors = [];
 $documentationScope = 'operator';
 $documentationCatalog = [];
 $documentationView = null;
-if ($tab === 'system' && $systemTab === 'audit') {
+if ($tab === 'system' && $systemTab === 'audit' && $currentUserRole === 'developer') {
     $auditEntries = bandpromo_admin_audit_read_entries($dateStart, $dateEnd, $auditActionFilter, $auditUserFilter, 200, 0);
     $auditActions = bandpromo_admin_audit_get_action_types($dateStart, $dateEnd);
     $auditActors = bandpromo_admin_audit_get_actors($dateStart, $dateEnd);
@@ -2615,9 +2619,13 @@ if ($tab === 'analytics') {
         <div id="tab-system" class="tab-content <?php echo $tab === 'system' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
                 <a href="?tab=system&amp;stab=deliverables" class="tab-link <?php echo $systemTab === 'deliverables' ? 'active' : ''; ?>">📊 Status</a>
+                <?php if ($currentUserRole === 'developer'): ?>
                 <a href="?tab=system&amp;stab=audit" class="tab-link <?php echo $systemTab === 'audit' ? 'active' : ''; ?>">🛡️ Audit</a>
+                <?php endif; ?>
                 <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup, export &amp; import</a>
+                <?php if ($currentUserRole === 'developer'): ?>
                 <a href="?tab=system&amp;stab=security" class="tab-link <?php echo $systemTab === 'security' ? 'active' : ''; ?>">🔒 Security</a>
+                <?php endif; ?>
                 <?php if ($systemTab === 'deliverables'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
                 <?php elseif ($systemTab === 'audit'): ?>
@@ -2780,15 +2788,16 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Move one campaign as a <code>.pcf</code> (masters, brand, playlists, galleries, pages), or back up the whole site.
-                Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the campaign, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new campaign id.
-                Jobs stay in <code>backups/</code> until you download or delete them. After import, open <strong>Status</strong> if you need to refresh listener-ready files.
+                Move one campaign with a <strong>Portable Campaign File (<code>.pcf</code>)</strong> (masters, brand, playlists, galleries, pages), or one brand with a <strong>Portable Brand File (<code>.pbf</code>)</strong> (brand + curated library masters).
+                Or back up this install for recovery (site settings, catalogue &amp; config, media library, support logs).
+                Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the matching id, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new id.
+                Jobs stay until you download or delete them. After import, open <strong>Status</strong> if you need to refresh listener-ready files.
             </div>
 
             <div class="card site-backup-card">
                 <h3>📦 Jobs</h3>
                 <p class="card-note backup-builder-note">
-                    Leave this tab open while a job runs. Archives stay in <code>backups/</code> until downloaded or deleted.
+                    Leave this tab open while a job runs. Archives stay until you download or delete them.
                 </p>
                 <div id="siteBackupJobsWrap" class="site-backup-jobs-wrap">
                     <?php if (empty($siteBackupJobs)): ?>
@@ -2835,13 +2844,29 @@ if ($tab === 'analytics') {
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-muted nowrap"><?php echo htmlspecialchars((string) ($backupJob['created_at_utc'] ?? '')); ?></td>
-                                    <td class="nowrap"><?php echo htmlspecialchars((string) ($backupJob['size_label'] ?? '—')); ?></td>
+                                    <td class="nowrap" title="<?php echo htmlspecialchars((string) ($backupJob['sha256'] ?? '')); ?>"><?php
+                                        echo htmlspecialchars((string) ($backupJob['size_label'] ?? '—'));
+                                        $jobSha = trim((string) ($backupJob['sha256'] ?? ''));
+                                        if ($jobSha !== '') {
+                                            echo '<div class="text-muted" style="font-size:0.75rem;">SHA ' . htmlspecialchars(substr($jobSha, 0, 12)) . '…</div>';
+                                        }
+                                    ?></td>
                                     <td class="site-backup-job-actions">
                                         <?php if (!empty($backupJob['download_ready'])): ?>
-                                        <a class="btn btn-secondary site-backup-action-btn" href="/biblioteca/download-site-backup.php?id=<?php echo urlencode((string) ($backupJob['id'] ?? '')); ?>">⬇️ Download</a>
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary site-backup-action-btn site-backup-download-btn"
+                                            data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>"
+                                            data-filename="<?php echo htmlspecialchars((string) ($backupJob['filename'] ?? '')); ?>"
+                                            data-size-bytes="<?php echo (int) ($backupJob['size_bytes'] ?? 0); ?>"
+                                            data-sha256="<?php echo htmlspecialchars((string) ($backupJob['sha256'] ?? '')); ?>"
+                                        ><?php
+                                            $dlType = (string) ($backupJob['type'] ?? '');
+                                            echo $dlType === 'prp' ? '⬇️ Download .pcf' : ($dlType === 'pbf' ? '⬇️ Download .pbf' : '⬇️ Download');
+                                        ?></button>
                                         <?php endif; ?>
                                         <?php if ($jobStatus !== 'building'): ?>
-                                        <button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>">🗑️ Delete</button>
+                                        <button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>" data-backup-label="<?php echo htmlspecialchars((string) ($backupJob['type_label'] ?? $backupJob['type'] ?? 'backup job')); ?>">🗑️ Delete</button>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -2851,14 +2876,13 @@ if ($tab === 'analytics') {
                     </div>
                     <?php endif; ?>
                 </div>
-                <p id="siteBackupJobsStatus" class="status-text"></p>
             </div>
 
             <div class="backup-action-grid prp-action-grid">
             <div class="card site-backup-card prp-panel" id="campaignPackageExportCard">
-                <h3>💿 Export .pcf</h3>
+                <h3>💿 Export Portable Campaign File</h3>
                 <p class="card-note backup-builder-note">
-                    Queue one campaign (masters, brand, playlists, galleries, pages). Download from Jobs when Ready.
+                    Queue one <strong>Portable Campaign File (<code>.pcf</code>)</strong>: masters, brand, playlists, galleries, pages. Download from Jobs when Ready.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
                 <p class="empty-msg">This host cannot export campaign files.</p>
@@ -2875,9 +2899,9 @@ if ($tab === 'analytics') {
             </div>
 
             <div class="card site-backup-card prp-panel" id="campaignPackageImportCard">
-                <h3>💿 Import .pcf</h3>
+                <h3>💿 Import Portable Campaign File</h3>
                 <p class="card-note backup-builder-note">
-                    Upload a <code>.pcf</code>. IDs are kept unless you choose AsNew.
+                    Upload a <strong>Portable Campaign File (<code>.pcf</code>)</strong>. IDs are kept unless you choose AsNew.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
                 <p class="empty-msg">This host cannot import campaign files.</p>
@@ -2916,11 +2940,73 @@ if ($tab === 'analytics') {
             </div>
             </div>
 
+            <div class="backup-action-grid prp-action-grid">
+            <div class="card site-backup-card prp-panel" id="brandPackageExportCard">
+                <h3>🎨 Export Portable Brand File</h3>
+                <p class="card-note backup-builder-note">
+                    Queue one <strong>Portable Brand File (<code>.pbf</code>)</strong>: brand document plus curated library masters. Download from Jobs when Ready.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="empty-msg">This host cannot export brand files.</p>
+                <?php else: ?>
+                <div class="prp-panel-toolbar">
+                    <label class="visually-hidden" for="brandPackageExportSelect">Brand</label>
+                    <select id="brandPackageExportSelect" class="backup-export-panel-select" aria-label="Brand to export">
+                        <option value="">Loading brands…</option>
+                    </select>
+                    <button type="button" class="btn" id="brandPackageExportBtn">📦 Queue export</button>
+                </div>
+                <p id="brandPackageExportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="card site-backup-card prp-panel" id="brandPackageImportCard">
+                <h3>🎨 Import Portable Brand File</h3>
+                <p class="card-note backup-builder-note">
+                    Upload a <strong>Portable Brand File (<code>.pbf</code>)</strong>. Brand ids are kept unless you choose AsNew.
+                </p>
+                <?php if (empty($siteBackupStatus['zip_available'])): ?>
+                <p class="empty-msg">This host cannot import brand files.</p>
+                <?php else: ?>
+                <div class="prp-panel-toolbar">
+                    <label class="btn btn-secondary site-backup-import-file-label" for="brandPackageImportInput">
+                        Choose .pbf…
+                    </label>
+                    <input type="file" id="brandPackageImportInput" accept=".pbf" hidden>
+                    <span id="brandPackageImportFilename" class="site-backup-import-filename text-muted"></span>
+                    <button type="button" class="btn" id="brandPackageImportBtn">📥 Import</button>
+                </div>
+                <div class="prp-collision-row">
+                    <span id="brandPackageImportCollisionLabel">If it exists</span>
+                    <div class="visual-filter-chip-group prp-collision-group" role="radiogroup" aria-labelledby="brandPackageImportCollisionLabel">
+                        <label class="visual-filter-chip prp-collision-chip" title="Keep local and report the conflict">
+                            <input type="radio" name="brandPackageImportCollision" value="refuse" checked>
+                            <span>Refuse</span>
+                        </label>
+                        <label class="visual-filter-chip prp-collision-chip" title="Replace the local brand">
+                            <input type="radio" name="brandPackageImportCollision" value="overwrite">
+                            <span>Overwrite</span>
+                        </label>
+                        <label class="visual-filter-chip prp-collision-chip" title="Leave existing ids unchanged">
+                            <input type="radio" name="brandPackageImportCollision" value="skip">
+                            <span>Skip</span>
+                        </label>
+                        <label class="visual-filter-chip prp-collision-chip" title="Import with a new brand id">
+                            <input type="radio" name="brandPackageImportCollision" value="allocate">
+                            <span>AsNew</span>
+                        </label>
+                    </div>
+                </div>
+                <p id="brandPackageImportStatus" class="status-text backup-export-panel-status"></p>
+                <?php endif; ?>
+            </div>
+            </div>
+
             <div class="backup-action-grid">
             <div class="card site-backup-card backup-builder-card">
                 <h3>📦 Create backup</h3>
                 <p class="card-note backup-builder-note">
-                    Select components. <strong>Full</strong> checks all. Archives stay in <code>backups/</code> until downloaded or deleted.
+                    Select what to include. <strong>Full</strong> checks all. Archives stay until you download or delete them.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
                 <p class="status-text is-error">ZipArchive is not available on this host.</p>
@@ -2930,36 +3016,36 @@ if ($tab === 'analytics') {
                         <input type="checkbox" id="siteBackupComponentFull" checked>
                         <span class="site-backup-component-label">
                             <strong>Full</strong>
-                            <span class="site-backup-component-hint">platform, data, media, logs</span>
+                            <span class="site-backup-component-hint">site settings, catalogue &amp; config, media library, support logs</span>
                         </span>
                     </label>
                     <div class="site-backup-component-subgrid">
                         <label class="site-backup-component-row">
                             <input type="checkbox" id="siteBackupComponentPlatform" class="site-backup-component-input" data-component="platform" checked>
                             <span class="site-backup-component-label">
-                                <strong>Platform</strong>
-                                <span class="site-backup-component-hint"><code>web-config.json</code><?php if (!empty($siteBackupStatus['has_env'])): ?>, <code>.env</code><?php endif; ?></span>
+                                <strong>Site settings</strong>
+                                <span class="site-backup-component-hint">install config<?php if (!empty($siteBackupStatus['has_env'])): ?>, secrets file<?php endif; ?></span>
                             </span>
                         </label>
                         <label class="site-backup-component-row">
                             <input type="checkbox" id="siteBackupComponentData" class="site-backup-component-input" data-component="data" checked>
                             <span class="site-backup-component-label">
-                                <strong>Data</strong>
-                                <span class="site-backup-component-hint"><code>data/</code><?php echo !empty($siteBackupStatus['has_data']) ? '' : ' (missing)'; ?></span>
+                                <strong>Catalogue &amp; config</strong>
+                                <span class="site-backup-component-hint">campaigns, brands, users, activity<?php echo !empty($siteBackupStatus['has_data']) ? '' : ' (missing)'; ?></span>
                             </span>
                         </label>
                         <label class="site-backup-component-row">
                             <input type="checkbox" id="siteBackupComponentMedia" class="site-backup-component-input" data-component="media" checked>
                             <span class="site-backup-component-label">
-                                <strong>Media</strong>
-                                <span class="site-backup-component-hint"><code>media/</code><?php echo !empty($siteBackupStatus['has_media']) ? '' : ' (missing)'; ?></span>
+                                <strong>Media library</strong>
+                                <span class="site-backup-component-hint">originals, masters, delivery<?php echo !empty($siteBackupStatus['has_media']) ? '' : ' (missing)'; ?></span>
                             </span>
                         </label>
                         <label class="site-backup-component-row">
                             <input type="checkbox" id="siteBackupComponentLogs" class="site-backup-component-input" data-component="logs" checked>
                             <span class="site-backup-component-label">
-                                <strong>Logs</strong>
-                                <span class="site-backup-component-hint"><code>log/</code><?php echo !empty($siteBackupStatus['has_log']) ? '' : ' (missing)'; ?></span>
+                                <strong>Support logs</strong>
+                                <span class="site-backup-component-hint">build and admin logs<?php echo !empty($siteBackupStatus['has_log']) ? '' : ' (missing)'; ?></span>
                             </span>
                         </label>
                     </div>
@@ -2974,7 +3060,7 @@ if ($tab === 'analytics') {
             <div class="card site-backup-card backup-import-card">
                 <h3>📥 Import backup</h3>
                 <p class="card-note backup-builder-note">
-                    Upload a bandPromo ZIP from this site or another install. Inspect, then restore or migrate.
+                    Upload a bandPromo site backup from this install or another. Inspect, then restore or migrate.
                 </p>
                 <?php if (empty($siteBackupStatus['zip_available'])): ?>
                 <p class="status-text is-error">ZipArchive is not available on this host.</p>
@@ -3007,29 +3093,29 @@ if ($tab === 'analytics') {
                             <label class="site-backup-component-row">
                                 <input type="checkbox" id="siteBackupImportComponentPlatform" class="site-backup-import-component-input" data-component="platform">
                                 <span class="site-backup-component-label">
-                                    <strong>Platform</strong>
-                                    <span class="site-backup-component-hint"><code>web-config.json</code></span>
+                                    <strong>Site settings</strong>
+                                    <span class="site-backup-component-hint">install config</span>
                                 </span>
                             </label>
                             <label class="site-backup-component-row">
                                 <input type="checkbox" id="siteBackupImportComponentData" class="site-backup-import-component-input" data-component="data">
                                 <span class="site-backup-component-label">
-                                    <strong>Data</strong>
-                                    <span class="site-backup-component-hint"><code>data/</code></span>
+                                    <strong>Catalogue &amp; config</strong>
+                                    <span class="site-backup-component-hint">campaigns, brands, users, activity</span>
                                 </span>
                             </label>
                             <label class="site-backup-component-row">
                                 <input type="checkbox" id="siteBackupImportComponentMedia" class="site-backup-import-component-input" data-component="media">
                                 <span class="site-backup-component-label">
-                                    <strong>Media</strong>
-                                    <span class="site-backup-component-hint"><code>media/</code></span>
+                                    <strong>Media library</strong>
+                                    <span class="site-backup-component-hint">originals, masters, delivery</span>
                                 </span>
                             </label>
                             <label class="site-backup-component-row">
                                 <input type="checkbox" id="siteBackupImportComponentLogs" class="site-backup-import-component-input" data-component="logs">
                                 <span class="site-backup-component-label">
-                                    <strong>Logs</strong>
-                                    <span class="site-backup-component-hint"><code>log/</code></span>
+                                    <strong>Support logs</strong>
+                                    <span class="site-backup-component-hint">build and admin logs</span>
                                 </span>
                             </label>
                         </div>
@@ -3073,6 +3159,17 @@ if ($tab === 'analytics') {
                 <ul id="securitySanityReport" class="security-sanity-report" hidden></ul>
             </div>
             <?php endif; ?>
+
+            <div class="modal-overlay" id="siteBackupDeleteModal" style="display:none;" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="siteBackupDeleteModalTitle">
+                    <h3 id="siteBackupDeleteModalTitle">Delete backup job?</h3>
+                    <p class="card-note">You are about to permanently delete <strong id="siteBackupDeleteModalName"></strong> from the server. This cannot be undone.</p>
+                    <div class="page-unsaved-actions">
+                        <button type="button" class="btn btn-danger" id="siteBackupDeleteConfirmBtn">Delete backup</button>
+                        <button type="button" class="btn" id="siteBackupDeleteCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ===================== DOCUMENTATION TAB ===================== -->

@@ -6,9 +6,24 @@ Source of truth for operator backup, data export/import, host migration, and **P
 
 Related: [INSTALL-UPDATE.md](INSTALL-UPDATE.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [ACCESS-MODEL.md](ACCESS-MODEL.md), [ROADMAP.md](ROADMAP.md).
 
-## Three operator services
+## Transfer integrity (downloads and chunked uploads)
 
-bandPromo offers **three distinct portability services**, not one combined ZIP:
+Operator file handoff uses shared transport helpers — not per-feature streamers:
+
+| Layer | Module |
+|-------|--------|
+| Download stream | [`biblioteca/http-stream.php`](../biblioteca/http-stream.php) — `bandpromo_http_stream_file` (no Range for packages; `X-Checksum-SHA256`) |
+| Chunked upload | [`biblioteca/chunked-upload.php`](../biblioteca/chunked-upload.php) — last-chunk assemble, `file_size` + optional `expected_sha256` |
+| Admin JS | `bandpromoUploadChunked` / `bandpromoDownloadVerified` in [`biblioteca/admin.js`](../biblioteca/admin.js) |
+
+**Archive digest:** when a Jobs export becomes Ready, the job stores `size_bytes` + `sha256` of the archive file. Verified download refuses to save if either mismatches. Headers include `X-Checksum-SHA256`.
+
+**In-package digests:** PCF / PBF manifests include `file_digests` (per-path SHA-256 + size). Import verifies after extract. Site backup manifests include digests for non-media paths; when media is included, integrity for media bytes is the archive SHA-256 on the Jobs record (`media_integrity: archive_sha256`).
+
+Never tell operators these archives are ZIPs. Never put the zip’s own SHA-256 inside the zip.
+
+
+bandPromo offers **four distinct portability services**, not one combined ZIP. **Portable Brand File (PBF / `.pbf`)** is the brand-only sibling of PCF — do not overload `.pcf` for that unit.
 
 ### 1. Full site backup
 
@@ -151,6 +166,39 @@ bandPromo does not operate a marketplace or take a cut. Ambassadors and release 
 - PCFs contain masters — treat downloads like backups (HTTPS, store safely).
 - Import refuses incompatible schema versions with plain-language upgrade instructions.
 
+### 4. Portable Brand File (PBF) export / import
+
+**Purpose:** move **one brand** (identity + curated library) between installs or campaigns without moving tracks, playlists, galleries, or pages.
+
+**Status:** product lock **2026-08-30**. Sibling of PCF — same product family (Portable *X* File; never call it a ZIP to operators; masters + registry subset; Jobs + collision modes), different unit.
+
+#### What a PBF is
+
+| Rule | Decision |
+|------|----------|
+| **Unit** | One brand document + curated library Visual/SFX masters (slot + library asset ids) + registry subset |
+| **File** | Portable Brand File; extension **`.pbf`**. Never describe it to operators as a ZIP. |
+| **IDs** | **Keep** `brd_*` / brand id and `ast_*` across export/import unless **AsNew** remaps the brand id |
+| **Media** | **Masters only** — same bar as PCF; target rebuilds deliverables on import |
+| **Not included** | Campaign tracks, playlists, galleries, pages, analytics, `web-config.json` |
+| **Ownership** | Import clears `campaign_id` / `release_id` so the brand is unowned until assigned |
+
+#### What travels in a PBF
+
+| Layer | Included | Notes |
+|-------|----------|-------|
+| **Brand document** | `data/brands/{id}.json` | Title, tokens, shell slots, curated `library_asset_ids` |
+| **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | From brand `asset_ids` + `library_asset_ids` |
+| **Manifest** | `brand-package-manifest.json` | `brand_export_version`, `format: pbf`, title, paths, bandPromo `VERSION` |
+
+#### Operator import collisions
+
+When the brand id already exists: **Refuse** / **Overwrite** / **Skip** / **AsNew** (allocate a new `brd_*`). Platform default (`bandpromo-default`) and locked brands cannot be overwritten via PBF; use Skip or AsNew.
+
+#### Surfaces
+
+Admin → System → **Backup, export & import**: Export / Import PBF cards + Jobs (**Download .pbf**). Optional Branding deep-link after import.
+
 ## Moved-site recovery
 
 When restored or copied runtime data references a different host than the live request:
@@ -167,19 +215,19 @@ Package updater and bootstrap already preserve:
 
 `web-config.json`, `.env`, `data/`, `media/`, `log/`, `backups/`
 
-Full backup is a **superset** operators control on demand. Data export is a **selective** site portability tool. **PCF** export is a **release-scoped** handoff tool. Application code updates use GitHub **application** Release ZIPs (not PCFs).
+Full backup is a **superset** operators control on demand. Data export is a **selective** site portability tool. **PCF** export is a **release-scoped** handoff tool. **PBF** export is a **brand-scoped** handoff tool. Application code updates use GitHub **application** Release ZIPs (not PCFs or PBFs).
 
 ## Operator UX (target)
 
 Archives are written to `backups/` on the server (HTTP-blocked, gitignored, excluded from backup ZIP contents). Operators choose components in one **Create backup** panel, queue the archive, wait until status is **Ready**, then **download** separately.
 
-| Component | ZIP contents |
-|-----------|----------------|
-| **bandPromo platform** | `web-config.json`, optional `.env` |
-| **Data** | `data/` (containers, users, activity SQLite) |
-| **Media** | `media/` (originals, masters, delivery) |
-| **Logs** | `log/` (build and support logs) |
-| **Full** | All four (master checkbox) |
+| Component | Meaning (operator) | ZIP contents |
+|-----------|--------------------|--------------|
+| **Site settings** | Install config | `web-config.json`, optional `.env` |
+| **Catalogue & config** | Campaigns, brands, users, activity | `data/` |
+| **Media library** | Originals, masters, delivery | `media/` |
+| **Support logs** | Build and admin logs | `log/` |
+| **Full** | All four (master checkbox) | All four |
 
 Presets: all four = full site backup; platform + data = legacy data export tier.
 
@@ -191,8 +239,10 @@ Presets: all four = full site backup; platform + data = legacy data export tier.
 | Delete server archive | Admin → System → Backup & export | Removes `backups/{id}.zip` | **Shipped** |
 | Import during setup | Setup wizard | Guided merge + URL repair | Planned |
 | Restore full backup | Manual extract or admin import | Replace runtime paths | **Shipped** (admin import) |
-| Export PCF (`.pcf`) | Admin → System → Backup, or Catalogue | Portable Campaign File | **Shipped** (legacy `.prp` import still accepted) |
+| Export PCF (`.pcf`) | Admin → System → Backup | Portable Campaign File | **Shipped** (legacy `.prp` import still accepted) |
 | Import PCF | Setup + Admin | New or refreshed release slot | **Shipped** (Demo PCF = setup gate) |
+| Export PBF (`.pbf`) | Admin → System → Backup | Portable Brand File | **Shipped** |
+| Import PBF | Admin → System → Backup | New or refreshed brand | **Shipped** |
 
 Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
 
@@ -213,10 +263,11 @@ Listener and admin-audit SQLite live under **Data** (`data/`). Include that comp
 
 Export manifest includes:
 
-- `export_version` (site backup) or `release_export_version` (PCF)
+- `export_version` (site backup), `release_export_version` (PCF), or `brand_export_version` (PBF)
 - bandPromo `VERSION` at export time
 - `exported_at`
 - optional `install_id` (non-secret reference)
 - for PCFs: human-readable release title, path checklist, optional `platform_demo` / lock flags
+- for PBFs: human-readable brand title, path checklist, `format: pbf`
 
 Import refuses incompatible major schema versions with plain-language upgrade instructions.

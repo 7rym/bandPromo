@@ -6,6 +6,19 @@ Operator chrome for `admin.php` (and shared Content editor CSS). Public player b
 
 Main tabs (Dashboard, Analytics, Users, Files, Content, Settings, System, Documentation) remember the last used **sub-tab** in `localStorage` (`bandpromo_admin_nav_memory`). Switching Files → Content → Files returns to Visual (or whichever Files panel you left), not always Audio. Deep links that already name a sub-tab (`fpanel`, `cntab`, `ctab`, `stab`, `atab`, `doc_scope`) are unchanged.
 
+## System tab and roles (2026-08-31)
+
+| Sub-tab | `admin` role | `developer` role |
+|---------|--------------|------------------|
+| Status (Deliverables) | Yes | Yes |
+| Backup, export & import | Yes | Yes |
+| Audit | No | Yes |
+| Security | No | Yes |
+
+Repair catalogue on Status is **developer-only**. Direct `?stab=audit` or `?stab=security` redirects operators to Status.
+
+Operator feedback uses toasts today; unified toast → inbox is planned for v0.9 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
+
 ## Palette (canonical)
 
 Defined on `:root` in `biblioteca/admin.css`:

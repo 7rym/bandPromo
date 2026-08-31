@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-31 14:25 - Jobs download: start native browser save on click (async blob save was silently blocked); clearer queued toasts name export type and Jobs location.
+
+2026-08-31 14:15 - Lock v0.8 exit gate and v0.9 deferrals in TODO/ROADMAP/USE-CASES/SESSION-HANDOFF: Campaign navigator mandatory before new testers; OMP + Content AI → v0.9; new OPERATOR-MESSAGING.md. Developer-only System → Audit/Security (UI redirect + security-sanity API guard).
+
+2026-08-31 13:00 - System → Backup Jobs: job feedback (queue/build/import/download/delete) uses admin toasts instead of a persistent status line under the table.
+
+2026-08-31 12:50 - System → Backup Jobs: confirm before deleting a job (modal matching gallery/playlist delete pattern; shows job type label).
+
+2026-08-30 21:45 - Transfer integrity library: shared `http-stream.php` + `chunked-upload.php`; Jobs/PCF/PBF/Files/site-backup use one upload/download contract; Ready jobs store SHA-256; verified JS downloads refuse truncated files; PCF/PBF/backup manifests carry `file_digests` and import verifies them.
+
+2026-08-30 12:50 - Fix Jobs download truncation for `.pbf`/`.pcf`: stream via `readfile`, disable Accept-Ranges (PHP built-in + Range retries were cutting archives; ZipArchive status 35 = truncated). Import error now says to re-download and match the Jobs size.
+
+2026-08-30 12:45 - Ship **Portable Brand File (`.pbf`)**: brand-only export/import (masters + registry subset), Backup tab Export/Import cards with Refuse/Overwrite/Skip/AsNew, Jobs **Download .pbf**. Lock policy in PORTABILITY/TODO/PLATFORM. Polish Backup copy (spell out Portable Campaign File; outcome-first backup labels).
+
+2026-08-30 12:15 - Portability discussion: recommend **Portable Brand File (`.pbf`)** as a sibling of Portable Campaign File (`.pcf`) for brand-only handoff; capture Backup-tab operator copy debt (always spell out PCF; backup labels by outcome, not paths).
+
+2026-08-26 14:30 - TODO/ROADMAP/USE-CASES: gallery multi-select confirmed shipped; add Brand export/import, Admin panel consistency pass, and HITZ player Campaign navigator (campaign → playlists) as policy-to-lock items.
+
 2026-08-24 20:15 - Repair catalogue: Copy log button for the Repair log panel; validation refresh uses playlist-scan validation-only mode so Apply no longer fails with “Could not resolve PHP CLI for player playlist publish” on shared hosts.
 
 2026-08-24 16:10 - Repair catalogue writes a live log to `log/catalog-repair.log` (step start/finish, errors, PHP timeout/abort). Developer Repair log panel polls it during Preview/Apply so host timeouts show the last step instead of a blank failure.

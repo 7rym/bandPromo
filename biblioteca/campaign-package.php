@@ -134,6 +134,13 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
 {
     $packageDir = rtrim($packageDir, "\\/");
     $manifest = bandpromo_campaign_read_manifest($packageDir);
+    $rawManifest = bandpromo_json_read_array_file(
+        $packageDir . DIRECTORY_SEPARATOR . 'release-package-manifest.json'
+    );
+    if (is_array($rawManifest) && isset($rawManifest['file_digests']) && is_array($rawManifest['file_digests'])) {
+        require_once __DIR__ . '/chunked-upload.php';
+        bandpromo_transfer_verify_extracted_digests($packageDir, $rawManifest['file_digests']);
+    }
     $mode = strtolower(trim((string) ($options['mode'] ?? 'operator')));
     $allowDemoOverwrite = !empty($options['allow_demo_overwrite']) || $mode === 'demo' || $mode === 'setup';
     $setActiveBrand = array_key_exists('set_active_brand', $options)
@@ -955,6 +962,9 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
     }
     $paths['data/assets/registry.json'] = $subsetPath;
 
+    require_once __DIR__ . '/chunked-upload.php';
+    $fileDigests = bandpromo_transfer_file_digests($paths);
+
     $manifest = [
         'release_export_version' => BANDPROMO_CAMPAIGN_EXPORT_VERSION,
         'format' => 'pcf',
@@ -963,6 +973,7 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
         'platform_demo' => $releaseId === BANDPROMO_RELEASE_DEMO_ID,
         'bandpromo_version' => bandpromo_campaign_bandpromo_version($root),
         'paths' => array_keys($paths),
+        'file_digests' => $fileDigests,
         'asset_ids' => $assetIds,
         'exported_at' => gmdate('c'),
     ];
