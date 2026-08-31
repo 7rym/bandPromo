@@ -1517,8 +1517,6 @@ function bandpromo_brand_admin_registry_entries(string $root): array
 
     return $entries;
 }
-    return $entries;
-}
 
 function bandpromo_brand_registry_entry(string $root, string $themeId): ?array
 {

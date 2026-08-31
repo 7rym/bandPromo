@@ -2,26 +2,28 @@
 
 ## Resume point
 
-**Demo hide gaps (local, unpublished):** Pages + non-Base demo Brands were still listed when “Hide bandPromo demo campaign” was on (HITZ report). Fixed: filter Pages/Branding/PBF export; shell media only stays for Base / non-demo brand refs.
+**Hotfix build 440** — parse error from 439 (`brand-storage.php` stray `return` after `bandpromo_brand_admin_registry_entries`) that blanked HITZ (HTTP 500).
 
-### Active fleet (build 438)
+### Immediate
+
+1. Publish **v0.8.37 build 440** and Site-update HITZ (and any host already on 439).
+2. Confirm https://hitz.no/ loads login again.
+3. Re-run hide-demo smoke from 439 on HITZ after recovery.
+
+### Active fleet
 
 | Host | Persona |
 |------|---------|
-| bandpromo.site | Vanilla — demo only |
-| hitz.no | HITZ — short + long-form |
-| spandexualtension.com | Band / traditional release sequence |
+| bandpromo.site | Vanilla |
+| hitz.no | HITZ |
+| spandexualtension.com | Band / release sequence |
 
 Twisted Chronicles paused until v0.9 reinstall.
 
-### Next
+### v0.8 exit gate next
 
-1. Smoke hide on Spandexual Tension / HITZ after publish.
-2. Checkpoint + publish hotfix for demo hide.
-3. v0.8 exit: Campaign navigator policy lock.
+1. Player Campaign navigator — policy lock → ship → validate.
+2. PCF round-trip smoke on active fleet.
+3. Favicon/PWA from Branding; legacy audit refresh.
 
-Last published: **v0.8.36 build 438**.
-
-## Plan documents
-
-- [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) — v0.9 messaging (docs only).
+Last published target: **v0.8.37 build 440** (`v0.8.37-build-440`).
