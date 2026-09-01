@@ -2110,6 +2110,7 @@ function bandpromo_brand_duplicate(string $root, string $sourceId, string $newId
     $duplicateTitle = trim($title) !== ''
         ? trim($title)
         : bandpromo_brand_propose_duplicate_title((string) ($source['title'] ?? $sourceId));
+    bandpromo_brand_assert_title_unique($root, $duplicateTitle);
 
     if (trim($newId) === '') {
         $newId = bandpromo_brand_allocate_duplicate_id($root, $duplicateTitle);
@@ -2166,6 +2167,201 @@ function bandpromo_brand_duplicate(string $root, string $sourceId, string $newId
     return $duplicate;
 }
 
+function bandpromo_brand_assert_title_unique(string $root, string $title, string $excludeId = ''): void
+{
+    $needle = function_exists('mb_strtolower')
+        ? mb_strtolower(trim($title), 'UTF-8')
+        : strtolower(trim($title));
+    if ($needle === '') {
+        throw new InvalidArgumentException('Brand name is required.');
+    }
+
+    $excludeId = bandpromo_brand_canonical_id($excludeId);
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $id = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($id === '' || ($excludeId !== '' && $id === $excludeId)) {
+            continue;
+        }
+        $other = function_exists('mb_strtolower')
+            ? mb_strtolower(trim((string) ($entry['title'] ?? '')), 'UTF-8')
+            : strtolower(trim((string) ($entry['title'] ?? '')));
+        if ($other === $needle) {
+            throw new InvalidArgumentException('That brand name is already in use on this install.');
+        }
+    }
+}
+
+/**
+ * Rename a brand storage id and rewrite runtime pointers.
+ *
+ * @return array{brand_id:string,from:string,rewrites:list<string>}
+ */
+function bandpromo_brand_migrate_id(string $root, string $fromId, string $toId): array
+{
+    require_once __DIR__ . '/campaign-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/config-loader.php';
+
+    $fromId = bandpromo_brand_canonical_id($fromId);
+    $toId = bandpromo_brand_normalize_id($toId);
+    $toId = bandpromo_brand_canonical_id($toId);
+    if ($fromId === '' || $toId === '') {
+        throw new InvalidArgumentException('Brand storage id is required.');
+    }
+    if ($fromId === BANDPROMO_BRAND_DEFAULT_ID) {
+        throw new InvalidArgumentException('The platform default brand id cannot be renamed.');
+    }
+    if ($toId === BANDPROMO_BRAND_DEFAULT_ID) {
+        throw new InvalidArgumentException('That storage id is reserved for the platform default brand.');
+    }
+    if ($fromId === $toId) {
+        return ['brand_id' => $toId, 'from' => $fromId, 'rewrites' => []];
+    }
+    if (!preg_match('/^[a-z][a-z0-9_-]{0,47}$/', $toId) && !bandpromo_brand_is_opaque_id($toId)) {
+        throw new InvalidArgumentException('Brand storage id must use lowercase letters, numbers, hyphens, or underscores.');
+    }
+    if (is_file(bandpromo_brand_document_path($root, $toId)) || bandpromo_brand_registry_entry($root, $toId) !== null) {
+        throw new InvalidArgumentException('That brand storage id is already in use.');
+    }
+
+    $document = bandpromo_brand_load_document($root, $fromId);
+    if (!empty($document['locked'])) {
+        throw new InvalidArgumentException('This brand is locked.');
+    }
+    if (!bandpromo_brand_may_edit_document($document)) {
+        throw new InvalidArgumentException('This brand cannot be edited.');
+    }
+
+    $rewrites = [];
+    $document['id'] = bandpromo_brand_legacy_theme_id($toId);
+    bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
+    $rewrites[] = 'Wrote data/brands/' . $toId . '.json';
+
+    $registry = bandpromo_brand_load_registry($root);
+    $found = false;
+    foreach ($registry['brands'] as $index => $entry) {
+        if (bandpromo_brand_canonical_id((string) ($entry['id'] ?? '')) !== $fromId) {
+            continue;
+        }
+        $registry['brands'][$index]['id'] = bandpromo_brand_legacy_theme_id($toId);
+        $found = true;
+        break;
+    }
+    if (!$found) {
+        @unlink(bandpromo_brand_document_path($root, $toId));
+        throw new InvalidArgumentException('Unknown brand.');
+    }
+    bandpromo_brand_write_registry($root, $registry);
+    $rewrites[] = 'Updated brands registry';
+
+    $activeCanonical = bandpromo_brand_active_canonical_id($root);
+    if ($activeCanonical === $fromId) {
+        bandpromo_brand_set_active_id($root, $toId);
+        $rewrites[] = 'Updated Base brand pointer';
+    }
+
+    try {
+        bandpromo_campaign_ensure_seeded($root);
+        foreach (bandpromo_campaign_registry_entries($root) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $campaignId = bandpromo_campaign_normalize_id((string) ($entry['id'] ?? ''));
+            if ($campaignId === '') {
+                continue;
+            }
+            try {
+                $campaign = bandpromo_campaign_load_document($root, $campaignId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            if (bandpromo_brand_canonical_id((string) ($campaign['brand_id'] ?? '')) !== $fromId) {
+                continue;
+            }
+            $campaign['brand_id'] = $toId;
+            bandpromo_campaign_write_document($root, $campaign);
+            $rewrites[] = 'Campaign ' . $campaignId . ' brand_id';
+        }
+    } catch (Throwable $throwable) {
+        // Continue; partial rewrites are reported.
+        $rewrites[] = 'Campaign rewrite warning: ' . $throwable->getMessage();
+    }
+
+    try {
+        $assetRegistry = bandpromo_asset_load_registry($root);
+        $assetChanged = false;
+        foreach ($assetRegistry['assets'] as $assetKey => $asset) {
+            if (!is_array($asset)) {
+                continue;
+            }
+            if (bandpromo_brand_canonical_id((string) ($asset['brand_id'] ?? '')) !== $fromId) {
+                continue;
+            }
+            $assetRegistry['assets'][$assetKey]['brand_id'] = $toId;
+            $assetChanged = true;
+        }
+        if ($assetChanged) {
+            bandpromo_asset_write_registry($root, $assetRegistry);
+            $rewrites[] = 'Asset registry brand_id refs';
+        }
+    } catch (Throwable $throwable) {
+        $rewrites[] = 'Asset rewrite warning: ' . $throwable->getMessage();
+    }
+
+    try {
+        bandpromo_playlist_ensure_seeded($root);
+        foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+            if ($playlistId === '') {
+                continue;
+            }
+            try {
+                $playlist = bandpromo_playlist_load_document($root, $playlistId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $styles = is_array($playlist['brand_styles'] ?? null) ? $playlist['brand_styles'] : [];
+            if (!isset($styles[$fromId]) && !isset($styles[bandpromo_brand_legacy_theme_id($fromId)])) {
+                continue;
+            }
+            $payload = $styles[$fromId] ?? $styles[bandpromo_brand_legacy_theme_id($fromId)] ?? null;
+            unset($styles[$fromId], $styles[bandpromo_brand_legacy_theme_id($fromId)]);
+            if (is_array($payload)) {
+                $payload['id'] = bandpromo_brand_legacy_theme_id($toId);
+                $styles[$toId] = $payload;
+            }
+            $playlist['brand_styles'] = $styles;
+            if (bandpromo_brand_canonical_id((string) ($playlist['brand_id'] ?? '')) === $fromId) {
+                $playlist['brand_id'] = $toId;
+            }
+            bandpromo_playlist_write_document($root, $playlist);
+            $rewrites[] = 'Playlist ' . $playlistId . ' brand_styles';
+        }
+        bandpromo_playlist_refresh_brand_styles_for_brand($root, $toId);
+    } catch (Throwable $throwable) {
+        $rewrites[] = 'Playlist rewrite warning: ' . $throwable->getMessage();
+    }
+
+    $oldPath = bandpromo_brand_document_path($root, $fromId);
+    if (is_file($oldPath) && !unlink($oldPath)) {
+        throw new RuntimeException('Brand migrated, but the old document file could not be removed: ' . $fromId);
+    }
+    $rewrites[] = 'Removed data/brands/' . $fromId . '.json';
+
+    return [
+        'brand_id' => $toId,
+        'from' => $fromId,
+        'rewrites' => $rewrites,
+    ];
+}
+
 function bandpromo_brand_update_title(string $root, string $themeId, string $title): array
 {
     $themeId = bandpromo_brand_canonical_id($themeId);
@@ -2177,6 +2373,7 @@ function bandpromo_brand_update_title(string $root, string $themeId, string $tit
     if ($title === '') {
         throw new InvalidArgumentException('Brand name is required.');
     }
+    bandpromo_brand_assert_title_unique($root, $title, $themeId);
 
     $document = bandpromo_brand_load_document($root, $themeId);
     if (!bandpromo_brand_may_edit_document($document)) {

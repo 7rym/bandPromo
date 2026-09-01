@@ -2,13 +2,21 @@
 
 ## Resume point
 
-**Hotfix build 440** — parse error from 439 (`brand-storage.php` stray `return` after `bandpromo_brand_admin_registry_entries`) that blanked HITZ (HTTP 500).
+**Identity migrate + Base brand fallthrough** (local, not yet published).
 
-### Immediate
+### Shipped in tree
 
-1. Publish **v0.8.37 build 440** and Site-update HITZ (and any host already on 439).
-2. Confirm https://hitz.no/ loads login again.
-3. Re-run hide-demo smoke from 439 on HITZ after recovery.
+1. Player/campaign brand fallthrough → install **Base** (`bandpromo_brand_active_canonical_id`), not hard-coded `bandpromo-default`.
+2. `player.js` shell inherit compares to `BANDPROMO_ACTIVE_BRAND_ID`.
+3. Catalogue Associated shows **Suggested** playlists when tracks unanimously belong to the campaign; Content autofix step `playlist_campaign_ownership` stamps them.
+4. Campaign duplicate playlist ids prefer source slug (not `Title copy`).
+5. Editable **Storage id** on Branding + Playlist Base info with confirm + runtime migrate; unique titles.
+
+### Operator recovery on HITZ (after Site update)
+
+1. Open player — Retroscopy should use Base/campaign chrome, not bandPromo cyan, even before ownership stamp.
+2. Content → Catalogue → the Retroscopy hour → Playlists: accept suggested association, **or** System → Repair catalogue (ownership autofix).
+3. Optionally migrate legacy brand id `hitz-copy` / playlist `the-retroscopy-hour-copy` via Storage id fields.
 
 ### Active fleet
 
@@ -18,12 +26,10 @@
 | hitz.no | HITZ |
 | spandexualtension.com | Band / release sequence |
 
-Twisted Chronicles paused until v0.9 reinstall.
-
 ### v0.8 exit gate next
 
-1. Player Campaign navigator — policy lock → ship → validate.
-2. PCF round-trip smoke on active fleet.
-3. Favicon/PWA from Branding; legacy audit refresh.
+1. Publish this checkpoint for testers.
+2. Player Campaign navigator — policy lock → ship → validate.
+3. PCF round-trip smoke on active fleet.
 
-Last published target: **v0.8.37 build 440** (`v0.8.37-build-440`).
+Last published: **v0.8.37 build 440**. Next publish bumps build after session-end.

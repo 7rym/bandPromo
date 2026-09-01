@@ -220,7 +220,12 @@ function bandpromo_campaign_ownership_children(string $root, string $releaseId):
             } catch (Throwable $throwable) {
                 continue;
             }
-            if (bandpromo_document_campaign_id($doc) !== $releaseId) {
+            $owner = bandpromo_document_campaign_id($doc);
+            $inferred = '';
+            if (bandpromo_campaign_id_is_unowned($owner)) {
+                $inferred = bandpromo_campaign_ownership_infer_from_playlist_entries($root, $doc);
+            }
+            if ($owner !== $releaseId && $inferred !== $releaseId) {
                 continue;
             }
             $out['playlists'][] = [
@@ -396,14 +401,15 @@ function bandpromo_campaign_normalize_optional_id(string $releaseId): string
 }
 
 /**
- * @return array{id:string,title:string,publish_date:string,release_id:string,movable:bool}
+ * @return array{id:string,title:string,publish_date:string,campaign_id:string,movable:bool,suggested:bool}
  */
 function bandpromo_campaign_association_item(
     string $id,
     string $title,
     string $releaseId,
     bool $movable,
-    string $publishDate = ''
+    string $publishDate = '',
+    bool $suggested = false
 ): array {
     return [
         'id' => $id,
@@ -411,6 +417,7 @@ function bandpromo_campaign_association_item(
         'publish_date' => $publishDate,
         'campaign_id' => $releaseId,
         'movable' => $movable,
+        'suggested' => $suggested,
     ];
 }
 
@@ -450,14 +457,23 @@ function bandpromo_campaign_association_pools(string $root, string $releaseId, s
                 continue;
             }
             $owner = bandpromo_document_campaign_id($doc);
+            $inferred = '';
+            if (bandpromo_campaign_id_is_unowned($owner)) {
+                $inferred = bandpromo_campaign_ownership_infer_from_playlist_entries($root, $doc);
+            }
+            $suggested = $inferred === $releaseId && bandpromo_campaign_id_is_unowned($owner);
             $item = bandpromo_campaign_association_item(
                 $id,
                 trim((string) ($doc['title'] ?? $meta['title'] ?? $id)),
-                $owner,
+                $owner !== '' ? $owner : $inferred,
                 !bandpromo_playlist_is_protected_id($id),
-                trim((string) ($doc['publish_date'] ?? $meta['publish_date'] ?? ''))
+                trim((string) ($doc['publish_date'] ?? $meta['publish_date'] ?? '')),
+                $suggested
             );
             if ($owner === $releaseId) {
+                $active[] = $item;
+            } elseif ($suggested) {
+                // Tracks unanimously belong here; surface as suggested Associated until stamped.
                 $active[] = $item;
             } elseif (
                 $item['movable']

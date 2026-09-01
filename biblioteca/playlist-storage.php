@@ -168,7 +168,7 @@ function bandpromo_playlist_effective_campaign_id(string $root, string $playlist
 }
 
 /**
- * Player brand for a playlist: owning campaign’s brand, else install Base (never Active).
+ * Player brand for a playlist: owning campaign’s brand, else install Base.
  */
 function bandpromo_playlist_effective_brand_id(string $root, string $playlistId): string
 {
@@ -178,7 +178,7 @@ function bandpromo_playlist_effective_brand_id(string $root, string $playlistId)
         return bandpromo_campaign_effective_brand_id($root, $campaignId);
     }
 
-    return BANDPROMO_BRAND_DEFAULT_ID;
+    return bandpromo_brand_active_canonical_id($root);
 }
 
 function bandpromo_playlist_validation_report_path(string $root): ?string
@@ -2925,6 +2925,7 @@ function bandpromo_playlist_create(string $root, string $title, string $preferre
     if ($title === '') {
         throw new InvalidArgumentException('Playlist name is required.');
     }
+    bandpromo_playlist_assert_title_unique($root, $title);
 
     $registry = bandpromo_playlist_load_registry($root);
     $baseId = $preferredId !== ''
@@ -3073,6 +3074,7 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, arr
     if ($title === '') {
         throw new InvalidArgumentException('Playlist name is required.');
     }
+    bandpromo_playlist_assert_title_unique($root, $title, $playlistId);
 
     $publishDate = trim((string) ($fields['publish_date'] ?? ''));
     if (!bandpromo_playlist_validate_date($publishDate)) {
@@ -3332,6 +3334,114 @@ function bandpromo_playlist_repair_stale_track_asset_ids(string $root, array $re
     return [
         'changed' => $changedTracks,
         'playlists' => $changedPlaylists,
+    ];
+}
+
+function bandpromo_playlist_assert_title_unique(string $root, string $title, string $excludeId = ''): void
+{
+    $needle = function_exists('mb_strtolower')
+        ? mb_strtolower(trim($title), 'UTF-8')
+        : strtolower(trim($title));
+    if ($needle === '') {
+        throw new InvalidArgumentException('Playlist name is required.');
+    }
+
+    $excludeId = bandpromo_playlist_normalize_id($excludeId);
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $id = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($id === '' || ($excludeId !== '' && $id === $excludeId)) {
+            continue;
+        }
+        $other = function_exists('mb_strtolower')
+            ? mb_strtolower(trim((string) ($entry['title'] ?? '')), 'UTF-8')
+            : strtolower(trim((string) ($entry['title'] ?? '')));
+        if ($other === $needle) {
+            throw new InvalidArgumentException('That playlist name is already in use on this install.');
+        }
+    }
+}
+
+/**
+ * Rename a playlist storage id and rewrite runtime pointers. Slug is unchanged unless it matched the old id.
+ *
+ * @return array{playlist_id:string,from:string,rewrites:list<string>}
+ */
+function bandpromo_playlist_migrate_id(string $root, string $fromId, string $toId): array
+{
+    require_once __DIR__ . '/config-loader.php';
+    require_once __DIR__ . '/demo-catalog-state.php';
+
+    $fromId = bandpromo_playlist_normalize_id($fromId);
+    $toId = bandpromo_playlist_normalize_id($toId);
+    if ($fromId === '' || $toId === '') {
+        throw new InvalidArgumentException('Playlist storage id is required.');
+    }
+    if ($fromId === $toId) {
+        return ['playlist_id' => $toId, 'from' => $fromId, 'rewrites' => []];
+    }
+    if (bandpromo_playlist_is_protected_id($fromId)) {
+        throw new InvalidArgumentException('The bandPromo demo playlist id cannot be renamed.');
+    }
+    if (!preg_match('/^[a-z][a-z0-9-]{0,47}$/', $toId)) {
+        throw new InvalidArgumentException('Playlist storage id must use lowercase letters, numbers, and hyphens.');
+    }
+    if (is_file(bandpromo_playlist_document_path($root, $toId))) {
+        throw new InvalidArgumentException('That playlist storage id is already in use.');
+    }
+
+    $document = bandpromo_playlist_load_document($root, $fromId);
+    $rewrites = [];
+    $document['id'] = $toId;
+    $currentSlug = bandpromo_playlist_route_slug($document, $fromId);
+    if ($currentSlug === $fromId) {
+        // Only retarget slug when it was implicitly the old storage id.
+        try {
+            bandpromo_playlist_assert_slug_available($root, $toId, $fromId);
+            $document['slug'] = $toId;
+            $rewrites[] = 'Slug aligned to new storage id';
+        } catch (Throwable $throwable) {
+            // Keep existing slug if toId is already a public slug elsewhere.
+        }
+    }
+    bandpromo_playlist_write_document($root, $document);
+    $rewrites[] = 'Wrote data/playlists/' . $toId . '.json';
+
+    $registry = bandpromo_playlist_load_registry($root);
+    $found = false;
+    foreach ($registry['playlists'] as $index => $entry) {
+        if ((string) ($entry['id'] ?? '') !== $fromId) {
+            continue;
+        }
+        $registry['playlists'][$index]['id'] = $toId;
+        $found = true;
+        break;
+    }
+    if (!$found) {
+        @unlink(bandpromo_playlist_document_path($root, $toId));
+        throw new InvalidArgumentException('Unknown playlist.');
+    }
+    bandpromo_playlist_write_registry($root, $registry);
+    $rewrites[] = 'Updated playlists registry';
+
+    $configuredDefault = bandpromo_playlist_configured_default_id($root);
+    if ($configuredDefault === $fromId) {
+        bandpromo_playlist_set_default_id($root, $toId);
+        $rewrites[] = 'Updated default playlist pointer';
+    }
+
+    $oldPath = bandpromo_playlist_document_path($root, $fromId);
+    if (is_file($oldPath) && !unlink($oldPath)) {
+        throw new RuntimeException('Playlist migrated, but the old document file could not be removed: ' . $fromId);
+    }
+    $rewrites[] = 'Removed data/playlists/' . $fromId . '.json';
+
+    return [
+        'playlist_id' => $toId,
+        'from' => $fromId,
+        'rewrites' => $rewrites,
     ];
 }
 

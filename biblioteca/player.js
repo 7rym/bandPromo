@@ -1687,9 +1687,11 @@ function applyPlaylistShellMedia(brand) {
     const assets = (brand && brand.assets && typeof brand.assets === 'object') ? brand.assets : {};
     const baseline = installShellBaseline();
     const playlistBrandId = String(window.BANDPROMO_PLAYLIST_BRAND_ID || '').trim().toLowerCase();
-    // Inherit install/Base shell only for Base brand (or none) — never because Active matches.
-    const baseBrandIds = new Set(['bandpromo-default', 'setup-default', '']);
-    const allowInstallFallback = baseBrandIds.has(playlistBrandId);
+    const activeBrandId = String(window.BANDPROMO_ACTIVE_BRAND_ID || '').trim().toLowerCase();
+    // Inherit install/Base shell only when the playlist brand is Base (or unset).
+    const allowInstallFallback = playlistBrandId === ''
+        || (activeBrandId !== '' && playlistBrandId === activeBrandId)
+        || (activeBrandId === '' && (playlistBrandId === 'bandpromo-default' || playlistBrandId === 'setup-default'));
 
     const next = {
         logo: String(assets.logo || '').trim() || (allowInstallFallback ? baseline.logo : ''),

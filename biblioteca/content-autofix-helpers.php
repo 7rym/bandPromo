@@ -300,6 +300,61 @@ function bandpromo_content_autofix_resolve_pool_asset(string $root, string $pool
     return null;
 }
 
+function bandpromo_content_autofix_playlist_campaign_ownership(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/campaign-ownership-helpers.php';
+    require_once __DIR__ . '/campaign-storage.php';
+    require_once __DIR__ . '/playlist-storage.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'playlist_campaign_ownership',
+        'Stamp playlist campaign ownership from unanimous track membership'
+    );
+    bandpromo_playlist_ensure_seeded($root);
+
+    foreach (bandpromo_playlist_registry_entries($root) as $playlistMeta) {
+        if (!is_array($playlistMeta)) {
+            continue;
+        }
+        $playlistId = bandpromo_playlist_normalize_id((string) ($playlistMeta['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $playlistId . ': ' . $throwable->getMessage();
+            continue;
+        }
+        $owner = bandpromo_document_campaign_id($document);
+        if (!bandpromo_campaign_id_is_unowned($owner)) {
+            $step['skipped']++;
+            continue;
+        }
+        $desired = bandpromo_campaign_ownership_infer_from_playlist_entries($root, $document);
+        if ($desired === '') {
+            $step['skipped']++;
+            continue;
+        }
+        $step['changed']++;
+        $step['items'][] = [
+            'playlist' => $playlistId,
+            'campaign_id' => $desired,
+        ];
+        if ($dryRun) {
+            continue;
+        }
+        try {
+            $document = bandpromo_document_with_campaign_id($document, $desired);
+            bandpromo_playlist_write_document($root, $document);
+        } catch (Throwable $throwable) {
+            $step['errors'][] = $playlistId . ': ' . $throwable->getMessage();
+        }
+    }
+
+    return $step;
+}
+
 function bandpromo_content_autofix_normalize_playlist_kind(string $root, bool $dryRun): array
 {
     $step = bandpromo_content_autofix_step_result('playlist_kind', 'Use system playlists in admin and player');
@@ -1258,6 +1313,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         'bandpromo_content_autofix_orphan_primary_uploads',
         'bandpromo_content_autofix_orphan_visual_delivery',
         'bandpromo_content_autofix_normalize_playlist_kind',
+        'bandpromo_content_autofix_playlist_campaign_ownership',
         'bandpromo_content_autofix_sync_playlist_entries',
         'bandpromo_content_autofix_sync_campaigns',
         'bandpromo_content_autofix_sync_audio_display',

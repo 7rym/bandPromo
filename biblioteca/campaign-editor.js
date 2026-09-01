@@ -1401,8 +1401,10 @@
                 id: String(item?.id || '').trim(),
                 title: String(item?.title || '').trim(),
                 publish_date: String(item?.publish_date || '').trim(),
-                release_id: String(item?.release_id || '').trim(),
+                release_id: String(item?.release_id || item?.campaign_id || '').trim(),
+                campaign_id: String(item?.campaign_id || item?.release_id || '').trim(),
                 movable: item?.movable !== false,
+                suggested: !!item?.suggested,
             };
         }
 
@@ -1509,8 +1511,15 @@
         function renderAssociationRow(item, { showRemove = false, draggable = false, canEdit = false, kind = '', listName = 'available', selected = false } = {}) {
             const id = escapeHtml(item.id || '');
             const title = escapeHtml(item.title || item.id || 'Untitled');
-            const meta = item.publish_date
-                ? `<span class="playlist-track-meta">${escapeHtml(item.publish_date)}</span>`
+            const metaBits = [];
+            if (item.suggested) {
+                metaBits.push('Suggested — tracks already belong to this campaign (save associations or Repair catalogue to confirm)');
+            }
+            if (item.publish_date) {
+                metaBits.push(String(item.publish_date));
+            }
+            const meta = metaBits.length
+                ? `<span class="playlist-track-meta">${escapeHtml(metaBits.join(' · '))}</span>`
                 : '';
             const removeMarkup = showRemove
                 ? '<button type="button" class="editor-remove-btn" title="Remove from campaign" aria-label="Remove from campaign">✕</button>'
@@ -1521,7 +1530,8 @@
             const readonlyClass = canEdit ? '' : ' editor-row--readonly';
             const activeRowClass = showRemove || !draggable ? ' editor-row--active' : '';
             const selectedClass = selected ? ' editor-row--selected' : '';
-            return `<li class="editor-row${activeRowClass}${readonlyClass}${selectedClass}" draggable="${draggable ? 'true' : 'false'}" data-id="${id}" data-kind="${escapeHtml(kind)}" data-list="${escapeHtml(listName)}" aria-selected="${selected ? 'true' : 'false'}">
+            const suggestedClass = item.suggested ? ' editor-row--suggested' : '';
+            return `<li class="editor-row${activeRowClass}${readonlyClass}${selectedClass}${suggestedClass}" draggable="${draggable ? 'true' : 'false'}" data-id="${id}" data-kind="${escapeHtml(kind)}" data-list="${escapeHtml(listName)}" aria-selected="${selected ? 'true' : 'false'}">
                 ${dragHandle}
                 <span class="playlist-track-info">
                     <strong>${title}</strong>

@@ -77,7 +77,7 @@
         let previewDocument = null;
         let editorDocument = null;
         let isEditing = false;
-        let brandSettingsBaseline = { title: '' };
+        let brandSettingsBaseline = { title: '', storageId: '' };
         let brandSettingsSaving = false;
         let brandSettingsSaveQueued = false;
         let pendingBrandDeleteId = '';
@@ -376,8 +376,17 @@
                 : '';
         }
 
+        function brandStorageIdValue() {
+            const input = formEl?.querySelector?.('#brandStorageId');
+            if (input instanceof HTMLInputElement) {
+                return String(input.value || '').trim().toLowerCase();
+            }
+            return String(editorDocument?.id || '').trim().toLowerCase();
+        }
+
         function brandSettingsDirty() {
-            return brandTitleValue() !== brandSettingsBaseline.title;
+            return brandTitleValue() !== brandSettingsBaseline.title
+                || brandStorageIdValue() !== String(brandSettingsBaseline.storageId || '').trim().toLowerCase();
         }
 
         function renderBrandHeadBadges(document) {
@@ -398,7 +407,8 @@
 
         function syncBrandSettingsPanel(document) {
             const title = String(document?.title || document?.id || '');
-            brandSettingsBaseline = { title };
+            const storageId = String(document?.id || '');
+            brandSettingsBaseline = { title, storageId };
             if (titleInput instanceof HTMLInputElement) {
                 titleInput.value = title;
                 titleInput.disabled = !brandMayEdit(document);
@@ -429,6 +439,14 @@
                 return false;
             }
 
+            const storageId = brandStorageIdValue();
+            if (!storageId) {
+                if (!silent && settingsStatus) {
+                    settingsStatus.textContent = 'Storage id is required.';
+                }
+                return false;
+            }
+
             if (!brandSettingsDirty()) {
                 if (!silent && settingsStatus) {
                     settingsStatus.textContent = '';
@@ -436,33 +454,57 @@
                 return true;
             }
 
+            const previousId = String(editorDocument.id || '').trim();
+            const migrating = storageId !== previousId.toLowerCase();
+            if (migrating && !silent) {
+                const ok = window.confirm(
+                    `Change brand storage id from "${previousId}" to "${storageId}"?\n\n`
+                    + 'This rewrites the Base pointer (if this is Base), campaign brand links, asset ownership, and playlist brand styles. '
+                    + 'Listener analytics are unchanged. Admin audit history keeps the old id.'
+                );
+                if (!ok) {
+                    return false;
+                }
+            }
+
             brandSettingsSaving = true;
             if (!silent && settingsStatus) {
-                settingsStatus.textContent = 'Saving…';
+                settingsStatus.textContent = migrating ? 'Migrating…' : 'Saving…';
             }
 
             try {
-                const data = await fetchJson(`/biblioteca/manage-brand.php?brand=${encodeURIComponent(editorDocument.id)}`, {
+                const body = { title, storage_id: storageId };
+                const data = await fetchJson(`/biblioteca/manage-brand.php?brand=${encodeURIComponent(previousId)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ title }),
+                    body: JSON.stringify(body),
                 });
+                const nextId = String(data?.brand?.id || storageId || previousId).trim();
+                if (data?.active_brand_id) {
+                    activeBrandId = String(data.active_brand_id);
+                }
+                editorDocument.id = nextId;
                 editorDocument.title = title;
                 if (previewDocument) {
+                    previewDocument.id = nextId;
                     previewDocument.title = title;
                 }
                 brands = Array.isArray(data.brands) ? data.brands : brands;
-                brandSettingsBaseline = { title };
+                brandSettingsBaseline = { title, storageId: nextId };
+                selectedBrandId = nextId;
+                const url = new URL(window.location.href);
+                url.searchParams.set('brand', nextId);
+                window.history.replaceState({}, '', url.toString());
                 renderPoolList();
                 renderPreview(previewDocument);
                 if (!silent && settingsStatus) {
-                    settingsStatus.textContent = 'Saved.';
+                    settingsStatus.textContent = migrating ? 'Migrated.' : 'Saved.';
                 }
                 return true;
             } catch (error) {
                 if (!silent && settingsStatus) {
-                    settingsStatus.textContent = error.message || 'Could not save brand name';
+                    settingsStatus.textContent = error.message || 'Could not save brand';
                 }
                 return false;
             } finally {
@@ -509,7 +551,7 @@
                 }
                 renderPoolList();
                 saveUi?.markSaved();
-                brandSettingsBaseline = { title: editorDocument.title };
+                brandSettingsBaseline = { title: editorDocument.title, storageId: String(editorDocument.id || '') };
                 if (settingsStatus) {
                     settingsStatus.textContent = '';
                 }
@@ -1090,6 +1132,11 @@
                     : ''}
                 ${renderEditorSection('Base info', `
                     <div class="brand-token-grid brand-token-grid--stacked">
+                        <div class="brand-token-field">
+                            <label for="brandStorageId">Storage id</label>
+                            <input type="text" id="brandStorageId" maxlength="48" autocomplete="off" spellcheck="false" value="${escapeHtml(String(editorDocument.id || ''))}" ${fieldsLocked || brandIsPlatformDefault(editorDocument) ? 'disabled' : ''} pattern="[a-z][a-z0-9_-]*" aria-label="Brand storage id">
+                            <p class="brand-field-hint">Durable file key under data/brands/. Changing it rewrites Base pointer, campaign brand links, asset ownership, and playlist brand styles. Title rename does not change this id.</p>
+                        </div>
                         <div class="brand-token-field">
                             <label for="brandBrandDescription">Description</label>
                             <textarea id="brandBrandDescription" data-brand-field="mood" maxlength="500" rows="3" ${fieldsLocked ? 'disabled' : ''}>${escapeHtml(description)}</textarea>

@@ -694,7 +694,7 @@ data/brands/registry.json
 data/brands/{brand-id}.json
 ```
 
-**Brand ids:** Seed/system identity stays `bandpromo-default` (legacy alias `setup-default`). New operator brands allocate opaque `brd_{ulid}` ids (same ULID helper as `ast_*` assets). Human meaning lives only in the brand **title**; Content → Branding does not show storage ids. Legacy title-derived ids (`hitz-copy`, `your-own-brand`, …) remain valid references until operators replace those brands.
+**Brand ids:** Seed/system identity stays `bandpromo-default` (legacy alias `setup-default`) and **cannot be renamed**. New operator brands allocate opaque `brd_{ulid}` ids (same ULID helper as `ast_*` assets). Legacy title-derived ids (`hitz-copy`, …) remain valid until migrated. **Titles are unique** on an install (case-insensitive). Content → Branding shows an editable **Storage id**; changing it runs an atomic runtime migrate (document file, registry, Base pointer, campaign `brand_id`, asset `brand_id`, playlist `brand_styles`) — title rename does **not** change the id. Listener analytics do not store brand ids (track title/artist only); admin audit keeps historical ids append-only.
 
 Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`. Legacy many-to-one release→brand links dual-read until migrated.
 
@@ -820,10 +820,11 @@ Path-based URLs (no query strings for core navigation).
 ### Player
 
 ```
-/play/{playlist-id}
-/play/{playlist-id}/{release-slug}/{track-slug}
+/play/{playlist-slug}
+/play/{playlist-slug}/{release-slug}/{track-slug}
 ```
 
+- Playlist **storage id** (`data/playlists/{id}.json`) and public **slug** are separate; Content → Playlists Base info edits both. Titles are unique on an install. Migrating storage id rewrites the file, registry, and default-playlist pointer; listener analytics do not store playlist id/slug.
 - `release-slug` and `track-slug` come from the release container and release membership.
 - Track `slug` is unique **per release**, not globally.
 - OG/share metadata for track links: track + release identity from containers/registry.

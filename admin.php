@@ -1848,6 +1848,11 @@ if ($tab === 'analytics') {
                                                 </div>
                                                 <p class="hint">Shows and podcasts default to newest first so new episodes can append at the bottom of the list.</p>
                                                 <label class="page-meta-field">
+                                                    <span>Storage id</span>
+                                                    <input type="text" id="playlistSettingsStorageId" maxlength="48" autocomplete="off" spellcheck="false" placeholder="summer-singles" aria-label="Playlist storage id" pattern="[a-z][a-z0-9-]*">
+                                                    <p class="hint campaign-catalog-meta-hint">Durable file key under data/playlists/. Changing it rewrites the registry and default-playlist pointer. Title rename does not change this id.</p>
+                                                </label>
+                                                <label class="page-meta-field">
                                                     <span>Slug</span>
                                                     <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
                                                     <p class="hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>

@@ -74,6 +74,14 @@ try {
             throw new InvalidArgumentException('Playlist id is required.');
         }
 
+        $migrated = null;
+        $newStorageId = trim((string) ($payload['storage_id'] ?? $payload['new_id'] ?? ''));
+        if ($newStorageId !== '' && bandpromo_playlist_normalize_id($newStorageId) !== $playlistId) {
+            $migrated = bandpromo_playlist_migrate_id($root, $playlistId, $newStorageId);
+            $playlistId = bandpromo_playlist_normalize_id((string) ($migrated['playlist_id'] ?? $newStorageId));
+            unset($payload['storage_id'], $payload['new_id']);
+        }
+
         $entry = bandpromo_playlist_update_details($root, $playlistId, $payload);
 
         bandpromo_admin_audit_log('playlist_updated', [
@@ -84,6 +92,8 @@ try {
                 'title' => (string) ($entry['title'] ?? ''),
                 'publish_date' => (string) ($entry['publish_date'] ?? ''),
                 'slug' => (string) ($entry['slug'] ?? ''),
+                'migrated_from' => is_array($migrated) ? (string) ($migrated['from'] ?? '') : '',
+                'rewrites' => is_array($migrated) ? ($migrated['rewrites'] ?? []) : [],
             ],
         ]);
 
@@ -91,6 +101,7 @@ try {
             'ok' => true,
             'playlist' => $entry,
             'playlists' => bandpromo_playlist_admin_registry_entries($root),
+            'migrated' => $migrated,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }

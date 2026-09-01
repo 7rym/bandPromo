@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-08-31 21:10 - Identity + Base fallthrough: playlist/campaign brand fallthrough uses install Base (not `bandpromo-default`); player shell inherit keys off `BANDPROMO_ACTIVE_BRAND_ID`; Catalogue suggests/stamps playlist ownership from unanimous tracks; campaign duplicate keeps slug-based playlist ids; editable brand/playlist storage-id migrate + unique titles.
+
 2026-08-31 20:25 - Hotfix **v0.8.37 build 440**: remove stray duplicate return after `bandpromo_brand_admin_registry_entries` that caused a PHP parse error (HTTP 500 blank site after Site update to 439).
 
 2026-08-31 20:20 - Hotfix **v0.8.36 build 439**: hide bandPromo demo campaign also omits demo Pages and non-Base demo Brands (Branding + PBF export); shell media only stays for Base / non-demo brand refs.

@@ -308,7 +308,7 @@ function bandpromo_campaign_effective_brand_id(string $root, string $releaseId):
         }
     }
 
-    return BANDPROMO_BRAND_DEFAULT_ID;
+    return bandpromo_brand_active_canonical_id($root);
 }
 
 function bandpromo_campaign_normalize_poster_asset_id(?string $root, mixed $value): string

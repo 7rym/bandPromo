@@ -1466,7 +1466,10 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         if ($pTitle === '') {
             $pTitle = $newTitle;
         }
-        $created = bandpromo_playlist_create($root, $pTitle . ' copy', '');
+        // Prefer source public slug (or source id) for the new storage id — not "Title copy".
+        $sourceSlug = bandpromo_playlist_route_slug($doc, $playlistId);
+        $preferredId = $sourceSlug !== '' ? $sourceSlug : $playlistId;
+        $created = bandpromo_playlist_create($root, $pTitle . ' copy', $preferredId);
         $newPlaylistId = bandpromo_playlist_normalize_id((string) ($created['id'] ?? ''));
         if ($newPlaylistId === '') {
             continue;
@@ -1484,6 +1487,24 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         $dupPlaylist['title'] = $pTitle . (stripos($pTitle, 'copy') === false ? ' copy' : '');
         $dupPlaylist['release_id'] = $newReleaseId;
         $dupPlaylist['entries'] = $entries;
+        // Keep a usable public slug; collide with -copy / -2 when the source slug is taken.
+        $slugBase = $sourceSlug !== '' ? $sourceSlug : $newPlaylistId;
+        $slug = $slugBase;
+        $slugSuffix = 2;
+        while (true) {
+            try {
+                bandpromo_playlist_assert_slug_available($root, $slug, $newPlaylistId);
+                break;
+            } catch (Throwable $throwable) {
+                $slug = substr($slugBase, 0, 44) . '-' . $slugSuffix;
+                $slugSuffix++;
+                if ($slugSuffix > 99) {
+                    $slug = $newPlaylistId;
+                    break;
+                }
+            }
+        }
+        $dupPlaylist['slug'] = $slug;
         $dupPlaylist = bandpromo_playlist_clear_player_payload_fields($dupPlaylist);
         bandpromo_playlist_write_document($root, $dupPlaylist);
         $playlistIds[] = $newPlaylistId;

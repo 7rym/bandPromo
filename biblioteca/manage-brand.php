@@ -30,6 +30,12 @@ try {
         }
 
         $title = (string) ($payload['title'] ?? '');
+        $newStorageId = trim((string) ($payload['storage_id'] ?? $payload['new_id'] ?? ''));
+        $migrated = null;
+        if ($newStorageId !== '' && bandpromo_brand_canonical_id($newStorageId) !== $brandId) {
+            $migrated = bandpromo_brand_migrate_id($root, $brandId, $newStorageId);
+            $brandId = bandpromo_brand_canonical_id((string) ($migrated['brand_id'] ?? $newStorageId));
+        }
         $entry = bandpromo_brand_update_title($root, $brandId, $title);
         $registry = bandpromo_brand_registry_entries($root);
 
@@ -37,7 +43,11 @@ try {
             'target_type' => 'theme',
             'target_id' => $brandId,
             'status' => 'ok',
-            'data' => ['title' => (string) ($entry['title'] ?? '')],
+            'data' => [
+                'title' => (string) ($entry['title'] ?? ''),
+                'migrated_from' => is_array($migrated) ? (string) ($migrated['from'] ?? '') : '',
+                'rewrites' => is_array($migrated) ? ($migrated['rewrites'] ?? []) : [],
+            ],
         ]);
 
         echo json_encode([
@@ -46,6 +56,8 @@ try {
             'brands' => $registry,
             'theme' => $entry,
             'themes' => $registry,
+            'migrated' => $migrated,
+            'active_brand_id' => bandpromo_brand_active_id($root),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
