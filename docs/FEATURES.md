@@ -30,10 +30,10 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Fresh install catalogues show only campaigns (typically `bandpromo-demo`). The `primary` orphan/upload bucket stays on disk but is **not** listed. Base brand stays locked **bandPromo Default** until the operator duplicates it — setup no longer auto-creates “Your own brand”.
 - Files panels: **Audio | Visual | Sound effects | Brand assets**. Visual and Sound effects are global warehouses. Still/video originals live under `media/visual/original/` only (legacy `img`/`photo`/`video` intake is dual-read leftovers). Files → Visual **Catalogue** is every campaign that uses the file (gallery / cover / poster / page, or Brand visual shell those campaigns play, including Base-brand fallback for empty slots). Brand-library members with no campaign use list that Brand rather than Orphan. **In use / Unused** is live assignment (track cover, gallery, page, poster, or brand shell slot), not Catalogue and not Brand-library membership. Usage identity is the Visual `ast_*` id (titles and stems never match). Track covers that still store a former visual id after re-register resolve to the live row whose original filename is `{former_id}.ext`, so those files are not Catalogue Orphans. List view thumbnail size is **S / M / L** (70 / 100 / 125 px; default M). Brand assets is the selected Brand's curated cross-media library (`library_asset_ids`) with upload, add-existing, and remove-membership actions; removal does not delete global media. **Add existing** is shown only when a Brand is selected (not All brands / Orphans); it is multi-select and hides assets already in that Brand library. The picker Visual tab filters by campaign catalogue; the Sound effects tab filters by Brand; search matches titles. Those filters belong to the picker and do not change the Files toolbar. Branding shell pickers are strict to compatible assets in that library. Sound effects use three-tier `media/sfx/{original,master,optimal}` storage; Visual uses shared `ast_{ULID}` registry identity and delivery variants. Files details modal previews those delivery variants (stills via `card`/`thumb`, living via poster/stream, SFX via optimal play URL).
 - **Planned (remainders):** content AI wizards; visual delivery polish — see [TODO.md](TODO.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md)
-- Player **text panel role**: per-track Lyrics ↔ Notes (same Lyrics storage); Notes optional tab label defaults to Tracklist
+- **Lyrics ↔ Notes (shipped):** one player text panel and one master Lyrics field; per-track `display.text_role` switches the locked nav between **Lyrics** and **Notes** (optional `notes_label`, default **Tracklist** for cue sheets / show notes). Markdown rendering differs by role (lyric hard-breaks vs denser Notes cue-sheet style). **Timed cues:** policy locked (registry Markdown cue list; still ignores times; `.srt` interchange; USLT from still projection) — not built yet; see [PLATFORM-MODEL.md](PLATFORM-MODEL.md).
 - Files list header row aligned with file items: master select-all checkbox, compact filter dropdowns (`All` / usage filters plus `User files` / `Include demo`), and labeled **Upload**, **Download**, and **Delete** bulk actions
 - Per-row selection with shift-range support, ZIP bulk download, and reference-aware delete warnings
-- Audio quick-edit for common tag fields plus full editor for lyrics, description, and cover work
+- Audio quick-edit for common tag fields plus full editor for Lyrics/Notes text, description, and cover work
 - Cover-art badges and compact in-use/orphan indicators on illustrations, photos, and video
 - Operator-facing validation actions and file-level metadata health badges for faster repair workflows
 - Upload-time **background delivery automation**: audio, image, and video derivatives prepare automatically after upload; Content pools list **delivery-ready** assets only; progress and failures surface in **Notifications**
@@ -46,8 +46,8 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 
 ### Media Player
 - High-quality audio playback with seek/next/previous navigation
-- **Playlists** and **Lyrics** tabs (core player shell — not page-embedded)
-- **Markdown** in player lyrics and track descriptions (rendered at display; masters unchanged)
+- **Playlists** and **Lyrics/Notes** tabs (core player shell — not page-embedded); tab label follows the playing track’s text role
+- **Markdown** in player Lyrics/Notes and track descriptions (rendered at display; masters unchanged)
 - **Animated track covers (living cover)** — silent looping video on the main cover card while audio plays whenever a living cover is assigned and delivery MP4 exists (no player toggle; still cover when paused/idle or reduced motion). Publish fills empty master tags from the asset registry when needed.
 - Cover delivery: player card / lightbox use visual **`card`**; playlist rows and cover-flow use **`thumb`** (`/media/visual/delivery/{asset_id}/…`, Publish). Playlist payloads include `cover_url`; `/play` also resolves `ast_*` cover filenames to visual delivery/master when `cover_url` is absent.
 - Platform-owned responsive shell: stacked portrait flow, dimension-aware split mode, height-aware cover sizing, and consistent panel scrolling
@@ -96,6 +96,9 @@ These are **directional** — betatesters should check [ROADMAP.md](ROADMAP.md) 
 - Physical `media/special/` Brand-assets fold residual
 - PCF campaign handoff polish ([PORTABILITY.md](PORTABILITY.md) §3)
 - Beta fleet sync + legacy/fallback audit gate
+
+**Policy locked, implement later (evaluate when scheduling):**
+- Timed/synced Lyrics & Notes cues — `.srt` interchange; one registry Markdown cue list; still ignores times / living uses times; USLT from still projection ([PLATFORM-MODEL.md](PLATFORM-MODEL.md))
 
 **Defined in v0.8, built in v0.9:**
 - Access tiers: admin/dev, VIP pre-access, registered fan, anonymous (released-only)

@@ -4,7 +4,7 @@ Real-life personas for closed-beta feedback during development. Not marketing co
 
 Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FEATURES.md](FEATURES.md), [ROADMAP.md](ROADMAP.md) → Beta tester expectations.
 
-**Active closed-beta fleet (2026-08-31):** three remote installs on **v0.8.36 build 438** — one per persona below. This Google Drive working copy is **never** a wipeable test install. Fresh installs always use **https://bandpromo.site**.
+**Active closed-beta fleet (2026-08-31):** three remote installs on **v0.8.36 build 438** — one per persona below. This local working copy (`C:\dev\bandpromo`) is **never** a wipeable test install. Fresh installs always use **https://bandpromo.site**.
 
 | Persona | Host | Operator type | Stresses |
 |---------|------|---------------|----------|
@@ -18,7 +18,7 @@ Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FE
 
 ## Vanilla
 
-**Host:** always **https://bandpromo.site**. Never this Google Drive working copy.
+**Host:** always **https://bandpromo.site**. Never this local working copy.
 
 **Goal:** Prove a clean install feels finished without custom campaign content.
 
@@ -88,7 +88,7 @@ Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FE
 - One player shell panel and one master text field (`lyrics` / USLT), Markdown-rendered.
 - Per-track **text panel role:** `lyrics` | `notes` (default `lyrics`). Notes mode uses optional player tab label (default **Tracklist**; e.g. Show notes).
 - Files → Audio editor: Lyrics ↔ Notes toggle + optional label; health chips follow the panel label.
-- Deferred: separate Tracklist field, dual tabs, timed cue tracklists.
+- Deferred: separate Tracklist field, dual tabs. **Timed cue tracklists:** policy locked (`.srt` interchange; one registry Markdown cue list; still|living = ignore vs use times; USLT from still projection) — implement later ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 ### Feedback focus
 

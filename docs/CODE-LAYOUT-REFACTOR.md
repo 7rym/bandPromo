@@ -185,7 +185,7 @@ Re-evaluate at v0.9 kickoff against open [TODO.md](TODO.md) access-tier items an
 - Moving `data/`, `media/`, `log/`, `backups/` (operator runtime — unchanged).
 - Composer/npm package managers (manual vendor trees stay for shared-host simplicity).
 - Renaming `docs/` or `.github/`.
-- Wiping or re-seeding local runtime on Google Drive working copy.
+- Wiping or re-seeding local runtime on this working copy.
 
 ---
 

@@ -55,7 +55,7 @@ bandPromo offers **four distinct portability services**, not one combined ZIP. *
 
 ### 2. Data export / import
 
-**Purpose:** **fresh install on a new domain** or clean host — operator content and configuration without carrying logs, stale build state, or full media weight unless chosen. In this repo, “clean host” / fresh install always means **https://bandpromo.site** (Vanilla), never this Google Drive working copy’s `data/` / `media/` / `log/`. The other active remote test sites are Spandexual Tension and HITZ (Twisted Chronicles paused until v0.9 reinstall).
+**Purpose:** **fresh install on a new domain** or clean host — operator content and configuration without carrying logs, stale build state, or full media weight unless chosen. In this repo, “clean host” / fresh install always means **https://bandpromo.site** (Vanilla), never this local working copy’s `data/` / `media/` / `log/`. The other active remote test sites are Spandexual Tension and HITZ (Twisted Chronicles paused until v0.9 reinstall).
 
 **Export tiers:**
 

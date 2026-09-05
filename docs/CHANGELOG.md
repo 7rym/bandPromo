@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-05 10:30 - Lock timed Lyrics/Notes policy: registry Markdown cue list; still ignores times / living uses times; `.srt` interchange; USLT from still projection. Implementation deferred — evaluate later ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-09-05 10:20 - Timed Lyrics/Notes exploration: prefer one registry Markdown cue list (still ignores times; living uses times); USLT export from still projection; `.srt` as interchange — not a second operator-edited body.
+
+2026-09-05 10:10 - Timed Lyrics/Notes: tester suggestion only — explore SubRip `.srt` (vs LRC / WebVTT); move out of v0.8 “in progress” into open explorations; capture comparison in PLATFORM-MODEL.
+
+2026-09-03 12:05 - Docs: FEATURES lists Lyrics ↔ Notes (shipped) and timed/synced cues under Planned; retire present-tense “Google Drive working copy” — local checkout is `C:\dev\bandpromo` with in-tree `.git`.
+
 2026-08-31 21:10 - Identity + Base fallthrough: playlist/campaign brand fallthrough uses install Base (not `bandpromo-default`); player shell inherit keys off `BANDPROMO_ACTIVE_BRAND_ID`; Catalogue suggests/stamps playlist ownership from unanimous tracks; campaign duplicate keeps slug-based playlist ids; editable brand/playlist storage-id migrate + unique titles.
 
 2026-08-31 20:25 - Hotfix **v0.8.37 build 440**: remove stray duplicate return after `bandpromo_brand_admin_registry_entries` that caused a PHP parse error (HTTP 500 blank site after Site update to 439).

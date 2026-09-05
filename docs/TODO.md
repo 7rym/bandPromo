@@ -429,7 +429,7 @@ Legacy checklist (superseded wording kept for history):
 
 **Active fleet (2026-08-31):** **Vanilla** (**https://bandpromo.site**), **Spandexual Tension** (**https://spandexualtension.com** — traditional band / release sequence), **HITZ** (**https://hitz.no**) — all on **v0.8.36 build 438**. [USE-CASES.md](USE-CASES.md).
 
-**Paused:** **Twisted Chronicles** (**https://twistedchronicles.eu**) — too old for Site update; reinstall and rejoin at **v0.9**. This Google Drive working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
+**Paused:** **Twisted Chronicles** (**https://twistedchronicles.eu**) — too old for Site update; reinstall and rejoin at **v0.9**. This local working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
 
 1. **Player Campaign navigator (mandatory)**
    - [ ] Lock policy — [Player Campaign navigator](#player-campaign-navigator-hitz-feedback--2026-08-26) (polarity, chrome, single-campaign collapse, defaults, page tabs + deep links).
@@ -597,7 +597,8 @@ Deferred to v0.9 (implement after v0.8 definitions are stable):
 Deferred to v1+:
 
 - [ ] **Release-contextual player page tabs** — Content → Player keeps optional **global** pages; pages associated to the current track’s release append to the nav (Playlists | Lyrics first). FAQ stays login/global. Idle/first-load context decided at implementation. Policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [USE-CASES.md](USE-CASES.md) Spandexual Tension.
-- [x] **Per-track text panel role (Lyrics ↔ Notes)** — one shell panel and one master Lyrics field; registry `display.text_role` (`lyrics`|`notes`) + optional `notes_label` (default player label **Tracklist**); renames the locked nav while that track plays. Dual fields / timed cues deferred.
+- [x] **Per-track text panel role (Lyrics ↔ Notes)** — one shell panel and one master Lyrics field; registry `display.text_role` (`lyrics`|`notes`) + optional `notes_label` (default player label **Tracklist**); renames the locked nav while that track plays. Dual fields deferred.
+- [x] **Timed Lyrics/Notes cues — policy lock** — registry Markdown cue list; still ignores times / living uses times; `.srt` interchange; USLT derived from still projection ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)). Implementation deferred; evaluate when scheduling.
 - [x] **Brand shell override runtime** — login applies base brand shell assets; player applies release-brand logo + still/living backgrounds on playlist select (CSS tokens already did); Welcome/Logged-in SFX stay Base/login; system-owned scrim over busy backgrounds.
 - [ ] **Brand typography v2** — web/display font slots per brand.
 - [ ] **Brand starter templates** — duplicate-only era/genre seeds (optional convenience, not a theme engine).

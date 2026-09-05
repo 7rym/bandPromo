@@ -2,6 +2,9 @@ param(
     [string]$TargetGitDir = $(Join-Path $env:USERPROFILE ".local-gitdirs\bandPromo")
 )
 
+# Legacy helper: only needed if this clone still lives under a Google Drive sync folder.
+# Normal checkout is C:\dev\bandpromo with .git in-tree — do not run this unless Drive sync is back.
+
 $ErrorActionPreference = "Stop"
 
 function Remove-DesktopIniFiles {

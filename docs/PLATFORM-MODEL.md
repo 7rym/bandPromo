@@ -175,7 +175,13 @@ Content → **Player layout** is retired (URLs redirect to Catalogue). Brand chr
 
 **Delete campaign:** operators choose **Entire campaign** (default) or **Campaign only**. Entire campaign removes owned brand, playlists, galleries, pages, and media that nothing else still references; shared media from a prior duplicate is retained. Campaign only removes the catalogue container and clears asset `release_id` pointers — Files media stays. Platform demo / protected ids cannot be deleted.
 
-**Lyrics vs Notes (shipped):** One shell panel and one master Lyrics field (tag + `display.lyrics`). Per-track `display.text_role` is `lyrics` (default) or `notes`; when Notes, optional `notes_label` (default player nav **Tracklist**, e.g. Show notes / Transcript). Site-wide `player.modules.lyrics.label` remains the Lyrics-mode fallback. Dual fields / timed cues deferred.
+**Lyrics vs Notes (shipped):** One shell panel and one master Lyrics field (tag + `display.lyrics`). Per-track `display.text_role` is `lyrics` (default) or `notes`; when Notes, optional `notes_label` (default player nav **Tracklist**, e.g. Show notes / Transcript). Site-wide `player.modules.lyrics.label` remains the Lyrics-mode fallback. Dual fields remain deferred.
+
+**Timed cues (locked policy — implement later):** Tester-requested timed lyrics / tracklist cues. **Interchange:** SubRip **`.srt`**. **Canonical store:** registry cue list on the audio asset (e.g. `display.lyrics_cues[]` with `start_ms`, `end_ms`, Markdown `text`). **Still | living:** one copy only — still ignores times and renders cue Markdown in order; living highlights / auto-scrolls by playback time (same polarity as living cover → still fallback). **Export:** derive **USLT** on the master from the still projection (Markdown as text, today’s write path); optional PCF `.srt` sidecar later — no parallel operator-edited body, no SYLT unless revisited. **Import/export `.srt`:** maps to/from the cue list; SRT has no Markdown dialect — keep Markdown literals in cue text or offer a plain-text flatten on export; import treats cue bodies as Markdown. Untimed tracks keep today’s single `display.lyrics` string until cues exist; when cues exist, any `display.lyrics` / USLT string is **derived**, not a second source of truth.
+
+**Explicitly out of scope for this lock:** dual Lyrics+Notes fields; auto karaoke from audio; SYLT as primary export; WebVTT/LRC as interchange (rejected for now — revisit only if `.srt` fails operators).
+
+HITZ care-about is timed **Tracklist** (Notes) as much as karaoke Lyrics.
 
 **Content admin strip:** Catalogue plus dedicated Playlist / Gallery / Pages / Branding editors remain peers. Campaign editor handles base info, track membership, and associations — not full child editing.
 

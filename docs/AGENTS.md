@@ -26,8 +26,8 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - Runtime files are required and should fail loudly with actionable messages when missing.
 - Keep local-only files out of git (for example web-config.json, data files, .env, icons, manifests).
 - **Never destroy this working copy’s runtime.** `data/` (including `data/analytics/`), `media/`, `log/` (analytics and admin-audit test data), `backups/`, `web-config.json`, and `data/terces` are operator data. “Try a fresh install”, SESSION-HANDOFF, or “clean host” do **not** authorize deleting them here. Remote test fleet: **bandpromo.site** (Vanilla — always the fresh-install host), **Spandexual Tension** (spandexualtension.com), **HITZ** (hitz.no). **Twisted Chronicles** is paused until v0.9 reinstall. The user must name those exact paths in the same message before any rmtree/delete. Same bar as secrets: stop and ask.
-- **desktop.ini files:** Windows + Google Drive creates these metadata files in every folder locally. They are **not** tracked by git (see `.gitignore`) and will be recreated on every local sync. Never try to add them to git; they cause corruption in `.git/refs/` and should always be ignored. If you accidentally commit one, remove it immediately.
-- This repository lives inside Google Drive, so `.gitignore` alone is not enough. Run `powershell -ExecutionPolicy Bypass -File scripts/protect-google-drive-git.ps1` once per clone to move `.git` outside the synced folder. That is the durable fix; `.gitignore` only protects the working tree.
+- **desktop.ini files:** Windows may create these metadata files in folders (historically also via Google Drive sync). They are **not** tracked by git (see `.gitignore`). Never try to add them to git; they can corrupt `.git/refs/` if committed. If you accidentally commit one, remove it immediately.
+- **Local workspace:** the operator checkout lives at a normal path (currently `C:\dev\bandpromo`) with `.git` in-tree. The old Google Drive sync layout is retired; `scripts/protect-google-drive-git.ps1` remains only for any leftover Drive-synced clones.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
 - Keep repository-authored text in **UK English** only (not US English). See **Language** below.
 - Exception: content inside `biblioteca/templates/` and runtime user data (for example `data/`) may contain any language.
@@ -130,7 +130,7 @@ Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFA
 
 ## Common Pitfalls
 
-- **Wiping local `data/`, `media/`, or `log/`:** this Google Drive tree is the live operator catalogue (`log/` includes analytics test history). Fresh-install smokes always run on **bandpromo.site**; the other active remote tests are Spandexual Tension and HITZ (Twisted Chronicles paused until v0.9). Do not rmtree runtime roots unless the operator named those paths in the same message.
+- **Wiping local `data/`, `media/`, or `log/`:** this checkout is the live operator catalogue (`log/` includes analytics test history). Fresh-install smokes always run on **bandpromo.site**; the other active remote tests are Spandexual Tension and HITZ (Twisted Chronicles paused until v0.9). Do not rmtree runtime roots unless the operator named those paths in the same message.
 - Accidentally tracking local files from `data/`, `log/`, `backups/`, `media/`, root config, generated assets, `.vscode/`, `.cursor/`, or `.editorconfig`.
 - Breaking strict setup-seeding by reintroducing example fallbacks in runtime code.
 - Forgetting to bump `VERSION` before pushing changes to `main`.
@@ -138,8 +138,7 @@ Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFA
 - Assuming ripgrep is available on every Windows environment.
 - Introducing non-UTF-8 encoded files that later cause garbled output in tools/logs.
 - Mixing US English or non-English operational text into code comments, docs, logs, or admin/system messaging (house style is UK English).
-- **Letting Google Drive manage `.git`:** `.gitignore` cannot stop Google Drive from writing inside `.git`. If `.git` stays under the synced folder, `desktop.ini` will eventually reappear in `.git/refs/`, `.git/logs/`, or `.git/objects/` and break fetch/push operations. The required protection is to relocate `.git` outside Google Drive with `scripts/protect-google-drive-git.ps1`.
-- **Committing desktop.ini files by accident:** They corrupt `.git/refs/` and break fetch/push operations. Always ensure they stay ignored in the worktree, and clean `.git` metadata if Google Drive has already recreated them.
+- **Committing desktop.ini files by accident:** They can corrupt `.git/refs/` and break fetch/push. Keep them ignored; clean `.git` metadata if one was committed.
 - **Committing `/media` or install-path `.htaccess`:** Ignore rules must keep runtime trees untracked. Platform favicon seed is tracked at `biblioteca/templates/icons/bP-icons.zip`; packaging/setup extract it into gitignored `media/icons/` for the app ZIP and installs. Never re-add demo binaries or host Apache stubs to git.
 
 ## When in Doubt
@@ -149,7 +148,7 @@ Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFA
 - Ask for confirmation before destructive or wide-reaching repository operations. Deleting gitignored runtime trees (`data/`, `media/`, `log/`, `backups/`) is the same class of action as entering a password: **forbidden** unless the operator named those exact paths in the same message. Docs and “fresh install” are not permission.
 
 
-_Last updated: 2026-08-18_
+_Last updated: 2026-09-03_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
 - **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PCF / `.pcf` contract is source of truth for demo and operator campaign handoff.
