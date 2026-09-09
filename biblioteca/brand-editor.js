@@ -351,15 +351,30 @@
             }).join('')}</div>`;
         }
 
+        function effectIntToken(path, fallback) {
+            const raw = tokenValue(editorDocument, path);
+            if (raw === '') {
+                return String(fallback);
+            }
+            const parsed = parseInt(raw, 10);
+            return Number.isFinite(parsed) ? String(parsed) : String(fallback);
+        }
+
         function renderEffectsFields(locked) {
-            const dim = String(tokenValue(editorDocument, 'effects.backdrop_dim') || '72');
-            const blur = String(tokenValue(editorDocument, 'effects.panel_blur') || '5');
+            const dim = effectIntToken('effects.backdrop_dim', 72);
+            const panelDim = effectIntToken('effects.panel_dim', dim);
+            const blur = effectIntToken('effects.panel_blur', 5);
             return `
                 <div class="brand-effects-grid">
                     <label class="brand-effect-field">
                         <span class="brand-effect-label">Backdrop dim <strong data-effect-value="backdrop_dim">${escapeHtml(dim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(dim)}" data-token-path="effects.backdrop_dim" data-effect-range="backdrop_dim" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Darkens the still/living shell background and fills lyrics, playlists, pages, gallery, and login panels.</span>
+                        <span class="brand-field-hint">Darkens only the still/living shell background (full-page overlay).</span>
+                    </label>
+                    <label class="brand-effect-field">
+                        <span class="brand-effect-label">Panel dim <strong data-effect-value="panel_dim">${escapeHtml(panelDim)}</strong>%</span>
+                        <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.panel_dim" data-effect-range="panel_dim" ${locked ? 'disabled' : ''}>
+                        <span class="brand-field-hint">Fills lyrics, playlists, pages, gallery, and login panels. Separate from backdrop so the two do not stack as one control.</span>
                     </label>
                     <label class="brand-effect-field">
                         <span class="brand-effect-label">Panel blur <strong data-effect-value="panel_blur">${escapeHtml(blur)}</strong>px</span>
@@ -1154,7 +1169,7 @@
                     ${renderCompactColors(fieldsLocked)}
                 `, 'brand-editor-section--colors')}
                 ${renderEditorSection('Readability', `
-                    <p class="brand-field-hint">Dim busy still/living backdrops and soften glass panels so text stays readable.</p>
+                    <p class="brand-field-hint">Backdrop dim darkens the still/living shell only. Panel dim and blur soften lyrics, playlists, pages, and login glass — tune them separately so they do not stack as one control.</p>
                     ${renderEffectsFields(fieldsLocked)}
                 `, 'brand-editor-section--effects')}
                 ${renderShellMediaFields(fieldsLocked)}

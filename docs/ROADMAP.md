@@ -53,7 +53,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Content AI wizards (release + brand canon) | Policy locked; **implementation v0.9+** |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Player **Campaign navigator** (v0.8 exit gate); fleet sync + PCF validation; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
+**Next focus:** Player **Campaign navigator** (policy locked 2026-09-08 — implement + validate); PCF fleet smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -520,6 +520,7 @@ Not in v0.8 implementation scope (documented for later milestones):
 
 - access-tier enforcement and fan credits (**v0.9** definitions implementation; credits **v1+**)
 - Chromecast/cast send (**v0.9+**, after delivery definitions are stable)
+- continuous album / start-precision handoff (presentation layer — gapless-aware encode + dual-buffer scheduling; after management is solid; see [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md))
 - news timed release + social push (**v1+**)
 - merch, chatrooms, heavy automation, many third-party integrations
 

@@ -1855,7 +1855,7 @@ if ($tab === 'analytics') {
                                                 <label class="page-meta-field">
                                                     <span>Slug</span>
                                                     <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
-                                                    <p class="hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsSlugPreview">your-slug</span></code></p>
+                                                    <p class="hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsCampaignSlugPreview">campaign-slug</span>/<span id="playlistSettingsSlugPreview">your-slug</span></code> (campaign-first; hard cut — old <code>/play/{playlist}</code> paths are not supported)</p>
                                                 </label>
                                                 <label class="page-meta-field page-meta-field--wide">
                                                     <span>Short description</span>
@@ -2841,6 +2841,9 @@ if ($tab === 'analytics') {
                                     <td><?php echo htmlspecialchars((string) ($backupJob['type_label'] ?? '')); ?></td>
                                     <td>
                                         <span class="badge audit-status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
+                                        <?php if ($jobStatus === 'building' && trim((string) ($backupJob['progress'] ?? '')) !== ''): ?>
+                                        <div class="text-muted site-backup-job-note"><?php echo htmlspecialchars((string) $backupJob['progress']); ?></div>
+                                        <?php endif; ?>
                                         <?php if ($jobStatus === 'ready' && $jobDirection === 'import' && trim((string) ($backupJob['import_summary'] ?? '')) !== ''): ?>
                                         <div class="text-muted site-backup-job-note"><?php echo htmlspecialchars((string) $backupJob['import_summary']); ?></div>
                                         <?php endif; ?>

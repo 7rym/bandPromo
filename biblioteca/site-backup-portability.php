@@ -28,6 +28,9 @@ const BANDPROMO_SITE_IMPORT_MODE_MIGRATE = 'migrate';
 
 const BANDPROMO_SITE_BACKUP_STAGING_TTL_SECONDS = 7200;
 
+/** Fail `building` jobs with no heartbeat for this long (dead PHP worker / host kill). */
+const BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS = 1800;
+
 /**
  * @return list<string>
  */
@@ -317,6 +320,8 @@ function bandpromo_site_backup_format_bytes(int $bytes): string
 
 function bandpromo_site_backup_list_jobs(string $root): array
 {
+    bandpromo_site_backup_reap_stale_building_jobs($root);
+
     $dir = bandpromo_site_backup_ensure_dir($root);
     $jobs = [];
     $items = scandir($dir);
@@ -345,6 +350,114 @@ function bandpromo_site_backup_list_jobs(string $root): array
     });
 
     return $jobs;
+}
+
+/**
+ * UTC timestamp used to decide whether a building job is still alive.
+ */
+function bandpromo_site_backup_job_liveness_utc(array $job): string
+{
+    foreach (['heartbeat_at_utc', 'started_at_utc', 'created_at_utc'] as $key) {
+        $value = trim((string) ($job[$key] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Persist progress / heartbeat while a job runs (throttled disk writes).
+ */
+function bandpromo_site_backup_touch_job_progress(string $root, string $jobId, string $progress = '', bool $force = false): void
+{
+    static $lastWrite = [];
+
+    try {
+        $jobId = bandpromo_site_backup_sanitize_job_id($jobId);
+    } catch (InvalidArgumentException $e) {
+        return;
+    }
+
+    $now = microtime(true);
+    $cacheKey = $root . "\0" . $jobId;
+    if (!$force && isset($lastWrite[$cacheKey]) && ($now - $lastWrite[$cacheKey]) < 5.0) {
+        return;
+    }
+
+    $job = bandpromo_site_backup_read_job($root, $jobId);
+    if ($job === null) {
+        return;
+    }
+    if ((string) ($job['status'] ?? '') !== BANDPROMO_SITE_BACKUP_JOB_BUILDING) {
+        return;
+    }
+
+    $job['heartbeat_at_utc'] = gmdate('c');
+    if ($progress !== '') {
+        $job['progress'] = $progress;
+    }
+    try {
+        bandpromo_site_backup_write_job($root, $job);
+        $lastWrite[$cacheKey] = $now;
+    } catch (Throwable $e) {
+        // Do not fail the export because progress metadata could not be written.
+    }
+}
+
+/**
+ * Mark abandoned building jobs Failed so operators can delete / re-queue.
+ *
+ * @return int number of jobs reaped
+ */
+function bandpromo_site_backup_reap_stale_building_jobs(string $root): int
+{
+    $dir = bandpromo_site_backup_ensure_dir($root);
+    $items = scandir($dir);
+    if ($items === false) {
+        return 0;
+    }
+
+    $ttl = BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS;
+    $now = time();
+    $reaped = 0;
+    $message = 'This job stopped responding (no progress for '
+        . (int) round($ttl / 60)
+        . ' minutes). The host may have ended the worker. Delete it and queue the export again.';
+
+    foreach ($items as $item) {
+        if (!str_ends_with($item, '.json')) {
+            continue;
+        }
+        $jobId = substr($item, 0, -5);
+        try {
+            $job = bandpromo_site_backup_read_job($root, $jobId);
+        } catch (InvalidArgumentException $e) {
+            continue;
+        }
+        if ($job === null) {
+            continue;
+        }
+        if ((string) ($job['status'] ?? '') !== BANDPROMO_SITE_BACKUP_JOB_BUILDING) {
+            continue;
+        }
+
+        $liveness = bandpromo_site_backup_job_liveness_utc($job);
+        $ref = $liveness !== '' ? strtotime($liveness) : false;
+        if ($ref === false) {
+            continue;
+        }
+        if (($now - $ref) < $ttl) {
+            continue;
+        }
+
+        $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
+        bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $message);
+        $reaped++;
+    }
+
+    return $reaped;
 }
 
 function bandpromo_site_backup_normalize_job(string $root, array $job): array
@@ -420,7 +533,9 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
         'include_log' => in_array(BANDPROMO_SITE_BACKUP_COMPONENT_LOGS, $components, true),
         'created_at_utc' => (string) ($job['created_at_utc'] ?? ''),
         'started_at_utc' => (string) ($job['started_at_utc'] ?? ''),
+        'heartbeat_at_utc' => (string) ($job['heartbeat_at_utc'] ?? ''),
         'completed_at_utc' => (string) ($job['completed_at_utc'] ?? ''),
+        'progress' => (string) ($job['progress'] ?? ''),
         'filename' => (string) ($job['filename'] ?? ''),
         'size_bytes' => $sizeBytes,
         'size_label' => bandpromo_site_backup_format_bytes($sizeBytes),
@@ -654,11 +769,21 @@ function bandpromo_site_backup_run_job(string $root, string $jobId): array
 
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
     $job['started_at_utc'] = gmdate('c');
+    $job['heartbeat_at_utc'] = $job['started_at_utc'];
+    $job['progress'] = 'Starting site backup…';
     $job['error'] = '';
     bandpromo_site_backup_write_job($root, $job);
 
     try {
-        bandpromo_site_backup_create_archive($root, $components, $zipPath);
+        $jobIdForProgress = $jobId;
+        bandpromo_site_backup_create_archive(
+            $root,
+            $components,
+            $zipPath,
+            static function (string $message) use ($root, $jobIdForProgress): void {
+                bandpromo_site_backup_touch_job_progress($root, $jobIdForProgress, $message);
+            }
+        );
         bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
     } catch (Throwable $e) {
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
@@ -690,6 +815,8 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
 
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
     $job['started_at_utc'] = gmdate('c');
+    $job['heartbeat_at_utc'] = $job['started_at_utc'];
+    $job['progress'] = 'Starting Portable Campaign File export…';
     $job['error'] = '';
     bandpromo_site_backup_write_job($root, $job);
 
@@ -697,7 +824,15 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
         if ($releaseId === '') {
             throw new RuntimeException('PCF export job is missing release_id.');
         }
-        bandpromo_campaign_export_to_zip($root, $releaseId, $zipPath);
+        $jobIdForProgress = $jobId;
+        bandpromo_campaign_export_to_zip(
+            $root,
+            $releaseId,
+            $zipPath,
+            static function (string $message) use ($root, $jobIdForProgress): void {
+                bandpromo_site_backup_touch_job_progress($root, $jobIdForProgress, $message);
+            }
+        );
         bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
     } catch (Throwable $e) {
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
@@ -729,6 +864,8 @@ function bandpromo_site_backup_run_pbf_job(string $root, string $jobId): array
 
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
     $job['started_at_utc'] = gmdate('c');
+    $job['heartbeat_at_utc'] = $job['started_at_utc'];
+    $job['progress'] = 'Starting Portable Brand File export…';
     $job['error'] = '';
     bandpromo_site_backup_write_job($root, $job);
 
@@ -736,7 +873,15 @@ function bandpromo_site_backup_run_pbf_job(string $root, string $jobId): array
         if ($brandId === '') {
             throw new RuntimeException('PBF export job is missing brand_id.');
         }
-        bandpromo_brand_export_to_zip($root, $brandId, $zipPath);
+        $jobIdForProgress = $jobId;
+        bandpromo_brand_export_to_zip(
+            $root,
+            $brandId,
+            $zipPath,
+            static function (string $message) use ($root, $jobIdForProgress): void {
+                bandpromo_site_backup_touch_job_progress($root, $jobIdForProgress, $message);
+            }
+        );
         bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
     } catch (Throwable $e) {
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
@@ -973,8 +1118,12 @@ function bandpromo_site_backup_build_manifest(
     ];
 }
 
-function bandpromo_site_backup_create_archive(string $root, array $components, string $destinationPath): void
-{
+function bandpromo_site_backup_create_archive(
+    string $root,
+    array $components,
+    string $destinationPath,
+    ?callable $onProgress = null
+): void {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('ZipArchive is not available on this host.');
     }
@@ -994,23 +1143,33 @@ function bandpromo_site_backup_create_archive(string $root, array $components, s
 
     try {
         require_once __DIR__ . '/chunked-upload.php';
-        foreach ($paths as $relativePath) {
+        $pathCount = count($paths);
+        foreach ($paths as $index => $relativePath) {
+            if ($onProgress !== null) {
+                $onProgress('Packing ' . ($index + 1) . '/' . $pathCount . ': ' . $relativePath);
+            }
             bandpromo_site_backup_add_tree($zip, $root, $relativePath, $digestPaths, $includesMedia);
             $includedPaths[] = str_replace('\\', '/', $relativePath);
         }
 
         if ($includesPlatform && is_file($root . '/.env')) {
+            if ($onProgress !== null) {
+                $onProgress('Packing .env');
+            }
             bandpromo_site_backup_add_file($zip, $root, '.env');
             $includedPaths[] = '.env';
             $digestPaths['.env'] = $root . DIRECTORY_SEPARATOR . '.env';
         }
 
-        $fileDigests = bandpromo_transfer_file_digests($digestPaths);
+        $fileDigests = bandpromo_transfer_file_digests($digestPaths, $onProgress);
         $manifest = bandpromo_site_backup_build_manifest($root, $components, $includedPaths, $fileDigests);
         $manifestName = $includesMedia ? 'backup-manifest.json' : 'data-export-manifest.json';
         $encoded = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if (!is_string($encoded)) {
             throw new RuntimeException('Could not encode backup manifest.');
+        }
+        if ($onProgress !== null) {
+            $onProgress('Writing manifest…');
         }
         $zip->addFromString($manifestName, $encoded . "\n");
     } catch (Throwable $e) {
@@ -1021,6 +1180,9 @@ function bandpromo_site_backup_create_archive(string $root, array $components, s
         throw $e;
     }
 
+    if ($onProgress !== null) {
+        $onProgress('Closing archive…');
+    }
     if (!$zip->close()) {
         if (is_file($destinationPath)) {
             @unlink($destinationPath);
@@ -1094,6 +1256,8 @@ function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string 
 
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
     $job['completed_at_utc'] = gmdate('c');
+    $job['heartbeat_at_utc'] = $job['completed_at_utc'];
+    $job['progress'] = '';
     $job['size_bytes'] = is_file($zipPath) ? (int) filesize($zipPath) : 0;
     $job['sha256'] = is_file($zipPath) ? bandpromo_transfer_sha256_file($zipPath) : '';
     $job['error'] = '';
@@ -1107,6 +1271,8 @@ function bandpromo_site_backup_mark_job_failed(string $root, array &$job, string
     }
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_FAILED;
     $job['completed_at_utc'] = gmdate('c');
+    $job['heartbeat_at_utc'] = $job['completed_at_utc'];
+    $job['progress'] = '';
     $job['size_bytes'] = 0;
     $job['sha256'] = '';
     $job['error'] = $message;

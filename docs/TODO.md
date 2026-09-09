@@ -272,18 +272,23 @@ Implementation order:
 
 HITZ suggested replacing the player brand-logo control with a **Campaign navigator**: pick campaign first, then the playlist selector shows that campaign’s playlists. Today playlist choice drives campaign context (brand shell + often page tabs via the playing track). Campaign → playlists matches the umbrella model better for multi-campaign installs (labels / many artists).
 
-Policy — **lock before implementation**:
+Policy — **locked 2026-09-08**; **chrome re-locked 2026-09-09** (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Player Campaign navigator):
 
-- [ ] Lock **control polarity** — campaign selects the listening scope; playlists are products under that campaign (not the reverse).
-- [ ] Lock **chrome placement** — campaign control vs brand logo (logo remains brand identity; do not silently delete logo unless a dedicated brand home remains).
-- [ ] Lock **single-campaign installs** — hide or collapse navigator when only one public campaign exists.
-- [ ] Lock **defaults** — how ★ default playlist / install pointers interact with last-selected campaign.
-- [ ] Lock **page tabs + brand** — still follow the **playing** campaign (or selected campaign when idle); deep links must land on the right campaign + playlist + track.
+- [x] Lock **control polarity** — campaign selects the listening scope; playlists are products under that campaign (not the reverse).
+- [x] Lock **chrome placement** — static header logo (identity only); campaign **logo strip** at top of Playlists panel (not tab row; not under header logo); no visible “Campaigns” label (a11y names only); wide ~2:1 campaign chips vs ~1:1 playlist covers.
+- [x] Lock **single-campaign installs** — hide campaign strip when only one public campaign.
+- [x] Lock **single-playlist campaigns** — hide playlist selector when the selected campaign has ≤1 public playlist.
+- [x] Lock **defaults** — `localStorage` last campaign + last playlist per campaign; else ★ default playlist’s campaign / playlist.
+- [x] Lock **page tabs + brand** — selected campaign drives shell + tabs when idle; campaign change stops playback; playlist change may keep playing; deep links override memory.
+- [x] Lock **URLs** — `/play/{campaign}/{playlist}/{track}` hard cut; no playlist-first legacy paths ([AGENTS.md](AGENTS.md) no speculative fallbacks).
+- [x] Lock **scale** — Playlists-panel strip for a few campaigns; large-catalogue UI later.
 
-Implementation order (after policy lock):
+Implementation order:
 
-- [ ] **Player Campaign navigator** — selector + filtered playlist list; preserve deep-link and idle behaviour.
-- [ ] **Docs** — PLATFORM-MODEL / USE-CASES HITZ + Spandexual Tension player stories.
+- [x] **Player Campaign navigator** — static header logo + Playlists-panel campaign strip + campaign-scoped playlist list; `localStorage`; hard-cut routes (2026-09-09).
+- [ ] **Docs stories** — USE-CASES HITZ + Spandexual Tension player stories after fleet validate.
+- [ ] **Large-catalogue campaign UI** — later (search/list); not this slice.
+- [ ] **Fleet persona validate** — Vanilla / Spandexual Tension / HITZ after publish.
 
 ### Brand export / import (v0.8)
 
@@ -432,8 +437,8 @@ Legacy checklist (superseded wording kept for history):
 **Paused:** **Twisted Chronicles** (**https://twistedchronicles.eu**) — too old for Site update; reinstall and rejoin at **v0.9**. This local working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
 
 1. **Player Campaign navigator (mandatory)**
-   - [ ] Lock policy — [Player Campaign navigator](#player-campaign-navigator-hitz-feedback--2026-08-26) (polarity, chrome, single-campaign collapse, defaults, page tabs + deep links).
-   - [ ] Implement selector + campaign-scoped playlist list; brand shell and page tabs follow selected/playing campaign.
+   - [x] Lock policy — [Player Campaign navigator](#player-campaign-navigator-hitz-feedback--2026-08-26) (2026-09-08).
+   - [x] Implement selector + campaign-scoped playlist list; brand shell and page tabs follow selected/playing campaign; hard-cut `/play/{campaign}/…` URLs (2026-09-08).
    - [ ] Validate on active personas (Vanilla demo, Spandexual Tension band, HITZ multi-campaign).
 
 2. **Portability proof at latest build**
@@ -622,6 +627,12 @@ Implementation (after `data/` platform model):
 - [ ] Audit `service-worker.js` end to end: exclusions, cache strategy, stale-asset risks, update behavior.
 - [ ] Audit update propagation and cache invalidation for installed PWAs.
 - [ ] Implement protected delivery handoff, player contract changes, service worker audio caching, cache eviction, and offline log sync.
+
+### Later — player presentation (after management is solid)
+
+Not a v0.8 management or catalogue gate. Schedule with the delivery/player architecture track when operator workflows are trustworthy.
+
+- [ ] **Continuous album / start-precision handoff** — reduce soft starts, encoder padding noise, and rhythmic skew at auto-next (dual-buffer or Web Audio scheduling; gapless-aware delivery encode / delay compensation; fractional or ms durations for end detection). Single-element MP3 `src` swap is the current limit. See [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md). Do **not** treat scrubber display precision as the fix.
 
 ### Deferred from v0.7 (still v0.8 scope)
 

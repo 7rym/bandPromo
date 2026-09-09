@@ -325,13 +325,13 @@ function bandpromo_playlist_resolve_route_id(string $root, string $segment): str
 }
 
 /**
- * Parse /play/{playlist}[/{track}] or /play/{playlist}/{release}/{track} from a request path.
+ * Parse /play/{campaign}[/{playlist}[/{track}]] from a request path.
  *
- * @return array{playlist: string, release: string, track: string}
+ * @return array{campaign: string, playlist: string, track: string}
  */
 function bandpromo_playlist_route_from_path(string $requestUri): array
 {
-    $empty = ['playlist' => '', 'release' => '', 'track' => ''];
+    $empty = ['campaign' => '', 'playlist' => '', 'track' => ''];
     $path = parse_url($requestUri, PHP_URL_PATH);
     if (!is_string($path) || $path === '') {
         return $empty;
@@ -352,47 +352,47 @@ function bandpromo_playlist_route_from_path(string $requestUri): array
     }
     if ($count >= 3) {
         return [
-            'playlist' => (string) $after[0],
-            'release' => strtolower((string) $after[1]),
+            'campaign' => (string) $after[0],
+            'playlist' => (string) $after[1],
             'track' => strtolower((string) $after[2]),
         ];
     }
     if ($count === 2) {
         return [
-            'playlist' => (string) $after[0],
-            'release' => '',
-            'track' => strtolower((string) $after[1]),
+            'campaign' => (string) $after[0],
+            'playlist' => (string) $after[1],
+            'track' => '',
         ];
     }
 
     return [
-        'playlist' => (string) $after[0],
-        'release' => '',
+        'campaign' => (string) $after[0],
+        'playlist' => '',
         'track' => '',
     ];
 }
 
 /**
- * Query-string playlist/release/track win; otherwise parse the pretty path (php -S has no .htaccess).
+ * Query-string campaign/playlist/track win; otherwise parse the pretty path (php -S has no .htaccess).
  *
- * @return array{playlist: string, release: string, track: string}
+ * @return array{campaign: string, playlist: string, track: string}
  */
 function bandpromo_playlist_route_from_request(): array
 {
     $fromGet = [
+        'campaign' => trim((string) ($_GET['campaign'] ?? '')),
         'playlist' => trim((string) ($_GET['playlist'] ?? '')),
-        'release' => strtolower(trim((string) ($_GET['release'] ?? ''))),
         'track' => strtolower(trim((string) ($_GET['track'] ?? ''))),
     ];
     $fromPath = bandpromo_playlist_route_from_path((string) ($_SERVER['REQUEST_URI'] ?? ''));
     $pathInfo = trim((string) ($_SERVER['PATH_INFO'] ?? ''));
-    if ($fromPath['playlist'] === '' && $pathInfo !== '') {
+    if ($fromPath['campaign'] === '' && $pathInfo !== '') {
         $fromPath = bandpromo_playlist_route_from_path($pathInfo);
     }
 
     return [
+        'campaign' => $fromGet['campaign'] !== '' ? $fromGet['campaign'] : $fromPath['campaign'],
         'playlist' => $fromGet['playlist'] !== '' ? $fromGet['playlist'] : $fromPath['playlist'],
-        'release' => $fromGet['release'] !== '' ? $fromGet['release'] : $fromPath['release'],
         'track' => $fromGet['track'] !== '' ? $fromGet['track'] : $fromPath['track'],
     ];
 }
@@ -559,6 +559,8 @@ function bandpromo_playlist_resolve_catalog_cover_url(string $root, array $entry
 
 function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorBypass = false): array
 {
+    require_once __DIR__ . '/campaign-storage.php';
+
     $entries = [];
     foreach (bandpromo_playlist_admin_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
@@ -571,7 +573,7 @@ function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorB
         $owner = '';
         try {
             $document = bandpromo_playlist_load_document($root, $id);
-            $owner = (string) ($document['release_id'] ?? '');
+            $owner = bandpromo_document_campaign_id($document);
         } catch (Throwable $throwable) {
             continue;
         }
@@ -584,15 +586,70 @@ function bandpromo_playlist_player_catalog_entries(string $root, bool $operatorB
         if (bandpromo_playlist_document_is_empty($root, $id)) {
             continue;
         }
+        $campaignSlug = '';
+        if ($owner !== '' && !bandpromo_campaign_id_is_unowned($owner)) {
+            $campaignSlug = bandpromo_campaign_public_slug($root, $owner);
+        }
         $entries[] = [
             'id' => $id,
             'title' => (string) ($entry['title'] ?? $id),
             'slug' => bandpromo_playlist_public_slug($root, $id),
             'cover' => bandpromo_playlist_resolve_catalog_cover_url($root, $entry),
+            'campaign_id' => $owner,
+            'campaign_slug' => $campaignSlug,
         ];
     }
 
     return $entries;
+}
+
+/**
+ * Player-visible playlists owned by a campaign (same filters as the full catalog).
+ *
+ * @return list<array{id: string, title: string, slug: string, cover: string, campaign_id: string, campaign_slug: string}>
+ */
+function bandpromo_playlist_player_catalog_for_campaign(
+    string $root,
+    string $campaignId,
+    bool $operatorBypass = false
+): array {
+    require_once __DIR__ . '/campaign-storage.php';
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        return [];
+    }
+    $out = [];
+    foreach (bandpromo_playlist_player_catalog_entries($root, $operatorBypass) as $entry) {
+        if ((string) ($entry['campaign_id'] ?? '') === $campaignId) {
+            $out[] = $entry;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * Default playlist id within a campaign: ★ default if it belongs here, else first catalog entry.
+ */
+function bandpromo_playlist_default_active_id_for_campaign(
+    string $root,
+    string $campaignId,
+    bool $operatorBypass = false
+): string {
+    require_once __DIR__ . '/campaign-storage.php';
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    $catalog = bandpromo_playlist_player_catalog_for_campaign($root, $campaignId, $operatorBypass);
+    if ($catalog === []) {
+        return '';
+    }
+    $pinned = bandpromo_playlist_default_active_id($root);
+    foreach ($catalog as $entry) {
+        if ((string) ($entry['id'] ?? '') === $pinned) {
+            return $pinned;
+        }
+    }
+
+    return (string) ($catalog[0]['id'] ?? '');
 }
 
 function bandpromo_playlist_normalize_entry(array $entry): ?array
@@ -2850,6 +2907,15 @@ function bandpromo_playlist_admin_registry_entry(string $root, array $registryEn
             : 'system';
         $entry['track_count'] = count($document['entries'] ?? []);
         $entry['release_id'] = trim((string) ($document['release_id'] ?? ''));
+        if (function_exists('bandpromo_document_campaign_id')) {
+            $entry['campaign_id'] = bandpromo_document_campaign_id($document);
+        } else {
+            $entry['campaign_id'] = $entry['release_id'];
+        }
+        $entry['campaign_slug'] = '';
+        if ($entry['campaign_id'] !== '' && function_exists('bandpromo_campaign_public_slug')) {
+            $entry['campaign_slug'] = bandpromo_campaign_public_slug($root, $entry['campaign_id']);
+        }
         $entry['release_title'] = $entry['release_id'] !== ''
             ? bandpromo_playlist_campaign_title($root, $entry['release_id'])
             : '';

@@ -55,7 +55,14 @@ try {
     }
 
     if (($job['status'] ?? '') === BANDPROMO_SITE_BACKUP_JOB_BUILDING) {
-        throw new RuntimeException('This job is still running. Try again after it finishes.');
+        bandpromo_site_backup_reap_stale_building_jobs($root);
+        $job = bandpromo_site_backup_read_job($root, $jobId);
+        if ($job === null) {
+            throw new RuntimeException('Backup archive was not found.');
+        }
+        if (($job['status'] ?? '') === BANDPROMO_SITE_BACKUP_JOB_BUILDING) {
+            throw new RuntimeException('This job is still running. Try again after it finishes.');
+        }
     }
 
     bandpromo_site_backup_delete_job($root, $jobId);

@@ -94,7 +94,7 @@ Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FE
 
 - Mixing artist releases and long-form episodes in Catalogue / Files.
 - Brand active vs per-campaign tokens when many artist brands share one install.
-- **Campaign-first player navigation:** **v0.8 exit gate** — select campaign, then see that campaign’s playlists. Must ship before expanding the tester pool. Policy lock then implement ([TODO.md](TODO.md) → Player Campaign navigator).
+- **Campaign-first player navigation:** **v0.8 exit gate** — policy locked 2026-09-08; chrome re-locked 2026-09-09 (static header logo; campaign logo strip + playlist selector in Playlists panel; single-campaign / single-playlist collapse; `localStorage`; `/play/{campaign}/{playlist}/{track}` hard cut). Validate on fleet ([TODO.md](TODO.md) → Player Campaign navigator).
 
 ---
 
@@ -118,8 +118,10 @@ Companion rules: [PLATFORM-MODEL.md](PLATFORM-MODEL.md). Shipped vs planned: [FE
 | Gallery in player | Page with gallery blocks | Same (no Gallery module tab) |
 | Tour gallery assemble | Visual titles + multi-select picker (v0.8) | Same |
 | Fan comment/share on gallery assets | — | v0.9+ (keep in Spandexual Tension / band tour story) |
-| Brand tokens in player | Playlist → owning release brand → active fallback | **v0.8 exit:** Campaign navigator (campaign → playlists) |
+| Brand tokens in player | Playlist → owning release brand → active fallback | **v0.8 exit:** Campaign navigator locked — campaign → playlists; selected campaign drives shell |
+| Player campaign chrome | — | Static header logo; campaign logo strip in Playlists panel when ≥2 campaigns; hide playlist selector if one playlist in campaign |
+| Deep links | `/play/{playlist}/…` (retired) | `/play/{campaign}/{playlist}/{track}` hard cut |
 | Brand shell media in player | Per-release visual shell (logo/still/living); SFX stay Active/login | Same |
 | Lyrics vs Notes panel label | Per-track `text_role` + optional `notes_label` (default Tracklist) | Same |
 
-Idle / first-load contextual pages (which release’s tabs before play starts) is decided when contextual tabs are implemented — not in this policy snapshot.
+Idle / first-load: selected campaign drives shell + contextual tabs before play (Campaign navigator lock). Deep links override browser memory.

@@ -9652,6 +9652,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistEditorHeadBadges = document.getElementById('playlistEditorHeadBadges');
                 const playlistSettingsSlug = document.getElementById('playlistSettingsSlug');
                 const playlistSettingsSlugPreview = document.getElementById('playlistSettingsSlugPreview');
+                const playlistSettingsCampaignSlugPreview = document.getElementById('playlistSettingsCampaignSlugPreview');
                 const playlistSettingsStorageId = document.getElementById('playlistSettingsStorageId');
                 const playlistSettingsDescription = document.getElementById('playlistSettingsDescription');
                 const playlistSettingsShortDescription = document.getElementById('playlistSettingsShortDescription');
@@ -9719,6 +9720,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : '';
                     if (playlistSettingsSlugPreview) {
                         playlistSettingsSlugPreview.textContent = slug || 'your-slug';
+                    }
+                    if (playlistSettingsCampaignSlugPreview) {
+                        const entry = typeof playlistEntry === 'function'
+                            ? playlistEntry(selectedPlaylistId)
+                            : null;
+                        const campaignSlug = String(
+                            entry?.campaign_slug
+                            || entry?.release_slug
+                            || entry?.campaign_id
+                            || entry?.release_id
+                            || 'campaign-slug'
+                        ).trim();
+                        playlistSettingsCampaignSlugPreview.textContent = campaignSlug || 'campaign-slug';
                     }
                 }
 
@@ -12908,6 +12922,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const errorHtml = job.status === 'failed' && job.error
                             ? `<div class="text-muted site-backup-job-error">${escapeHtml(job.error)}</div>`
                             : '';
+                        const progressHtml = job.status === 'building' && job.progress
+                            ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.progress)}</div>`
+                            : '';
                         const noteHtml = job.status === 'ready' && job.direction === 'import' && job.import_summary
                             ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>`
                             : '';
@@ -12921,7 +12938,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         return `<tr data-backup-id="${escapeHtml(job.id)}">
                             <td>${escapeHtml(job.type_label || job.type || '')}</td>
-                            <td><span class="badge audit-status-badge ${meta.className}">${escapeHtml(meta.label)}</span>${noteHtml}${errorHtml}</td>
+                            <td><span class="badge audit-status-badge ${meta.className}">${escapeHtml(meta.label)}</span>${progressHtml}${noteHtml}${errorHtml}</td>
                             <td class="text-muted nowrap">${escapeHtml(job.created_at_utc || '')}</td>
                             <td class="nowrap" title="${escapeHtml(job.sha256 || '')}">${escapeHtml(job.size_label || '—')}${job.sha256 ? `<div class="text-muted" style="font-size:0.75rem;">SHA ${escapeHtml(String(job.sha256).slice(0, 12))}…</div>` : ''}</td>
                             <td class="site-backup-job-actions">${downloadHtml}${deleteHtml}</td>

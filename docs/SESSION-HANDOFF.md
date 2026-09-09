@@ -2,19 +2,24 @@
 
 ## Resume point
 
-**Timed Lyrics/Notes policy locked** (docs only — not built). Implement later when scheduled.
+**Player Campaign navigator** — chrome re-locked 2026-09-09: static header logo; campaign logo strip + playlist selector inside the Playlists panel. **Next:** validate on Vanilla / Spandexual Tension / HITZ after checkpoint/publish; then PCF smoke, favicon/PWA, legacy audit.
 
-### Locked policy (summary)
+### Shipped this session (not yet published)
 
-- Interchange: **`.srt`**
-- Canonical: registry Markdown cue list
-- Still | living: one copy (still ignores times)
-- Export: **USLT** from still projection
-- See [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
+- Campaign-first navigation; single-campaign / single-playlist collapse
+- Static header logo (identity only); campaign **logo strip** at top of Playlists panel (wide ~2:1 chips; no visible “Campaigns” label); shares row with playlist selector on wide, stacks on narrow
+- Campaign page tabs fixed to use page `campaign_id` ownership (tabs return after campaign switch); strip active/selectable contrast strengthened
+- `localStorage` last campaign + playlist; campaign change stops playback (full navigation)
+- Hard-cut URLs `/play/{campaign}/{playlist}/{track}` (no playlist-first legacy)
+- Brand Panel dim separate from Backdrop dim; preview zero-value fix
+- Backup Jobs: heartbeat + progress during PCF/PBF/site builds; auto-fail stale `building` after 30 min without heartbeat (HITZ Remixes orphan recovery)
+- Policy: no speculative fallbacks ([AGENTS.md](AGENTS.md))
 
-### Also pending local (docs hygiene)
+### Also pending
 
-Google Drive present-tense language retired; FEATURES Lyrics ↔ Notes clarified. Not yet checkpointed with timed-cues lock.
+- Timed Lyrics/Notes (policy locked — implement later)
+- Fleet validate navigator; PCF round-trip smoke; favicon/PWA; legacy audit
+- **Publish** stale-backup recovery so HITZ can auto-fail / delete the stuck Remixes job, then re-export
 
 ### Shipped / published already
 
@@ -27,12 +32,6 @@ Google Drive present-tense language retired; FEATURES Lyrics ↔ Notes clarified
 | bandpromo.site | Vanilla |
 | hitz.no | HITZ |
 | spandexualtension.com | Band / release sequence |
-
-### v0.8 exit gate next
-
-1. Player Campaign navigator — policy lock → ship → validate.
-2. PCF round-trip smoke on active fleet.
-3. Favicon/PWA from Branding; legacy audit refresh.
 
 ### Local workspace
 

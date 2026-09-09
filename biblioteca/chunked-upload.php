@@ -285,15 +285,22 @@ function bandpromo_chunked_upload_receive(
  * Build per-path digests for package manifests.
  *
  * @param array<string, string> $paths relative => absolute
+ * @param callable|null $onProgress optional string progress message callback
  * @return array<string, array{sha256: string, size: int}>
  */
-function bandpromo_transfer_file_digests(array $paths): array
+function bandpromo_transfer_file_digests(array $paths, $onProgress = null): array
 {
     $digests = [];
+    $total = count($paths);
+    $index = 0;
     foreach ($paths as $relative => $absolute) {
+        $index++;
         $relative = str_replace('\\', '/', (string) $relative);
         if ($relative === '' || !is_file($absolute)) {
             continue;
+        }
+        if (is_callable($onProgress)) {
+            $onProgress('Checksum ' . $index . '/' . $total . ': ' . basename($relative));
         }
         $sha = bandpromo_transfer_sha256_file($absolute);
         if ($sha === '') {

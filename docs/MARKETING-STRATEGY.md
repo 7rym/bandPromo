@@ -123,6 +123,67 @@ Before spending on ads, improve what happens **after** the first visit:
 
 ---
 
+## How social platforms drive traffic back (research note)
+
+Operators and prospects often ask: *if Instagram, TikTok, Facebook, and X keep people inside their apps, how does posting there ever help a self-hosted site?* Honest answer: they help as **routers**, not as a free discovery engine for your domain. Outbound clicks are always a second-class path. What works is repeated, low-friction exits to **one destination** that feels better than staying in the feed.
+
+This section is the living plan for that question. It informs messaging today and future **social helpers** (draft posts, bridge URLs, comment assists) — it is not a promise that bandPromo already connects those APIs.
+
+### Competitive reality
+
+Most music “social → click” playbooks send people to **Spotify or a smart link** (Linkfire, Feature.fm, and similar). TikTok’s native “Add to Music App” buttons reinforce that. If your only CTA is “stream now,” social traffic grows **DSP metrics**, not your bandPromo install.
+
+bandPromo only wins the click when the invitation is deliberately different:
+
+- Full track + lyrics + story → **your domain**
+- Early access / VIP → **your domain**
+- Site-only B-side or live version → **your domain**
+
+Without that positioning, more posting (manual or automated) does not improve site traffic.
+
+### What converts across platforms
+
+1. **Promise something the feed cannot match** — completeness and context live on your site; the platform only gets the hook.
+2. **One bridge URL per campaign** — bio, Story sticker, pinned comment, and ads should point at the same release or player page. Multi-destination trees kill conversion.
+3. **Stack exits** — short video → profile → bio is the default; add Story stickers, pinned comments, and (on Instagram) comment-keyword → DM with a link when you can. One path is fragile; several low-friction paths compound.
+4. **Reply early** — fast genuine replies in the first hour lift reach on Meta and X. More reach → more profile visits → more bio clicks. Comment care is part of traffic, not only customer service.
+5. **Paid for cold audiences; organic for people who already care** — organic outbound is weak by design. Meta ads to a tracked bandPromo landing page beat dumping strangers straight into Spotify *if* the goal is a relationship you own.
+
+### Platform cheat sheet (traffic paths)
+
+| Platform | Best paths off-platform | Hostile or weak for outbound | Product implication |
+|----------|-------------------------|------------------------------|---------------------|
+| **Instagram** | Bio (up to five links), Story link sticker, Highlights, comment → DM with a URL, paid CTA | Reel and feed captions are **not** clickable | Strong candidate for helpers: campaign bio URL, Story follow-ups, pinned reply CTAs |
+| **Facebook** | Page website / CTA, link in **first or pinned comment**, Reels for reach then soft CTA | Link-in-body posts get less reach; Meta has tested caps on link posts | Native teaser + assisted first comment with your URL matches documented practice |
+| **X** | URL in the main post (leadership says a dedicated link penalty is gone), threads, reply loops | Thin posts with bare links still underperform; API write costs rise when posts contain URLs | Useful for release announcements with tracked links; treat paid API as optional |
+| **TikTok** | Bio link, pinned “link in bio” comment, spoken / on-screen CTA | Almost no clickable in-video links; open APIs for organic comment read/reply are weak | Treat as **discovery teaser**; publish helpers later; do not depend on comment inbox APIs |
+
+### Where future social helpers help traffic (and where they do not)
+
+**Worth aiming for (when social helpers ship):**
+
+- Draft / approve posts from release metadata so announcement windows are not missed
+- Suggest or update the **current campaign bridge URL** across placements operators control
+- Assist **first comment / pinned reply** with that URL (especially Facebook and Instagram)
+- Prompt fast replies in the golden hour (reach → profile taps → clicks)
+- UTM’d campaign links so admin analytics can attribute visits and plays to a platform
+
+**Weak traffic ROI:**
+
+- Autoposting without a compelling site destination
+- Betting on TikTok organic comment moderation via open APIs
+- High-volume X URL posting if every post carries a link (cost and noise)
+
+### Sequencing (plan, not a locked roadmap commit)
+
+1. Make the bandPromo release experience worth leaving for (pages, player, share/OG, access — v0.8–v0.9).
+2. Keep teaching this bridge pattern in docs and operator messaging.
+3. Add social helpers that automate **high-leverage exits** — Meta first; X optional/paid; TikTok publish/teaser-oriented.
+
+Full four-platform connect / post / comment is **not** the near-term traffic bet. Meta-first bridge workflows are.
+
+---
+
 ## How bandPromo features support this (by milestone)
 
 Use this as a **timing guide**, not a promise that everything is available today.
@@ -153,7 +214,7 @@ Use this as a **timing guide**, not a promise that everything is available today
 
 - **Fan credits** — reward registered fans; optional rebates/perks (operator-defined)
 - **News module** — timed releases aligned with announcements
-- **Social push helpers** — draft posts and images from site content; **you approve** before anything goes live
+- **Social push helpers** — draft posts and images from site content; **you approve** before anything goes live (see [How social platforms drive traffic back](#how-social-platforms-drive-traffic-back-research-note) — Meta-first bridge workflows, not autopost spam)
 - **Richer modules** — fanboard, feeds, and similar surfaces on your pages
 
 ### v2+ (semi-autonomous promotion)
@@ -161,6 +222,7 @@ Use this as a **timing guide**, not a promise that everything is available today
 Assistant-style tools (not autopost spam):
 
 - Draft social copy from release metadata and page content
+- Bridge-URL and first-comment assists aligned with the traffic research above
 - Press-kit and EPK summaries
 - QR and share assets for gigs and posters
 - Campaign checklists and timing suggestions
@@ -239,4 +301,4 @@ This is independent publishing extended to **people helping people** — without
 
 ---
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-09-07_

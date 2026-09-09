@@ -83,6 +83,16 @@ Three cache classes:
 
 Real-phone **screen-off** playback and **next-track handoff** can still fail on mobile browsers/PWA even after v0.7 player hardening. This is a **delivery/state architecture** issue, not a v0.8 beta gate blocker. Target fix: authoritative playback state in the client, presentation layer best-effort, grant-based delivery + SW cache.
 
+### Deferred: continuous album / start-precision handoff (presentation layer)
+
+Operators still report tracks that **do not start exactly on the musical attack** after auto-next — soft lead-in, padding noise, or a slight rhythmic skew. That is separate from “does the next track start at all.”
+
+**Not a management / catalogue gate.** Keep operator workflows (intake, masters, publish, PCF, access) solid first.
+
+**Causes in today’s stack (expected):** single `<audio>` `src` swap; delivery **MP3** (encoder delay / padding; FLAC/WAV → `ffmpeg` CBR 320k with no gapless path; MP3 masters copied as-is); playlist durations stored as **whole seconds**; catalogue-vs-browser duration guards that improve sticky tails but are not sample-accurate.
+
+**Later presentation work (after management is solid):** dual-buffer or Web Audio scheduling; gapless-aware encode / delay compensation; fractional or ms durations for end detection — evaluate with the delivery/player architecture track, not as an ad-hoc v0.8 patch. Display-clock precision (sub-second scrubber text) is explicitly **out of scope** for this complaint.
+
 ### Installed PWA success criteria
 
 Installed phone experience should beat browser tab for:

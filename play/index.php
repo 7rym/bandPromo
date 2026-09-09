@@ -15,15 +15,42 @@ require_once __DIR__ . '/../biblioteca/auth.php';
 
 $playerRoot = dirname(__DIR__);
 bandpromo_playlist_ensure_seeded($playerRoot);
+require_once __DIR__ . '/../biblioteca/campaign-storage.php';
 
 $currentUserRole = current_user_role();
 $operatorBypass = in_array($currentUserRole, ['admin', 'developer'], true);
 
 $playerRoute = bandpromo_playlist_route_from_request();
-$requestedSegment = trim((string) ($playerRoute['playlist'] ?? ''));
-$resolvedPlaylistId = $requestedSegment !== ''
-    ? bandpromo_playlist_resolve_route_id($playerRoot, $requestedSegment)
+$requestedCampaignSegment = trim((string) ($playerRoute['campaign'] ?? ''));
+$requestedPlaylistSegment = trim((string) ($playerRoute['playlist'] ?? ''));
+$deepLinkTrackSlug = strtolower(trim((string) ($playerRoute['track'] ?? '')));
+$deepLinkFromUrl = $requestedCampaignSegment !== '';
+
+$resolvedCampaignId = $requestedCampaignSegment !== ''
+    ? bandpromo_campaign_resolve_route_id($playerRoot, $requestedCampaignSegment)
     : '';
+$resolvedPlaylistId = $requestedPlaylistSegment !== ''
+    ? bandpromo_playlist_resolve_route_id($playerRoot, $requestedPlaylistSegment)
+    : '';
+
+if ($resolvedPlaylistId !== '') {
+    $playlistCampaignId = bandpromo_playlist_effective_campaign_id($playerRoot, $resolvedPlaylistId);
+    if ($resolvedCampaignId !== '' && $playlistCampaignId !== '' && $playlistCampaignId !== $resolvedCampaignId) {
+        $resolvedPlaylistId = '';
+    }
+    if ($resolvedCampaignId === '' && $playlistCampaignId !== '') {
+        $resolvedCampaignId = $playlistCampaignId;
+    }
+}
+
+if ($resolvedPlaylistId === '' && $resolvedCampaignId !== '') {
+    $resolvedPlaylistId = bandpromo_playlist_default_active_id_for_campaign(
+        $playerRoot,
+        $resolvedCampaignId,
+        $operatorBypass
+    );
+}
+
 $activePlaylistId = $resolvedPlaylistId !== ''
     ? $resolvedPlaylistId
     : bandpromo_playlist_default_active_id($playerRoot);
@@ -63,10 +90,20 @@ if (!is_array($siteCfg)) {
 
 require_once '../biblioteca/config-loader.php';
 
-$deepLinkCampaignSlug = strtolower(trim((string) ($playerRoute['release'] ?? '')));
-$deepLinkTrackSlug = strtolower(trim((string) ($playerRoute['track'] ?? '')));
+$activeCampaignId = $resolvedCampaignId !== ''
+    ? $resolvedCampaignId
+    : bandpromo_playlist_effective_campaign_id($playerRoot, $activePlaylistId);
 $playlistCatalog = bandpromo_playlist_player_catalog_entries($playerRoot, $operatorBypass);
+$campaignCatalog = bandpromo_campaign_player_catalog_entries($playerRoot, $operatorBypass);
 $activePlaylistSlug = bandpromo_playlist_public_slug($playerRoot, $activePlaylistId);
+$activeCampaignSlug = $activeCampaignId !== ''
+    ? bandpromo_campaign_public_slug($playerRoot, $activeCampaignId)
+    : '';
+$campaignPlaylistCatalog = $activeCampaignId !== ''
+    ? bandpromo_playlist_player_catalog_for_campaign($playerRoot, $activeCampaignId, $operatorBypass)
+    : $playlistCatalog;
+$deepLinkCampaignSlug = $deepLinkFromUrl ? $requestedCampaignSegment : '';
+$deepLinkPlaylistSlug = $deepLinkFromUrl ? $requestedPlaylistSegment : '';
 
 function bandpromo_support_parse_kofi_page_id(string $value): string {
     $trimmed = trim($value);
@@ -140,7 +177,7 @@ $song = null;
 if ($deepLinkTrackSlug !== '') {
     $trackIndex = bandpromo_playlist_resolve_player_track_index(
         $playlistTracks,
-        $deepLinkCampaignSlug,
+        '',
         $deepLinkTrackSlug
     );
     if ($trackIndex >= 0 && isset($playlistTracks[$trackIndex])) {
@@ -424,14 +461,21 @@ if ($supportUrl !== '') {
     </div>
 
     <div id="content-container">
-        <div class="content-logo">
-            <img src="<?php echo htmlspecialchars($playerLogo, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($playerBrandTitle, ENT_QUOTES, 'UTF-8'); ?>" class="content-logo-img">
+        <div class="content-logo" id="campaignLogoWrap" data-campaign-count="<?php echo (int) count($campaignCatalog); ?>">
+            <img
+                src="<?php echo htmlspecialchars($playerLogo, ENT_QUOTES, 'UTF-8'); ?>"
+                alt="<?php echo htmlspecialchars($playerBrandTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                class="content-logo-img"
+                id="campaignLogo"
+            >
         </div>
         <div class="content-toggle">
             <?php
             require_once dirname(__DIR__) . '/biblioteca/player-modules.php';
             $playerRoot = dirname(__DIR__);
-            $playerCampaignId = bandpromo_playlist_effective_campaign_id($playerRoot, $activePlaylistId);
+            $playerCampaignId = $activeCampaignId !== ''
+                ? $activeCampaignId
+                : bandpromo_playlist_effective_campaign_id($playerRoot, $activePlaylistId);
             $playerTabs = bandpromo_player_content_tabs($playerRoot, $operatorBypass, $playerCampaignId);
             $defaultPlayerView = bandpromo_player_default_view();
             $hasDefaultView = false;
@@ -460,73 +504,131 @@ if ($supportUrl !== '') {
         ?>
         <div class="lyrics-box<?php echo $isActive; ?>" id="lyricsBox" data-content-box="lyrics">Loading lyrics...</div>
         <?php elseif ($view === 'playlist'): ?>
-        <?php if (count($playlistCatalog) > 1): ?>
         <?php
-            $playlistSelectorMode = bandpromo_player_playlist_selector_mode();
-            $playlistSelectorLabel = bandpromo_player_playlist_tab_label($playerRoot, $operatorBypass);
+            $showCampaignStrip = count($campaignCatalog) > 1;
+            $showPlaylistSelector = count($campaignPlaylistCatalog) > 1;
+            $playlistSelectorMode = $showPlaylistSelector ? bandpromo_player_playlist_selector_mode() : '';
+            $playlistSelectorLabel = $showPlaylistSelector
+                ? bandpromo_player_playlist_tab_label($playerRoot, $operatorBypass)
+                : 'Playlists';
+            $scopeToolbarHidden = $isActive === '' ? ' hidden' : '';
         ?>
-        <div class="playlist-selector playlist-selector--<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>" id="playlistSelectorWrap" data-mode="<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $isActive === '' ? ' hidden' : ''; ?>>
-            <?php if ($playlistSelectorMode === 'buttons'): ?>
-            <div class="playlist-selector-buttons" role="group" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
-                <?php foreach ($playlistCatalog as $playlistEntry):
-                    $entryId = (string) ($playlistEntry['id'] ?? '');
-                    $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
-                    $entryIsActive = $entryId === $activePlaylistId;
-                ?>
-                <button
-                    type="button"
-                    class="playlist-selector-btn<?php echo $entryIsActive ? ' is-active' : ''; ?>"
-                    data-playlist-select
-                    data-playlist-id="<?php echo htmlspecialchars($entryId, ENT_QUOTES, 'UTF-8'); ?>"
-                    aria-pressed="<?php echo $entryIsActive ? 'true' : 'false'; ?>"
-                ><?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?></button>
-                <?php endforeach; ?>
-            </div>
-            <?php elseif ($playlistSelectorMode === 'coverflow'): ?>
-            <div class="playlist-coverflow" role="listbox" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
-                <?php foreach ($playlistCatalog as $playlistEntry):
-                    $entryId = (string) ($playlistEntry['id'] ?? '');
-                    $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
-                    $entryCover = trim((string) ($playlistEntry['cover'] ?? ''));
-                    $entryIsActive = $entryId === $activePlaylistId;
+        <?php if ($showCampaignStrip || $showPlaylistSelector): ?>
+        <div
+            class="playlist-scope-toolbar"
+            id="playlistScopeToolbar"
+            data-has-campaigns="<?php echo $showCampaignStrip ? '1' : '0'; ?>"
+            data-has-playlists="<?php echo $showPlaylistSelector ? '1' : '0'; ?>"
+            <?php echo $scopeToolbarHidden; ?>
+        >
+            <?php if ($showCampaignStrip): ?>
+            <div class="campaign-logo-strip" id="campaignLogoStrip" role="listbox" aria-label="Campaigns">
+                <?php foreach ($campaignCatalog as $cEntry):
+                    $cId = (string) ($cEntry['id'] ?? '');
+                    $cTitle = (string) ($cEntry['title'] ?? $cId);
+                    $cSlug = (string) ($cEntry['slug'] ?? $cId);
+                    $cLogo = (string) ($cEntry['logo'] ?? '');
+                    $isCurrent = $cId === $activeCampaignId;
                     $initial = function_exists('mb_substr')
-                        ? mb_strtoupper(mb_substr($entryTitle, 0, 1, 'UTF-8'), 'UTF-8')
-                        : strtoupper(substr($entryTitle, 0, 1));
+                        ? mb_strtoupper(mb_substr($cTitle, 0, 1))
+                        : strtoupper(substr($cTitle, 0, 1));
+                    if ($initial === '') {
+                        $initial = '♪';
+                    }
                 ?>
                 <button
                     type="button"
-                    class="playlist-coverflow-item<?php echo $entryIsActive ? ' is-active' : ''; ?>"
+                    class="campaign-logo-strip-item<?php echo $isCurrent ? ' is-current' : ''; ?>"
                     role="option"
-                    aria-selected="<?php echo $entryIsActive ? 'true' : 'false'; ?>"
-                    data-playlist-select
-                    data-playlist-id="<?php echo htmlspecialchars($entryId, ENT_QUOTES, 'UTF-8'); ?>"
-                    title="<?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?>"
-                    aria-label="<?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-campaign-id="<?php echo htmlspecialchars($cId, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-campaign-slug="<?php echo htmlspecialchars($cSlug, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-campaign-select
+                    aria-selected="<?php echo $isCurrent ? 'true' : 'false'; ?>"
+                    aria-label="<?php echo htmlspecialchars($cTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                    title="<?php echo htmlspecialchars($cTitle, ENT_QUOTES, 'UTF-8'); ?>"
                 >
-                    <?php if ($entryCover !== ''): ?>
+                    <?php if ($cLogo !== ''): ?>
                     <img
-                        class="playlist-coverflow-thumb"
-                        src="<?php echo htmlspecialchars($entryCover, ENT_QUOTES, 'UTF-8'); ?>"
+                        src="<?php echo htmlspecialchars($cLogo, ENT_QUOTES, 'UTF-8'); ?>"
                         alt=""
-                        width="<?php echo $entryIsActive ? '100' : '70'; ?>"
-                        height="<?php echo $entryIsActive ? '100' : '70'; ?>"
+                        class="campaign-logo-strip-logo"
                         loading="lazy"
                         decoding="async"
                     >
                     <?php else: ?>
-                    <span class="playlist-coverflow-thumb playlist-coverflow-placeholder" aria-hidden="true"><?php echo htmlspecialchars($initial !== '' ? $initial : '♪', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="campaign-logo-strip-placeholder" aria-hidden="true"><?php
+                        echo htmlspecialchars($initial, ENT_QUOTES, 'UTF-8');
+                    ?></span>
                     <?php endif; ?>
                 </button>
                 <?php endforeach; ?>
             </div>
-            <?php else: ?>
-            <select id="playlistSelector" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
-                <?php foreach ($playlistCatalog as $playlistEntry): ?>
-                <option value="<?php echo htmlspecialchars((string) ($playlistEntry['id'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"<?php echo (($playlistEntry['id'] ?? '') === $activePlaylistId) ? ' selected' : ''; ?>>
-                    <?php echo htmlspecialchars((string) ($playlistEntry['title'] ?? $playlistEntry['id'] ?? 'Playlist'), ENT_QUOTES, 'UTF-8'); ?>
-                </option>
-                <?php endforeach; ?>
-            </select>
+            <?php endif; ?>
+            <?php if ($showPlaylistSelector): ?>
+            <div class="playlist-selector playlist-selector--<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>" id="playlistSelectorWrap" data-mode="<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php if ($playlistSelectorMode === 'buttons'): ?>
+                <div class="playlist-selector-buttons" role="group" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php foreach ($campaignPlaylistCatalog as $playlistEntry):
+                        $entryId = (string) ($playlistEntry['id'] ?? '');
+                        $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
+                        $entryIsActive = $entryId === $activePlaylistId;
+                    ?>
+                    <button
+                        type="button"
+                        class="playlist-selector-btn<?php echo $entryIsActive ? ' is-active' : ''; ?>"
+                        data-playlist-select
+                        data-playlist-id="<?php echo htmlspecialchars($entryId, ENT_QUOTES, 'UTF-8'); ?>"
+                        aria-pressed="<?php echo $entryIsActive ? 'true' : 'false'; ?>"
+                    ><?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?></button>
+                    <?php endforeach; ?>
+                </div>
+                <?php elseif ($playlistSelectorMode === 'coverflow'): ?>
+                <div class="playlist-coverflow" role="listbox" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php foreach ($campaignPlaylistCatalog as $playlistEntry):
+                        $entryId = (string) ($playlistEntry['id'] ?? '');
+                        $entryTitle = (string) ($playlistEntry['title'] ?? $entryId);
+                        $entryCover = trim((string) ($playlistEntry['cover'] ?? ''));
+                        $entryIsActive = $entryId === $activePlaylistId;
+                        $initial = function_exists('mb_substr')
+                            ? mb_strtoupper(mb_substr($entryTitle, 0, 1, 'UTF-8'), 'UTF-8')
+                            : strtoupper(substr($entryTitle, 0, 1));
+                    ?>
+                    <button
+                        type="button"
+                        class="playlist-coverflow-item<?php echo $entryIsActive ? ' is-active' : ''; ?>"
+                        role="option"
+                        aria-selected="<?php echo $entryIsActive ? 'true' : 'false'; ?>"
+                        data-playlist-select
+                        data-playlist-id="<?php echo htmlspecialchars($entryId, ENT_QUOTES, 'UTF-8'); ?>"
+                        title="<?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                        aria-label="<?php echo htmlspecialchars($entryTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                    >
+                        <?php if ($entryCover !== ''): ?>
+                        <img
+                            class="playlist-coverflow-thumb"
+                            src="<?php echo htmlspecialchars($entryCover, ENT_QUOTES, 'UTF-8'); ?>"
+                            alt=""
+                            width="<?php echo $entryIsActive ? '100' : '70'; ?>"
+                            height="<?php echo $entryIsActive ? '100' : '70'; ?>"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        <?php else: ?>
+                        <span class="playlist-coverflow-thumb playlist-coverflow-placeholder" aria-hidden="true"><?php echo htmlspecialchars($initial !== '' ? $initial : '♪', ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+                <?php else: ?>
+                <select id="playlistSelector" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php foreach ($campaignPlaylistCatalog as $playlistEntry): ?>
+                    <option value="<?php echo htmlspecialchars((string) ($playlistEntry['id'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"<?php echo (($playlistEntry['id'] ?? '') === $activePlaylistId) ? ' selected' : ''; ?>>
+                        <?php echo htmlspecialchars((string) ($playlistEntry['title'] ?? $playlistEntry['id'] ?? 'Playlist'), ENT_QUOTES, 'UTF-8'); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php endif; ?>
+            </div>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -592,9 +694,14 @@ if ($supportUrl !== '') {
             echo json_encode($lyricsModuleLabel, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         ?>;
         window.BANDPROMO_PLAYLIST_SLUG = <?php echo json_encode($activePlaylistSlug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_CAMPAIGN_ID = <?php echo json_encode($activeCampaignId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_CAMPAIGN_SLUG = <?php echo json_encode($activeCampaignSlug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_PLAYLIST_CATALOG = <?php echo json_encode($playlistCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.BANDPROMO_CAMPAIGN_CATALOG = <?php echo json_encode($campaignCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.BANDPROMO_DEEP_LINK = <?php echo json_encode([
-            'release' => $deepLinkCampaignSlug,
+            'from_url' => $deepLinkFromUrl,
+            'campaign' => $deepLinkCampaignSlug,
+            'playlist' => $deepLinkPlaylistSlug,
             'track' => $deepLinkTrackSlug,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.CONFIG_URL       = '/biblioteca/get-player-playlist.php?playlist=' + encodeURIComponent(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo') + <?php echo json_encode($playerBuiltAt !== '' ? '&_=' . substr(sha1($playerBuiltAt), 0, 8) : ''); ?>;

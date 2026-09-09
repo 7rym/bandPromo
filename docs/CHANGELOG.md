@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-09 13:40 - Backup Jobs: heartbeat + progress during PCF/PBF/site builds; auto-fail stale `building` jobs after 30 minutes without heartbeat (HITZ Remixes orphan); Jobs UI shows progress; delete reaps stale building first.
+
+2026-09-09 12:55 - Brand preview: treat dim/blur `0` as valid (stop `0 || 72` fallback that kept panels dark at 0%).
+
+2026-09-09 12:50 - Branding live preview: show Backdrop dim as shell overlay (`::before`); Panel dim drives preview glass fills separately (match player split).
+
+2026-09-09 12:45 - Brand readability: split Backdrop dim (shell overlay only) from Panel dim (content panel fill) so raising backdrop no longer double-darkens panels; legacy brands seed panel_dim from backdrop_dim until saved separately.
+
+2026-09-09 12:25 - Fix campaign page tabs: read page `campaign_id` (not emptied legacy `release_id`) when building player tabs; syncCampaignPageTabs respects ownership. Campaign logo strip: larger 2:1 chips, clearer active vs selectable states.
+
+2026-09-09 12:05 - Campaign navigator chrome re-lock: campaign logo strip moves into Playlists panel (share row with playlist selector on wide; stack on narrow); remove tab-row Campaigns opener; header logo stays static identity; quiet player copy (a11y labels only); wide ~2:1 campaign chips vs ~1:1 playlist covers.
+
+2026-09-08 18:30 - Campaign navigator chrome re-lock: static logo (identity only); **Campaigns** opener first in content-toggle opens picker; remove logo cover-flow.
+
+2026-09-08 13:25 - Campaign navigator: remove padding on `.campaign-coverflow`.
+
+2026-09-08 13:15 - Campaign navigator: active logo uses full height with natural aspect ratio (stands out from small side chips); drop forced square 120×120 sizing.
+
+2026-09-08 13:30 - Implement Player Campaign navigator: logo cover-flow, campaign-scoped playlist selector (hide when one playlist), localStorage memory, hard-cut `/play/{campaign}/{playlist}/{track}` routes (delete playlist-first paths), admin URL hint update.
+
+2026-09-08 12:55 - Lock Player Campaign navigator policy (logo cover-flow; campaign → playlists; single-campaign / single-playlist collapse; localStorage; `/play/{campaign}/{playlist}/{track}` hard cut). Project policy: no speculative fallbacks — ask before dual-read/compat shims ([AGENTS.md](AGENTS.md), [PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-09-07 15:20 - Defer continuous-album / start-precision handoff to later presentation work (after management is solid): TODO + FEATURES + ROADMAP; document causes and non-goals in DELIVERY-ARCHITECTURE.
+
+2026-09-07 01:00 - MARKETING-STRATEGY: add research note on how Instagram, Facebook, X, and TikTok drive traffic back to bandPromo (router model, platform cheat sheet, social-helper sequencing — Meta first).
+
 2026-09-05 10:30 - Lock timed Lyrics/Notes policy: registry Markdown cue list; still ignores times / living uses times; `.srt` interchange; USLT from still projection. Implementation deferred — evaluate later ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 2026-09-05 10:20 - Timed Lyrics/Notes exploration: prefer one registry Markdown cue list (still ignores times; living uses times); USLT export from still projection; `.srt` as interchange — not a second operator-edited body.

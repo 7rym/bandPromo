@@ -154,18 +154,37 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
 | Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo shell media under Files → Brand assets / Sound effects stays listable while any Brand references it; unused demo shell hides with **Hide bandPromo demo campaign**. |
 
-Selecting a playlist applies that release’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
+Selecting a **campaign** (and its playlist) applies that campaign’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
 **Publish must not steal Base:** Demo PCF ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
 **Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`), cover reflection (`player.cover_reflection`, default `true`), and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live on the **Base brand** document and travel with brands/PCFs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
-**Player nav (shipped):**
+**Player Campaign navigator (locked — v0.8 exit gate; chrome re-locked 2026-09-09):**
+
+Campaign-first listening scope (HITZ multi-campaign). Header logo is **identity only**. Campaign switching lives **inside the Playlists panel** (fans switch campaigns to reach other playlists — not as always-on tab chrome).
+
+| Rule | Behaviour |
+|------|-----------|
+| Polarity | Select **campaign** first; playlist selector lists **only that campaign’s public playlists** |
+| Chrome | Current campaign **logo** in the header is static (`.content-logo-img`) — not a button. When **≥2** public campaigns, a **campaign logo strip** sits at the top of the Playlists panel (wide ~2:1 chips; logos + `aria-label` / `title` only — no visible “Campaigns” label). Playlist selector stays brand-owned (`coverflow` / `buttons` / `dropdown`); covers stay ~1:1 |
+| Layout | Wide: campaign strip and playlist selector share one toolbar row when both visible. Narrow: stack (campaigns first, then playlists). Neither control appears in `.content-toggle` |
+| Single campaign | Hide campaign strip; header logo only (identity) |
+| Single playlist | If the selected campaign has **≤1** public playlist, **hide** the playlist selector (per campaign, not install-wide count) |
+| Defaults | Browser **`localStorage`**: last campaign + last playlist per campaign (until a future user-state registry). Else campaign that owns the ★ default playlist; within campaign open last playlist else ★ default |
+| Idle chrome | Selected campaign drives **brand shell + page tabs** even before play |
+| Playback | **Campaign change stops playback**. Playlist change within campaign may keep playing until a new track starts |
+| After campaign switch | Land on that campaign’s last-played playlist (else default), **paused** |
+| Deep links | Override memory. Paths are campaign-first only (see URLs) — **hard cut**, no legacy playlist-first URLs |
+| Scale | Playlists-panel strip is for **a few** campaigns; large-catalogue campaign UI is later debt |
+| Logo presentation | Player campaign chips use a **wide (~2:1)** frame with `object-fit: contain`. Prefer 2:1 brand logos in Branding (guidance); do not hard-block non-2:1 uploads in this slice |
+
+**Player nav (shipped + navigator):**
 
 | | Rule |
 |--|------|
 | Shell | Playlists + Lyrics/Notes always |
-| Campaign pages | Tabs for pages associated to the **playing playlist’s campaign** (Campaign editor → Pages; association order = tab order). That editor lists the same page name as Content → Pages (registry title). Player tab text is the page `label`. Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that campaign has no owned pages |
+| Campaign pages | Tabs for pages associated to the **selected / playing campaign** (Campaign editor → Pages; association order = tab order). That editor lists the same page name as Content → Pages (registry title). Player tab text is the page `label`. Legacy site-wide `player.tab_order` / `show_in_player` is fallback only when that campaign has no owned pages |
 | Gallery | Demo (and operator) **Gallery page** with a gallery block; not a separate mandatory module tab |
 | FAQ | **System-owned** install page — login/platform help; **not** in any PCF; survives hide-demo |
 
@@ -489,7 +508,7 @@ Playlists are **streaming listening products** under a release: album sequence, 
 - Playlist is shown **in full**; embargoed tracks appear but are **not playable** for the current user tier.
 - Analytics bind plays to **track → release**, not to playlist.
 - v0.8: operator site playlists use `kind: "system"` until **user/VIP playlists** ship (v0.9+). In code, "system playlist" often means **site playlist**, not platform demo.
-- Player playlist selector appears when **two or more** catalogue playlists are public (see Default playlist).
+- Player playlist selector appears when the **selected campaign** has **two or more** public playlists (hidden when that campaign has only one).
 - **Player payloads** (`tracks`, `brand_styles`, `delivery_summary`) are written into `data/playlists/{id}.json` at Publish.
 
 ### Presentation metadata (v0.8.3+)
@@ -733,7 +752,8 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
-| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living shell backgrounds **and** fill content panels (lyrics, playlists, pages, gallery, login inputs/lightbox) with the same black scrim strength (0–100 in editor; default 72) |
+| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (full-page black overlay; 0–100 in editor; default 72) |
+| `effects.panel_dim` | `--panel-scrim-strength` (0–1) | Fill content panels (lyrics, playlists, pages, gallery, login inputs/lightbox). **Separate** from backdrop dim so one slider is not applied twice (0–100; default 72; missing → seed from `backdrop_dim`) |
 | `effects.panel_blur` | `--panel-blur` | Glass blur on those same content panels (player chrome stays sharp; 0–24px; default 5) |
 
 Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens.
@@ -826,14 +846,16 @@ Path-based URLs (no query strings for core navigation).
 ### Player
 
 ```
-/play/{playlist-slug}
-/play/{playlist-slug}/{release-slug}/{track-slug}
+/play/{campaign-slug}
+/play/{campaign-slug}/{playlist-slug}
+/play/{campaign-slug}/{playlist-slug}/{track-slug}
 ```
 
-- Playlist **storage id** (`data/playlists/{id}.json`) and public **slug** are separate; Content → Playlists Base info edits both. Titles are unique on an install. Migrating storage id rewrites the file, registry, and default-playlist pointer; listener analytics do not store playlist id/slug.
-- `release-slug` and `track-slug` come from the release container and release membership.
-- Track `slug` is unique **per release**, not globally.
-- OG/share metadata for track links: track + release identity from containers/registry.
+- **Hard cut (v0.8 Campaign navigator):** playlist-first paths (`/play/{playlist-slug}/…`) are **not** supported. No silent remap. See [AGENTS.md](AGENTS.md) — no speculative fallbacks.
+- Campaign **storage id** and public **slug** live on the campaign document (`data/campaigns/`). Playlist **storage id** and public **slug** remain separate; Content → Playlists Base info edits both.
+- `track-slug` is unique **per campaign** (release membership).
+- Deep links override browser memory and select campaign + playlist (+ track).
+- OG/share metadata for track links: track + campaign identity from containers/registry.
 
 ### Pages
 
@@ -960,7 +982,7 @@ These behaviours come from the old single-playlist / filename-key model and must
 1. Asset registry + ULID intake for new uploads; migrate existing masters to `asset_id`.
 2. `data/releases` + required track membership; release locking.
 3. `data/playlists` + remove playlist→master sync; migrate off legacy playlist artifacts.
-4. Player: playlist selector, pinned default playlist pointer with `publish_date` fallback, path URLs with per-release slugs.
+4. Player: Campaign navigator (static header logo + Playlists-panel campaign logo strip + campaign-scoped playlist selector), pinned default playlist pointer with `publish_date` fallback, path URLs `/play/{campaign}/{playlist}/{track}`.
 5. Embargoed tracks visible but non-playable in playlist UI.
 6. `data/galleries` + page `gallery` block (grid preset minimum).
 7. `data/brands/` + setup protected seed `bandpromo-default` + duplicate + active pointer (migrate from `data/themes/`).

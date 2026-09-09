@@ -1817,6 +1817,133 @@ function bandpromo_campaign_admin_registry_entries(string $root): array
     return $entries;
 }
 
+/**
+ * Public campaign slug for player URLs (document slug, else storage id).
+ */
+function bandpromo_campaign_public_slug(string $root, string $campaignId): string
+{
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        return '';
+    }
+    try {
+        $document = bandpromo_campaign_load_document($root, $campaignId);
+        $slug = bandpromo_campaign_normalize_id((string) ($document['slug'] ?? ''));
+        if ($slug !== '') {
+            return $slug;
+        }
+    } catch (Throwable $throwable) {
+        // Fall through to id.
+    }
+
+    return $campaignId;
+}
+
+/**
+ * Resolve a campaign URL segment (slug or id) to a storage id.
+ */
+function bandpromo_campaign_resolve_route_id(string $root, string $segment): string
+{
+    $segment = bandpromo_campaign_normalize_id(trim($segment));
+    if ($segment === '' || bandpromo_campaign_id_is_unowned($segment)) {
+        return '';
+    }
+    if (is_file(bandpromo_campaign_document_path($root, $segment))) {
+        return $segment;
+    }
+    foreach (bandpromo_campaign_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $id = bandpromo_campaign_normalize_id((string) ($entry['id'] ?? ''));
+        if ($id === '' || bandpromo_campaign_id_is_unowned($id)) {
+            continue;
+        }
+        if ($id === $segment) {
+            return $id;
+        }
+        $slug = bandpromo_campaign_normalize_id((string) ($entry['slug'] ?? ''));
+        if ($slug === $segment) {
+            return $id;
+        }
+        try {
+            $document = bandpromo_campaign_load_document($root, $id);
+            $docSlug = bandpromo_campaign_normalize_id((string) ($document['slug'] ?? ''));
+            if ($docSlug === $segment) {
+                return $id;
+            }
+        } catch (Throwable $throwable) {
+            continue;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Player campaign catalog for the logo cover-flow navigator.
+ *
+ * @return list<array{id: string, title: string, slug: string, logo: string, playlist_count: int}>
+ */
+function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorBypass = false): array
+{
+    require_once __DIR__ . '/playlist-storage.php';
+
+    $playlistCatalog = bandpromo_playlist_player_catalog_entries($root, $operatorBypass);
+    $playlistCounts = [];
+    foreach ($playlistCatalog as $playlistEntry) {
+        $owner = bandpromo_campaign_normalize_id((string) ($playlistEntry['campaign_id'] ?? ''));
+        if ($owner === '' || bandpromo_campaign_id_is_unowned($owner)) {
+            continue;
+        }
+        if (!isset($playlistCounts[$owner])) {
+            $playlistCounts[$owner] = 0;
+        }
+        $playlistCounts[$owner]++;
+    }
+
+    $entries = [];
+    foreach (array_keys($playlistCounts) as $campaignId) {
+        if (!bandpromo_demo_campaign_container_is_visible($root, $campaignId, $campaignId)) {
+            continue;
+        }
+        $title = $campaignId;
+        $brandId = '';
+        try {
+            $document = bandpromo_campaign_load_document($root, $campaignId);
+            $title = trim((string) ($document['title'] ?? '')) !== ''
+                ? (string) $document['title']
+                : $title;
+            $brandId = bandpromo_brand_canonical_id((string) ($document['brand_id'] ?? ''));
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $logo = '';
+        if ($brandId !== '') {
+            try {
+                $brandDoc = bandpromo_brand_load_document($root, $brandId);
+                $shell = bandpromo_brand_player_shell_assets($root, $brandDoc);
+                $logo = trim((string) ($shell['logo'] ?? ''));
+            } catch (Throwable $throwable) {
+                $logo = '';
+            }
+        }
+        $entries[] = [
+            'id' => $campaignId,
+            'title' => $title,
+            'slug' => bandpromo_campaign_public_slug($root, $campaignId),
+            'logo' => $logo,
+            'playlist_count' => (int) $playlistCounts[$campaignId],
+        ];
+    }
+
+    usort($entries, static function (array $left, array $right): int {
+        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+    });
+
+    return $entries;
+}
+
 function bandpromo_campaign_track_master_filename(string $root, string $assetId): string
 {
     $asset = bandpromo_asset_lookup_by_id($root, $assetId);

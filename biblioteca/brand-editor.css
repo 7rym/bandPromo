@@ -345,7 +345,7 @@
     padding: 0.65rem 0.7rem 0.75rem;
     box-sizing: border-box;
     border-radius: 10px;
-    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
     backdrop-filter: blur(var(--panel-blur, 5px));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
 }
@@ -860,7 +860,13 @@
 }
 
 .theme-preview-shell-chrome::before {
-    content: none;
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: #000;
+    opacity: var(--shell-scrim-strength, 0.72);
 }
 
 .theme-preview-shell-header {
@@ -891,7 +897,7 @@
     padding: 0.75rem 0.9rem;
     border-radius: 10px;
     box-sizing: border-box;
-    background: rgba(0, 0, 0, var(--shell-scrim-strength, 0.72));
+    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
     backdrop-filter: blur(var(--panel-blur, 5px));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
 }

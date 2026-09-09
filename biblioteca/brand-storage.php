@@ -129,8 +129,10 @@ function bandpromo_brand_default_color_tokens(): array
 function bandpromo_brand_default_effects_tokens(): array
 {
     return [
-        // Percent 0–100 (maps to --shell-scrim-strength 0–1). Default matches prior fixed scrim mid tone.
+        // Percent 0–100 → --shell-scrim-strength (shell still/living overlay only).
         'backdrop_dim' => '72',
+        // Percent 0–100 → --panel-scrim-strength (content panel fill). Separate so dim is not stacked twice.
+        'panel_dim' => '72',
         // Pixels 0–24 for glass panels (playlist rows, lyrics, pages, gallery, login).
         'panel_blur' => '5',
     ];
@@ -138,18 +140,16 @@ function bandpromo_brand_default_effects_tokens(): array
 
 function bandpromo_brand_normalize_int_token(mixed $value, int $min, int $max, int $fallback): string
 {
+    if (!is_numeric($value) && trim((string) $value) === '') {
+        return (string) $fallback;
+    }
     if (is_numeric($value)) {
         $n = (int) round((float) $value);
     } else {
         $n = (int) preg_replace('/\D+/', '', trim((string) $value));
     }
     if ($n < $min || $n > $max) {
-        // Empty / garbage → fallback; out-of-range clamp when clearly numeric intent
-        if (!is_numeric($value) && trim((string) $value) === '') {
-            $n = $fallback;
-        } else {
-            $n = max($min, min($max, $n));
-        }
+        $n = max($min, min($max, $n));
     }
 
     return (string) $n;
@@ -184,6 +184,12 @@ function bandpromo_brand_effects_css_variables(array $document): array
         100,
         72
     );
+    // Older brands only had backdrop_dim (applied to shell + panels). Keep panel fill in sync until set.
+    $panelRaw = bandpromo_brand_token_value($document, 'effects.panel_dim');
+    if (trim((string) $panelRaw) === '') {
+        $panelRaw = $dim;
+    }
+    $panelDim = (int) bandpromo_brand_normalize_int_token($panelRaw, 0, 100, $dim);
     $blur = (int) bandpromo_brand_normalize_int_token(
         bandpromo_brand_token_value($document, 'effects.panel_blur'),
         0,
@@ -193,6 +199,7 @@ function bandpromo_brand_effects_css_variables(array $document): array
 
     return [
         '--shell-scrim-strength' => number_format($dim / 100, 2, '.', ''),
+        '--panel-scrim-strength' => number_format($panelDim / 100, 2, '.', ''),
         '--panel-blur' => $blur . 'px',
     ];
 }
@@ -416,12 +423,20 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
         $normalizedColor[$key] = bandpromo_brand_normalize_hex_color((string) ($color[$key] ?? ''), $fallback);
     }
 
+    $backdropDim = bandpromo_brand_normalize_int_token(
+        $effects['backdrop_dim'] ?? $defaultEffects['backdrop_dim'],
+        0,
+        100,
+        (int) $defaultEffects['backdrop_dim']
+    );
     $normalizedEffects = [
-        'backdrop_dim' => bandpromo_brand_normalize_int_token(
-            $effects['backdrop_dim'] ?? $defaultEffects['backdrop_dim'],
+        'backdrop_dim' => $backdropDim,
+        // Missing panel_dim → seed from backdrop_dim (legacy single-slider brands).
+        'panel_dim' => bandpromo_brand_normalize_int_token(
+            $effects['panel_dim'] ?? $backdropDim,
             0,
             100,
-            (int) $defaultEffects['backdrop_dim']
+            (int) $backdropDim
         ),
         'panel_blur' => bandpromo_brand_normalize_int_token(
             $effects['panel_blur'] ?? $defaultEffects['panel_blur'],

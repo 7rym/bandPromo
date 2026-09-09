@@ -153,15 +153,20 @@ function bandpromo_brand_collect_package_asset_ids(string $root, string $brandId
 /**
  * Build a Portable Brand File (masters + brand doc + registry subset).
  *
+ * @param callable|null $onProgress optional string progress message callback
  * @return array{ok: bool, path: string, brand_id: string, files: int, asset_ids: list<string>}
  */
-function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zipPath): array
+function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zipPath, $onProgress = null): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
 
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('This host cannot export brand files.');
+    }
+
+    if (is_callable($onProgress)) {
+        $onProgress('Collecting brand files…');
     }
 
     $brandId = bandpromo_brand_canonical_id($brandId);
@@ -258,7 +263,7 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
     $paths['data/assets/registry.json'] = $subsetPath;
 
     require_once __DIR__ . '/chunked-upload.php';
-    $fileDigests = bandpromo_transfer_file_digests($paths);
+    $fileDigests = bandpromo_transfer_file_digests($paths, $onProgress);
 
     $manifest = [
         'brand_export_version' => BANDPROMO_BRAND_EXPORT_VERSION,
@@ -276,13 +281,25 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
         throw new RuntimeException('Could not write brand-package-manifest.json.');
     }
 
+    if (is_callable($onProgress)) {
+        $onProgress('Writing brand archive…');
+    }
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         throw new RuntimeException('Could not create the brand file.');
     }
     $zip->addFile($manifestPath, 'brand-package-manifest.json');
+    $pathTotal = count($paths);
+    $pathIndex = 0;
     foreach ($paths as $relative => $absolute) {
+        $pathIndex++;
+        if (is_callable($onProgress)) {
+            $onProgress('Archiving ' . $pathIndex . '/' . $pathTotal . ': ' . basename($relative));
+        }
         $zip->addFile($absolute, $relative);
+    }
+    if (is_callable($onProgress)) {
+        $onProgress('Closing brand archive…');
     }
     $zip->close();
 

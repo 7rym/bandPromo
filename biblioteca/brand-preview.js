@@ -229,10 +229,18 @@
             rules.push(`--theme-heading-font:${baseFont}`);
         }
         const dimRaw = tokenValue(document, 'effects.backdrop_dim');
+        const panelDimRaw = tokenValue(document, 'effects.panel_dim');
         const blurRaw = tokenValue(document, 'effects.panel_blur');
-        const dim = Math.max(0, Math.min(100, parseInt(dimRaw || '72', 10) || 72));
-        const blur = Math.max(0, Math.min(24, parseInt(blurRaw || '5', 10) || 0));
+        const dimParsed = parseInt(String(dimRaw), 10);
+        const dim = Number.isFinite(dimParsed) ? Math.max(0, Math.min(100, dimParsed)) : 72;
+        const panelParsed = parseInt(String(panelDimRaw), 10);
+        const panelDim = Number.isFinite(panelParsed)
+            ? Math.max(0, Math.min(100, panelParsed))
+            : dim;
+        const blurParsed = parseInt(String(blurRaw), 10);
+        const blur = Number.isFinite(blurParsed) ? Math.max(0, Math.min(24, blurParsed)) : 5;
         rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
+        rules.push(`--panel-scrim-strength:${(panelDim / 100).toFixed(2)}`);
         rules.push(`--panel-blur:${blur}px`);
         rules.push('--primary-a20:color-mix(in srgb, var(--primary-color) 20%, transparent)');
         rules.push('--primary-a50:color-mix(in srgb, var(--primary-color) 50%, transparent)');

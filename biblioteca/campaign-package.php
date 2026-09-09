@@ -793,15 +793,20 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
 /**
  * Build a release campaign ZIP (masters + campaign docs + registry subset; no originals/delivery).
  *
+ * @param callable|null $onProgress optional string progress message callback
  * @return array{ok: bool, path: string, release_id: string, files: int, asset_ids: list<string>}
  */
-function bandpromo_campaign_export_to_zip(string $root, string $releaseId, string $zipPath): array
+function bandpromo_campaign_export_to_zip(string $root, string $releaseId, string $zipPath, $onProgress = null): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
 
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('This host cannot export campaign files.');
+    }
+
+    if (is_callable($onProgress)) {
+        $onProgress('Collecting campaign files…');
     }
 
     $releaseId = bandpromo_campaign_normalize_id($releaseId);
@@ -963,7 +968,7 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
     $paths['data/assets/registry.json'] = $subsetPath;
 
     require_once __DIR__ . '/chunked-upload.php';
-    $fileDigests = bandpromo_transfer_file_digests($paths);
+    $fileDigests = bandpromo_transfer_file_digests($paths, $onProgress);
 
     $manifest = [
         'release_export_version' => BANDPROMO_CAMPAIGN_EXPORT_VERSION,
@@ -982,13 +987,25 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
         throw new RuntimeException('Could not write release-package-manifest.json.');
     }
 
+    if (is_callable($onProgress)) {
+        $onProgress('Writing campaign archive…');
+    }
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         throw new RuntimeException('Could not create the campaign file.');
     }
     $zip->addFile($manifestPath, 'release-package-manifest.json');
+    $pathTotal = count($paths);
+    $pathIndex = 0;
     foreach ($paths as $relative => $absolute) {
+        $pathIndex++;
+        if (is_callable($onProgress)) {
+            $onProgress('Archiving ' . $pathIndex . '/' . $pathTotal . ': ' . basename($relative));
+        }
         $zip->addFile($absolute, $relative);
+    }
+    if (is_callable($onProgress)) {
+        $onProgress('Closing campaign archive…');
     }
     $zip->close();
 

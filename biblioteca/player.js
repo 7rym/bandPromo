@@ -1529,12 +1529,10 @@ function scheduleAnalyticsSessionEnd() {
 // Resolve track index from path deep link, legacy ?t=, or default 0
 function getTrackFromUrl() {
     const deepLink = window.BANDPROMO_DEEP_LINK || {};
-    const releaseSlug = String(deepLink.release || '').trim().toLowerCase();
     const trackSlug = String(deepLink.track || '').trim().toLowerCase();
-    if (releaseSlug && trackSlug && Array.isArray(playList) && playList.length > 0) {
+    if (trackSlug && Array.isArray(playList) && playList.length > 0) {
         const matchedIndex = playList.findIndex((song) => {
-            return String(song.release_slug || '').toLowerCase() === releaseSlug
-                && String(song.track_slug || '').toLowerCase() === trackSlug;
+            return String(song.track_slug || '').toLowerCase() === trackSlug;
         });
         if (matchedIndex >= 0) {
             return matchedIndex;
@@ -1543,19 +1541,9 @@ function getTrackFromUrl() {
 
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const playIndex = pathParts.indexOf('play');
+    // /play/{campaign}/{playlist}/{track}
     if (playIndex >= 0 && pathParts.length >= playIndex + 4) {
-        const pathRelease = String(pathParts[playIndex + 2] || '').toLowerCase();
         const pathTrack = String(pathParts[playIndex + 3] || '').toLowerCase();
-        const matchedIndex = playList.findIndex((song) => {
-            return String(song.release_slug || '').toLowerCase() === pathRelease
-                && String(song.track_slug || '').toLowerCase() === pathTrack;
-        });
-        if (matchedIndex >= 0) {
-            return matchedIndex;
-        }
-    }
-    if (playIndex >= 0 && pathParts.length === playIndex + 3) {
-        const pathTrack = String(pathParts[playIndex + 2] || '').toLowerCase();
         const matchedIndex = playList.findIndex((song) => {
             return String(song.track_slug || '').toLowerCase() === pathTrack;
         });
@@ -1575,6 +1563,72 @@ function getTrackFromUrl() {
     return 0;
 }
 
+const BANDPROMO_NAV_MEMORY_KEY = 'bandpromo.player.nav.v1';
+
+function readPlayerNavMemory() {
+    try {
+        const raw = window.localStorage.getItem(BANDPROMO_NAV_MEMORY_KEY);
+        if (!raw) {
+            return { lastCampaignId: '', lastPlaylistByCampaign: {} };
+        }
+        const parsed = JSON.parse(raw);
+        return {
+            lastCampaignId: String(parsed?.lastCampaignId || ''),
+            lastPlaylistByCampaign: (parsed?.lastPlaylistByCampaign && typeof parsed.lastPlaylistByCampaign === 'object')
+                ? parsed.lastPlaylistByCampaign
+                : {},
+        };
+    } catch (error) {
+        return { lastCampaignId: '', lastPlaylistByCampaign: {} };
+    }
+}
+
+function writePlayerNavMemory(campaignId, playlistId) {
+    const campaign = String(campaignId || '').trim();
+    const playlist = String(playlistId || '').trim();
+    if (!campaign) {
+        return;
+    }
+    try {
+        const mem = readPlayerNavMemory();
+        mem.lastCampaignId = campaign;
+        mem.lastPlaylistByCampaign = mem.lastPlaylistByCampaign || {};
+        if (playlist) {
+            mem.lastPlaylistByCampaign[campaign] = playlist;
+        }
+        window.localStorage.setItem(BANDPROMO_NAV_MEMORY_KEY, JSON.stringify(mem));
+    } catch (error) {
+        // Ignore quota / private mode.
+    }
+}
+
+function getActiveCampaignId() {
+    return String(window.BANDPROMO_CAMPAIGN_ID || window.BANDPROMO_PLAYLIST_RELEASE_ID || '').trim();
+}
+
+function getActiveCampaignSlug() {
+    return String(window.BANDPROMO_CAMPAIGN_SLUG || getActiveCampaignId() || '').trim();
+}
+
+function campaignSlugForId(campaignId) {
+    const id = String(campaignId || '').trim();
+    const catalog = Array.isArray(window.BANDPROMO_CAMPAIGN_CATALOG) ? window.BANDPROMO_CAMPAIGN_CATALOG : [];
+    const match = catalog.find((entry) => String(entry?.id || '') === id);
+    return String(match?.slug || id);
+}
+
+function playlistEntryForId(playlistId) {
+    const id = String(playlistId || '').trim();
+    const catalog = Array.isArray(window.BANDPROMO_PLAYLIST_CATALOG) ? window.BANDPROMO_PLAYLIST_CATALOG : [];
+    return catalog.find((entry) => String(entry?.id || '') === id) || null;
+}
+
+function playlistsForCampaign(campaignId) {
+    const id = String(campaignId || '').trim();
+    const catalog = Array.isArray(window.BANDPROMO_PLAYLIST_CATALOG) ? window.BANDPROMO_PLAYLIST_CATALOG : [];
+    return catalog.filter((entry) => String(entry?.campaign_id || '') === id);
+}
+
 function getActivePlaylistId() {
     return String(window.BANDPROMO_PLAYLIST_ID || 'bandpromo-demo');
 }
@@ -1588,9 +1642,149 @@ function playlistSlugForId(playlistId) {
     if (!id) {
         return getActivePlaylistSlug();
     }
-    const catalog = Array.isArray(window.BANDPROMO_PLAYLIST_CATALOG) ? window.BANDPROMO_PLAYLIST_CATALOG : [];
-    const match = catalog.find((entry) => String(entry?.id || '') === id);
+    const match = playlistEntryForId(id);
     return String(match?.slug || id);
+}
+
+function buildPlaylistPlayerUrl(_playlistId, song) {
+    const campaign = encodeURIComponent(getActiveCampaignSlug());
+    const playlist = encodeURIComponent(getActivePlaylistSlug());
+    if (!campaign) {
+        return '/play/';
+    }
+    if (!song || !song.track_slug) {
+        return `/play/${campaign}/${playlist}`;
+    }
+    return `/play/${campaign}/${playlist}/${encodeURIComponent(song.track_slug)}`;
+}
+
+function buildCampaignPlaylistUrl(campaignId, playlistId) {
+    const campaignSlug = encodeURIComponent(campaignSlugForId(campaignId));
+    const playlistSlug = encodeURIComponent(playlistSlugForId(playlistId));
+    if (!campaignSlug) {
+        return '/play/';
+    }
+    if (!playlistSlug) {
+        return `/play/${campaignSlug}`;
+    }
+    return `/play/${campaignSlug}/${playlistSlug}`;
+}
+
+function maybeRestorePlayerNavMemory() {
+    const deepLink = window.BANDPROMO_DEEP_LINK || {};
+    if (deepLink.from_url) {
+        writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
+        return;
+    }
+    const mem = readPlayerNavMemory();
+    const wantCampaign = String(mem.lastCampaignId || '').trim();
+    if (!wantCampaign) {
+        writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
+        return;
+    }
+    const campaignCatalog = Array.isArray(window.BANDPROMO_CAMPAIGN_CATALOG) ? window.BANDPROMO_CAMPAIGN_CATALOG : [];
+    const campaignOk = campaignCatalog.some((entry) => String(entry?.id || '') === wantCampaign);
+    if (!campaignOk) {
+        writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
+        return;
+    }
+    const campaignPlaylists = playlistsForCampaign(wantCampaign);
+    if (campaignPlaylists.length === 0) {
+        writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
+        return;
+    }
+    let wantPlaylist = String(mem.lastPlaylistByCampaign?.[wantCampaign] || '').trim();
+    if (!campaignPlaylists.some((entry) => String(entry?.id || '') === wantPlaylist)) {
+        wantPlaylist = String(campaignPlaylists[0]?.id || '');
+    }
+    if (wantCampaign === getActiveCampaignId() && wantPlaylist === getActivePlaylistId()) {
+        writePlayerNavMemory(wantCampaign, wantPlaylist);
+        return;
+    }
+    window.location.replace(buildCampaignPlaylistUrl(wantCampaign, wantPlaylist));
+}
+
+function playlistSwitchUrl(playlistId) {
+    const id = String(playlistId || '').trim();
+    if (id === '') {
+        return '/play/';
+    }
+    const entry = playlistEntryForId(id);
+    const campaignId = String(entry?.campaign_id || getActiveCampaignId() || '').trim();
+    return buildCampaignPlaylistUrl(campaignId, id);
+}
+
+function campaignSwitchUrl(campaignId) {
+    const id = String(campaignId || '').trim();
+    if (id === '') {
+        return '/play/';
+    }
+    const mem = readPlayerNavMemory();
+    const campaignPlaylists = playlistsForCampaign(id);
+    let playlistId = String(mem.lastPlaylistByCampaign?.[id] || '').trim();
+    if (!campaignPlaylists.some((entry) => String(entry?.id || '') === playlistId)) {
+        playlistId = String(campaignPlaylists[0]?.id || '');
+    }
+    return buildCampaignPlaylistUrl(id, playlistId);
+}
+
+async function switchActivePlaylist(playlistId) {
+    const id = String(playlistId || '').trim();
+    if (!id || id === getActivePlaylistId()) {
+        return;
+    }
+    writePlayerNavMemory(getActiveCampaignId(), id);
+    // Soft within campaign: full navigation rebuilds tabs; playback restarts from new playlist load.
+    window.location.assign(playlistSwitchUrl(id));
+}
+
+async function switchActiveCampaign(campaignId) {
+    const id = String(campaignId || '').trim();
+    if (!id || id === getActiveCampaignId()) {
+        return;
+    }
+    try {
+        if (audioPlayer && !audioPlayer.paused) {
+            audioPlayer.pause();
+        }
+    } catch (error) {
+        // Ignore.
+    }
+    writePlayerNavMemory(id, '');
+    window.location.assign(campaignSwitchUrl(id));
+}
+
+function syncCampaignSwitcherUi(campaignId) {
+    const id = String(campaignId || getActiveCampaignId() || '').trim();
+    const items = Array.from(document.querySelectorAll('#campaignLogoStrip [data-campaign-select]'));
+    items.forEach((el) => {
+        const isCurrent = String(el.getAttribute('data-campaign-id') || '') === id;
+        el.classList.toggle('is-current', isCurrent);
+        el.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
+    });
+}
+
+function bindCampaignNavigator() {
+    const strip = document.getElementById('campaignLogoStrip');
+    if (!strip || strip.dataset.bound === '1') {
+        return;
+    }
+    strip.dataset.bound = '1';
+    strip.addEventListener('click', async (event) => {
+        const target = event.target instanceof Element
+            ? event.target.closest('[data-campaign-select]')
+            : null;
+        if (!target || !strip.contains(target)) {
+            return;
+        }
+        event.preventDefault();
+        const campaignId = String(target.getAttribute('data-campaign-id') || '').trim();
+        if (!campaignId || campaignId === getActiveCampaignId()) {
+            return;
+        }
+        await switchActiveCampaign(campaignId);
+    });
+    syncCampaignSwitcherUi(getActiveCampaignId());
 }
 
 function applyPlaylistBrand(brandId) {
@@ -1735,20 +1929,13 @@ function applyPlaylistShellMedia(brand) {
     }
 }
 
-function buildPlaylistPlayerUrl(_playlistId, song) {
-    const playlist = encodeURIComponent(getActivePlaylistSlug());
-    if (!song || !song.track_slug) {
-        return `/play/${playlist}`;
-    }
-    return `/play/${playlist}/${encodeURIComponent(song.track_slug)}`;
-}
-
 function updatePlaylistHistory(song) {
     if (!song || !history.replaceState) {
         return;
     }
     const nextUrl = buildPlaylistPlayerUrl(getActivePlaylistId(), song);
     history.replaceState(null, '', nextUrl);
+    writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
 }
 
 function syncPlaylistSelectorUi(playlistId) {
@@ -1806,25 +1993,6 @@ function syncPlaylistSelectorLayout(scrollActiveIntoView = false) {
         return;
     }
     active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-}
-
-function playlistSwitchUrl(playlistId) {
-    const id = String(playlistId || '').trim();
-    if (id === '') {
-        return '/play/';
-    }
-    // Query param works on PHP dev server and Apache; path slugs need play/.htaccess rewrites.
-    return `/play/?playlist=${encodeURIComponent(id)}`;
-}
-
-async function switchActivePlaylist(playlistId) {
-    const id = String(playlistId || '').trim();
-    if (!id || id === getActivePlaylistId()) {
-        return;
-    }
-
-    // Page tabs are release-scoped and rendered server-side — reload so Bio/Gallery/etc. match.
-    window.location.assign(playlistSwitchUrl(id));
 }
 
 function bindPlaylistSelector() {
@@ -1986,6 +2154,9 @@ async function loadConfig() {
         return;
     }
 
+    maybeRestorePlayerNavMemory();
+    bindCampaignNavigator();
+
     try {
         const configUrl = window.CONFIG_URL;
         if (!configUrl) {
@@ -2018,7 +2189,11 @@ async function loadConfig() {
         }
         if (data.release_id) {
             window.BANDPROMO_PLAYLIST_RELEASE_ID = String(data.release_id).trim();
+            if (!window.BANDPROMO_CAMPAIGN_ID) {
+                window.BANDPROMO_CAMPAIGN_ID = String(data.release_id).trim();
+            }
         }
+        writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
         updateOperatorDeliveryNotice(data.delivery_summary || null);
         applyPlaylistBrand(window.BANDPROMO_PLAYLIST_BRAND_ID);
         
@@ -2037,6 +2212,8 @@ async function loadConfig() {
                 updatePlaylistHistory(playList[currentIndex]);
             }
             bindPlaylistSelector();
+            bindCampaignNavigator();
+            syncCampaignSwitcherUi(getActiveCampaignId());
         } else {
             syncCampaignPageTabs();
             showPlayerLoadError('This playlist has no playable tracks yet.');
@@ -2339,8 +2516,12 @@ function initPlayer(index) {
     }
 }
 
-// Campaign page tabs follow the current track's release_id (fallback: playlist release).
+// Campaign page tabs follow the selected campaign (idle + playing within that world).
 function getActiveCampaignReleaseId(song) {
+    const selected = String(window.BANDPROMO_CAMPAIGN_ID || '').trim();
+    if (selected !== '') {
+        return selected;
+    }
     const trackReleaseId = song ? String(song.release_id || '').trim() : '';
     if (trackReleaseId !== '') {
         return trackReleaseId;
@@ -2364,8 +2545,10 @@ function syncCampaignPageTabs() {
         if (view === '') {
             return;
         }
-        const pageRelease = String(tab.release_id || '').trim();
-        const show = releaseId !== '' && pageRelease !== '' && pageRelease === releaseId;
+        const pageRelease = String(tab.campaign_id || tab.release_id || '').trim();
+        // Server already scoped BANDPROMO_PLAYER_TABS for this campaign when ownership is known.
+        // Show owned pages for the active campaign; legacy unscoped tabs (empty owner) stay visible.
+        const show = pageRelease === '' || (releaseId !== '' && pageRelease === releaseId);
         const btn = document.querySelector(`.content-toggle button[data-view="${view}"]`);
         const box = document.querySelector(`[data-content-box="${view}"]`);
         if (btn) {
@@ -2564,6 +2747,7 @@ function toggleView(view) {
     const lyricsBox = document.getElementById('lyricsBox');
     const playlistBox = document.getElementById('playlistBox');
     const playlistSelector = document.getElementById('playlistSelectorWrap');
+    const playlistScopeToolbar = document.getElementById('playlistScopeToolbar');
     const buttons = document.querySelectorAll('.content-toggle button[data-view]');
     const contentBoxes = document.querySelectorAll('[data-content-box]');
 
@@ -2586,11 +2770,13 @@ function toggleView(view) {
         targetButton.classList.add('active');
         window.requestAnimationFrame(() => revealActiveContentTab(targetButton));
     }
-    if (playlistSelector) {
+    if (playlistScopeToolbar) {
+        playlistScopeToolbar.hidden = view !== 'playlist';
+    } else if (playlistSelector) {
         playlistSelector.hidden = view !== 'playlist';
-        if (view === 'playlist') {
-            window.requestAnimationFrame(() => syncPlaylistSelectorLayout(true));
-        }
+    }
+    if (view === 'playlist') {
+        window.requestAnimationFrame(() => syncPlaylistSelectorLayout(true));
     }
 
     if (view === 'playlist') {
