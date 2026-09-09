@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-09 14:10 - PCF/PBF export: flush ZipArchive in chunks while packing (store already-compressed media) so Jobs no longer hang at Closing… with 0 B; size and progress update as the archive grows on disk.
+
 2026-09-09 14:00 - Backup Jobs: streaming checksums with byte progress (no silent hang on one large file); Cancel for building/queued jobs; stale `building` TTL shortened to 10 minutes now that heartbeats continue mid-file.
 
 2026-09-09 13:40 - Backup Jobs: heartbeat + progress during PCF/PBF/site builds; auto-fail stale `building` jobs after 30 minutes without heartbeat (HITZ Remixes orphan); Jobs UI shows progress; delete reaps stale building first.

@@ -990,24 +990,12 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
     if (is_callable($onProgress)) {
         $onProgress('Writing campaign archive…');
     }
-    $zip = new ZipArchive();
-    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        throw new RuntimeException('Could not create the campaign file.');
-    }
-    $zip->addFile($manifestPath, 'release-package-manifest.json');
-    $pathTotal = count($paths);
-    $pathIndex = 0;
-    foreach ($paths as $relative => $absolute) {
-        $pathIndex++;
-        if (is_callable($onProgress)) {
-            $onProgress('Archiving ' . $pathIndex . '/' . $pathTotal . ': ' . basename($relative));
-        }
-        $zip->addFile($absolute, $relative);
-    }
-    if (is_callable($onProgress)) {
-        $onProgress('Closing campaign archive…');
-    }
-    $zip->close();
+    require_once __DIR__ . '/http-stream.php';
+    $packEntries = array_merge(
+        ['release-package-manifest.json' => $manifestPath],
+        $paths
+    );
+    bandpromo_transfer_zip_pack_entries($zipPath, $packEntries, $onProgress, 'Archiving');
 
     return [
         'ok' => true,

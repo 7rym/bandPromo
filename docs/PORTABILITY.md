@@ -244,7 +244,7 @@ Presets: all four = full site backup; platform + data = legacy data export tier.
 | Export PBF (`.pbf`) | Admin → System → Backup | Portable Brand File | **Shipped** |
 | Import PBF | Admin → System → Backup | New or refreshed brand | **Shipped** |
 
-**Job liveness:** export workers stream checksums with byte progress and heartbeats (including mid-file). Operators can **Cancel** a queued/building job. Jobs stuck in `building` with no heartbeat for **10 minutes** are auto-marked **Failed** on list/delete so orphans can be removed and re-queued. Archive size may stay 0 B until ZipArchive close — that alone is not failure.
+**Job liveness:** export workers stream checksums with byte progress and heartbeats (including mid-file). PCF/PBF packing flushes the archive in chunks (size grows in Jobs; no silent hang on final `close()`). Operators can **Cancel** a queued/building job. Jobs stuck in `building` with no heartbeat for **10 minutes** are auto-marked **Failed** on list/delete so orphans can be removed and re-queued.
 
 Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
 

@@ -284,24 +284,12 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
     if (is_callable($onProgress)) {
         $onProgress('Writing brand archive…');
     }
-    $zip = new ZipArchive();
-    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        throw new RuntimeException('Could not create the brand file.');
-    }
-    $zip->addFile($manifestPath, 'brand-package-manifest.json');
-    $pathTotal = count($paths);
-    $pathIndex = 0;
-    foreach ($paths as $relative => $absolute) {
-        $pathIndex++;
-        if (is_callable($onProgress)) {
-            $onProgress('Archiving ' . $pathIndex . '/' . $pathTotal . ': ' . basename($relative));
-        }
-        $zip->addFile($absolute, $relative);
-    }
-    if (is_callable($onProgress)) {
-        $onProgress('Closing brand archive…');
-    }
-    $zip->close();
+    require_once __DIR__ . '/http-stream.php';
+    $packEntries = array_merge(
+        ['brand-package-manifest.json' => $manifestPath],
+        $paths
+    );
+    bandpromo_transfer_zip_pack_entries($zipPath, $packEntries, $onProgress, 'Archiving');
 
     return [
         'ok' => true,

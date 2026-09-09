@@ -44,6 +44,139 @@ function bandpromo_transfer_format_bytes(int $bytes): string
 }
 
 /**
+ * Prefer store (no deflate) for already-compressed media — faster ZipArchive flushes.
+ */
+function bandpromo_transfer_zip_prefer_store(string $entryName): bool
+{
+    $ext = strtolower(pathinfo($entryName, PATHINFO_EXTENSION));
+    $store = [
+        'png', 'jpg', 'jpeg', 'webp', 'gif', 'avif',
+        'mp3', 'flac', 'wav', 'm4a', 'ogg', 'opus',
+        'mp4', 'webm', 'mov', 'mkv',
+        'zip', 'gz', 'br', '7z', 'pcf', 'pbf', 'prp',
+    ];
+
+    return in_array($ext, $store, true);
+}
+
+/**
+ * Pack files into a zip, flushing to disk in chunks.
+ *
+ * ZipArchive::addFile() defers all I/O until close(); one final close on a large
+ * campaign looks hung at "Closing…" with size 0 B. Flushing after each large
+ * entry (or a small batch) keeps Jobs progress/heartbeat alive and grows size.
+ *
+ * @param array<string, string> $entries relative zip path => absolute filesystem path
+ * @param callable|null $onProgress function(string $message, ?int $archiveBytes = null): void
+ */
+function bandpromo_transfer_zip_pack_entries(
+    string $zipPath,
+    array $entries,
+    $onProgress = null,
+    string $verb = 'Archiving'
+): void {
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('ZipArchive is not available on this host.');
+    }
+    if ($zipPath === '') {
+        throw new InvalidArgumentException('Archive path is required.');
+    }
+    if (is_file($zipPath)) {
+        @unlink($zipPath);
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new RuntimeException('Could not create the archive.');
+    }
+
+    $total = count($entries);
+    $index = 0;
+    $sinceFlush = 0;
+    $bytesSinceFlush = 0;
+    $flushThresholdBytes = 2 * 1024 * 1024;
+    $largeEntryBytes = 512 * 1024;
+
+    $reportSize = static function () use ($zipPath, $onProgress, $verb): void {
+        if (!is_callable($onProgress) || !is_file($zipPath)) {
+            return;
+        }
+        $bytes = (int) filesize($zipPath);
+        $onProgress(
+            $verb . ' on disk · ' . bandpromo_transfer_format_bytes($bytes),
+            $bytes
+        );
+    };
+
+    $flush = static function () use (&$zip, $zipPath, &$sinceFlush, &$bytesSinceFlush, $reportSize): void {
+        if ($zip->close() !== true) {
+            throw new RuntimeException('Could not write archive data to disk.');
+        }
+        $sinceFlush = 0;
+        $bytesSinceFlush = 0;
+        $reportSize();
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath) !== true) {
+            throw new RuntimeException('Could not reopen the archive for the next files.');
+        }
+    };
+
+    try {
+        foreach ($entries as $relative => $absolute) {
+            $index++;
+            $relative = str_replace('\\', '/', (string) $relative);
+            $absolute = (string) $absolute;
+            if ($relative === '' || !is_file($absolute)) {
+                continue;
+            }
+            $size = (int) filesize($absolute);
+            if (is_callable($onProgress)) {
+                $onProgress(
+                    $verb . ' ' . $index . '/' . $total . ': ' . basename($relative),
+                    is_file($zipPath) ? (int) filesize($zipPath) : null
+                );
+            }
+            if (!$zip->addFile($absolute, $relative)) {
+                throw new RuntimeException('Could not add file to archive: ' . $relative);
+            }
+            if (bandpromo_transfer_zip_prefer_store($relative) && method_exists($zip, 'setCompressionName')) {
+                @$zip->setCompressionName($relative, ZipArchive::CM_STORE);
+            }
+            $sinceFlush++;
+            $bytesSinceFlush += max(0, $size);
+            if ($size >= $largeEntryBytes || $bytesSinceFlush >= $flushThresholdBytes || $sinceFlush >= 8) {
+                $flush();
+            }
+        }
+        if (is_callable($onProgress)) {
+            $onProgress('Finalising archive…', is_file($zipPath) ? (int) filesize($zipPath) : null);
+        }
+        if ($zip->close() !== true) {
+            throw new RuntimeException('Could not finalise the archive.');
+        }
+        if (is_callable($onProgress) && is_file($zipPath)) {
+            $onProgress(
+                'Archive ready · ' . bandpromo_transfer_format_bytes((int) filesize($zipPath)),
+                (int) filesize($zipPath)
+            );
+        }
+    } catch (Throwable $e) {
+        @$zip->close();
+        if (is_file($zipPath)) {
+            @unlink($zipPath);
+        }
+        throw $e;
+    }
+
+    if (!is_file($zipPath) || filesize($zipPath) === 0) {
+        if (is_file($zipPath)) {
+            @unlink($zipPath);
+        }
+        throw new RuntimeException('Archive was empty after packing.');
+    }
+}
+
+/**
  * SHA-256 with optional byte progress (keeps long hashes alive for Jobs heartbeats).
  *
  * @param callable|null $onBytes function(int $bytesRead, int $totalBytes): void

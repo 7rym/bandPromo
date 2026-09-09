@@ -12,18 +12,18 @@
 - `localStorage` last campaign + playlist; campaign change stops playback (full navigation)
 - Hard-cut URLs `/play/{campaign}/{playlist}/{track}` (no playlist-first legacy)
 - Brand Panel dim separate from Backdrop dim; preview zero-value fix
-- Backup Jobs: heartbeat + progress; streaming checksums with byte progress; Cancel for building jobs; auto-fail stale `building` after 10 min without heartbeat
+- Backup Jobs: heartbeat + progress; streaming checksums; chunked zip flush (no Closing… hang); Cancel; stale reap 10 min
 - Policy: no speculative fallbacks ([AGENTS.md](AGENTS.md))
 
 ### Also pending
 
 - Timed Lyrics/Notes (policy locked — implement later)
 - Fleet validate navigator; PCF round-trip smoke; favicon/PWA; legacy audit
-- **Publish** streaming-checksum + Cancel; on HITZ cancel stuck Remixes job and re-export
+- **Publish** chunked PCF/PBF zip flush; HITZ Cancel stuck job → re-export Remixes
 
 ### Shipped / published already
 
-**Last published:** **v0.8.39 build 443** (`v0.8.39-build-443`) — navigator, brand dim split, initial stale-job recovery.
+**Last published:** **v0.8.39 build 444** (`v0.8.39-build-444`) — streaming checksums + Cancel.
 
 ### Active fleet
 

@@ -370,8 +370,13 @@ function bandpromo_site_backup_job_liveness_utc(array $job): string
 /**
  * Persist progress / heartbeat while a job runs (throttled disk writes).
  */
-function bandpromo_site_backup_touch_job_progress(string $root, string $jobId, string $progress = '', bool $force = false): void
-{
+function bandpromo_site_backup_touch_job_progress(
+    string $root,
+    string $jobId,
+    string $progress = '',
+    bool $force = false,
+    ?int $sizeBytes = null
+): void {
     static $lastWrite = [];
 
     try {
@@ -398,6 +403,9 @@ function bandpromo_site_backup_touch_job_progress(string $root, string $jobId, s
     if ($progress !== '') {
         $job['progress'] = $progress;
     }
+    if ($sizeBytes !== null && $sizeBytes >= 0) {
+        $job['size_bytes'] = $sizeBytes;
+    }
     try {
         bandpromo_site_backup_write_job($root, $job);
         $lastWrite[$cacheKey] = $now;
@@ -423,13 +431,13 @@ function bandpromo_site_backup_throw_if_cancelled(string $root, string $jobId): 
 /**
  * Progress callback that heartbeats and honours Cancel.
  *
- * @return callable(string): void
+ * @return callable(string, ?int): void
  */
 function bandpromo_site_backup_job_progress_callback(string $root, string $jobId): callable
 {
-    return static function (string $message) use ($root, $jobId): void {
+    return static function (string $message, ?int $sizeBytes = null) use ($root, $jobId): void {
         bandpromo_site_backup_throw_if_cancelled($root, $jobId);
-        bandpromo_site_backup_touch_job_progress($root, $jobId, $message, true);
+        bandpromo_site_backup_touch_job_progress($root, $jobId, $message, true, $sizeBytes);
     };
 }
 
