@@ -30,6 +30,10 @@ const BANDPROMO_SITE_BACKUP_STAGING_TTL_SECONDS = 7200;
 
 /** Fail `building` jobs with no heartbeat for this long (dead PHP worker / host kill). */
 const BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS = 600;
+/** Soft wall for one continue slice — stay under typical shared-host request kills. */
+const BANDPROMO_SITE_BACKUP_SLICE_SECONDS = 15;
+/** Plan-backed sliced jobs may pause while the Backup tab is closed. */
+const BANDPROMO_SITE_BACKUP_STALE_PLAN_SECONDS = 21600;
 
 /**
  * @return list<string>
@@ -274,6 +278,88 @@ function bandpromo_site_backup_job_zip_path(string $root, string $jobId): string
     return bandpromo_site_backup_ensure_dir($root) . '/' . $jobId . '.zip';
 }
 
+function bandpromo_site_backup_job_plan_path(string $root, string $jobId): string
+{
+    $jobId = bandpromo_site_backup_sanitize_job_id($jobId);
+
+    return bandpromo_site_backup_ensure_dir($root) . '/' . $jobId . '.plan.json';
+}
+
+function bandpromo_site_backup_job_work_dir(string $root, string $jobId): string
+{
+    $jobId = bandpromo_site_backup_sanitize_job_id($jobId);
+
+    return bandpromo_site_backup_ensure_dir($root) . '/.work/' . $jobId;
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function bandpromo_site_backup_read_job_plan(string $root, string $jobId): ?array
+{
+    $path = bandpromo_site_backup_job_plan_path($root, $jobId);
+    if (!is_file($path)) {
+        return null;
+    }
+    $decoded = json_decode((string) file_get_contents($path), true);
+
+    return is_array($decoded) ? $decoded : null;
+}
+
+function bandpromo_site_backup_write_job_plan(string $root, string $jobId, array $plan): void
+{
+    require_once __DIR__ . '/json-file-helpers.php';
+    $path = bandpromo_site_backup_job_plan_path($root, $jobId);
+    if (!bandpromo_json_write_file($path, $plan)) {
+        throw new RuntimeException('Could not save export plan.');
+    }
+}
+
+function bandpromo_site_backup_delete_job_plan(string $root, string $jobId): void
+{
+    $path = bandpromo_site_backup_job_plan_path($root, $jobId);
+    if (is_file($path)) {
+        @unlink($path);
+    }
+}
+
+function bandpromo_site_backup_rrmdir(string $dir): void
+{
+    if ($dir === '' || !is_dir($dir)) {
+        return;
+    }
+    $items = scandir($dir);
+    if ($items === false) {
+        return;
+    }
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        $path = $dir . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($path) && !is_link($path)) {
+            bandpromo_site_backup_rrmdir($path);
+        } else {
+            @unlink($path);
+        }
+    }
+    @rmdir($dir);
+}
+
+function bandpromo_site_backup_cleanup_job_build_artifacts(string $root, string $jobId): void
+{
+    $plan = bandpromo_site_backup_read_job_plan($root, $jobId);
+    bandpromo_site_backup_delete_job_plan($root, $jobId);
+    $work = bandpromo_site_backup_job_work_dir($root, $jobId);
+    bandpromo_site_backup_rrmdir($work);
+    if (is_array($plan)) {
+        $workdir = trim((string) ($plan['workdir'] ?? ''));
+        if ($workdir !== '' && is_dir($workdir) && strpos($workdir, bandpromo_site_backup_ensure_dir($root)) === 0) {
+            bandpromo_site_backup_rrmdir($workdir);
+        }
+    }
+}
+
 function bandpromo_site_backup_read_job(string $root, string $jobId): ?array
 {
     $path = bandpromo_site_backup_job_meta_path($root, $jobId);
@@ -321,6 +407,7 @@ function bandpromo_site_backup_format_bytes(int $bytes): string
 function bandpromo_site_backup_list_jobs(string $root): array
 {
     bandpromo_site_backup_reap_stale_building_jobs($root);
+    bandpromo_site_backup_continue_building_jobs($root);
 
     $dir = bandpromo_site_backup_ensure_dir($root);
     $jobs = [];
@@ -330,7 +417,7 @@ function bandpromo_site_backup_list_jobs(string $root): array
     }
 
     foreach ($items as $item) {
-        if (!str_ends_with($item, '.json')) {
+        if (!str_ends_with($item, '.json') || str_ends_with($item, '.plan.json')) {
             continue;
         }
         $jobId = substr($item, 0, -5);
@@ -458,6 +545,7 @@ function bandpromo_site_backup_cancel_job(string $root, string $jobId): array
 
     $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
     $job['cancel_requested'] = true;
+    bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
     bandpromo_site_backup_mark_job_failed(
         $root,
         $job,
@@ -481,15 +569,11 @@ function bandpromo_site_backup_reap_stale_building_jobs(string $root): int
         return 0;
     }
 
-    $ttl = BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS;
     $now = time();
     $reaped = 0;
-    $message = 'This job stopped responding (no progress for '
-        . (int) round($ttl / 60)
-        . ' minutes). The host may have ended the worker. Delete it and queue the export again.';
 
     foreach ($items as $item) {
-        if (!str_ends_with($item, '.json')) {
+        if (!str_ends_with($item, '.json') || str_ends_with($item, '.plan.json')) {
             continue;
         }
         $jobId = substr($item, 0, -5);
@@ -505,6 +589,10 @@ function bandpromo_site_backup_reap_stale_building_jobs(string $root): int
             continue;
         }
 
+        $hasPlan = is_file(bandpromo_site_backup_job_plan_path($root, $jobId));
+        $ttl = $hasPlan
+            ? BANDPROMO_SITE_BACKUP_STALE_PLAN_SECONDS
+            : BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS;
         $liveness = bandpromo_site_backup_job_liveness_utc($job);
         $ref = $liveness !== '' ? strtotime($liveness) : false;
         if ($ref === false) {
@@ -514,7 +602,16 @@ function bandpromo_site_backup_reap_stale_building_jobs(string $root): int
             continue;
         }
 
+        $message = $hasPlan
+            ? 'This export paused too long without a continuer (Backup tab closed for '
+                . (int) round($ttl / 3600)
+                . ' hours). Delete it and queue again, or leave System → Backup open while large exports run.'
+            : 'This job stopped responding (no progress for '
+                . (int) round($ttl / 60)
+                . ' minutes). The host may have ended the worker. Delete it and queue the export again.';
+
         $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
+        bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $message);
         $reaped++;
     }
@@ -856,12 +953,33 @@ function bandpromo_site_backup_run_job(string $root, string $jobId): array
 
 function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
 {
-    require_once __DIR__ . '/campaign-package.php';
-    require_once __DIR__ . '/campaign-storage.php';
+    return bandpromo_site_backup_advance_package_job($root, $jobId, 'prp');
+}
+
+function bandpromo_site_backup_run_pbf_job(string $root, string $jobId): array
+{
+    return bandpromo_site_backup_advance_package_job($root, $jobId, 'pbf');
+}
+
+/**
+ * Advance one time-budgeted slice of a PCF/PBF export (shared-host safe).
+ */
+function bandpromo_site_backup_advance_package_job(string $root, string $jobId, string $kind): array
+{
+    if ($kind === 'prp') {
+        require_once __DIR__ . '/campaign-package.php';
+        require_once __DIR__ . '/campaign-storage.php';
+    } else {
+        require_once __DIR__ . '/brand-package.php';
+        require_once __DIR__ . '/brand-storage.php';
+    }
+    require_once __DIR__ . '/chunked-upload.php';
+    require_once __DIR__ . '/http-stream.php';
+    require_once __DIR__ . '/json-file-helpers.php';
 
     $job = bandpromo_site_backup_read_job($root, $jobId);
     if ($job === null) {
-        throw new RuntimeException('PCF export job was not found.');
+        throw new RuntimeException('Export job was not found.');
     }
 
     $status = (string) ($job['status'] ?? '');
@@ -872,82 +990,247 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
     @set_time_limit(0);
     ignore_user_abort(true);
 
-    $releaseId = bandpromo_campaign_normalize_id((string) ($job['release_id'] ?? ''));
     $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
+    $progress = bandpromo_site_backup_job_progress_callback($root, $jobId);
+    $deadline = microtime(true) + BANDPROMO_SITE_BACKUP_SLICE_SECONDS;
 
-    $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
-    $job['started_at_utc'] = gmdate('c');
-    $job['heartbeat_at_utc'] = $job['started_at_utc'];
-    $job['progress'] = 'Starting Portable Campaign File export…';
-    $job['error'] = '';
-    bandpromo_site_backup_write_job($root, $job);
+    if ($status === BANDPROMO_SITE_BACKUP_JOB_PENDING || trim((string) ($job['started_at_utc'] ?? '')) === '') {
+        $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
+        $job['started_at_utc'] = gmdate('c');
+        $job['heartbeat_at_utc'] = $job['started_at_utc'];
+        $job['progress'] = $kind === 'prp'
+            ? 'Starting Portable Campaign File export…'
+            : 'Starting Portable Brand File export…';
+        $job['error'] = '';
+        bandpromo_site_backup_write_job($root, $job);
+    }
 
     try {
-        if ($releaseId === '') {
-            throw new RuntimeException('PCF export job is missing release_id.');
-        }
-        $jobIdForProgress = $jobId;
-        bandpromo_campaign_export_to_zip(
-            $root,
-            $releaseId,
-            $zipPath,
-            bandpromo_site_backup_job_progress_callback($root, $jobIdForProgress)
-        );
         bandpromo_site_backup_throw_if_cancelled($root, $jobId);
-        bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
+        $plan = bandpromo_site_backup_read_job_plan($root, $jobId);
+        if ($plan === null) {
+            $workdir = bandpromo_site_backup_job_work_dir($root, $jobId);
+            if ($kind === 'prp') {
+                $releaseId = bandpromo_campaign_normalize_id((string) ($job['release_id'] ?? ''));
+                if ($releaseId === '') {
+                    throw new RuntimeException('PCF export job is missing release_id.');
+                }
+                $prepared = bandpromo_campaign_export_prepare($root, $releaseId, $workdir, $progress);
+                $paths = $prepared['paths'];
+                $plan = [
+                    'version' => 1,
+                    'kind' => 'prp',
+                    'phase' => 'checksum',
+                    'workdir' => $workdir,
+                    'release_id' => $releaseId,
+                    'title' => (string) ($prepared['title'] ?? $releaseId),
+                    'platform_demo' => !empty($prepared['platform_demo']),
+                    'asset_ids' => $prepared['asset_ids'],
+                    'paths' => $paths,
+                    'path_order' => array_keys($paths),
+                    'digests' => [],
+                    'checksum_index' => 0,
+                    'pack_index' => 0,
+                    'pack_order' => [],
+                    'pack_map' => [],
+                    'manifest_name' => 'release-package-manifest.json',
+                ];
+            } else {
+                $brandId = bandpromo_brand_canonical_id((string) ($job['brand_id'] ?? ''));
+                if ($brandId === '') {
+                    throw new RuntimeException('PBF export job is missing brand_id.');
+                }
+                $prepared = bandpromo_brand_export_prepare($root, $brandId, $workdir, $progress);
+                $paths = $prepared['paths'];
+                $plan = [
+                    'version' => 1,
+                    'kind' => 'pbf',
+                    'phase' => 'checksum',
+                    'workdir' => $workdir,
+                    'brand_id' => $brandId,
+                    'title' => (string) ($prepared['title'] ?? $brandId),
+                    'asset_ids' => $prepared['asset_ids'],
+                    'paths' => $paths,
+                    'path_order' => array_keys($paths),
+                    'digests' => [],
+                    'checksum_index' => 0,
+                    'pack_index' => 0,
+                    'pack_order' => [],
+                    'pack_map' => [],
+                    'manifest_name' => 'brand-package-manifest.json',
+                ];
+            }
+            bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+            $progress('Checksum starting…');
+        }
+
+        $phase = (string) ($plan['phase'] ?? 'checksum');
+        if ($phase === 'checksum') {
+            $pathOrder = array_values((array) ($plan['path_order'] ?? []));
+            $paths = (array) ($plan['paths'] ?? []);
+            $digests = is_array($plan['digests'] ?? null) ? $plan['digests'] : [];
+            $checksumIndex = (int) ($plan['checksum_index'] ?? 0);
+            $done = bandpromo_transfer_file_digests_slice(
+                $pathOrder,
+                $paths,
+                $digests,
+                $checksumIndex,
+                $deadline,
+                $progress
+            );
+            $plan['digests'] = $digests;
+            $plan['checksum_index'] = $checksumIndex;
+            if (!$done) {
+                bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+
+                return bandpromo_site_backup_normalize_job($root, bandpromo_site_backup_read_job($root, $jobId) ?? $job);
+            }
+
+            $workdir = (string) ($plan['workdir'] ?? bandpromo_site_backup_job_work_dir($root, $jobId));
+            $manifestName = (string) ($plan['manifest_name'] ?? 'release-package-manifest.json');
+            if (($plan['kind'] ?? '') === 'pbf') {
+                $manifest = [
+                    'brand_export_version' => BANDPROMO_BRAND_EXPORT_VERSION,
+                    'format' => 'pbf',
+                    'brand_id' => (string) ($plan['brand_id'] ?? ''),
+                    'title' => (string) ($plan['title'] ?? ''),
+                    'exported_at' => gmdate('c'),
+                    'bandpromo_version' => bandpromo_campaign_bandpromo_version($root),
+                    'asset_ids' => array_values((array) ($plan['asset_ids'] ?? [])),
+                    'paths' => array_keys($paths),
+                    'file_digests' => $digests,
+                ];
+            } else {
+                $manifest = [
+                    'release_export_version' => BANDPROMO_CAMPAIGN_EXPORT_VERSION,
+                    'format' => 'pcf',
+                    'release_id' => (string) ($plan['release_id'] ?? ''),
+                    'title' => (string) ($plan['title'] ?? ''),
+                    'platform_demo' => !empty($plan['platform_demo']),
+                    'bandpromo_version' => bandpromo_campaign_bandpromo_version($root),
+                    'paths' => array_keys($paths),
+                    'file_digests' => $digests,
+                    'asset_ids' => array_values((array) ($plan['asset_ids'] ?? [])),
+                    'exported_at' => gmdate('c'),
+                ];
+            }
+            $manifestPath = $workdir . DIRECTORY_SEPARATOR . $manifestName;
+            if (!bandpromo_json_write_file($manifestPath, $manifest)) {
+                throw new RuntimeException('Could not write package manifest.');
+            }
+            $packMap = array_merge([$manifestName => $manifestPath], $paths);
+            $plan['phase'] = 'pack';
+            $plan['pack_map'] = $packMap;
+            $plan['pack_order'] = array_keys($packMap);
+            $plan['pack_index'] = 0;
+            $plan['manifest_path'] = $manifestPath;
+            bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+            $progress('Writing archive…');
+            $phase = 'pack';
+        }
+
+        if ($phase === 'pack') {
+            if (microtime(true) >= $deadline) {
+                bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+
+                return bandpromo_site_backup_normalize_job($root, bandpromo_site_backup_read_job($root, $jobId) ?? $job);
+            }
+            $packOrder = array_values((array) ($plan['pack_order'] ?? []));
+            $packMap = (array) ($plan['pack_map'] ?? []);
+            $packIndex = (int) ($plan['pack_index'] ?? 0);
+            $done = bandpromo_transfer_zip_pack_entries_slice(
+                $zipPath,
+                $packOrder,
+                $packMap,
+                $packIndex,
+                $deadline,
+                $progress,
+                'Archiving'
+            );
+            $plan['pack_index'] = $packIndex;
+            if (!$done) {
+                bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+
+                return bandpromo_site_backup_normalize_job($root, bandpromo_site_backup_read_job($root, $jobId) ?? $job);
+            }
+
+            bandpromo_site_backup_throw_if_cancelled($root, $jobId);
+            $fresh = bandpromo_site_backup_read_job($root, $jobId);
+            if (!is_array($fresh)) {
+                throw new RuntimeException('Export job was removed while finishing.');
+            }
+            bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
+            bandpromo_site_backup_mark_job_ready($root, $fresh, $zipPath);
+            $job = $fresh;
+        }
     } catch (Throwable $e) {
+        $fresh = bandpromo_site_backup_read_job($root, $jobId);
+        if (is_array($fresh)) {
+            $job = $fresh;
+        }
+        bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
     }
 
     return bandpromo_site_backup_normalize_job($root, $job);
 }
 
-function bandpromo_site_backup_run_pbf_job(string $root, string $jobId): array
+/**
+ * Continue sliced PCF/PBF builds from Jobs polling (one slice each).
+ */
+function bandpromo_site_backup_continue_building_jobs(string $root): void
 {
-    require_once __DIR__ . '/brand-package.php';
-    require_once __DIR__ . '/brand-storage.php';
-
-    $job = bandpromo_site_backup_read_job($root, $jobId);
-    if ($job === null) {
-        throw new RuntimeException('PBF export job was not found.');
+    $dir = bandpromo_site_backup_ensure_dir($root);
+    $items = scandir($dir);
+    if ($items === false) {
+        return;
     }
 
-    $status = (string) ($job['status'] ?? '');
-    if (!in_array($status, [BANDPROMO_SITE_BACKUP_JOB_PENDING, BANDPROMO_SITE_BACKUP_JOB_BUILDING], true)) {
-        return bandpromo_site_backup_normalize_job($root, $job);
-    }
-
-    @set_time_limit(0);
-    ignore_user_abort(true);
-
-    $brandId = bandpromo_brand_canonical_id((string) ($job['brand_id'] ?? ''));
-    $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
-
-    $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
-    $job['started_at_utc'] = gmdate('c');
-    $job['heartbeat_at_utc'] = $job['started_at_utc'];
-    $job['progress'] = 'Starting Portable Brand File export…';
-    $job['error'] = '';
-    bandpromo_site_backup_write_job($root, $job);
-
-    try {
-        if ($brandId === '') {
-            throw new RuntimeException('PBF export job is missing brand_id.');
+    foreach ($items as $item) {
+        if (!str_ends_with($item, '.json') || str_ends_with($item, '.plan.json')) {
+            continue;
         }
-        $jobIdForProgress = $jobId;
-        bandpromo_brand_export_to_zip(
-            $root,
-            $brandId,
-            $zipPath,
-            bandpromo_site_backup_job_progress_callback($root, $jobIdForProgress)
-        );
-        bandpromo_site_backup_throw_if_cancelled($root, $jobId);
-        bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
-    } catch (Throwable $e) {
-        bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
-    }
+        $jobId = substr($item, 0, -5);
+        try {
+            $job = bandpromo_site_backup_read_job($root, $jobId);
+        } catch (InvalidArgumentException $e) {
+            continue;
+        }
+        if ($job === null) {
+            continue;
+        }
+        $status = (string) ($job['status'] ?? '');
+        if (!in_array($status, [BANDPROMO_SITE_BACKUP_JOB_PENDING, BANDPROMO_SITE_BACKUP_JOB_BUILDING], true)) {
+            continue;
+        }
+        if (!bandpromo_site_backup_is_prp_job($job) && !bandpromo_site_backup_is_pbf_job($job)) {
+            continue;
+        }
 
-    return bandpromo_site_backup_normalize_job($root, $job);
+        $lock = bandpromo_site_backup_acquire_build_lock($root);
+        if ($lock === false) {
+            return;
+        }
+        try {
+            // Re-read under lock — another slice may have finished it.
+            $job = bandpromo_site_backup_read_job($root, $jobId);
+            if ($job === null) {
+                continue;
+            }
+            $status = (string) ($job['status'] ?? '');
+            if (!in_array($status, [BANDPROMO_SITE_BACKUP_JOB_PENDING, BANDPROMO_SITE_BACKUP_JOB_BUILDING], true)) {
+                continue;
+            }
+            bandpromo_site_backup_run_job($root, $jobId);
+        } catch (Throwable $e) {
+            // Leave job building/failed as run_job recorded; keep polling other jobs.
+        } finally {
+            bandpromo_site_backup_campaign_build_lock($lock);
+        }
+
+        // One slice per poll keeps list-site-backups under shared-host limits.
+        return;
+    }
 }
 
 function bandpromo_site_backup_delete_job(string $root, string $jobId): void
@@ -957,6 +1240,7 @@ function bandpromo_site_backup_delete_job(string $root, string $jobId): void
     $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
     $uploadPath = bandpromo_site_backup_job_upload_path($root, $jobId);
 
+    bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
     if (is_file($uploadPath)) {
         @unlink($uploadPath);
     }

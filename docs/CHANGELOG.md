@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-09 14:25 - PCF/PBF exports are sliced (~15s) and resumed on each Backup Jobs poll so limited shared hosts can finish multi-hundred-MB campaigns without raising PHP/FPM timeouts. Leave System → Backup open while large exports run.
+
 2026-09-09 14:10 - PCF/PBF export: flush ZipArchive in chunks while packing (store already-compressed media) so Jobs no longer hang at Closing… with 0 B; size and progress update as the archive grows on disk.
 
 2026-09-09 14:00 - Backup Jobs: streaming checksums with byte progress (no silent hang on one large file); Cancel for building/queued jobs; stale `building` TTL shortened to 10 minutes now that heartbeats continue mid-file.

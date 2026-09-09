@@ -791,19 +791,22 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
 }
 
 /**
- * Build a release campaign ZIP (masters + campaign docs + registry subset; no originals/delivery).
+ * Collect Portable Campaign File paths and write the registry subset (no checksum/zip yet).
  *
- * @param callable|null $onProgress optional string progress message callback
- * @return array{ok: bool, path: string, release_id: string, files: int, asset_ids: list<string>}
+ * @param callable|null $onProgress
+ * @return array{
+ *   release_id: string,
+ *   title: string,
+ *   asset_ids: list<string>,
+ *   paths: array<string, string>,
+ *   workdir: string,
+ *   platform_demo: bool
+ * }
  */
-function bandpromo_campaign_export_to_zip(string $root, string $releaseId, string $zipPath, $onProgress = null): array
+function bandpromo_campaign_export_prepare(string $root, string $releaseId, string $workdir, $onProgress = null): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
-
-    if (!class_exists('ZipArchive')) {
-        throw new RuntimeException('This host cannot export campaign files.');
-    }
 
     if (is_callable($onProgress)) {
         $onProgress('Collecting campaign files…');
@@ -913,7 +916,6 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
                 $addPath('media/audio/master/' . $master);
             }
         } elseif ($kind === 'visual') {
-            // Masters only — originals stay on the source host (recovery tier).
             $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
             $masterName = basename((string) ($asset['master_filename'] ?? ''));
             if ($format !== '') {
@@ -922,7 +924,6 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
                 $addPath('media/visual/master/' . $masterName);
             }
         } elseif ($kind === 'sfx') {
-            // Masters only — never pack sfx/original. Refuse the row when master is missing.
             $master = basename((string) ($asset['master_filename'] ?? ''));
             $masterReady = $master !== ''
                 && bandpromo_asset_is_asset_id((string) pathinfo($master, PATHINFO_FILENAME))
@@ -953,7 +954,6 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
         }
     }
 
-    $workdir = $root . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . '.bandpromo-release-export-' . $releaseId;
     if (!is_dir($workdir) && !mkdir($workdir, 0750, true) && !is_dir($workdir)) {
         throw new RuntimeException('Could not create export work directory.');
     }
@@ -967,6 +967,34 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
     }
     $paths['data/assets/registry.json'] = $subsetPath;
 
+    return [
+        'release_id' => $releaseId,
+        'title' => (string) ($release['title'] ?? $releaseId),
+        'asset_ids' => $assetIds,
+        'paths' => $paths,
+        'workdir' => $workdir,
+        'platform_demo' => $releaseId === BANDPROMO_RELEASE_DEMO_ID,
+    ];
+}
+
+/**
+ * Build a release campaign ZIP (masters + campaign docs + registry subset; no originals/delivery).
+ *
+ * @param callable|null $onProgress optional string progress message callback
+ * @return array{ok: bool, path: string, release_id: string, files: int, asset_ids: list<string>}
+ */
+function bandpromo_campaign_export_to_zip(string $root, string $releaseId, string $zipPath, $onProgress = null): array
+{
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('This host cannot export campaign files.');
+    }
+
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
+    $workdir = $root . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . '.bandpromo-release-export-' . $releaseId;
+    $prepared = bandpromo_campaign_export_prepare($root, $releaseId, $workdir, $onProgress);
+    $paths = $prepared['paths'];
+    $assetIds = $prepared['asset_ids'];
+
     require_once __DIR__ . '/chunked-upload.php';
     $fileDigests = bandpromo_transfer_file_digests($paths, $onProgress);
 
@@ -974,8 +1002,8 @@ function bandpromo_campaign_export_to_zip(string $root, string $releaseId, strin
         'release_export_version' => BANDPROMO_CAMPAIGN_EXPORT_VERSION,
         'format' => 'pcf',
         'release_id' => $releaseId,
-        'title' => (string) ($release['title'] ?? $releaseId),
-        'platform_demo' => $releaseId === BANDPROMO_RELEASE_DEMO_ID,
+        'title' => (string) ($prepared['title'] ?? $releaseId),
+        'platform_demo' => !empty($prepared['platform_demo']),
         'bandpromo_version' => bandpromo_campaign_bandpromo_version($root),
         'paths' => array_keys($paths),
         'file_digests' => $fileDigests,

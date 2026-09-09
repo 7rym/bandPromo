@@ -151,19 +151,21 @@ function bandpromo_brand_collect_package_asset_ids(string $root, string $brandId
 }
 
 /**
- * Build a Portable Brand File (masters + brand doc + registry subset).
+ * Collect Portable Brand File paths and write the registry subset (no checksum/zip yet).
  *
- * @param callable|null $onProgress optional string progress message callback
- * @return array{ok: bool, path: string, brand_id: string, files: int, asset_ids: list<string>}
+ * @param callable|null $onProgress
+ * @return array{
+ *   brand_id: string,
+ *   title: string,
+ *   asset_ids: list<string>,
+ *   paths: array<string, string>,
+ *   workdir: string
+ * }
  */
-function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zipPath, $onProgress = null): array
+function bandpromo_brand_export_prepare(string $root, string $brandId, string $workdir, $onProgress = null): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
-
-    if (!class_exists('ZipArchive')) {
-        throw new RuntimeException('This host cannot export brand files.');
-    }
 
     if (is_callable($onProgress)) {
         $onProgress('Collecting brand files…');
@@ -247,8 +249,6 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
         }
     }
 
-    $workdir = $root . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR
-        . '.bandpromo-brand-export-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', $brandId);
     if (!is_dir($workdir) && !mkdir($workdir, 0750, true) && !is_dir($workdir)) {
         throw new RuntimeException('Could not create brand export work directory.');
     }
@@ -262,6 +262,35 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
     }
     $paths['data/assets/registry.json'] = $subsetPath;
 
+    return [
+        'brand_id' => $brandId,
+        'title' => $title,
+        'asset_ids' => array_keys($subsetAssets),
+        'paths' => $paths,
+        'workdir' => $workdir,
+    ];
+}
+
+/**
+ * Build a Portable Brand File (masters + brand doc + registry subset).
+ *
+ * @param callable|null $onProgress optional string progress message callback
+ * @return array{ok: bool, path: string, brand_id: string, files: int, asset_ids: list<string>}
+ */
+function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zipPath, $onProgress = null): array
+{
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('This host cannot export brand files.');
+    }
+
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    $workdir = $root . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR
+        . '.bandpromo-brand-export-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', $brandId);
+    $prepared = bandpromo_brand_export_prepare($root, $brandId, $workdir, $onProgress);
+    $paths = $prepared['paths'];
+    $assetIds = $prepared['asset_ids'];
+    $title = (string) ($prepared['title'] ?? $brandId);
+
     require_once __DIR__ . '/chunked-upload.php';
     $fileDigests = bandpromo_transfer_file_digests($paths, $onProgress);
 
@@ -272,7 +301,7 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
         'title' => $title,
         'exported_at' => gmdate('c'),
         'bandpromo_version' => bandpromo_campaign_bandpromo_version($root),
-        'asset_ids' => array_keys($subsetAssets),
+        'asset_ids' => $assetIds,
         'paths' => array_keys($paths),
         'file_digests' => $fileDigests,
     ];
@@ -296,7 +325,7 @@ function bandpromo_brand_export_to_zip(string $root, string $brandId, string $zi
         'path' => $zipPath,
         'brand_id' => $brandId,
         'files' => count($paths) + 1,
-        'asset_ids' => array_keys($subsetAssets),
+        'asset_ids' => $assetIds,
     ];
 }
 

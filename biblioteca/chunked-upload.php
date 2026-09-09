@@ -293,12 +293,44 @@ function bandpromo_transfer_file_digests(array $paths, $onProgress = null): arra
     require_once __DIR__ . '/http-stream.php';
 
     $digests = [];
-    $total = count($paths);
+    $pathOrder = array_keys($paths);
     $index = 0;
-    foreach ($paths as $relative => $absolute) {
+    $deadline = microtime(true) + 86400;
+    bandpromo_transfer_file_digests_slice($pathOrder, $paths, $digests, $index, $deadline, $onProgress);
+
+    return $digests;
+}
+
+/**
+ * Checksum a time-budgeted slice of paths (shared-host safe).
+ *
+ * @param list<string> $pathOrder
+ * @param array<string, string> $paths
+ * @param array<string, array{sha256: string, size: int}> $digests
+ * @return bool true when all paths are done
+ */
+function bandpromo_transfer_file_digests_slice(
+    array $pathOrder,
+    array $paths,
+    array &$digests,
+    int &$index,
+    float $deadline,
+    $onProgress = null
+): bool {
+    require_once __DIR__ . '/http-stream.php';
+
+    $total = count($pathOrder);
+    while ($index < $total) {
+        if (microtime(true) >= $deadline) {
+            return false;
+        }
+        $relative = str_replace('\\', '/', (string) $pathOrder[$index]);
+        $absolute = (string) ($paths[$relative] ?? '');
         $index++;
-        $relative = str_replace('\\', '/', (string) $relative);
-        if ($relative === '' || !is_file($absolute)) {
+        if ($relative === '' || $absolute === '' || !is_file($absolute)) {
+            continue;
+        }
+        if (isset($digests[$relative]['sha256']) && (string) $digests[$relative]['sha256'] !== '') {
             continue;
         }
         $baseName = basename($relative);
@@ -308,9 +340,12 @@ function bandpromo_transfer_file_digests(array $paths, $onProgress = null): arra
         }
         $sha = bandpromo_transfer_sha256_file_with_progress(
             $absolute,
-            static function (int $bytesRead, int $totalBytes) use ($onProgress, $prefix, $baseName): void {
+            static function (int $bytesRead, int $totalBytes) use ($onProgress, $prefix, $baseName, $deadline): void {
                 if (!is_callable($onProgress) || $totalBytes <= 0) {
                     return;
+                }
+                if (microtime(true) >= $deadline) {
+                    // Keep hashing this file; progress only.
                 }
                 $onProgress(
                     $prefix
@@ -332,7 +367,7 @@ function bandpromo_transfer_file_digests(array $paths, $onProgress = null): arra
         ];
     }
 
-    return $digests;
+    return true;
 }
 
 /**

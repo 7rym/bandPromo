@@ -12977,9 +12977,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     if (jobsNeedPolling(jobs)) {
                         if (!backupPollTimer) {
+                            // Keep the Backup tab open: each poll continues a short export slice on limited hosts.
                             backupPollTimer = window.setInterval(() => {
                                 refreshBackupJobs().catch(() => {});
-                            }, 3000);
+                            }, 2500);
                         }
                         return;
                     }

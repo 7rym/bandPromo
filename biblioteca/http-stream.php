@@ -177,6 +177,144 @@ function bandpromo_transfer_zip_pack_entries(
 }
 
 /**
+ * Pack a time-budgeted slice of zip entries (flush after each file for crash resume).
+ *
+ * @param list<string> $entryOrder
+ * @param array<string, string> $entries relative => absolute
+ * @return bool true when packing is complete
+ */
+function bandpromo_transfer_zip_pack_entries_slice(
+    string $zipPath,
+    array $entryOrder,
+    array $entries,
+    int &$index,
+    float $deadline,
+    $onProgress = null,
+    string $verb = 'Archiving'
+): bool {
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('ZipArchive is not available on this host.');
+    }
+    if ($zipPath === '') {
+        throw new InvalidArgumentException('Archive path is required.');
+    }
+
+    $total = count($entryOrder);
+    if ($total === 0) {
+        throw new RuntimeException('Archive has no files to pack.');
+    }
+
+    if ($index <= 0) {
+        $index = 0;
+        if (is_file($zipPath)) {
+            @unlink($zipPath);
+        }
+    }
+
+    $zip = new ZipArchive();
+    if ($index === 0) {
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException('Could not create the archive.');
+        }
+    } else {
+        if (!is_file($zipPath) || $zip->open($zipPath) !== true) {
+            // Partial archive lost after a host kill — restart packing.
+            if (is_file($zipPath)) {
+                @unlink($zipPath);
+            }
+            $index = 0;
+            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new RuntimeException('Could not recreate the archive after a host interrupt.');
+            }
+            if (is_callable($onProgress)) {
+                $onProgress('Archive interrupted — restarting pack…', 0);
+            }
+        } else {
+            // Resync if a kill dropped the last incomplete entry.
+            $numFiles = (int) $zip->numFiles;
+            if ($numFiles < $index) {
+                $index = $numFiles;
+            }
+        }
+    }
+
+    try {
+        while ($index < $total) {
+            if (microtime(true) >= $deadline && $index > 0) {
+                if ($zip->close() !== true) {
+                    throw new RuntimeException('Could not pause archive write.');
+                }
+                if (is_callable($onProgress) && is_file($zipPath)) {
+                    $onProgress(
+                        $verb . ' paused · ' . bandpromo_transfer_format_bytes((int) filesize($zipPath)),
+                        (int) filesize($zipPath)
+                    );
+                }
+
+                return false;
+            }
+
+            $relative = str_replace('\\', '/', (string) $entryOrder[$index]);
+            $absolute = (string) ($entries[$relative] ?? '');
+            if ($relative === '' || $absolute === '' || !is_file($absolute)) {
+                $index++;
+                continue;
+            }
+
+            $displayIndex = $index + 1;
+            if (is_callable($onProgress)) {
+                $onProgress(
+                    $verb . ' ' . $displayIndex . '/' . $total . ': ' . basename($relative),
+                    is_file($zipPath) ? (int) filesize($zipPath) : null
+                );
+            }
+            if (!$zip->addFile($absolute, $relative)) {
+                throw new RuntimeException('Could not add file to archive: ' . $relative);
+            }
+            if (bandpromo_transfer_zip_prefer_store($relative) && method_exists($zip, 'setCompressionName')) {
+                @$zip->setCompressionName($relative, ZipArchive::CM_STORE);
+            }
+            // Flush every entry so a host kill loses at most one file.
+            if ($zip->close() !== true) {
+                throw new RuntimeException('Could not write archive entry to disk: ' . $relative);
+            }
+            $index++;
+            if (is_callable($onProgress) && is_file($zipPath)) {
+                $onProgress(
+                    $verb . ' ' . $index . '/' . $total . ' on disk · '
+                    . bandpromo_transfer_format_bytes((int) filesize($zipPath)),
+                    (int) filesize($zipPath)
+                );
+            }
+            if ($index >= $total) {
+                break;
+            }
+            if ($zip->open($zipPath) !== true) {
+                throw new RuntimeException('Could not reopen archive for the next file.');
+            }
+        }
+    } catch (Throwable $e) {
+        @$zip->close();
+        throw $e;
+    }
+
+    if (!is_file($zipPath) || filesize($zipPath) === 0) {
+        if (is_file($zipPath)) {
+            @unlink($zipPath);
+        }
+        throw new RuntimeException('Archive was empty after packing.');
+    }
+    if (is_callable($onProgress)) {
+        $onProgress(
+            'Archive ready · ' . bandpromo_transfer_format_bytes((int) filesize($zipPath)),
+            (int) filesize($zipPath)
+        );
+    }
+
+    return true;
+}
+
+/**
  * SHA-256 with optional byte progress (keeps long hashes alive for Jobs heartbeats).
  *
  * @param callable|null $onBytes function(int $bytesRead, int $totalBytes): void

@@ -244,7 +244,7 @@ Presets: all four = full site backup; platform + data = legacy data export tier.
 | Export PBF (`.pbf`) | Admin → System → Backup | Portable Brand File | **Shipped** |
 | Import PBF | Admin → System → Backup | New or refreshed brand | **Shipped** |
 
-**Job liveness:** export workers stream checksums with byte progress and heartbeats (including mid-file). PCF/PBF packing flushes the archive in chunks (size grows in Jobs; no silent hang on final `close()`). Operators can **Cancel** a queued/building job. Jobs stuck in `building` with no heartbeat for **10 minutes** are auto-marked **Failed** on list/delete so orphans can be removed and re-queued.
+**Job liveness:** large PCF/PBF exports run in **~15s slices** resumed by Backup Jobs polling (shared-host safe — no host timeout changes required). Checksums and packing persist to a plan file between kills. Leave **System → Backup** open until Ready. Operators can **Cancel**. Plan-backed jobs tolerate pauses up to **6 hours**; jobs without a plan still auto-fail after **10 minutes** without heartbeat.
 
 Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
 
