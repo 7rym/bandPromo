@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-09 15:15 - Fix PCF/PBF “restart after finish”: marking Ready no longer SHA-256s multi-GB archives (or Jobs list), and Ready is committed before plan cleanup — a host kill mid-hash no longer wipes the plan and restarts checksum+pack.
+
+2026-09-09 15:10 - PCF/PBF packing orders entries **smallest-first** and batches small-file flushes so tiny JSON/JPG are not appended one-by-one onto a multi-GB archive (that made each add slower). Mid-flight plans re-order remaining files once.
+
 2026-09-09 14:35 - Fix Backup Jobs empty after queue: list jobs before any export slice (nested continue/status was killing list responses on limited hosts); show queued job immediately; continue packing after the JSON response.
 
 2026-09-09 14:25 - PCF/PBF exports are sliced (~15s) and resumed on each Backup Jobs poll so limited shared hosts can finish multi-hundred-MB campaigns without raising PHP/FPM timeouts. Leave System → Backup open while large exports run.

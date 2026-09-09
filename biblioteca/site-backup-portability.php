@@ -663,16 +663,8 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
 
     $downloadPath = $direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT ? $uploadPath : $zipPath;
     $sha256 = strtolower(trim((string) ($job['sha256'] ?? '')));
-    if (
-        $sha256 === ''
-        && $direction === BANDPROMO_SITE_BACKUP_DIRECTION_EXPORT
-        && $status === BANDPROMO_SITE_BACKUP_JOB_READY
-        && $downloadPath !== ''
-        && is_file($downloadPath)
-    ) {
-        require_once __DIR__ . '/http-stream.php';
-        $sha256 = bandpromo_transfer_sha256_file($downloadPath);
-    }
+    // Never hash multi-GB archives during Jobs list — that blocked/killed polls and
+    // looked like a restart after packing finished.
 
     return [
         'id' => $jobId,
@@ -1064,6 +1056,23 @@ function bandpromo_site_backup_advance_package_job(string $root, string $jobId, 
         }
 
         $phase = (string) ($plan['phase'] ?? 'checksum');
+        if ($phase === 'finalize') {
+            $fresh = bandpromo_site_backup_read_job($root, $jobId);
+            if (!is_array($fresh)) {
+                throw new RuntimeException('Export job was removed while finishing.');
+            }
+            if (is_file($zipPath) && filesize($zipPath) > 0) {
+                bandpromo_site_backup_mark_job_ready($root, $fresh, $zipPath);
+                bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
+
+                return bandpromo_site_backup_normalize_job($root, $fresh);
+            }
+            $plan['phase'] = 'pack';
+            $plan['pack_index'] = 0;
+            bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+            $phase = 'pack';
+        }
+
         if ($phase === 'checksum') {
             $pathOrder = array_values((array) ($plan['path_order'] ?? []));
             $paths = (array) ($plan['paths'] ?? []);
@@ -1120,11 +1129,13 @@ function bandpromo_site_backup_advance_package_job(string $root, string $jobId, 
             $packMap = array_merge([$manifestName => $manifestPath], $paths);
             $plan['phase'] = 'pack';
             $plan['pack_map'] = $packMap;
-            $plan['pack_order'] = array_keys($packMap);
+            // Smallest files first — avoids appending tiny JPG/JSON onto a multi-GB zip one-by-one.
+            $plan['pack_order'] = bandpromo_transfer_zip_entry_order_by_size_asc($packMap);
             $plan['pack_index'] = 0;
+            $plan['pack_sorted_by_size'] = true;
             $plan['manifest_path'] = $manifestPath;
             bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
-            $progress('Writing archive…');
+            $progress('Writing archive (smallest files first)…');
             $phase = 'pack';
         }
 
@@ -1134,9 +1145,30 @@ function bandpromo_site_backup_advance_package_job(string $root, string $jobId, 
 
                 return bandpromo_site_backup_normalize_job($root, bandpromo_site_backup_read_job($root, $jobId) ?? $job);
             }
-            $packOrder = array_values((array) ($plan['pack_order'] ?? []));
             $packMap = (array) ($plan['pack_map'] ?? []);
+            $packOrder = array_values((array) ($plan['pack_order'] ?? []));
             $packIndex = (int) ($plan['pack_index'] ?? 0);
+            // Mid-flight plans from older builds: re-order only the remaining files.
+            if (empty($plan['pack_sorted_by_size']) && $packMap !== []) {
+                $doneRels = array_slice($packOrder, 0, max(0, $packIndex));
+                $remainingMap = [];
+                foreach (array_slice($packOrder, max(0, $packIndex)) as $rel) {
+                    $rel = str_replace('\\', '/', (string) $rel);
+                    if ($rel !== '' && isset($packMap[$rel])) {
+                        $remainingMap[$rel] = $packMap[$rel];
+                    }
+                }
+                foreach ($packMap as $rel => $abs) {
+                    if (!isset($remainingMap[$rel]) && !in_array($rel, $doneRels, true)) {
+                        $remainingMap[$rel] = $abs;
+                    }
+                }
+                $packOrder = array_merge($doneRels, bandpromo_transfer_zip_entry_order_by_size_asc($remainingMap));
+                $plan['pack_order'] = $packOrder;
+                $plan['pack_sorted_by_size'] = true;
+                bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+                $progress('Re-ordered remaining files (smallest first)…');
+            }
             $done = bandpromo_transfer_zip_pack_entries_slice(
                 $zipPath,
                 $packOrder,
@@ -1158,8 +1190,12 @@ function bandpromo_site_backup_advance_package_job(string $root, string $jobId, 
             if (!is_array($fresh)) {
                 throw new RuntimeException('Export job was removed while finishing.');
             }
-            bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
+            // Mark Ready before cleanup/hash so a host kill cannot restart checksum+pack.
+            $plan['phase'] = 'finalize';
+            bandpromo_site_backup_write_job_plan($root, $jobId, $plan);
+            $progress('Archive packed — marking Ready…');
             bandpromo_site_backup_mark_job_ready($root, $fresh, $zipPath);
+            bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
             $job = $fresh;
         }
     } catch (Throwable $e) {
@@ -1607,15 +1643,34 @@ function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string 
         }
     }
 
+    $sizeBytes = is_file($zipPath) ? (int) filesize($zipPath) : 0;
+
+    // Commit Ready immediately. Hashing a multi-GB PCF after pack used to run for
+    // minutes; host kill left status=building with no plan → full export restart.
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
     $job['completed_at_utc'] = gmdate('c');
     $job['heartbeat_at_utc'] = $job['completed_at_utc'];
     $job['progress'] = '';
     $job['cancel_requested'] = false;
-    $job['size_bytes'] = is_file($zipPath) ? (int) filesize($zipPath) : 0;
-    $job['sha256'] = is_file($zipPath) ? bandpromo_transfer_sha256_file($zipPath) : '';
+    $job['size_bytes'] = $sizeBytes;
+    $job['sha256'] = '';
     $job['error'] = '';
     bandpromo_site_backup_write_job($root, $job);
+
+    // Best-effort digest only for modest archives (download still works without it).
+    $maxInlineShaBytes = 64 * 1024 * 1024;
+    if ($sizeBytes > 0 && $sizeBytes <= $maxInlineShaBytes && is_file($zipPath)) {
+        $sha = bandpromo_transfer_sha256_file($zipPath);
+        if ($sha !== '') {
+            $job['sha256'] = $sha;
+            $job['heartbeat_at_utc'] = gmdate('c');
+            try {
+                bandpromo_site_backup_write_job($root, $job);
+            } catch (Throwable $e) {
+                // Ready already committed.
+            }
+        }
+    }
 }
 
 function bandpromo_site_backup_mark_job_failed(string $root, array &$job, string $zipPath, string $message): void

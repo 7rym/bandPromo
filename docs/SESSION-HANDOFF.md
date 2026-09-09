@@ -12,18 +12,17 @@
 - `localStorage` last campaign + playlist; campaign change stops playback (full navigation)
 - Hard-cut URLs `/play/{campaign}/{playlist}/{track}` (no playlist-first legacy)
 - Brand Panel dim separate from Backdrop dim; preview zero-value fix
-- Backup Jobs: sliced PCF/PBF export (~15s) resumed by Jobs poll on limited hosts; streaming checksums; chunked zip flush; Cancel
+- Backup Jobs: sliced PCF/PBF (~15s) resumed by poll; smallest-first pack; Ready without multi-GB SHA (no restart-after-finish); Cancel
 - Policy: no speculative fallbacks ([AGENTS.md](AGENTS.md))
 
 ### Also pending
 
 - Timed Lyrics/Notes (policy locked — implement later)
 - Fleet validate navigator; PCF round-trip smoke; favicon/PWA; legacy audit
-- **Publish** sliced PCF export; HITZ: keep Backup tab open, Cancel stuck job, re-export Remixes
 
 ### Shipped / published already
 
-**Last published:** **v0.8.39 build 445** (`v0.8.39-build-445`) — chunked zip flush.
+**Last published:** **v0.8.39 build 447** (`v0.8.39-build-447`) — Jobs list-first fix.
 
 ### Active fleet
 
