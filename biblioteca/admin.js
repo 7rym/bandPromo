@@ -12826,10 +12826,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let message = '';
                     switch (kind) {
                         case 'pcf':
-                            message = `Portable Campaign File (.pcf) export queued${named}. When status is Ready, download it from ${jobsWhereHint}.`;
+                            message = `Portable Campaign File (.pcf) export queued${named}. It appears under Jobs while building — leave Backup open until Ready, then download.`;
                             break;
                         case 'pbf':
-                            message = `Portable Brand File (.pbf) export queued${named}. When status is Ready, download it from ${jobsWhereHint}.`;
+                            message = `Portable Brand File (.pbf) export queued${named}. It appears under Jobs while building — leave Backup open until Ready, then download.`;
                             break;
                         case 'import':
                             message = `Import queued${named}. Progress and result appear in ${jobsWhereHint}.`;
@@ -13590,8 +13590,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? String(campaignPackageExportSelect.options[campaignPackageExportSelect.selectedIndex]?.text || campaignId).trim()
                             : campaignId;
                         showJobsQueuedToast('pcf', campaignTitle);
+                        if (data.job && typeof renderBackupJobs === 'function') {
+                            renderBackupJobs([data.job]);
+                            syncBackupPolling([data.job]);
+                        }
                         if (typeof refreshBackupJobs === 'function') {
-                            await refreshBackupJobs();
+                            try {
+                                await refreshBackupJobs();
+                            } catch (refreshError) {
+                                // Keep the optimistic Jobs row if list refresh is slow/killed on limited hosts.
+                            }
                         }
                     } catch (error) {
                         if (campaignPackageExportStatus) {
@@ -13851,8 +13859,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? String(brandPackageExportSelect.options[brandPackageExportSelect.selectedIndex]?.text || brandId).trim()
                             : brandId;
                         showJobsQueuedToast('pbf', brandTitle);
+                        if (data.job && typeof renderBackupJobs === 'function') {
+                            renderBackupJobs([data.job]);
+                            syncBackupPolling([data.job]);
+                        }
                         if (typeof refreshBackupJobs === 'function') {
-                            await refreshBackupJobs();
+                            try {
+                                await refreshBackupJobs();
+                            } catch (refreshError) {
+                                // Keep the optimistic Jobs row if list refresh is slow/killed on limited hosts.
+                            }
                         }
                     } catch (error) {
                         if (brandPackageExportStatus) {

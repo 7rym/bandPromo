@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-09 14:35 - Fix Backup Jobs empty after queue: list jobs before any export slice (nested continue/status was killing list responses on limited hosts); show queued job immediately; continue packing after the JSON response.
+
 2026-09-09 14:25 - PCF/PBF exports are sliced (~15s) and resumed on each Backup Jobs poll so limited shared hosts can finish multi-hundred-MB campaigns without raising PHP/FPM timeouts. Leave System → Backup open while large exports run.
 
 2026-09-09 14:10 - PCF/PBF export: flush ZipArchive in chunks while packing (store already-compressed media) so Jobs no longer hang at Closing… with 0 B; size and progress update as the archive grows on disk.

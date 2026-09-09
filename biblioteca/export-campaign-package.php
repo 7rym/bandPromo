@@ -64,9 +64,18 @@ try {
         'job' => $job,
         'job_id' => (string) ($job['id'] ?? ''),
         'filename' => (string) ($job['filename'] ?? ''),
-        'message' => 'PCF export queued. It will appear under System → Backup, export & import when ready.',
+        'message' => 'PCF export queued. It appears under Jobs while building — leave this Backup tab open until Ready.',
         'jobs_url' => '?tab=system&stab=backup',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if (function_exists('fastcgi_finish_request')) {
+        @fastcgi_finish_request();
+    } else {
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        @flush();
+    }
 
     bandpromo_site_backup_finish_response_and_dispatch($root, (string) $job['id']);
 } catch (InvalidArgumentException $throwable) {

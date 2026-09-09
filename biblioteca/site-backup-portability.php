@@ -407,7 +407,6 @@ function bandpromo_site_backup_format_bytes(int $bytes): string
 function bandpromo_site_backup_list_jobs(string $root): array
 {
     bandpromo_site_backup_reap_stale_building_jobs($root);
-    bandpromo_site_backup_continue_building_jobs($root);
 
     $dir = bandpromo_site_backup_ensure_dir($root);
     $jobs = [];
@@ -1580,7 +1579,7 @@ function bandpromo_site_backup_status(string $root): array
         'has_media' => is_dir($root . '/media'),
         'has_log' => is_dir($root . '/log'),
         'backup_dir' => 'backups/',
-        'jobs' => bandpromo_site_backup_list_jobs($root),
+        // Do not nest list_jobs here — callers already list, and nested continue killed list responses on limited hosts.
     ];
 }
 

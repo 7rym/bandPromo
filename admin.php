@@ -635,9 +635,9 @@ $siteBackupStatus = null;
 $siteBackupJobs = [];
 if ($tab === 'system' && $systemTab === 'backup') {
     require_once __DIR__ . '/biblioteca/site-backup-portability.php';
-    bandpromo_site_backup_process_pending(__DIR__);
+    // List only — never run export slices during page render (shared hosts time out and Jobs look empty).
     $siteBackupStatus = bandpromo_site_backup_status(__DIR__);
-    $siteBackupJobs = $siteBackupStatus['jobs'] ?? [];
+    $siteBackupJobs = bandpromo_site_backup_list_jobs(__DIR__);
 }
 
 // Date range (ISO YYYY-MM-DD)
