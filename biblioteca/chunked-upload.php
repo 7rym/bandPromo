@@ -290,6 +290,8 @@ function bandpromo_chunked_upload_receive(
  */
 function bandpromo_transfer_file_digests(array $paths, $onProgress = null): array
 {
+    require_once __DIR__ . '/http-stream.php';
+
     $digests = [];
     $total = count($paths);
     $index = 0;
@@ -299,10 +301,28 @@ function bandpromo_transfer_file_digests(array $paths, $onProgress = null): arra
         if ($relative === '' || !is_file($absolute)) {
             continue;
         }
+        $baseName = basename($relative);
+        $prefix = 'Checksum ' . $index . '/' . $total;
         if (is_callable($onProgress)) {
-            $onProgress('Checksum ' . $index . '/' . $total . ': ' . basename($relative));
+            $onProgress($prefix . ': ' . $baseName);
         }
-        $sha = bandpromo_transfer_sha256_file($absolute);
+        $sha = bandpromo_transfer_sha256_file_with_progress(
+            $absolute,
+            static function (int $bytesRead, int $totalBytes) use ($onProgress, $prefix, $baseName): void {
+                if (!is_callable($onProgress) || $totalBytes <= 0) {
+                    return;
+                }
+                $onProgress(
+                    $prefix
+                    . ' · '
+                    . bandpromo_transfer_format_bytes($bytesRead)
+                    . ' / '
+                    . bandpromo_transfer_format_bytes($totalBytes)
+                    . ': '
+                    . $baseName
+                );
+            }
+        );
         if ($sha === '') {
             throw new RuntimeException('Could not checksum packaged file: ' . $relative);
         }

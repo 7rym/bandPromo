@@ -29,7 +29,7 @@ const BANDPROMO_SITE_IMPORT_MODE_MIGRATE = 'migrate';
 const BANDPROMO_SITE_BACKUP_STAGING_TTL_SECONDS = 7200;
 
 /** Fail `building` jobs with no heartbeat for this long (dead PHP worker / host kill). */
-const BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS = 1800;
+const BANDPROMO_SITE_BACKUP_STALE_BUILDING_SECONDS = 600;
 
 /**
  * @return list<string>
@@ -382,7 +382,7 @@ function bandpromo_site_backup_touch_job_progress(string $root, string $jobId, s
 
     $now = microtime(true);
     $cacheKey = $root . "\0" . $jobId;
-    if (!$force && isset($lastWrite[$cacheKey]) && ($now - $lastWrite[$cacheKey]) < 5.0) {
+    if (!$force && isset($lastWrite[$cacheKey]) && ($now - $lastWrite[$cacheKey]) < 2.0) {
         return;
     }
 
@@ -404,6 +404,60 @@ function bandpromo_site_backup_touch_job_progress(string $root, string $jobId, s
     } catch (Throwable $e) {
         // Do not fail the export because progress metadata could not be written.
     }
+}
+
+/**
+ * Abort the worker when the operator cancelled the job.
+ */
+function bandpromo_site_backup_throw_if_cancelled(string $root, string $jobId): void
+{
+    $job = bandpromo_site_backup_read_job($root, $jobId);
+    if ($job === null) {
+        throw new RuntimeException('Backup job was removed while running.');
+    }
+    if (!empty($job['cancel_requested'])) {
+        throw new RuntimeException('Cancelled by operator.');
+    }
+}
+
+/**
+ * Progress callback that heartbeats and honours Cancel.
+ *
+ * @return callable(string): void
+ */
+function bandpromo_site_backup_job_progress_callback(string $root, string $jobId): callable
+{
+    return static function (string $message) use ($root, $jobId): void {
+        bandpromo_site_backup_throw_if_cancelled($root, $jobId);
+        bandpromo_site_backup_touch_job_progress($root, $jobId, $message, true);
+    };
+}
+
+/**
+ * Cancel a pending/building job so the operator can re-queue.
+ */
+function bandpromo_site_backup_cancel_job(string $root, string $jobId): array
+{
+    $job = bandpromo_site_backup_read_job($root, $jobId);
+    if ($job === null) {
+        throw new RuntimeException('Backup job was not found.');
+    }
+
+    $status = (string) ($job['status'] ?? '');
+    if (!in_array($status, [BANDPROMO_SITE_BACKUP_JOB_PENDING, BANDPROMO_SITE_BACKUP_JOB_BUILDING], true)) {
+        throw new RuntimeException('Only queued or building jobs can be cancelled.');
+    }
+
+    $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
+    $job['cancel_requested'] = true;
+    bandpromo_site_backup_mark_job_failed(
+        $root,
+        $job,
+        $zipPath,
+        'Cancelled by operator.'
+    );
+
+    return bandpromo_site_backup_normalize_job($root, $job);
 }
 
 /**
@@ -536,6 +590,7 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
         'heartbeat_at_utc' => (string) ($job['heartbeat_at_utc'] ?? ''),
         'completed_at_utc' => (string) ($job['completed_at_utc'] ?? ''),
         'progress' => (string) ($job['progress'] ?? ''),
+        'cancel_requested' => !empty($job['cancel_requested']),
         'filename' => (string) ($job['filename'] ?? ''),
         'size_bytes' => $sizeBytes,
         'size_label' => bandpromo_site_backup_format_bytes($sizeBytes),
@@ -780,10 +835,9 @@ function bandpromo_site_backup_run_job(string $root, string $jobId): array
             $root,
             $components,
             $zipPath,
-            static function (string $message) use ($root, $jobIdForProgress): void {
-                bandpromo_site_backup_touch_job_progress($root, $jobIdForProgress, $message);
-            }
+            bandpromo_site_backup_job_progress_callback($root, $jobIdForProgress)
         );
+        bandpromo_site_backup_throw_if_cancelled($root, $jobId);
         bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
     } catch (Throwable $e) {
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
@@ -829,10 +883,9 @@ function bandpromo_site_backup_run_prp_job(string $root, string $jobId): array
             $root,
             $releaseId,
             $zipPath,
-            static function (string $message) use ($root, $jobIdForProgress): void {
-                bandpromo_site_backup_touch_job_progress($root, $jobIdForProgress, $message);
-            }
+            bandpromo_site_backup_job_progress_callback($root, $jobIdForProgress)
         );
+        bandpromo_site_backup_throw_if_cancelled($root, $jobId);
         bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
     } catch (Throwable $e) {
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
@@ -878,10 +931,9 @@ function bandpromo_site_backup_run_pbf_job(string $root, string $jobId): array
             $root,
             $brandId,
             $zipPath,
-            static function (string $message) use ($root, $jobIdForProgress): void {
-                bandpromo_site_backup_touch_job_progress($root, $jobIdForProgress, $message);
-            }
+            bandpromo_site_backup_job_progress_callback($root, $jobIdForProgress)
         );
+        bandpromo_site_backup_throw_if_cancelled($root, $jobId);
         bandpromo_site_backup_mark_job_ready($root, $job, $zipPath);
     } catch (Throwable $e) {
         bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
@@ -1254,10 +1306,21 @@ function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string 
 {
     require_once __DIR__ . '/http-stream.php';
 
+    $jobId = (string) ($job['id'] ?? '');
+    if ($jobId !== '') {
+        $fresh = bandpromo_site_backup_read_job($root, $jobId);
+        if (is_array($fresh) && !empty($fresh['cancel_requested'])) {
+            bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, 'Cancelled by operator.');
+
+            return;
+        }
+    }
+
     $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
     $job['completed_at_utc'] = gmdate('c');
     $job['heartbeat_at_utc'] = $job['completed_at_utc'];
     $job['progress'] = '';
+    $job['cancel_requested'] = false;
     $job['size_bytes'] = is_file($zipPath) ? (int) filesize($zipPath) : 0;
     $job['sha256'] = is_file($zipPath) ? bandpromo_transfer_sha256_file($zipPath) : '';
     $job['error'] = '';
@@ -1276,6 +1339,10 @@ function bandpromo_site_backup_mark_job_failed(string $root, array &$job, string
     $job['size_bytes'] = 0;
     $job['sha256'] = '';
     $job['error'] = $message;
+    // Keep cancel_requested so a late worker still refuses mark_ready.
+    if (stripos($message, 'Cancelled by operator') !== false) {
+        $job['cancel_requested'] = true;
+    }
     bandpromo_site_backup_write_job($root, $job);
 }
 

@@ -12932,7 +12932,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `<button type="button" class="btn btn-secondary site-backup-action-btn site-backup-download-btn" data-backup-id="${escapeHtml(job.id)}" data-filename="${escapeHtml(job.filename || '')}" data-size-bytes="${Number(job.size_bytes || 0)}" data-sha256="${escapeHtml(job.sha256 || '')}">${String(job.type || '') === 'prp' ? '⬇️ Download .pcf' : (String(job.type || '') === 'pbf' ? '⬇️ Download .pbf' : '⬇️ Download')}</button>`
                             : '';
                         const deleteLabel = String(job.type_label || job.type || 'backup job');
-                        const deleteHtml = job.status !== 'building'
+                        const cancelHtml = (job.status === 'building' || job.status === 'pending')
+                            ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-cancel-btn" data-backup-id="${escapeHtml(job.id)}" data-backup-label="${escapeHtml(deleteLabel)}">Cancel</button>`
+                            : '';
+                        const deleteHtml = (job.status !== 'building' && job.status !== 'pending')
                             ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}" data-backup-label="${escapeHtml(deleteLabel)}">🗑️ Delete</button>`
                             : '';
 
@@ -12941,7 +12944,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             <td><span class="badge audit-status-badge ${meta.className}">${escapeHtml(meta.label)}</span>${progressHtml}${noteHtml}${errorHtml}</td>
                             <td class="text-muted nowrap">${escapeHtml(job.created_at_utc || '')}</td>
                             <td class="nowrap" title="${escapeHtml(job.sha256 || '')}">${escapeHtml(job.size_label || '—')}${job.sha256 ? `<div class="text-muted" style="font-size:0.75rem;">SHA ${escapeHtml(String(job.sha256).slice(0, 12))}…</div>` : ''}</td>
-                            <td class="site-backup-job-actions">${downloadHtml}${deleteHtml}</td>
+                            <td class="site-backup-job-actions">${downloadHtml}${cancelHtml}${deleteHtml}</td>
                         </tr>`;
                     }).join('');
 
@@ -13107,6 +13110,33 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                async function cancelBackup(jobId) {
+                    try {
+                        const csrfToken = await refreshAdminCsrfToken();
+                        const resp = await fetch('/biblioteca/delete-site-backup.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken,
+                                id: jobId,
+                                cancel: true,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !data || data.ok !== true) {
+                            throw new Error((data && data.error) || 'Could not cancel job.');
+                        }
+                        showJobsToast(data.message || 'Job cancelled.', 'success');
+                        renderBackupJobs(data.jobs || []);
+                        syncBackupPolling(data.jobs || []);
+                    } catch (error) {
+                        showJobsToast(error.message, 'error');
+                    }
+                }
+
                 if (jobsWrap) {
                     jobsWrap.addEventListener('click', (event) => {
                         const target = event.target;
@@ -13143,6 +13173,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     'info'
                                 );
                             }
+                            return;
+                        }
+                        const cancelBtn = target.closest('.site-backup-cancel-btn');
+                        if (cancelBtn instanceof HTMLElement) {
+                            const jobId = cancelBtn.getAttribute('data-backup-id') || '';
+                            if (!jobId) {
+                                return;
+                            }
+                            const label = cancelBtn.getAttribute('data-backup-label') || jobId;
+                            if (!window.confirm(`Cancel "${label}"? You can queue the export again afterwards.`)) {
+                                return;
+                            }
+                            cancelBackup(jobId).catch(() => {});
                             return;
                         }
                         const deleteBtn = target.closest('.site-backup-delete-btn');

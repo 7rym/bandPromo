@@ -47,11 +47,27 @@ if ($jobId === '') {
 }
 
 $root = dirname(__DIR__);
+$cancel = !empty($payload['cancel']);
 
 try {
     $job = bandpromo_site_backup_read_job($root, $jobId);
     if ($job === null) {
         throw new RuntimeException('Backup archive was not found.');
+    }
+
+    if ($cancel) {
+        $normalized = bandpromo_site_backup_cancel_job($root, $jobId);
+        bandpromo_admin_audit_log('site_backup_cancelled', [
+            'job_id' => $jobId,
+            'backup_type' => (string) ($job['type'] ?? 'full'),
+        ]);
+        echo json_encode([
+            'ok' => true,
+            'message' => 'Job cancelled.',
+            'job' => $normalized,
+            'jobs' => bandpromo_site_backup_list_jobs($root),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
     }
 
     if (($job['status'] ?? '') === BANDPROMO_SITE_BACKUP_JOB_BUILDING) {
@@ -61,7 +77,7 @@ try {
             throw new RuntimeException('Backup archive was not found.');
         }
         if (($job['status'] ?? '') === BANDPROMO_SITE_BACKUP_JOB_BUILDING) {
-            throw new RuntimeException('This job is still running. Try again after it finishes.');
+            throw new RuntimeException('This job is still running. Cancel it first, or wait until it finishes.');
         }
     }
 

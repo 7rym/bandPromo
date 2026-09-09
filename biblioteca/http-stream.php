@@ -26,6 +26,95 @@ function bandpromo_transfer_sha256_file(string $path): string
 }
 
 /**
+ * Compact byte size for transfer / export progress lines.
+ */
+function bandpromo_transfer_format_bytes(int $bytes): string
+{
+    if ($bytes < 1024) {
+        return $bytes . ' B';
+    }
+    if ($bytes < 1024 * 1024) {
+        return number_format($bytes / 1024, 1) . ' KB';
+    }
+    if ($bytes < 1024 * 1024 * 1024) {
+        return number_format($bytes / (1024 * 1024), 1) . ' MB';
+    }
+
+    return number_format($bytes / (1024 * 1024 * 1024), 2) . ' GB';
+}
+
+/**
+ * SHA-256 with optional byte progress (keeps long hashes alive for Jobs heartbeats).
+ *
+ * @param callable|null $onBytes function(int $bytesRead, int $totalBytes): void
+ */
+function bandpromo_transfer_sha256_file_with_progress(string $path, $onBytes = null): string
+{
+    if ($path === '' || !is_file($path)) {
+        return '';
+    }
+
+    $totalBytes = (int) filesize($path);
+    if ($totalBytes <= 0) {
+        return bandpromo_transfer_sha256_file($path);
+    }
+
+    // Small files: one-shot hash is fine and cheaper than streaming.
+    if ($totalBytes < 2 * 1024 * 1024 || !is_callable($onBytes)) {
+        if (is_callable($onBytes)) {
+            $onBytes(0, $totalBytes);
+        }
+        $digest = bandpromo_transfer_sha256_file($path);
+        if ($digest !== '' && is_callable($onBytes)) {
+            $onBytes($totalBytes, $totalBytes);
+        }
+
+        return $digest;
+    }
+
+    $handle = @fopen($path, 'rb');
+    if ($handle === false) {
+        return '';
+    }
+
+    $context = hash_init('sha256');
+    $bytesRead = 0;
+    $lastReportAt = 0.0;
+    $lastReportBytes = 0;
+    $chunkSize = 1024 * 1024;
+    $reportEveryBytes = 4 * 1024 * 1024;
+
+    try {
+        if (is_callable($onBytes)) {
+            $onBytes(0, $totalBytes);
+        }
+        while (!feof($handle)) {
+            $chunk = fread($handle, $chunkSize);
+            if ($chunk === false) {
+                return '';
+            }
+            if ($chunk === '') {
+                break;
+            }
+            hash_update($context, $chunk);
+            $bytesRead += strlen($chunk);
+            $now = microtime(true);
+            $dueBySize = ($bytesRead - $lastReportBytes) >= $reportEveryBytes;
+            $dueByTime = ($now - $lastReportAt) >= 2.0;
+            if (is_callable($onBytes) && ($dueBySize || $dueByTime || $bytesRead >= $totalBytes)) {
+                $onBytes($bytesRead, $totalBytes);
+                $lastReportAt = $now;
+                $lastReportBytes = $bytesRead;
+            }
+        }
+    } finally {
+        fclose($handle);
+    }
+
+    return strtolower(hash_final($context));
+}
+
+/**
  * Guess Content-Type for an attachment download name.
  */
 function bandpromo_http_stream_content_type(string $downloadName): string

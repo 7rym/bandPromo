@@ -2873,7 +2873,9 @@ if ($tab === 'analytics') {
                                             echo $dlType === 'prp' ? '⬇️ Download .pcf' : ($dlType === 'pbf' ? '⬇️ Download .pbf' : '⬇️ Download');
                                         ?></button>
                                         <?php endif; ?>
-                                        <?php if ($jobStatus !== 'building'): ?>
+                                        <?php if ($jobStatus === 'building' || $jobStatus === 'pending'): ?>
+                                        <button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-cancel-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>" data-backup-label="<?php echo htmlspecialchars((string) ($backupJob['type_label'] ?? $backupJob['type'] ?? 'backup job')); ?>">Cancel</button>
+                                        <?php else: ?>
                                         <button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="<?php echo htmlspecialchars((string) ($backupJob['id'] ?? '')); ?>" data-backup-label="<?php echo htmlspecialchars((string) ($backupJob['type_label'] ?? $backupJob['type'] ?? 'backup job')); ?>">🗑️ Delete</button>
                                         <?php endif; ?>
                                     </td>
