@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 18:10 - Player/publish cover URLs must exist on disk (no stale registry 404s). Publish clears unplayable sticky covers and rebuilds Visual delivery when possible; brand shell heal rebuilds missing delivery for shell asset ids before falling back.
+
 2026-09-11 18:00 - Catalogue stage no longer fails publish on orphan Visuals with no master/original bytes (warn + skip). `bandpromo_visual_working_path` falls back to unified/legacy original so missing masters can rematerialize when provenance still exists.
 
 2026-09-11 17:55 - Publish preflight calls `bandpromo_content_autofix_sync_campaigns` (fixes undefined `…_sync_releases` warning). Track covers: heal sticky assigned Visuals with missing delivery/master (fall back to original, re-extract from FLAC when orphaned). Build log gains **Copy log** like Repair log.

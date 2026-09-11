@@ -1161,6 +1161,31 @@ function bandpromo_brand_heal_install_shell_media(string $root): array
                 continue;
             }
             $after = bandpromo_brand_heal_media_path($root, $before, $candidates);
+            if ($after === '' && $before !== '') {
+                require_once __DIR__ . '/media-delivery-helpers.php';
+                $slotAssetId = trim((string) ($assetIds[$slot] ?? ''));
+                if ($slotAssetId === '') {
+                    $slotAssetId = bandpromo_brand_lookup_asset_id_for_path($root, $before);
+                }
+                if ($slotAssetId !== '' && bandpromo_visual_rebuild_image_delivery($root, $slotAssetId, true)) {
+                    $variant = 'card';
+                    if ($slot === 'background_image') {
+                        $variant = 'huge';
+                    } elseif ($slot === 'background_video') {
+                        $variant = 'standard-stream';
+                    } elseif ($slot === 'logo') {
+                        $variant = 'card';
+                    }
+                    $rebuiltUrl = bandpromo_visual_resolve_url($root, $slotAssetId, $variant, '', false);
+                    if ($rebuiltUrl === '' && $variant !== 'card') {
+                        $rebuiltUrl = bandpromo_visual_resolve_url($root, $slotAssetId, 'card', '', false);
+                    }
+                    if ($rebuiltUrl !== '') {
+                        $after = $rebuiltUrl;
+                        $notes[] = 'Brand ' . $brandId . ' ' . $slot . ': rebuilt delivery → ' . $after;
+                    }
+                }
+            }
             if ($after !== '' && $after !== $before) {
                 $assets[$slot] = $after;
                 $changed = true;

@@ -260,9 +260,11 @@ function bandpromo_visual_variant_path(string $root, string $assetId, string $va
     if (isset($variants[$variant]) && is_array($variants[$variant])) {
         $rel = trim((string) ($variants[$variant]['path'] ?? ''));
         if ($rel !== '') {
-            // Trust registry delivery paths for listing/URL paint. Avoid is_file() probes —
-            // on Google Drive / slow hosts they dominate Files → Visual list-media time.
-            return $root . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+            $absolute = $root . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+            // Only trust registry paths that still exist; otherwise fall through to extension scan.
+            if (is_file($absolute)) {
+                return $absolute;
+            }
         }
     }
 
@@ -290,6 +292,7 @@ function bandpromo_visual_variant_path(string $root, string $assetId, string $va
 
 /**
  * Relative URL for a registered visual delivery variant (registry-first, no disk probe).
+ * Files list uses this hot path — keep it free of is_file() probes.
  */
 function bandpromo_visual_registry_variant_url(array $asset, string $variant): string
 {
@@ -311,6 +314,36 @@ function bandpromo_visual_registry_variant_url(array $asset, string $variant): s
     }
 
     return '/' . ltrim(str_replace('\\', '/', $rel), '/');
+}
+
+/**
+ * True when a /media/... web path exists under $root.
+ */
+function bandpromo_visual_media_web_path_exists(string $root, string $webPath): bool
+{
+    $webPath = trim(str_replace('\\', '/', $webPath));
+    if ($webPath === '' || !str_starts_with($webPath, '/media/')) {
+        return false;
+    }
+    $absolute = rtrim($root, '/\\') . str_replace('/', DIRECTORY_SEPARATOR, $webPath);
+
+    return is_file($absolute);
+}
+
+/**
+ * Return $webPath only when the delivery file is present on disk.
+ */
+function bandpromo_visual_delivery_url_if_present(string $root, string $webPath): string
+{
+    $webPath = trim(str_replace('\\', '/', $webPath));
+    if ($webPath === '') {
+        return '';
+    }
+    if (!str_starts_with($webPath, '/')) {
+        $webPath = '/' . ltrim($webPath, '/');
+    }
+
+    return bandpromo_visual_media_web_path_exists($root, $webPath) ? $webPath : '';
 }
 
 function bandpromo_visual_variant_relative_url(string $root, string $assetId, string $variant): string
@@ -458,6 +491,36 @@ function bandpromo_visual_operator_title(string $root, array $asset, array $entr
 }
 
 /**
+ * Best-effort rebuild of Visual image delivery for one asset id.
+ */
+function bandpromo_visual_rebuild_image_delivery(string $root, string $assetId, bool $force = true): bool
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/light-build-tasks.php';
+
+    $assetId = trim($assetId);
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return false;
+    }
+    $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+    if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+        return false;
+    }
+    if (strtolower(trim((string) ($asset['media_type'] ?? 'image'))) === 'video') {
+        return false;
+    }
+
+    $result = bandpromo_run_light_json_task('scripts/rebuildVisualDelivery.py', [
+        'asset_ids' => [$assetId],
+        'force' => $force,
+    ]);
+    $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+    $rebuilt = is_array($data['rebuilt'] ?? null) ? $data['rebuilt'] : [];
+
+    return !empty($result['ok']) && in_array($assetId, $rebuilt, true);
+}
+
+/**
  * Resolve a public URL for a visual asset/variant (delivery first; originals for admin preview).
  *
  * @param bool $allowOriginalFallback When false (Catalogue / list thumbs), never return
@@ -506,10 +569,13 @@ function bandpromo_visual_resolve_url(
     }
     foreach ($tryVariants as $tryVariant) {
         $url = bandpromo_visual_registry_variant_url($asset, $tryVariant);
+        // Player/public paths must not ship stale registry URLs that 404.
+        $url = bandpromo_visual_delivery_url_if_present($root, $url);
         if ($url !== '') {
             return $url;
         }
         $url = bandpromo_visual_variant_relative_url($root, (string) ($asset['id'] ?? ''), $tryVariant);
+        $url = bandpromo_visual_delivery_url_if_present($root, $url);
         if ($url !== '') {
             return $url;
         }

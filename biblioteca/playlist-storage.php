@@ -2098,10 +2098,18 @@ function bandpromo_playlist_enrich_tracks_for_player(
             require_once __DIR__ . '/media-delivery-helpers.php';
             $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
             if ($coverUrl === '') {
+                bandpromo_visual_rebuild_image_delivery($root, $coverRef, true);
+                $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
+            }
+            if ($coverUrl === '') {
                 $coverUrl = bandpromo_playlist_prefer_cover_delivery_url($root, '', $coverRef);
             }
             if ($coverUrl !== '' && !str_starts_with($coverUrl, '/media/visual/delivery/')) {
                 $coverUrl = '';
+            }
+            // Do not leave a cover id that only invents a 404 delivery path in the player.
+            if ($coverUrl === '') {
+                $coverRef = '';
             }
         }
 
@@ -2207,6 +2215,8 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
     }
 
     // Refresh sparse registry display from master tags before PHP fallback materialization.
+    // Also drop sticky covers whose delivery files are missing so Python get_cover can re-extract.
+    require_once __DIR__ . '/media-delivery-helpers.php';
     foreach ($entries as $entry) {
         if (!is_array($entry)) {
             continue;
@@ -2223,6 +2233,29 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         $lyrics = trim((string) ($display['lyrics'] ?? ''));
         $cover = trim((string) ($display['cover'] ?? ''));
         $comment = trim((string) ($display['comment'] ?? ''));
+        if ($cover !== '') {
+            $coverRef = bandpromo_asset_canonical_id_from_media_ref($root, $cover);
+            $coverUrl = $coverRef !== ''
+                ? bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false)
+                : '';
+            if ($coverRef !== '' && $coverUrl === '') {
+                bandpromo_visual_rebuild_image_delivery($root, $coverRef, true);
+                $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
+            }
+            if ($coverRef !== '' && $coverUrl === '') {
+                try {
+                    $assetId = trim((string) ($asset['id'] ?? ''));
+                    if ($assetId !== '') {
+                        bandpromo_asset_update_entry($root, $assetId, [
+                            'display' => ['cover' => ''],
+                        ]);
+                    }
+                } catch (Throwable $ignored) {
+                    // Materialize can still re-extract.
+                }
+                $cover = '';
+            }
+        }
         if ($lyrics === '' || $cover === '' || $comment === '') {
             bandpromo_asset_refresh_audio_display($root, $masterFile);
         }
@@ -2378,10 +2411,17 @@ function bandpromo_playlist_load_player_response(
         if ($coverRef !== '') {
             $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
             if ($coverUrl === '') {
+                bandpromo_visual_rebuild_image_delivery($root, $coverRef, true);
+                $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
+            }
+            if ($coverUrl === '') {
                 $coverUrl = bandpromo_playlist_prefer_cover_delivery_url($root, '', $coverRef);
             }
             if ($coverUrl !== '' && !str_starts_with($coverUrl, '/media/visual/delivery/')) {
                 $coverUrl = '';
+            }
+            if ($coverUrl === '') {
+                $coverRef = '';
             }
         }
         $tracks[$index]['cover'] = $coverRef;

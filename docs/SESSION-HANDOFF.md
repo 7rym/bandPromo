@@ -2,15 +2,15 @@
 
 ## Resume point
 
-**Published catalog orphan hotfix** — Site-update Spandexual to latest; Refresh site files again. Orphan Visuals with no source bytes no longer abort catalogue (warn + skip); working path falls back to original/legacy.
+**Published cover URL / shell delivery hotfix** — Spandexual: Site-update then Refresh site files. Stale registry delivery URLs no longer 404 in the player; publish rebuilds or clears unplayable covers; brand shell heal tries delivery rebuild.
 
 ### Shipped / published already
 
-See GitHub Releases after this checkpoint. Prior: **v0.8.42 build 454** — cover heal + Build log Copy + preflight rename.
+Prior: **v0.8.43 build 455** — catalog orphan warn+skip. **v0.8.42 build 454** — FLAC cover heal + Build log Copy.
 
 ### Also pending
 
-- Confirm Spandexual covers after Site-update + Refresh
+- Confirm Spandexual playlist covers + brand poster/social after update
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
 - v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id`
 
