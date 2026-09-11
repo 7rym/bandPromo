@@ -2,21 +2,15 @@
 
 ## Resume point
 
-**Spandexual cover / publish hotfix** — local fixes on `v0.8.42` (publish after Site-update + Refresh site files). Sticky assigned covers with missing Visual master/delivery now heal or re-extract; preflight rename fixed; Build log has Copy log.
-
-### This session
-
-- Root cause: assigned `display.cover` kept pointing at Visuals whose master/delivery was gone; audio XXH3 skip was a red herring.
-- `ast_F831250M10AJHHFH05G6.png` “Skipped or failed” = no readable master (now falls back to original + clearer log).
-- Preflight warning: `bandpromo_content_autofix_sync_releases` → `sync_campaigns`.
+**Published catalog orphan hotfix** — Site-update Spandexual to latest; Refresh site files again. Orphan Visuals with no source bytes no longer abort catalogue (warn + skip); working path falls back to original/legacy.
 
 ### Shipped / published already
 
-**Last published:** **v0.8.41 build 453** — soft player campaign/playlist navigation; page tab `label` persistence.
+See GitHub Releases after this checkpoint. Prior: **v0.8.42 build 454** — cover heal + Build log Copy + preflight rename.
 
 ### Also pending
 
-- Fleet: Site-update Spandexual to this hotfix; Refresh site files; confirm broken playlist covers.
+- Confirm Spandexual covers after Site-update + Refresh
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
 - v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id`
 

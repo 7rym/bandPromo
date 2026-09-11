@@ -17,6 +17,7 @@ function bandpromo_content_autofix_step_result(string $id, string $label, array 
         'changed' => 0,
         'skipped' => 0,
         'errors' => [],
+        'warnings' => [],
         'items' => [],
     ], $details);
 }
@@ -1228,7 +1229,10 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
             continue;
         }
         if ($working === '' && $needsMaster) {
-            $step['errors'][] = (string) $assetId . ': no source bytes for visual master';
+            // True orphan (no master/original/legacy bytes): warn and continue — do not fail
+            // publish catalogue. Playlist cover heal can re-extract from audio later.
+            $step['warnings'][] = (string) $assetId . ': no source bytes for visual master (skipped)';
+            $step['skipped']++;
             continue;
         }
 

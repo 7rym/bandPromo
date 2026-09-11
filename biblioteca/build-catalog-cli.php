@@ -15,6 +15,7 @@ $steps = is_array($result['steps'] ?? null) ? $result['steps'] : [];
 $changedTotal = 0;
 $skippedTotal = 0;
 $errorTotal = 0;
+$warningTotal = 0;
 
 foreach ($steps as $step) {
     if (!is_array($step)) {
@@ -24,15 +25,25 @@ foreach ($steps as $step) {
     $changed = (int) ($step['changed'] ?? 0);
     $skipped = (int) ($step['skipped'] ?? 0);
     $errorCount = is_array($step['errors'] ?? null) ? count($step['errors']) : 0;
+    $warningCount = is_array($step['warnings'] ?? null) ? count($step['warnings']) : 0;
     $changedTotal += $changed;
     $skippedTotal += $skipped;
     $errorTotal += $errorCount;
+    $warningTotal += $warningCount;
     echo $label . ': ' . $changed . ' changed, ' . $skipped . ' skipped';
+    if ($warningCount > 0) {
+        echo ', ' . $warningCount . ' warning' . ($warningCount === 1 ? '' : 's');
+    }
     if ($errorCount > 0) {
         echo ', ' . $errorCount . ' error' . ($errorCount === 1 ? '' : 's');
     }
     echo "\n";
 
+    if ($warningCount > 0) {
+        foreach ($step['warnings'] as $warning) {
+            echo '  - ' . $warning . "\n";
+        }
+    }
     if ($errorCount > 0) {
         foreach ($step['errors'] as $error) {
             echo '  - ' . $error . "\n";
@@ -49,6 +60,11 @@ echo 'BUILD_STATS scope=catalog handled=' . ($changedTotal + $skippedTotal)
 if (!empty($result['errors'])) {
     echo "Catalogue stage finished with errors.\n";
     exit(1);
+}
+
+if ($warningTotal > 0) {
+    echo "Catalogue stage finished with warnings.\n";
+    exit(0);
 }
 
 echo "Catalogue stage finished.\n";
