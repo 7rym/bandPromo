@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 15:42 - Published **v0.8.40 build 449** (`v0.8.40-build-449`): PCF/PBF import-as-job, `campaign_id` ownership hard cut, Ready SHA pending for large exports.
+
 2026-09-09 17:40 - Container ownership hard cut: match/write via `campaign_id` helpers (PCF remap, duplicate, demo hide, admin playlist filter, visual membership, retarget, delete exclusivity). Central reader still accepts legacy container `release_id` until the v0.9 fleet cut; no scattered dual-read shims. Asset catalogue-home field stays `release_id`.
 
 2026-09-09 17:25 - PCF export/import ownership matching uses `campaign_id` (with legacy `release_id` fallback). Playlists/galleries/pages that only had `campaign_id` were previously omitted from exports — re-export affected campaigns after this fix.

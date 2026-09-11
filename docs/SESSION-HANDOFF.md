@@ -2,26 +2,19 @@
 
 ## Resume point
 
-**Container ownership hard cut + large PCF import/export** — this checkpoint. **Next after Site update:** re-export Cleaning House on source host and re-import locally (playlists should travel); fleet validate navigator.
+**Published v0.8.40 build 449.** **Next:** Site-update fleet; re-export Cleaning House on source host and re-import locally (playlists should travel); fleet validate navigator.
 
-### Shipped this checkpoint
+### Shipped / published already
 
-- Container ownership hard cut (`campaign_id` helpers; central legacy read until v0.9 fleet cut)
-- PCF/PBF import-as-job after chunked assemble
-- Chunked upload append-as-received; skip inline SHA for large assemblies
-- Background Ready SHA worker + UI “SHA pending…”
-- Campaign navigator chrome + Brand Panel dim split (earlier in session)
-- Backup Jobs: sliced export, smallest-first pack, Ready without multi-GB SHA, Cancel
+**Last published:** **v0.8.40 build 449** (`v0.8.40-build-449`) — PCF import-as-job, `campaign_id` ownership hard cut, Ready SHA pending for large exports.
+
+Also in this build: chunked upload append-as-received; background archive SHA worker; campaign navigator chrome + Brand Panel dim (from earlier session work).
 
 ### Also pending
 
 - Timed Lyrics/Notes (policy locked — implement later)
 - Fleet validate navigator; favicon/PWA; legacy audit
 - v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id` after all test installs upgraded
-
-### Shipped / published already
-
-**Last published:** updated by session-end below after this push.
 
 ### Active fleet
 
