@@ -14,7 +14,9 @@ const BANDPROMO_CAMPAIGN_DEFAULT_ID = 'primary';
 const BANDPROMO_RELEASE_DEMO_ID = 'bandpromo-demo';
 
 /**
- * Owning campaign id from a document or entry (canonical campaign_id, legacy release_id).
+ * Owning campaign id from a document or entry.
+ * Canonical key is campaign_id. Legacy release_id is read only until the v0.9 fleet cut
+ * (migrate-and-delete on load/save via bandpromo_document_with_campaign_id).
  */
 function bandpromo_document_campaign_id(array $doc): string
 {
@@ -24,6 +26,19 @@ function bandpromo_document_campaign_id(array $doc): string
     }
 
     return bandpromo_campaign_normalize_id($id);
+}
+
+/**
+ * True when a portable document belongs to the campaign.
+ */
+function bandpromo_campaign_doc_belongs_to(array $doc, string $campaignId): bool
+{
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    if ($campaignId === '') {
+        return false;
+    }
+
+    return bandpromo_document_campaign_id($doc) === $campaignId;
 }
 
 /**
@@ -972,7 +987,7 @@ function bandpromo_campaign_id_for_brand_owned_asset(string $root, string $brand
     require_once __DIR__ . '/brand-storage.php';
     try {
         $brand = bandpromo_brand_load_document($root, $brandId);
-        $releaseId = bandpromo_campaign_normalize_id(trim((string) ($brand['release_id'] ?? '')));
+        $releaseId = bandpromo_document_campaign_id($brand);
         if ($releaseId !== '') {
             return $releaseId;
         }
@@ -1150,7 +1165,7 @@ function bandpromo_campaign_visual_membership_index(string $root): array
             } catch (Throwable $throwable) {
                 continue;
             }
-            $releaseId = bandpromo_campaign_normalize_id((string) ($doc['release_id'] ?? ''));
+            $releaseId = bandpromo_document_campaign_id($doc);
             if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
                 continue;
             }
@@ -1184,7 +1199,7 @@ function bandpromo_campaign_visual_membership_index(string $root): array
             } catch (Throwable $throwable) {
                 continue;
             }
-            $releaseId = bandpromo_campaign_normalize_id((string) ($doc['release_id'] ?? ''));
+            $releaseId = bandpromo_document_campaign_id($doc);
             if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
                 continue;
             }
@@ -1206,7 +1221,7 @@ function bandpromo_campaign_visual_membership_index(string $root): array
             } catch (Throwable $throwable) {
                 continue;
             }
-            $releaseId = bandpromo_campaign_normalize_id((string) ($doc['release_id'] ?? ''));
+            $releaseId = bandpromo_document_campaign_id($doc);
             if ($releaseId === '' || !isset($releaseMeta[$releaseId])) {
                 continue;
             }
@@ -3532,18 +3547,18 @@ function bandpromo_campaign_migrate_campaign_off_primary(string $root, string $n
             } catch (Throwable $throwable) {
                 continue;
             }
-            if ((string) ($brandDoc['release_id'] ?? '') !== $fromId) {
+            if (!bandpromo_campaign_doc_belongs_to($brandDoc, $fromId)) {
                 continue;
             }
-            $brandDoc['release_id'] = $toId;
+            $brandDoc = bandpromo_document_with_campaign_id($brandDoc, $toId);
             bandpromo_brand_write_document($root, $brandDoc);
-            $actions[] = 'Brand ' . $brandId . ' → release_id ' . $toId . '.';
+            $actions[] = 'Brand ' . $brandId . ' → campaign_id ' . $toId . '.';
         }
     } catch (Throwable $throwable) {
         $actions[] = 'Brand retarget skipped: ' . $throwable->getMessage();
     }
 
-    // Playlists: retarget release_id; rename playlist id "primary" when it is the campaign playlist.
+    // Playlists: retarget campaign_id; rename playlist id "primary" when it is the campaign playlist.
     try {
         bandpromo_playlist_ensure_seeded($root);
         $playlistRegistry = bandpromo_playlist_load_registry($root);
@@ -3563,8 +3578,7 @@ function bandpromo_campaign_migrate_campaign_off_primary(string $root, string $n
             } catch (Throwable $throwable) {
                 continue;
             }
-            $releaseId = (string) ($playlist['release_id'] ?? '');
-            if ($releaseId !== $fromId && $playlistId !== $fromId) {
+            if (!bandpromo_campaign_doc_belongs_to($playlist, $fromId) && $playlistId !== $fromId) {
                 continue;
             }
 
@@ -3581,7 +3595,7 @@ function bandpromo_campaign_migrate_campaign_off_primary(string $root, string $n
                     (string) ($playlist['slug'] ?? $newPlaylistId),
                     $newPlaylistId
                 );
-                $playlist['release_id'] = $toId;
+                $playlist = bandpromo_document_with_campaign_id($playlist, $toId);
                 if (isset($playlist['entries']) && is_array($playlist['entries'])) {
                     foreach ($playlist['entries'] as &$entry) {
                         if (!is_array($entry)) {
@@ -3615,9 +3629,9 @@ function bandpromo_campaign_migrate_campaign_off_primary(string $root, string $n
                 continue;
             }
 
-            $playlist['release_id'] = $toId;
+            $playlist = bandpromo_document_with_campaign_id($playlist, $toId);
             bandpromo_playlist_write_document($root, $playlist);
-            $actions[] = 'Playlist ' . $playlistId . ' → release_id ' . $toId . '.';
+            $actions[] = 'Playlist ' . $playlistId . ' → campaign_id ' . $toId . '.';
         }
     } catch (Throwable $throwable) {
         $actions[] = 'Playlist retarget skipped: ' . $throwable->getMessage();
@@ -3900,7 +3914,7 @@ function bandpromo_campaign_delete_with_mode(string $root, string $releaseId, st
         $brandExclusive = true;
         try {
             $brandDoc = bandpromo_brand_load_document($root, $brandId);
-            $brandOwner = bandpromo_campaign_normalize_id((string) ($brandDoc['release_id'] ?? ''));
+            $brandOwner = bandpromo_document_campaign_id($brandDoc);
             if ($brandOwner !== '' && $brandOwner !== $releaseId) {
                 $brandExclusive = false;
             }

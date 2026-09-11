@@ -140,9 +140,9 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 
 Worked examples: [USE-CASES.md](USE-CASES.md).
 
-**Containers:** Campaign (umbrella; storage `release`), Playlist (ordered listening product), Gallery (visual set), Page (blocks). Brand is a fifth document under `data/brands/`, owned by a campaign via `brand_id` / `release_id` — not a peer campaign.
+**Containers:** Campaign (umbrella; storage still uses some `release_*` API/path names), Playlist (ordered listening product), Gallery (visual set), Page (blocks). Brand is a fifth document under `data/brands/`, owned by a campaign via `brand_id` / `campaign_id` — not a peer campaign.
 
-**Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `release_id` belongs to that campaign only. Campaign editor Available pools list **unowned** containers; saves refuse stealing from another campaign.
+**Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `campaign_id` belongs to that campaign only. Campaign editor Available pools list **unowned** containers; saves refuse stealing from another campaign.
 
 **Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalogue. **Not hard-enforced** in editors or save paths yet. Files → Visual **Catalogue** follows that usage (plus posters, press photos, page pictures, track covers, and Brand visual shell slots those campaigns play, including Base-brand fallback for empty slots). Brand-library membership is not a campaign, but those files are not Orphan either. Catalogue must not infer the campaign from Brand ownership on the asset. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Stored cover refs that still hold a **former** visual id resolve when the live row’s original/master filename is `{old_id}.ext`. Delivery URLs `/media/visual/delivery/{id}/…` resolve by the path id, not the variant filename (`card.jpg`). Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
 
@@ -151,7 +151,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 | Layer | Role |
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
-| Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.release_id` → release brand). Tracks do not carry player brand. |
+| Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.campaign_id` → release brand). Tracks do not carry player brand. |
 | Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo shell media under Files → Brand assets / Sound effects stays listable while any Brand references it; unused demo shell hides with **Hide bandPromo demo campaign**. |
 
 Selecting a **campaign** (and its playlist) applies that campaign’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
@@ -264,7 +264,7 @@ flowchart TB
 
 **Container-in-container** means **reference**, not folder nesting. Example: a page `gallery` block references a gallery container ID and a layout preset.
 
-Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Ownership key is **`campaign_id`** (legacy `release_id` is migrate-and-delete on load/save). On-disk campaign documents live under **`data/campaigns/`** (legacy `data/releases/` renamed on ensure). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
+Admin UI uses friendly names (Campaign, Playlist, Gallery, Page, Branding). Ownership key is **`campaign_id`**. Load/save **migrate-and-delete** leftover container `release_id` via `bandpromo_document_with_campaign_id`. A single central reader (`bandpromo_document_campaign_id`) still accepts legacy `release_id` until the **v0.9 fleet cut** (all test installs upgraded) — then delete that fallback and require `campaign_id` only. Do **not** scatter dual-read/write shims. On-disk campaign documents live under **`data/campaigns/`** (legacy `data/releases/` renamed on ensure). **Theme** is a legacy name for brand identity during migration (`data/themes/` → `data/brands/`). **Era** is hindsight language — do not use it in operator UI.
 
 ## Asset identity and filenames
 
@@ -416,8 +416,8 @@ It is **not** merely one CD tracklist. Album order vs Personal Jesus single pack
 - Every audio track **should** belong to exactly one release (exclusive catalogue home). Orphans (`release_id` empty) are allowed until associated. Playlists only reference tracks; they never own masters.
 - Release track membership is an **unordered pool**. Listening order exists only in playlists.
 - **Identity** (colours, typography, mood, logo, share/still/living shell, Welcome/Logged-in SFX) is **owned by the release** via its linked brand document (`brand_id`). Brand is not a competing peer campaign.
-- Release owns campaign **galleries** and **pages** (e.g. Bio) via `release_id` on those containers (and optional reverse indexes on the release document).
-- Release owns **listening products** as playlists with `release_id` set to this release; a track may appear in many of those playlists.
+- Release owns campaign **galleries** and **pages** (e.g. Bio) via `campaign_id` on those containers (and optional reverse indexes on the release document).
+- Release owns **listening products** as playlists with `campaign_id` set to this release; a track may appear in many of those playlists.
 - **Normal operator flow:** playlist entries under a release come from that release’s track pool — prefer, not hard-enforced yet.
 - `release_date` is the primary campaign/street date (often the album date). Individual playlist `publish_date` values carry single/tour package street dates.
 - `poster_asset_id` is the release cover (album art), distinct from brand logo/share slots.
@@ -480,7 +480,7 @@ Legacy/deferred `catalog_id`, `epk.tagline`, `epk.genre`, `epk.credits`,
 and preserved for package compatibility. Their operator schema is intentionally
 deferred for a later EPK redesign.
 
-Child containers (playlist / gallery / page / brand identity) carry `release_id` pointing here.
+Child containers (playlist / gallery / page / brand identity) carry `campaign_id` pointing here.
 
 ### Release locking
 
@@ -500,8 +500,8 @@ Playlists are **streaming listening products** under a release: album sequence, 
 
 ### Rules
 
-- Entries reference `asset_id` (and carry `release_id` for analytics / ownership context).
-- Prefer `release_id` on the playlist document = owning campaign release. Demo and normal operator flow: all entries come from that release.
+- Entries reference `asset_id` (and may carry asset catalogue-home `release_id` for analytics context).
+- Prefer `campaign_id` on the playlist document = owning campaign. Demo and normal operator flow: all entries come from that release.
 - A track may appear in **multiple** playlists (reuse is the point).
 - Playlist has its own `publish_date` (e.g. Personal Jesus 1989-08-29 vs album 1990-03-19).
 - Playlist carries `package_type` and `play_order` (see Package type and play order).
@@ -518,7 +518,7 @@ Playlists are **streaming listening products** under a release: album sequence, 
 | `catalog_id` | — | — | Operator catalogue reference |
 | `description` | Product blurb for share cards | Share/summary text | Press / EPK blurb |
 | `poster_asset_id` | Product cover / share image | Share/OG image | Release cover (campaign art) |
-| `release_id` | Owning campaign release | Owning campaign release | — |
+| `campaign_id` | Owning campaign | Owning campaign | — |
 
 **Release EPK** lives on the release. Playlists are listening products only — they must not duplicate catalogue ownership or feel like a second release editor.
 **Contact / email storage (v0.8.4+):** operator and release contacts use RFC 5322 strings (for example `7rym <7rym@7rym.net>`). Values are validated and canonicalized on save: control characters stripped, mailbox domains lowercased, display names trimmed. Empty contact is allowed when no valid mailbox can be derived (for example localhost dev installs). Outbound mail is not implemented in v0.8; this layer prepares consistent contact data for future press-reply and notification features and improves deliverability hygiene before any SMTP work lands.
@@ -707,7 +707,7 @@ Value is the visual registry id, not a human title and not an original filename.
 
 ### Ownership rules (locked 2026-07-21)
 
-- Each release has **one** identity brand document (`release.brand_id` ↔ `brand.release_id`).
+- Each release has **one** identity brand document (`release.brand_id` ↔ `brand.campaign_id`).
 - Do **not** model “many catalogue SKUs → one shared brand era” as peer Releases. Album vs single packages are **playlists** under one Release.
 - Install base identity (`install.pointers.active_brand_id`) selects which release’s identity drives login/player shell; preferably the demo/base release’s brand.
 - Setup seeds locked **`bandpromo-default`** identity for the demo release; operators duplicate/customize as part of their own release, not as a free-floating Branding peer forever.
@@ -721,7 +721,7 @@ data/brands/{brand-id}.json
 
 **Brand ids:** Seed/system identity stays `bandpromo-default` (legacy alias `setup-default`) and **cannot be renamed**. New operator brands allocate opaque `brd_{ulid}` ids (same ULID helper as `ast_*` assets). Legacy title-derived ids (`hitz-copy`, …) remain valid until migrated. **Titles are unique** on an install (case-insensitive). Content → Branding shows an editable **Storage id**; changing it runs an atomic runtime migrate (document file, registry, Base pointer, campaign `brand_id`, asset `brand_id`, playlist `brand_styles`) — title rename does **not** change the id. Listener analytics do not store brand ids (track title/artist only); admin audit keeps historical ids append-only.
 
-Migration: `data/themes/` → `data/brands/`; brand documents gain `release_id`. Legacy many-to-one release→brand links dual-read until migrated.
+Migration: `data/themes/` → `data/brands/`; brand documents use `campaign_id` (legacy container `release_id` migrate-and-delete). Asset catalogue-home field remains `release_id` until a later schema cut.
 
 - Content → **Branding** remains the identity editor (peer Content tab today; open from Catalogue associations when editing a release).
 - **Set as base** updates the install pointer and syncs that brand’s `assets` into config (login + shell media baseline).

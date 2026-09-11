@@ -2841,7 +2841,7 @@ if ($tab === 'analytics') {
                                     <td><?php echo htmlspecialchars((string) ($backupJob['type_label'] ?? '')); ?></td>
                                     <td>
                                         <span class="badge audit-status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusLabel); ?></span>
-                                        <?php if ($jobStatus === 'building' && trim((string) ($backupJob['progress'] ?? '')) !== ''): ?>
+                                        <?php if (($jobStatus === 'building' || ($jobStatus === 'ready' && !empty($backupJob['sha256_pending']))) && trim((string) ($backupJob['progress'] ?? '')) !== ''): ?>
                                         <div class="text-muted site-backup-job-note"><?php echo htmlspecialchars((string) $backupJob['progress']); ?></div>
                                         <?php endif; ?>
                                         <?php if ($jobStatus === 'ready' && $jobDirection === 'import' && trim((string) ($backupJob['import_summary'] ?? '')) !== ''): ?>
@@ -2857,6 +2857,8 @@ if ($tab === 'analytics') {
                                         $jobSha = trim((string) ($backupJob['sha256'] ?? ''));
                                         if ($jobSha !== '') {
                                             echo '<div class="text-muted" style="font-size:0.75rem;">SHA ' . htmlspecialchars(substr($jobSha, 0, 12)) . '…</div>';
+                                        } elseif ($jobStatus === 'ready' && (!empty($backupJob['sha256_pending']) || (int) ($backupJob['size_bytes'] ?? 0) > 64 * 1024 * 1024)) {
+                                            echo '<div class="text-muted" style="font-size:0.75rem;">SHA pending…</div>';
                                         }
                                     ?></td>
                                     <td class="site-backup-job-actions">

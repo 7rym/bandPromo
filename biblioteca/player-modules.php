@@ -100,9 +100,7 @@ function bandpromo_player_release_optional_tab_keys(string $root, string $releas
         } catch (Throwable $throwable) {
             continue;
         }
-        $owner = function_exists('bandpromo_document_campaign_id')
-            ? bandpromo_document_campaign_id($doc)
-            : bandpromo_campaign_normalize_id(trim((string) ($doc['campaign_id'] ?? $doc['release_id'] ?? '')));
+        $owner = bandpromo_document_campaign_id($doc);
         if ($owner !== $releaseId) {
             continue;
         }
@@ -241,9 +239,7 @@ function bandpromo_player_tab_from_key(string $root, string $key, bool $requireS
         require_once __DIR__ . '/page-storage.php';
         require_once __DIR__ . '/campaign-storage.php';
         $doc = bandpromo_page_load_document($root, $pageId);
-        $releaseId = function_exists('bandpromo_document_campaign_id')
-            ? bandpromo_document_campaign_id($doc)
-            : trim((string) ($doc['campaign_id'] ?? $doc['release_id'] ?? ''));
+        $releaseId = bandpromo_document_campaign_id($doc);
     } catch (Throwable $throwable) {
         $releaseId = '';
     }

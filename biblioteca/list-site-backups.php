@@ -38,6 +38,7 @@ try {
     ignore_user_abort(true);
     @set_time_limit(0);
     bandpromo_site_backup_continue_building_jobs($root);
+    bandpromo_site_backup_continue_archive_sha_jobs($root);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode([

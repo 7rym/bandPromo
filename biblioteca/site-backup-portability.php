@@ -624,10 +624,15 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
     $direction = bandpromo_site_backup_job_direction($job);
     $zipPath = $jobId !== '' ? bandpromo_site_backup_job_zip_path($root, $jobId) : '';
     $uploadPath = $jobId !== '' ? bandpromo_site_backup_job_upload_path($root, $jobId) : '';
+    $packageUploadPath = trim((string) ($job['package_upload_path'] ?? ''));
     $sizeBytes = (int) ($job['size_bytes'] ?? 0);
     if ($sizeBytes <= 0) {
-        if ($direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT && $uploadPath !== '' && is_file($uploadPath)) {
-            $sizeBytes = (int) filesize($uploadPath);
+        if ($direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT) {
+            if ($packageUploadPath !== '' && is_file($packageUploadPath)) {
+                $sizeBytes = (int) filesize($packageUploadPath);
+            } elseif ($uploadPath !== '' && is_file($uploadPath)) {
+                $sizeBytes = (int) filesize($uploadPath);
+            }
         } elseif ($zipPath !== '' && is_file($zipPath)) {
             $sizeBytes = (int) filesize($zipPath);
         }
@@ -650,10 +655,10 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
     $brandId = trim((string) ($job['brand_id'] ?? ''));
     if ($isPrp) {
         $labelCore = $releaseTitle !== '' ? $releaseTitle : ($releaseId !== '' ? $releaseId : 'campaign');
-        $typeLabel = 'PCF · ' . $labelCore;
+        $typeLabel = ($direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT ? 'Import PCF · ' : 'PCF · ') . $labelCore;
     } elseif ($isPbf) {
         $labelCore = $brandTitle !== '' ? $brandTitle : ($brandId !== '' ? $brandId : 'brand');
-        $typeLabel = 'PBF · ' . $labelCore;
+        $typeLabel = ($direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT ? 'Import PBF · ' : 'PBF · ') . $labelCore;
     } else {
         $componentsLabel = bandpromo_site_backup_components_label($components);
         $typeLabel = $direction === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT
@@ -665,6 +670,7 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
     $sha256 = strtolower(trim((string) ($job['sha256'] ?? '')));
     // Never hash multi-GB archives during Jobs list — that blocked/killed polls and
     // looked like a restart after packing finished.
+    // Package imports are not downloadable archives — never mark SHA pending for them.
 
     return [
         'id' => $jobId,
@@ -687,6 +693,15 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
         'completed_at_utc' => (string) ($job['completed_at_utc'] ?? ''),
         'progress' => (string) ($job['progress'] ?? ''),
         'cancel_requested' => !empty($job['cancel_requested']),
+        'sha256_pending' => $direction === BANDPROMO_SITE_BACKUP_DIRECTION_EXPORT
+            && (
+                !empty($job['sha256_pending'])
+                || (
+                    $status === BANDPROMO_SITE_BACKUP_JOB_READY
+                    && $sha256 === ''
+                    && $sizeBytes > (64 * 1024 * 1024)
+                )
+            ),
         'filename' => (string) ($job['filename'] ?? ''),
         'size_bytes' => $sizeBytes,
         'size_label' => bandpromo_site_backup_format_bytes($sizeBytes),
@@ -896,6 +911,10 @@ function bandpromo_site_backup_run_job(string $root, string $jobId): array
     }
 
     if (bandpromo_site_backup_job_direction($job) === BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT) {
+        if (bandpromo_site_backup_is_prp_job($job) || bandpromo_site_backup_is_pbf_job($job)) {
+            return bandpromo_site_backup_run_package_import_job($root, $jobId);
+        }
+
         return bandpromo_site_backup_run_import_job($root, $jobId);
     }
 
@@ -1274,10 +1293,26 @@ function bandpromo_site_backup_delete_job(string $root, string $jobId): void
     $metaPath = bandpromo_site_backup_job_meta_path($root, $jobId);
     $zipPath = bandpromo_site_backup_job_zip_path($root, $jobId);
     $uploadPath = bandpromo_site_backup_job_upload_path($root, $jobId);
+    $job = null;
+    try {
+        $job = bandpromo_site_backup_read_job($root, $jobId);
+    } catch (Throwable $e) {
+        $job = null;
+    }
+    $packageUploadPath = is_array($job) ? trim((string) ($job['package_upload_path'] ?? '')) : '';
 
     bandpromo_site_backup_cleanup_job_build_artifacts($root, $jobId);
+    if ($packageUploadPath !== '' && is_file($packageUploadPath)) {
+        @unlink($packageUploadPath);
+    }
     if (is_file($uploadPath)) {
         @unlink($uploadPath);
+    }
+    foreach (['pcf', 'prp', 'pbf'] as $ext) {
+        $extra = bandpromo_site_backup_job_package_upload_path($root, $jobId, $ext);
+        if (is_file($extra)) {
+            @unlink($extra);
+        }
     }
     if (is_file($zipPath)) {
         @unlink($zipPath);
@@ -1663,6 +1698,7 @@ function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string 
         $sha = bandpromo_transfer_sha256_file($zipPath);
         if ($sha !== '') {
             $job['sha256'] = $sha;
+            $job['sha256_pending'] = false;
             $job['heartbeat_at_utc'] = gmdate('c');
             try {
                 bandpromo_site_backup_write_job($root, $job);
@@ -1670,6 +1706,156 @@ function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string 
                 // Ready already committed.
             }
         }
+    } elseif ($sizeBytes > $maxInlineShaBytes) {
+        $job['sha256_pending'] = true;
+        $job['progress'] = 'Checksumming archive…';
+        try {
+            bandpromo_site_backup_write_job($root, $job);
+        } catch (Throwable $e) {
+            // Ready already committed.
+        }
+        bandpromo_site_backup_spawn_archive_sha($root, (string) ($job['id'] ?? ''));
+    }
+}
+
+/**
+ * Start a CLI worker to SHA-256 a large Ready archive without blocking FPM.
+ */
+function bandpromo_site_backup_spawn_archive_sha(string $root, string $jobId): bool
+{
+    $jobId = trim($jobId);
+    if ($jobId === '') {
+        return false;
+    }
+
+    require_once __DIR__ . '/light-build-tasks.php';
+    require_once __DIR__ . '/build-launcher.php';
+
+    $php = bandpromo_resolve_php_cli();
+    if ($php === '') {
+        return false;
+    }
+
+    $script = __DIR__ . DIRECTORY_SEPARATOR . 'compute-site-backup-sha.php';
+    if (!is_file($script)) {
+        return false;
+    }
+
+    $lockPath = bandpromo_site_backup_ensure_dir($root) . '/' . $jobId . '.sha.lock';
+    if (is_file($lockPath)) {
+        $age = time() - (int) filemtime($lockPath);
+        if ($age >= 0 && $age < 7200) {
+            return true;
+        }
+        @unlink($lockPath);
+    }
+    @file_put_contents($lockPath, gmdate('c'), LOCK_EX);
+
+    $isWindows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
+    $phpArg = $php;
+    $scriptArg = $script;
+    $rootArg = $root;
+    $jobArg = $jobId;
+
+    if ($isWindows) {
+        if (!function_exists('popen') && !bandpromo_can_proc_open()) {
+            @unlink($lockPath);
+
+            return false;
+        }
+        $cmd = 'start /B "" '
+            . escapeshellarg($phpArg)
+            . ' -d max_execution_time=0 '
+            . escapeshellarg($scriptArg)
+            . ' --job-id=' . escapeshellarg($jobArg)
+            . ' --root=' . escapeshellarg($rootArg);
+        $handle = @popen($cmd, 'r');
+        if ($handle === false) {
+            @unlink($lockPath);
+
+            return false;
+        }
+        @pclose($handle);
+
+        return true;
+    }
+
+    if (!function_exists('exec') && !bandpromo_can_proc_open()) {
+        @unlink($lockPath);
+
+        return false;
+    }
+
+    $cmd = escapeshellarg($phpArg)
+        . ' -d max_execution_time=0 '
+        . escapeshellarg($scriptArg)
+        . ' --job-id=' . escapeshellarg($jobArg)
+        . ' --root=' . escapeshellarg($rootArg)
+        . ' > /dev/null 2>&1 &';
+    @exec($cmd);
+
+    return true;
+}
+
+/**
+ * Ensure large Ready jobs without SHA keep a background hasher running.
+ */
+function bandpromo_site_backup_continue_archive_sha_jobs(string $root): void
+{
+    $dir = bandpromo_site_backup_ensure_dir($root);
+    $items = scandir($dir);
+    if ($items === false) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if (!str_ends_with($item, '.json') || str_ends_with($item, '.plan.json')) {
+            continue;
+        }
+        $jobId = substr($item, 0, -5);
+        try {
+            $job = bandpromo_site_backup_read_job($root, $jobId);
+        } catch (InvalidArgumentException $e) {
+            continue;
+        }
+        if ($job === null) {
+            continue;
+        }
+        if ((string) ($job['status'] ?? '') !== BANDPROMO_SITE_BACKUP_JOB_READY) {
+            continue;
+        }
+        if (strtolower(trim((string) ($job['sha256'] ?? ''))) !== '') {
+            $lockPath = $dir . '/' . $jobId . '.sha.lock';
+            if (is_file($lockPath)) {
+                @unlink($lockPath);
+            }
+            if (!empty($job['sha256_pending']) || trim((string) ($job['progress'] ?? '')) !== '') {
+                $job['sha256_pending'] = false;
+                $job['progress'] = '';
+                try {
+                    bandpromo_site_backup_write_job($root, $job);
+                } catch (Throwable $e) {
+                    // Ignore.
+                }
+            }
+            continue;
+        }
+        $size = (int) ($job['size_bytes'] ?? 0);
+        if ($size <= 64 * 1024 * 1024) {
+            continue;
+        }
+        if (empty($job['sha256_pending'])) {
+            $job['sha256_pending'] = true;
+            $job['progress'] = 'Checksumming archive…';
+            try {
+                bandpromo_site_backup_write_job($root, $job);
+            } catch (Throwable $e) {
+                // Ignore.
+            }
+        }
+        bandpromo_site_backup_spawn_archive_sha($root, $jobId);
+
+        return;
     }
 }
 
@@ -1790,6 +1976,194 @@ function bandpromo_site_backup_job_upload_path(string $root, string $jobId): str
     $jobId = bandpromo_site_backup_sanitize_job_id($jobId);
 
     return bandpromo_site_backup_ensure_dir($root) . '/' . $jobId . '.upload.zip';
+}
+
+function bandpromo_site_backup_job_package_upload_path(string $root, string $jobId, string $extension = 'pcf'): string
+{
+    $jobId = bandpromo_site_backup_sanitize_job_id($jobId);
+    $extension = strtolower(preg_replace('/[^a-z0-9]+/', '', $extension) ?? '');
+    if ($extension === '') {
+        $extension = 'pcf';
+    }
+
+    return bandpromo_site_backup_ensure_dir($root) . '/' . $jobId . '.upload.' . $extension;
+}
+
+/**
+ * Queue a Portable Campaign/Brand File import after chunked upload assembled on disk.
+ *
+ * @param 'prp'|'pbf' $kind
+ */
+function bandpromo_site_backup_enqueue_package_import(
+    string $root,
+    string $assembledPath,
+    string $filename,
+    string $kind,
+    string $collision,
+    string $actor
+): array {
+    if (!is_file($assembledPath)) {
+        throw new RuntimeException('Assembled package is missing.');
+    }
+    $kind = strtolower(trim($kind));
+    if ($kind !== BANDPROMO_SITE_BACKUP_TYPE_PRP && $kind !== BANDPROMO_SITE_BACKUP_TYPE_PBF) {
+        throw new InvalidArgumentException('Package import kind must be PCF or PBF.');
+    }
+
+    $extension = $kind === BANDPROMO_SITE_BACKUP_TYPE_PBF ? 'pbf' : 'pcf';
+    $jobId = bandpromo_site_backup_sanitize_job_id(
+        ($kind === BANDPROMO_SITE_BACKUP_TYPE_PBF ? 'pbf-import-' : 'pcf-import-')
+        . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(3))
+    );
+    $uploadPath = bandpromo_site_backup_job_package_upload_path($root, $jobId, $extension);
+    if (!rename($assembledPath, $uploadPath)) {
+        if (!copy($assembledPath, $uploadPath)) {
+            throw new RuntimeException('Could not stage the package for import.');
+        }
+        @unlink($assembledPath);
+    }
+
+    $baseName = basename($filename);
+    $title = preg_replace('/\.(pcf|prp|pbf)$/i', '', $baseName) ?? $baseName;
+    $job = [
+        'id' => $jobId,
+        'direction' => BANDPROMO_SITE_BACKUP_DIRECTION_IMPORT,
+        'type' => $kind,
+        'components' => [],
+        'package_collision' => $collision,
+        'package_upload_path' => $uploadPath,
+        'status' => BANDPROMO_SITE_BACKUP_JOB_PENDING,
+        'created_at_utc' => gmdate('c'),
+        'started_at_utc' => '',
+        'completed_at_utc' => '',
+        'filename' => $baseName !== '' ? $baseName : ('package.' . $extension),
+        'size_bytes' => is_file($uploadPath) ? (int) filesize($uploadPath) : 0,
+        'error' => '',
+        'import_summary' => '',
+        'progress' => 'Queued package import…',
+        'requested_by' => $actor,
+    ];
+    if ($kind === BANDPROMO_SITE_BACKUP_TYPE_PRP) {
+        $job['release_title'] = $title;
+    } else {
+        $job['brand_title'] = $title;
+    }
+    bandpromo_site_backup_write_job($root, $job);
+
+    return bandpromo_site_backup_normalize_job($root, $job);
+}
+
+function bandpromo_site_backup_run_package_import_job(string $root, string $jobId): array
+{
+    $job = bandpromo_site_backup_read_job($root, $jobId);
+    if ($job === null) {
+        throw new RuntimeException('Package import job was not found.');
+    }
+
+    $status = (string) ($job['status'] ?? '');
+    if (!in_array($status, [BANDPROMO_SITE_BACKUP_JOB_PENDING, BANDPROMO_SITE_BACKUP_JOB_BUILDING], true)) {
+        return bandpromo_site_backup_normalize_job($root, $job);
+    }
+
+    @set_time_limit(0);
+    ignore_user_abort(true);
+
+    $isPbf = bandpromo_site_backup_is_pbf_job($job);
+    $uploadPath = trim((string) ($job['package_upload_path'] ?? ''));
+    if ($uploadPath === '' || !is_file($uploadPath)) {
+        $uploadPath = bandpromo_site_backup_job_package_upload_path(
+            $root,
+            $jobId,
+            $isPbf ? 'pbf' : 'pcf'
+        );
+    }
+    $collision = trim((string) ($job['package_collision'] ?? 'refuse'));
+    $filename = (string) ($job['filename'] ?? ($isPbf ? 'package.pbf' : 'package.pcf'));
+
+    $job['status'] = BANDPROMO_SITE_BACKUP_JOB_BUILDING;
+    $job['started_at_utc'] = gmdate('c');
+    $job['heartbeat_at_utc'] = $job['started_at_utc'];
+    $job['progress'] = $isPbf ? 'Importing Portable Brand File…' : 'Importing Portable Campaign File…';
+    $job['error'] = '';
+    bandpromo_site_backup_write_job($root, $job);
+
+    try {
+        if (!is_file($uploadPath)) {
+            throw new RuntimeException('Uploaded package is missing.');
+        }
+        // Call package libraries directly — do not include the HTTP entry scripts.
+        require_once __DIR__ . '/admin-audit.php';
+        if ($isPbf) {
+            require_once __DIR__ . '/brand-package.php';
+            require_once __DIR__ . '/brand-storage.php';
+            $result = bandpromo_brand_import_from_zip($root, $uploadPath, [
+                'collision' => $collision,
+            ]);
+            bandpromo_admin_audit_log('brand_package_imported', [
+                'target_type' => 'brand',
+                'target_id' => (string) ($result['brand_id'] ?? ''),
+                'status' => 'ok',
+                'data' => [
+                    'imported_files' => (int) ($result['imported_files'] ?? 0),
+                    'filename' => $filename,
+                    'collision' => (string) ($result['collision'] ?? $collision),
+                    'mode' => 'queued_job',
+                    'queue_deliverables' => !empty($result['queue_deliverables']),
+                ],
+            ]);
+            $releaseOrBrandId = (string) ($result['brand_id'] ?? '');
+            $message = (string) ($result['message'] ?? 'Portable Brand File imported.');
+        } else {
+            require_once __DIR__ . '/campaign-package.php';
+            require_once __DIR__ . '/campaign-storage.php';
+            $result = bandpromo_campaign_import_from_zip($root, $uploadPath, [
+                'mode' => 'operator',
+                'allow_demo_overwrite' => false,
+                'set_active_brand' => false,
+                'collision' => $collision,
+            ]);
+            bandpromo_admin_audit_log('release_package_imported', [
+                'target_type' => 'release',
+                'target_id' => (string) ($result['release_id'] ?? ''),
+                'status' => 'ok',
+                'data' => [
+                    'imported_files' => (int) ($result['imported_files'] ?? 0),
+                    'filename' => $filename,
+                    'collision' => (string) ($result['collision'] ?? $collision),
+                    'mode' => 'queued_job',
+                    'queue_deliverables' => !empty($result['queue_deliverables']),
+                ],
+            ]);
+            $releaseOrBrandId = (string) ($result['release_id'] ?? '');
+            $message = (string) ($result['message'] ?? 'Portable Campaign File imported.');
+        }
+        $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
+        $job['completed_at_utc'] = gmdate('c');
+        $job['heartbeat_at_utc'] = $job['completed_at_utc'];
+        $job['progress'] = '';
+        $job['import_summary'] = $message;
+        $job['error'] = '';
+        if ($isPbf) {
+            if ($releaseOrBrandId !== '') {
+                $job['brand_id'] = $releaseOrBrandId;
+            }
+        } elseif ($releaseOrBrandId !== '') {
+            $job['release_id'] = $releaseOrBrandId;
+        }
+        bandpromo_site_backup_write_job($root, $job);
+        if (is_file($uploadPath)) {
+            @unlink($uploadPath);
+        }
+    } catch (Throwable $e) {
+        $job['status'] = BANDPROMO_SITE_BACKUP_JOB_FAILED;
+        $job['completed_at_utc'] = gmdate('c');
+        $job['heartbeat_at_utc'] = $job['completed_at_utc'];
+        $job['progress'] = '';
+        $job['error'] = $e->getMessage();
+        bandpromo_site_backup_write_job($root, $job);
+    }
+
+    return bandpromo_site_backup_normalize_job($root, $job);
 }
 
 function bandpromo_site_backup_generate_import_id(): string

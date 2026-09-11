@@ -9727,9 +9727,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : null;
                         const campaignSlug = String(
                             entry?.campaign_slug
-                            || entry?.release_slug
                             || entry?.campaign_id
-                            || entry?.release_id
                             || 'campaign-slug'
                         ).trim();
                         playlistSettingsCampaignSlugPreview.textContent = campaignSlug || 'campaign-slug';
@@ -10401,7 +10399,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function renderPlaylistPoolList() {
                     if (!poolList) return;
                     const visible = campaignFilterId
-                        ? playlists.filter((entry) => String(entry.release_id || '').trim() === campaignFilterId)
+                        ? playlists.filter((entry) => String(entry.campaign_id || '').trim() === campaignFilterId)
                         : playlists;
                     window.bandpromoRegistryList.render(poolList, {
                         entries: visible,
@@ -10454,7 +10452,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     }
                     if (campaignFilterId) {
-                        const scoped = playlists.filter((entry) => String(entry.release_id || '').trim() === campaignFilterId);
+                        const scoped = playlists.filter((entry) => String(entry.campaign_id || '').trim() === campaignFilterId);
                         defaultPlaylistId = String(scoped[0]?.id || playlists[0]?.id || 'bandpromo-demo');
                     } else {
                         defaultPlaylistId = String(
@@ -12922,7 +12920,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const errorHtml = job.status === 'failed' && job.error
                             ? `<div class="text-muted site-backup-job-error">${escapeHtml(job.error)}</div>`
                             : '';
-                        const progressHtml = job.status === 'building' && job.progress
+                        const progressHtml = (job.status === 'building' || (job.status === 'ready' && job.sha256_pending)) && job.progress
                             ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.progress)}</div>`
                             : '';
                         const noteHtml = job.status === 'ready' && job.direction === 'import' && job.import_summary
@@ -12938,12 +12936,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const deleteHtml = (job.status !== 'building' && job.status !== 'pending')
                             ? `<button type="button" class="btn btn-danger-outline site-backup-action-btn site-backup-delete-btn" data-backup-id="${escapeHtml(job.id)}" data-backup-label="${escapeHtml(deleteLabel)}">🗑️ Delete</button>`
                             : '';
+                        const shaLine = job.sha256
+                            ? `<div class="text-muted" style="font-size:0.75rem;">SHA ${escapeHtml(String(job.sha256).slice(0, 12))}…</div>`
+                            : (job.status === 'ready' && (job.sha256_pending || Number(job.size_bytes || 0) > 64 * 1024 * 1024)
+                                ? `<div class="text-muted" style="font-size:0.75rem;">SHA pending…</div>`
+                                : '');
 
                         return `<tr data-backup-id="${escapeHtml(job.id)}">
                             <td>${escapeHtml(job.type_label || job.type || '')}</td>
                             <td><span class="badge audit-status-badge ${meta.className}">${escapeHtml(meta.label)}</span>${progressHtml}${noteHtml}${errorHtml}</td>
                             <td class="text-muted nowrap">${escapeHtml(job.created_at_utc || '')}</td>
-                            <td class="nowrap" title="${escapeHtml(job.sha256 || '')}">${escapeHtml(job.size_label || '—')}${job.sha256 ? `<div class="text-muted" style="font-size:0.75rem;">SHA ${escapeHtml(String(job.sha256).slice(0, 12))}…</div>` : ''}</td>
+                            <td class="nowrap" title="${escapeHtml(job.sha256 || '')}">${escapeHtml(job.size_label || '—')}${shaLine}</td>
                             <td class="site-backup-job-actions">${downloadHtml}${cancelHtml}${deleteHtml}</td>
                         </tr>`;
                     }).join('');
@@ -12967,7 +12970,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function jobsNeedPolling(jobs) {
                     return Array.isArray(jobs) && jobs.some((job) => {
                         const status = String(job.status || '');
-                        return status === 'pending' || status === 'building';
+                        if (status === 'pending' || status === 'building') {
+                            return true;
+                        }
+                        return status === 'ready' && !!job.sha256_pending;
                     });
                 }
 
@@ -13711,11 +13717,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 return;
                             }
                             if (finishing) {
-                                campaignPackageImportStatus.textContent = 'Uploading complete — importing…';
+                                campaignPackageImportStatus.textContent = 'Uploading complete — queuing import…';
                                 return;
                             }
                             campaignPackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
                         });
+                        if (data.queued && data.job) {
+                            if (campaignPackageImportStatus) {
+                                campaignPackageImportStatus.textContent = data.message
+                                    || 'Portable Campaign File import queued. Progress appears under Jobs.';
+                            }
+                            if (typeof renderBackupJobs === 'function') {
+                                renderBackupJobs([data.job]);
+                                syncBackupPolling([data.job]);
+                            }
+                            if (typeof refreshBackupJobs === 'function') {
+                                try {
+                                    await refreshBackupJobs();
+                                } catch (_refreshError) {
+                                    // Optimistic row already shown.
+                                }
+                            }
+                            return;
+                        }
                         const campaignId = String(data.release_id || '').trim();
                         let message = data.message || 'Campaign package imported.';
                         if (data.deliverables_started) {
@@ -13953,11 +13977,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 return;
                             }
                             if (finishing) {
-                                brandPackageImportStatus.textContent = 'Uploading complete — importing…';
+                                brandPackageImportStatus.textContent = 'Uploading complete — queuing import…';
                                 return;
                             }
                             brandPackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
                         });
+                        if (data.queued && data.job) {
+                            if (brandPackageImportStatus) {
+                                brandPackageImportStatus.textContent = data.message
+                                    || 'Portable Brand File import queued. Progress appears under Jobs.';
+                            }
+                            if (typeof renderBackupJobs === 'function') {
+                                renderBackupJobs([data.job]);
+                                syncBackupPolling([data.job]);
+                            }
+                            if (typeof refreshBackupJobs === 'function') {
+                                try {
+                                    await refreshBackupJobs();
+                                } catch (_refreshError) {
+                                    // Optimistic row already shown.
+                                }
+                            }
+                            return;
+                        }
                         const brandId = String(data.brand_id || '').trim();
                         let message = data.message || 'Portable Brand File imported.';
                         if (data.deliverables_started) {

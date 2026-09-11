@@ -220,10 +220,10 @@ function bandpromo_gallery_visible_in_admin_catalog(string $root, array $entry):
         return false;
     }
 
-    $owner = '';
+        $owner = '';
     try {
         $document = bandpromo_gallery_load_document($root, $galleryId);
-        $owner = (string) ($document['release_id'] ?? '');
+        $owner = bandpromo_document_campaign_id($document);
     } catch (Throwable $throwable) {
         $owner = '';
     }

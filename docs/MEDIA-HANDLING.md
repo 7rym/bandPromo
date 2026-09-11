@@ -67,7 +67,7 @@ Assets and fields that belong to one release:
 - **release cover** (`poster_asset_id` on the release document — picked from Visual pool filtered by the release's linked brand)
 - release-level gallery media when a gallery is scoped to that release
 - release-level packaging metadata and EPK fields
-- **`brand_id` link** — each release has **one** identity brand (`release.brand_id` ↔ `brand.release_id`). Album vs single packages are playlists under that release, not peer releases sharing an “era” brand. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) ownership rules.
+- **`brand_id` link** — each release has **one** identity brand (`release.brand_id` ↔ `brand.campaign_id`). Album vs single packages are playlists under that release, not peer releases sharing an “era” brand. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) ownership rules.
 
 The `release cover` should be a first-class concept on the release, not stored inside the brand container.
 

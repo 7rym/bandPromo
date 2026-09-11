@@ -179,9 +179,25 @@ function bandpromo_chunked_upload_receive(
         throw new RuntimeException('Invalid chunk upload.');
     }
 
-    $chunkPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $chunkIndex;
-    if (!move_uploaded_file($tmpName, $chunkPath)) {
-        throw new RuntimeException('Could not save chunk.');
+    $assembledPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.assembled.' . $assembledExtension;
+    // Append each chunk as it arrives — avoids a multi-GB concatenate on the final request.
+    if ($chunkIndex === 0 && is_file($assembledPath)) {
+        @unlink($assembledPath);
+    }
+    $out = fopen($assembledPath, $chunkIndex === 0 ? 'wb' : 'ab');
+    if ($out === false) {
+        throw new RuntimeException('Could not open assembled upload for writing.');
+    }
+    $in = fopen($tmpName, 'rb');
+    if ($in === false) {
+        fclose($out);
+        throw new RuntimeException('Could not read uploaded chunk.');
+    }
+    $copied = stream_copy_to_stream($in, $out);
+    fclose($in);
+    fclose($out);
+    if ($copied === false) {
+        throw new RuntimeException('Could not append chunk ' . $chunkIndex . '.');
     }
 
     if ($chunkIndex !== $totalChunks - 1) {
@@ -196,63 +212,8 @@ function bandpromo_chunked_upload_receive(
         ];
     }
 
-    $partsPresent = 0;
-    $partsBytes = 0;
-    for ($i = 0; $i < $totalChunks; $i++) {
-        $partPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $i;
-        if (!is_file($partPath)) {
-            continue;
-        }
-        $partsPresent++;
-        $partsBytes += (int) filesize($partPath);
-    }
-
-    if ($partsPresent < $totalChunks) {
-        bandpromo_chunked_upload_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        throw new RuntimeException(
-            'Upload finished but chunks are incomplete ('
-            . $partsPresent . '/' . $totalChunks . '). Retry the upload.'
-        );
-    }
-
-    if ($expectedSize > 0 && $partsBytes !== $expectedSize) {
-        bandpromo_chunked_upload_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        throw new RuntimeException(
-            'Assembled size mismatch (got ' . $partsBytes . ' bytes, expected ' . $expectedSize
-            . '). The file may be truncated — re-download and retry.'
-        );
-    }
-
     @set_time_limit(0);
-    $assembledPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.assembled.' . $assembledExtension;
-    $out = fopen($assembledPath, 'wb');
-    if ($out === false) {
-        bandpromo_chunked_upload_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        throw new RuntimeException('Could not assemble package.');
-    }
-    try {
-        for ($i = 0; $i < $totalChunks; $i++) {
-            $partPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part' . $i;
-            $in = fopen($partPath, 'rb');
-            if ($in === false) {
-                throw new RuntimeException('Missing chunk part ' . $i . '.');
-            }
-            $copied = stream_copy_to_stream($in, $out);
-            fclose($in);
-            if ($copied === false) {
-                throw new RuntimeException('Could not copy chunk part ' . $i . '.');
-            }
-            @unlink($partPath);
-        }
-    } catch (Throwable $assembleError) {
-        fclose($out);
-        @unlink($assembledPath);
-        bandpromo_chunked_upload_cleanup_parts($tmpDir, $uploadId, $totalChunks);
-        throw $assembleError;
-    }
-    fclose($out);
-
-    $assembledSize = (int) filesize($assembledPath);
+    $assembledSize = is_file($assembledPath) ? (int) filesize($assembledPath) : 0;
     if ($expectedSize > 0 && $assembledSize !== $expectedSize) {
         @unlink($assembledPath);
         throw new RuntimeException(
@@ -261,12 +222,28 @@ function bandpromo_chunked_upload_receive(
         );
     }
 
-    $sha256 = bandpromo_transfer_sha256_file($assembledPath);
-    if ($expectedSha256 !== '' && $sha256 !== $expectedSha256) {
-        @unlink($assembledPath);
-        throw new RuntimeException(
-            'Assembled package checksum mismatch (integrity check failed). Re-download the source file and retry.'
-        );
+    require_once __DIR__ . '/http-stream.php';
+    $sha256 = '';
+    // Never SHA multi-GB assemblies inline — that timed out the final chunk (Failed to fetch).
+    $maxInlineShaBytes = 64 * 1024 * 1024;
+    if ($expectedSha256 !== '') {
+        if ($assembledSize > $maxInlineShaBytes) {
+            @unlink($assembledPath);
+            throw new RuntimeException(
+                'This host cannot verify a '
+                . bandpromo_transfer_format_bytes($assembledSize)
+                . ' upload checksum in one request. Import without an expected SHA, or raise host timeouts.'
+            );
+        }
+        $sha256 = bandpromo_transfer_sha256_file($assembledPath);
+        if ($sha256 !== $expectedSha256) {
+            @unlink($assembledPath);
+            throw new RuntimeException(
+                'Assembled package checksum mismatch (integrity check failed). Re-download the source file and retry.'
+            );
+        }
+    } elseif ($assembledSize > 0 && $assembledSize <= $maxInlineShaBytes) {
+        $sha256 = bandpromo_transfer_sha256_file($assembledPath);
     }
 
     return [

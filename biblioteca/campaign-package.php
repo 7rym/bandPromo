@@ -248,7 +248,12 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
                 throw new RuntimeException('Invalid JSON in release package: ' . $relative);
             }
             if ($destinationRelative === 'data/assets/registry.json') {
-                bandpromo_campaign_merge_asset_registry($root, $decoded);
+                bandpromo_campaign_merge_asset_registry(
+                    $root,
+                    $decoded,
+                    $remapRelease ? $sourceReleaseId : '',
+                    $remapRelease ? $targetReleaseId : ''
+                );
                 $imported++;
                 continue;
             }
@@ -278,7 +283,7 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
             if (!is_array($decoded)) {
                 continue;
             }
-            if (trim((string) ($decoded['release_id'] ?? '')) !== $targetReleaseId) {
+            if (!bandpromo_campaign_doc_belongs_to($decoded, $targetReleaseId)) {
                 continue;
             }
             $healed = bandpromo_campaign_heal_gallery_entries($decoded);
@@ -549,12 +554,19 @@ function bandpromo_campaign_remap_document(
             $document['brand_id'] = BANDPROMO_BRAND_DEFAULT_ID;
         }
     }
-    if (array_key_exists('release_id', $document) && trim((string) $document['release_id']) === $sourceReleaseId) {
-        $document['release_id'] = $targetReleaseId;
+    // Container ownership is campaign_id (migrate-and-delete legacy release_id).
+    if (bandpromo_document_campaign_id($document) === $sourceReleaseId) {
+        $document = bandpromo_document_with_campaign_id($document, $targetReleaseId);
     }
+    // Playlist/gallery entry rows: remap asset catalogue-home stamps (still named release_id)
+    // and any campaign_id ownership stamps.
     if (isset($document['entries']) && is_array($document['entries'])) {
         foreach ($document['entries'] as $index => $entry) {
             if (!is_array($entry)) {
+                continue;
+            }
+            if (trim((string) ($entry['campaign_id'] ?? '')) === $sourceReleaseId) {
+                $document['entries'][$index] = bandpromo_document_with_campaign_id($entry, $targetReleaseId);
                 continue;
             }
             if (trim((string) ($entry['release_id'] ?? '')) === $sourceReleaseId) {
@@ -587,17 +599,25 @@ function bandpromo_campaign_allocate_id(string $root, string $title): string
 
 /**
  * Merge a packaged asset registry subset into the install registry (no silent wipe).
+ * When allocate remaps the campaign id, retarget matching asset catalogue-home fields.
  *
  * @param array<string, mixed> $incoming
  */
-function bandpromo_campaign_merge_asset_registry(string $root, array $incoming): int
-{
+function bandpromo_campaign_merge_asset_registry(
+    string $root,
+    array $incoming,
+    string $sourceReleaseId = '',
+    string $targetReleaseId = ''
+): int {
     require_once __DIR__ . '/asset-registry.php';
 
     bandpromo_asset_registry_ensure_migrated($root);
     $registry = bandpromo_asset_load_registry($root);
     $incomingAssets = is_array($incoming['assets'] ?? null) ? $incoming['assets'] : [];
     $merged = 0;
+    $sourceReleaseId = bandpromo_campaign_normalize_id($sourceReleaseId);
+    $targetReleaseId = bandpromo_campaign_normalize_id($targetReleaseId);
+    $remapAssets = $sourceReleaseId !== '' && $targetReleaseId !== '' && $sourceReleaseId !== $targetReleaseId;
 
     foreach ($incomingAssets as $assetId => $asset) {
         if (!is_array($asset)) {
@@ -606,6 +626,9 @@ function bandpromo_campaign_merge_asset_registry(string $root, array $incoming):
         $assetId = trim((string) ($asset['id'] ?? $assetId));
         if (!bandpromo_asset_is_asset_id($assetId)) {
             continue;
+        }
+        if ($remapAssets && trim((string) ($asset['release_id'] ?? '')) === $sourceReleaseId) {
+            $asset['release_id'] = $targetReleaseId;
         }
         $normalized = bandpromo_asset_normalize_entry(array_merge($asset, ['id' => $assetId]));
         if ($normalized === null) {
@@ -685,7 +708,7 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
         if (!is_array($asset)) {
             continue;
         }
-        if (($asset['kind'] ?? '') === 'audio' && trim((string) ($asset['release_id'] ?? '')) === $releaseId) {
+        if (($asset['kind'] ?? '') === 'audio' && bandpromo_campaign_doc_belongs_to($asset, $releaseId)) {
             $add((string) $assetId);
             $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
             // display.cover / living_cover are filenames (or occasionally asset ids).
@@ -717,7 +740,7 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             continue;
         }
         $add((string) ($doc['poster_asset_id'] ?? ''));
@@ -738,7 +761,7 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             continue;
         }
         foreach (is_array($doc['entries'] ?? null) ? $doc['entries'] : [] as $row) {
@@ -762,7 +785,7 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             continue;
         }
         $add((string) ($doc['poster_asset_id'] ?? ''));
@@ -826,7 +849,7 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $releaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             continue;
         }
         $healed = bandpromo_campaign_heal_gallery_entries($doc);
@@ -869,7 +892,7 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) === $releaseId) {
+        if (bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             $addPath('data/playlists/' . $playlistId . '.json');
         }
     }
@@ -883,7 +906,7 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) === $releaseId) {
+        if (bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             $addPath('data/galleries/' . $galleryId . '.json');
         }
     }
@@ -896,7 +919,7 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) === $releaseId) {
+        if (bandpromo_campaign_doc_belongs_to($doc, $releaseId)) {
             $addPath('data/pages/' . $pageId . '.json');
         }
     }
@@ -1097,7 +1120,7 @@ function bandpromo_campaign_ensure_registry_entries(string $root, string $releas
             if (!is_array($decoded)) {
                 continue;
             }
-            if (trim((string) ($decoded['release_id'] ?? '')) !== $releaseId) {
+            if (!bandpromo_campaign_doc_belongs_to($decoded, $releaseId)) {
                 continue;
             }
             $playlistId = bandpromo_playlist_normalize_id((string) ($decoded['id'] ?? pathinfo($playlistPath, PATHINFO_FILENAME)));
@@ -1181,7 +1204,7 @@ function bandpromo_campaign_ensure_registry_entries(string $root, string $releas
             if (!is_array($decoded)) {
                 continue;
             }
-            if (trim((string) ($decoded['release_id'] ?? '')) !== $releaseId) {
+            if (!bandpromo_campaign_doc_belongs_to($decoded, $releaseId)) {
                 continue;
             }
             $galleryId = bandpromo_gallery_normalize_id((string) ($decoded['id'] ?? pathinfo($galleryPath, PATHINFO_FILENAME)));
@@ -1230,7 +1253,7 @@ function bandpromo_campaign_ensure_registry_entries(string $root, string $releas
             if (!is_array($decoded)) {
                 continue;
             }
-            if (trim((string) ($decoded['release_id'] ?? '')) !== $releaseId) {
+            if (!bandpromo_campaign_doc_belongs_to($decoded, $releaseId)) {
                 continue;
             }
             $pageId = bandpromo_page_normalize_id((string) ($decoded['id'] ?? pathinfo($pagePath, PATHINFO_FILENAME)));
@@ -1410,7 +1433,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
     if ($sourceBrandId !== '') {
         $sourceBrand = bandpromo_brand_load_document($root, $sourceBrandId);
         $newBrandId = bandpromo_brand_allocate_duplicate_id($root, $newTitle);
-        $dupBrand = bandpromo_brand_normalize_document([
+        $dupBrand = bandpromo_brand_normalize_document(bandpromo_document_with_campaign_id([
             'id' => $newBrandId,
             'title' => $newTitle,
             'system' => false,
@@ -1424,7 +1447,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
                 ? $sourceBrand['library_asset_ids']
                 : [],
             'assets' => is_array($sourceBrand['assets'] ?? null) ? $sourceBrand['assets'] : [],
-        ], $newBrandId);
+        ], $newReleaseId), $newBrandId);
         bandpromo_json_write_file(bandpromo_brand_document_path($root, $newBrandId), $dupBrand);
         $registry = bandpromo_brand_load_registry($root);
         $registry['brands'][] = [
@@ -1458,7 +1481,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $sourceReleaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $sourceReleaseId)) {
             continue;
         }
         $gTitle = trim((string) ($doc['title'] ?? $galleryId));
@@ -1473,7 +1496,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         $dupGallery = $doc;
         $dupGallery['id'] = $newGalleryId;
         $dupGallery['title'] = $gTitle . (stripos($gTitle, 'copy') === false ? ' copy' : '');
-        $dupGallery['release_id'] = $newReleaseId;
+        $dupGallery = bandpromo_document_with_campaign_id($dupGallery, $newReleaseId);
         $dupGallery['kind'] = 'user';
         $dupGallery = bandpromo_gallery_normalize_document($dupGallery, $newGalleryId);
         bandpromo_gallery_write_document($root, $dupGallery);
@@ -1492,7 +1515,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $sourceReleaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $sourceReleaseId)) {
             continue;
         }
         $pTitle = trim((string) ($doc['title'] ?? $playlistId));
@@ -1518,7 +1541,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         $dupPlaylist = $doc;
         $dupPlaylist['id'] = $newPlaylistId;
         $dupPlaylist['title'] = $pTitle . (stripos($pTitle, 'copy') === false ? ' copy' : '');
-        $dupPlaylist['release_id'] = $newReleaseId;
+        $dupPlaylist = bandpromo_document_with_campaign_id($dupPlaylist, $newReleaseId);
         $dupPlaylist['entries'] = $entries;
         // Keep a usable public slug; collide with -copy / -2 when the source slug is taken.
         $slugBase = $sourceSlug !== '' ? $sourceSlug : $newPlaylistId;
@@ -1553,7 +1576,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         } catch (Throwable $throwable) {
             continue;
         }
-        if (trim((string) ($doc['release_id'] ?? '')) !== $sourceReleaseId) {
+        if (!bandpromo_campaign_doc_belongs_to($doc, $sourceReleaseId)) {
             continue;
         }
         $pTitle = trim((string) ($doc['title'] ?? $pageId));
@@ -1579,7 +1602,7 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         $dupPage = $doc;
         $dupPage['id'] = $newPageId;
         $dupPage['title'] = $pTitle . (stripos($pTitle, 'copy') === false ? ' copy' : '');
-        $dupPage['release_id'] = $newReleaseId;
+        $dupPage = bandpromo_document_with_campaign_id($dupPage, $newReleaseId);
         $dupPage['blocks'] = $blocks;
         $dupPage = bandpromo_page_normalize_document($dupPage, $newPageId);
         bandpromo_page_write_json($root, $dupPage);

@@ -433,7 +433,7 @@ function bandpromo_playlist_is_player_visible(string $root, string $playlistId, 
 
     if (!bandpromo_demo_campaign_container_is_visible(
         $root,
-        (string) ($document['release_id'] ?? ''),
+        bandpromo_document_campaign_id($document),
         $playlistId
     )) {
         return false;
@@ -510,7 +510,7 @@ function bandpromo_playlist_resolve_catalog_cover_url(string $root, array $entry
         return $url;
     }
 
-    $releaseId = trim((string) ($entry['release_id'] ?? ''));
+    $releaseId = trim((string) ($entry['campaign_id'] ?? ''));
     if ($releaseId !== '') {
         require_once __DIR__ . '/campaign-storage.php';
         try {
@@ -1301,7 +1301,7 @@ function bandpromo_playlist_default_active_id(string $root): string
         $owner = '';
         try {
             $document = bandpromo_playlist_load_document($root, $id);
-            $owner = (string) ($document['release_id'] ?? '');
+            $owner = bandpromo_document_campaign_id($document);
         } catch (Throwable $throwable) {
             continue;
         }
@@ -2906,19 +2906,15 @@ function bandpromo_playlist_admin_registry_entry(string $root, array $registryEn
             ? 'user'
             : 'system';
         $entry['track_count'] = count($document['entries'] ?? []);
-        $entry['release_id'] = trim((string) ($document['release_id'] ?? ''));
-        if (function_exists('bandpromo_document_campaign_id')) {
-            $entry['campaign_id'] = bandpromo_document_campaign_id($document);
-        } else {
-            $entry['campaign_id'] = $entry['release_id'];
-        }
+        $entry['campaign_id'] = bandpromo_document_campaign_id($document);
         $entry['campaign_slug'] = '';
         if ($entry['campaign_id'] !== '' && function_exists('bandpromo_campaign_public_slug')) {
             $entry['campaign_slug'] = bandpromo_campaign_public_slug($root, $entry['campaign_id']);
         }
-        $entry['release_title'] = $entry['release_id'] !== ''
-            ? bandpromo_playlist_campaign_title($root, $entry['release_id'])
+        $entry['release_title'] = $entry['campaign_id'] !== ''
+            ? bandpromo_playlist_campaign_title($root, $entry['campaign_id'])
             : '';
+        // Do not emit container ownership as release_id (hard cut).
         $entry['package_type'] = bandpromo_playlist_normalize_package_type(
             (string) ($document['package_type'] ?? 'other')
         );
@@ -2929,7 +2925,7 @@ function bandpromo_playlist_admin_registry_entry(string $root, array $registryEn
     } catch (Throwable $throwable) {
         // Keep registry-only fields when the document is missing.
         $entry['slug'] = (string) ($entry['slug'] ?? $playlistId);
-        $entry['release_id'] = '';
+        $entry['campaign_id'] = '';
         $entry['release_title'] = '';
         $entry['package_type'] = 'other';
         $entry['package_type_label'] = bandpromo_playlist_package_type_label('other');
@@ -2956,7 +2952,7 @@ function bandpromo_playlist_admin_registry_entries(string $root): array
         $owner = '';
         try {
             $document = bandpromo_playlist_load_document($root, $playlistId);
-            $owner = (string) ($document['release_id'] ?? '');
+            $owner = bandpromo_document_campaign_id($document);
         } catch (Throwable $throwable) {
             $owner = '';
         }
@@ -3299,7 +3295,7 @@ function bandpromo_playlist_repair_stale_track_asset_ids(string $root, array $re
         }
 
         $playlistChanged = false;
-        $playlistRelease = bandpromo_campaign_normalize_id((string) ($document['release_id'] ?? ''));
+        $playlistRelease = bandpromo_document_campaign_id($document);
 
         $entries = is_array($document['entries'] ?? null) ? $document['entries'] : [];
         if ($entries !== []) {

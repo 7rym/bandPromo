@@ -239,6 +239,7 @@ require_once __DIR__ . '/chunked-upload.php';
 
 if (isset($_POST['chunk_index'], $_POST['filename'])) {
     try {
+        require_once __DIR__ . '/site-backup-portability.php';
         $meta = bandpromo_chunked_upload_parse_request($_POST);
         if ($meta['filename'] === '' || !bandpromo_pbf_is_brand_file_extension($meta['extension'])) {
             throw new InvalidArgumentException(bandpromo_pbf_operator_extension_error());
@@ -255,9 +256,35 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
             @unlink($assembledPath);
             throw new RuntimeException($openError);
         }
-        $payload = bandpromo_brand_import_run($root, $assembledPath, $meta['filename'], $collision);
-        @unlink($assembledPath);
-        bandpromo_brand_import_json_exit($payload);
+        $actor = trim((string) ($_SESSION['username'] ?? ''));
+        $job = bandpromo_site_backup_enqueue_package_import(
+            $root,
+            $assembledPath,
+            $meta['filename'],
+            BANDPROMO_SITE_BACKUP_TYPE_PBF,
+            $collision,
+            $actor
+        );
+        bandpromo_admin_audit_log('brand_package_import_queued', [
+            'target_type' => 'brand',
+            'target_id' => '',
+            'status' => 'ok',
+            'data' => [
+                'job_id' => (string) ($job['id'] ?? ''),
+                'filename' => $meta['filename'],
+                'collision' => $collision,
+                'size_bytes' => (int) ($job['size_bytes'] ?? 0),
+            ],
+        ]);
+        $GLOBALS['importCompleted'] = true;
+        echo json_encode([
+            'ok' => true,
+            'queued' => true,
+            'message' => 'Portable Brand File import queued. Progress appears under Jobs — leave Backup open until Imported.',
+            'job' => $job,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        bandpromo_site_backup_finish_response_and_dispatch($root, (string) $job['id']);
+        exit;
     } catch (InvalidArgumentException $throwable) {
         bandpromo_brand_import_json_exit(['ok' => false, 'error' => $throwable->getMessage()], 400);
     } catch (Throwable $throwable) {

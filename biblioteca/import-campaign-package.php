@@ -244,6 +244,7 @@ require_once __DIR__ . '/chunked-upload.php';
 // ─── Chunked upload mode (2 MB parts from admin, same as Files) ───────────────
 if (isset($_POST['chunk_index'], $_POST['filename'])) {
     try {
+        require_once __DIR__ . '/site-backup-portability.php';
         $meta = bandpromo_chunked_upload_parse_request($_POST);
         if ($meta['filename'] === '' || !bandpromo_pcf_is_campaign_file_extension($meta['extension'])) {
             throw new InvalidArgumentException(bandpromo_pcf_operator_extension_error());
@@ -260,9 +261,35 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
             @unlink($assembledPath);
             throw new RuntimeException($openError);
         }
-        $payload = bandpromo_campaign_import_run($root, $assembledPath, $meta['filename'], $collision);
-        @unlink($assembledPath);
-        bandpromo_campaign_import_json_exit($payload);
+        $actor = trim((string) ($_SESSION['username'] ?? ''));
+        $job = bandpromo_site_backup_enqueue_package_import(
+            $root,
+            $assembledPath,
+            $meta['filename'],
+            BANDPROMO_SITE_BACKUP_TYPE_PRP,
+            $collision,
+            $actor
+        );
+        bandpromo_admin_audit_log('release_package_import_queued', [
+            'target_type' => 'release',
+            'target_id' => '',
+            'status' => 'ok',
+            'data' => [
+                'job_id' => (string) ($job['id'] ?? ''),
+                'filename' => $meta['filename'],
+                'collision' => $collision,
+                'size_bytes' => (int) ($job['size_bytes'] ?? 0),
+            ],
+        ]);
+        $GLOBALS['importCompleted'] = true;
+        echo json_encode([
+            'ok' => true,
+            'queued' => true,
+            'message' => 'Portable Campaign File import queued. Progress appears under Jobs — leave Backup open until Imported.',
+            'job' => $job,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        bandpromo_site_backup_finish_response_and_dispatch($root, (string) $job['id']);
+        exit;
     } catch (InvalidArgumentException $throwable) {
         bandpromo_campaign_import_json_exit(['ok' => false, 'error' => $throwable->getMessage()], 400);
     } catch (Throwable $throwable) {

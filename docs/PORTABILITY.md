@@ -13,7 +13,7 @@ Operator file handoff uses shared transport helpers — not per-feature streamer
 | Layer | Module |
 |-------|--------|
 | Download stream | [`biblioteca/http-stream.php`](../biblioteca/http-stream.php) — `bandpromo_http_stream_file` (no Range for packages; `X-Checksum-SHA256`) |
-| Chunked upload | [`biblioteca/chunked-upload.php`](../biblioteca/chunked-upload.php) — last-chunk assemble, `file_size` + optional `expected_sha256` |
+| Chunked upload | [`biblioteca/chunked-upload.php`](../biblioteca/chunked-upload.php) — append each part while uploading; optional `expected_sha256` only for assemblies ≤ 64 MB (larger expected-SHA verify is refused with a clear error) |
 | Admin JS | `bandpromoUploadChunked` / `bandpromoDownloadVerified` in [`biblioteca/admin.js`](../biblioteca/admin.js) |
 
 **Archive digest:** when a Jobs export becomes Ready, the job stores `size_bytes` + `sha256` of the archive file. Verified download refuses to save if either mismatches. Headers include `X-Checksum-SHA256`.
@@ -105,8 +105,8 @@ Prefer **PCF round-trips** for one-campaign moves. Use data export when moving a
 | **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id`, `tracks[]` |
 | **Identity (brand)** | `data/brands/{id}.json` + complete curated Brand library | Owned by the release; `library_asset_ids` includes Visual/SFX assets even when no shell slot currently uses them |
 | **Track masters** | `media/audio/master/*` | Canonical tagged masters; originals stay on the source host |
-| **Playlists** | Docs with `release_id` | Listening products |
-| **Galleries / pages** | Docs with `release_id` | Demo PCF: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
+| **Playlists** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Listening products |
+| **Galleries / pages** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Demo PCF: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
 | **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | No upload originals or delivery in the package; SFX delivery rebuilt as `media/sfx/optimal/{ast_*}.mp3`. Track `display.cover` / `living_cover` refs (bare `ast_*` or `ast_*.png`) resolve to visual asset ids so cover masters travel. Import rebuilds the Files index from masters when originals are absent. |
 | **Manifest** | `release-package-manifest.json` | `release_export_version`, title, paths, flags (`platform_demo`, locked), bandPromo `VERSION` |
 
@@ -245,6 +245,8 @@ Presets: all four = full site backup; platform + data = legacy data export tier.
 | Import PBF | Admin → System → Backup | New or refreshed brand | **Shipped** |
 
 **Job liveness:** large PCF/PBF exports run in **~15s slices** resumed by Backup Jobs polling (shared-host safe — no host timeout changes required). Packing adds **smallest files first** (JSON/JPG before large masters) and batches small flushes. Leave **System → Backup** open until Ready. Operators can **Cancel**. Plan-backed jobs tolerate pauses up to **6 hours**; jobs without a plan still auto-fail after **10 minutes** without heartbeat.
+
+**PCF/PBF import:** chunked upload returns as soon as the package is staged; import runs as a Backup **Jobs** row (Importing… → Imported). Leave Backup open so polling can resume a killed worker.
 
 Listener and admin-audit SQLite live under **Data** (`data/`). Include that component (or **Full**) to back them up with the rest of site content.
 

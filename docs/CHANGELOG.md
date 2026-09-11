@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-09 17:40 - Container ownership hard cut: match/write via `campaign_id` helpers (PCF remap, duplicate, demo hide, admin playlist filter, visual membership, retarget, delete exclusivity). Central reader still accepts legacy container `release_id` until the v0.9 fleet cut; no scattered dual-read shims. Asset catalogue-home field stays `release_id`.
+
+2026-09-09 17:25 - PCF export/import ownership matching uses `campaign_id` (with legacy `release_id` fallback). Playlists/galleries/pages that only had `campaign_id` were previously omitted from exports — re-export affected campaigns after this fix.
+
+2026-09-09 16:55 - Large PCF/PBF imports no longer run in the final upload request: chunks append while uploading, then the last chunk queues a Backup **Jobs** import (same pattern as site-backup import) so the browser is not left with “Upload interrupted…”. Leave System → Backup open until status is Imported.
+
+2026-09-09 15:45 - Large Ready PCF/PBF jobs show **SHA pending…** and finish the archive checksum in a background CLI worker (so multi-GB SHA no longer blocks Ready or restarts the export). Remixes-sized jobs from older builds may already show SHA.
+
 2026-09-09 15:15 - Fix PCF/PBF “restart after finish”: marking Ready no longer SHA-256s multi-GB archives (or Jobs list), and Ready is committed before plan cleanup — a host kill mid-hash no longer wipes the plan and restarts checksum+pack.
 
 2026-09-09 15:10 - PCF/PBF packing orders entries **smallest-first** and batches small-file flushes so tiny JSON/JPG are not appended one-by-one onto a multi-GB archive (that made each add slower). Mid-flight plans re-order remaining files once.

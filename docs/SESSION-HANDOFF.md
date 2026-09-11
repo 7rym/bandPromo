@@ -2,27 +2,26 @@
 
 ## Resume point
 
-**Player Campaign navigator** — chrome re-locked 2026-09-09: static header logo; campaign logo strip + playlist selector inside the Playlists panel. **Next:** validate on Vanilla / Spandexual Tension / HITZ after checkpoint/publish; then PCF smoke, favicon/PWA, legacy audit.
+**Container ownership hard cut + large PCF import/export** — this checkpoint. **Next after Site update:** re-export Cleaning House on source host and re-import locally (playlists should travel); fleet validate navigator.
 
-### Shipped this session (not yet published)
+### Shipped this checkpoint
 
-- Campaign-first navigation; single-campaign / single-playlist collapse
-- Static header logo (identity only); campaign **logo strip** at top of Playlists panel (wide ~2:1 chips; no visible “Campaigns” label); shares row with playlist selector on wide, stacks on narrow
-- Campaign page tabs fixed to use page `campaign_id` ownership (tabs return after campaign switch); strip active/selectable contrast strengthened
-- `localStorage` last campaign + playlist; campaign change stops playback (full navigation)
-- Hard-cut URLs `/play/{campaign}/{playlist}/{track}` (no playlist-first legacy)
-- Brand Panel dim separate from Backdrop dim; preview zero-value fix
-- Backup Jobs: sliced PCF/PBF (~15s) resumed by poll; smallest-first pack; Ready without multi-GB SHA (no restart-after-finish); Cancel
-- Policy: no speculative fallbacks ([AGENTS.md](AGENTS.md))
+- Container ownership hard cut (`campaign_id` helpers; central legacy read until v0.9 fleet cut)
+- PCF/PBF import-as-job after chunked assemble
+- Chunked upload append-as-received; skip inline SHA for large assemblies
+- Background Ready SHA worker + UI “SHA pending…”
+- Campaign navigator chrome + Brand Panel dim split (earlier in session)
+- Backup Jobs: sliced export, smallest-first pack, Ready without multi-GB SHA, Cancel
 
 ### Also pending
 
 - Timed Lyrics/Notes (policy locked — implement later)
-- Fleet validate navigator; PCF round-trip smoke; favicon/PWA; legacy audit
+- Fleet validate navigator; favicon/PWA; legacy audit
+- v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id` after all test installs upgraded
 
 ### Shipped / published already
 
-**Last published:** **v0.8.39 build 447** (`v0.8.39-build-447`) — Jobs list-first fix.
+**Last published:** updated by session-end below after this push.
 
 ### Active fleet
 
