@@ -2,22 +2,25 @@
 
 ## Resume point
 
-**Published deep Spandexual heal** — Site-update then Refresh site files. Brand shell delivery can rebuild from `media/special/`; config no longer keeps poison delivery URLs; Hide demo should unlock for Premature Release-style playlists.
+**Brand assets library membership** — Site-update to the build that heals empty `library_asset_ids`, then open Files → Brand assets (or Refresh site files). Logos/shell media should return under the brand; Orphans should stop listing every track cover.
 
-### Root cause (why admin looked fine while publish failed)
+### What was wrong
 
-- Sharing / admin showed `card.png` labels and cached previews without verifying delivery files on disk.
-- Brand shell clones live under `media/special/`; Python optimizeMedia only looked in visual/img/photo originals — so shell assets never rebuilt.
-- Config sync re-wrote stale delivery paths when resolve failed.
-- Hide-demo required campaign `tracks[]`, not playlist entries.
+- Brand assets filters by **library membership**, not folder/`brand_id` alone.
+- Empty `library_asset_ids: []` skipped the one-time migrate forever.
+- Branding save cleared slot `asset_ids` whenever the delivery path was empty → libraries collapsed.
+- Orphans listed the whole Visual warehouse minus members → track covers flooded the view.
 
-### Shipped / published already
+### Operator steps (Spandexual)
 
-Prior: **v0.8.44 build 456** — disk-check cover URLs. **455** catalog orphan. **454** FLAC cover heal.
+1. Site update to latest published build.
+2. Optional: System → Status → Refresh site files (runs library heal in build).
+3. Files → Brand assets → **Spandexual Tension** / **All brands** — shell members should reappear.
+4. If a logo is still missing from the library but exists in Visual, use **Add existing**.
 
 ### Also pending
 
-- Confirm Spandexual after update: player covers, social crops, hide demo checkbox
+- Confirm Spandexual after update: Brand assets membership, player covers, hide demo
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
 
 ### Active fleet

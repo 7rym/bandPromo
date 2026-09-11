@@ -678,7 +678,12 @@ foreach ($allFiles as $entry) {
     if ($isBrandOwnedPool) {
         $assetId = trim((string) ($entry['asset_id'] ?? ''));
         if ($brandFilter === 'orphans') {
+            // Brand Orphans = brand-eligible warehouse rows not in any library.
+            // Do not dump every track cover into this bucket.
             if ($assetId !== '' && isset($allBrandLibrary[$assetId])) {
+                continue;
+            }
+            if ($target === 'special' && !bandpromo_brand_list_entry_is_library_eligible($entry)) {
                 continue;
             }
         } elseif ($brandFilter === 'all') {

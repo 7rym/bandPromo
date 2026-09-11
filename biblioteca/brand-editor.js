@@ -1199,6 +1199,13 @@
                 const inputAssetId = String(input.dataset.assetId || '').trim();
                 editorDocument.assets[key] = next;
                 if (next === '') {
+                    // Keep slot asset id when the path is empty (delivery may be missing).
+                    // Explicit clears go through setShellAssetValue('', …) which wipes dataset.assetId.
+                    const keepId = String(input.dataset.assetId || editorDocument.asset_ids[key] || '').trim();
+                    if (keepId !== '') {
+                        editorDocument.asset_ids[key] = keepId;
+                        return;
+                    }
                     editorDocument.asset_ids[key] = '';
                     input.dataset.assetId = '';
                     return;

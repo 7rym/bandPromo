@@ -760,6 +760,46 @@ function bandpromo_brand_shell_slot_visual_role(string $slotKey): string
 }
 
 /**
+ * Map a Visual/SFX role back to a brand shell slot key (empty when not a shell role).
+ */
+function bandpromo_brand_shell_role_to_slot(string $role): string
+{
+    $map = [
+        'brand-logo' => 'logo',
+        'brand-portrait' => 'poster',
+        'shell-background-image' => 'background_image',
+        'shell-background-video' => 'background_video',
+    ];
+
+    return $map[strtolower(trim($role))] ?? '';
+}
+
+/**
+ * True when a Files → Brand assets row is brand-library eligible (not a track cover dump).
+ *
+ * @param array<string, mixed> $entry
+ */
+function bandpromo_brand_list_entry_is_library_eligible(array $entry): bool
+{
+    $role = strtolower(trim((string) ($entry['role'] ?? '')));
+    if (bandpromo_brand_shell_role_to_slot($role) !== '') {
+        return true;
+    }
+    if (in_array($role, ['brand-logo', 'brand-portrait', 'shell-background-image', 'shell-background-video'], true)) {
+        return true;
+    }
+    $intake = strtolower(trim((string) ($entry['intake_bucket'] ?? $entry['target'] ?? '')));
+    if ($intake === 'special' || $intake === 'sfx') {
+        return true;
+    }
+    if (bandpromo_brand_canonical_id((string) ($entry['brand_id'] ?? '')) !== '') {
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Clone one shell media slot into a new Visual/SFX ast_* master owned by $brandId.
  *
  * @return array{path:string,asset_id:string}
@@ -2031,6 +2071,112 @@ function bandpromo_brand_migrate_from_config(string $root): void
 }
 
 /**
+ * Repair Brand libraries emptied by path/pointer drift.
+ *
+ * Once `library_asset_ids` exists (even as []), the one-time migrate never
+ * reseeds. Shell heal / Branding saves can wipe slot asset_ids while leaving
+ * an empty library — Files → Brand assets then shows nothing under All brands
+ * and dumps track covers into Orphans. This heal:
+ * - recovers missing shell slot asset_ids from registry shell roles
+ * - always merges active slots into the library
+ * - when the library is empty, reseeds brand-eligible owned assets only
+ *   (shell roles / special / sfx — not every Visual with brand_id)
+ *
+ * @return list<string>
+ */
+function bandpromo_brand_heal_empty_libraries(string $root): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $notes = [];
+    $assetRegistry = bandpromo_asset_load_registry($root);
+    $assets = is_array($assetRegistry['assets'] ?? null) ? $assetRegistry['assets'] : [];
+
+    foreach (bandpromo_brand_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        $path = bandpromo_brand_document_path($root, $brandId);
+        if (!is_file($path)) {
+            continue;
+        }
+        try {
+            $document = bandpromo_brand_load_document($root, $brandId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $libraryBefore = bandpromo_brand_normalize_library_asset_ids(
+            is_array($document['library_asset_ids'] ?? null) ? $document['library_asset_ids'] : []
+        );
+        $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
+        $slotChanged = false;
+
+        foreach ($assets as $assetId => $asset) {
+            if (!is_array($asset)) {
+                continue;
+            }
+            $kind = (string) ($asset['kind'] ?? '');
+            if ($kind !== 'visual' && $kind !== 'sfx') {
+                continue;
+            }
+            if (bandpromo_brand_canonical_id((string) ($asset['brand_id'] ?? '')) !== $brandId) {
+                continue;
+            }
+            $slot = bandpromo_brand_shell_role_to_slot((string) ($asset['role'] ?? ''));
+            if ($slot === '') {
+                continue;
+            }
+            $current = trim((string) ($assetIds[$slot] ?? ''));
+            if ($current !== '') {
+                continue;
+            }
+            $assetIds[$slot] = (string) $assetId;
+            $slotChanged = true;
+            $notes[] = 'Brand ' . $brandId . ' ' . $slot . ' asset_id recovered → ' . $assetId;
+        }
+
+        $library = bandpromo_brand_merge_library_slot_assets($assetIds, $libraryBefore);
+
+        if ($libraryBefore === []) {
+            foreach ($assets as $assetId => $asset) {
+                if (!is_array($asset)) {
+                    continue;
+                }
+                $kind = (string) ($asset['kind'] ?? '');
+                if ($kind !== 'visual' && $kind !== 'sfx') {
+                    continue;
+                }
+                if (bandpromo_brand_canonical_id((string) ($asset['brand_id'] ?? '')) !== $brandId) {
+                    continue;
+                }
+                if (!bandpromo_brand_list_entry_is_library_eligible($asset)) {
+                    continue;
+                }
+                $library[] = (string) $assetId;
+            }
+            $library = bandpromo_brand_normalize_library_asset_ids($library);
+        }
+
+        if (!$slotChanged && $library === $libraryBefore) {
+            continue;
+        }
+
+        $document['asset_ids'] = $assetIds;
+        $document['library_asset_ids'] = $library;
+        bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
+        $notes[] = 'Brand ' . $brandId . ' library healed: '
+            . count($libraryBefore) . ' → ' . count($library) . ' member(s)';
+    }
+
+    return $notes;
+}
+
+/**
  * Seed explicit Brand-library membership from legacy asset ownership and slots.
  * Safe to rerun: existing curated membership is preserved.
  */
@@ -2104,6 +2250,7 @@ function bandpromo_brand_ensure_seeded(string $root): void
     // Heal once per PHP process — shell path probes are costly on synced folders.
     bandpromo_brand_heal_install_shell_media($root);
     bandpromo_brand_migrate_library_asset_ids($root);
+    bandpromo_brand_heal_empty_libraries($root);
     bandpromo_brand_enforce_platform_default_lock($root);
     $completed[$root] = true;
 }

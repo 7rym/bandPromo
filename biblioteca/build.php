@@ -236,6 +236,10 @@ try {
     foreach ($healNotes as $note) {
         file_put_contents($log_file, '[shell media] ' . $note . "\n", FILE_APPEND);
     }
+    $libraryNotes = bandpromo_brand_heal_empty_libraries($root_dir);
+    foreach ($libraryNotes as $note) {
+        file_put_contents($log_file, '[brand library] ' . $note . "\n", FILE_APPEND);
+    }
 } catch (Throwable $throwable) {
     file_put_contents($log_file, '[shell media] Heal skipped: ' . $throwable->getMessage() . "\n", FILE_APPEND);
 }
