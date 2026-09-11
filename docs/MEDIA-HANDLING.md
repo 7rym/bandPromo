@@ -650,7 +650,7 @@ to:
 - `media/audio/original/`, `media/audio/master/`, `media/audio/optimal/` — **audio files only**
 - `media/visual/original/`, `media/visual/master/`, `media/visual/delivery/<asset-id>/<variant>/` — **one visual family** for stills and video
 - Files → Visual lists the media files index (registry masters first). Publish / Refresh site files / Repair catalogue also scan `media/visual/master/` for unregistered `ast_*` masters and re-attach them to the registry and pool (never deletes those bytes). An empty or short `original/` folder alone does not mean masters are gone.
-- When a registered Visual still has a master but `media/visual/original/` is missing, heal copies the master back into the original tier (stills lossless; video may be remuxed MKV). PCF/PBF pack masters only — imports do not wipe host originals, but they also do not recreate them; restore fills that gap.
+- **Do not** invent `original/` bytes from masters. Original is as-uploaded provenance only; PCF/PBF are masters-only so hosts may legitimately lack originals. Pool, delivery, and admin work from the master. “Download original” stays honest when the archival file is missing.
 - `media/sfx/{original,master,optimal}/` — Sound effects
 
 **Shipped:** new Visual uploads (stills + video, including Brand) write only to `media/visual/original/`. Relocate moves leftover `img`/`photo`/`video`/`special` originals into that tree and deletes the legacy copy. **Publish** and **Site update** cheaply test for those legacy folders and, when present, run a one-shot relocate of every registered Visual original (then remove empty legacy dirs). Setup no longer creates `media/img|photo|video` trees. Dual-read remains only for unregistered leftovers until gone.

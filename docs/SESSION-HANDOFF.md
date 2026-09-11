@@ -2,24 +2,23 @@
 
 ## Resume point
 
-**Restore Visual originals from masters** — Site-update, then **Refresh site files**. Missing `media/visual/original/` files are copied back from durable `media/visual/master/` (plus orphan masters are re-registered).
+**Do not fake originals from masters** — policy corrected. Heal re-registers orphan `media/visual/master/ast_*` into the registry/Files pool only. Missing `original/` stays missing (provenance honesty). Site-update + Refresh site files.
 
-### Why originals looked wiped
+### Policy
 
-- Durable Visual bytes live in **master/**. PCF/PBF are **masters-only** — import does not recreate originals.
-- Heal previously skipped “invent original from master,” so a short `original/` folder could stick while masters remained.
-- Intentional deletes remove both tiers; demo hide does not delete files. No evidence of a silent original-only wipe in publish/site-update relocate (that only clears legacy leftovers after copy).
+- **original/** = exact as-uploaded archival bytes (write-once). Never invent by copying masters.
+- **master/** = durable working tier for pool, delivery, metadata.
+- PCF/PBF are masters-only — hosts may legitimately have no originals after import.
 
 ### Operator steps (Spandexual)
 
 1. Site update to latest published build.
-2. System → Status → **Refresh site files**.
-3. Confirm `media/visual/original/` and Files → Visual grow with the masters.
-4. Re-attach brand shell / covers if membership still empty.
+2. Refresh site files — Visual pool should list masters even when `original/` stays short.
+3. “Download original” may correctly fail when archival bytes are gone; prepared/master download remains.
 
 ### Also pending
 
-- Confirm Spandexual Visual pool + original folder counts
+- Confirm Spandexual Visual pool count vs original folder count (pool ≫ original is OK)
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
 
 ### Active fleet

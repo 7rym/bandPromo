@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 21:20 - Policy correction: do **not** fake Visual originals by copying masters into `original/`. Original stays as-uploaded provenance only; recover catalogue from masters into the registry/pool, leave missing originals missing (PCF is masters-only).
+
 2026-09-11 21:05 - Restore missing Visual originals from durable masters (copy master → `media/visual/original/` when original is gone). Publish / Refresh / Repair catalogue re-registers orphan masters and re-seeds originals. Likely gap: PCF/PBF are masters-only and heal previously refused to invent originals from remuxed masters.
 
 2026-09-11 20:40 - Recover uncatalogued Visual masters: scan `media/visual/master/` for `ast_*` files missing from the registry, re-register them, and rebuild the Files → Visual index (Publish / Refresh site files / Repair catalogue). Originals may stay at 15 while masters return to the pool — bytes were never deleted.

@@ -251,169 +251,7 @@ function bandpromo_visual_relocate_original(string $root, array $asset): array
         return ['ok' => true, 'path' => $dest, 'copied' => false];
     }
 
-    // Provenance missing but durable master still present — restore original from master.
-    $fromMaster = bandpromo_visual_ensure_original_from_master($root, $asset);
-    if (!empty($fromMaster['ok'])) {
-        return [
-            'ok' => true,
-            'path' => (string) ($fromMaster['path'] ?? $dest),
-            'copied' => !empty($fromMaster['copied']),
-        ];
-    }
-
     return ['ok' => false, 'path' => $dest, 'copied' => false, 'error' => 'Legacy original missing'];
-}
-
-/**
- * When media/visual/original/{name} is missing but the durable master exists,
- * copy master bytes back into the original tier. Never deletes the master.
- *
- * Stills: lossless byte copy. Video masters are often remuxed MKV — restoring
- * that file as the original re-establishes download/provenance even if the
- * pre-remux intake codec is gone.
- *
- * @return array{ok: bool, path: string, copied: bool, error?: string}
- */
-function bandpromo_visual_ensure_original_from_master(string $root, array $asset): array
-{
-    require_once __DIR__ . '/asset-registry.php';
-
-    $assetId = trim((string) ($asset['id'] ?? ''));
-    $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
-    $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
-    if ($originalFilename === '') {
-        $originalFilename = $masterFilename;
-    }
-    if ($originalFilename === '') {
-        return ['ok' => false, 'path' => '', 'copied' => false, 'error' => 'Missing original/master filename'];
-    }
-
-    bandpromo_visual_ensure_tier_dirs($root);
-    $dest = bandpromo_visual_unified_original_path($root, $originalFilename);
-    if ($dest !== '' && is_file($dest)) {
-        return ['ok' => true, 'path' => $dest, 'copied' => false];
-    }
-
-    $masterPath = '';
-    $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION))));
-    if ($assetId !== '' && $format !== '') {
-        $candidate = bandpromo_visual_master_path($root, $assetId, $format);
-        if ($candidate !== '' && is_file($candidate)) {
-            $masterPath = $candidate;
-        }
-    }
-    if ($masterPath === '' && $masterFilename !== '') {
-        $candidate = bandpromo_visual_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
-        if (is_file($candidate)) {
-            $masterPath = $candidate;
-        }
-    }
-    if ($masterPath === '') {
-        $working = bandpromo_visual_working_path($root, $asset);
-        if ($working !== '' && is_file($working)) {
-            // Only use working path when it is already under master/ (not delivery).
-            $masterDir = realpath(bandpromo_visual_master_dir($root));
-            $workingReal = realpath($working);
-            if ($masterDir !== false && $workingReal !== false
-                && str_starts_with($workingReal, $masterDir . DIRECTORY_SEPARATOR)
-            ) {
-                $masterPath = $working;
-            }
-        }
-    }
-    if ($masterPath === '' || !is_file($masterPath)) {
-        return ['ok' => false, 'path' => $dest, 'copied' => false, 'error' => 'Master missing'];
-    }
-
-    // If the registry original name differs from the master basename (e.g. .mp4 vs .mkv),
-    // prefer restoring under the master basename so extension matches the bytes.
-    $masterBase = basename($masterPath);
-    $destExt = strtolower((string) pathinfo($originalFilename, PATHINFO_EXTENSION));
-    $masterExt = strtolower((string) pathinfo($masterBase, PATHINFO_EXTENSION));
-    if ($destExt !== '' && $masterExt !== '' && $destExt !== $masterExt) {
-        $originalFilename = $masterBase;
-        $dest = bandpromo_visual_unified_original_path($root, $originalFilename);
-        if ($dest !== '' && is_file($dest)) {
-            if ($assetId !== '' && basename(trim((string) ($asset['original_filename'] ?? ''))) !== $originalFilename) {
-                try {
-                    bandpromo_asset_update_entry($root, $assetId, ['original_filename' => $originalFilename]);
-                } catch (Throwable $ignored) {
-                    // Copy still succeeds; registry can heal later.
-                }
-            }
-
-            return ['ok' => true, 'path' => $dest, 'copied' => false];
-        }
-    }
-
-    $result = bandpromo_visual_copy_file_idempotent($masterPath, $dest);
-    if (empty($result['ok'])) {
-        return [
-            'ok' => false,
-            'path' => $dest,
-            'copied' => false,
-            'error' => (string) ($result['error'] ?? 'Could not restore original from master'),
-        ];
-    }
-
-    if ($assetId !== '' && basename(trim((string) ($asset['original_filename'] ?? ''))) !== $originalFilename) {
-        try {
-            bandpromo_asset_update_entry($root, $assetId, ['original_filename' => $originalFilename]);
-        } catch (Throwable $ignored) {
-            // Bytes restored; pointer can heal on next write.
-        }
-    }
-
-    return [
-        'ok' => true,
-        'path' => (string) ($result['path'] ?? $dest),
-        'copied' => !empty($result['copied']),
-    ];
-}
-
-/**
- * Restore missing unified originals for every registered Visual that still has a master.
- *
- * @return array{restored: list<string>, failed: list<array{asset_id: string, error: string}>, changed: int}
- */
-function bandpromo_visual_restore_missing_originals_from_masters(string $root): array
-{
-    require_once __DIR__ . '/asset-registry.php';
-
-    $out = [
-        'restored' => [],
-        'failed' => [],
-        'changed' => 0,
-    ];
-    $registry = bandpromo_asset_load_registry($root);
-    foreach ($registry['assets'] as $assetId => $asset) {
-        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
-            continue;
-        }
-        $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
-        if ($originalFilename === '') {
-            $originalFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
-        }
-        if ($originalFilename === '') {
-            continue;
-        }
-        $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
-        if ($unified !== '' && is_file($unified)) {
-            continue;
-        }
-        $result = bandpromo_visual_ensure_original_from_master($root, $asset);
-        if (!empty($result['ok']) && !empty($result['copied'])) {
-            $out['restored'][] = (string) $assetId;
-            $out['changed']++;
-        } elseif (empty($result['ok'])) {
-            $out['failed'][] = [
-                'asset_id' => (string) $assetId,
-                'error' => (string) ($result['error'] ?? 'Could not restore original'),
-            ];
-        }
-    }
-
-    return $out;
 }
 
 /**
@@ -767,17 +605,12 @@ function bandpromo_visual_ensure_tiers_for_asset(string $root, string $assetId):
     }
 
     bandpromo_visual_relocate_original($root, $asset);
-    $asset = bandpromo_asset_lookup_by_id($root, $assetId) ?? $asset;
-    bandpromo_visual_ensure_original_from_master($root, $asset);
-    $asset = bandpromo_asset_lookup_by_id($root, $assetId) ?? $asset;
     $result = bandpromo_visual_materialize_master($root, $asset);
     $resolved = !empty($result['ok']) && is_array($result['asset'])
         ? $result['asset']
         : bandpromo_asset_lookup_by_id($root, $assetId);
 
     if (is_array($resolved)) {
-        // Master materialize may have created/updated the master — restore original again if still missing.
-        bandpromo_visual_ensure_original_from_master($root, $resolved);
         bandpromo_visual_heal_empty_display_for_asset($root, $assetId);
         $fresh = bandpromo_asset_lookup_by_id($root, $assetId);
         if (is_array($fresh)) {
