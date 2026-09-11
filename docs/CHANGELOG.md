@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 15:48 - Fix campaign purge/delete: call `bandpromo_campaign_collect_asset_ids` (typo had doubled `campaign_campaign_…` and fatally undefined).
+
 2026-09-11 15:42 - Published **v0.8.40 build 449** (`v0.8.40-build-449`): PCF/PBF import-as-job, `campaign_id` ownership hard cut, Ready SHA pending for large exports.
 
 2026-09-09 17:40 - Container ownership hard cut: match/write via `campaign_id` helpers (PCF remap, duplicate, demo hide, admin playlist filter, visual membership, retarget, delete exclusivity). Central reader still accepts legacy container `release_id` until the v0.9 fleet cut; no scattered dual-read shims. Asset catalogue-home field stays `release_id`.

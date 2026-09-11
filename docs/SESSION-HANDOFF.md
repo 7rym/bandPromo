@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Published v0.8.40 build 449.** **Next:** Site-update fleet; re-export Cleaning House on source host and re-import locally (playlists should travel); fleet validate navigator.
+**Hotfix:** campaign delete/purge undefined `bandpromo_campaign_campaign_collect_asset_ids` (typo). Publishing. **Next:** Site-update; retry delete; re-export Cleaning House for playlists.
 
 ### Shipped / published already
 

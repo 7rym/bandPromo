@@ -3710,7 +3710,7 @@ function bandpromo_campaign_purge_asset_still_needed(string $root, string $asset
         if ($otherId === '') {
             continue;
         }
-        foreach (bandpromo_campaign_campaign_collect_asset_ids($root, $otherId) as $usedId) {
+        foreach (bandpromo_campaign_collect_asset_ids($root, $otherId) as $usedId) {
             if ($usedId === $assetId) {
                 return true;
             }
@@ -3858,7 +3858,7 @@ function bandpromo_campaign_delete_with_mode(string $root, string $releaseId, st
     }
 
     $children = bandpromo_campaign_ownership_children($root, $releaseId);
-    $assetIds = bandpromo_campaign_campaign_collect_asset_ids($root, $releaseId);
+    $assetIds = bandpromo_campaign_collect_asset_ids($root, $releaseId);
     $registryAssets = bandpromo_asset_load_registry($root);
     foreach ($registryAssets['assets'] as $assetId => $asset) {
         if (!is_array($asset)) {
