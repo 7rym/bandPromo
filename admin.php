@@ -2514,12 +2514,16 @@ if ($tab === 'analytics') {
             <?php elseif ($tab === 'settings' && $configTab === 'sharing'): ?>
             <?php
             require_once __DIR__ . '/biblioteca/config-loader.php';
+            require_once __DIR__ . '/biblioteca/brand-storage.php';
+            require_once __DIR__ . '/biblioteca/media-delivery-helpers.php';
             $ogTitle   = get_config('release.identity.title', 'bandPromo');
             $ogDesc    = get_config('release.identity.description', '');
-            $ogImage   = get_config('release.brand.poster', '');
+            $ogImage   = bandpromo_brand_resolve_active_shell_slot(__DIR__, 'poster');
             if ($ogImage === '') {
-                require_once __DIR__ . '/biblioteca/brand-storage.php';
-                $ogImage = bandpromo_brand_resolve_active_shell_slot(__DIR__, 'poster');
+                $configPoster = trim((string) get_config('release.brand.poster', ''));
+                if ($configPoster !== '' && bandpromo_visual_media_web_path_exists(__DIR__, $configPoster)) {
+                    $ogImage = $configPoster;
+                }
             }
             $ogUrl     = get_config('install.site.url', 'https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
             $twitter   = get_config('install.social.twitter', '');
@@ -2529,7 +2533,7 @@ if ($tab === 'analytics') {
             $categoriesRaw = get_config('release.social.categories', ['entertainment']);
             $categories = is_array($categoriesRaw) ? implode(', ', $categoriesRaw) : (string) $categoriesRaw;
             $ogDomain  = parse_url($ogUrl, PHP_URL_HOST) ?: $ogUrl;
-            $ogImageLabel = $ogImage !== '' ? basename(str_replace('\\', '/', $ogImage)) : 'No share image selected';
+            $ogImageLabel = $ogImage !== '' ? basename(str_replace('\\', '/', $ogImage)) : 'No share image on disk — set Branding → Shell media → Poster';
             ?>
 
             <!-- ── Social metadata form ───────────────────────────────────── -->

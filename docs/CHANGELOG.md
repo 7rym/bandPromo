@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 18:25 - Settings → Sharing preview only shows a share image that exists on disk (no stale `card.png` label from missing delivery URLs).
+
 2026-09-11 18:20 - Deeper Spandexual heal: Visual delivery can read Brand shell bytes from `media/special/`; shell resolve/sync no longer re-inject missing delivery URLs; brand heal materializes special→master then rebuilds delivery; Hide demo accepts operator playlists with entries (not only campaign.tracks[]); playlist publish marks changed when covers were healed.
 
 2026-09-11 18:10 - Player/publish cover URLs must exist on disk (no stale registry 404s). Publish clears unplayable sticky covers and rebuilds Visual delivery when possible; brand shell heal rebuilds missing delivery for shell asset ids before falling back.
