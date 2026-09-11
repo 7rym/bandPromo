@@ -1127,15 +1127,19 @@ function bandpromo_demo_catalog_is_operator_campaign_id(string $root, string $re
 }
 
 /**
- * Operator campaign ids that already have at least one track.
+ * Operator campaign ids that already have catalogue tracks, or that own a
+ * non-demo playlist with at least one entry (playlist entries count even when
+ * campaign.tracks[] is empty/out of sync).
  *
  * @return list<string>
  */
 function bandpromo_demo_catalog_operator_campaign_ids_with_tracks(string $root): array
 {
     require_once __DIR__ . '/campaign-storage.php';
+    require_once __DIR__ . '/playlist-storage.php';
 
     $ids = [];
+    $seen = [];
     foreach (bandpromo_campaign_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
@@ -1154,6 +1158,57 @@ function bandpromo_demo_catalog_operator_campaign_ids_with_tracks(string $root):
             continue;
         }
         $ids[] = $releaseId;
+        $seen[$releaseId] = true;
+    }
+
+    // Playlist-first: an operator playlist with entries is enough to hide demo,
+    // even when the campaign catalogue track list was never filled.
+    $demoId = bandpromo_demo_campaign_id($root);
+    foreach (bandpromo_playlist_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));
+        if ($playlistId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_playlist_load_document($root, $playlistId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $owned = array_merge($entry, [
+            'id' => $playlistId,
+            'campaign_id' => bandpromo_document_campaign_id($document),
+        ]);
+        if (bandpromo_demo_catalog_playlist_is_demo_owned($root, $owned, $demoId)) {
+            continue;
+        }
+        $entries = $document['entries'] ?? [];
+        if (!is_array($entries) || $entries === []) {
+            continue;
+        }
+        $owner = bandpromo_document_campaign_id($document);
+        if ($owner !== '' && bandpromo_demo_catalog_is_operator_campaign_id($root, $owner) && !isset($seen[$owner])) {
+            $ids[] = $owner;
+            $seen[$owner] = true;
+            continue;
+        }
+        foreach ($entries as $trackEntry) {
+            if (!is_array($trackEntry)) {
+                continue;
+            }
+            $releaseId = bandpromo_demo_catalog_entry_campaign_id($root, $trackEntry);
+            if ($releaseId === '' || isset($seen[$releaseId])) {
+                continue;
+            }
+            if (!bandpromo_demo_catalog_is_operator_campaign_id($root, $releaseId)) {
+                continue;
+            }
+            $ids[] = $releaseId;
+            $seen[$releaseId] = true;
+            break;
+        }
     }
 
     return $ids;
@@ -1222,8 +1277,8 @@ function bandpromo_demo_catalog_entry_campaign_id(string $root, array $entry): s
 }
 
 /**
- * True only when an operator-created release has at least one track and a
- * non-demo playlist exposes a track from that release.
+ * True when an operator-created campaign has catalogue tracks, or a non-demo
+ * playlist exposes operator-owned tracks (playlist entries are enough).
  */
 function bandpromo_demo_catalog_install_has_operator_content(string $root): bool
 {
@@ -1279,6 +1334,10 @@ function bandpromo_demo_catalog_install_has_operator_content(string $root): bool
             if ($releaseId !== '' && isset($lookup[$releaseId])) {
                 return true;
             }
+        }
+
+        if ($owner !== '' && bandpromo_demo_catalog_is_operator_campaign_id($root, $owner)) {
+            return true;
         }
     }
 

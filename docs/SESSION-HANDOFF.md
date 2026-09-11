@@ -2,17 +2,23 @@
 
 ## Resume point
 
-**Published cover URL / shell delivery hotfix** — Spandexual: Site-update then Refresh site files. Stale registry delivery URLs no longer 404 in the player; publish rebuilds or clears unplayable covers; brand shell heal tries delivery rebuild.
+**Published deep Spandexual heal** — Site-update then Refresh site files. Brand shell delivery can rebuild from `media/special/`; config no longer keeps poison delivery URLs; Hide demo should unlock for Premature Release-style playlists.
+
+### Root cause (why admin looked fine while publish failed)
+
+- Sharing / admin showed `card.png` labels and cached previews without verifying delivery files on disk.
+- Brand shell clones live under `media/special/`; Python optimizeMedia only looked in visual/img/photo originals — so shell assets never rebuilt.
+- Config sync re-wrote stale delivery paths when resolve failed.
+- Hide-demo required campaign `tracks[]`, not playlist entries.
 
 ### Shipped / published already
 
-Prior: **v0.8.43 build 455** — catalog orphan warn+skip. **v0.8.42 build 454** — FLAC cover heal + Build log Copy.
+Prior: **v0.8.44 build 456** — disk-check cover URLs. **455** catalog orphan. **454** FLAC cover heal.
 
 ### Also pending
 
-- Confirm Spandexual playlist covers + brand poster/social after update
+- Confirm Spandexual after update: player covers, social crops, hide demo checkbox
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
-- v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id`
 
 ### Active fleet
 

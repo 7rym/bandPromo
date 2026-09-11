@@ -44,6 +44,7 @@ AUDIO_OPT_DIR  = ROOT_DIR / 'media' / 'audio' / 'optimal'
 IMG_ORIG_DIR   = ROOT_DIR / 'media' / 'img'   / 'original'
 IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
 PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
+SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
@@ -378,8 +379,9 @@ def visual_working_path_for_asset(asset):
             return path
 
     # Master missing: use provenance original so delivery can still be rebuilt.
+    # Brand shell clones live under media/special/ (intake_bucket=special).
     if original_name:
-        for folder in (VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR):
+        for folder in (VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
             candidate = folder / original_name
             if candidate.is_file():
                 print(
@@ -1208,8 +1210,12 @@ def main():
     visual_failed = 0
     if visual_queue:
         for asset in visual_queue:
-            label = asset.get('original_filename') or asset.get('id')
-            print(f"  Processing visual: {label}")
+            asset_id = str(asset.get('id') or '').strip()
+            label = asset.get('original_filename') or asset_id
+            if asset_id and label != asset_id:
+                print("  Processing visual: {} ({})".format(label, asset_id))
+            else:
+                print("  Processing visual: {}".format(label))
             result = process_visual_image_asset(asset)
             if result == 'skipped':
                 visual_skipped += 1

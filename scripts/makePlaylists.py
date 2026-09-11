@@ -1162,6 +1162,7 @@ def visual_cover_source_available(cover_ref):
         candidates.append(VISUAL_ORIG_DIR / original_name)
         candidates.append(IMG_ORIG_DIR / original_name)
         candidates.append(PHOTO_ORIG_DIR / original_name)
+        candidates.append(SPECIAL_DIR / original_name)
     for path in candidates:
         if path.is_file():
             return True

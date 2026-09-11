@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 18:20 - Deeper Spandexual heal: Visual delivery can read Brand shell bytes from `media/special/`; shell resolve/sync no longer re-inject missing delivery URLs; brand heal materializes special→master then rebuilds delivery; Hide demo accepts operator playlists with entries (not only campaign.tracks[]); playlist publish marks changed when covers were healed.
+
 2026-09-11 18:10 - Player/publish cover URLs must exist on disk (no stale registry 404s). Publish clears unplayable sticky covers and rebuilds Visual delivery when possible; brand shell heal rebuilds missing delivery for shell asset ids before falling back.
 
 2026-09-11 18:00 - Catalogue stage no longer fails publish on orphan Visuals with no master/original bytes (warn + skip). `bandpromo_visual_working_path` falls back to unified/legacy original so missing masters can rematerialize when provenance still exists.

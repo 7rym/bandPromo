@@ -696,8 +696,12 @@ function bandpromo_brand_resolve_shell_slot_url(string $root, array $document, s
             if ($kind === 'visual') {
                 // Full-bleed shell stills use HDTV huge; logos/posters stay on card.
                 $variant = $slotKey === 'background_image' ? 'huge' : 'card';
+                $url = bandpromo_visual_resolve_url($root, $assetId, $variant, '', false);
+                if ($url === '' && $variant !== 'card') {
+                    $url = bandpromo_visual_resolve_url($root, $assetId, 'card', '', false);
+                }
 
-                return bandpromo_visual_resolve_url($root, $assetId, $variant, '', false);
+                return $url;
             }
         }
     }
@@ -708,6 +712,10 @@ function bandpromo_brand_resolve_shell_slot_url(string $root, array $document, s
         || str_starts_with($pathFallback, '/media/sfx/optimal/')
         || preg_match('#^https?://#i', $pathFallback) === 1
     )) {
+        if (preg_match('#^https?://#i', $pathFallback) === 1) {
+            return $pathFallback;
+        }
+        require_once __DIR__ . '/media-delivery-helpers.php';
         if ($slotKey === 'background_image'
             && preg_match(
                 '#^/media/visual/delivery/(ast_[0-9A-HJKMNP-TV-Z]{20})/(?:thumb|card|optimal|picture|logo)\.(jpe?g|png|webp)$#i',
@@ -720,8 +728,17 @@ function bandpromo_brand_resolve_shell_slot_url(string $root, array $document, s
                 return $hugeUrl;
             }
         }
+        // Never return a delivery path that is missing on disk (avoids Sharing/social poison).
+        if (bandpromo_visual_media_web_path_exists($root, $pathFallback)) {
+            return $pathFallback;
+        }
+        if (str_starts_with($pathFallback, '/media/sfx/optimal/') && is_file(
+            rtrim($root, '/\\') . str_replace('/', DIRECTORY_SEPARATOR, $pathFallback)
+        )) {
+            return $pathFallback;
+        }
 
-        return $pathFallback;
+        return '';
     }
 
     return '';
@@ -1163,26 +1180,36 @@ function bandpromo_brand_heal_install_shell_media(string $root): array
             $after = bandpromo_brand_heal_media_path($root, $before, $candidates);
             if ($after === '' && $before !== '') {
                 require_once __DIR__ . '/media-delivery-helpers.php';
+                require_once __DIR__ . '/visual-master-helpers.php';
                 $slotAssetId = trim((string) ($assetIds[$slot] ?? ''));
                 if ($slotAssetId === '') {
                     $slotAssetId = bandpromo_brand_lookup_asset_id_for_path($root, $before);
                 }
-                if ($slotAssetId !== '' && bandpromo_visual_rebuild_image_delivery($root, $slotAssetId, true)) {
-                    $variant = 'card';
-                    if ($slot === 'background_image') {
-                        $variant = 'huge';
-                    } elseif ($slot === 'background_video') {
-                        $variant = 'standard-stream';
-                    } elseif ($slot === 'logo') {
+                // Brand shell clones often still live under media/special/ — materialize
+                // master from special/original, then rebuild delivery variants.
+                if ($slotAssetId !== '') {
+                    try {
+                        bandpromo_visual_ensure_tiers_for_asset($root, $slotAssetId);
+                    } catch (Throwable $ignored) {
+                        // Rebuild may still succeed if master already exists.
+                    }
+                    if (bandpromo_visual_rebuild_image_delivery($root, $slotAssetId, true)) {
                         $variant = 'card';
-                    }
-                    $rebuiltUrl = bandpromo_visual_resolve_url($root, $slotAssetId, $variant, '', false);
-                    if ($rebuiltUrl === '' && $variant !== 'card') {
-                        $rebuiltUrl = bandpromo_visual_resolve_url($root, $slotAssetId, 'card', '', false);
-                    }
-                    if ($rebuiltUrl !== '') {
-                        $after = $rebuiltUrl;
-                        $notes[] = 'Brand ' . $brandId . ' ' . $slot . ': rebuilt delivery → ' . $after;
+                        if ($slot === 'background_image') {
+                            $variant = 'huge';
+                        } elseif ($slot === 'background_video') {
+                            $variant = 'standard-stream';
+                        } elseif ($slot === 'logo') {
+                            $variant = 'card';
+                        }
+                        $rebuiltUrl = bandpromo_visual_resolve_url($root, $slotAssetId, $variant, '', false);
+                        if ($rebuiltUrl === '' && $variant !== 'card') {
+                            $rebuiltUrl = bandpromo_visual_resolve_url($root, $slotAssetId, 'card', '', false);
+                        }
+                        if ($rebuiltUrl !== '') {
+                            $after = $rebuiltUrl;
+                            $notes[] = 'Brand ' . $brandId . ' ' . $slot . ': rebuilt delivery → ' . $after;
+                        }
                     }
                 }
             }
@@ -1620,9 +1647,7 @@ function bandpromo_brand_sync_assets_to_config(string $root, array $document): v
 
     foreach ($map as $assetKey => $paths) {
         $value = bandpromo_brand_resolve_shell_slot_url($root, $document, $assetKey);
-        if ($value === '') {
-            $value = trim((string) ($assets[$assetKey] ?? ''));
-        }
+        // Never re-inject stale assets[] delivery URLs when resolve failed (missing on disk).
         foreach ($paths as $path) {
             bandpromo_config_set_path($config, $path, $value);
         }

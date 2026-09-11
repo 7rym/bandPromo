@@ -2217,6 +2217,7 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
     // Refresh sparse registry display from master tags before PHP fallback materialization.
     // Also drop sticky covers whose delivery files are missing so Python get_cover can re-extract.
     require_once __DIR__ . '/media-delivery-helpers.php';
+    $healedCovers = 0;
     foreach ($entries as $entry) {
         if (!is_array($entry)) {
             continue;
@@ -2241,6 +2242,9 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
             if ($coverRef !== '' && $coverUrl === '') {
                 bandpromo_visual_rebuild_image_delivery($root, $coverRef, true);
                 $coverUrl = bandpromo_visual_resolve_url($root, $coverRef, 'card', '', false);
+                if ($coverUrl !== '') {
+                    $healedCovers++;
+                }
             }
             if ($coverRef !== '' && $coverUrl === '') {
                 try {
@@ -2249,6 +2253,7 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
                         bandpromo_asset_update_entry($root, $assetId, [
                             'display' => ['cover' => ''],
                         ]);
+                        $healedCovers++;
                     }
                 } catch (Throwable $ignored) {
                     // Materialize can still re-extract.
@@ -2286,7 +2291,9 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         is_array($deliverySummary) ? $deliverySummary : []
     );
     $afterFingerprint = bandpromo_playlist_player_payload_fingerprint($document);
-    $changed = ($beforeFingerprint === '' || $beforeFingerprint !== $afterFingerprint);
+    // Cover heal may restore delivery bytes without changing URL strings — still rewrite
+    // so player_built_at / ETag bump and operators see a real publish pass.
+    $changed = ($beforeFingerprint === '' || $beforeFingerprint !== $afterFingerprint || $healedCovers > 0);
 
     if ($changed) {
         $document['player_built_at'] = gmdate('c');

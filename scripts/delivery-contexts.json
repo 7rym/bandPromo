@@ -104,6 +104,7 @@
     "gallery": ["thumb", "card", "huge"],
     "page-illustration": ["thumb", "card", "picture", "huge"],
     "brand-logo": ["logo", "thumb", "huge"],
+    "brand-portrait": ["thumb", "card", "huge"],
     "shell-background-image": ["card", "huge"],
     "shell-background-video": ["poster", "standard-stream"],
     "unassigned": ["thumb", "card", "huge"],
