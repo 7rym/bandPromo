@@ -2,20 +2,23 @@
 
 ## Resume point
 
-**Published player soft-nav + page tab label** — validate campaign switching on a Site-updated host after this release. Existing pages that imported with `label = title` may need a re-save (or re-export/import) for a distinct Player tab.
+**Spandexual cover / publish hotfix** — local fixes on `v0.8.42` (publish after Site-update + Refresh site files). Sticky assigned covers with missing Visual master/delivery now heal or re-extract; preflight rename fixed; Build log has Copy log.
+
+### This session
+
+- Root cause: assigned `display.cover` kept pointing at Visuals whose master/delivery was gone; audio XXH3 skip was a red herring.
+- `ast_F831250M10AJHHFH05G6.png` “Skipped or failed” = no readable master (now falls back to original + clearer log).
+- Preflight warning: `bandpromo_content_autofix_sync_releases` → `sync_campaigns`.
 
 ### Shipped / published already
 
-**Last published:** see `VERSION` / GitHub Releases after this checkpoint (soft campaign/playlist navigation; skip same-brand chrome re-paint; page document `label` for player tabs + PCF round-trip).
-
-Prior: **v0.8.40 build 451** — campaign delete/purge typo fix; chunked upload append-as-received; background archive SHA; campaign navigator chrome.
+**Last published:** **v0.8.41 build 453** — soft player campaign/playlist navigation; page tab `label` persistence.
 
 ### Also pending
 
-- Fleet: Site-update; retry delete entire campaign; re-export Cleaning House for playlists (ownership fix).
-- Timed Lyrics/Notes (policy locked — implement later)
-- Favicon/PWA; legacy audit
-- v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id` after all test installs upgraded
+- Fleet: Site-update Spandexual to this hotfix; Refresh site files; confirm broken playlist covers.
+- Timed Lyrics/Notes; favicon/PWA; legacy audit
+- v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id`
 
 ### Active fleet
 

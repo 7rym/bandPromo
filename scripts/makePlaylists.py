@@ -1058,10 +1058,11 @@ def seed_visual_display_from_audio_extract(cover_ref, audio_filename, role_label
     return True
 
 
-def ensure_visual_image_delivery_for_cover(cover_ref):
+def ensure_visual_image_delivery_for_cover(cover_ref, force=False):
     """
     Build thumb/card (etc.) when playlist extract registers a Visual after the
     main optimizeMedia stage has already finished.
+    When force=True, rebuild even if the registry already lists variants.
     """
     cover_name = normalize_asset_id_ref(cover_ref)
     if not cover_name:
@@ -1090,7 +1091,11 @@ def ensure_visual_image_delivery_for_cover(cover_ref):
     required = ('thumb', 'card')
     if role in ('brand-logo', 'style-ref'):
         required = ('thumb', 'card')
-    if all(isinstance(variants.get(name), dict) for name in required):
+    if not force and all(
+        isinstance(variants.get(name), dict)
+        and visual_delivery_variant_file_exists(asset, name)
+        for name in required
+    ):
         return False
     try:
         import optimizeMedia as optimize_media
@@ -1106,6 +1111,125 @@ def ensure_visual_image_delivery_for_cover(cover_ref):
         print("✓ Built Visual delivery for track cover: %s" % (asset.get('id') or cover_name))
         return True
     return False
+
+
+def visual_delivery_variant_file_exists(asset, variant_name):
+    """True when registry variant path exists on disk (or default delivery path)."""
+    asset_id = normalize_asset_id_ref(asset.get('id') if isinstance(asset, dict) else '')
+    delivery = asset.get('delivery') if isinstance(asset, dict) and isinstance(asset.get('delivery'), dict) else {}
+    variants = delivery.get('variants') if isinstance(delivery.get('variants'), dict) else {}
+    entry = variants.get(variant_name) if isinstance(variants.get(variant_name), dict) else {}
+    rel = str(entry.get('path') or '').strip().replace('\\', '/').lstrip('/')
+    if rel:
+        candidate = ROOT_DIR / rel
+        if candidate.is_file():
+            return True
+    if not asset_id.startswith('ast_'):
+        return False
+    delivery_dir = ROOT_DIR / 'media' / 'visual' / 'delivery' / asset_id
+    for name in ('{}.jpg'.format(variant_name), '{}.png'.format(variant_name)):
+        if (delivery_dir / name).is_file():
+            return True
+    return False
+
+
+def visual_cover_source_available(cover_ref):
+    """True when master or original bytes exist for this Visual asset."""
+    visual_id = find_visual_asset_id_for_ref(cover_ref)
+    if not visual_id:
+        return False
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = assets.get(visual_id)
+    if not isinstance(asset, dict):
+        return False
+    try:
+        import optimizeMedia as optimize_media
+        return optimize_media.visual_working_path_for_asset(asset) is not None
+    except Exception:
+        pass
+    original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+    master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+    fmt = str(asset.get('master_format') or '').strip().lower()
+    if not fmt and master_name:
+        fmt = os.path.splitext(master_name)[1].lstrip('.').lower()
+    candidates = []
+    if visual_id.startswith('ast_') and fmt:
+        candidates.append(VISUAL_MASTER_DIR / ('%s.%s' % (visual_id, fmt)))
+    if master_name:
+        candidates.append(VISUAL_MASTER_DIR / master_name)
+    if original_name:
+        candidates.append(VISUAL_ORIG_DIR / original_name)
+        candidates.append(IMG_ORIG_DIR / original_name)
+        candidates.append(PHOTO_ORIG_DIR / original_name)
+    for path in candidates:
+        if path.is_file():
+            return True
+    return False
+
+
+def visual_cover_is_playable(cover_ref):
+    """Assigned cover is usable when card (or thumb) delivery bytes exist on disk."""
+    visual_id = find_visual_asset_id_for_ref(cover_ref)
+    if not visual_id:
+        return False
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = assets.get(visual_id)
+    if not isinstance(asset, dict) or asset.get('kind') != 'visual':
+        return False
+    if visual_delivery_variant_file_exists(asset, 'card'):
+        return True
+    if visual_delivery_variant_file_exists(asset, 'thumb'):
+        return True
+    return False
+
+
+def clear_audio_display_cover(audio_filename):
+    """Clear sticky display.cover so extract can retarget a healthy Visual."""
+    audio_name = os.path.basename(str(audio_filename or '').strip())
+    if not audio_name:
+        return False
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    changed = False
+    for asset_id, asset in list(assets.items()):
+        if not isinstance(asset, dict) or asset.get('kind') != 'audio':
+            continue
+        original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
+        master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+        if audio_name not in {original_name, master_name}:
+            continue
+        display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+        if not str(display.get('cover') or '').strip():
+            continue
+        display['cover'] = ''
+        asset['display'] = display
+        assets[asset_id] = asset
+        changed = True
+    if changed:
+        payload['assets'] = assets
+        save_asset_registry_payload(payload)
+    return changed
+
+
+def clear_visual_content_sha256(asset_id):
+    """Drop stale content hash so orphaned Visuals do not block fresh extract."""
+    target = normalize_asset_id_ref(asset_id)
+    if not target:
+        return False
+    payload = load_asset_registry_payload()
+    assets = payload.get('assets') if isinstance(payload.get('assets'), dict) else {}
+    asset = assets.get(target)
+    if not isinstance(asset, dict):
+        return False
+    if not str(asset.get('content_sha256') or '').strip():
+        return False
+    asset['content_sha256'] = ''
+    assets[target] = asset
+    payload['assets'] = assets
+    save_asset_registry_payload(payload)
+    return True
 
 
 def ensure_visual_content_sha256_on_file(filename, digest, intake_bucket='img'):
@@ -1240,9 +1364,17 @@ def extract_embedded_cover_to_visual(filename, base_filename=None):
     data, ext = embedded
     digest = hashlib.sha256(data).hexdigest()
     existing = find_visual_asset_id_by_content_sha256(digest)
+    if existing and not visual_cover_source_available(existing) and not visual_cover_is_playable(existing):
+        print(
+            "⚠ Hash-matched Visual %s has no source/delivery bytes; clearing hash and extracting fresh"
+            % existing
+        )
+        clear_visual_content_sha256(existing)
+        existing = None
     if existing:
         # Shared/existing art: link only. Do not re-seed keywords/captured on every build.
         set_audio_display_cover(filename, existing)
+        ensure_visual_image_delivery_for_cover(existing)
         print("✓ Reused Visual cover for embedded art (hash match): %s" % existing)
         return existing
 
@@ -1264,8 +1396,9 @@ def extract_embedded_cover_to_visual(filename, base_filename=None):
                     continue
             except Exception:
                 continue
-            # Existing pool bytes: link only (no extract seed).
+            # Existing pool bytes: link and ensure delivery exists on disk.
             cover_ref = _link_or_register_cover_file(filename, entry.name, digest, bucket, seed_extract=False)
+            ensure_visual_image_delivery_for_cover(cover_ref)
             print("✓ Linked embedded art to existing pool file: %s" % cover_ref)
             return cover_ref
 
@@ -1296,6 +1429,7 @@ def get_cover(filename):
     """
     Priority order:
     1) Operator-assigned Visual pool cover (asset registry display.cover as ast_*)
+       — only when delivery bytes exist (or can be rebuilt from master/original)
     2) Extract embedded art to Visual original + master (hash-match existing first)
     3) Configured release poster Visual asset from web-config.json
     Returns (cover_ref, source) where source is one of:
@@ -1303,15 +1437,26 @@ def get_cover(filename):
     """
     assigned = get_assigned_cover_from_registry(filename)
     if assigned:
-        return (assigned, 'assigned')
+        if visual_cover_is_playable(assigned):
+            return (assigned, 'assigned')
+        # Registry points at a cover that is missing on disk — try rebuild, then fall through.
+        if ensure_visual_image_delivery_for_cover(assigned, force=True) and visual_cover_is_playable(assigned):
+            return (assigned, 'assigned')
+        print(
+            "⚠ Assigned cover %s has no usable delivery; re-reading embedded art from %s"
+            % (assigned, os.path.basename(str(filename or '')))
+        )
+        clear_audio_display_cover(filename)
 
     extracted = extract_embedded_cover_to_visual(filename)
     if extracted:
+        ensure_visual_image_delivery_for_cover(extracted, force=False)
         return (extracted, 'embedded')
 
     configured_cover = get_configured_cover_filename()
     if configured_cover:
         set_audio_display_cover(filename, configured_cover)
+        ensure_visual_image_delivery_for_cover(configured_cover, force=False)
         return (configured_cover, 'configured')
 
     return (None, 'missing')

@@ -2701,6 +2701,7 @@ if ($tab === 'analytics') {
                 <summary class="deliverables-log-summary">
                     <span>📋 Build log</span>
                     <span class="build-log-meta">
+                        <button type="button" id="buildLogCopyBtn" class="btn">Copy log</button>
                         <span id="buildSpinner" class="build-log-spinner" style="display:none">⏳ Building…</span>
                         <span id="buildStatus" class="build-log-status"></span>
                     </span>

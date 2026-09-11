@@ -355,13 +355,17 @@ def file_xxh3_hex(path):
 def visual_working_path_for_asset(asset):
     """
     Resolve visual source bytes for delivery build.
-    Master only — original is not a working copy.
+    Prefer master; fall back to unified/legacy original when master is missing
+    so publish catchup can heal sticky track covers.
     """
     asset_id = str(asset.get('id') or '').strip()
     master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
+    original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
     fmt = str(asset.get('master_format') or '').strip().lower()
     if not fmt and master_name:
         fmt = Path(master_name).suffix.lstrip('.').lower()
+    if not fmt and original_name:
+        fmt = Path(original_name).suffix.lstrip('.').lower()
 
     candidates = []
     if asset_id.startswith('ast_') and fmt:
@@ -372,6 +376,19 @@ def visual_working_path_for_asset(asset):
     for path in candidates:
         if path is not None and path.is_file():
             return path
+
+    # Master missing: use provenance original so delivery can still be rebuilt.
+    if original_name:
+        for folder in (VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR):
+            candidate = folder / original_name
+            if candidate.is_file():
+                print(
+                    "    ⚠️  Visual master missing for {}; using original {}".format(
+                        asset_id or master_name or original_name,
+                        candidate.name,
+                    )
+                )
+                return candidate
     return None
 
 
@@ -578,6 +595,13 @@ def process_visual_image_asset(asset):
     asset_id = str(asset.get('id') or '').strip()
     source = visual_working_path_for_asset(asset)
     if not asset_id or source is None:
+        label = os.path.basename(str(asset.get('original_filename') or asset_id or 'unknown'))
+        print(
+            "    ⚠️  No readable master/original for visual {}: {}".format(
+                asset_id or '(missing id)',
+                label,
+            )
+        )
         return False
 
     role = str(asset.get('role') or 'unassigned')

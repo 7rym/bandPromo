@@ -39,7 +39,7 @@ function bandpromo_run_publish_preflight(string $root, ?callable $logger = null)
     }
 
     try {
-        $membership = bandpromo_content_autofix_sync_releases($root, false);
+        $membership = bandpromo_content_autofix_sync_campaigns($root, false);
         $summary['release_membership'] = $membership;
         $rebound = (int) ($membership['changed'] ?? 0);
         if ($rebound > 0) {

@@ -11587,12 +11587,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const buildSpinner = document.getElementById('buildSpinner');
             const buildLog     = document.getElementById('buildLog');
             const buildStatus  = document.getElementById('buildStatus');
+            const buildLogCopyBtn = document.getElementById('buildLogCopyBtn');
             const publishStatusCard = document.getElementById('publishStatusCard');
             const publishStatusSummary = document.getElementById('publishStatusSummary');
             const publishStatusOverall = document.getElementById('publishStatusOverall');
             let pollTimer      = null;
             let currentRunMode = 'full';
             let currentBuildTasks = [];
+
+            async function copyBuildLog() {
+                if (!buildLog || !buildLogCopyBtn) {
+                    return;
+                }
+                const text = String(buildLog.textContent || '').trim();
+                if (text === '' || text === 'No build output yet.') {
+                    buildLogCopyBtn.textContent = 'Nothing to copy';
+                    setTimeout(() => {
+                        buildLogCopyBtn.textContent = 'Copy log';
+                    }, 1500);
+                    return;
+                }
+                const label = buildLogCopyBtn.textContent;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        const area = document.createElement('textarea');
+                        area.value = text;
+                        area.setAttribute('readonly', '');
+                        area.style.position = 'fixed';
+                        area.style.left = '-9999px';
+                        document.body.appendChild(area);
+                        area.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(area);
+                    }
+                    buildLogCopyBtn.textContent = 'Copied';
+                } catch (error) {
+                    buildLogCopyBtn.textContent = 'Copy failed';
+                }
+                setTimeout(() => {
+                    buildLogCopyBtn.textContent = label || 'Copy log';
+                }, 1500);
+            }
+
+            if (buildLogCopyBtn) {
+                buildLogCopyBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    copyBuildLog();
+                });
+            }
 
             function runRecommendedAction() {
                 if (pollTimer) {

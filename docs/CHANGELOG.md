@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 17:55 - Publish preflight calls `bandpromo_content_autofix_sync_campaigns` (fixes undefined `…_sync_releases` warning). Track covers: heal sticky assigned Visuals with missing delivery/master (fall back to original, re-extract from FLAC when orphaned). Build log gains **Copy log** like Repair log.
+
 2026-09-11 17:25 - Player: campaign/playlist switches use soft navigation (no full reload) and skip re-applying the same brand chrome; first load no longer re-paints SSR brand/tabs. Page tabs prefer document **Player tab** `label` over operator **Page name**; PCF import persists `label` on page documents.
 
 2026-09-11 15:50 - Session handoff notes published hotfix **v0.8.40 build 451**.
