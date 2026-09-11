@@ -37,6 +37,7 @@
     --shell-scrim-strength: 0.72;
     --panel-scrim-strength: 0.72;
     --panel-blur: 5px;
+    --panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
 }
 
 body {
@@ -561,7 +562,7 @@ body.debug-modal-open {
     box-sizing: border-box;
     border-radius: 10px;
     /* Brand Backdrop dim + Panel blur (cover art stays outside / sharp). */
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
     z-index: 20;
@@ -597,7 +598,7 @@ body.debug-modal-open {
 }
 
 h2 { margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px var(--primary-a50); z-index: 2; }
-h3 { margin: 5px 0 0; font-size: 1.2rem; color: #aaa; font-weight: normal; z-index: 2; }
+h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-weight: normal; z-index: 2; }
 
 .controls {
     display: flex;
@@ -896,7 +897,7 @@ button.pulse-guide {
     font-size: 0.78rem;
     border: 2px solid var(--primary-a30);
     background: var(--primary-a05);
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-muted);
     transition: all 0.2s ease;
     scroll-snap-align: center;
     white-space: nowrap;
@@ -948,7 +949,7 @@ button.pulse-guide {
     text-align: center;
     font-style: italic;
     line-height: 1.6;
-    color: #ddd;
+    color: var(--color-text-muted);
     background: transparent;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) rgba(0,0,0,0.3);
@@ -961,7 +962,7 @@ button.pulse-guide {
     padding: 14px 18px;
     border-radius: 10px;
     box-sizing: border-box;
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
 }
@@ -1039,7 +1040,7 @@ button.pulse-guide {
     margin: 0 0 0.45em;
     padding-left: 0.75em;
     border-left: 2px solid var(--primary-a40);
-    color: #bbb;
+    color: var(--color-text-muted);
 }
 
 .player-markdown code {
@@ -1230,7 +1231,7 @@ button.pulse-guide {
     padding: 10px 12px;
     box-sizing: border-box;
     border-radius: 10px;
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
 }
@@ -1276,7 +1277,7 @@ button.pulse-guide {
     display: block;
     margin-top: 0.35rem;
     font-size: 0.85rem;
-    color: #aaa;
+    color: var(--color-text-muted);
 }
 
 .playlist-selector {
@@ -1535,12 +1536,12 @@ button.pulse-guide {
 .playlist-track-description {
     margin: 0;
     font-size: 13px;
-    color: #ccc;
+    color: var(--color-text-muted);
 }
 
 .playlist-track-tale {
     font-size: 12px;
-    color: #999;
+    color: color-mix(in srgb, var(--color-text-muted) 75%, transparent);
     font-weight: normal;
     display: block;
     margin-top: 3px;
@@ -1873,7 +1874,7 @@ audio {
     padding: 10px;
     box-sizing: border-box;
     border-radius: 10px;
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
 }
@@ -1919,12 +1920,12 @@ audio {
 .track-content p {
     margin: 0;
     font-size: 13px;
-    color: #ccc;
+    color: var(--color-text-muted);
 }
 
 .track-tale {
     font-size: 12px;
-    color: #999;
+    color: color-mix(in srgb, var(--color-text-muted) 75%, transparent);
     font-weight: normal;
     display: block;
     margin-top: 3px;

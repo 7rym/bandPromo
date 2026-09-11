@@ -201,6 +201,11 @@ function bandpromo_brand_effects_css_variables(array $document): array
         '--shell-scrim-strength' => number_format($dim / 100, 2, '.', ''),
         '--panel-scrim-strength' => number_format($panelDim / 100, 2, '.', ''),
         '--panel-blur' => $blur . 'px',
+        // Panels colour (surface_mid) at Panel dim strength — not black glass.
+        '--panel-fill' => sprintf(
+            'color-mix(in srgb, var(--color-surface-mid) %d%%, transparent)',
+            $panelDim
+        ),
     ];
 }
 

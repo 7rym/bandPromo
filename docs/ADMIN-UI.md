@@ -140,6 +140,8 @@ Pages and Branding edit views group fields in `.content-editor-section` cards:
 
 Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (publish date, package type, play order, slug, descriptions). Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Branding: Base info, Typography, Colours, Readability, Shell media, Player chrome.
 
+**Player colour contract:** `#mediaplayer` keeps platform layout (scene, transport, scrubber) but paints from brand colours. `#content-container` (logo, tabs, pages, playlist/lyrics/gallery) shares the same colour scheme and will gain freer button styling in a later phase. **Panels** + **Panel dim** drive glass fills (`--panel-fill`); muted text drives idle tabs and secondary copy. Separate Player vs Content button stylers are Phase 2.
+
 ## Drag-and-drop rows
 
 | Context | Look |

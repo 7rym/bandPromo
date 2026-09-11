@@ -63,7 +63,7 @@
     margin-right: auto;
     padding: 12px 16px;
     border-radius: 10px;
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
     box-sizing: border-box;
@@ -616,6 +616,12 @@
     text-underline-offset: 2px;
 }
 
+.page-content a:hover,
+.page-richtext a:hover,
+.page-picture-body a:hover {
+    color: var(--color-link-hover, var(--color-link, var(--primary-color)));
+}
+
 .page-content a:visited,
 .page-richtext a:visited,
 .page-picture-body a:visited {
@@ -681,7 +687,7 @@
     margin: 0 0 18px;
     padding: 12px;
     border-radius: 10px;
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
 }

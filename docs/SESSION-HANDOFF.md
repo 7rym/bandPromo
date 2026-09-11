@@ -2,23 +2,25 @@
 
 ## Resume point
 
-**Do not fake originals from masters** — policy corrected. Heal re-registers orphan `media/visual/master/ast_*` into the registry/Files pool only. Missing `original/` stays missing (provenance honesty). Site-update + Refresh site files.
+**Brand colour honesty Phase 1** — Site-update, then check Branding Colours: Panels should tint transport/content glass; muted text on idle tabs. Phase 2 (not started): separate Player vs Content button stylers.
 
-### Policy
+### Contract
 
-- **original/** = exact as-uploaded archival bytes (write-once). Never invent by copying masters.
-- **master/** = durable working tier for pool, delivery, metadata.
-- PCF/PBF are masters-only — hosts may legitimately have no originals after import.
+- `#mediaplayer` — platform layout (scene, transport, scrubber); brand colours apply
+- `#content-container` — freer for operators later; same colour scheme now
+- `--panel-fill` = `surface_mid` × Panel dim (not black glass)
+- Do not invent Visual originals from masters (prior policy)
 
-### Operator steps (Spandexual)
+### Operator steps
 
-1. Site update to latest published build.
-2. Refresh site files — Visual pool should list masters even when `original/` stays short.
-3. “Download original” may correctly fail when archival bytes are gone; prepared/master download remains.
+1. Site update to latest build.
+2. Content → Branding: set a distinct Panels colour + Panel dim; confirm glass tints on `/play`.
+3. Idle nav tabs should follow Muted text.
 
 ### Also pending
 
-- Confirm Spandexual Visual pool count vs original folder count (pool ≫ original is OK)
+- Phase 2 button stylers (Player constrained / Content freer)
+- Confirm Spandexual Visual pool after master re-register
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
 
 ### Active fleet

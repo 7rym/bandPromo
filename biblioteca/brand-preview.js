@@ -242,6 +242,7 @@
         rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
         rules.push(`--panel-scrim-strength:${(panelDim / 100).toFixed(2)}`);
         rules.push(`--panel-blur:${blur}px`);
+        rules.push(`--panel-fill:color-mix(in srgb, var(--color-surface-mid) ${panelDim}%, transparent)`);
         rules.push('--primary-a20:color-mix(in srgb, var(--primary-color) 20%, transparent)');
         rules.push('--primary-a50:color-mix(in srgb, var(--primary-color) 50%, transparent)');
 

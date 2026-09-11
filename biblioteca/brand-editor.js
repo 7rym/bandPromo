@@ -374,7 +374,7 @@
                     <label class="brand-effect-field">
                         <span class="brand-effect-label">Panel dim <strong data-effect-value="panel_dim">${escapeHtml(panelDim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.panel_dim" data-effect-range="panel_dim" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Fills lyrics, playlists, pages, gallery, and login panels. Separate from backdrop so the two do not stack as one control.</span>
+                        <span class="brand-field-hint">Strength of the Panels colour on transport, lyrics, playlists, pages, gallery, and login glass. Separate from backdrop so the two do not stack as one control.</span>
                     </label>
                     <label class="brand-effect-field">
                         <span class="brand-effect-label">Panel blur <strong data-effect-value="panel_blur">${escapeHtml(blur)}</strong>px</span>
@@ -1165,11 +1165,11 @@
                     </div>
                 `)}
                 ${renderEditorSection('Colours', `
-                    <p class="brand-field-hint">Type a hex colour (e.g. #FF6F61) or use the colour square. Accent transparency (alpha) is derived automatically from Primary/Secondary — not a separate control.</p>
+                    <p class="brand-field-hint">Type a hex colour (e.g. #FF6F61) or use the colour square. Both <code>#mediaplayer</code> and <code>#content-container</code> share this scheme. Primary drives chrome accents (play controls, active tabs). Secondary accents page headings and callouts — not transport chrome. Panels tints glass fills with Panel dim. Links apply to page/body prose only. Accent transparency (alpha) is derived from Primary/Secondary automatically.</p>
                     ${renderCompactColors(fieldsLocked)}
                 `, 'brand-editor-section--colors')}
                 ${renderEditorSection('Readability', `
-                    <p class="brand-field-hint">Backdrop dim darkens the still/living shell only. Panel dim and blur soften lyrics, playlists, pages, and login glass — tune them separately so they do not stack as one control.</p>
+                    <p class="brand-field-hint">Backdrop dim darkens the still/living shell only. Panel dim sets how strongly the Panels colour fills transport, lyrics, playlists, pages, gallery, and login glass — tune blur separately so they do not stack as one control.</p>
                     ${renderEffectsFields(fieldsLocked)}
                 `, 'brand-editor-section--effects')}
                 ${renderShellMediaFields(fieldsLocked)}

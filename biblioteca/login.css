@@ -41,7 +41,7 @@ textarea {
     text-align: center;
     border-radius: 10px;
     /* Brand Backdrop dim + Panel blur (same contract as player content panels). */
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
     backdrop-filter: blur(var(--panel-blur, 5px));
 }
@@ -479,7 +479,7 @@ body.video-loaded::before {
 
 .info-lightbox-content {
     position: relative;
-    background: rgba(0, 0, 0, var(--panel-scrim-strength, var(--shell-scrim-strength, 0.72)));
+    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
     border: 2px solid var(--primary-a50);
     border-radius: 10px;
     padding: 40px 30px;

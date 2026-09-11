@@ -737,14 +737,14 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
-| `color.primary` | `--primary-color` | Accent, active controls, progress |
-| `color.secondary` | `--secondary-color` | Secondary accent, visited links |
+| `color.primary` | `--primary-color` | Accent, active controls, progress, active nav tabs |
+| `color.secondary` | `--secondary-color` | Page headings/callouts, visited-link fallback — not transport chrome |
 | `color.background` | `--bg-color` | Page background |
 | `color.text` | `--text-color` | Primary text |
-| `color.text_muted` | `--color-text-muted` | Hints, secondary copy |
-| `color.surface_mid` | `--color-surface-mid` | Gradient mid tone |
+| `color.text_muted` | `--color-text-muted` | Idle nav tabs, artist line, secondary copy |
+| `color.surface_mid` | `--color-surface-mid` (+ derived `--panel-fill`) | Panels colour: glass fills at Panel dim; also gradient mid tone |
 | `color.surface_deep` | `--color-surface-deep` | Gradient deep tone |
-| `color.link` | `--color-link` | Default links |
+| `color.link` | `--color-link` | Page/body prose links |
 | `color.link_hover` | `--color-link-hover` | Link hover |
 | `color.link_visited` | `--color-link-visited` | Visited links on dark backgrounds |
 
@@ -753,10 +753,12 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
 | `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (full-page black overlay; 0–100 in editor; default 72) |
-| `effects.panel_dim` | `--panel-scrim-strength` (0–1) | Fill content panels (lyrics, playlists, pages, gallery, login inputs/lightbox). **Separate** from backdrop dim so one slider is not applied twice (0–100; default 72; missing → seed from `backdrop_dim`) |
-| `effects.panel_blur` | `--panel-blur` | Glass blur on those same content panels (player chrome stays sharp; 0–24px; default 5) |
+| `effects.panel_dim` | `--panel-scrim-strength` (0–1) + `--panel-fill` | Strength of Panels colour on transport, lyrics, playlists, pages, gallery, login glass (0–100; default 72; missing → seed from `backdrop_dim`) |
+| `effects.panel_blur` | `--panel-blur` | Glass blur on those same panels (cover art stays sharp; 0–24px; default 5) |
 
-Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens.
+Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--panel-fill` is derived from `color.surface_mid` × Panel dim.
+
+**Player layout contract:** `#mediaplayer` layout is platform-owned (cover scene, transport, scrubber). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators in later phases. Both share the brand colour scheme. Phase 2 will add separate Player vs Content button stylers (radius/fill); Phase 1 does not invent button tokens.
 
 **Layout:** Player cover art size (`--card-size`) is **not** a brand token. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Cover size, player rail, content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints are platform-owned in `biblioteca/style.css`. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
 
