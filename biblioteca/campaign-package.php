@@ -1267,11 +1267,15 @@ function bandpromo_campaign_ensure_registry_entries(string $root, string $releas
             if ($title === '') {
                 $title = $pageId;
             }
+            $label = trim((string) ($decoded['label'] ?? ''));
+            if ($label === '') {
+                $label = $title;
+            }
             $maxPageOrder += 10;
             $normalized = bandpromo_page_normalize_registry_entry([
                 'id' => $pageId,
                 'title' => $title,
-                'label' => $title,
+                'label' => $label,
                 'surface' => 'player',
                 'show_in_player' => true,
                 'required' => false,
@@ -1583,8 +1587,19 @@ function bandpromo_campaign_duplicate(string $root, string $sourceReleaseId, str
         if ($pTitle === '') {
             $pTitle = $newTitle . ' page';
         }
-        $label = trim((string) ($doc['label'] ?? $pTitle));
-        $created = bandpromo_page_create_page($root, $pTitle . ' copy', $label !== '' ? $label : $pTitle, $pageId . '-copy');
+        $label = trim((string) ($doc['label'] ?? ''));
+        if ($label === '') {
+            try {
+                $reg = bandpromo_page_registry_entry($root, $pageId);
+                $label = trim((string) (($reg['label'] ?? '') ?: ''));
+            } catch (Throwable $throwable) {
+                $label = '';
+            }
+        }
+        if ($label === '') {
+            $label = $pTitle;
+        }
+        $created = bandpromo_page_create_page($root, $pTitle . ' copy', $label, $pageId . '-copy');
         $newPageId = bandpromo_page_normalize_id((string) ($created['id'] ?? ''));
         if ($newPageId === '') {
             continue;

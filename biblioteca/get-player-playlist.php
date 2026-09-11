@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/https.php';
 require_once __DIR__ . '/playlist-storage.php';
+require_once __DIR__ . '/player-modules.php';
 require_once __DIR__ . '/auth.php';
 
 bandpromo_enforce_https();
@@ -38,6 +39,8 @@ try {
     }
 
     $payload = bandpromo_playlist_load_player_response($root, $playlistId, $preferredVariant);
+    $campaignId = bandpromo_campaign_normalize_id((string) ($payload['campaign_id'] ?? $payload['release_id'] ?? ''));
+    $payload['player_tabs'] = bandpromo_player_content_tabs($root, $operatorBypass, $campaignId);
     $builtAt = trim((string) ($payload['player_built_at'] ?? ''));
     if ($builtAt !== '') {
         header('ETag: "' . sha1($playlistId . ':' . $builtAt) . '"');

@@ -315,6 +315,8 @@ if ($supportUrl !== '') {
     <script>
         window.BANDPROMO_ACTIVE_BRAND_ID = <?php echo json_encode($installActiveBrandId); ?>;
         window.BANDPROMO_PLAYLIST_BRAND_ID = <?php echo json_encode($playerBrandId); ?>;
+        // SSR already painted this brand — first client apply should not re-flash chrome.
+        window.__bandpromoAppliedBrandId = <?php echo json_encode($playerBrandId); ?>;
     </script>
 </head>
 <body<?php echo $coverReflectionEnabled ? '' : ' class="cover-reflection-off"'; ?>>

@@ -1734,8 +1734,7 @@ async function switchActivePlaylist(playlistId) {
         return;
     }
     writePlayerNavMemory(getActiveCampaignId(), id);
-    // Soft within campaign: full navigation rebuilds tabs; playback restarts from new playlist load.
-    window.location.assign(playlistSwitchUrl(id));
+    await navigatePlayerToPlaylist(id, { pushHistory: true });
 }
 
 async function switchActiveCampaign(campaignId) {
@@ -1751,7 +1750,272 @@ async function switchActiveCampaign(campaignId) {
         // Ignore.
     }
     writePlayerNavMemory(id, '');
-    window.location.assign(campaignSwitchUrl(id));
+    const mem = readPlayerNavMemory();
+    const campaignPlaylists = playlistsForCampaign(id);
+    let playlistId = String(mem.lastPlaylistByCampaign?.[id] || '').trim();
+    if (!campaignPlaylists.some((entry) => String(entry?.id || '') === playlistId)) {
+        playlistId = String(campaignPlaylists[0]?.id || '');
+    }
+    if (playlistId === '') {
+        window.location.assign(campaignSwitchUrl(id));
+        return;
+    }
+    await navigatePlayerToPlaylist(playlistId, {
+        campaignId: id,
+        pushHistory: true,
+    });
+}
+
+function escapePlayerAttr(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function playerContentBoxSelector(view) {
+    const value = String(view || '');
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+        return `[data-content-box="${CSS.escape(value)}"]`;
+    }
+    return `[data-content-box="${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
+}
+
+function rebuildPlayerContentTabs(tabs) {
+    const toggle = document.querySelector('.content-toggle');
+    const contentRoot = document.querySelector('.content') || document.querySelector('.player-content') || document.body;
+    if (!(toggle instanceof HTMLElement)) {
+        return;
+    }
+    const list = Array.isArray(tabs) ? tabs : [];
+    const tabSignature = (entries) => JSON.stringify((Array.isArray(entries) ? entries : []).map((tab) => [
+        String(tab?.view || ''),
+        String(tab?.label || ''),
+        String(tab?.kind || ''),
+        String(tab?.page_id || ''),
+        String(tab?.campaign_id || tab?.release_id || ''),
+    ]));
+    const tabsKey = tabSignature(list);
+    const previousKey = window.__bandpromoTabsKey || tabSignature(window.BANDPROMO_PLAYER_TABS);
+    window.BANDPROMO_PLAYER_TABS = list;
+    if (previousKey === tabsKey && toggle.querySelectorAll('button[data-view]').length === list.length) {
+        window.__bandpromoTabsKey = tabsKey;
+        return;
+    }
+    window.__bandpromoTabsKey = tabsKey;
+    const previousActive = document.querySelector('.content-toggle button[data-view].active');
+    const previousView = previousActive ? String(previousActive.getAttribute('data-view') || '') : '';
+
+    toggle.innerHTML = list.map((tab) => {
+        const view = String(tab?.view || '').trim();
+        if (view === '') {
+            return '';
+        }
+        const label = escapePlayerHtml(String(tab?.label || view));
+        return `<button type="button" data-view="${escapePlayerAttr(view)}" onclick="toggleView('${escapePlayerAttr(view)}')">${label}</button>`;
+    }).join('');
+
+    list.forEach((tab) => {
+        const view = String(tab?.view || '').trim();
+        const kind = String(tab?.kind || '');
+        if (kind !== 'page' || !view.startsWith('page-')) {
+            return;
+        }
+        const pageId = String(tab?.page_id || view.slice(5)).trim();
+        if (pageId === '') {
+            return;
+        }
+        let box = document.querySelector(playerContentBoxSelector(view));
+        if (!(box instanceof HTMLElement)) {
+            box = document.createElement('div');
+            box.className = 'page-box';
+            box.id = `pageBox-${pageId}`;
+            box.setAttribute('data-content-box', view);
+            box.setAttribute('data-page-id', pageId);
+            box.dataset.pageHydrated = 'false';
+            box.innerHTML = '<p class="page-paragraph page-box-loading">Loading…</p>';
+            const playlistBox = document.getElementById('playlistBox');
+            if (playlistBox && playlistBox.parentNode) {
+                playlistBox.parentNode.appendChild(box);
+            } else {
+                contentRoot.appendChild(box);
+            }
+        }
+    });
+
+    // Hide page boxes that are no longer in the tab set.
+    document.querySelectorAll('.page-box[data-content-box]').forEach((box) => {
+        const view = String(box.getAttribute('data-content-box') || '');
+        const keep = list.some((tab) => String(tab?.view || '') === view);
+        box.hidden = !keep;
+        if (!keep) {
+            box.classList.remove('active');
+        }
+    });
+
+    const preferred = list.some((tab) => String(tab?.view || '') === previousView)
+        ? previousView
+        : String(window.BANDPROMO_DEFAULT_PLAYER_VIEW || list[0]?.view || 'playlist');
+    toggleView(preferred);
+}
+
+function rebuildPlaylistSelectorForCampaign(campaignId) {
+    const id = String(campaignId || getActiveCampaignId() || '').trim();
+    const entries = playlistsForCampaign(id);
+    const wrap = document.getElementById('playlistSelectorWrap');
+    const toolbar = document.getElementById('playlistScopeToolbar');
+    const showPlaylists = entries.length > 1;
+    if (toolbar instanceof HTMLElement) {
+        toolbar.dataset.hasPlaylists = showPlaylists ? '1' : '0';
+    }
+    if (!(wrap instanceof HTMLElement)) {
+        return;
+    }
+    wrap.hidden = !showPlaylists;
+    if (!showPlaylists) {
+        return;
+    }
+    const mode = String(wrap.dataset.mode || wrap.getAttribute('data-mode') || 'coverflow');
+    const activeId = getActivePlaylistId();
+    if (mode === 'buttons') {
+        const group = wrap.querySelector('.playlist-selector-buttons');
+        if (group) {
+            group.innerHTML = entries.map((entry) => {
+                const entryId = String(entry?.id || '');
+                const title = escapePlayerHtml(String(entry?.title || entryId));
+                const isActive = entryId === activeId;
+                return `<button type="button" class="playlist-selector-btn${isActive ? ' is-active' : ''}" data-playlist-select data-playlist-id="${escapePlayerAttr(entryId)}" aria-pressed="${isActive ? 'true' : 'false'}">${title}</button>`;
+            }).join('');
+        }
+    } else if (mode === 'dropdown' || mode === 'select') {
+        const select = document.getElementById('playlistSelector');
+        if (select) {
+            select.innerHTML = entries.map((entry) => {
+                const entryId = String(entry?.id || '');
+                const title = escapePlayerHtml(String(entry?.title || entryId));
+                const selected = entryId === activeId ? ' selected' : '';
+                return `<option value="${escapePlayerAttr(entryId)}"${selected}>${title}</option>`;
+            }).join('');
+        }
+    } else {
+        const flow = wrap.querySelector('.playlist-coverflow');
+        if (flow) {
+            flow.innerHTML = entries.map((entry) => {
+                const entryId = String(entry?.id || '');
+                const title = String(entry?.title || entryId);
+                const cover = String(entry?.cover || '').trim();
+                const isActive = entryId === activeId;
+                const initial = escapePlayerHtml((title || '♪').slice(0, 1).toUpperCase());
+                const media = cover
+                    ? `<img class="playlist-coverflow-thumb" src="${escapePlayerAttr(cover)}" alt="" loading="lazy" decoding="async">`
+                    : `<span class="playlist-coverflow-placeholder" aria-hidden="true">${initial}</span>`;
+                return `<button type="button" class="playlist-coverflow-item${isActive ? ' is-active' : ''}" role="option" aria-selected="${isActive ? 'true' : 'false'}" data-playlist-select data-playlist-id="${escapePlayerAttr(entryId)}" title="${escapePlayerAttr(title)}" aria-label="${escapePlayerAttr(title)}">${media}</button>`;
+            }).join('');
+        }
+    }
+    bindPlaylistSelector();
+    syncPlaylistSelectorUi(activeId);
+}
+
+async function navigatePlayerToPlaylist(playlistId, options = {}) {
+    const id = String(playlistId || '').trim();
+    if (id === '') {
+        return;
+    }
+    const pushHistory = options.pushHistory !== false;
+    const forcedCampaignId = String(options.campaignId || '').trim();
+    try {
+        const response = await fetch(`/biblioteca/get-player-playlist.php?playlist=${encodeURIComponent(id)}`, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) {
+            let detail = `HTTP ${response.status}`;
+            try {
+                const errorPayload = await response.json();
+                if (errorPayload && typeof errorPayload.error === 'string' && errorPayload.error.trim() !== '') {
+                    detail = errorPayload.error.trim();
+                }
+            } catch (parseError) {
+                // Keep status detail.
+            }
+            throw new Error(detail);
+        }
+        const data = await response.json();
+        const nextBrand = String(data.brand_id || '').trim();
+        const appliedBrand = String(window.__bandpromoAppliedBrandId || '').trim();
+        applyPlayerPlaylistPayload(data, {
+            forcedCampaignId,
+            // Only re-paint brand chrome when the brand actually changes.
+            forceBrand: nextBrand !== '' && nextBrand !== appliedBrand,
+        });
+        if (pushHistory) {
+            const song = Array.isArray(playList) && playList[currentIndex] ? playList[currentIndex] : null;
+            const nextUrl = song
+                ? buildPlaylistPlayerUrl(getActivePlaylistId(), song)
+                : buildCampaignPlaylistUrl(getActiveCampaignId(), getActivePlaylistId());
+            history.pushState(null, '', nextUrl);
+        }
+        writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
+    } catch (error) {
+        console.error('Soft player navigation failed; falling back to full load.', error);
+        window.location.assign(
+            forcedCampaignId
+                ? buildCampaignPlaylistUrl(forcedCampaignId, id)
+                : playlistSwitchUrl(id)
+        );
+    }
+}
+
+function applyPlayerPlaylistPayload(data, options = {}) {
+    const forceBrand = !!options.forceBrand;
+    const forcedCampaignId = String(options.forcedCampaignId || '').trim();
+    playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
+    brandStylesById = (data.brand_styles && typeof data.brand_styles === 'object') ? data.brand_styles : {};
+    if (data.playlist_id) {
+        window.BANDPROMO_PLAYLIST_ID = data.playlist_id;
+    }
+    if (data.playlist_slug) {
+        window.BANDPROMO_PLAYLIST_SLUG = data.playlist_slug;
+    }
+    if (data.brand_id) {
+        window.BANDPROMO_PLAYLIST_BRAND_ID = String(data.brand_id).trim();
+    }
+    const campaignId = forcedCampaignId
+        || String(data.campaign_id || data.release_id || '').trim();
+    if (campaignId) {
+        window.BANDPROMO_CAMPAIGN_ID = campaignId;
+        window.BANDPROMO_PLAYLIST_RELEASE_ID = campaignId;
+    }
+    if (Array.isArray(data.player_tabs)) {
+        rebuildPlayerContentTabs(data.player_tabs);
+    }
+    rebuildPlaylistSelectorForCampaign(getActiveCampaignId());
+    updateOperatorDeliveryNotice(data.delivery_summary || null);
+    applyPlaylistBrand(window.BANDPROMO_PLAYLIST_BRAND_ID, { force: forceBrand });
+
+    if (playList.length > 0) {
+        currentIndex = getTrackFromUrl();
+        if (currentIndex >= playList.length) {
+            currentIndex = playList.findIndex((song) => isTrackPlayable(song));
+            if (currentIndex < 0) {
+                currentIndex = 0;
+            }
+        }
+        initPlayer(currentIndex);
+        renderPlaylist();
+        if (playList[currentIndex] && !options.skipHistoryReplace) {
+            updatePlaylistHistory(playList[currentIndex]);
+        }
+        bindPlaylistSelector();
+        bindCampaignNavigator();
+        syncCampaignSwitcherUi(getActiveCampaignId());
+        syncCampaignPageTabs();
+    } else {
+        syncCampaignPageTabs();
+        showPlayerLoadError('This playlist has no playable tracks yet.');
+    }
 }
 
 function syncCampaignSwitcherUi(campaignId) {
@@ -1787,7 +2051,8 @@ function bindCampaignNavigator() {
     syncCampaignSwitcherUi(getActiveCampaignId());
 }
 
-function applyPlaylistBrand(brandId) {
+function applyPlaylistBrand(brandId, options = {}) {
+    const force = !!(options && options.force);
     let resolvedBrandId = String(brandId || window.BANDPROMO_PLAYLIST_BRAND_ID || '').trim();
     if (!resolvedBrandId) {
         resolvedBrandId = String(window.BANDPROMO_ACTIVE_BRAND_ID || '').trim();
@@ -1795,6 +2060,7 @@ function applyPlaylistBrand(brandId) {
     if (!resolvedBrandId) {
         return;
     }
+    const previousApplied = String(window.__bandpromoAppliedBrandId || '').trim();
     window.BANDPROMO_PLAYLIST_BRAND_ID = resolvedBrandId;
     const brand = resolveBrandStyleEntry(resolvedBrandId);
     if (!brand || typeof brand !== 'object') {
@@ -1806,6 +2072,12 @@ function applyPlaylistBrand(brandId) {
                 background_video: '',
             },
         });
+        window.__bandpromoAppliedBrandId = '';
+        return;
+    }
+
+    if (!force && previousApplied === resolvedBrandId) {
+        // Same brand as SSR / last apply — keep painted chrome (avoids campaign-switch blink).
         return;
     }
 
@@ -1822,16 +2094,15 @@ function applyPlaylistBrand(brandId) {
                 root.style.fontFamily = value;
                 return;
             }
-            root.style.setProperty(key, value);
+            root.style.setProperty(`--${key}`, value);
         });
-
         const themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta && typeof vars['--bg-color'] === 'string' && vars['--bg-color'].trim() !== '') {
             themeMeta.setAttribute('content', vars['--bg-color'].trim());
         }
     }
-
     applyPlaylistShellMedia(brand);
+    window.__bandpromoAppliedBrandId = resolvedBrandId;
 }
 
 function resolveBrandStyleEntry(brandId) {
@@ -2176,48 +2447,12 @@ async function loadConfig() {
             throw new Error(detail);
         }
         const data = await response.json();
-        playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
-        brandStylesById = (data.brand_styles && typeof data.brand_styles === 'object') ? data.brand_styles : {};
-        if (data.playlist_id) {
-            window.BANDPROMO_PLAYLIST_ID = data.playlist_id;
-        }
-        if (data.playlist_slug) {
-            window.BANDPROMO_PLAYLIST_SLUG = data.playlist_slug;
-        }
-        if (data.brand_id) {
-            window.BANDPROMO_PLAYLIST_BRAND_ID = String(data.brand_id).trim();
-        }
-        if (data.release_id) {
-            window.BANDPROMO_PLAYLIST_RELEASE_ID = String(data.release_id).trim();
-            if (!window.BANDPROMO_CAMPAIGN_ID) {
-                window.BANDPROMO_CAMPAIGN_ID = String(data.release_id).trim();
-            }
-        }
+        // First paint already applied brand via SSR — do not force a second chrome pass.
+        applyPlayerPlaylistPayload(data, {
+            forceBrand: false,
+            skipHistoryReplace: false,
+        });
         writePlayerNavMemory(getActiveCampaignId(), getActivePlaylistId());
-        updateOperatorDeliveryNotice(data.delivery_summary || null);
-        applyPlaylistBrand(window.BANDPROMO_PLAYLIST_BRAND_ID);
-        
-        // Start player if we got data
-        if (playList.length > 0) {
-            currentIndex = getTrackFromUrl();
-            if (currentIndex >= playList.length) {
-                currentIndex = playList.findIndex((song) => isTrackPlayable(song));
-                if (currentIndex < 0) {
-                    currentIndex = 0;
-                }
-            }
-            initPlayer(currentIndex);
-            renderPlaylist();
-            if (playList[currentIndex]) {
-                updatePlaylistHistory(playList[currentIndex]);
-            }
-            bindPlaylistSelector();
-            bindCampaignNavigator();
-            syncCampaignSwitcherUi(getActiveCampaignId());
-        } else {
-            syncCampaignPageTabs();
-            showPlayerLoadError('This playlist has no playable tracks yet.');
-        }
     } catch (e) {
         console.error('Failed to load player playlist:', e);
         showPlayerLoadError(e && e.message ? e.message : 'Could not load playlist.');

@@ -365,7 +365,8 @@ function bandpromo_page_new_document(string $pageId, string $title = ''): array 
         'version' => BANDPROMO_PAGE_SCHEMA_VERSION,
         'id' => $pageId,
         'title' => $resolvedTitle,
-        'release_id' => '',
+        'label' => '',
+        'campaign_id' => '',
         'short_description' => '',
         'description' => '',
         'poster_asset_id' => '',
@@ -916,6 +917,14 @@ function bandpromo_page_normalize_document(array $input, string $expectedId): ar
     }
     unset($document['release_id']);
     $document['campaign_id'] = $campaignId;
+    // Player tab text (public). Persisted on the document so PCF import keeps it.
+    if (array_key_exists('label', $input)) {
+        $document['label'] = bandpromo_page_normalize_text((string) $input['label'], 32);
+    } elseif (!array_key_exists('label', $document)) {
+        $document['label'] = '';
+    } else {
+        $document['label'] = bandpromo_page_normalize_text((string) ($document['label'] ?? ''), 32);
+    }
     if (array_key_exists('short_description', $input)) {
         $document['short_description'] = bandpromo_page_normalize_text((string) $input['short_description'], 300);
     }

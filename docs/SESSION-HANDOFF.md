@@ -2,18 +2,19 @@
 
 ## Resume point
 
-**Published v0.8.40 build 451** — campaign delete/purge typo fix. **Next:** Site-update; retry delete entire campaign; re-export Cleaning House for playlists.
+**Published player soft-nav + page tab label** — validate campaign switching on a Site-updated host after this release. Existing pages that imported with `label = title` may need a re-save (or re-export/import) for a distinct Player tab.
 
 ### Shipped / published already
 
-**Last published:** **v0.8.40 build 451** (`v0.8.40-build-451`) — fix undefined `bandpromo_campaign_campaign_collect_asset_ids` on purge.
+**Last published:** see `VERSION` / GitHub Releases after this checkpoint (soft campaign/playlist navigation; skip same-brand chrome re-paint; page document `label` for player tabs + PCF round-trip).
 
-Also in this build: chunked upload append-as-received; background archive SHA worker; campaign navigator chrome + Brand Panel dim (from earlier session work).
+Prior: **v0.8.40 build 451** — campaign delete/purge typo fix; chunked upload append-as-received; background archive SHA; campaign navigator chrome.
 
 ### Also pending
 
+- Fleet: Site-update; retry delete entire campaign; re-export Cleaning House for playlists (ownership fix).
 - Timed Lyrics/Notes (policy locked — implement later)
-- Fleet validate navigator; favicon/PWA; legacy audit
+- Favicon/PWA; legacy audit
 - v0.9: delete `release_id` fallback inside `bandpromo_document_campaign_id` after all test installs upgraded
 
 ### Active fleet

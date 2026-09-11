@@ -50,6 +50,9 @@ try {
     if (array_key_exists('title', $meta)) {
         $documentPayload['title'] = (string) $meta['title'];
     }
+    if (array_key_exists('label', $meta)) {
+        $documentPayload['label'] = (string) $meta['label'];
+    }
 
     $result = bandpromo_page_save_document($root, $documentPayload);
     $document = $result['document'];

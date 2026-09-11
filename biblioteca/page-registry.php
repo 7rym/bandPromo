@@ -399,7 +399,9 @@ function bandpromo_page_create_page(string $root, string $title, string $label =
     ];
 
     bandpromo_page_write_registry($root, $registry);
-    bandpromo_page_write_json($root, bandpromo_page_create_blank_document($id, $title));
+    $blank = bandpromo_page_create_blank_document($id, $title);
+    $blank['label'] = $label;
+    bandpromo_page_write_json($root, bandpromo_page_normalize_document($blank, $id));
 
     return bandpromo_page_registry_entry($root, $id) ?? [];
 }
@@ -471,6 +473,22 @@ function bandpromo_page_update_registry_entry(string $root, string $pageId, arra
     }
 
     bandpromo_page_write_registry($root, $registry);
+
+    if (isset($changes['label']) || isset($changes['title'])) {
+        try {
+            require_once __DIR__ . '/page-storage.php';
+            $document = bandpromo_page_load_document($root, $pageId);
+            if (isset($changes['title'])) {
+                $document['title'] = (string) $updated['title'];
+            }
+            if (isset($changes['label'])) {
+                $document['label'] = (string) $updated['label'];
+            }
+            bandpromo_page_write_json($root, bandpromo_page_normalize_document($document, $pageId));
+        } catch (Throwable $throwable) {
+            // Registry update still counts; document may be missing mid-seed.
+        }
+    }
 
     return $updated;
 }

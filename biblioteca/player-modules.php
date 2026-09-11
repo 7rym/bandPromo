@@ -235,23 +235,49 @@ function bandpromo_player_tab_from_key(string $root, string $key, bool $requireS
     }
 
     $releaseId = '';
+    $document = null;
     try {
         require_once __DIR__ . '/page-storage.php';
         require_once __DIR__ . '/campaign-storage.php';
-        $doc = bandpromo_page_load_document($root, $pageId);
-        $releaseId = bandpromo_document_campaign_id($doc);
+        $document = bandpromo_page_load_document($root, $pageId);
+        $releaseId = bandpromo_document_campaign_id(is_array($document) ? $document : []);
     } catch (Throwable $throwable) {
         $releaseId = '';
+        $document = null;
     }
 
     return [
         'view' => 'page-' . $pageId,
-        'label' => (string) ($entry['label'] ?? $entry['title']),
+        'label' => bandpromo_player_page_tab_label($entry, is_array($document) ? $document : null),
         'kind' => 'page',
         'page_id' => $pageId,
         'release_id' => $releaseId,
         'campaign_id' => $releaseId,
     ];
+}
+
+/**
+ * Public player tab text: document Player tab label, else registry label, else page name.
+ *
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed>|null $document
+ */
+function bandpromo_player_page_tab_label(array $entry, ?array $document = null): string
+{
+    $docLabel = trim((string) ($document['label'] ?? ''));
+    if ($docLabel !== '') {
+        return $docLabel;
+    }
+    $label = trim((string) ($entry['label'] ?? ''));
+    if ($label !== '') {
+        return $label;
+    }
+    $title = trim((string) ($entry['title'] ?? ''));
+    if ($title !== '') {
+        return $title;
+    }
+
+    return trim((string) ($entry['id'] ?? 'Page'));
 }
 
 function bandpromo_player_playlist_selector_mode(?array $config = null): string
