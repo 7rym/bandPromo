@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-11 20:40 - Recover uncatalogued Visual masters: scan `media/visual/master/` for `ast_*` files missing from the registry, re-register them, and rebuild the Files → Visual index (Publish / Refresh site files / Repair catalogue). Originals may stay at 15 while masters return to the pool — bytes were never deleted.
+
 2026-09-11 20:15 - Files → Brand assets: **Orphans** no longer dumps every track cover (only brand-eligible rows). Empty Brand libraries heal from shell slots + brand-eligible registry ownership on seed/build. Branding save keeps slot `asset_ids` when a delivery path is temporarily empty (stops wiping library membership).
 
 2026-09-11 18:25 - Settings → Sharing preview only shows a share image that exists on disk (no stale `card.png` label from missing delivery URLs).

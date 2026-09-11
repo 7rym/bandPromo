@@ -268,6 +268,53 @@ try {
     );
 }
 
+try {
+    require_once __DIR__ . '/asset-registry.php';
+    $masterReconcile = bandpromo_reconcile_uncatalogued_visual_masters($root_dir);
+    $recovered = (int) ($masterReconcile['changed'] ?? 0);
+    if ($recovered > 0) {
+        file_put_contents(
+            $log_file,
+            '[visual masters] Re-registered ' . $recovered . " uncatalogued master(s) into the Visual pool.\n",
+            FILE_APPEND
+        );
+        foreach (($masterReconcile['fixed'] ?? []) as $fixedName) {
+            if (!is_string($fixedName) || trim($fixedName) === '') {
+                continue;
+            }
+            file_put_contents($log_file, '[visual masters] + ' . $fixedName . "\n", FILE_APPEND);
+        }
+    } elseif (!empty($masterReconcile['index_rebuilt'])) {
+        file_put_contents(
+            $log_file,
+            "[visual masters] Rebuilt Files → Visual index from registry (stale pool listing).\n",
+            FILE_APPEND
+        );
+    } else {
+        file_put_contents($log_file, "[visual masters] No uncatalogued masters to recover.\n", FILE_APPEND);
+    }
+    foreach (($masterReconcile['failed'] ?? []) as $failure) {
+        if (!is_array($failure)) {
+            continue;
+        }
+        file_put_contents(
+            $log_file,
+            '[visual masters] Failed '
+                . (string) ($failure['filename'] ?? '?')
+                . ': '
+                . (string) ($failure['error'] ?? 'unknown')
+                . "\n",
+            FILE_APPEND
+        );
+    }
+} catch (Throwable $throwable) {
+    file_put_contents(
+        $log_file,
+        '[visual masters] Master reconcile skipped: ' . $throwable->getMessage() . "\n",
+        FILE_APPEND
+    );
+}
+
 file_put_contents($log_file, "RUN_ID:{$build_run_id}\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG Build launcher: " . ($is_windows ? 'windows' : 'unix') . "\n", FILE_APPEND);
 file_put_contents($log_file, "DEBUG PHP CLI: " . bandpromo_resolve_php_cli() . "\n", FILE_APPEND);

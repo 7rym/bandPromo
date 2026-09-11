@@ -2,25 +2,24 @@
 
 ## Resume point
 
-**Brand assets library membership** — Site-update to the build that heals empty `library_asset_ids`, then open Files → Brand assets (or Refresh site files). Logos/shell media should return under the brand; Orphans should stop listing every track cover.
+**Recover Visual masters on Spandexual** — Site-update to the build that re-registers uncatalogued `media/visual/master/ast_*` files, then **Refresh site files** (or Repair catalogue Apply). Files → Visual should grow beyond the 15 originals; master bytes were never wiped.
 
 ### What was wrong
 
-- Brand assets filters by **library membership**, not folder/`brand_id` alone.
-- Empty `library_asset_ids: []` skipped the one-time migrate forever.
-- Branding save cleared slot `asset_ids` whenever the delivery path was empty → libraries collapsed.
-- Orphans listed the whole Visual warehouse minus members → track covers flooded the view.
+- Files → Visual lists the **files index** (fed by registry + `original/`), not a live master-folder scan.
+- Spandexual: `original/` and the pool showed ~15; `master/` still held many `ast_*` files with no registry rows.
+- That broke the operator “content is safe / visible” promise at the catalogue layer — storage still had the masters.
 
 ### Operator steps (Spandexual)
 
 1. Site update to latest published build.
-2. Optional: System → Status → Refresh site files (runs library heal in build).
-3. Files → Brand assets → **Spandexual Tension** / **All brands** — shell members should reappear.
-4. If a logo is still missing from the library but exists in Visual, use **Add existing**.
+2. System → Status → **Refresh site files** (or Content autofix / Repair catalogue Apply).
+3. Confirm Files → Visual count rises; titles may be “Untitled …” until edited.
+4. Re-attach brand shell / covers via Branding or Add existing if membership still empty.
 
 ### Also pending
 
-- Confirm Spandexual after update: Brand assets membership, player covers, hide demo
+- Confirm Spandexual after update: Visual pool count, Brand assets, player covers
 - Timed Lyrics/Notes; favicon/PWA; legacy audit
 
 ### Active fleet

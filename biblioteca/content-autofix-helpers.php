@@ -1276,6 +1276,14 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                     'items' => array_map(static fn(array $item): string => (string) ($item['filename'] ?? ''), $pending),
                 ]);
             }
+            $pendingVisual = bandpromo_list_uncatalogued_visual_masters($root);
+            $changedTotal += count($pendingVisual);
+            if ($pendingVisual !== []) {
+                $steps[] = bandpromo_content_autofix_step_result('auto_register_visual_masters', 'Register uncatalogued Visual masters', [
+                    'changed' => count($pendingVisual),
+                    'items' => array_map(static fn(array $item): string => (string) ($item['master_filename'] ?? ''), $pendingVisual),
+                ]);
+            }
         } else {
             $reconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
             if (!empty($reconcile['changed'])) {
@@ -1291,6 +1299,25 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                         continue;
                     }
                     $errors[] = (string) ($failure['filename'] ?? 'audio') . ': ' . (string) ($failure['error'] ?? 'Could not register automatically');
+                }
+            }
+            $reconcileVisual = bandpromo_reconcile_uncatalogued_visual_masters($root);
+            if (!empty($reconcileVisual['changed']) || !empty($reconcileVisual['index_rebuilt'])) {
+                $changedTotal += (int) ($reconcileVisual['changed'] ?? 0);
+                if (!empty($reconcileVisual['index_rebuilt']) && (int) ($reconcileVisual['changed'] ?? 0) === 0) {
+                    $changedTotal++;
+                }
+                $steps[] = bandpromo_content_autofix_step_result('auto_register_visual_masters', 'Register uncatalogued Visual masters', [
+                    'changed' => max(1, (int) ($reconcileVisual['changed'] ?? 0)),
+                    'items' => $reconcileVisual['fixed'] ?? [],
+                ]);
+            }
+            if (!empty($reconcileVisual['failed'])) {
+                foreach ($reconcileVisual['failed'] as $failure) {
+                    if (!is_array($failure)) {
+                        continue;
+                    }
+                    $errors[] = (string) ($failure['filename'] ?? 'visual') . ': ' . (string) ($failure['error'] ?? 'Could not register Visual master');
                 }
             }
         }

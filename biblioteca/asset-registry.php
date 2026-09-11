@@ -2117,6 +2117,13 @@ function bandpromo_asset_registry_ensure_migrated(string $root, bool $heavy = fa
     } catch (Throwable $throwable) {
         // Autofix / Publish can retry; do not block admin boot.
     }
+
+    // Recover Visual masters that still exist on disk after registry/index drift.
+    try {
+        bandpromo_reconcile_uncatalogued_visual_masters($root);
+    } catch (Throwable $throwable) {
+        // Publish / Repair catalogue can retry; do not block admin boot.
+    }
 }
 
 function bandpromo_audio_catalogued_filenames(string $root): array
@@ -2308,6 +2315,178 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
         'reasons' => $reasons,
         'href' => '?tab=system&stab=deliverables#catalog-repair',
     ];
+}
+
+/**
+ * Visual masters on disk that are missing from the asset registry.
+ * Operators keep durable bytes in media/visual/master/; originals/index can drift.
+ *
+ * @return list<array{master_filename: string, asset_id: string, media_type: string, size: int}>
+ */
+function bandpromo_list_uncatalogued_visual_masters(string $root): array
+{
+    require_once __DIR__ . '/visual-master-helpers.php';
+
+    $masterDir = bandpromo_visual_master_dir($root);
+    if ($masterDir === '' || !is_dir($masterDir)) {
+        return [];
+    }
+
+    $imageExts = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    $videoExts = ['mkv', 'mp4', 'webm', 'mov', 'm4v'];
+    $allowed = array_fill_keys(array_merge($imageExts, $videoExts), true);
+    $found = [];
+
+    foreach (scandir($masterDir) ?: [] as $entry) {
+        if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
+            continue;
+        }
+        $path = $masterDir . DIRECTORY_SEPARATOR . $entry;
+        if (!is_file($path)) {
+            continue;
+        }
+        $ext = strtolower((string) pathinfo($entry, PATHINFO_EXTENSION));
+        if ($ext === '' || !isset($allowed[$ext])) {
+            continue;
+        }
+        $stem = (string) pathinfo($entry, PATHINFO_FILENAME);
+        if (!bandpromo_asset_is_asset_id($stem)) {
+            continue;
+        }
+
+        $byMaster = bandpromo_asset_lookup_by_master_filename($root, $entry);
+        if (is_array($byMaster) && ($byMaster['kind'] ?? '') === 'visual') {
+            continue;
+        }
+
+        $byId = bandpromo_asset_lookup_by_id($root, $stem);
+        if (is_array($byId) && ($byId['kind'] ?? '') === 'visual') {
+            $existingMaster = basename(trim((string) ($byId['master_filename'] ?? '')));
+            if ($existingMaster === $entry) {
+                // Registry row exists; files-index rebuild will restore the pool listing.
+                continue;
+            }
+            if ($existingMaster !== '') {
+                $existingPath = $masterDir . DIRECTORY_SEPARATOR . $existingMaster;
+                if (is_file($existingPath)) {
+                    // Different live master already claims this id — leave bytes alone.
+                    continue;
+                }
+            }
+        }
+
+        $size = @filesize($path);
+        $found[] = [
+            'master_filename' => $entry,
+            'asset_id' => $stem,
+            'media_type' => in_array($ext, $videoExts, true) ? 'video' : 'image',
+            'size' => $size === false ? 0 : (int) $size,
+        ];
+    }
+
+    usort($found, static function (array $a, array $b): int {
+        return strcmp((string) $a['master_filename'], (string) $b['master_filename']);
+    });
+
+    return $found;
+}
+
+/**
+ * Re-register Visual masters that exist on disk but are absent from the registry,
+ * then rebuild Files → Visual index rows. Never deletes master bytes.
+ *
+ * @return array{fixed: list<string>, failed: list<array{filename: string, error: string}>, changed: int, index_rebuilt: bool}
+ */
+function bandpromo_reconcile_uncatalogued_visual_masters(string $root): array
+{
+    require_once __DIR__ . '/media-library-state.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/build-required.php';
+
+    $result = [
+        'fixed' => [],
+        'failed' => [],
+        'changed' => 0,
+        'index_rebuilt' => false,
+    ];
+
+    $pending = bandpromo_list_uncatalogued_visual_masters($root);
+    foreach ($pending as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $masterFilename = basename(trim((string) ($item['master_filename'] ?? '')));
+        $assetId = trim((string) ($item['asset_id'] ?? ''));
+        $mediaType = strtolower(trim((string) ($item['media_type'] ?? 'image')));
+        if ($masterFilename === '' || !bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+        if (!in_array($mediaType, ['image', 'video'], true)) {
+            $mediaType = 'image';
+        }
+
+        $intakeBucket = $mediaType === 'video' ? 'video' : 'img';
+        $byId = bandpromo_asset_lookup_by_id($root, $assetId);
+        try {
+            if (is_array($byId) && ($byId['kind'] ?? '') === 'visual') {
+                $changes = [
+                    'master_filename' => $masterFilename,
+                    'master_format' => strtolower((string) pathinfo($masterFilename, PATHINFO_EXTENSION)),
+                ];
+                if (trim((string) ($byId['original_filename'] ?? '')) === '') {
+                    $changes['original_filename'] = $masterFilename;
+                }
+                bandpromo_asset_update_entry($root, $assetId, $changes);
+                bandpromo_visual_ensure_tiers_for_asset($root, $assetId);
+            } else {
+                bandpromo_asset_register_visual(
+                    $root,
+                    $masterFilename,
+                    $intakeBucket,
+                    $mediaType,
+                    [
+                        'asset_id' => $assetId,
+                        'master_filename' => $masterFilename,
+                        'role' => 'unassigned',
+                        'display' => [
+                            'title' => $mediaType === 'video' ? 'Untitled video' : 'Untitled image',
+                        ],
+                    ]
+                );
+            }
+            $result['fixed'][] = $masterFilename;
+            $result['changed']++;
+        } catch (Throwable $throwable) {
+            $result['failed'][] = [
+                'filename' => $masterFilename,
+                'error' => $throwable->getMessage(),
+            ];
+        }
+    }
+
+    // Always rebuild Visual pool listings after a master scan — a non-empty stale
+    // files index otherwise keeps showing only the old original-folder count.
+    $registryVisual = 0;
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $asset) {
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'visual') {
+            $registryVisual++;
+        }
+    }
+    $indexedVisual = count(bandpromo_media_files_index_list_visual($root));
+    if ($result['changed'] > 0 || $indexedVisual < $registryVisual) {
+        foreach (['illustrations', 'photos', 'video'] as $target) {
+            bandpromo_media_files_index_rebuild_target($root, $target);
+        }
+        $result['index_rebuilt'] = true;
+        try {
+            bandpromo_mark_build_required('media_visual_upload');
+        } catch (Throwable $ignored) {
+            // Index heal must not fail if build-required helpers are unavailable.
+        }
+    }
+
+    return $result;
 }
 
 function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
