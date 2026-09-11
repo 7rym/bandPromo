@@ -1222,9 +1222,10 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
             || !bandpromo_asset_is_asset_id((string) pathinfo($currentMaster, PATHINFO_FILENAME))
             || ($mediaType === 'video' && strtolower(trim((string) ($asset['master_format'] ?? ''))) !== 'mkv');
 
-        // Original is provenance/download only after materialize. Missing originals with a
-        // healthy master are not repairable here (Apply cannot invent an original from a remux).
-        if (!$needsMaster && !$needsCanonical) {
+        // Original is provenance/download. If it is missing but a healthy master
+        // still exists, restore original bytes from the master (stills lossless;
+        // video may be remuxed MKV).
+        if (!$needsMaster && !$needsCanonical && !$needsOriginal) {
             $step['skipped']++;
             continue;
         }
@@ -1233,6 +1234,25 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
             // publish catalogue. Playlist cover heal can re-extract from audio later.
             $step['warnings'][] = (string) $assetId . ': no source bytes for visual master (skipped)';
             $step['skipped']++;
+            continue;
+        }
+        if (!$needsMaster && !$needsCanonical && $needsOriginal) {
+            if ($dryRun) {
+                $step['changed']++;
+                $step['items'][] = (string) $assetId . ' (restore original from master)';
+                continue;
+            }
+            $restored = bandpromo_visual_ensure_original_from_master($root, $asset);
+            if (!empty($restored['ok']) && !empty($restored['copied'])) {
+                $step['changed']++;
+                $step['items'][] = (string) $assetId . ' (restored original from master)';
+            } elseif (empty($restored['ok'])) {
+                $step['warnings'][] = (string) $assetId . ': '
+                    . (string) ($restored['error'] ?? 'could not restore original from master');
+                $step['skipped']++;
+            } else {
+                $step['skipped']++;
+            }
             continue;
         }
 

@@ -2408,6 +2408,7 @@ function bandpromo_reconcile_uncatalogued_visual_masters(string $root): array
         'failed' => [],
         'changed' => 0,
         'index_rebuilt' => false,
+        'originals_restored' => 0,
     ];
 
     $pending = bandpromo_list_uncatalogued_visual_masters($root);
@@ -2462,6 +2463,22 @@ function bandpromo_reconcile_uncatalogued_visual_masters(string $root): array
                 'error' => $throwable->getMessage(),
             ];
         }
+    }
+
+    // Re-establish missing originals from durable masters for every registered Visual.
+    $originalRestore = bandpromo_visual_restore_missing_originals_from_masters($root);
+    $result['originals_restored'] = (int) ($originalRestore['changed'] ?? 0);
+    if ($result['originals_restored'] > 0) {
+        $result['changed'] += $result['originals_restored'];
+    }
+    foreach (($originalRestore['failed'] ?? []) as $failure) {
+        if (!is_array($failure)) {
+            continue;
+        }
+        $result['failed'][] = [
+            'filename' => (string) ($failure['asset_id'] ?? 'visual'),
+            'error' => (string) ($failure['error'] ?? 'Could not restore original from master'),
+        ];
     }
 
     // Always rebuild Visual pool listings after a master scan — a non-empty stale

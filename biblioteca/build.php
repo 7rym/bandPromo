@@ -272,12 +272,22 @@ try {
     require_once __DIR__ . '/asset-registry.php';
     $masterReconcile = bandpromo_reconcile_uncatalogued_visual_masters($root_dir);
     $recovered = (int) ($masterReconcile['changed'] ?? 0);
+    $originalsRestored = (int) ($masterReconcile['originals_restored'] ?? 0);
     if ($recovered > 0) {
         file_put_contents(
             $log_file,
-            '[visual masters] Re-registered ' . $recovered . " uncatalogued master(s) into the Visual pool.\n",
+            '[visual masters] Re-registered/restored ' . $recovered
+                . " Visual master/original row(s) into the pool.\n",
             FILE_APPEND
         );
+        if ($originalsRestored > 0) {
+            file_put_contents(
+                $log_file,
+                '[visual masters] Restored ' . $originalsRestored
+                    . " missing original(s) from durable masters.\n",
+                FILE_APPEND
+            );
+        }
         foreach (($masterReconcile['fixed'] ?? []) as $fixedName) {
             if (!is_string($fixedName) || trim($fixedName) === '') {
                 continue;
