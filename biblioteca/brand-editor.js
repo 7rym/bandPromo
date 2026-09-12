@@ -103,14 +103,50 @@
                 .replace(/"/g, '&quot;');
         }
 
-        function renderEditorSection(title, innerHtml, extraClass) {
+        function renderEditorSection(title, innerHtml, extraClass, previewFocus) {
             const extra = extraClass ? ` ${extraClass}` : '';
-            return `<div class="content-editor-section brand-editor-section${extra}">
+            const focusAttr = previewFocus
+                ? ` data-preview-focus-source="${escapeHtml(previewFocus)}"`
+                : '';
+            return `<div class="content-editor-section brand-editor-section${extra}"${focusAttr}>
                 <div class="content-editor-section-head">
                     <h4 class="split-editor__title">${escapeHtml(title)}</h4>
                 </div>
                 <div class="content-editor-section-body">${innerHtml}</div>
             </div>`;
+        }
+
+        let previewFocusTimer = null;
+
+        function revealPreviewFocus(focusId) {
+            const id = String(focusId || '').trim();
+            if (id === '' || !(previewEl instanceof HTMLElement)) {
+                return;
+            }
+            const target = previewEl.querySelector(`[data-preview-focus="${id}"]`);
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+            previewEl.querySelectorAll('.is-preview-focus').forEach((el) => {
+                el.classList.remove('is-preview-focus');
+            });
+            target.classList.add('is-preview-focus');
+            target.scrollIntoView({ block: 'nearest', behavior: 'smooth', inline: 'nearest' });
+            if (previewFocusTimer) {
+                window.clearTimeout(previewFocusTimer);
+            }
+            previewFocusTimer = window.setTimeout(() => {
+                target.classList.remove('is-preview-focus');
+                previewFocusTimer = null;
+            }, 1600);
+        }
+
+        function previewFocusFromEventTarget(target) {
+            if (!(target instanceof Element)) {
+                return '';
+            }
+            const section = target.closest('[data-preview-focus-source]');
+            return section ? String(section.getAttribute('data-preview-focus-source') || '').trim() : '';
         }
 
         function showBrandToast(message, type = 'warning') {
@@ -1226,9 +1262,9 @@
                     ${renderEffectsFields(fieldsLocked)}
                 `, 'brand-editor-section--effects')}
                 ${renderEditorSection('Content chrome', `
-                    <p class="brand-field-hint">Controls nav tabs and buttons inside <code>#content-container</code> only. Media player transport stays platform-styled (sellable player skins later). Uses Primary from Colours — no second palette.</p>
+                    <p class="brand-field-hint">Controls nav tabs and buttons inside <code>#content-container</code> only. Media player transport stays platform-styled (sellable player skins later). Uses Primary from Colours — no second palette. Adjusting these scrolls the live preview to the Content chrome sample.</p>
                     ${renderContentChromeFields(fieldsLocked)}
-                `, 'brand-editor-section--content-chrome')}
+                `, 'brand-editor-section--content-chrome', 'content-chrome')}
                 ${renderShellMediaFields(fieldsLocked)}
                 ${renderPlaylistSelectorFields(fieldsLocked)}
             `;
@@ -1512,7 +1548,18 @@
                         readout.textContent = String(input.value || '');
                     }
                 }
+                const focusId = previewFocusFromEventTarget(input);
+                if (focusId !== '') {
+                    revealPreviewFocus(focusId);
+                }
                 collectFormIntoDocument();
+            }
+        });
+
+        formEl.addEventListener('focusin', (event) => {
+            const focusId = previewFocusFromEventTarget(event.target);
+            if (focusId !== '') {
+                revealPreviewFocus(focusId);
             }
         });
 
@@ -1541,6 +1588,10 @@
                 applyFontPresetSelection(target.getAttribute('data-font-preset-select') || '', target.value);
             }
             if (target instanceof HTMLSelectElement && target.hasAttribute('data-token-path')) {
+                const focusId = previewFocusFromEventTarget(target);
+                if (focusId !== '') {
+                    revealPreviewFocus(focusId);
+                }
                 collectFormIntoDocument();
             }
             if (target instanceof HTMLInputElement && (

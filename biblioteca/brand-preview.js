@@ -159,6 +159,15 @@
         return `
             <div class="theme-preview-shell">
                 ${renderShellPreviewChrome(document)}
+                    <section class="theme-preview-section theme-preview-section--content-chrome" data-preview-focus="content-chrome" aria-label="Content chrome sample">
+                        <p class="theme-preview-section-label">Content chrome</p>
+                        <div class="theme-preview-controls">
+                            <button type="button" class="theme-preview-btn theme-preview-btn--primary">Primary action</button>
+                            <button type="button" class="theme-preview-btn theme-preview-btn--secondary">Secondary</button>
+                            <span class="theme-preview-tab theme-preview-tab--active">Active tab</span>
+                            <span class="theme-preview-tab">Tab</span>
+                        </div>
+                    </section>
                     ${renderPlaylistSelectorPreview(document)}
                     <section class="theme-preview-section">
                         <div class="page-richtext theme-preview-richtext">
@@ -168,15 +177,6 @@
                             <p>Paragraph — regular body text for pages, captions, and player content.</p>
                             <p class="page-text-small">Small — secondary notes and fine print.</p>
                             <pre class="page-text-code">Code — monospace sample text</pre>
-                        </div>
-                    </section>
-
-                    <section class="theme-preview-section">
-                        <div class="theme-preview-controls">
-                            <button type="button" class="theme-preview-btn theme-preview-btn--primary">Primary action</button>
-                            <button type="button" class="theme-preview-btn theme-preview-btn--secondary">Secondary</button>
-                            <span class="theme-preview-tab theme-preview-tab--active">Active tab</span>
-                            <span class="theme-preview-tab">Tab</span>
                         </div>
                     </section>
 

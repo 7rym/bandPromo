@@ -22,8 +22,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    max-height: none;
-    overflow: visible;
+    max-height: calc(100vh - 5.5rem);
+    overflow: hidden;
     position: sticky;
     top: 12px;
     align-self: flex-start;
@@ -32,21 +32,43 @@
 .brand-editor-preview-body {
     display: flex;
     flex-direction: column;
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-height: 0;
     gap: 0;
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .brand-editor-preview-frame {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-height: 0;
     max-height: none;
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.2);
+    scroll-behavior: smooth;
+}
+
+.theme-preview-section-label {
+    margin: 0 0 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #999);
+}
+
+.theme-preview-section--content-chrome {
+    scroll-margin-top: 12px;
+}
+
+.theme-preview-section--content-chrome.is-preview-focus {
+    outline: 2px solid var(--primary-a40, var(--primary-color));
+    outline-offset: 4px;
+    border-radius: 8px;
 }
 
 #brandEditorLayout .split-editor__col--active .split-editor__panel {

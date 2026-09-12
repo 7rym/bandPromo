@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-12 16:00 - Branding live preview: scrollable sticky frame; Content chrome sample moved up under the player chrome; focusing/adjusting Content chrome fields scrolls and briefly highlights that sample so operators can see style/radius/density changes.
+
 2026-09-12 15:45 - Content chrome controls: Branding section for `#content-container` (Outline/Filled/Soft, 0–50% corner roundness, border width, Minimal/Compact/Normal density). Media player transport stays platform-styled. Docs updated; mediaplayer skins remain a future sellable add-on.
 
 2026-09-12 15:25 - Record future **mediaplayer skins** as a sellable add-on once `#mediaplayer` vs `#content-container` styling is fully separable; next branding work is **content chrome controls** (not skins). Docs: PLATFORM-MODEL, ROADMAP, TODO, SESSION-HANDOFF.
