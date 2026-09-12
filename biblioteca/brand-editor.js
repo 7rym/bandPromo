@@ -385,6 +385,59 @@
             `;
         }
 
+        function contentToken(path, fallback) {
+            const raw = String(tokenValue(editorDocument, path) || '').trim().toLowerCase();
+            return raw !== '' ? raw : fallback;
+        }
+
+        function renderContentChromeFields(locked) {
+            const style = contentToken('content.style', 'outline');
+            const radius = effectIntToken('content.radius_percent', 50);
+            const border = effectIntToken('content.border_width', 2);
+            const density = contentToken('content.density', 'normal');
+            const styleOptions = [
+                ['outline', 'Outline'],
+                ['filled', 'Filled'],
+                ['soft', 'Soft'],
+            ];
+            const densityOptions = [
+                ['minimal', 'Minimal'],
+                ['compact', 'Compact'],
+                ['normal', 'Normal'],
+            ];
+            return `
+                <div class="brand-effects-grid">
+                    <label class="brand-effect-field">
+                        <span class="brand-effect-label">Button style</span>
+                        <select data-token-path="content.style" ${locked ? 'disabled' : ''}>
+                            ${styleOptions.map(([value, label]) => `
+                                <option value="${value}" ${style === value ? 'selected' : ''}>${label}</option>
+                            `).join('')}
+                        </select>
+                        <span class="brand-field-hint">Outline, filled, or soft fill for nav tabs and content buttons (Primary colour).</span>
+                    </label>
+                    <label class="brand-effect-field">
+                        <span class="brand-effect-label">Corner roundness <strong data-effect-value="radius_percent">${escapeHtml(radius)}</strong>%</span>
+                        <input type="range" min="0" max="50" step="1" value="${escapeHtml(radius)}" data-token-path="content.radius_percent" data-effect-range="radius_percent" ${locked ? 'disabled' : ''}>
+                        <span class="brand-field-hint">0% = square; ~50% ≈ pill. Scales with the control size.</span>
+                    </label>
+                    <label class="brand-effect-field">
+                        <span class="brand-effect-label">Border thickness <strong data-effect-value="border_width">${escapeHtml(border)}</strong>px</span>
+                        <input type="range" min="1" max="4" step="1" value="${escapeHtml(border)}" data-token-path="content.border_width" data-effect-range="border_width" ${locked ? 'disabled' : ''}>
+                    </label>
+                    <label class="brand-effect-field">
+                        <span class="brand-effect-label">Density</span>
+                        <select data-token-path="content.density" ${locked ? 'disabled' : ''}>
+                            ${densityOptions.map(([value, label]) => `
+                                <option value="${value}" ${density === value ? 'selected' : ''}>${label}</option>
+                            `).join('')}
+                        </select>
+                        <span class="brand-field-hint">Minimal / Compact / Normal — padding and gaps only (no raw margin fields).</span>
+                    </label>
+                </div>
+            `;
+        }
+
         function brandTitleValue() {
             return titleInput instanceof HTMLInputElement
                 ? String(titleInput.value || '').trim()
@@ -1172,6 +1225,10 @@
                     <p class="brand-field-hint">Backdrop dim darkens the still/living shell only. Panel dim sets how strongly the Panels colour fills transport, lyrics, playlists, pages, gallery, and login glass — tune blur separately so they do not stack as one control.</p>
                     ${renderEffectsFields(fieldsLocked)}
                 `, 'brand-editor-section--effects')}
+                ${renderEditorSection('Content chrome', `
+                    <p class="brand-field-hint">Controls nav tabs and buttons inside <code>#content-container</code> only. Media player transport stays platform-styled (sellable player skins later). Uses Primary from Colours — no second palette.</p>
+                    ${renderContentChromeFields(fieldsLocked)}
+                `, 'brand-editor-section--content-chrome')}
                 ${renderShellMediaFields(fieldsLocked)}
                 ${renderPlaylistSelectorFields(fieldsLocked)}
             `;
@@ -1245,10 +1302,10 @@
                 editorDocument.mood = String(descriptionInput.value || '').trim();
             }
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
-                if (!(input instanceof HTMLInputElement) || input.hidden) return;
+                if (!(input instanceof HTMLInputElement || input instanceof HTMLSelectElement) || input.hidden) return;
                 const path = input.getAttribute('data-token-path') || '';
                 if (!path) return;
-                setTokenValue(editorDocument, path, input.value.trim());
+                setTokenValue(editorDocument, path, String(input.value || '').trim());
             });
             previewDocument = cloneDocument(editorDocument);
             renderPreview(previewDocument);
@@ -1482,6 +1539,9 @@
             }
             if (target instanceof HTMLSelectElement && target.hasAttribute('data-font-preset-select')) {
                 applyFontPresetSelection(target.getAttribute('data-font-preset-select') || '', target.value);
+            }
+            if (target instanceof HTMLSelectElement && target.hasAttribute('data-token-path')) {
+                collectFormIntoDocument();
             }
             if (target instanceof HTMLInputElement && (
                 target.name === 'brandPlaylistSelector'

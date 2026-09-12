@@ -128,6 +128,8 @@ Policy — **locked**:
 - [x] Lock **upload role tagging**: contextual uploads inherit role + brand; bulk Visual uploads default to `role: unassigned` — never block upload on role selection.
 - [x] Lock **`special` is legacy intake only**, not a brand role — migrate `media/special/` into Visual pool with explicit role tags.
 - [x] Lock **system shell vs brand overlay**: platform owns layout and dark-shell baseline; brand replaces enumerated identity slots only; broken brand degrades to default, not a broken site (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands).
+- [x] **Content chrome controls** — `tokens.content` (style, %-radius, border width, density presets) for `#content-container` tabs/buttons; `#mediaplayer` stays platform button chrome (2026-09-12).
+- [ ] **Mediaplayer skins (future sellable add-on)** — after content chrome is separate, optional install-locked skin packs for `#mediaplayer` presentation only (Winamp-style). Entitlement model already anticipates sold themes/skins in [ROADMAP.md](ROADMAP.md). Not v0.8 exit-gate work.
 
 Implementation order:
 

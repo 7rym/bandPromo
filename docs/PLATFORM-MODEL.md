@@ -758,7 +758,16 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--panel-fill` is derived from `color.surface_mid` × Panel dim.
 
-**Player layout contract:** `#mediaplayer` layout is platform-owned (cover scene, transport, scrubber). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators in later phases. Both share the brand colour scheme. Phase 2 will add separate Player vs Content button stylers (radius/fill); Phase 1 does not invent button tokens.
+**Player layout contract:** `#mediaplayer` layout is platform-owned (cover scene, transport, scrubber). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators. Both share the brand colour scheme. **Content chrome** (`tokens.content`): style (`outline`/`filled`/`soft`), corner roundness as **0–50%**, border width 1–4px, density **minimal|compact|normal** (padding/gap presets — no raw margin fields). Applies to `#content-container` controls only. **Later:** sellable mediaplayer skins once player vs content styling stays separable.
+
+**Content chrome tokens:**
+
+| Token | Values | Purpose |
+|-------|--------|---------|
+| `content.style` | `outline` \| `filled` \| `soft` | Idle/hover fill for content buttons and tabs |
+| `content.radius_percent` | 0–50 | `border-radius` as % of control box (50% ≈ pill) |
+| `content.border_width` | 1–4 px | Control border thickness |
+| `content.density` | `minimal` \| `compact` \| `normal` | Padding, min-height, and inter-control gap presets |
 
 **Layout:** Player cover art size (`--card-size`) is **not** a brand token. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Cover size, player rail, content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints are platform-owned in `biblioteca/style.css`. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
 

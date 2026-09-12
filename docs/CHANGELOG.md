@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-12 15:45 - Content chrome controls: Branding section for `#content-container` (Outline/Filled/Soft, 0–50% corner roundness, border width, Minimal/Compact/Normal density). Media player transport stays platform-styled. Docs updated; mediaplayer skins remain a future sellable add-on.
+
+2026-09-12 15:25 - Record future **mediaplayer skins** as a sellable add-on once `#mediaplayer` vs `#content-container` styling is fully separable; next branding work is **content chrome controls** (not skins). Docs: PLATFORM-MODEL, ROADMAP, TODO, SESSION-HANDOFF.
+
 2026-09-11 22:00 - Brand colour honesty Phase 1: glass panels use Panels colour × Panel dim (`--panel-fill`) instead of black scrim; idle tabs/artist/secondary copy use muted text; page-content link hover wired; `#mediaplayer` layout stays platform-owned while both containers share the colour scheme. Phase 2 (later): separate Player vs Content button stylers.
 
 2026-09-11 21:20 - Policy correction: do **not** fake Visual originals by copying masters into `original/`. Original stays as-uploaded provenance only; recover catalogue from masters into the registry/pool, leave missing originals missing (PCF is masters-only).

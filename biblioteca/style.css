@@ -38,6 +38,17 @@
     --panel-scrim-strength: 0.72;
     --panel-blur: 5px;
     --panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
+    --content-control-radius: 50%;
+    --content-control-border-width: 2px;
+    --content-control-pad-y: 8px;
+    --content-control-pad-x: 14px;
+    --content-control-min-height: 40px;
+    --content-control-gap: 6px;
+    --content-control-bg: transparent;
+    --content-control-border: var(--primary-color);
+    --content-control-fg: var(--primary-color);
+    --content-control-bg-hover: var(--primary-color);
+    --content-control-fg-hover: #000000;
 }
 
 body {
@@ -608,7 +619,8 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
     z-index: 20;
 }
 
-button {
+/* Platform media-player chrome — not Content chrome tokens (skins later). */
+#mediaplayer button {
     background: none;
     border: 2px solid var(--primary-color);
     color: var(--primary-color);
@@ -624,15 +636,62 @@ button {
 }
 
 @media (hover: hover) {
-    button:hover {
+    #mediaplayer button:hover {
         background: var(--primary-color);
         color: #000;
         box-shadow: 0 0 15px var(--primary-color);
     }
 }
 
-button:active {
+#mediaplayer button:active {
     transform: scale(0.95);
+}
+
+#mediaplayer button.pulse-guide {
+    animation: pulseGlow 1.5s infinite;
+}
+
+/* Content-container controls — Branding → Content chrome tokens. */
+#content-container button,
+#content-container .playlist-selector-btn {
+    background: var(--content-control-bg);
+    border: var(--content-control-border-width) solid var(--content-control-border);
+    color: var(--content-control-fg);
+    padding: var(--content-control-pad-y) var(--content-control-pad-x);
+    min-height: var(--content-control-min-height);
+    border-radius: var(--content-control-radius);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+@media (hover: hover) {
+    #content-container button:hover,
+    #content-container .playlist-selector-btn:hover {
+        background: var(--content-control-bg-hover);
+        border-color: var(--content-control-border);
+        color: var(--content-control-fg-hover);
+        box-shadow: 0 0 12px var(--primary-a30);
+    }
+}
+
+#content-container button:active,
+#content-container .playlist-selector-btn:active {
+    transform: scale(0.97);
+}
+
+/* Legacy global button rule — prefer scoped rules above; keep minimal base for stray controls. */
+button {
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    outline: none;
 }
 
 /* Pulse Guide Animation */
@@ -871,7 +930,7 @@ button.pulse-guide {
 
 .content-toggle {
     display: flex;
-    gap: 6px;
+    gap: var(--content-control-gap, 6px);
     width: 100%;
     padding: 8px var(--content-gutter);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -892,12 +951,16 @@ button.pulse-guide {
 .content-toggle button {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 40px;
-    padding: 6px 8px;
     font-size: 0.78rem;
-    border: 2px solid var(--primary-a30);
-    background: var(--primary-a05);
-    color: var(--color-text-muted);
+    /* Soft idle tint when style=outline still readable on busy shells */
+    background: var(--content-control-bg, var(--primary-a05));
+    border-width: var(--content-control-border-width);
+    border-style: solid;
+    border-color: var(--content-control-border, var(--primary-a30));
+    color: var(--content-control-fg, var(--color-text-muted));
+    padding: var(--content-control-pad-y) var(--content-control-pad-x);
+    min-height: var(--content-control-min-height);
+    border-radius: var(--content-control-radius);
     transition: all 0.2s ease;
     scroll-snap-align: center;
     white-space: nowrap;
@@ -907,9 +970,9 @@ button.pulse-guide {
 
 @media (hover: hover) {
     .content-toggle button:hover {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-        background: var(--primary-a10);
+        background: var(--content-control-bg-hover);
+        border-color: var(--content-control-border);
+        color: var(--content-control-fg-hover);
     }
 }
 
@@ -931,14 +994,12 @@ button.pulse-guide {
     }
 
     .content-toggle {
-        gap: 4px;
+        gap: max(2px, calc(var(--content-control-gap, 6px) - 2px));
         padding-block: 6px;
     }
 
     .content-toggle button {
         min-width: 0;
-        min-height: 36px;
-        padding: 5px 4px;
         font-size: 0.72rem;
     }
 }
@@ -1331,7 +1392,7 @@ button.pulse-guide {
 .playlist-selector-buttons {
     display: flex;
     flex-wrap: nowrap;
-    gap: 0.45rem;
+    gap: var(--content-control-gap, 0.45rem);
     flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
@@ -1363,26 +1424,18 @@ button.pulse-guide {
 .playlist-selector-btn {
     appearance: none;
     -webkit-appearance: none;
-    background-color: var(--color-surface-mid, #1e1e24);
-    color: var(--text-color, #ffffff);
-    border: 1px solid var(--primary-a45);
-    border-radius: 8px;
-    padding: 0.45rem 0.8rem;
-    cursor: pointer;
+    /* Colours / radius / padding come from #content-container .playlist-selector-btn tokens. */
     font: inherit;
     font-size: 0.9rem;
     flex: 0 0 auto;
     white-space: nowrap;
-    transition: border-color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
-}
-
-.playlist-selector-btn:hover {
-    border-color: var(--primary-color, #00d2ff);
+    text-transform: none;
 }
 
 .playlist-selector-btn.is-active {
     border-color: var(--primary-color, #00d2ff);
     background-color: color-mix(in srgb, var(--primary-color, #00d2ff) 18%, var(--color-surface-mid, #1e1e24));
+    color: var(--text-color, #ffffff);
 }
 
 .playlist-selector-btn:focus-visible {

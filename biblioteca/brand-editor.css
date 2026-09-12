@@ -541,38 +541,47 @@
 }
 
 .theme-preview-btn {
-    border-radius: 6px;
-    padding: 0.45rem 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--content-control-pad-y, 8px) var(--content-control-pad-x, 14px);
+    min-height: var(--content-control-min-height, 40px);
+    border-radius: var(--content-control-radius, 30px);
+    border: var(--content-control-border-width, 2px) solid var(--content-control-border, var(--primary-color));
+    background: var(--content-control-bg, transparent);
+    color: var(--content-control-fg, var(--primary-color));
+    font-weight: bold;
+    text-transform: uppercase;
     font-size: 0.85rem;
-    font-weight: 600;
+    box-sizing: border-box;
     cursor: default;
 }
 
 .theme-preview-btn--primary {
-    background: var(--primary-color);
-    color: #111;
-    border: 1px solid var(--primary-color);
+    /* Content chrome tokens already paint primary actions in the preview. */
 }
 
 .theme-preview-btn--secondary {
-    background: transparent;
-    color: var(--primary-color);
-    border: 2px solid var(--primary-color);
+    opacity: 0.85;
 }
 
 .theme-preview-tab {
     display: inline-flex;
     align-items: center;
-    padding: 0.35rem 0.7rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: var(--color-text-muted);
+    padding: var(--content-control-pad-y, 0.35rem) var(--content-control-pad-x, 0.7rem);
+    min-height: var(--content-control-min-height, auto);
+    border-radius: var(--content-control-radius, 999px);
+    border: var(--content-control-border-width, 1px) solid var(--content-control-border, rgba(255, 255, 255, 0.12));
+    background: var(--content-control-bg, transparent);
+    color: var(--content-control-fg, var(--color-text-muted));
     font-size: 0.82rem;
+    box-sizing: border-box;
 }
 
 .theme-preview-tab--active {
     border-color: var(--primary-color);
-    color: var(--primary-color);
+    background: var(--primary-color);
+    color: #000;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
 }
 
@@ -827,6 +836,15 @@
 .brand-effect-label strong {
     font-variant-numeric: tabular-nums;
     color: var(--primary-color, #00d2ff);
+}
+
+.brand-effect-field select {
+    max-width: 16rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid var(--border2, #444);
+    background: var(--surface2, #1a1a1a);
+    color: var(--text, #fff);
 }
 
 .brand-effect-field input[type="range"] {

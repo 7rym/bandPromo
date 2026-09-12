@@ -287,6 +287,7 @@ Installation-identity model for v0.7 exit:
 Install-locked paid add-on entitlement model for v0.7 exit:
 
 - this model applies first to bandPromo-sold themes/skins and modules/features; it should not be confused with operator-defined audience/member premium access inside a site
+- **Future product note (recorded 2026-09-12):** separating `#mediaplayer` vs `#content-container` styling enables sellable **mediaplayer skins** (presentation packs for the player rail only). Ship content-chrome controls first; skins come after that separation is durable — not as freeform brand editor layout overrides in v0.8.
 - core bandPromo must remain fully usable without central activation; only the paid add-on itself may depend on entitlement checks
 - each paid add-on entitlement should bind to the stronger installation identity state, not to a visible copied UID alone
 - the entitlement service should recognize a legitimate moved or restored installation when the preserved runtime identity is still intact, so normal host moves do not force a punitive relicensing flow

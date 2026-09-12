@@ -2,26 +2,19 @@
 
 ## Resume point
 
-**Brand colour honesty Phase 1** — Site-update, then check Branding Colours: Panels should tint transport/content glass; muted text on idle tabs. Phase 2 (not started): separate Player vs Content button stylers.
+**Content chrome shipped** — Site-update, then Content → Branding → **Content chrome**: try Soft + lower % radius + Compact; confirm nav tabs change while play/prev/next stay platform pills.
 
 ### Contract
 
-- `#mediaplayer` — platform layout (scene, transport, scrubber); brand colours apply
-- `#content-container` — freer for operators later; same colour scheme now
-- `--panel-fill` = `surface_mid` × Panel dim (not black glass)
-- Do not invent Visual originals from masters (prior policy)
-
-### Operator steps
-
-1. Site update to latest build.
-2. Content → Branding: set a distinct Panels colour + Panel dim; confirm glass tints on `/play`.
-3. Idle nav tabs should follow Muted text.
+- `#content-container` — operator Content chrome tokens (`style`, `radius_percent`, `border_width`, `density`)
+- `#mediaplayer` — platform button chrome (skins later)
+- Shared brand colours (Phase 1 honesty) still apply to both
 
 ### Also pending
 
-- Phase 2 button stylers (Player constrained / Content freer)
-- Confirm Spandexual Visual pool after master re-register
-- Timed Lyrics/Notes; favicon/PWA; legacy audit
+- Favicon/PWA from Branding; Spandexual Visual pool confirm
+- Timed Lyrics/Notes; legacy audit
+- Future: mediaplayer skins add-on
 
 ### Active fleet
 

@@ -243,8 +243,61 @@
         rules.push(`--panel-scrim-strength:${(panelDim / 100).toFixed(2)}`);
         rules.push(`--panel-blur:${blur}px`);
         rules.push(`--panel-fill:color-mix(in srgb, var(--color-surface-mid) ${panelDim}%, transparent)`);
+        rules.push('--primary-a15:color-mix(in srgb, var(--primary-color) 15%, transparent)');
         rules.push('--primary-a20:color-mix(in srgb, var(--primary-color) 20%, transparent)');
+        rules.push('--primary-a30:color-mix(in srgb, var(--primary-color) 30%, transparent)');
         rules.push('--primary-a50:color-mix(in srgb, var(--primary-color) 50%, transparent)');
+
+        const contentStyle = String(tokenValue(document, 'content.style') || 'outline').toLowerCase();
+        const radiusParsed = parseInt(String(tokenValue(document, 'content.radius_percent') || '50'), 10);
+        const radius = Number.isFinite(radiusParsed) ? Math.max(0, Math.min(50, radiusParsed)) : 50;
+        const borderParsed = parseInt(String(tokenValue(document, 'content.border_width') || '2'), 10);
+        const borderWidth = Number.isFinite(borderParsed) ? Math.max(1, Math.min(4, borderParsed)) : 2;
+        const densityRaw = String(tokenValue(document, 'content.density') || 'normal').toLowerCase();
+        let padY = 8;
+        let padX = 14;
+        let minHeight = 40;
+        let gap = 6;
+        if (densityRaw === 'minimal') {
+            padY = 4;
+            padX = 8;
+            minHeight = 32;
+            gap = 4;
+        } else if (densityRaw === 'compact') {
+            padY = 6;
+            padX = 10;
+            minHeight = 36;
+            gap = 5;
+        }
+        let bg = 'transparent';
+        let border = 'var(--primary-color)';
+        let fg = 'var(--primary-color)';
+        let bgHover = 'var(--primary-color)';
+        let fgHover = '#000000';
+        if (contentStyle === 'filled') {
+            bg = 'var(--primary-color)';
+            border = 'var(--primary-color)';
+            fg = '#000000';
+            bgHover = 'color-mix(in srgb, var(--primary-color) 88%, white)';
+            fgHover = '#000000';
+        } else if (contentStyle === 'soft') {
+            bg = 'var(--primary-a15)';
+            border = 'var(--primary-a30)';
+            fg = 'var(--color-text-muted)';
+            bgHover = 'var(--primary-a30)';
+            fgHover = 'var(--text-color)';
+        }
+        rules.push(`--content-control-radius:${radius}%`);
+        rules.push(`--content-control-border-width:${borderWidth}px`);
+        rules.push(`--content-control-pad-y:${padY}px`);
+        rules.push(`--content-control-pad-x:${padX}px`);
+        rules.push(`--content-control-min-height:${minHeight}px`);
+        rules.push(`--content-control-gap:${gap}px`);
+        rules.push(`--content-control-bg:${bg}`);
+        rules.push(`--content-control-border:${border}`);
+        rules.push(`--content-control-fg:${fg}`);
+        rules.push(`--content-control-bg-hover:${bgHover}`);
+        rules.push(`--content-control-fg-hover:${fgHover}`);
 
         style.textContent = rules.length ? `${selector}{${rules.join(';')};}` : '';
         container.innerHTML = renderMarkup(document);

@@ -138,6 +138,127 @@ function bandpromo_brand_default_effects_tokens(): array
     ];
 }
 
+/**
+ * Content-container chrome (tabs / content buttons). Not applied to #mediaplayer.
+ *
+ * @return array{style: string, radius_percent: string, border_width: string, density: string}
+ */
+function bandpromo_brand_default_content_tokens(): array
+{
+    return [
+        // outline | filled | soft
+        'style' => 'outline',
+        // 0–50 → border-radius percentage (50% ≈ pill on typical control height).
+        'radius_percent' => '50',
+        'border_width' => '2',
+        // minimal | compact | normal
+        'density' => 'normal',
+    ];
+}
+
+function bandpromo_brand_normalize_content_style(mixed $value): string
+{
+    $style = strtolower(trim((string) $value));
+    if (in_array($style, ['outline', 'filled', 'soft'], true)) {
+        return $style;
+    }
+
+    return 'outline';
+}
+
+function bandpromo_brand_normalize_content_density(mixed $value): string
+{
+    $density = strtolower(trim((string) $value));
+    if (in_array($density, ['minimal', 'compact', 'normal'], true)) {
+        return $density;
+    }
+
+    return 'normal';
+}
+
+/**
+ * Density → padding / min-height / gap (operators never edit raw px).
+ *
+ * @return array{pad_y: int, pad_x: int, min_height: int, gap: int}
+ */
+function bandpromo_brand_content_density_metrics(string $density): array
+{
+    $density = bandpromo_brand_normalize_content_density($density);
+    if ($density === 'minimal') {
+        return ['pad_y' => 4, 'pad_x' => 8, 'min_height' => 32, 'gap' => 4];
+    }
+    if ($density === 'compact') {
+        return ['pad_y' => 6, 'pad_x' => 10, 'min_height' => 36, 'gap' => 5];
+    }
+
+    return ['pad_y' => 8, 'pad_x' => 14, 'min_height' => 40, 'gap' => 6];
+}
+
+/**
+ * CSS vars for #content-container chrome (style + radius% + border + density).
+ *
+ * @return array<string, string>
+ */
+function bandpromo_brand_content_css_variables(array $document): array
+{
+    $defaults = bandpromo_brand_default_content_tokens();
+    $content = [];
+    $tokens = is_array($document['tokens'] ?? null) ? $document['tokens'] : [];
+    if (is_array($tokens['content'] ?? null)) {
+        $content = $tokens['content'];
+    }
+
+    $style = bandpromo_brand_normalize_content_style($content['style'] ?? $defaults['style']);
+    $radius = (int) bandpromo_brand_normalize_int_token(
+        $content['radius_percent'] ?? $defaults['radius_percent'],
+        0,
+        50,
+        (int) $defaults['radius_percent']
+    );
+    $borderWidth = (int) bandpromo_brand_normalize_int_token(
+        $content['border_width'] ?? $defaults['border_width'],
+        1,
+        4,
+        (int) $defaults['border_width']
+    );
+    $density = bandpromo_brand_normalize_content_density($content['density'] ?? $defaults['density']);
+    $metrics = bandpromo_brand_content_density_metrics($density);
+
+    if ($style === 'filled') {
+        $bg = 'var(--primary-color)';
+        $border = 'var(--primary-color)';
+        $fg = '#000000';
+        $bgHover = 'color-mix(in srgb, var(--primary-color) 88%, white)';
+        $fgHover = '#000000';
+    } elseif ($style === 'soft') {
+        $bg = 'var(--primary-a15)';
+        $border = 'var(--primary-a30)';
+        $fg = 'var(--color-text-muted)';
+        $bgHover = 'var(--primary-a30)';
+        $fgHover = 'var(--text-color)';
+    } else {
+        $bg = 'transparent';
+        $border = 'var(--primary-color)';
+        $fg = 'var(--primary-color)';
+        $bgHover = 'var(--primary-color)';
+        $fgHover = '#000000';
+    }
+
+    return [
+        '--content-control-radius' => $radius . '%',
+        '--content-control-border-width' => $borderWidth . 'px',
+        '--content-control-pad-y' => $metrics['pad_y'] . 'px',
+        '--content-control-pad-x' => $metrics['pad_x'] . 'px',
+        '--content-control-min-height' => $metrics['min_height'] . 'px',
+        '--content-control-gap' => $metrics['gap'] . 'px',
+        '--content-control-bg' => $bg,
+        '--content-control-border' => $border,
+        '--content-control-fg' => $fg,
+        '--content-control-bg-hover' => $bgHover,
+        '--content-control-fg-hover' => $fgHover,
+    ];
+}
+
 function bandpromo_brand_normalize_int_token(mixed $value, int $min, int $max, int $fallback): string
 {
     if (!is_numeric($value) && trim((string) $value) === '') {
@@ -253,6 +374,7 @@ function bandpromo_brand_default_document(): array
         'tokens' => [
             'color' => bandpromo_brand_default_color_tokens(),
             'effects' => bandpromo_brand_default_effects_tokens(),
+            'content' => bandpromo_brand_default_content_tokens(),
             'layout' => [
                 'card_size_base' => '400px',
             ],
@@ -418,10 +540,12 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
     $defaults = bandpromo_brand_default_document()['tokens'];
     $color = is_array($tokens['color'] ?? null) ? $tokens['color'] : [];
     $effects = is_array($tokens['effects'] ?? null) ? $tokens['effects'] : [];
+    $content = is_array($tokens['content'] ?? null) ? $tokens['content'] : [];
     $layout = is_array($tokens['layout'] ?? null) ? $tokens['layout'] : [];
     $typography = is_array($tokens['typography'] ?? null) ? $tokens['typography'] : [];
     $defaultColor = bandpromo_brand_default_color_tokens();
     $defaultEffects = bandpromo_brand_default_effects_tokens();
+    $defaultContent = bandpromo_brand_default_content_tokens();
 
     $normalizedColor = [];
     foreach ($defaultColor as $key => $fallback) {
@@ -451,6 +575,23 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
         ),
     ];
 
+    $normalizedContent = [
+        'style' => bandpromo_brand_normalize_content_style($content['style'] ?? $defaultContent['style']),
+        'radius_percent' => bandpromo_brand_normalize_int_token(
+            $content['radius_percent'] ?? $defaultContent['radius_percent'],
+            0,
+            50,
+            (int) $defaultContent['radius_percent']
+        ),
+        'border_width' => bandpromo_brand_normalize_int_token(
+            $content['border_width'] ?? $defaultContent['border_width'],
+            1,
+            4,
+            (int) $defaultContent['border_width']
+        ),
+        'density' => bandpromo_brand_normalize_content_density($content['density'] ?? $defaultContent['density']),
+    ];
+
     $cardSize = trim((string) ($layout['card_size_base'] ?? $defaults['layout']['card_size_base']));
     if ($cardSize === '' || !preg_match('/^\d+(px|rem|em|%)$/', $cardSize)) {
         $cardSize = (string) $defaults['layout']['card_size_base'];
@@ -470,6 +611,7 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
     return [
         'color' => $normalizedColor,
         'effects' => $normalizedEffects,
+        'content' => $normalizedContent,
         'layout' => [
             'card_size_base' => $cardSize,
         ],
@@ -1788,6 +1930,10 @@ function bandpromo_brand_css_variables(array $document): array
         $vars[$cssVar] = $value;
     }
 
+    foreach (bandpromo_brand_content_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
     return $vars;
 }
 
@@ -1944,6 +2090,10 @@ function bandpromo_brand_render_css(string $root): string
     }
 
     foreach (bandpromo_brand_effects_css_variables($document) as $cssVar => $value) {
+        $rules[] = $cssVar . ':' . $value;
+    }
+
+    foreach (bandpromo_brand_content_css_variables($document) as $cssVar => $value) {
         $rules[] = $cssVar . ':' . $value;
     }
 
