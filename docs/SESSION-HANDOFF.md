@@ -2,13 +2,7 @@
 
 ## Resume point
 
-**Content chrome shipped** — Site-update, then Content → Branding → **Content chrome**: try Soft + lower % radius + Compact; confirm nav tabs change while play/prev/next stay platform pills.
-
-### Contract
-
-- `#content-container` — operator Content chrome tokens (`style`, `radius_percent`, `border_width`, `density`)
-- `#mediaplayer` — platform button chrome (skins later)
-- Shared brand colours (Phase 1 honesty) still apply to both
+**Branding preview focus** — Content chrome sample is now early in the live preview; the sticky preview scrolls. Site-update to **build 465**, open Branding → Content chrome, tweak radius — preview should scroll to the labelled Content chrome sample.
 
 ### Also pending
 
